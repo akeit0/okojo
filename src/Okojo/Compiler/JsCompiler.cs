@@ -29,6 +29,7 @@ public sealed partial class JsCompiler : IDisposable
     private readonly IReadOnlyDictionary<string, PrivateFieldBinding>? classPrivateNameToBinding;
     private readonly JsCompilerContext? compileContext;
 
+    private readonly Dictionary<int, int> currentContextPerIterationBaseDepthBySymbol;
     private readonly Dictionary<int, int> currentContextSlotById;
     private readonly bool emitImplicitSuperForwardAll;
     private readonly HashSet<int> forcedAliasContextSlotSymbolIds;
@@ -217,6 +218,7 @@ public sealed partial class JsCompiler : IDisposable
         syntheticSymbolIdsByName = Vm.RentCompileDictionary<string, int>(32, StringComparer.Ordinal);
         localRegisters = Vm.RentCompileHashSet<int>(32);
         currentContextSlotById = Vm.RentCompileDictionary<int, int>(16);
+        currentContextPerIterationBaseDepthBySymbol = Vm.RentCompileDictionary<int, int>(16);
         nestedBlockLexicals = Vm.RentCompileDictionary<int, List<BlockLexicalBinding>>(8);
         switchLexicalsByPosition = Vm.RentCompileDictionary<int, List<BlockLexicalBinding>>(8);
         forHeadLexicalsByPosition = Vm.RentCompileDictionary<int, List<BlockLexicalBinding>>(8);
@@ -354,6 +356,7 @@ public sealed partial class JsCompiler : IDisposable
         Vm.ReturnCompileDictionary(syntheticSymbolIdsByName);
         Vm.ReturnCompileHashSet(localRegisters);
         Vm.ReturnCompileDictionary(currentContextSlotById);
+        Vm.ReturnCompileDictionary(currentContextPerIterationBaseDepthBySymbol);
         Vm.ReturnCompileDictionary(nestedBlockLexicals);
         Vm.ReturnCompileDictionary(switchLexicalsByPosition);
         Vm.ReturnCompileDictionary(forHeadLexicalsByPosition);
@@ -1740,6 +1743,9 @@ public sealed partial class JsCompiler : IDisposable
             depth++;
         }
 
+        if (currentContextPerIterationBaseDepthBySymbol.TryGetValue(symbolId, out var baseDepth))
+            return Math.Max(0, depth - baseDepth);
+
         return depth;
     }
 
@@ -1748,6 +1754,23 @@ public sealed partial class JsCompiler : IDisposable
         return TryGetSymbolId(resolvedName, out var symbolId)
             ? GetActivePerIterationContextDepthForSymbol(symbolId)
             : 0;
+    }
+
+    private void RecordCurrentContextPerIterationBaseDepth(IReadOnlyList<BlockLexicalBinding> bindings)
+    {
+        if (bindings.Count == 0)
+            return;
+
+        var baseDepth = activePerIterationContextSlots.Count;
+        for (var i = 0; i < bindings.Count; i++)
+        {
+            var symbolId = bindings[i].InternalSymbolId;
+            if (currentContextPerIterationBaseDepthBySymbol.ContainsKey(symbolId))
+                continue;
+            if (!TryGetCurrentContextSlot(symbolId, out _))
+                continue;
+            currentContextPerIterationBaseDepthBySymbol[symbolId] = baseDepth;
+        }
     }
 
     private void EmitPushClonedCurrentContext()
@@ -5450,6 +5473,9 @@ public sealed partial class JsCompiler : IDisposable
 
     private void ActivateLexicalAliasScope(LexicalAliasScope scope)
     {
+        if (!scope.Inherited)
+            RecordCurrentContextPerIterationBaseDepth(scope.Bindings);
+
         if (!enableAliasScopeRegisterAllocation || scope.Inherited || scope.RuntimeAllocatedSymbolIds is not null)
             return;
 

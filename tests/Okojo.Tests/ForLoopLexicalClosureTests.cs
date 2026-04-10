@@ -68,4 +68,26 @@ public class ForLoopLexicalClosureTests
         Assert.That(realm.Accumulator.AsString(),
             Is.EqualTo("1:1:10|1:2:10|1:3:10|2:2:20|2:3:20|3:3:30|2:2:20|2:3:20|3:3:30"));
     }
+
+    [Test]
+    public void NestedForLet_InnerLoopHead_Initializes_Current_Context_Before_PerIteration_Clone()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsCompiler(realm);
+        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+                                                                   let seen = [];
+                                                                   for (let i = 0; i < 2; ++i) {
+                                                                     for (let j = i + 1; j < 4; ++j) {
+                                                                       let captured = j * 10;
+                                                                       const readCaptured = () => captured;
+                                                                       seen.push(`${j}:${readCaptured()}`);
+                                                                     }
+                                                                   }
+                                                                   seen.join("|");
+                                                                   """));
+
+        realm.Execute(script);
+        Assert.That(realm.Accumulator.AsString(),
+            Is.EqualTo("1:10|2:20|3:30|2:20|3:30"));
+    }
 }
