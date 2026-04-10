@@ -289,7 +289,7 @@ public class JsObject
             {
                 if (receiver.TryDefineOwnDataPropertyForSet(realm, atom, value, out slotInfo))
                     return true;
-                return receiver.SetPropertyAtomCore(realm, receiver, atom, value, out slotInfo);
+                return receiver.SetPropertyAtomWithReceiver(realm, receiver, atom, value, out slotInfo);
             }
 
             if (!UsesDynamicNamedProperties)
@@ -310,7 +310,7 @@ public class JsObject
         {
             if (receiver.TryDefineOwnDataPropertyForSet(realm, atom, value, out slotInfo))
                 return true;
-            return receiver.SetPropertyAtomCore(realm, receiver, atom, value, out slotInfo);
+            return receiver.SetPropertyAtomWithReceiver(realm, receiver, atom, value, out slotInfo);
         }
 
         if (!receiver.IsExtensible)
@@ -375,7 +375,7 @@ public class JsObject
             {
                 if (receiver.TryDefineOwnDataPropertyForSet(realm, index, value, out _))
                     return true;
-                return receiver.SetElementCore(realm, receiver, index, value);
+                return receiver.SetElementWithReceiver(realm, receiver, index, value);
             }
 
             IndexedProperties[index] = new(value, null, existing.Flags);
@@ -407,7 +407,7 @@ public class JsObject
             {
                 if (receiver.TryDefineOwnDataPropertyForSet(realm, index, value, out _))
                     return true;
-                return receiver.SetElementCore(realm, receiver, index, value);
+                return receiver.SetElementWithReceiver(realm, receiver, index, value);
             }
         }
 
@@ -415,7 +415,7 @@ public class JsObject
         {
             if (receiver.TryDefineOwnDataPropertyForSet(realm, index, value, out _))
                 return true;
-            return receiver.SetElementCore(realm, receiver, index, value);
+            return receiver.SetElementWithReceiver(realm, receiver, index, value);
         }
 
         if (!receiver.IsExtensible)

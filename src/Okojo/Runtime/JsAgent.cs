@@ -22,6 +22,8 @@ public sealed partial class JsAgent : IDisposable
 
     private readonly Dictionary<string, JsModuleNamespaceObject> jsonModuleNamespaceCache =
         new(StringComparer.Ordinal);
+    private readonly Dictionary<string, JsModuleNamespaceObject> textModuleNamespaceCache =
+        new(StringComparer.Ordinal);
 
     private readonly object lifecycleGate = new();
     private readonly Queue<PendingJob> microtasks = new();
@@ -636,6 +638,7 @@ public sealed partial class JsAgent : IDisposable
             moduleSourceCache.Clear();
             ModuleGraph.Clear();
             jsonModuleNamespaceCache.Clear();
+            textModuleNamespaceCache.Clear();
         }
     }
 
@@ -646,7 +649,8 @@ public sealed partial class JsAgent : IDisposable
             var removedSource = moduleSourceCache.Remove(resolvedId);
             var removedNode = ModuleGraph.Remove(resolvedId);
             var removedJson = jsonModuleNamespaceCache.Remove(resolvedId);
-            return removedSource || removedNode || removedJson;
+            var removedText = textModuleNamespaceCache.Remove(resolvedId);
+            return removedSource || removedNode || removedJson || removedText;
         }
     }
 
@@ -657,6 +661,12 @@ public sealed partial class JsAgent : IDisposable
             if (jsonModuleNamespaceCache.TryGetValue(resolvedId, out var jsonNamespace))
             {
                 namespaceValue = JsValue.FromObject(jsonNamespace);
+                return true;
+            }
+
+            if (textModuleNamespaceCache.TryGetValue(resolvedId, out var textNamespace))
+            {
+                namespaceValue = JsValue.FromObject(textNamespace);
                 return true;
             }
 

@@ -17,7 +17,8 @@ public sealed partial class JsAgent
         bool waitForAsyncCompletion = true, string? importType = null)
     {
         if (!string.IsNullOrEmpty(importType) &&
-            !string.Equals(importType, "json", StringComparison.Ordinal))
+            !string.Equals(importType, "json", StringComparison.Ordinal) &&
+            !string.Equals(importType, "text", StringComparison.Ordinal))
             throw new JsRuntimeException(
                 JsErrorKind.TypeError,
                 $"Unsupported dynamic import type '{importType}'",
@@ -32,6 +33,9 @@ public sealed partial class JsAgent
                     $"Dynamic import type 'json' requires a JSON module: '{resolvedImportId}'",
                     "DYNAMIC_IMPORT_JSON_TYPE_MISMATCH");
         }
+
+        if (string.Equals(importType, "text", StringComparison.Ordinal))
+            return EvaluateTextModule(realm, specifier, referrer);
 
         var node = LinkModule(realm, specifier, referrer);
         var resolvedId = node.ResolvedId;
@@ -132,14 +136,17 @@ public sealed partial class JsAgent
                     compileModuleBindings,
                     moduleExecutionBindings);
 
-                JsValue EnsureDependencyExports(string depResolvedId)
+                JsValue EnsureDependencyExports(ResolvedModuleDependency dependency)
                 {
-                    if (!importsObject.TryGetPropertyAtom(targetRealm, Atoms.InternNoCheck(depResolvedId),
+                    var cacheKey = GetDependencyCacheKey(dependency.ResolvedId, dependency.ImportType);
+                    if (!importsObject.TryGetPropertyAtom(targetRealm, Atoms.InternNoCheck(cacheKey),
                             out var depExports,
                             out _))
                     {
-                        depExports = EvaluateModule(targetRealm, depResolvedId, null, false);
-                        if (TryGetActiveDependencyNode(depResolvedId, out var activeDependencyNode))
+                        depExports = EvaluateModule(targetRealm, dependency.ResolvedId, null, false,
+                            dependency.ImportType);
+                        if (string.IsNullOrEmpty(dependency.ImportType) &&
+                            TryGetActiveDependencyNode(dependency.ResolvedId, out var activeDependencyNode))
                         {
                             activeDependencyNode.AsyncCycleRoot ??= activeDependencyNode;
                             targetNode.AsyncCycleRoot ??= activeDependencyNode.AsyncCycleRoot;
@@ -147,7 +154,7 @@ public sealed partial class JsAgent
 
                         importsObject.DefineDataPropertyAtom(
                             targetRealm,
-                            Atoms.InternNoCheck(depResolvedId),
+                            Atoms.InternNoCheck(cacheKey),
                             depExports,
                             JsShapePropertyFlags.Open);
                     }
@@ -157,8 +164,8 @@ public sealed partial class JsAgent
 
                 var linkDiagnostics = new List<ModuleDiagnostic>();
 
-                for (var i = 0; i < targetPlan.RequestedDependencyResolvedIds.Count; i++)
-                    _ = EnsureDependencyExports(targetPlan.RequestedDependencyResolvedIds[i]);
+                for (var i = 0; i < targetPlan.RequestedDependencies.Count; i++)
+                    _ = EnsureDependencyExports(targetPlan.RequestedDependencies[i]);
 
                 var ambiguousStarNames = ComputeAmbiguousStarExportNames(
                     targetRealm,
@@ -180,9 +187,9 @@ public sealed partial class JsAgent
                 for (var i = 0; i < targetPlan.ResolvedImportBindings.Count; i++)
                 {
                     var binding = targetPlan.ResolvedImportBindings[i];
-                    _ = EnsureDependencyExports(binding.ResolvedDependencyId);
+                    _ = EnsureDependencyExports(new(binding.ResolvedDependencyId, binding.ImportType));
                     if (binding.Kind == ModuleImportBindingKind.Named &&
-                        !CanResolveExportName(binding.ResolvedDependencyId, binding.ImportedName))
+                        !CanResolveExportName(binding.ResolvedDependencyId, binding.ImportedName, binding.ImportType))
                         linkDiagnostics.Add(ModuleLinker.CreateDiagnostic(
                             "MODULE_IMPORT_NAME_NOT_FOUND",
                             targetNode.ResolvedId,
@@ -194,8 +201,8 @@ public sealed partial class JsAgent
                 for (var i = 0; i < targetPlan.ExportFromBindings.Count; i++)
                 {
                     var from = targetPlan.ExportFromBindings[i];
-                    _ = EnsureDependencyExports(from.ResolvedDependencyId);
-                    if (!CanResolveExportName(from.ResolvedDependencyId, from.ImportedName))
+                    _ = EnsureDependencyExports(new(from.ResolvedDependencyId, from.ImportType));
+                    if (!CanResolveExportName(from.ResolvedDependencyId, from.ImportedName, from.ImportType))
                         linkDiagnostics.Add(ModuleLinker.CreateDiagnostic(
                             "MODULE_EXPORT_NAME_NOT_FOUND",
                             targetNode.ResolvedId,
@@ -344,7 +351,7 @@ public sealed partial class JsAgent
                 return;
             }
 
-            RegisterPendingImportDependencies(targetNode, targetRealm, targetPlan.RequestedDependencyResolvedIds);
+            RegisterPendingImportDependencies(targetNode, targetRealm, targetPlan.RequestedDependencies);
             if (targetNode.PendingAsyncDependencies > 0)
             {
                 EnsureAsyncEvaluationState(targetNode, targetRealm);
@@ -528,14 +535,17 @@ public sealed partial class JsAgent
         }
 
         void RegisterPendingImportDependencies(ModuleRecordNode targetNode, JsRealm targetRealm,
-            IReadOnlyList<string> dependencyResolvedIds)
+            IReadOnlyList<ResolvedModuleDependency> dependencies)
         {
-            for (var i = 0; i < dependencyResolvedIds.Count; i++)
+            for (var i = 0; i < dependencies.Count; i++)
             {
+                if (!string.IsNullOrEmpty(dependencies[i].ImportType))
+                    continue;
+
                 ModuleRecordNode? dependencyNode = null;
                 lock (moduleCacheGate)
                 {
-                    _ = ModuleGraph.TryGet(dependencyResolvedIds[i], out dependencyNode);
+                    _ = ModuleGraph.TryGet(dependencies[i].ResolvedId, out dependencyNode);
                 }
 
                 var dependencyWaitNode = GetPendingDependencyWaitNode(targetNode, dependencyNode);
@@ -688,6 +698,32 @@ public sealed partial class JsAgent
         return moduleNamespace;
     }
 
+    internal JsValue EvaluateTextModule(JsRealm realm, string specifier, string? referrer = null)
+    {
+        var resolvedId = ResolveModuleSpecifierOrThrow(specifier, referrer);
+        lock (moduleCacheGate)
+        {
+            if (textModuleNamespaceCache.TryGetValue(resolvedId, out var cachedNamespace))
+                return cachedNamespace;
+        }
+
+        var source = LoadModuleSourceByResolvedIdOrThrow(resolvedId);
+        var moduleNamespace = new JsModuleNamespaceObject(realm);
+        moduleNamespace.DefineDataPropertyAtom(realm, realm.Atoms.InternNoCheck("default"), JsValue.FromString(source),
+            JsShapePropertyFlags.Open);
+        moduleNamespace.LockForRuntimeMutation();
+
+        lock (moduleCacheGate)
+        {
+            if (!textModuleNamespaceCache.TryGetValue(resolvedId, out var cachedNamespace))
+                textModuleNamespaceCache.Add(resolvedId, moduleNamespace);
+            else
+                moduleNamespace = cachedNamespace;
+        }
+
+        return moduleNamespace;
+    }
+
     internal ModuleRecordNode LinkModule(JsRealm realm, string specifier, string? referrer)
     {
         var rootResolvedId = ResolveModuleSpecifierOrThrow(specifier, referrer);
@@ -733,8 +769,12 @@ public sealed partial class JsAgent
                 if (string.Equals(resolvedId, rootResolvedId, StringComparison.Ordinal))
                     rootNode = node;
 
-                foreach (var depResolvedId in EnumerateLinkDependencies(plan!))
-                    LinkByResolvedId(depResolvedId);
+                foreach (var dependency in EnumerateLinkDependencies(plan!))
+                {
+                    if (!string.IsNullOrEmpty(dependency.ImportType))
+                        continue;
+                    LinkByResolvedId(dependency.ResolvedId);
+                }
 
                 _ = inPath.Remove(resolvedId);
             }
@@ -745,14 +785,15 @@ public sealed partial class JsAgent
         }
     }
 
-    private static IEnumerable<string> EnumerateLinkDependencies(ModuleLinkPlan plan)
+    private static IEnumerable<ResolvedModuleDependency> EnumerateLinkDependencies(ModuleLinkPlan plan)
     {
         var seen = new HashSet<string>(StringComparer.Ordinal);
 
-        for (var i = 0; i < plan.RequestedDependencyResolvedIds.Count; i++)
+        for (var i = 0; i < plan.RequestedDependencies.Count; i++)
         {
-            var dep = plan.RequestedDependencyResolvedIds[i];
-            if (seen.Add(dep))
+            var dep = plan.RequestedDependencies[i];
+            var key = GetDependencyCacheKey(dep.ResolvedId, dep.ImportType);
+            if (seen.Add(key))
                 yield return dep;
         }
     }
@@ -904,10 +945,10 @@ public sealed partial class JsAgent
             innerException: ex);
     }
 
-    private bool CanResolveExportName(string moduleResolvedId, string exportName)
+    private bool CanResolveExportName(string moduleResolvedId, string exportName, string? importType = null)
     {
         var visited = new HashSet<string>(StringComparer.Ordinal);
-        return TryResolvePlannedExportBindingIdentity(moduleResolvedId, exportName, visited, out _,
+        return TryResolvePlannedExportBindingIdentity(moduleResolvedId, exportName, importType, visited, out _,
                    out var ambiguous) &&
                !ambiguous;
     }
@@ -915,18 +956,30 @@ public sealed partial class JsAgent
     private bool TryResolvePlannedExportBindingIdentity(
         string moduleResolvedId,
         string exportName,
+        string? importType,
         HashSet<string> visited,
         out ExportBindingIdentity identity,
         out bool ambiguous)
     {
         identity = default;
         ambiguous = false;
+        if (string.Equals(importType, "text", StringComparison.Ordinal))
+        {
+            if (string.Equals(exportName, "default", StringComparison.Ordinal))
+            {
+                identity = ExportBindingIdentity.Named(moduleResolvedId, "default");
+                return true;
+            }
+
+            return false;
+        }
+
         if (string.Equals(exportName, "default", StringComparison.Ordinal))
         {
             // `default` never resolves through star exports.
         }
 
-        var visitKey = moduleResolvedId + ":" + exportName;
+        var visitKey = GetDependencyCacheKey(moduleResolvedId, importType) + ":" + exportName;
         if (!visited.Add(visitKey))
             return false;
 
@@ -944,13 +997,14 @@ public sealed partial class JsAgent
 
                 if (binding.Kind == ModuleImportBindingKind.Namespace)
                 {
-                    identity = ExportBindingIdentity.Namespace(binding.ResolvedDependencyId);
+                    identity = ExportBindingIdentity.Namespace(binding.ResolvedDependencyId, binding.ImportType);
                     return true;
                 }
 
                 return TryResolvePlannedExportBindingIdentity(
                     binding.ResolvedDependencyId,
                     binding.ImportedName,
+                    binding.ImportType,
                     visited,
                     out identity,
                     out ambiguous);
@@ -965,7 +1019,7 @@ public sealed partial class JsAgent
             var binding = plan.ExportNamespaceFromBindings[i];
             if (!string.Equals(binding.ExportedName, exportName, StringComparison.Ordinal))
                 continue;
-            identity = ExportBindingIdentity.Namespace(binding.ResolvedDependencyId);
+            identity = ExportBindingIdentity.Namespace(binding.ResolvedDependencyId, binding.ImportType);
             return true;
         }
 
@@ -977,6 +1031,7 @@ public sealed partial class JsAgent
             return TryResolvePlannedExportBindingIdentity(
                 binding.ResolvedDependencyId,
                 binding.ImportedName,
+                binding.ImportType,
                 visited,
                 out identity,
                 out ambiguous);
@@ -992,6 +1047,7 @@ public sealed partial class JsAgent
             if (!TryResolvePlannedExportBindingIdentity(
                     plan.ExportStarResolvedIds[i],
                     exportName,
+                    null,
                     visited,
                     out var candidate,
                     out var candidateAmbiguous))
@@ -1022,6 +1078,13 @@ public sealed partial class JsAgent
 
         identity = starIdentity;
         return true;
+    }
+
+    private static string GetDependencyCacheKey(string resolvedId, string? importType)
+    {
+        return string.IsNullOrEmpty(importType)
+            ? resolvedId
+            : resolvedId + "\u0000" + importType;
     }
 
     private static HashSet<string>? ComputeAmbiguousStarExportNames(
@@ -1143,7 +1206,7 @@ public sealed partial class JsAgent
                 if (slot.Kind == ModuleVariableSlotKind.NamespaceImport &&
                     slot.ResolvedDependencyId is not null)
                 {
-                    identity = ExportBindingIdentity.Namespace(slot.ResolvedDependencyId);
+                    identity = ExportBindingIdentity.Namespace(slot.ResolvedDependencyId, slot.ImportType);
                     return true;
                 }
 
@@ -1386,9 +1449,9 @@ public sealed partial class JsAgent
             return new(1, moduleResolvedId, bindingName, 0);
         }
 
-        public static ExportBindingIdentity Namespace(string moduleResolvedId)
+        public static ExportBindingIdentity Namespace(string moduleResolvedId, string? importType = null)
         {
-            return new(2, moduleResolvedId, null, 0);
+            return new(2, GetDependencyCacheKey(moduleResolvedId, importType), null, 0);
         }
 
         public static ExportBindingIdentity NamespaceObject(JsObject nsObject)
