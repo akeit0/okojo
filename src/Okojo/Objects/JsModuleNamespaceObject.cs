@@ -23,6 +23,8 @@ internal sealed class JsModuleNamespaceObject : JsObject
     {
         if (isLocked)
         {
+            if (atom >= 0)
+                _ = TryGetOwnNamedPropertyDescriptorAtom(realm, atom, out _, true);
             slotInfo = SlotInfo.Invalid;
             return false;
         }
@@ -33,7 +35,10 @@ internal sealed class JsModuleNamespaceObject : JsObject
     internal override bool SetElementWithReceiver(JsRealm realm, JsObject receiver, uint index, JsValue value)
     {
         if (isLocked)
+        {
+            _ = TryGetOwnElementDescriptor(index, out _);
             return false;
+        }
 
         return base.SetElementWithReceiver(realm, receiver, index, value);
     }

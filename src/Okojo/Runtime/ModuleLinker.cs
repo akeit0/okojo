@@ -32,19 +32,21 @@ internal sealed class ModuleLinker(Func<IModuleSourceLoader> loaderProvider)
 
     public ModuleLinkResult BuildPlanResult(string moduleResolvedId, JsProgram moduleProgram)
     {
-        var (executionPlan, requestedSpecifiers, imports, exportFromBindings, exportNamespaceFromBindings,
+        var (executionPlan, requestedDependencies, imports, exportFromBindings, exportNamespaceFromBindings,
                 exportStarFromSpecifiers) =
             BuildExecutionPlan(moduleProgram);
 
         var loader = loaderProvider();
 
-        var requestedDependencyResolvedIds = new List<string>(requestedSpecifiers.Count);
+        var requestedDependencyResolvedIds = new List<ResolvedModuleDependency>(requestedDependencies.Count);
         var requestedDepsSeen = new HashSet<string>(StringComparer.Ordinal);
-        for (var i = 0; i < requestedSpecifiers.Count; i++)
+        for (var i = 0; i < requestedDependencies.Count; i++)
         {
-            var depResolvedId = loader.ResolveSpecifier(requestedSpecifiers[i], moduleResolvedId);
-            if (requestedDepsSeen.Add(depResolvedId))
-                requestedDependencyResolvedIds.Add(depResolvedId);
+            var request = requestedDependencies[i];
+            var depResolvedId = loader.ResolveSpecifier(request.SourceSpecifier, moduleResolvedId);
+            var requestKey = GetRequestedDependencyKey(depResolvedId, request.ImportType);
+            if (requestedDepsSeen.Add(requestKey))
+                requestedDependencyResolvedIds.Add(new(depResolvedId, request.ImportType));
         }
 
         var resolvedImports = new List<JsResolvedImportBinding>();
@@ -64,7 +66,8 @@ internal sealed class ModuleLinker(Func<IModuleSourceLoader> loaderProvider)
                     binding.Kind,
                     depResolvedId,
                     binding.ImportedName,
-                    binding.Position));
+                    binding.Position,
+                    importDecl.ImportType));
             }
         }
 
@@ -76,7 +79,8 @@ internal sealed class ModuleLinker(Func<IModuleSourceLoader> loaderProvider)
                 loader.ResolveSpecifier(binding.SourceSpecifier, moduleResolvedId),
                 binding.ImportedName,
                 binding.ExportedName,
-                binding.Position));
+                binding.Position,
+                binding.ImportType));
         }
 
         var resolvedExportNamespaceFromBindings =
@@ -86,7 +90,8 @@ internal sealed class ModuleLinker(Func<IModuleSourceLoader> loaderProvider)
             var binding = exportNamespaceFromBindings[i];
             resolvedExportNamespaceFromBindings.Add(new(
                 loader.ResolveSpecifier(binding.SourceSpecifier, moduleResolvedId),
-                binding.ExportedName));
+                binding.ExportedName,
+                binding.ImportType));
         }
 
         var exportStars = new List<string>(exportStarFromSpecifiers.Count);
@@ -106,14 +111,14 @@ internal sealed class ModuleLinker(Func<IModuleSourceLoader> loaderProvider)
 
     private static (
         ModuleExecutionPlan ExecutionPlan,
-        List<string> RequestedSpecifiers,
+        List<DependencyRequest> RequestedDependencies,
         List<ImportDeclaration> Imports,
         List<ExportFromBinding> ExportFromBindings,
         List<ExportNamespaceFromBinding> ExportNamespaceFromBindings,
         List<string> ExportStarFromSpecifiers)
         BuildExecutionPlan(JsProgram moduleProgram)
     {
-        var requestedSpecifiers = new List<string>();
+        var requestedDependencies = new List<DependencyRequest>();
         var imports = new List<ImportDeclaration>();
         var exportLocalByName = new Dictionary<string, string>(StringComparer.Ordinal);
         var preinitializedLocalExportNames = new HashSet<string>(StringComparer.Ordinal);
@@ -129,7 +134,7 @@ internal sealed class ModuleLinker(Func<IModuleSourceLoader> loaderProvider)
             {
                 case JsImportDeclaration importDecl:
                     imports.Add(BuildImportDeclaration(importDecl));
-                    requestedSpecifiers.Add(importDecl.Source);
+                    requestedDependencies.Add(new(importDecl.Source, GetImportType(importDecl.Attributes)));
                     break;
                 case JsExportDeclarationStatement exportDeclaration:
                     CollectDeclarationExports(exportDeclaration.Declaration, exportLocalByName);
@@ -218,23 +223,25 @@ internal sealed class ModuleLinker(Func<IModuleSourceLoader> loaderProvider)
                     }
                     else
                     {
-                        requestedSpecifiers.Add(named.Source);
+                        var importType = GetImportType(named.Attributes);
+                        requestedDependencies.Add(new(named.Source, importType));
                         for (var s = 0; s < named.Specifiers.Count; s++)
                         {
                             var spec = named.Specifiers[s];
                             exportFromBindings.Add(new(named.Source, spec.LocalName,
-                                spec.ExportedName, spec.Position));
+                                spec.ExportedName, spec.Position, importType));
                         }
                     }
 
                     break;
                 case JsExportAllDeclaration exportAll:
-                    requestedSpecifiers.Add(exportAll.Source);
+                    var exportAllImportType = GetImportType(exportAll.Attributes);
+                    requestedDependencies.Add(new(exportAll.Source, exportAllImportType));
                     if (string.IsNullOrEmpty(exportAll.ExportedName))
                         exportStarFromSpecifiers.Add(exportAll.Source);
                     else
                         exportNamespaceFromBindings.Add(
-                            new(exportAll.Source, exportAll.ExportedName!));
+                            new(exportAll.Source, exportAll.ExportedName!, exportAllImportType));
                     break;
                 default:
                     CollectPreinitializedLocalExportNames(statement, preinitializedLocalExportNames);
@@ -254,7 +261,7 @@ internal sealed class ModuleLinker(Func<IModuleSourceLoader> loaderProvider)
                 exportLocalByName,
                 preinitializedLocalExportNames,
                 moduleProgram.HasTopLevelAwait),
-            requestedSpecifiers,
+            requestedDependencies,
             imports,
             exportFromBindings,
             exportNamespaceFromBindings,
@@ -290,7 +297,26 @@ internal sealed class ModuleLinker(Func<IModuleSourceLoader> loaderProvider)
                 binding.Position));
         }
 
-        return new(import.Source, bindings);
+        return new(import.Source, bindings, GetImportType(import.Attributes));
+    }
+
+    private static string? GetImportType(IReadOnlyList<JsImportAttribute> attributes)
+    {
+        for (var i = 0; i < attributes.Count; i++)
+        {
+            var attribute = attributes[i];
+            if (string.Equals(attribute.Key, "type", StringComparison.Ordinal))
+                return attribute.Value;
+        }
+
+        return null;
+    }
+
+    private static string GetRequestedDependencyKey(string resolvedId, string? importType)
+    {
+        return string.IsNullOrEmpty(importType)
+            ? resolvedId
+            : resolvedId + "\u0000" + importType;
     }
 
     private static void CollectDeclarationExports(JsStatement declaration, Dictionary<string, string> exportLocalByName)
@@ -348,10 +374,11 @@ internal sealed class ModuleLinker(Func<IModuleSourceLoader> loaderProvider)
         return true;
     }
 
-    private sealed class ImportDeclaration(string specifier, IReadOnlyList<ImportBinding> bindings)
+    private sealed class ImportDeclaration(string specifier, IReadOnlyList<ImportBinding> bindings, string? importType)
     {
         public string Specifier { get; } = specifier;
         public IReadOnlyList<ImportBinding> Bindings { get; } = bindings;
+        public string? ImportType { get; } = importType;
     }
 
     private sealed class ImportBinding(
@@ -370,17 +397,29 @@ internal sealed class ModuleLinker(Func<IModuleSourceLoader> loaderProvider)
         string sourceSpecifier,
         string importedName,
         string exportedName,
-        int position)
+        int position,
+        string? importType = null)
     {
         public string SourceSpecifier { get; } = sourceSpecifier;
         public string ImportedName { get; } = importedName;
         public string ExportedName { get; } = exportedName;
         public int Position { get; } = position;
+        public string? ImportType { get; } = importType;
     }
 
-    private sealed class ExportNamespaceFromBinding(string sourceSpecifier, string exportedName)
+    private sealed class ExportNamespaceFromBinding(
+        string sourceSpecifier,
+        string exportedName,
+        string? importType = null)
     {
         public string SourceSpecifier { get; } = sourceSpecifier;
         public string ExportedName { get; } = exportedName;
+        public string? ImportType { get; } = importType;
+    }
+
+    private sealed class DependencyRequest(string sourceSpecifier, string? importType)
+    {
+        public string SourceSpecifier { get; } = sourceSpecifier;
+        public string? ImportType { get; } = importType;
     }
 }

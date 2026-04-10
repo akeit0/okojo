@@ -473,6 +473,32 @@ public class DynamicImportExpressionTests
     }
 
     [Test]
+    public void DynamicImport_WithTextType_ResolvesSyntheticTextModule()
+    {
+        const string textSource = """{"answer":42}""";
+        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
+        {
+            ["/mods/data.json"] = textSource
+        });
+        var realm = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build().MainRealm;
+        var compiler = new JsCompiler(realm);
+        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+                                                                   globalThis.out = "pending";
+                                                                   import("/mods/data.json", { with: { type: "text" } }).then(function (ns) {
+                                                                       globalThis.out = typeof ns.default + ":" + ns.default;
+                                                                   }, function (error) {
+                                                                       globalThis.out = error && error.message;
+                                                                   });
+                                                                   0;
+                                                                   """));
+
+        realm.Execute(script);
+        realm.Agent.PumpJobs();
+
+        Assert.That(realm.Global["out"].AsString(), Is.EqualTo("string:" + textSource));
+    }
+
+    [Test]
     public void DynamicImport_WaitingAsyncModule_SecondImport_Resolves_After_First()
     {
         var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)

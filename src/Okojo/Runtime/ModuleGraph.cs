@@ -41,6 +41,8 @@ internal sealed class ModuleGraph(JsAgent agent)
         for (var i = 0; i < node.Program.Statements.Count; i++)
             if (node.Program.Statements[i] is JsImportDeclaration importDecl)
             {
+                if (HasTextImportType(importDecl.Attributes))
+                    continue;
                 var depResolved = agent.Engine.ModuleSourceLoader.ResolveSpecifier(importDecl.Source, node.ResolvedId);
                 if (nodes.TryGetValue(depResolved, out var depNode))
                     deps.Add(depNode);
@@ -48,18 +50,35 @@ internal sealed class ModuleGraph(JsAgent agent)
             else if (node.Program.Statements[i] is JsExportNamedDeclaration named &&
                      !string.IsNullOrEmpty(named.Source))
             {
+                if (HasTextImportType(named.Attributes))
+                    continue;
                 var depResolved = agent.Engine.ModuleSourceLoader.ResolveSpecifier(named.Source!, node.ResolvedId);
                 if (nodes.TryGetValue(depResolved, out var depNode))
                     deps.Add(depNode);
             }
             else if (node.Program.Statements[i] is JsExportAllDeclaration star)
             {
+                if (HasTextImportType(star.Attributes))
+                    continue;
                 var depResolved = agent.Engine.ModuleSourceLoader.ResolveSpecifier(star.Source, node.ResolvedId);
                 if (nodes.TryGetValue(depResolved, out var depNode))
                     deps.Add(depNode);
             }
 
         return deps;
+    }
+
+    private static bool HasTextImportType(IReadOnlyList<JsImportAttribute> attributes)
+    {
+        for (var i = 0; i < attributes.Count; i++)
+        {
+            var attribute = attributes[i];
+            if (string.Equals(attribute.Key, "type", StringComparison.Ordinal) &&
+                string.Equals(attribute.Value, "text", StringComparison.Ordinal))
+                return true;
+        }
+
+        return false;
     }
 }
 

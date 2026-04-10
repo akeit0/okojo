@@ -325,20 +325,14 @@ internal static class SkipList
             "Intentional skip: source-phase-imports/import.source proposal semantics are not implemented in Okojo"),
         new("language/expressions/dynamic-import/syntax/valid/import-defer-",
             "Intentional skip: import.defer proposal semantics are not implemented in Okojo"),
-        new("language/expressions/dynamic-import/syntax/valid/import-attributes-",
-            "Intentional skip: dynamic import attributes syntax is not implemented in Okojo"),
         new("language/expressions/dynamic-import/syntax/valid/top-level-import-source-",
             "Intentional skip: source-phase-imports/import.source proposal semantics are not implemented in Okojo"),
         new("language/expressions/dynamic-import/syntax/valid/top-level-import-defer-",
             "Intentional skip: import.defer proposal semantics are not implemented in Okojo"),
-        new("language/expressions/dynamic-import/syntax/valid/top-level-import-attributes-",
-            "Intentional skip: dynamic import attributes syntax is not implemented in Okojo"),
         new("language/expressions/dynamic-import/syntax/valid/nested-if-import-source-",
             "Intentional skip: source-phase-imports/import.source proposal semantics are not implemented in Okojo"),
         new("language/expressions/dynamic-import/syntax/valid/nested-if-import-defer-",
             "Intentional skip: import.defer proposal semantics are not implemented in Okojo"),
-        new("language/expressions/dynamic-import/syntax/valid/nested-if-import-attributes-",
-            "Intentional skip: dynamic import attributes syntax is not implemented in Okojo"),
         new("language/expressions/dynamic-import/syntax/valid/nested-if-braceless-import-source-",
             "Intentional skip: source-phase-imports/import.source proposal semantics are not implemented in Okojo"),
         new("language/expressions/dynamic-import/syntax/valid/nested-if-braceless-import-defer-",
@@ -577,7 +571,6 @@ internal static class SkipList
         new("language/arguments-object/10.6-13-c-1-s.js", "Intentional skip: relies on legacy arguments.callee"),
         new("language/arguments-object/10.6-13-c-2-s.js", "Intentional skip: relies on legacy arguments.callee"),
         new("language/arguments-object/10.6-13-c-3-s.js", "Intentional skip: relies on legacy arguments.callee"),
-        new("language/arguments-object/10.6-14-c-1-s.js", "Intentional skip: relies on legacy arguments.callee"),
-        new("language/module-code/namespace/internals/super-access-to-tdz-binding.js", "Intentional skip: unsupported import-text")
+        new("language/arguments-object/10.6-14-c-1-s.js", "Intentional skip: relies on legacy arguments.callee")
     ];
 }

@@ -16,7 +16,8 @@ public sealed partial class JsAgent
         for (var i = 0; i < exportFromBindings.Count; i++)
         {
             var from = exportFromBindings[i];
-            if (!TryResolveDependencyNamespace(realm, importsObject, from.ResolvedDependencyId, out var depNamespace))
+            if (!TryResolveDependencyNamespace(realm, importsObject, from.ResolvedDependencyId, from.ImportType,
+                    out var depNamespace))
                 continue;
 
             var getter = new JsHostFunction(realm, static (in info) =>
@@ -37,7 +38,8 @@ public sealed partial class JsAgent
         for (var i = 0; i < exportNamespaceFromBindings.Count; i++)
         {
             var from = exportNamespaceFromBindings[i];
-            if (!TryResolveDependencyNamespace(realm, importsObject, from.ResolvedDependencyId, out var depNamespace))
+            if (!TryResolveDependencyNamespace(realm, importsObject, from.ResolvedDependencyId, from.ImportType,
+                    out var depNamespace))
                 continue;
 
             var getter = new JsHostFunction(realm,
@@ -54,7 +56,7 @@ public sealed partial class JsAgent
 
         for (var i = 0; i < exportStars.Count; i++)
         {
-            if (!TryResolveDependencyNamespace(realm, importsObject, exportStars[i], out var depNamespace))
+            if (!TryResolveDependencyNamespace(realm, importsObject, exportStars[i], null, out var depNamespace))
                 continue;
 
             foreach (var entry in depNamespace.Shape.EnumerateSlotInfos())
@@ -95,10 +97,15 @@ public sealed partial class JsAgent
     }
 
     private static bool TryResolveDependencyNamespace(JsRealm realm, JsPlainObject importsObject, string resolvedId,
+        string? importType,
         out JsObject dependencyNamespace)
     {
         dependencyNamespace = null!;
-        if (!importsObject.TryGetPropertyAtom(realm, realm.Atoms.InternNoCheck(resolvedId), out var depNsValue, out _))
+        var dependencyKey = string.IsNullOrEmpty(importType)
+            ? resolvedId
+            : resolvedId + "\u0000" + importType;
+        if (!importsObject.TryGetPropertyAtom(realm, realm.Atoms.InternNoCheck(dependencyKey), out var depNsValue,
+                out _))
             return false;
         if (!depNsValue.TryGetObject(out var depObj) || depObj is not JsObject depNamespaceObj)
             return false;
@@ -210,10 +217,11 @@ public sealed partial class JsAgent
             map.Add(binding.LocalName, new(cellIndex, 0, true));
             regularImports.Add(binding.Kind == ModuleImportBindingKind.Namespace
                 ? new(ModuleVariableSlotKind.NamespaceImport,
-                    binding.ResolvedDependencyId, isReadOnly: true)
+                    binding.ResolvedDependencyId, isReadOnly: true, importType: binding.ImportType)
                 : new ModuleVariableSlot(ModuleVariableSlotKind.NamedImport,
                     binding.ResolvedDependencyId, binding.ImportedName,
-                    true));
+                    true,
+                    binding.ImportType));
         }
 
         foreach (var pair in exportLocalByName)
@@ -260,9 +268,12 @@ public sealed partial class JsAgent
             case ModuleVariableSlotKind.NamespaceImport:
                 if (cell.ResolvedDependencyId is null)
                     return JsValue.TheHole;
+                var namespaceKey = string.IsNullOrEmpty(cell.ImportType)
+                    ? cell.ResolvedDependencyId
+                    : cell.ResolvedDependencyId + "\u0000" + cell.ImportType;
                 if (bindings.Imports.TryGetObject(out var importsObjNs) &&
                     importsObjNs is JsObject importsNs &&
-                    importsNs.TryGetPropertyAtom(realm, realm.Atoms.InternNoCheck(cell.ResolvedDependencyId),
+                    importsNs.TryGetPropertyAtom(realm, realm.Atoms.InternNoCheck(namespaceKey),
                         out var depNsValue, out _))
                     return ThrowIfModuleBindingUninitialized(depNsValue);
 
@@ -271,9 +282,12 @@ public sealed partial class JsAgent
             case ModuleVariableSlotKind.NamedImport:
                 if (cell.ResolvedDependencyId is null || cell.ImportedName is null)
                     return JsValue.TheHole;
+                var importKey = string.IsNullOrEmpty(cell.ImportType)
+                    ? cell.ResolvedDependencyId
+                    : cell.ResolvedDependencyId + "\u0000" + cell.ImportType;
                 if (bindings.Imports.TryGetObject(out var importsObj) &&
                     importsObj is JsObject imports &&
-                    imports.TryGetPropertyAtom(realm, realm.Atoms.InternNoCheck(cell.ResolvedDependencyId),
+                    imports.TryGetPropertyAtom(realm, realm.Atoms.InternNoCheck(importKey),
                         out var depNs, out _) &&
                     depNs.TryGetObject(out var depNsObj) &&
                     depNsObj is JsObject depObj &&

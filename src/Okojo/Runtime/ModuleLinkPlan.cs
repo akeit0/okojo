@@ -4,7 +4,7 @@ namespace Okojo.Runtime;
 
 internal sealed class ModuleLinkPlan(
     ModuleExecutionPlan executionPlan,
-    IReadOnlyList<string> requestedDependencyResolvedIds,
+    IReadOnlyList<ResolvedModuleDependency> requestedDependencies,
     IReadOnlyList<string> importDependencyResolvedIds,
     IReadOnlyList<JsResolvedImportBinding> resolvedImportBindings,
     IReadOnlyList<ExportFromBindingResolved> exportFromBindings,
@@ -12,7 +12,7 @@ internal sealed class ModuleLinkPlan(
     IReadOnlyList<string> exportStarResolvedIds)
 {
     public ModuleExecutionPlan ExecutionPlan { get; } = executionPlan;
-    public IReadOnlyList<string> RequestedDependencyResolvedIds { get; } = requestedDependencyResolvedIds;
+    public IReadOnlyList<ResolvedModuleDependency> RequestedDependencies { get; } = requestedDependencies;
     public IReadOnlyList<string> ImportDependencyResolvedIds { get; } = importDependencyResolvedIds;
     public IReadOnlyList<JsResolvedImportBinding> ResolvedImportBindings { get; } = resolvedImportBindings;
     public IReadOnlyList<ExportFromBindingResolved> ExportFromBindings { get; } = exportFromBindings;
@@ -36,4 +36,10 @@ internal sealed class ModuleLinkPlan(
 
         return map;
     }
+}
+
+internal sealed class ResolvedModuleDependency(string resolvedId, string? importType = null)
+{
+    public string ResolvedId { get; } = resolvedId;
+    public string? ImportType { get; } = importType;
 }

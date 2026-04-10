@@ -91,6 +91,35 @@ public class ModuleTdzBindingKindTests
         Assert.That(y.Int32Value, Is.EqualTo(7));
     }
 
+    [Test]
+    public void EvaluateModule_SuperSet_On_ModuleNamespace_TdzBinding_ThrowsReferenceError()
+    {
+        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
+        {
+            ["/mods/main.js"] = """
+                                import * as ns from './main.js';
+
+                                class A { constructor() { return ns; } }
+                                class B extends A {
+                                  constructor() {
+                                    super();
+                                    super.foo = 14;
+                                  }
+                                }
+
+                                new B();
+
+                                export let foo = 42;
+                                """
+        });
+
+        using var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
+        var realm = engine.MainRealm;
+        var ex = Assert.Throws<JsRuntimeException>(() => engine.MainAgent.EvaluateModule(realm, "/mods/main.js"));
+        Assert.That(ex, Is.Not.Null);
+        Assert.That(ex!.Kind, Is.EqualTo(JsErrorKind.ReferenceError));
+    }
+
     private sealed class InMemoryModuleLoader(Dictionary<string, string> modules) : IModuleSourceLoader
     {
         private readonly Dictionary<string, string> modules = modules;
