@@ -44,4 +44,28 @@ public class ForLoopLexicalClosureTests
         realm.Execute(script);
         Assert.That(realm.Accumulator.IsTrue, Is.True);
     }
+
+    [Test]
+    public void NestedForLet_Can_Read_Outer_Loop_Head_When_Body_Uses_PerIteration_Closures()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsCompiler(realm);
+        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+                                                                   let seen = [];
+                                                                   for (let i = 0; i < 2; ++i) {
+                                                                     for (let j = i + 1; j < 4; ++j) {
+                                                                       let captured = j * 10;
+                                                                       const readCaptured = () => captured;
+                                                                       for (let k = j; k < 4; ++k) {
+                                                                         seen.push(`${j}:${k}:${readCaptured()}`);
+                                                                       }
+                                                                     }
+                                                                   }
+                                                                   seen.join("|");
+                                                                   """));
+
+        realm.Execute(script);
+        Assert.That(realm.Accumulator.AsString(),
+            Is.EqualTo("1:1:10|1:2:10|1:3:10|2:2:20|2:3:20|3:3:30|2:2:20|2:3:20|3:3:30"));
+    }
 }

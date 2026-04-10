@@ -33,21 +33,6 @@ public sealed partial class JsCompiler
                 out var isLexicalRegisterLocal,
                 out var isConstLocal))
         {
-            if (hasCurrentContextSlot)
-            {
-                var perIterationDepth = GetActivePerIterationContextDepthForSymbol(resolvedLocalBinding.SymbolId);
-                if (perIterationDepth != 0)
-                    return new(
-                        ResolvedIdentifierBindingKind.CapturedContext,
-                        sourceName,
-                        semanticName,
-                        resolvedLocalBinding.SymbolId,
-                        Slot: (short)slotIdx,
-                        Depth: (short)perIterationDepth,
-                        IsConst: isConstLocal,
-                        IsImmutableFunctionName: IsImmutableFunctionNameBinding(resolvedLocalBinding.SymbolId));
-            }
-
             return new(
                 ResolvedIdentifierBindingKind.CurrentLocal,
                 sourceName,
@@ -65,21 +50,6 @@ public sealed partial class JsCompiler
             IsCurrentFunctionLocalVisible(resolvedLocalBinding.SymbolId, sourceName) &&
             TryGetCurrentContextSlot(resolvedLocalBinding.SymbolId, out var currentContextSlot))
         {
-            var currentIsLexicalLocal = IsLexicalLocalBinding(resolvedLocalBinding.SymbolId);
-            var currentIsConstLocal = IsConstLocalBinding(resolvedLocalBinding.SymbolId);
-            var currentIsImmutableFunctionName = IsImmutableFunctionNameBinding(resolvedLocalBinding.SymbolId);
-            var perIterationDepth = GetActivePerIterationContextDepthForSymbol(resolvedLocalBinding.SymbolId);
-            if (perIterationDepth != 0)
-                return new(
-                    ResolvedIdentifierBindingKind.CapturedContext,
-                    sourceName,
-                    semanticName,
-                    resolvedLocalBinding.SymbolId,
-                    Slot: (short)currentContextSlot,
-                    Depth: (short)perIterationDepth,
-                    IsConst: currentIsConstLocal,
-                    IsImmutableFunctionName: currentIsImmutableFunctionName);
-
             return new(
                 ResolvedIdentifierBindingKind.CurrentLocal,
                 sourceName,
@@ -88,9 +58,9 @@ public sealed partial class JsCompiler
                 -1,
                 (short)currentContextSlot,
                 0,
-                currentIsLexicalLocal,
-                currentIsConstLocal,
-                currentIsImmutableFunctionName);
+                IsLexicalLocalBinding(resolvedLocalBinding.SymbolId),
+                IsConstLocalBinding(resolvedLocalBinding.SymbolId),
+                IsImmutableFunctionNameBinding(resolvedLocalBinding.SymbolId));
         }
 
         if (CanUseClassLexicalBindingLoad(sourceName))
@@ -186,14 +156,6 @@ public sealed partial class JsCompiler
                 out var isLexicalRegisterLocal,
                 out _))
         {
-            if (hasCurrentContextSlot)
-            {
-                var perIterationDepth = GetActivePerIterationContextDepthForSymbol(resolvedName);
-                if (perIterationDepth != 0)
-                    return new(IdentifierReadBindingKind.CapturedContext, -1, (short)slotIdx,
-                        (short)perIterationDepth);
-            }
-
             return hasCurrentContextSlot
                 ? new(IdentifierReadBindingKind.CurrentLocal, (short)reg, (short)slotIdx)
                 : new IdentifierReadBinding(IdentifierReadBindingKind.CurrentLocal, (short)reg,
@@ -204,11 +166,7 @@ public sealed partial class JsCompiler
             IsCurrentFunctionLocalVisible(resolvedSymbolId, sourceName) &&
             TryGetCurrentContextSlot(resolvedSymbolId, out var currentContextSlot))
         {
-            var perIterationDepth = GetActivePerIterationContextDepthForSymbol(resolvedSymbolId);
-            return perIterationDepth != 0
-                ? new(IdentifierReadBindingKind.CapturedContext, -1, (short)currentContextSlot,
-                    (short)perIterationDepth)
-                : new(IdentifierReadBindingKind.CurrentLocal, -1, (short)currentContextSlot);
+            return new(IdentifierReadBindingKind.CurrentLocal, -1, (short)currentContextSlot);
         }
 
         if (TryResolveAnyScopeModuleVariableReadBinding(sourceName, resolvedName, out moduleReadBinding))
@@ -419,23 +377,6 @@ public sealed partial class JsCompiler
         {
             var isLexicalLocal = IsLexicalLocalBinding(resolvedName);
             var isImmutableFunctionName = IsImmutableFunctionNameBinding(resolvedName);
-            if (hasCurrentContextSlot)
-            {
-                var perIterationDepth = GetActivePerIterationContextDepthForSymbol(resolvedName);
-                if (perIterationDepth != 0)
-                {
-                    binding = new(
-                        IdentifierStoreBindingKind.CapturedContext,
-                        -1,
-                        (short)slotIdx,
-                        (short)perIterationDepth,
-                        isLexicalLocal,
-                        isConstLocal,
-                        isImmutableFunctionName);
-                    return true;
-                }
-            }
-
             binding = hasCurrentContextSlot
                 ? new(IdentifierStoreBindingKind.CurrentLocal, (short)reg, (short)slotIdx, 0,
                     isLexicalLocal, isConstLocal, isImmutableFunctionName)
@@ -448,27 +389,14 @@ public sealed partial class JsCompiler
             IsCurrentFunctionLocalVisible(resolvedSymbolId, sourceNameForDebug) &&
             TryGetCurrentContextSlot(resolvedSymbolId, out var currentContextSlot))
         {
-            var currentIsLexicalLocal = IsLexicalLocalBinding(resolvedSymbolId);
-            var currentIsConstLocal = IsConstLocalBinding(resolvedSymbolId);
-            var currentIsImmutableFunctionName = IsImmutableFunctionNameBinding(resolvedSymbolId);
-            var perIterationDepth = GetActivePerIterationContextDepthForSymbol(resolvedSymbolId);
-            binding = perIterationDepth != 0
-                ? new(
-                    IdentifierStoreBindingKind.CapturedContext,
-                    -1,
-                    (short)currentContextSlot,
-                    (short)perIterationDepth,
-                    currentIsLexicalLocal,
-                    currentIsConstLocal,
-                    currentIsImmutableFunctionName)
-                : new(
-                    IdentifierStoreBindingKind.CurrentLocal,
-                    -1,
-                    (short)currentContextSlot,
-                    0,
-                    currentIsLexicalLocal,
-                    currentIsConstLocal,
-                    currentIsImmutableFunctionName);
+            binding = new(
+                IdentifierStoreBindingKind.CurrentLocal,
+                -1,
+                (short)currentContextSlot,
+                0,
+                IsLexicalLocalBinding(resolvedSymbolId),
+                IsConstLocalBinding(resolvedSymbolId),
+                IsImmutableFunctionNameBinding(resolvedSymbolId));
             return true;
         }
 
