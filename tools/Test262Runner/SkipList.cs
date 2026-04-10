@@ -7,6 +7,7 @@ internal static class SkipList
     internal enum SkipSpecStatus
     {
         Legacy,
+        AnnexB,
         Proposal,
         FinishedProposalNotInBaseline,
         Standard,
@@ -42,8 +43,8 @@ internal static class SkipList
     {
         public string Pattern { get; } = pattern;
         public string Reason { get; } = reason;
-        public SkipClassification Classification { get; } = ClassifyPathEntry(pattern, reason);
-        public string FormattedReason => $"[{Classification.Label}] {Reason}";
+        public SkipClassification Classification { get; } = ClassifyReason(reason, pattern);
+        public string FormattedReason => FormatReason(Reason, Classification);
     }
 
     internal sealed class FeatureEntry(
@@ -56,8 +57,7 @@ internal static class SkipList
         public string Name { get; } = name;
         public SkipClassification Classification { get; } = new(status, disposition, priority);
         public string Note { get; } = note;
-        public string FormattedReason =>
-            $"[feature:{Classification.Label}] excluded feature '{Name}': {Note}";
+        public string FormattedReason => FormatFeatureReason(Name, Note, Classification);
     }
 
     internal static readonly FeatureEntry[] ExcludedFeatureEntries =
@@ -664,6 +664,8 @@ internal static class SkipList
             "Intentional skip: with statement semantics are intentionally unsupported in Okojo"),
         new("built-ins/Function/prototype/toString/line-terminator-normalisation-LF.js",
             "Intentional skip: this checkout currently stores the LF fixture with CRLF line endings, so the runner cannot validate the intended source-text preservation for this exact file."),
+            new ("intl402/Temporal/PlainMonthDay/prototype/toLocaleString/basic.js",
+            "Intentional skip: relies on Temporal not in baseline yet"),
         new("language/arguments-object/S10.6_A3_T1.js", "Intentional skip: relies on deprecated arguments.callee"),
         new("language/arguments-object/S10.6_A3_T2.js", "Intentional skip: relies on deprecated arguments.callee"),
         new("language/arguments-object/S10.6_A3_T3.js", "Intentional skip: relies on deprecated arguments.callee"),
@@ -698,10 +700,74 @@ internal static class SkipList
         return false;
     }
 
-    private static SkipClassification ClassifyPathEntry(string pattern, string reason)
+    internal static string FormatReason(string reason)
     {
-        if (pattern.StartsWith("staging/", StringComparison.OrdinalIgnoreCase))
+        return FormatReason(reason, ClassifyReason(reason));
+    }
+
+    internal static SkipClassification ClassifyReason(string reason, string? pattern = null)
+    {
+        if (TryParseClassification(reason, out var classification))
+            return classification;
+        return ClassifyPathEntry(pattern, reason);
+    }
+
+    internal static bool TryParseClassification(string reason, out SkipClassification classification)
+    {
+        classification = default;
+        if (string.IsNullOrWhiteSpace(reason) || reason[0] != '[')
+            return false;
+
+        var end = reason.IndexOf(']');
+        if (end <= 1)
+            return false;
+
+        var label = reason.Substring(1, end - 1);
+        if (label.StartsWith("feature:", StringComparison.OrdinalIgnoreCase))
+            label = label.Substring("feature:".Length);
+
+        var parts = label.Split('/');
+        if (parts.Length != 3)
+            return false;
+
+        if (!Enum.TryParse<SkipSpecStatus>(parts[0], ignoreCase: true, out var status) ||
+            !Enum.TryParse<SkipDisposition>(parts[1], ignoreCase: true, out var disposition) ||
+            !Enum.TryParse<SkipPriority>(parts[2], ignoreCase: true, out var priority))
+            return false;
+
+        classification = new(status, disposition, priority);
+        return true;
+    }
+
+    internal static string StripClassificationPrefix(string reason)
+    {
+        if (!TryParseClassification(reason, out _))
+            return reason;
+
+        var end = reason.IndexOf(']');
+        return end >= 0 && end + 2 <= reason.Length
+            ? reason.Substring(end + 2)
+            : string.Empty;
+    }
+
+    private static string FormatReason(string reason, SkipClassification classification)
+    {
+        return $"[{classification.Label}] {reason}";
+    }
+
+    private static string FormatFeatureReason(string featureName, string note, SkipClassification classification)
+    {
+        return $"[feature:{classification.Label}] excluded feature '{featureName}': {note}";
+    }
+
+    private static SkipClassification ClassifyPathEntry(string? pattern, string reason)
+    {
+        if (!string.IsNullOrEmpty(pattern) &&
+            pattern.StartsWith("staging/", StringComparison.OrdinalIgnoreCase))
             return StandardDeferred(SkipPriority.Low);
+
+        if (reason.Contains("Annex B excluded", StringComparison.OrdinalIgnoreCase))
+            return new(SkipSpecStatus.AnnexB, SkipDisposition.UnsupportedByPolicy, SkipPriority.None);
 
         if (reason.Contains("CRLF line endings", StringComparison.OrdinalIgnoreCase))
             return new(SkipSpecStatus.Other, SkipDisposition.EnvironmentOrHarness, SkipPriority.Low);

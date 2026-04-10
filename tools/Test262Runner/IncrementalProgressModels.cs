@@ -4,6 +4,7 @@ internal sealed record IncrementalProgressEntry(
     IReadOnlyList<string> Features,
     string Status,
     string? SkipReason,
+    string? SkipSpecStatus,
     DateTimeOffset LastUpdated);
 
 internal sealed record IncrementalProgressSnapshot(

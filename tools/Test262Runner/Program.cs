@@ -213,7 +213,7 @@ internal static partial class Program
                 resolvedRoot,
                 options,
                 progressOutput,
-                runnable,
+                files,
                 passedCache,
                 passed,
                 failed,

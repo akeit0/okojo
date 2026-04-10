@@ -33,6 +33,7 @@ Skipped cases now carry reasons like:
 | Status | Meaning |
 | --- | --- |
 | `Legacy` | Deprecated or legacy web-compat surface that Okojo does not currently prioritize. |
+| `AnnexB` | Annex B coverage tracked separately from legacy policy skips so optional web-compat baggage stays visible as its own bucket. |
 | `Proposal` | Active TC39 proposal coverage, not yet part of the current baseline target. |
 | `FinishedProposalNotInBaseline` | Proposal is effectively done, but not yet part of Okojo's current ES2025 baseline target. |
 | `Standard` | ECMAScript-standard surface already within the main compatibility target. |
@@ -83,7 +84,7 @@ These come from `ExcludedFeatureEntries` and seed the default `excludedFeatures`
 
 ## Current path-skip inventory
 
-`SkipList.Entries` currently contains **298** explicit path rules.
+`SkipList.Entries` currently contains **298** explicit path rules. `annexB/*` is a separate top-level runner exclusion and is **not** one of those explicit path entries.
 
 | Count | Classification | Interpretation |
 | --- | --- | --- |
@@ -103,6 +104,7 @@ These come from `ExcludedFeatureEntries` and seed the default `excludedFeatures`
 | --- | --- |
 | `Standard/UnsupportedByPolicy/None` | `language/eval-code/direct/*`, `language/expressions/function/unscopables-with.js`, `built-ins/Array/Symbol.species/*` |
 | `Legacy/UnsupportedByPolicy/None` | `language/literals/numeric/legacy-octal-integer.js`, `language/expressions/object/__proto__*`, `language/statements/function/13.2-*.js` |
+| `AnnexB/UnsupportedByPolicy/None` | `annexB/*` |
 | `Proposal/DeferredImplementation/Low` | `built-ins/Iterator/zip/*`, `language/expressions/dynamic-import/syntax/valid/*import-source*`, `language/statements/class/decorator/*` |
 | `Standard/DeferredImplementation/High` | `language/expressions/dynamic-import/syntax/valid/*import-attributes*` |
 | `Standard/DeferredImplementation/Medium` | `language/identifier-resolution/assign-to-global-undefined.js`, `language/literals/regexp/u-case-mapping.js`, `language/expressions/class/subclass-builtins/subclass-SharedArrayBuffer.js` |
@@ -111,6 +113,22 @@ These come from `ExcludedFeatureEntries` and seed the default `excludedFeatures`
 | `Other/EnvironmentOrHarness/Low` | `built-ins/Function/prototype/toString/line-terminator-normalisation-LF.js` |
 
 ## How to use the taxonomy
+
+## Progress reporting
+
+The runner progress outputs now use the taxonomy directly:
+
+- `ProgressRow` / incremental query tables split skipped tests into:
+  - `Skip Std`
+  - `Skip Legacy`
+  - `Skip Annex B`
+  - `Skip Proposal`
+  - `Skip Finished`
+  - `Skip Other`
+- a `Baseline Passed %` column reports `passed / baselineTotal`
+- `baselineTotal` excludes skipped coverage that is outside the current baseline, i.e. skips whose spec status is not `Standard`
+
+This keeps proposal, legacy, and harness-only skips from depressing the main baseline completion metric while still making them visible in the table.
 
 ### Highest-value near-term buckets
 

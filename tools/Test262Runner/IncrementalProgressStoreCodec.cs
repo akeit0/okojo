@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Test262Runner;
 
 internal static class IncrementalProgressStoreCodec
 {
@@ -23,6 +24,7 @@ internal static class IncrementalProgressStoreCodec
                 features,
                 DecodeStatus(entry.S),
                 entry.K,
+                DecodeSkipSpecStatus(entry.T),
                 entry.U == 0 ? DateTimeOffset.MinValue : DateTimeOffset.FromUnixTimeSeconds(entry.U));
         }).ToArray();
     }
@@ -43,6 +45,7 @@ internal static class IncrementalProgressStoreCodec
                 entry.Path,
                 EncodeStatus(entry.Status),
                 string.IsNullOrWhiteSpace(entry.SkipReason) ? null : entry.SkipReason,
+                EncodeSkipSpecStatus(entry.SkipSpecStatus),
                 entry.LastUpdated == DateTimeOffset.MinValue ? 0 : entry.LastUpdated.ToUnixTimeSeconds(),
                 entry.Features.Count == 0 ? null : entry.Features.Select(feature => featureIndex[feature]).ToArray()))
             .ToArray();
@@ -72,6 +75,34 @@ internal static class IncrementalProgressStoreCodec
         };
     }
 
+    private static string? DecodeSkipSpecStatus(byte status)
+    {
+        return status switch
+        {
+            1 => nameof(SkipList.SkipSpecStatus.Legacy),
+            2 => nameof(SkipList.SkipSpecStatus.AnnexB),
+            3 => nameof(SkipList.SkipSpecStatus.Proposal),
+            4 => nameof(SkipList.SkipSpecStatus.FinishedProposalNotInBaseline),
+            5 => nameof(SkipList.SkipSpecStatus.Standard),
+            6 => nameof(SkipList.SkipSpecStatus.Other),
+            _ => null
+        };
+    }
+
+    private static byte EncodeSkipSpecStatus(string? status)
+    {
+        return status switch
+        {
+            nameof(SkipList.SkipSpecStatus.Legacy) => 1,
+            nameof(SkipList.SkipSpecStatus.AnnexB) => 2,
+            nameof(SkipList.SkipSpecStatus.Proposal) => 3,
+            nameof(SkipList.SkipSpecStatus.FinishedProposalNotInBaseline) => 4,
+            nameof(SkipList.SkipSpecStatus.Standard) => 5,
+            nameof(SkipList.SkipSpecStatus.Other) => 6,
+            _ => 0
+        };
+    }
+
     private sealed record CompactIncrementalProgressSnapshot(
         [property: JsonPropertyName("v")] int V,
         [property: JsonPropertyName("f")] string[] F,
@@ -83,6 +114,9 @@ internal static class IncrementalProgressStoreCodec
         [property: JsonPropertyName("k")]
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         string? K,
+        [property: JsonPropertyName("t")]
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        byte T,
         [property: JsonPropertyName("u")]
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         long U,

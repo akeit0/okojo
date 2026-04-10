@@ -1,3 +1,5 @@
+using Test262Runner;
+
 internal static class IncrementalProgressCli
 {
     public static void Run(
@@ -239,10 +241,19 @@ internal static class IncrementalProgressCli
                 var total = group.Count();
                 var passed = group.Count(static x => string.Equals(x.Status, "passed", StringComparison.Ordinal));
                 var failed = group.Count(static x => string.Equals(x.Status, "failed", StringComparison.Ordinal));
-                var skipped = group.Count(static x => string.Equals(x.Status, "skipped", StringComparison.Ordinal));
+                var skippedStandard = group.Count(static x => IsSkippedWithSpecStatus(x, SkipList.SkipSpecStatus.Standard));
+                var skippedLegacy = group.Count(static x => IsSkippedWithSpecStatus(x, SkipList.SkipSpecStatus.Legacy));
+                var skippedAnnexB = group.Count(static x => IsSkippedWithSpecStatus(x, SkipList.SkipSpecStatus.AnnexB));
+                var skippedProposal = group.Count(static x => IsSkippedWithSpecStatus(x, SkipList.SkipSpecStatus.Proposal));
+                var skippedFinishedProposalNotInBaseline = group.Count(static x => IsSkippedWithSpecStatus(x, SkipList.SkipSpecStatus.FinishedProposalNotInBaseline));
+                var skippedOther = group.Count(static x => IsSkippedWithSpecStatus(x, SkipList.SkipSpecStatus.Other));
+                var skipped = skippedStandard + skippedLegacy + skippedAnnexB + skippedProposal + skippedFinishedProposalNotInBaseline + skippedOther;
+                var baselineTotal = total - skippedLegacy - skippedAnnexB - skippedProposal - skippedFinishedProposalNotInBaseline - skippedOther;
                 var notYet = total - passed - failed - skipped;
                 var lastUpdated = group.Select(static x => x.LastUpdated).Max();
-                return new IncrementalRow(group.Key, total, passed, failed, skipped, notYet,
+                return new IncrementalRow(group.Key, total, passed, failed, skippedStandard, skippedLegacy, skippedAnnexB,
+                    skippedProposal, skippedFinishedProposalNotInBaseline, skippedOther, skipped, notYet,
+                    baselineTotal,
                     lastUpdated == DateTimeOffset.MinValue ? null : lastUpdated);
             })
             .OrderBy(static x => x.Scope, StringComparer.OrdinalIgnoreCase)
@@ -261,11 +272,19 @@ internal static class IncrementalProgressCli
                 var total = group.Count();
                 var passed = group.Count(static x => string.Equals(x.Value.Status, "passed", StringComparison.Ordinal));
                 var failed = group.Count(static x => string.Equals(x.Value.Status, "failed", StringComparison.Ordinal));
-                var skipped =
-                    group.Count(static x => string.Equals(x.Value.Status, "skipped", StringComparison.Ordinal));
+                var skippedStandard = group.Count(static x => IsSkippedWithSpecStatus(x.Value, SkipList.SkipSpecStatus.Standard));
+                var skippedLegacy = group.Count(static x => IsSkippedWithSpecStatus(x.Value, SkipList.SkipSpecStatus.Legacy));
+                var skippedAnnexB = group.Count(static x => IsSkippedWithSpecStatus(x.Value, SkipList.SkipSpecStatus.AnnexB));
+                var skippedProposal = group.Count(static x => IsSkippedWithSpecStatus(x.Value, SkipList.SkipSpecStatus.Proposal));
+                var skippedFinishedProposalNotInBaseline = group.Count(static x => IsSkippedWithSpecStatus(x.Value, SkipList.SkipSpecStatus.FinishedProposalNotInBaseline));
+                var skippedOther = group.Count(static x => IsSkippedWithSpecStatus(x.Value, SkipList.SkipSpecStatus.Other));
+                var skipped = skippedStandard + skippedLegacy + skippedAnnexB + skippedProposal + skippedFinishedProposalNotInBaseline + skippedOther;
+                var baselineTotal = total - skippedLegacy - skippedAnnexB - skippedProposal - skippedFinishedProposalNotInBaseline - skippedOther;
                 var notYet = total - passed - failed - skipped;
                 var lastUpdated = group.Select(static x => x.Value.LastUpdated).Max();
-                return new IncrementalRow(group.Key, total, passed, failed, skipped, notYet,
+                return new IncrementalRow(group.Key, total, passed, failed, skippedStandard, skippedLegacy, skippedAnnexB,
+                    skippedProposal, skippedFinishedProposalNotInBaseline, skippedOther, skipped, notYet,
+                    baselineTotal,
                     lastUpdated == DateTimeOffset.MinValue ? null : lastUpdated);
             })
             .OrderBy(static x => x.Scope, StringComparer.OrdinalIgnoreCase)
@@ -277,14 +296,14 @@ internal static class IncrementalProgressCli
         writer.WriteLine($"## {title}");
         writer.WriteLine();
         writer.WriteLine(
-            "| Scope | Last Updated | Total | Passed | Failed | Skipped | Not Yet | Passed % | Failed % | Skipped % | Not Yet % |");
-        writer.WriteLine("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+            "| Scope | Last Updated | Total | Passed | Failed | Skip Std | Skip Legacy | Skip Annex B | Skip Proposal | Skip Finished | Skip Other | Skipped | Not Yet | Passed % | Failed % | Skipped % | Not Yet % | Baseline Passed % |");
+        writer.WriteLine("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
         foreach (var row in rows)
             writer.WriteLine(
-                $"| {EscapeMd(row.Scope)} | {FormatTimestamp(row.LastUpdated)} | {row.Total} | {row.Passed} | {row.Failed} | {row.Skipped} | {row.NotYet} | {FormatPercent(row.Passed, row.Total)} | {FormatPercent(row.Failed, row.Total)} | {FormatPercent(row.Skipped, row.Total)} | {FormatPercent(row.NotYet, row.Total)} |");
+                $"| {EscapeMd(row.Scope)} | {FormatTimestamp(row.LastUpdated)} | {row.Total} | {row.Passed} | {row.Failed} | {row.SkippedStandard} | {row.SkippedLegacy} | {row.SkippedAnnexB} | {row.SkippedProposal} | {row.SkippedFinishedProposalNotInBaseline} | {row.SkippedOther} | {row.Skipped} | {row.NotYet} | {FormatPercent(row.Passed, row.Total)} | {FormatPercent(row.Failed, row.Total)} | {FormatPercent(row.Skipped, row.Total)} | {FormatPercent(row.NotYet, row.Total)} | {FormatPercent(row.Passed, row.BaselineTotal)} |");
 
         if (rows.Count == 0)
-            writer.WriteLine("| (none) | - | 0 | 0 | 0 | 0 | 0 | 0.0% | 0.0% | 0.0% | 0.0% |");
+            writer.WriteLine("| (none) | - | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% |");
         writer.WriteLine();
     }
 
@@ -324,6 +343,12 @@ internal static class IncrementalProgressCli
                !string.IsNullOrWhiteSpace(entry.SkipReason)
             ? $" | {entry.SkipReason}"
             : string.Empty;
+    }
+
+    private static bool IsSkippedWithSpecStatus(IncrementalProgressEntry entry, SkipList.SkipSpecStatus status)
+    {
+        return string.Equals(entry.Status, "skipped", StringComparison.Ordinal) &&
+               string.Equals(entry.SkipSpecStatus, status.ToString(), StringComparison.Ordinal);
     }
 
     private static string GetCategoryKey(string relativePath)
@@ -381,7 +406,14 @@ internal static class IncrementalProgressCli
         int Total,
         int Passed,
         int Failed,
+        int SkippedStandard,
+        int SkippedLegacy,
+        int SkippedAnnexB,
+        int SkippedProposal,
+        int SkippedFinishedProposalNotInBaseline,
+        int SkippedOther,
         int Skipped,
         int NotYet,
+        int BaselineTotal,
         DateTimeOffset? LastUpdated);
 }

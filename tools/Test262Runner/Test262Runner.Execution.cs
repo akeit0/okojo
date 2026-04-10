@@ -8,6 +8,7 @@ using Okojo.Parsing;
 using Okojo.RegExp;
 using Okojo.Runtime;
 using Okojo.WebPlatform;
+using Test262Runner;
 using JsValue = Okojo.JsValue;
 
 internal static partial class Program
@@ -124,7 +125,7 @@ internal static partial class Program
                             fileTimings.Add(caseTimings);
                             if (message.Contains("With statements are not supported in Okojo"))
                             {
-                                skipped.Add((path, "with statement not supported"));
+                                skipped.Add((path, SkipList.FormatReason("with statement not supported")));
                                 progress.RecordTimings(fileTimings);
                                 progress.IncrementCompleted();
                                 progress.IncrementExecuted();
