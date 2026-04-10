@@ -1,8 +1,116 @@
+using System.Linq;
+
 namespace Test262Runner;
 
 internal static class SkipList
 {
-    internal static readonly KeyValuePair<string, string>[] Entries =
+    internal enum SkipSpecStatus
+    {
+        Legacy,
+        Proposal,
+        FinishedProposalNotInBaseline,
+        Standard,
+        Other
+    }
+
+    internal enum SkipDisposition
+    {
+        UnsupportedByPolicy,
+        DeferredImplementation,
+        IntentionalDeviation,
+        EnvironmentOrHarness,
+        Other
+    }
+
+    internal enum SkipPriority
+    {
+        None,
+        Low,
+        Medium,
+        High
+    }
+
+    internal readonly record struct SkipClassification(
+        SkipSpecStatus Status,
+        SkipDisposition Disposition,
+        SkipPriority Priority)
+    {
+        public string Label => $"{Status}/{Disposition}/{Priority}";
+    }
+
+    internal sealed class PathEntry(string pattern, string reason)
+    {
+        public string Pattern { get; } = pattern;
+        public string Reason { get; } = reason;
+        public SkipClassification Classification { get; } = ClassifyPathEntry(pattern, reason);
+        public string FormattedReason => $"[{Classification.Label}] {Reason}";
+    }
+
+    internal sealed class FeatureEntry(
+        string name,
+        SkipSpecStatus status,
+        SkipDisposition disposition,
+        SkipPriority priority,
+        string note)
+    {
+        public string Name { get; } = name;
+        public SkipClassification Classification { get; } = new(status, disposition, priority);
+        public string Note { get; } = note;
+        public string FormattedReason =>
+            $"[feature:{Classification.Label}] excluded feature '{Name}': {Note}";
+    }
+
+    internal static readonly FeatureEntry[] ExcludedFeatureEntries =
+    [
+        new("__proto__", SkipSpecStatus.Legacy, SkipDisposition.UnsupportedByPolicy, SkipPriority.None,
+            "Legacy __proto__ web-compat surface is intentionally unsupported in Okojo."),
+        new("Error.isError", SkipSpecStatus.FinishedProposalNotInBaseline, SkipDisposition.DeferredImplementation,
+            SkipPriority.Medium,
+            "Finished proposal tracked after the current ES2025 baseline; keep excluded until baseline scope moves."),
+        new("explicit-resource-management", SkipSpecStatus.Proposal, SkipDisposition.DeferredImplementation,
+            SkipPriority.Low,
+            "Stage-3 proposal surface; not part of the current ES2025 baseline target."),
+        new("Temporal", SkipSpecStatus.FinishedProposalNotInBaseline, SkipDisposition.DeferredImplementation,
+            SkipPriority.High,
+            "Finished proposal tracked beyond the current ES2025 baseline and an explicit future-compat target for Okojo."),
+        new("ShadowRealm", SkipSpecStatus.Proposal, SkipDisposition.DeferredImplementation, SkipPriority.Low,
+            "Active proposal surface, not yet finished or baseline."),
+        new("immutable-arraybuffer", SkipSpecStatus.Proposal, SkipDisposition.DeferredImplementation,
+            SkipPriority.Low,
+            "Active proposal surface, not yet finished or baseline."),
+        new("upsert", SkipSpecStatus.FinishedProposalNotInBaseline, SkipDisposition.DeferredImplementation,
+            SkipPriority.Medium,
+            "Finished proposal tracked beyond the current ES2025 baseline."),
+        new("joint-iteration", SkipSpecStatus.Proposal, SkipDisposition.DeferredImplementation,
+            SkipPriority.Low,
+            "Active proposal surface, not yet finished or baseline."),
+        new("import-defer", SkipSpecStatus.Proposal, SkipDisposition.DeferredImplementation,
+            SkipPriority.Medium,
+            "Active proposal for deferred module evaluation."),
+        new("source-phase-imports", SkipSpecStatus.Proposal, SkipDisposition.DeferredImplementation,
+            SkipPriority.Medium,
+            "Active proposal for source-phase import semantics."),
+        new("source-phase-imports-module-source", SkipSpecStatus.Proposal,
+            SkipDisposition.DeferredImplementation, SkipPriority.Medium,
+            "Active proposal for source/module-source import semantics."),
+        new("__setter__", SkipSpecStatus.Legacy, SkipDisposition.UnsupportedByPolicy, SkipPriority.None,
+            "Deprecated legacy accessor API is intentionally unsupported in Okojo."),
+        new("__lookupSetter__", SkipSpecStatus.Legacy, SkipDisposition.UnsupportedByPolicy, SkipPriority.None,
+            "Deprecated legacy accessor API is intentionally unsupported in Okojo."),
+        new("__getter__", SkipSpecStatus.Legacy, SkipDisposition.UnsupportedByPolicy, SkipPriority.None,
+            "Deprecated legacy accessor API is intentionally unsupported in Okojo."),
+        new("__lookupGetter__", SkipSpecStatus.Legacy, SkipDisposition.UnsupportedByPolicy, SkipPriority.None,
+            "Deprecated legacy accessor API is intentionally unsupported in Okojo."),
+        new("legacy-regexp", SkipSpecStatus.Proposal, SkipDisposition.DeferredImplementation, SkipPriority.Low,
+            "Legacy RegExp features remain an active TC39 proposal and are not baseline yet."),
+        new("await-dictionary", SkipSpecStatus.Proposal, SkipDisposition.DeferredImplementation, SkipPriority.Low,
+            "Active proposal surface, not yet finished or baseline.")
+    ];
+
+    internal static readonly string[] DefaultExcludedFeatures =
+        [.. ExcludedFeatureEntries.Select(static entry => entry.Name)];
+
+    internal static readonly PathEntry[] Entries =
     [
         new("language/module-code/instn-local-bndng-let.js",
             "Intentional skip: module lexical TDZ typeof path currently traded off for compile-time performance"),
@@ -573,4 +681,80 @@ internal static class SkipList
         new("language/arguments-object/10.6-13-c-3-s.js", "Intentional skip: relies on legacy arguments.callee"),
         new("language/arguments-object/10.6-14-c-1-s.js", "Intentional skip: relies on legacy arguments.callee")
     ];
+
+    internal static bool TryGetExcludedFeature(string feature, out FeatureEntry entry)
+    {
+        for (var i = 0; i < ExcludedFeatureEntries.Length; i++)
+        {
+            var candidate = ExcludedFeatureEntries[i];
+            if (string.Equals(candidate.Name, feature, StringComparison.OrdinalIgnoreCase))
+            {
+                entry = candidate;
+                return true;
+            }
+        }
+
+        entry = null!;
+        return false;
+    }
+
+    private static SkipClassification ClassifyPathEntry(string pattern, string reason)
+    {
+        if (pattern.StartsWith("staging/", StringComparison.OrdinalIgnoreCase))
+            return StandardDeferred(SkipPriority.Low);
+
+        if (reason.Contains("CRLF line endings", StringComparison.OrdinalIgnoreCase))
+            return new(SkipSpecStatus.Other, SkipDisposition.EnvironmentOrHarness, SkipPriority.Low);
+
+        if (reason.Contains("dynamic import attributes syntax is not implemented", StringComparison.OrdinalIgnoreCase))
+            return StandardDeferred(SkipPriority.High);
+
+        if (reason.Contains("source-phase-imports", StringComparison.OrdinalIgnoreCase) ||
+            reason.Contains("import.defer", StringComparison.OrdinalIgnoreCase) ||
+            reason.Contains("decorators proposal", StringComparison.OrdinalIgnoreCase) ||
+            reason.Contains("experimental joint-iteration surface", StringComparison.OrdinalIgnoreCase))
+            return new(SkipSpecStatus.Proposal, SkipDisposition.DeferredImplementation, SkipPriority.Low);
+
+        if (reason.Contains("Array[Symbol.species]", StringComparison.OrdinalIgnoreCase) ||
+            reason.Contains("ArraySpeciesCreate", StringComparison.OrdinalIgnoreCase) ||
+            reason.Contains("SharedArrayBuffer[Symbol.species]", StringComparison.OrdinalIgnoreCase))
+            return new(SkipSpecStatus.Standard, SkipDisposition.UnsupportedByPolicy, SkipPriority.None);
+
+        if (reason.Contains("with statement", StringComparison.OrdinalIgnoreCase) ||
+            reason.Contains("with-statement", StringComparison.OrdinalIgnoreCase))
+            return new(SkipSpecStatus.Standard, SkipDisposition.UnsupportedByPolicy, SkipPriority.None);
+
+        if (reason.Contains("direct eval", StringComparison.OrdinalIgnoreCase) ||
+            reason.Contains("global-eval path", StringComparison.OrdinalIgnoreCase))
+            return new(SkipSpecStatus.Standard, SkipDisposition.UnsupportedByPolicy, SkipPriority.None);
+
+        if (reason.Contains("deprecated", StringComparison.OrdinalIgnoreCase) ||
+            reason.Contains("legacy ", StringComparison.OrdinalIgnoreCase) ||
+            reason.Contains("__proto__", StringComparison.OrdinalIgnoreCase))
+            return new(SkipSpecStatus.Legacy, SkipDisposition.UnsupportedByPolicy, SkipPriority.None);
+
+        if (reason.Contains("SharedArrayBuffer builtin is not implemented", StringComparison.OrdinalIgnoreCase))
+            return StandardDeferred(SkipPriority.Medium);
+
+        if (reason.Contains("temporarily deferred", StringComparison.OrdinalIgnoreCase) ||
+            reason.Contains("traded off for compile-time performance", StringComparison.OrdinalIgnoreCase))
+            return new(SkipSpecStatus.Standard, SkipDisposition.IntentionalDeviation, SkipPriority.Medium);
+
+        if (reason.Contains("not a useful Okojo conformance target", StringComparison.OrdinalIgnoreCase))
+            return new(SkipSpecStatus.Other, SkipDisposition.IntentionalDeviation, SkipPriority.Low);
+
+        if (reason.Contains("not fully modeled", StringComparison.OrdinalIgnoreCase) ||
+            reason.Contains("not currently modeled", StringComparison.OrdinalIgnoreCase) ||
+            reason.Contains("not modeled", StringComparison.OrdinalIgnoreCase) ||
+            reason.Contains("is not implemented in Okojo", StringComparison.OrdinalIgnoreCase) ||
+            reason.Contains("is not implemented", StringComparison.OrdinalIgnoreCase))
+            return StandardDeferred(SkipPriority.Medium);
+
+        return new(SkipSpecStatus.Other, SkipDisposition.Other, SkipPriority.Low);
+    }
+
+    private static SkipClassification StandardDeferred(SkipPriority priority)
+    {
+        return new(SkipSpecStatus.Standard, SkipDisposition.DeferredImplementation, priority);
+    }
 }

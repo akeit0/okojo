@@ -461,10 +461,10 @@ internal static partial class Program
             return true;
         }
 
-        foreach (var pair in SkipList.Entries)
-            if (path.Contains(pair.Key))
+        foreach (var entry in SkipList.Entries)
+            if (path.Contains(entry.Pattern))
             {
-                reason = pair.Value;
+                reason = entry.FormattedReason;
                 return true;
             }
 
@@ -480,7 +480,9 @@ internal static partial class Program
                 .FirstOrDefault(f => options.ExcludedFeatures.Contains(f) && !options.Features.Contains(f));
             if (excludedFeatureHit is not null)
             {
-                reason = "excluded feature";
+                reason = SkipList.TryGetExcludedFeature(excludedFeatureHit, out var featureEntry)
+                    ? featureEntry.FormattedReason
+                    : $"excluded feature '{excludedFeatureHit}'";
                 return true;
             }
 
@@ -592,13 +594,9 @@ internal static partial class Program
             string? filter = null;
             var categories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var features = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var excludedFeatures = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                "__proto__", "Error.isError", "explicit-resource-management", "Temporal", "ShadowRealm",
-                "immutable-arraybuffer", "upsert", "joint-iteration",
-                "import-defer", "source-phase-imports", "source-phase-imports-module-source", "__setter__",
-                "__lookupSetter__", "__getter__", "__lookupGetter__", "legacy-regexp","await-dictionary"
-            };
+            var excludedFeatures = new HashSet<string>(
+                SkipList.DefaultExcludedFeatures,
+                StringComparer.OrdinalIgnoreCase);
             var allowFeatureTests = true;
             int? maxTests = null;
             var timeoutMs = 0;
