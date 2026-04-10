@@ -597,7 +597,7 @@ internal static partial class Program
                 "__proto__", "Error.isError", "explicit-resource-management", "Temporal", "ShadowRealm",
                 "immutable-arraybuffer", "upsert", "joint-iteration",
                 "import-defer", "source-phase-imports", "source-phase-imports-module-source", "__setter__",
-                "__lookupSetter__", "__getter__", "__lookupGetter__", "legacy-regexp","await-dictionary"
+                "__lookupSetter__", "__getter__", "__lookupGetter__", "legacy-regexp","await-dictionary", "import-text"
             };
             var allowFeatureTests = true;
             int? maxTests = null;
