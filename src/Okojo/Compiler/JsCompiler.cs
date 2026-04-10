@@ -6780,7 +6780,8 @@ public sealed partial class JsCompiler : IDisposable
         public bool Matches(CompilerIdentifierName identifier)
         {
             if (identifier.NameId >= 0 && SourceNameId >= 0)
-                return identifier.NameId == SourceNameId;
+                return identifier.NameId == SourceNameId ||
+                       string.Equals(SourceName, identifier.Name, StringComparison.Ordinal);
 
             return string.Equals(SourceName, identifier.Name, StringComparison.Ordinal);
         }

@@ -214,6 +214,56 @@ public class ForOfTests
     }
 
     [Test]
+    public void ForOf_Let_DirectRead_And_Capture_Share_Current_Iteration_Binding()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsCompiler(realm);
+        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+                                                                   let s = 0;
+                                                                   let f = [undefined, undefined, undefined];
+                                                                   for (let x of [1, 2, 3]) {
+                                                                     s += x;
+                                                                     f[x - 1] = function() { return x; };
+                                                                   }
+                                                                   s === 6 && f[0]() === 1 && f[1]() === 2 && f[2]() === 3;
+                                                                   """));
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.IsTrue, Is.True);
+    }
+
+    [Test]
+    public void ForOf_Destructured_Capture_Prefers_Current_Loop_Binding()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsCompiler(realm);
+        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+                                                                   const testCases = [
+                                                                     { label: "x", args: [], expectedArgs: [undefined, undefined] },
+                                                                   ];
+                                                                   let ok = true;
+                                                                   for (const { label, args, expectedArgs } of testCases) {
+                                                                     const spy = {
+                                                                       toLocaleString(...receivedArgs) {
+                                                                         ok = ok &&
+                                                                              label === "x" &&
+                                                                              expectedArgs.length === 2 &&
+                                                                              receivedArgs.length === 2;
+                                                                         return "ok";
+                                                                       }
+                                                                     };
+                                                                     ok = ok && [spy].toLocaleString(...args) === "ok";
+                                                                   }
+                                                                   ok;
+                                                                   """));
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.IsTrue, Is.True);
+    }
+
+    [Test]
     public void ForOf_LetBodyClosure_Boundary_UsesFreshBindingPerIteration()
     {
         var realm = JsRuntime.Create().DefaultRealm;
