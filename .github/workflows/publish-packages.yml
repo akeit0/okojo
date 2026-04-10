@@ -1,0 +1,126 @@
+name: Publish packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Pack only or publish to nuget.org"
+        required: true
+        default: pack
+        type: choice
+        options:
+          - pack
+          - publish
+      package:
+        description: "Package or package group to process"
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - Okojo
+          - Okojo.Hosting
+          - Okojo.Diagnostics
+          - Okojo.Reflection
+          - Okojo.WebPlatform
+          - Okojo.WebAssembly
+          - Okojo.WebAssembly.Wasmtime
+
+jobs:
+  pack:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Select packages
+        id: select
+        shell: pwsh
+        run: |
+          $selected = "${{ inputs.package }}"
+          $all = @(
+            @{ Id = "Okojo"; Project = "src/Okojo/Okojo.csproj" },
+            @{ Id = "Okojo.Hosting"; Project = "src/Okojo.Hosting/Okojo.Hosting.csproj" },
+            @{ Id = "Okojo.Diagnostics"; Project = "src/Okojo.Diagnostics/Okojo.Diagnostics.csproj" },
+            @{ Id = "Okojo.Reflection"; Project = "src/Okojo.Reflection/Okojo.Reflection.csproj" },
+            @{ Id = "Okojo.WebAssembly"; Project = "src/Okojo.WebAssembly/Okojo.WebAssembly.csproj" },
+            @{ Id = "Okojo.WebPlatform"; Project = "src/Okojo.WebPlatform/Okojo.WebPlatform.csproj" },
+            @{ Id = "Okojo.WebAssembly.Wasmtime"; Project = "src/Okojo.WebAssembly.Wasmtime/Okojo.WebAssembly.Wasmtime.csproj" }
+          )
+
+          if ($selected -eq "all") {
+            $packages = $all
+          } else {
+            $packages = $all | Where-Object { $_.Id -eq $selected }
+          }
+
+          if ($packages.Count -eq 0) {
+            throw "No packages selected."
+          }
+
+          $json = $packages | ConvertTo-Json -Compress
+          "packages=$json" >> $env:GITHUB_OUTPUT
+
+      - name: Pack selected packages
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          $packages = '${{ steps.select.outputs.packages }}' | ConvertFrom-Json
+          foreach ($package in @($packages)) {
+            Write-Host "Packing $($package.Id) from $($package.Project)"
+            dotnet pack $package.Project -c Release -o artifacts /p:ContinuousIntegrationBuild=true
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages
+          path: artifacts/*.nupkg
+          if-no-files-found: error
+
+  publish:
+    if: ${{ inputs.mode == 'publish' }}
+    needs: pack
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-packages
+          path: artifacts
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: NuGet login (OIDC)
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Push to NuGet
+        shell: pwsh
+        run: |
+          $packages = Get-ChildItem artifacts -Filter *.nupkg | Sort-Object Name
+          if ($packages.Count -eq 0) {
+            throw "No packages found to publish."
+          }
+
+          foreach ($package in $packages) {
+            Write-Host "Publishing $($package.Name)"
+            dotnet nuget push $package.FullName --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }

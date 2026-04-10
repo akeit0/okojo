@@ -8,6 +8,7 @@
         <RootNamespace>Okojo.WebPlatform</RootNamespace>
         <IsPackable>true</IsPackable>
         <PackageId>Okojo.WebPlatform</PackageId>
+        <PackageVersion>$(OkojoPackageVersion_Okojo_WebPlatform)</PackageVersion>
         <Description>Portable web-platform APIs such as fetch, timers, workers, and host-installed globals for Okojo.</Description>
         <PackageTags>javascript;ecmascript;web;fetch;workers;timers;dotnet</PackageTags>
         <PackageReadmeFile>README.md</PackageReadmeFile>

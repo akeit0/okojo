@@ -2,6 +2,7 @@
      <PropertyGroup>
         <Version>0.1.0-preview.1</Version>
     </PropertyGroup>
+    <Import Project="eng\PackageVersions.props" Condition="Exists('eng\PackageVersions.props')" />
     <PropertyGroup Condition="$([System.String]::Copy('$(MSBuildProjectDirectory)').StartsWith('$(MSBuildThisFileDirectory)src'))">
         <IsAotCompatible>true</IsAotCompatible>
         <IsPackable>false</IsPackable>

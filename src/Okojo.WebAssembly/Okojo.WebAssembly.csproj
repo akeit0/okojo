@@ -7,6 +7,7 @@
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <IsPackable>true</IsPackable>
         <PackageId>Okojo.WebAssembly</PackageId>
+        <PackageVersion>$(OkojoPackageVersion_Okojo_WebAssembly)</PackageVersion>
         <Description>Backend-agnostic WebAssembly integration APIs for Okojo runtimes.</Description>
         <PackageTags>javascript;ecmascript;webassembly;wasm;runtime;dotnet</PackageTags>
         <PackageReadmeFile>README.md</PackageReadmeFile>

@@ -7,6 +7,7 @@
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <IsPackable>true</IsPackable>
         <PackageId>Okojo.WebAssembly.Wasmtime</PackageId>
+        <PackageVersion>$(OkojoPackageVersion_Okojo_WebAssembly_Wasmtime)</PackageVersion>
         <Description>Wasmtime backend for the Okojo.WebAssembly integration layer.</Description>
         <PackageTags>javascript;ecmascript;webassembly;wasm;wasmtime;dotnet</PackageTags>
         <PackageReadmeFile>README.md</PackageReadmeFile>

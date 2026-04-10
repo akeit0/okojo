@@ -6,6 +6,7 @@
         <LangVersion>14</LangVersion>
         <IsPackable>true</IsPackable>
         <PackageId>Okojo.Hosting</PackageId>
+        <PackageVersion>$(OkojoPackageVersion_Okojo_Hosting)</PackageVersion>
         <Description>Hosting helpers, schedulers, queues, and worker infrastructure for Okojo runtimes.</Description>
         <PackageTags>javascript;ecmascript;hosting;scheduler;workers;dotnet</PackageTags>
         <PackageReadmeFile>README.md</PackageReadmeFile>

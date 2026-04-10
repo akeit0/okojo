@@ -6,6 +6,7 @@
         <LangVersion>14</LangVersion>
         <IsPackable>true</IsPackable>
         <PackageId>Okojo.Diagnostics</PackageId>
+        <PackageVersion>$(OkojoPackageVersion_Okojo_Diagnostics)</PackageVersion>
         <Description>Diagnostics and formatting helpers for inspecting Okojo values and bytecode.</Description>
         <PackageTags>javascript;ecmascript;diagnostics;disassembler;debugger;dotnet</PackageTags>
         <PackageReadmeFile>README.md</PackageReadmeFile>
