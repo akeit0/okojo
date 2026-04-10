@@ -516,6 +516,25 @@ public class StringPrototypeTests
     }
 
     [Test]
+    public void String_Split_Allows_NonUnicode_IdentityEscapes_That_Look_Special_In_DotNet()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        realm.Eval("""
+                   let splitK = "x".split(/\k<x>/);
+                   let splitMalformedX = "x".split(/\x/);
+                   let splitX = "x".split(/\X/);
+                   let splitXA0 = "x".split(/\XA0/);
+                   [
+                     splitK.length, splitK[0],
+                     splitMalformedX.length, splitMalformedX[0], splitMalformedX[1],
+                     splitX.length, splitX[0],
+                     splitXA0.length, splitXA0[0]
+                   ].join("|");
+                   """);
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("1|x|2|||1|x|1|x"));
+    }
+
+    [Test]
     public void String_Search_Invokes_BuiltIn_SymbolSearch_On_Internally_Created_RegExp()
     {
         var realm = JsRuntime.Create().DefaultRealm;

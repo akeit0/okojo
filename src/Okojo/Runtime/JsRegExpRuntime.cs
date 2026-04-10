@@ -335,10 +335,11 @@ internal static class JsRegExpRuntime
     internal static PreparedPattern PreparePatternForExecution(string pattern, bool unicode, bool dotAll,
         bool multiline, bool ignoreCase)
     {
-        var namedGroupNames = ExtractNamedGroupNames(pattern, out var definitionStarts, out var references);
+        var namedGroupNames = ExtractNamedGroupNames(pattern, unicode, out var definitionStarts, out var references);
         var executionPattern = RewriteForwardNamedBackreferences(pattern, definitionStarts, references);
         executionPattern = NormalizeAssertionsAndDotForDotNet(executionPattern, unicode, dotAll, multiline, ignoreCase);
-        executionPattern = NormalizePatternForDotNet(executionPattern, unicode, dotAll);
+        executionPattern = NormalizePatternForDotNet(executionPattern, unicode, dotAll,
+            hasNamedCapturingGroups: definitionStarts.Count != 0);
 
         try
         {
@@ -630,10 +631,11 @@ internal static class JsRegExpRuntime
         }
     }
 
-    private static string NormalizePatternForDotNet(string pattern, bool unicode, bool dotAll)
+    private static string NormalizePatternForDotNet(string pattern, bool unicode, bool dotAll,
+        bool hasNamedCapturingGroups = false)
     {
         if (!unicode)
-            return pattern;
+            return NormalizeNonUnicodeIdentityEscapesForDotNet(pattern, hasNamedCapturingGroups);
 
         var unicodeBraceStart = pattern.IndexOf(@"\u{", StringComparison.Ordinal);
         var unicodeEscapeStart = pattern.IndexOf(@"\u", StringComparison.Ordinal);
@@ -732,6 +734,100 @@ internal static class JsRegExpRuntime
         }
 
         return sb.ToString();
+    }
+
+    private static string NormalizeNonUnicodeIdentityEscapesForDotNet(string pattern, bool hasNamedCapturingGroups)
+    {
+        if (string.IsNullOrEmpty(pattern))
+            return pattern;
+
+        StringBuilder? sb = null;
+        var copyStart = 0;
+        var inCharacterClass = false;
+
+        for (var i = 0; i < pattern.Length; i++)
+        {
+            var ch = pattern[i];
+            if (ch == '\\' && i + 1 < pattern.Length)
+            {
+                var next = pattern[i + 1];
+                if (ShouldRewriteNonUnicodeIdentityEscape(pattern, i, next, inCharacterClass, hasNamedCapturingGroups))
+                {
+                    sb ??= new(pattern.Length);
+                    if (i > copyStart)
+                        sb.Append(pattern, copyStart, i - copyStart);
+                    sb.Append(next);
+                    i++;
+                    copyStart = i + 1;
+                    continue;
+                }
+
+                i++;
+                continue;
+            }
+
+            if (!inCharacterClass)
+            {
+                if (ch == '[')
+                    inCharacterClass = true;
+            }
+            else if (ch == ']')
+            {
+                inCharacterClass = false;
+            }
+        }
+
+        if (sb is null)
+            return pattern;
+
+        if (copyStart < pattern.Length)
+            sb.Append(pattern, copyStart, pattern.Length - copyStart);
+        return sb.ToString();
+    }
+
+    private static bool ShouldRewriteNonUnicodeIdentityEscape(
+        string pattern,
+        int escapeStart,
+        char escapedChar,
+        bool inCharacterClass,
+        bool hasNamedCapturingGroups)
+    {
+        switch (escapedChar)
+        {
+            case 'd':
+            case 'D':
+            case 's':
+            case 'S':
+            case 'w':
+            case 'W':
+            case 'f':
+            case 'n':
+            case 'r':
+            case 't':
+            case 'v':
+                return false;
+            case 'b':
+                return false;
+            case 'B':
+                return !inCharacterClass ? false : true;
+            case 'c':
+                return escapeStart + 2 >= pattern.Length || !char.IsAsciiLetter(pattern[escapeStart + 2]);
+            case 'x':
+                return escapeStart + 3 >= pattern.Length ||
+                       HexToInt(pattern[escapeStart + 2]) < 0 ||
+                       HexToInt(pattern[escapeStart + 3]) < 0;
+            case 'p':
+            case 'P':
+                return true;
+            case 'k':
+                return !hasNamedCapturingGroups && escapeStart + 2 < pattern.Length && pattern[escapeStart + 2] == '<';
+            case 'u':
+                return false;
+            case '0':
+                return false;
+        }
+
+        return char.IsAsciiLetter(escapedChar);
     }
 
     private static bool TryParseUnicodeCodePoint(string pattern, int start, int endExclusive, out int scalar)
@@ -960,13 +1056,14 @@ internal static class JsRegExpRuntime
             $"(?:(?!{pair})[\\uD800-\\uDBFF][\\uDC00-\\uDFFF]|[\\uD800-\\uDBFF](?![\\uDC00-\\uDFFF])|(?<![\\uD800-\\uDBFF])[\\uDC00-\\uDFFF]|[^\\uD800-\\uDFFF])";
     }
 
-    internal static string[] ExtractNamedGroupNames(string pattern)
+    internal static string[] ExtractNamedGroupNames(string pattern, bool unicode = false)
     {
-        return ExtractNamedGroupNames(pattern, out _, out _);
+        return ExtractNamedGroupNames(pattern, unicode, out _, out _);
     }
 
     private static string[] ExtractNamedGroupNames(
         string pattern,
+        bool unicode,
         out Dictionary<string, int> definitionStarts,
         out List<NamedBackreference> references)
     {
@@ -1047,6 +1144,12 @@ internal static class JsRegExpRuntime
             if (seen.Add(name))
                 names.Add(name);
             definitionStarts.TryAdd(name, i);
+        }
+
+        if (!unicode && definitionStarts.Count == 0)
+        {
+            references.Clear();
+            return names.ToArray();
         }
 
         foreach (var reference in references)

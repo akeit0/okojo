@@ -296,6 +296,7 @@ internal sealed class ScratchRegExpProgram
         private readonly List<string> namedGroupNames = new();
         private readonly List<string> unresolvedNamedBackreferences = new();
         private readonly List<int> unresolvedNumericBackreferences = new();
+        private readonly bool hasNamedCapturingGroups = ContainsNamedCapturingGroups(pattern);
         private HashSet<string> activeNamedCaptureNames = new(StringComparer.Ordinal);
         private int captureCount;
         private int pos;
@@ -694,6 +695,9 @@ internal sealed class ScratchRegExpProgram
                 case 'u':
                     return ParseUnicodeEscape();
                 case 'x':
+                    if (!flags.Unicode &&
+                        (pos + 1 >= pattern.Length || HexToInt(pattern[pos]) < 0 || HexToInt(pattern[pos + 1]) < 0))
+                        return new LiteralNode('x');
                     return ParseHexEscape();
                 case 'p':
                     if (flags.Unicode)
@@ -705,7 +709,11 @@ internal sealed class ScratchRegExpProgram
                     break;
                 case 'k':
                     if (Peek('<'))
-                        return ParseNamedBackreference();
+                    {
+                        if (flags.Unicode || hasNamedCapturingGroups)
+                            return ParseNamedBackreference();
+                        return new LiteralNode('k');
+                    }
                     if (flags.Unicode)
                         throw new ArgumentException("Invalid regular expression pattern");
                     return new LiteralNode('k');
@@ -882,6 +890,52 @@ internal sealed class ScratchRegExpProgram
             if (!namedCaptureIndexes.TryGetValue(name, out var indexes) || indexes.Count == 0)
                 unresolvedNamedBackreferences.Add(name);
             return new NamedBackReferenceNode(name);
+        }
+
+        private static bool ContainsNamedCapturingGroups(string pattern)
+        {
+            var escaped = false;
+            var inCharacterClass = false;
+
+            for (var i = 0; i < pattern.Length; i++)
+            {
+                var ch = pattern[i];
+                if (escaped)
+                {
+                    escaped = false;
+                    continue;
+                }
+
+                if (ch == '\\')
+                {
+                    escaped = true;
+                    continue;
+                }
+
+                if (inCharacterClass)
+                {
+                    if (ch == ']')
+                        inCharacterClass = false;
+                    continue;
+                }
+
+                if (ch == '[')
+                {
+                    inCharacterClass = true;
+                    continue;
+                }
+
+                if (ch != '(' || i + 3 >= pattern.Length || pattern[i + 1] != '?' || pattern[i + 2] != '<')
+                    continue;
+
+                var discriminator = pattern[i + 3];
+                if (discriminator is '=' or '!')
+                    continue;
+
+                return true;
+            }
+
+            return false;
         }
 
         private Node ParsePropertyEscape(bool negated)
