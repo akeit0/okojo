@@ -510,16 +510,21 @@ public sealed partial class JsCompiler
         if (member.Object is JsSuperExpression)
             throw new NotSupportedException(
                 "Super destructuring assignment targets are not supported in Okojo Phase 1.");
-        if (member.IsPrivate)
-            throw new NotSupportedException(
-                "Private destructuring assignment targets are not supported in Okojo Phase 1.");
-
         int objectReg;
         if (!TryGetPlainLocalReadRegister(member.Object, out objectReg))
         {
             VisitExpression(member.Object);
             objectReg = AllocateTemporaryRegister();
             EmitStarRegister(objectReg);
+        }
+
+        if (member.IsPrivate)
+        {
+            if (!TryResolvePrivateMemberBinding(member, out var privateBinding))
+                throw new NotSupportedException(
+                    "Private destructuring assignment target shape is not supported in Okojo Phase 1.");
+
+            return new(null, objectReg, -1, null, privateBinding);
         }
 
         if (member.IsComputed)
@@ -942,7 +947,7 @@ public sealed partial class JsCompiler
                 EmitStarRegister(specStart);
                 EmitStarRegister(specStart + 1);
             }
-            else if (element.Target is JsMemberExpression memberTarget)
+            else if (element.Target is JsMemberExpression { IsPrivate: false } memberTarget)
             {
                 flags |= ArrayAssignmentTargetFlagHasTarget;
                 if (ExpressionRequiresCurrentGeneratorExecution(memberTarget.Object))
@@ -1273,6 +1278,15 @@ public sealed partial class JsCompiler
             return;
         }
 
+        if (target.PrivateBinding is { } privateBinding)
+        {
+            var valueReg = AllocateTemporaryRegister();
+            EmitStarRegister(valueReg);
+            EmitPrivateFieldOp(JsOpCode.SetPrivateField, target.ObjectRegister, valueReg, privateBinding.BrandId,
+                privateBinding.SlotIndex);
+            return;
+        }
+
         var nameIdx = builder.AddAtomizedStringConstant(target.StaticMemberKey!);
         var feedbackSlot = builder.AllocateFeedbackSlot();
         EmitStaNamedPropertyByIndex(target.ObjectRegister, nameIdx, feedbackSlot);
@@ -1350,6 +1364,7 @@ public sealed partial class JsCompiler
             requiresClosureBinding = true;
         var idx = builder.AddObjectConstant(thunkObj);
         EmitCreateClosureByIndex(idx);
+        EmitInheritCurrentFunctionPrivateBrandStateIfNeeded();
     }
 
     private void EmitSingleArgAssignmentSetterThunk(JsExpression target)
@@ -1388,6 +1403,7 @@ public sealed partial class JsCompiler
             requiresClosureBinding = true;
         var idx = builder.AddObjectConstant(thunkObj);
         EmitCreateClosureByIndex(idx);
+        EmitInheritCurrentFunctionPrivateBrandStateIfNeeded();
     }
 
     private void EnsureContextSlotsForNestedAssignmentTarget(JsExpression target)
@@ -2906,7 +2922,8 @@ public sealed partial class JsCompiler
         CompilerIdentifierName? Identifier,
         int ObjectRegister,
         int RawKeyRegister,
-        string? StaticMemberKey);
+        string? StaticMemberKey,
+        PrivateFieldBinding? PrivateBinding = null);
 
     private readonly record struct ObjectRestExcludedKey(string? StaticSourceKey, int ComputedKeyRegister);
 }
