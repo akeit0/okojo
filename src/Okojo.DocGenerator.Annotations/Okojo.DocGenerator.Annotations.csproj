@@ -5,5 +5,14 @@
         <Nullable>enable</Nullable>
         <LangVersion>latest</LangVersion>
         <IsAotCompatible>false</IsAotCompatible>
+        <IsPackable>true</IsPackable>
+        <PackageId>Okojo.DocGenerator.Annotations</PackageId>
+        <PackageVersion>$(OkojoPackageVersion_Okojo_DocGenerator_Annotations)</PackageVersion>
+        <Description>Annotations that control declaration-file generation for Okojo documentation tooling.</Description>
+        <PackageTags>okojo;documentation;annotations;typescript;declaration;dotnet</PackageTags>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
     </PropertyGroup>
+    <ItemGroup>
+        <None Include="README.md" Pack="true" PackagePath="\"/>
+    </ItemGroup>
 </Project>

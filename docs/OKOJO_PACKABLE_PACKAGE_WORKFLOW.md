@@ -1,15 +1,15 @@
 # Okojo Packable Package Workflow
 
-This note describes the **recommended long-term shape** for Okojo package versioning, internal references, and publishing.
+This note defines the **steady-state operating model** for Okojo package versioning, internal references, and publishing.
 
-It is intentionally not just a snapshot of today's configuration.
+The repository is still prerelease, but the policy here is intended to describe the normal shape to keep as the package set grows.
 
 ## Summary
 
-Recommended direction:
+Okojo package work should follow these rules:
 
 1. keep **`ProjectReference` inside the repo** for normal development and CI builds
-2. move from today's **shared repo version** to **package-specific package versions**
+2. use **package-specific package versions** for public packages
 3. keep **external dependency versions centralized**
 4. publish from **GitHub Actions**
 5. use **NuGet trusted publishing (OIDC)** instead of long-lived API keys when publishing to nuget.org
@@ -23,6 +23,10 @@ Current packable source projects:
 | Package | Project | Internal references | External package references |
 | --- | --- | --- | --- |
 | `Okojo` | `src\Okojo\Okojo.csproj` | - | - |
+| `Okojo.Annotations` | `src\Okojo.Annotations\Okojo.Annotations.csproj` | - | - |
+| `Okojo.SourceGenerator` | `src\Okojo.SourceGenerator\Okojo.SourceGenerator.csproj` | `Okojo.Annotations` | `Microsoft.CodeAnalysis.CSharp` |
+| `Okojo.DocGenerator.Annotations` | `src\Okojo.DocGenerator.Annotations\Okojo.DocGenerator.Annotations.csproj` | - | - |
+| `Okojo.DocGenerator.Cli` | `src\Okojo.DocGenerator.Cli\Okojo.DocGenerator.Cli.csproj` | `Okojo.Annotations`, `Okojo.DocGenerator.Annotations` | `Microsoft.Build.*`, `Microsoft.CodeAnalysis.*` |
 | `Okojo.Hosting` | `src\Okojo.Hosting\Okojo.Hosting.csproj` | `Okojo` | - |
 | `Okojo.Diagnostics` | `src\Okojo.Diagnostics\Okojo.Diagnostics.csproj` | `Okojo` | - |
 | `Okojo.Reflection` | `src\Okojo.Reflection\Okojo.Reflection.csproj` | `Okojo` | - |
@@ -31,6 +35,14 @@ Current packable source projects:
 | `Okojo.WebAssembly.Wasmtime` | `src\Okojo.WebAssembly.Wasmtime\Okojo.WebAssembly.Wasmtime.csproj` | `Okojo.WebAssembly` | `Wasmtime` |
 
 Projects under `src\` default to `IsPackable=false` from `Directory.Build.props`. A project enters the public package set only when it explicitly opts in.
+
+Not every packable project must be part of the same public release wave. For example, `src\Okojo.Node.Cli\Okojo.Node.Cli.csproj` is a packable dotnet tool, but it is not part of the current public publish workflow.
+
+In practice, `src\` projects fall into three packaging scopes:
+
+1. **Public packages** - versioned in `eng\PackageVersions.props` and eligible for the main publish workflow
+2. **Packable but out-of-wave tools/apps** - packable on purpose, but onboarded to publication separately
+3. **Internal source projects** - built from source in the repo, not treated as public package deliverables
 
 ## Internal references: use `ProjectReference`
 
@@ -65,15 +77,7 @@ That kind of test is useful, but it should be separate from the main source buil
 
 ## Versioning strategy
 
-## Current state
-
-Today, the repo uses a shared version in `Directory.Build.props`.
-
-That is acceptable while the public package set is still small and prerelease-only.
-
-## Recommended target state
-
-Move to **independent package versions** for packable packages.
+Public packages should use **independent package versions**.
 
 Reason:
 
@@ -89,11 +93,10 @@ Use a **hybrid centralized manifest**:
 - those versions are still declared centrally in one repo-owned file
 - tightly coupled packages may still be bumped together by choice
 
-Recommended shape:
+Current repo shape:
 
 - keep repo-wide defaults in `Directory.Build.props`
-- add a dedicated package version manifest, for example:
-  - `eng\PackageVersions.props`
+- keep package versions in `eng\PackageVersions.props`
 - have each packable `.csproj` read its package-specific version property from that manifest
 
 Example direction:
@@ -125,9 +128,11 @@ This gives:
 Keep these shared at the repo level:
 
 - authorship/license/repository metadata
-- common prerelease policy if needed
+- common prerelease policy when packages intentionally move as one preview train
 - symbol package settings
 - common build defaults
+
+`Directory.Build.props` can still provide the repo default `Version` for projects that are not independently versioned packages. The public package boundary should use `PackageVersion` from `eng\PackageVersions.props`.
 
 ### External dependency versions
 
@@ -141,8 +146,6 @@ That is a different concern from **Okojo package versions**:
 Keeping those separate avoids conflating internal publication identity with third-party dependency management.
 
 ## Publishing strategy
-
-## Recommended future model
 
 Publishing should happen from **GitHub Actions**, not from ad-hoc local commands.
 
@@ -162,15 +165,15 @@ Recommended split:
 3. **Post-publish validation**
    - verifies package install/restore in a smoke-consumer project
 
-### Recommended publish trigger style
+### Publish trigger style
 
-Best fit for Okojo:
+Current policy for Okojo:
 
 - start with `workflow_dispatch`
 - let the workflow accept a package list or package group
-- later add optional tag-based publish if the release flow becomes stable
+- add tag-based publish only if the release flow becomes routine enough to justify it
 
-That avoids accidental publication while the package set is still evolving.
+That keeps release control explicit while the package set is still evolving.
 
 Current implementation in this repo:
 
@@ -204,8 +207,8 @@ The workflow should not assume that every package version changes together.
 
 When publishing selected packages, publish in dependency order:
 
-1. `Okojo`
-2. `Okojo.Hosting`, `Okojo.Diagnostics`, `Okojo.Reflection`, `Okojo.WebAssembly`
+1. `Okojo.Annotations`, `Okojo.DocGenerator.Annotations`, `Okojo`
+2. `Okojo.SourceGenerator`, `Okojo.DocGenerator.Cli`, `Okojo.Hosting`, `Okojo.Diagnostics`, `Okojo.Reflection`, `Okojo.WebAssembly`
 3. `Okojo.WebPlatform`
 4. `Okojo.WebAssembly.Wasmtime`
 
@@ -234,20 +237,6 @@ For Okojo, the closest useful lessons are:
 4. Centralize third-party dependency versions separately.
 5. Publish from GitHub Actions, not from personal machine state.
 6. Add explicit smoke validation for installed packages, instead of making the whole source graph consume local NuGet packages.
-
-## Suggested migration path
-
-1. **Now**
-   - keep current `ProjectReference` structure
-   - keep current shared version while package wave is still settling
-2. **Next**
-    - add a package-version manifest such as `eng\PackageVersions.props`
-    - migrate packable packages to `PackageVersion` from that manifest
-3. **After that**
-   - keep GitHub Actions publish workflow using trusted publishing
-   - extend selective package publication as the public package set grows
-4. **Then**
-   - add a NuGet-consumer smoke test path for published package validation
 
 ## Metadata expectations for packable projects
 

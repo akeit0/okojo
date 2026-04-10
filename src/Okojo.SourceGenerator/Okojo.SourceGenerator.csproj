@@ -5,6 +5,12 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <IsAotCompatible>false</IsAotCompatible>
+        <IsPackable>true</IsPackable>
+        <PackageId>Okojo.SourceGenerator</PackageId>
+        <PackageVersion>$(OkojoPackageVersion_Okojo_SourceGenerator)</PackageVersion>
+        <Description>Roslyn source generator that emits Okojo global installer and object export glue from Okojo annotations.</Description>
+        <PackageTags>okojo;javascript;ecmascript;source-generator;roslyn;analyzer;dotnet</PackageTags>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
         <IsRoslynComponent>true</IsRoslynComponent>
         <AnalyzerLanguage>cs</AnalyzerLanguage>
         <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
@@ -21,6 +27,7 @@
                           PrivateAssets="all"/>
         <AdditionalFiles Include="AnalyzerReleases.Shipped.md"/>
         <AdditionalFiles Include="AnalyzerReleases.Unshipped.md"/>
+        <None Include="README.md" Pack="true" PackagePath="\"/>
         <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false"/>
     </ItemGroup>
 </Project>

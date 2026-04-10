@@ -5,5 +5,14 @@
         <Nullable>enable</Nullable>
         <LangVersion>latest</LangVersion>
         <IsAotCompatible>false</IsAotCompatible>
+        <IsPackable>true</IsPackable>
+        <PackageId>Okojo.Annotations</PackageId>
+        <PackageVersion>$(OkojoPackageVersion_Okojo_Annotations)</PackageVersion>
+        <Description>Attribute definitions used to mark Okojo global and object exports for source generation and tooling.</Description>
+        <PackageTags>okojo;javascript;ecmascript;annotations;source-generator;dotnet</PackageTags>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
     </PropertyGroup>
+    <ItemGroup>
+        <None Include="README.md" Pack="true" PackagePath="\"/>
+    </ItemGroup>
 </Project>

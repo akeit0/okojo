@@ -18,6 +18,10 @@ on:
         type: choice
         options:
           - all
+          - Okojo.Annotations
+          - Okojo.SourceGenerator
+          - Okojo.DocGenerator.Annotations
+          - Okojo.DocGenerator.Cli
           - Okojo
           - Okojo.Hosting
           - Okojo.Diagnostics
@@ -45,6 +49,10 @@ jobs:
         run: |
           $selected = "${{ inputs.package }}"
           $all = @(
+            @{ Id = "Okojo.Annotations"; Project = "src/Okojo.Annotations/Okojo.Annotations.csproj" },
+            @{ Id = "Okojo.SourceGenerator"; Project = "src/Okojo.SourceGenerator/Okojo.SourceGenerator.csproj" },
+            @{ Id = "Okojo.DocGenerator.Annotations"; Project = "src/Okojo.DocGenerator.Annotations/Okojo.DocGenerator.Annotations.csproj" },
+            @{ Id = "Okojo.DocGenerator.Cli"; Project = "src/Okojo.DocGenerator.Cli/Okojo.DocGenerator.Cli.csproj" },
             @{ Id = "Okojo"; Project = "src/Okojo/Okojo.csproj" },
             @{ Id = "Okojo.Hosting"; Project = "src/Okojo.Hosting/Okojo.Hosting.csproj" },
             @{ Id = "Okojo.Diagnostics"; Project = "src/Okojo.Diagnostics/Okojo.Diagnostics.csproj" },

@@ -4,6 +4,14 @@
         <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <IsPackable>true</IsPackable>
+        <PackAsTool>true</PackAsTool>
+        <ToolCommandName>okojo-docgen</ToolCommandName>
+        <PackageId>Okojo.DocGenerator.Cli</PackageId>
+        <PackageVersion>$(OkojoPackageVersion_Okojo_DocGenerator_Cli)</PackageVersion>
+        <Description>dotnet tool that emits TypeScript declaration files from Okojo-annotated .NET projects.</Description>
+        <PackageTags>okojo;documentation;typescript;declarations;dotnet-tool;roslyn</PackageTags>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
     </PropertyGroup>
 
     <ItemGroup>
@@ -28,5 +36,9 @@
         <Compile Include="..\Okojo.SourceGenerator\ObjectGeneration\JsObjectExportModels.cs" Link="Shared\JsObjectExportModels.cs"/>
         <Compile Include="..\Okojo.SourceGenerator\ObjectGeneration\JsObjectExportCollector.cs" Link="Shared\JsObjectExportCollector.cs"/>
         <Compile Include="..\Okojo.SourceGenerator\ParameterGeneration\ParameterTypeSupport.cs" Link="Shared\ParameterTypeSupport.cs"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="README.md" Pack="true" PackagePath="\"/>
     </ItemGroup>
 </Project>
