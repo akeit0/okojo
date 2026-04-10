@@ -2,7 +2,7 @@
 
 Okojo is an experimental low allocation managed JavaScript engine for .NET, aimed at **correctness first**, strong observability/tooling, and practical host integration for modern ECMAScript workloads.
 
-This repository contains the engine itself, host/runtime layers, web-platform support, WebAssembly integration, examples, Test262 infrastructure, and internal sandboxes used to drive compatibility and packaging work.
+This repository contains the core engine, host/runtime layers, web-platform support, WebAssembly integration, code-generation helpers, examples, Test262 infrastructure, and internal sandboxes used to drive compatibility work.
 
 ## What Okojo is trying to be
 
@@ -13,32 +13,32 @@ The current direction is:
 - a base for browser-compatibility and Node-compatibility work
 - a package set that can be consumed in layers instead of one monolithic runtime
 
-The project is still **prerelease**. Public APIs and package boundaries are being refined, but the repo is already organized around the package set that is expected to ship first.
+The project is still **prerelease**. Public APIs and package boundaries are being refined, but the repo is already organized around the package wave expected to ship first.
 
 ## Current status
 
 - core language and runtime correctness are the top priority
 - non-legacy, non-staging Test262 baseline coverage is currently passing in the working baseline
-- deprecated / legacy corners are intentionally not a priority unless explicitly re-approved
-- browser-facing and Node-facing integration work is active, but not all related packages are intended for early publication
+- deprecated and legacy corners are intentionally not a priority unless explicitly re-approved
+- browser-facing and Node-facing integration work is active, but not every `src/` project is part of the first public wave
 
-## Prerelease package set
+## Public package wave
 
-These are the `src\` packages currently marked `IsPackable=true` and intended as the public package wave.
+These are the `src/` packages currently marked `IsPackable=true` and intended as the public package wave.
 
-| Package | Role | Depends on |
+| Package | NuGet | Role |
 | --- | --- | --- |
-| `Okojo` | Core engine, runtime, modules, compiler, embedding API | - |
-| `Okojo.Hosting` | Schedulers, queues, worker helpers, host infrastructure | `Okojo` |
-| `Okojo.Diagnostics` | Formatting, inspection, and bytecode diagnostics helpers | `Okojo` |
-| `Okojo.Reflection` | Reflection-based CLR interop extensions | `Okojo` |
-| `Okojo.WebPlatform` | `fetch`, timers, workers, and host-installed web APIs | `Okojo`, `Okojo.Hosting` |
-| `Okojo.WebAssembly` | Backend-agnostic WebAssembly integration layer | `Okojo` |
-| `Okojo.WebAssembly.Wasmtime` | Wasmtime backend for `Okojo.WebAssembly` | `Okojo.WebAssembly`, external `Wasmtime` |
-| `Okojo.Annotations` | Attributes for marking Okojo globals and objects for generation/tooling | - |
-| `Okojo.SourceGenerator` | Roslyn source generator for Okojo export glue | `Okojo.Annotations` |
-| `Okojo.DocGenerator.Annotations` | Attributes for declaration-file generation control | - |
-| `Okojo.DocGenerator.Cli` | dotnet tool that emits TypeScript declaration files | `Okojo.Annotations`, `Okojo.DocGenerator.Annotations` |
+| `Okojo` | [nuget.org/packages/Okojo](https://www.nuget.org/packages/Okojo) | Core engine, runtime, modules, compiler, embedding API |
+| `Okojo.Hosting` | [nuget.org/packages/Okojo.Hosting](https://www.nuget.org/packages/Okojo.Hosting) | Host queues, schedulers, workers, and runtime helpers |
+| `Okojo.Diagnostics` | [nuget.org/packages/Okojo.Diagnostics](https://www.nuget.org/packages/Okojo.Diagnostics) | Formatting, inspection, and disassembly helpers |
+| `Okojo.Reflection` | [nuget.org/packages/Okojo.Reflection](https://www.nuget.org/packages/Okojo.Reflection) | Reflection-based CLR interop extensions |
+| `Okojo.WebPlatform` | [nuget.org/packages/Okojo.WebPlatform](https://www.nuget.org/packages/Okojo.WebPlatform) | `fetch`, timers, workers, and web host APIs |
+| `Okojo.WebAssembly` | [nuget.org/packages/Okojo.WebAssembly](https://www.nuget.org/packages/Okojo.WebAssembly) | Backend-agnostic WebAssembly integration |
+| `Okojo.WebAssembly.Wasmtime` | [nuget.org/packages/Okojo.WebAssembly.Wasmtime](https://www.nuget.org/packages/Okojo.WebAssembly.Wasmtime) | Wasmtime backend for `Okojo.WebAssembly` |
+| `Okojo.Annotations` | [nuget.org/packages/Okojo.Annotations](https://www.nuget.org/packages/Okojo.Annotations) | Attributes for Okojo globals and object export generation |
+| `Okojo.SourceGenerator` | [nuget.org/packages/Okojo.SourceGenerator](https://www.nuget.org/packages/Okojo.SourceGenerator) | Roslyn source generator for Okojo export glue |
+| `Okojo.DocGenerator.Annotations` | [nuget.org/packages/Okojo.DocGenerator.Annotations](https://www.nuget.org/packages/Okojo.DocGenerator.Annotations) | Attributes for declaration-file generation control |
+| `Okojo.DocGenerator.Cli` | [nuget.org/packages/Okojo.DocGenerator.Cli](https://www.nuget.org/packages/Okojo.DocGenerator.Cli) | dotnet tool that emits TypeScript declaration files |
 
 Not part of the current public package wave:
 
@@ -49,11 +49,368 @@ Not part of the current public package wave:
 - debug server packages
 - compiler experimental projects
 
-Package/versioning/publishing strategy for the packable projects is documented in [docs\OKOJO_PACKABLE_PACKAGE_WORKFLOW.md](docs/OKOJO_PACKABLE_PACKAGE_WORKFLOW.md).
+## Quick start
 
-## `src\` project map
+```csharp
+using Okojo;
 
-`src\` contains both the public package wave and repo-internal projects used for host integration, tooling, experiments, and debugging. Being under `src\` does **not** mean a project is intended for near-term NuGet publication.
+using var runtime = JsRuntime.CreateBuilder().Build();
+
+var realm = runtime.MainRealm;
+var result = realm.Eval("1 + 2");
+
+Console.WriteLine(result.NumberValue); // 3
+```
+
+Useful entry points:
+
+- `JsRuntime.CreateBuilder()`
+- `JsRuntime.Create(...)`
+- `JsRuntime.MainRealm`
+- `JsRuntime.CreateRealm()`
+- `JsRealm.Eval(...)`
+- `JsRealm.Execute(...)`
+- `JsRealm.Import(...)`
+- `JsRealm.LoadModule(...)`
+
+## Core surface: `JsRuntime`, `JsRealm`, and `JsValue`
+
+The main embedding shape is:
+
+1. build a runtime
+2. use a realm to evaluate scripts or modules
+3. exchange values through `JsValue`
+
+`JsValue` is the core public value type. It is a compact value container used for primitives, strings, objects, symbols, bigints, and host interop.
+
+```csharp
+using Okojo;
+
+using var runtime = JsRuntime.Create();
+var realm = runtime.MainRealm;
+
+JsValue answer = 42;
+JsValue label = "okojo";
+JsValue computed = realm.Eval("({ total: 21 + 21, ok: true, label: 'okojo' })");
+
+Console.WriteLine(answer.Int32Value);      // 42
+Console.WriteLine(label.AsString());       // okojo
+Console.WriteLine(computed.IsObject);      // True
+Console.WriteLine(realm.Eval("21 + 21").NumberValue); // 42
+```
+
+Some commonly useful `JsValue` members:
+
+- `IsNumber`, `IsString`, `IsObject`, `IsBool`, `IsNull`, `IsUndefined`
+- `Int32Value`, `Float64Value`, `NumberValue`
+- `AsString()`, `TryGetString(...)`
+- `AsObject()`, `TryGetObject(...)`
+- implicit conversions from `int`, `double`, `bool`, and `string`
+
+## Installing host globals
+
+You can install globals directly from the runtime builder without defining a full host object model.
+
+```csharp
+using Okojo;
+
+using var runtime = JsRuntime.CreateBuilder()
+    .UseGlobals(globals => globals
+        .Value("answer", JsValue.FromInt32(42))
+        .Function("sum", 2, static (in info) =>
+        {
+            var left = info.GetArgumentOrDefault(0, JsValue.FromInt32(0)).Int32Value;
+            var right = info.GetArgumentOrDefault(1, JsValue.FromInt32(0)).Int32Value;
+            return JsValue.FromInt32(left + right);
+        }))
+    .Build();
+
+var result = runtime.MainRealm.Eval("answer + sum(5, 7)");
+Console.WriteLine(result.Int32Value); // 54
+```
+
+That builder style is the preferred public composition path.
+
+## Modules
+
+Okojo supports ECMAScript modules through the runtime loader surface.
+
+```csharp
+using Okojo;
+
+var loader = new InMemoryModuleLoader(new Dictionary<string, string>
+{
+    ["/mods/main.js"] = "export const value = 1 + 2;"
+});
+
+using var runtime = JsRuntime.CreateBuilder()
+    .UseModuleSourceLoader(loader)
+    .Build();
+
+JsValue ns = runtime.MainRealm.Import("/mods/main.js");
+Console.WriteLine(ns);
+```
+
+There are runnable module-focused examples under:
+
+- `examples/OkojoModuleSample`
+- `examples/OkojoModuleSampleRunner`
+- `sandbox/OkojoProbeSandbox`
+
+## Hosting and web APIs
+
+`Okojo.Hosting` and `Okojo.WebPlatform` are intended for hosts that need event loops, timers, workers, fetch, and queue control.
+
+The host sandbox examples show both browser-like and server-like queue wiring:
+
+```csharp
+var runtime = JsRuntime.CreateBuilder()
+    .UseTimeProvider(timeProvider)
+    .UseLowLevelHost(host => host.UseTaskScheduler(eventLoop))
+    .UseWebDelayScheduler(eventLoop)
+    .UseWebTimerQueue(WebTaskQueueKeys.Timers)
+    .UseAnimationFrameQueue(WebTaskQueueKeys.Rendering)
+    .UseFetchCompletionQueue(WebTaskQueueKeys.Network)
+    .UseModuleSourceLoader(moduleLoader)
+    .UseBrowserGlobals(fetch => fetch.HttpClient = httpClient)
+    .Build();
+```
+
+If you want a smaller default set for timers, delays, and related runtime globals, the examples also use:
+
+```csharp
+var runtime = JsRuntime.CreateBuilder()
+    .UseWebRuntimeGlobals()
+    .Build();
+```
+
+Useful references:
+
+- `examples/OkojoHostEventLoopSandbox`
+- `examples/OkojoGameLoopSandbox`
+- `src/vscode-debug/extension`
+- `tests/Okojo.Tests/AgentJobQueueTests.cs`
+- `tests/Okojo.Tests/AsyncAwaitTests.cs`
+
+## WebAssembly and Wasmtime
+
+`Okojo.WebAssembly` provides the backend-agnostic WebAssembly integration surface. `Okojo.WebAssembly.Wasmtime` provides a packaged Wasmtime backend.
+
+The Wasmtime-backed setup looks like this:
+
+```csharp
+using Okojo.WebAssembly.Wasmtime;
+
+using var runtime = NodeRuntime.CreateBuilder()
+    .UseWebAssembly(wasm => wasm
+        .UseBackend(static () => new WasmtimeBackend())
+        .InstallGlobals())
+    .Build();
+```
+
+Useful references:
+
+- `sandbox/OkojoInkProbe`
+- `src/Okojo.WebAssembly`
+- `src/Okojo.WebAssembly.Wasmtime`
+
+## Source generation with `Okojo.Annotations` and `Okojo.SourceGenerator`
+
+`Okojo.Annotations` and `Okojo.SourceGenerator` are for strongly-typed host APIs that should become JavaScript globals or generated object bindings.
+
+Example shape:
+
+```csharp
+using Okojo.Annotations;
+using Okojo.DocGenerator.Annotations;
+
+[GenerateJsGlobals]
+[DocDeclaration("globals")]
+internal sealed partial class SketchGlobals
+{
+    [JsGlobalProperty("width")]
+    public int Width => 320;
+
+    [JsGlobalProperty("strokeWidth", Writable = true)]
+    public int StrokeWidth { get; set; } = 2;
+
+    [JsGlobalFunction("background")]
+    private void Background(byte r, byte g, byte b) { }
+
+    [JsGlobalFunction("sumNumbers")]
+    private int SumNumbers(ReadOnlySpan<int> values) => values.ToArray().Sum();
+}
+```
+
+Then install the generated globals:
+
+```csharp
+var globals = new SketchGlobals();
+
+using var runtime = JsRuntime.CreateBuilder()
+    .UseGlobals(globals.InstallGeneratedGlobals)
+    .Build();
+```
+
+Real references:
+
+- `examples/OkojoArtSandbox/SketchRuntime.cs`
+- `tests/Okojo.Tests/GeneratedGlobalInstallerTests.cs`
+
+## Generated object bindings and doc annotations
+
+`GenerateJsObjectAttribute` is for object-style bindings. `DocDeclarationAttribute` and `DocIgnoreAttribute` control declaration output.
+
+```csharp
+using Okojo;
+using Okojo.Annotations;
+using Okojo.DocGenerator.Annotations;
+
+[GenerateJsObject]
+[DocDeclaration("Foo/Bar", "Docs.Shapes")]
+public partial class GeneratedHostBindingSample
+{
+    public float X { get; set; }
+
+    public static int SumNumbers(ReadOnlySpan<int> values)
+    {
+        var sum = 0;
+        foreach (var value in values)
+            sum += value;
+        return sum;
+    }
+
+    [DocIgnore]
+    public string Echo(string value) => $"echo:{value}";
+
+    public static string DescribeJsValues(ReadOnlySpan<JsValue> values)
+    {
+        if (values.Length == 0)
+            return string.Empty;
+        return string.Join("|", values.ToArray());
+    }
+}
+```
+
+Real references:
+
+- `examples/OkojoArtSandbox/GeneratedObjectSample.cs`
+- `tests/Okojo.Tests/HostInteropTests.cs`
+
+## Declaration generation with `Okojo.DocGenerator.Cli`
+
+`Okojo.DocGenerator.Cli` is a dotnet tool that walks a project, finds `[GenerateJsGlobals]` and `[GenerateJsObject]` types, and emits TypeScript declaration files.
+
+It also carries XML documentation comments into the generated declarations, including `summary` text and `param` descriptions, so the emitted `.d.ts` can preserve useful TSDoc-style API help.
+
+```powershell
+dotnet tool install --global Okojo.DocGenerator.Cli
+okojo-docgen --project ./src/MyProject/MyProject.csproj --out ./artifacts/types/globals.d.ts
+```
+
+Per-type output:
+
+```powershell
+okojo-docgen --project ./src/MyProject/MyProject.csproj --out ./artifacts/types --per-type
+```
+
+Real run against `examples/OkojoArtSandbox/OkojoArtSandbox.csproj`:
+
+```powershell
+dotnet run --project ./src/Okojo.DocGenerator.Cli/Okojo.DocGenerator.Cli.csproj -c Release -- --project ./examples/OkojoArtSandbox/OkojoArtSandbox.csproj --out ./artifacts/docgen-readme --per-type
+```
+
+Generated files:
+
+- `artifacts/docgen-readme/globals.d.ts`
+- `artifacts/docgen-readme/objects/GeneratedObjectSample.d.ts`
+
+Excerpt from the generated `globals.d.ts`:
+
+```ts
+/**
+ * Requests a sketch canvas size in pixels.
+ * @param width Requested canvas width.
+ * @param height Requested canvas height.
+ */
+declare function createCanvas(width?: number, height?: number): void;
+
+declare function background(color: string): void;
+declare function background(gray: number): void;
+declare function background(gray: number, alpha: number): void;
+declare function background(r: number, g: number, b: number): void;
+declare function background(r: number, g: number, b: number, a: number): void;
+
+declare const width: number;
+declare const height: number;
+declare const frameCount: number;
+```
+
+That comment block comes from the C# XML doc comment on `createCanvas`:
+
+```csharp
+/// <summary>Requests a sketch canvas size in pixels.</summary>
+/// <param name="width">Requested canvas width.</param>
+/// <param name="height">Requested canvas height.</param>
+[JsGlobalFunction("createCanvas")]
+private void CreateCanvas(int width = 960, int height = 720) { }
+```
+
+Excerpt from the generated object declaration:
+
+```ts
+declare namespace OkojoArtSandbox {
+    class GeneratedObjectSample {
+        Name: string;
+        Age: number;
+        DoSomething(): boolean;
+    }
+}
+```
+
+The tool entry point lives in `src/Okojo.DocGenerator.Cli/Program.cs`.
+
+## VS Code debugger
+
+There is also an in-repo VS Code debugger scaffold under `src/vscode-debug/extension`.
+
+Current capabilities include:
+
+- debugger contribution and configuration provider
+- inline adapter that launches `src/Okojo.DebugServer`
+- paused stack, locals, and source inspection from debug-server checkpoints
+- source breakpoints by `sourcePath:line`
+- `stopOnEntry` support
+
+Quick local run:
+
+```powershell
+cd src/vscode-debug/extension
+npm install
+npm run compile
+```
+
+Then open `src/vscode-debug/extension` in VS Code, press `F5`, and use the sample workspace under `samples/okojo-debugger-workspace`.
+
+## Useful examples and sandboxes
+
+If you want concrete code before reading internals, start here:
+
+| Path | What it shows |
+| --- | --- |
+| `examples/OkojoModuleSample` | ES module import/export behavior with a runnable sample |
+| `examples/OkojoModuleSampleRunner` | Installing a small host `console` and evaluating a module entry point |
+| `examples/OkojoHostEventLoopSandbox` | Browser-like queue wiring for timers, animation frames, and fetch |
+| `examples/OkojoGameLoopSandbox` | Frame-budgeted execution, module loading, and manual event-loop pumping |
+| `examples/OkojoArtSandbox` | Generated globals and objects driving an interactive sketch host |
+| `sandbox/OkojoRuntimeDebugSandbox` | Runtime debugger checkpoints, breakpoints, module vs script execution |
+| `sandbox/OkojoProbeSandbox` | Small probes for script/module execution and namespace inspection |
+| `sandbox/OkojoInkProbe` | Node-like host with Wasmtime-enabled WebAssembly support |
+| `src/vscode-debug/extension` | VS Code debugger adapter scaffold and sample workspace integration |
+
+## `src/` project map
+
+`src/` contains both the public package wave and repo-internal projects used for host integration, tooling, experiments, and debugging. Being under `src/` does **not** mean a project is intended for near-term NuGet publication.
 
 | Project | Role | Publication status |
 | --- | --- | --- |
@@ -64,99 +421,51 @@ Package/versioning/publishing strategy for the packable projects is documented i
 | `Okojo.WebPlatform` | Host-installed web APIs such as fetch, timers, workers | Public package wave |
 | `Okojo.WebAssembly` | Backend-agnostic WebAssembly integration surface | Public package wave |
 | `Okojo.WebAssembly.Wasmtime` | Wasmtime backend for `Okojo.WebAssembly` | Public package wave |
-| `Okojo.Browser` | Browser-oriented host/integration surface | Not in current NuGet wave |
-| `Okojo.Node` | Node-compatibility host/runtime layer | Not in current NuGet wave |
-| `Okojo.Node.Cli` | Dotnet tool for the Node-like CLI host | Packable tool, intentionally not in current public workflow |
-| `Okojo.Repl` | Interactive shell and console-facing runtime host | Internal/dev host surface for now |
-| `Okojo.DebugServer` | Debug transport/server host | Internal diagnostics infrastructure |
-| `Okojo.DebugServer.Core` | Shared debug server core types | Internal diagnostics infrastructure |
-| `Okojo.Compiler.Experimental` | Experimental compiler work | Experimental/internal |
 | `Okojo.Annotations` | Shared annotations for source generation and tooling | Public package wave |
 | `Okojo.SourceGenerator` | Roslyn source generator used by Okojo export patterns | Public package wave |
 | `Okojo.DocGenerator.Annotations` | Doc generation annotation types | Public package wave |
 | `Okojo.DocGenerator.Cli` | Documentation generator dotnet tool | Public package wave |
+| `Okojo.Browser` | Browser-oriented host and integration surface | Not in current NuGet wave |
+| `Okojo.Node` | Node-compatibility host and runtime layer | Not in current NuGet wave |
+| `Okojo.Node.Cli` | Dotnet tool for the Node-like CLI host | Packable tool, intentionally outside the current public workflow |
+| `Okojo.Repl` | Interactive shell and console-facing runtime host | Internal and dev-focused for now |
+| `Okojo.DebugServer` | Debug transport and server host | Internal diagnostics infrastructure |
+| `Okojo.DebugServer.Core` | Shared debug server core types | Internal diagnostics infrastructure |
+| `vscode-debug/extension` | VS Code debugger adapter and launch configuration support | Internal tooling |
+| `Okojo.Compiler.Experimental` | Experimental compiler work | Experimental and internal |
 
-## Quick start
-
-```csharp
-using Okojo;
-using Okojo.Hosting;
-using Okojo.WebPlatform;
-
-using var runtime = JsRuntime.CreateBuilder()
-    //.UseThreadPoolHosting()
-    //.UseFetch()
-    .Build();
-
-var realm = runtime.MainRealm;
-var value = realm.Evaluate("1 + 2");
-
-Console.WriteLine(value);
-```
-
-Useful entry points:
-
-- `JsRuntime.CreateBuilder()`
-- `JsRuntime.Create(...)`
-- `JsRuntime.MainRealm`
-- `JsRuntime.CreateRealm()`
-- `JsRealm.Evaluate(...)`
-- `JsRealm.Execute(...)`
-- `JsRealm.Import(...)`
-- `JsRealm.LoadModule(...)`
+Package/versioning/publishing strategy for the packable projects is documented in [docs/OKOJO_PACKABLE_PACKAGE_WORKFLOW.md](docs/OKOJO_PACKABLE_PACKAGE_WORKFLOW.md).
 
 ## Requirements
 
 - .NET 10 SDK
 
-## Repository guide
+## Development
 
-### Main source projects
+Fast local validation loop:
 
-- `src\Okojo` - core engine
-- `src\Okojo.Hosting` - host queues, scheduling, worker helpers
-- `src\Okojo.Diagnostics` - formatting and disassembly helpers
-- `src\Okojo.Reflection` - reflection-backed CLR interop
-- `src\Okojo.WebPlatform` - web/server host APIs
-- `src\Okojo.WebAssembly` - WebAssembly integration surface
-- `src\Okojo.WebAssembly.Wasmtime` - Wasmtime backend
-- `src\Okojo.Browser` / `src\Okojo.Node` - larger host-compatibility layers that are still evolving
-- `src\Okojo.Node.Cli` / `src\Okojo.Repl` - executable host and developer entry points
+```powershell
+dotnet test tests/Okojo.Tests/Okojo.Tests.csproj
+```
 
-### Supporting areas
+Focused Test262 example:
 
-- `examples` - public-facing sample apps
-- `sandbox` - probes, bring-up apps, and internal experiments
-- `tests` - unit and integration tests
-- `tools` - Test262 runner, bytecode tools, and other development utilities
-- `docs` - design notes, plans, workflow notes, and package/process documentation
-
-If you are looking for the likely first public surface, start with the **Prerelease package set** table above rather than assuming every `src\` project is a package candidate.
-
-## Examples and sandboxes
-
-Public-facing samples live under [`examples`](examples):
-
-- `examples\OkojoModuleSample`
-- `examples\OkojoModuleSampleRunner`
-- `examples\OkojoGameLoopSandbox`
-- `examples\OkojoHostEventLoopSandbox`
-- `examples\OkojoArtSandbox`
-
-Internal probes and debugging sandboxes remain under [`sandbox`](sandbox).
+```powershell
+dotnet run --project ./tools/Test262Runner/ -c Release --filter test262/test/language --parallel 14
+```
 
 ## Test262 progress and compatibility tracking
 
-This repo tracks compatibility progress in checked-in artifacts so that work can be prioritized by **passed**, **failed**, and **classified skip** status rather than a single aggregate number.
+This repo tracks compatibility progress in checked-in artifacts so work can be prioritized by **passed**, **failed**, and **classified skip** status rather than a single aggregate number.
 
 Important files:
 
 | File | Purpose |
 | --- | --- |
-| [`TEST262_PROGRESS_INCREMENTAL.md`](TEST262_PROGRESS_INCREMENTAL.md) | Human-readable progress snapshot grouped by category/folder, including passed, failed, and split skip classes |
+| [`TEST262_PROGRESS_INCREMENTAL.md`](TEST262_PROGRESS_INCREMENTAL.md) | Human-readable progress snapshot grouped by category and folder, including passed, failed, and split skip classes |
 | `TEST262_PROGRESS_INCREMENTAL.json` | Machine-readable version of the same incremental progress data |
-| [`docs\TEST262_SKIP_TAXONOMY.md`](docs/TEST262_SKIP_TAXONOMY.md) | Skip classification policy and grouped skip inventory |
-| `tools\Test262Runner` | Runner and progress generation logic |
+| [`docs/TEST262_SKIP_TAXONOMY.md`](docs/TEST262_SKIP_TAXONOMY.md) | Skip classification policy and grouped skip inventory |
+| `tools/Test262Runner` | Runner and progress generation logic |
 
 ### How to read `TEST262_PROGRESS_INCREMENTAL.md`
 
@@ -167,32 +476,18 @@ The main columns are:
 - **Skip Std** - baseline ECMAScript coverage intentionally skipped for now
 - **Skip Legacy** - deprecated legacy coverage intentionally not prioritized
 - **Skip Annex B** - Annex B coverage tracked separately from other legacy behavior
-- **Skip Proposal** - proposal/staging work not part of the baseline target
+- **Skip Proposal** - proposal and staging work not part of the baseline target
 - **Skip Finished** - finished proposals that are still intentionally outside the current carried baseline
 - **Skip Other** - intentional exceptions or non-standard buckets that do not fit the above
 - **Baseline Passed %** - completion percentage after excluding non-baseline skip classes from the denominator
 
 That last column is usually the best single number to use for practical baseline progress discussions.
 
-## Development
-
-Fast local validation loop:
-
-```powershell
-dotnet test tests\Okojo.Tests\Okojo.Tests.csproj
-```
-
-Focused Test262 example:
-
-```powershell
-dotnet run --project .\tools\Test262Runner\ -c Release --filter test262/test/language --parallel 14
-```
-
 ## Key docs
 
 - [`OKOJO_BROWSER_COMPATIBILITY_PLAN.md`](OKOJO_BROWSER_COMPATIBILITY_PLAN.md) - top-level compatibility direction
-- [`docs\TEST262_SKIP_TAXONOMY.md`](docs/TEST262_SKIP_TAXONOMY.md) - skip taxonomy and inventory
-- [`docs\OKOJO_PACKABLE_PACKAGE_WORKFLOW.md`](docs/OKOJO_PACKABLE_PACKAGE_WORKFLOW.md) - packable package versioning and publishing strategy
+- [`docs/TEST262_SKIP_TAXONOMY.md`](docs/TEST262_SKIP_TAXONOMY.md) - skip taxonomy and inventory
+- [`docs/OKOJO_PACKABLE_PACKAGE_WORKFLOW.md`](docs/OKOJO_PACKABLE_PACKAGE_WORKFLOW.md) - packable package versioning and publishing strategy
 
 ## Licensing
 
