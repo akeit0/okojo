@@ -492,6 +492,95 @@ public class ClassTests
     }
 
     [Test]
+    public void ClassPrivateField_ObjectDestructuringAssignment_Works()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsCompiler(realm);
+        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+                                                                   class C {
+                                                                     #x = 0;
+                                                                     assign(v) {
+                                                                       ({ a: this.#x } = { a: v });
+                                                                       return this.#x;
+                                                                     }
+                                                                   }
+                                                                   new C().assign(7) === 7;
+                                                                   """));
+
+        realm.Execute(script);
+        Assert.That(realm.Accumulator.IsTrue, Is.True);
+    }
+
+    [Test]
+    public void ClassPrivateField_ObjectDestructuringAssignment_Preserves_Target_Evaluation_Order()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsCompiler(realm);
+        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+                                                                   class Base {
+                                                                     constructor(o) {
+                                                                       return o;
+                                                                     }
+                                                                   }
+
+                                                                   class C extends Base {
+                                                                     #x;
+
+                                                                     run() {
+                                                                       var init = () => new C(this);
+                                                                       var object = {
+                                                                         get a() {
+                                                                           init();
+                                                                           return "pass";
+                                                                         }
+                                                                       };
+
+                                                                       ({ a: this.#x } = object);
+                                                                       return this.#x === "pass";
+                                                                     }
+                                                                   }
+
+                                                                   C.prototype.run.call({});
+                                                                   """));
+
+        realm.Execute(script);
+        Assert.That(realm.Accumulator.IsTrue, Is.True);
+    }
+
+    [Test]
+    public void ClassPrivateField_ArrayAndObjectRestDestructuringAssignments_Work()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsCompiler(realm);
+        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+                                                                   class C {
+                                                                     #x = null;
+
+                                                                     assignArray(v) {
+                                                                       [this.#x] = [v];
+                                                                       return this.#x === v;
+                                                                     }
+
+                                                                     assignRestArray() {
+                                                                       [...this.#x] = [1, 2, 3];
+                                                                       return Array.isArray(this.#x) && this.#x.join(",") === "1,2,3";
+                                                                     }
+
+                                                                     assignRestObject() {
+                                                                       ({ ...this.#x } = { a: 1, b: 2 });
+                                                                       return this.#x.a === 1 && this.#x.b === 2;
+                                                                     }
+                                                                   }
+
+                                                                   var c = new C();
+                                                                   c.assignArray(7) && c.assignRestArray() && c.assignRestObject();
+                                                                   """));
+
+        realm.Execute(script);
+        Assert.That(realm.Accumulator.IsTrue, Is.True);
+    }
+
+    [Test]
     public void ClassPublicInstanceField_InitializerAndRead_Work()
     {
         var realm = JsRuntime.Create().DefaultRealm;
