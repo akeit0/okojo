@@ -1,8 +1,10 @@
 <Project>
+     <PropertyGroup>
+        <Version>0.1.0-preview.1</Version>
+    </PropertyGroup>
     <PropertyGroup Condition="$([System.String]::Copy('$(MSBuildProjectDirectory)').StartsWith('$(MSBuildThisFileDirectory)src'))">
         <IsAotCompatible>true</IsAotCompatible>
         <IsPackable>false</IsPackable>
-        <Version>0.1.0-preview.1</Version>
         <Authors>Akito Inoue</Authors>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageProjectUrl>https://github.com/akeit0/okojo</PackageProjectUrl>
