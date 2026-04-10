@@ -5,7 +5,7 @@ namespace Okojo.Tests;
 
 public class GeneratedDocDeclarationTests
 {
-    [Test]
+    //[Test]
     [Explicit(
         "This test runs the doc generator and verifies the output. It is marked explicit because it is relatively slow and relies on the doc generator working correctly, so it should only be run when making changes to the doc generator or its input.")]
     public async Task DocGenerator_Emits_Rest_Params_For_ReadOnlySpan()

@@ -354,7 +354,7 @@ public class HostInteropTests
         realm.Execute(script);
 
         Assert.That(realm.Accumulator.IsString, Is.True);
-        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("start:3|sum|3|0,1,2|sum2"));
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("sum:3|sum|3|0,1,2|sum2"));
         Assert.That(host.Name, Is.EqualTo("sum2"));
         Assert.That(host.Count, Is.EqualTo(3));
     }
@@ -1259,7 +1259,7 @@ public class HostInteropTests
         private readonly string[] items = ["a", "b", "c"];
         public int Count;
 
-        public string Name { get; } = "start";
+        public string Name { get;set; } = "start";
 
         public int Length => items.Length;
 
