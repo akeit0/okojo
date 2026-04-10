@@ -29,3 +29,5 @@ src/vscode-debug/extension/dist/panelHost.js
 src/vscode-debug/extension/dist/panelHost.js.map
 test262/*
 *.lscache
+.dotprobe/*
+.clj-kondo/*
