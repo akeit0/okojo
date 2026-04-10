@@ -289,7 +289,8 @@ public class JsObject
             {
                 if (receiver.TryDefineOwnDataPropertyForSet(realm, atom, value, out slotInfo))
                     return true;
-                return receiver.SetPropertyAtomWithReceiver(realm, receiver, atom, value, out slotInfo);
+                slotInfo = SlotInfo.Invalid;
+                return false;
             }
 
             if (!UsesDynamicNamedProperties)
@@ -310,7 +311,8 @@ public class JsObject
         {
             if (receiver.TryDefineOwnDataPropertyForSet(realm, atom, value, out slotInfo))
                 return true;
-            return receiver.SetPropertyAtomWithReceiver(realm, receiver, atom, value, out slotInfo);
+            slotInfo = SlotInfo.Invalid;
+            return false;
         }
 
         if (!receiver.IsExtensible)
@@ -375,7 +377,7 @@ public class JsObject
             {
                 if (receiver.TryDefineOwnDataPropertyForSet(realm, index, value, out _))
                     return true;
-                return receiver.SetElementWithReceiver(realm, receiver, index, value);
+                return false;
             }
 
             IndexedProperties[index] = new(value, null, existing.Flags);
@@ -407,7 +409,7 @@ public class JsObject
             {
                 if (receiver.TryDefineOwnDataPropertyForSet(realm, index, value, out _))
                     return true;
-                return receiver.SetElementWithReceiver(realm, receiver, index, value);
+                return false;
             }
         }
 
@@ -415,7 +417,7 @@ public class JsObject
         {
             if (receiver.TryDefineOwnDataPropertyForSet(realm, index, value, out _))
                 return true;
-            return receiver.SetElementWithReceiver(realm, receiver, index, value);
+            return false;
         }
 
         if (!receiver.IsExtensible)

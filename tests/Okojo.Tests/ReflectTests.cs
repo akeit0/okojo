@@ -73,6 +73,31 @@ public class ReflectTests
     }
 
     [Test]
+    public void ReflectSet_WithProxyReceiver_DefinesOnReceiverWithoutRecursing()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var result = realm.Eval("""
+                                var target = [];
+                                var defineCount = 0;
+                                var receiverTarget = {};
+                                var receiver = new Proxy(receiverTarget, {
+                                  defineProperty: function(t, key, descriptor) {
+                                    defineCount++;
+                                    return Reflect.defineProperty(t, key, descriptor);
+                                  }
+                                });
+
+                                var ok = Reflect.set(target, "foo", 1, receiver);
+                                ok === true &&
+                                target.foo === undefined &&
+                                receiverTarget.foo === 1 &&
+                                defineCount === 1;
+                                """);
+
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
     public void Apply_AndReflectConstruct_ConsumeGenericArrayLikeArguments()
     {
         var realm = JsRuntime.Create().DefaultRealm;

@@ -680,7 +680,9 @@ internal static class ProxyObjectExtensions
                 return proxy.TryDefineOwnDataPropertyForSet(realm, atom, value, out slotInfo);
 
             slotInfo = SlotInfo.Invalid;
-            return false;
+            var key = GetPropertyKey(realm, atom);
+            var hasDescriptor = target.TryGetOwnNamedPropertyDescriptorAtom(realm, atom, out _);
+            return ProxyDescriptorUtilities.TryDefineOwnDataPropertyForSet(realm, target, key, value, hasDescriptor);
         }
 
         internal bool TryDefineOwnDataPropertyForSet(JsRealm realm, uint index, JsValue value,
@@ -690,7 +692,9 @@ internal static class ProxyObjectExtensions
                 return proxy.TryDefineOwnDataPropertyForSet(realm, index, value, out slotInfo);
 
             slotInfo = SlotInfo.Invalid;
-            return false;
+            var key = JsValue.FromString(index.ToString(CultureInfo.InvariantCulture));
+            var hasDescriptor = target.TryGetOwnElementDescriptor(index, out _);
+            return ProxyDescriptorUtilities.TryDefineOwnDataPropertyForSet(realm, target, key, value, hasDescriptor);
         }
 
         internal bool TryDefinePropertyFromDescriptorObject(JsRealm realm, in JsValue keyValue,
