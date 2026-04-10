@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Configuration>Debug</Configuration>
+        <Nullable>enable</Nullable>
+        <TieredPGO>false</TieredPGO>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\Okojo\Okojo.csproj"/>
+    </ItemGroup>
+    <ItemGroup>
+        <None Include="scripts\**\*.js">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+        <None Include="scripts\*.js">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="Jint" Version="4.5.0"/>
+    </ItemGroup>
+</Project>

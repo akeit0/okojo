@@ -1,0 +1,18 @@
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("Okojo.Tests")]
+[assembly: InternalsVisibleTo("Okojo.Compiler.Tests")]
+[assembly: InternalsVisibleTo("Okojo.Compiler.Experimental")]
+[assembly: InternalsVisibleTo("Okojo.Benchmarks")]
+[assembly: InternalsVisibleTo("Okojo.Hosting")]
+[assembly: InternalsVisibleTo("Okojo.Reflection")]
+[assembly: InternalsVisibleTo("Okojo.Node")]
+[assembly: InternalsVisibleTo("Okojo.RegExp")]
+[assembly: InternalsVisibleTo("Okojo.Diagnostics")]
+[assembly: InternalsVisibleTo("OkojoBytecodeTool")]
+[assembly: InternalsVisibleTo("Okojo.DebugServer.Core")]
+[assembly: InternalsVisibleTo("Okojo.WebPlatform")]
+[assembly: InternalsVisibleTo("Okojo.Browser")]
+[assembly: InternalsVisibleTo("Okojo.WebAssembly")]
+[assembly: InternalsVisibleTo("Okojo.WebAssembly.Wasmtime")]
+[assembly: InternalsVisibleTo("Test262Runner")]

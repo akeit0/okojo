@@ -1,0 +1,8 @@
+{
+  "title": "Okojo CLI Sandbox",
+  "tasks": [
+    "compile",
+    "test",
+    "ship"
+  ]
+}

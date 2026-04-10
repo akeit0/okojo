@@ -1,0 +1,36 @@
+{
+  "name": "Okojo",
+  "tagline": "ECMAScript engine and flexible host container for .NET",
+  "summary": "Okojo aims for browser-grade JavaScript correctness while keeping the core engine separate from browser, Node, and hosting policy.",
+  "sections": [
+    {
+      "title": "Core",
+      "items": [
+        "Parser, compiler, bytecode VM, realms, agents, modules",
+        "Minimal public low-level host seams for embedders",
+        "No Node or browser policy in the core assembly"
+      ]
+    },
+    {
+      "title": "Hosting",
+      "items": [
+        "Manual and thread-affine host event loops",
+        "Queue-aware scheduling and diagnostics",
+        "Execution budgets and app/game style host control"
+      ]
+    },
+    {
+      "title": "Profiles",
+      "items": [
+        "Okojo.WebPlatform for portable Web APIs and Okojo.Browser for browser-oriented APIs",
+        "Okojo.Node for CommonJS, ESM, and selected built-ins",
+        "Focused sandboxes for browser, game loop, Node, and CLI usage"
+      ]
+    }
+  ],
+  "nextSteps": [
+    "Keep pushing practical Node package compatibility",
+    "Use bytecode and real package probes to drive compiler fixes",
+    "Stabilize the embedder-facing API split across assemblies"
+  ]
+}

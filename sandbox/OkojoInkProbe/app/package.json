@@ -1,0 +1,15 @@
+{
+    "name": "okojo-ink-probe",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "esbuild src/main.jsx --format=esm --platform=node --target=es2022 --outfile=main.mjs --jsx-factory=React.createElement --jsx-fragment=React.Fragment"
+    },
+    "dependencies": {
+        "ink": "^6.8.0",
+        "react": "^19.2.0"
+    },
+    "devDependencies": {
+        "esbuild": "^0.25.3"
+    }
+}

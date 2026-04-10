@@ -1,0 +1,1 @@
+{"version":3,"file":"message.mjs","sourceRoot":"","sources":["../../src/lib/message.mts"],"names":[],"mappings":"AAAA,OAAO,CAAC,GAAG,CAAC,wBAAwB,CAAC,CAAC;AAEtC,MAAM,UAAU,aAAa,CAAC,KAAa,EAAE,KAAa;IACxD,MAAM,MAAM,GAAW,QAAQ,CAAC;IAChC,OAAO,GAAG,MAAM,IAAI,KAAK,KAAK,KAAK,EAAE,CAAC;AACxC,CAAC"}

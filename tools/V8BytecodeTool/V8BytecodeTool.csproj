@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>14</LangVersion>
+    </PropertyGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\Okojo\Okojo.csproj"/>
+        <ProjectReference Include="..\..\src\Okojo.Diagnostics\Okojo.Diagnostics.csproj"/>
+    </ItemGroup>
+</Project>

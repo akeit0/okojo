@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>14</LangVersion>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <IsPackable>true</IsPackable>
+        <PackageId>Okojo</PackageId>
+        <Description>Managed JavaScript engine for .NET with ECMAScript modules, promises, and embedding APIs.</Description>
+        <PackageTags>javascript;ecmascript;engine;runtime;dotnet</PackageTags>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+    </PropertyGroup>
+    <ItemGroup>
+        <EmbeddedResource Include="Runtime\Intl\Data\CalendarData.txt"/>
+        <EmbeddedResource Include="Runtime\Intl\Data\LocaleData.txt"/>
+        <EmbeddedResource Include="Runtime\Intl\Data\LikelySubtags.txt"/>
+    </ItemGroup>
+    <ItemGroup>
+        <None Include="README.md" Pack="true" PackagePath="\"/>
+    </ItemGroup>
+</Project>

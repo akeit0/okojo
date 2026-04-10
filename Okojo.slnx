@@ -1,0 +1,35 @@
+<Solution>
+    <Project Path="benchmarks/Okojo.Benchmarks/Okojo.Benchmarks.csproj"/>
+    <Project Path="sandbox/ConsoleApp1/ConsoleApp1.csproj"/>
+    <Project Path="sandbox/OkojoRepl/OkojoRepl.csproj"/>
+    <Project Path="sandbox\OkojoInkProbe\OkojoInkProbe.csproj"/>
+    <Project Path="examples\OkojoArtSandbox\OkojoArtSandbox.csproj"/>
+    <Project Path="examples\OkojoGameLoopSandbox\OkojoGameLoopSandbox.csproj"/>
+    <Project Path="examples\OkojoHostEventLoopSandbox\OkojoHostEventLoopSandbox.csproj"/>
+    <Project Path="examples\OkojoModuleSampleRunner\OkojoModuleSampleRunner.csproj"/>
+    <Project Path="src/Okojo.DebugServer/Okojo.DebugServer.csproj"/>
+    <Project Path="src/Okojo.Node.Cli/Okojo.Node.Cli.csproj"/>
+    <Project Path="tools/OkojoBytecodeTool/OkojoBytecodeTool.csproj"/>
+    <Project Path="tools/Test262Runner/Test262Runner.csproj"/>
+    <Project Path="tools/V8BytecodeTool/V8BytecodeTool.csproj"/>
+    <Project Path="src/Okojo/Okojo.csproj"/>
+    <Project Path="src/Okojo.Reflection/Okojo.Reflection.csproj"/>
+    <Project Path="src/Okojo.Diagnostics/Okojo.Diagnostics.csproj"/>
+    <Project Path="src/Okojo.Hosting/Okojo.Hosting.csproj"/>
+    <Project Path="src/Okojo.Node/Okojo.Node.csproj"/>
+    <Project Path="src/Okojo.Repl/Okojo.Repl.csproj"/>
+    <Project Path="src/Okojo.Annotations/Okojo.Annotations.csproj"/>
+    <Project Path="src/Okojo.SourceGenerator/Okojo.SourceGenerator.csproj"/>
+    <Project Path="src/Okojo.DocGenerator.Annotations/Okojo.DocGenerator.Annotations.csproj"/>
+    <Project Path="src/Okojo.DocGenerator.Cli/Okojo.DocGenerator.Cli.csproj"/>
+    <Project Path="src/Okojo.WebPlatform/Okojo.WebPlatform.csproj"/>
+    <Project Path="src/Okojo.WebAssembly/Okojo.WebAssembly.csproj"/>
+    <Project Path="src/Okojo.WebAssembly.Wasmtime/Okojo.WebAssembly.Wasmtime.csproj"/>
+    <Project Path="tests/Okojo.Tests/Okojo.Tests.csproj"/>
+    <Project Path="tests/Okojo.Node.Tests/Okojo.Node.Tests.csproj"/>
+    <Project Path="tests/Okojo.Repl.Tests/Okojo.Repl.Tests.csproj"/>
+    <Project Path="tests\Okojo.Compiler.Tests\Okojo.Compiler.Tests.csproj"/>
+
+    <!--  <Project Path="tests/Okojo.Tests.Test262/Okojo.Tests.Test262.csproj" />-->
+    <!-- <Project Path="tools/BuiltinApiAuditRunner/BuiltinApiAuditRunner.csproj" /> -->
+</Solution>

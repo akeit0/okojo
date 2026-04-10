@@ -1,0 +1,73 @@
+using Okojo.Bytecode;
+using Okojo.Compiler;
+using Okojo.Parsing;
+
+namespace Okojo.Runtime;
+
+public sealed partial class JsRealm
+{
+    public void Execute(string source, bool pumpJobsAfterRun = true)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        Execute(CompileScript(source), pumpJobsAfterRun);
+    }
+
+    public JsValue Evaluate(string source, bool pumpJobsAfterRun = true)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        Execute(CompileScript(source), pumpJobsAfterRun);
+        return Accumulator;
+    }
+
+    public JsValue Eval(string source, bool pumpJobsAfterRun = true)
+    {
+        return Evaluate(source, pumpJobsAfterRun);
+    }
+
+    public JsValue Import(string specifier, string? referrer = null)
+    {
+        return Agent.Modules.Evaluate(this, specifier, referrer ?? GetCurrentModuleResolvedIdOrNull());
+    }
+
+    public JsModuleLoadResult LoadModule(string specifier, string? referrer = null)
+    {
+        return Agent.LoadModuleResult(this, specifier, referrer ?? GetCurrentModuleResolvedIdOrNull());
+    }
+
+    public string LoadWorkerScript(string path, string? referrer = null)
+    {
+        return Engine.LoadWorkerScript(path, referrer ?? GetCurrentModuleResolvedIdOrNull());
+    }
+
+    public JsRealm CreateRealm(Action<JsRealmOptions>? configure = null)
+    {
+        var options = new JsRealmOptions();
+        configure?.Invoke(options);
+        return Agent.CreateRealm(options);
+    }
+
+    public JsValue Call(JsFunction function, JsValue thisValue, params ReadOnlySpan<JsValue> args)
+    {
+        return InvokeFunction(function, thisValue, args);
+    }
+
+    public JsValue Call(JsValue function, JsValue thisValue, params ReadOnlySpan<JsValue> args)
+    {
+        if (!function.TryGetObject(out var functionObj) || functionObj is not JsFunction okojoFunction)
+            throw new JsRuntimeException(JsErrorKind.TypeError, "Call target is not a function",
+                "CALL_TARGET_NOT_FUNCTION");
+
+        return InvokeFunction(okojoFunction, thisValue, args);
+    }
+
+    internal string? GetCurrentModuleResolvedIdOrNull()
+    {
+        return Agent.TryGetCurrentModuleResolvedId(out var resolvedId) ? resolvedId : null;
+    }
+
+    private JsScript CompileScript(string source)
+    {
+        var program = JavaScriptParser.ParseScript(source);
+        return JsCompiler.Compile(this, program);
+    }
+}

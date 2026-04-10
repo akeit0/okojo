@@ -1,0 +1,206 @@
+{
+  "name": "okojo-vscode-debug",
+  "displayName": "Okojo Debugger",
+  "description": "Debug Okojo scripts from Visual Studio Code.",
+  "version": "0.0.1",
+  "publisher": "local",
+  "private": true,
+  "engines": {
+    "vscode": "^1.94.0"
+  },
+  "categories": [
+    "Debuggers"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+        "onDebugResolve:okojo",
+        "onCommand:okojo.showBytecode",
+        "onCommand:okojo.debugOptions",
+        "onLanguage:javascript",
+        "onLanguage:typescript"
+  ],
+  "contributes": {
+    "configuration": {
+      "title": "Okojo",
+      "properties": {
+        "okojo.debugger.openOnStop": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "If true, the debugger UI can open the bytecode viewer on stop once the transport is wired."
+        },
+        "okojo.debugger.checkInterval": {
+          "type": "number",
+          "default": 1024,
+          "minimum": 1,
+          "markdownDescription": "Checkpoint interval used for stepping and periodic execution checks during debug sessions."
+        },
+        "okojo.debugger.stepGranularity": {
+          "type": "string",
+          "enum": [
+            "line",
+            "instruction"
+          ],
+          "default": "line",
+          "markdownDescription": "Default stepping granularity for the Okojo debugger."
+        },
+        "okojo.debugger.traceBreakpoints": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Emit runtime breakpoint patch and hit tracing from Okojo.DebugServer."
+        },
+        "okojo.debugger.traceAdapter": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Emit verbose VS Code adapter request and host-command tracing."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "okojo.showBytecode",
+        "title": "Okojo: Bytecode Viewer",
+        "category": "Okojo"
+      },
+      {
+        "command": "okojo.debugOptions",
+        "title": "Okojo: Debugger Options",
+        "category": "Okojo"
+      }
+    ],
+    "debuggers": [
+        {
+          "type": "okojo",
+          "label": "Okojo",
+          "languages": [
+            "javascript",
+            "typescript"
+          ],
+        "program": "./dist/extension.js",
+        "configurationAttributes": {
+          "launch": {
+            "required": [
+              "program"
+            ],
+            "properties": {
+              "debugServerProject": {
+                "type": "string",
+                "description": "Path to the Okojo.DebugServer project file.",
+                "default": "${workspaceFolder}/src/Okojo.DebugServer/Okojo.DebugServer.csproj"
+              },
+              "program": {
+                "type": "string",
+                "description": "Path to the JavaScript file to debug.",
+                "default": "${workspaceFolder}/test.js"
+              },
+              "moduleEntry": {
+                "type": "boolean",
+                "description": "Treat the program as an ECMAScript module entry point.",
+                "default": false
+              },
+              "cwd": {
+                "type": "string",
+                "description": "Working directory for the debug target.",
+                "default": "${workspaceFolder}"
+              },
+              "checkInterval": {
+                "type": "number",
+                "description": "Checkpoint interval used for step commands.",
+                "default": 1024,
+                "minimum": 1
+              },
+              "traceBreakpoints": {
+                "type": "boolean",
+                "description": "Emit runtime breakpoint patch tracing to stderr.",
+                "default": false
+              },
+                "traceAdapter": {
+                  "type": "boolean",
+                  "description": "Emit verbose VS Code adapter request and host-command tracing.",
+                  "default": false
+                },
+                "enableSourceMaps": {
+                  "type": "boolean",
+                  "description": "Enable source-map remapping so authored TypeScript sources can be debugged through generated JavaScript.",
+                  "default": false
+                },
+                "stopOnDebuggerStatement": {
+                  "type": "boolean",
+                  "description": "Pause on debugger statements.",
+                "default": true
+              },
+              "stopOnBreakpoint": {
+                "type": "boolean",
+                "description": "Pause on source breakpoints.",
+                "default": true
+              },
+              "stopOnCall": {
+                "type": "boolean",
+                "description": "Pause on call checkpoints.",
+                "default": false
+              },
+              "stopOnReturn": {
+                "type": "boolean",
+                "description": "Pause on return checkpoints.",
+                "default": false
+              },
+              "stopOnPump": {
+                "type": "boolean",
+                "description": "Pause when the host pumps jobs.",
+                "default": false
+              },
+              "stopOnSuspendGenerator": {
+                "type": "boolean",
+                "description": "Pause when a generator suspends.",
+                "default": false
+              },
+              "stopOnResumeGenerator": {
+                "type": "boolean",
+                "description": "Pause when a generator resumes.",
+                "default": false
+              },
+              "stopOnPeriodic": {
+                "type": "boolean",
+                "description": "Pause on periodic execution checks.",
+                "default": false
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "description": "Break on entry to the program.",
+                "default": false
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "name": "Okojo: Launch",
+            "type": "okojo",
+            "request": "launch",
+            "program": "${workspaceFolder}/test.js",
+            "cwd": "${workspaceFolder}",
+            "debugServerProject": "${workspaceFolder}/src/Okojo.DebugServer/Okojo.DebugServer.csproj",
+            "checkInterval": 1024,
+            "enableSourceMaps": false,
+            "moduleEntry": false,
+            "stopOnDebuggerStatement": true,
+            "stopOnBreakpoint": true,
+            "stopOnEntry": false
+          }
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "build": "npm run compile",
+    "watch": "tsc -w -p .",
+    "vscode:prepublish": "npm run compile"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "@types/vscode": "^1.94.0",
+    "@vscode/debugadapter": "^1.68.0",
+    "@vscode/debugprotocol": "^1.68.0",
+    "typescript": "^5.5.4"
+  }
+}

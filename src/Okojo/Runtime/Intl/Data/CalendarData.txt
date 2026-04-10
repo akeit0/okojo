@@ -1,0 +1,47 @@
+[SUPPORTED_CALENDARS]
+buddhist
+chinese
+coptic
+dangi
+ethioaa
+ethiopic
+gregory
+hebrew
+indian
+islamic-civil
+islamic-tbla
+islamic-umalqura
+iso8601
+japanese
+persian
+roc
+
+[ERA_SUPPRESSED]
+chinese
+dangi
+
+[THRESHOLD_ERAS]
+gregory|0|BC|Before Christ|AD|Anno Domini
+iso8601|0|BC|Before Christ|AD|Anno Domini
+islamic-civil|621|BH|Before Hijra|AH|Anno Hegirae
+islamic-tbla|621|BH|Before Hijra|AH|Anno Hegirae
+islamic-umalqura|621|BH|Before Hijra|AH|Anno Hegirae
+roc|1911|Before R.O.C.|Before R.O.C.|Minguo|Minguo
+ethiopic|7|ERA0|Before Incarnation|ERA1|Anno Mundi
+
+[FIXED_ERAS]
+buddhist|BE|Buddhist Era
+coptic|AM|Anno Martyrum
+ethioaa|AA|Anno Adam
+hebrew|AM|Anno Mundi
+indian|SE|Saka Era
+persian|AP|Anno Persico
+
+[JAPANESE_ERAS]
+2019|Reiwa|Reiwa
+1989|Heisei|Heisei
+1926|Showa|Showa
+1912|Taisho|Taisho
+1868|Meiji|Meiji
+1603|Edo|Edo
+-2147483648|Ancient|Ancient

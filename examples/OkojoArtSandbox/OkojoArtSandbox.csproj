@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\Okojo\Okojo.csproj"/>
+        <ProjectReference Include="..\..\src\Okojo.DocGenerator.Annotations\Okojo.DocGenerator.Annotations.csproj"/>
+        <ProjectReference Include="..\..\src\Okojo.Annotations\Okojo.Annotations.csproj"/>
+        <ProjectReference Include="..\..\src\Okojo.SourceGenerator\Okojo.SourceGenerator.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="false"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="SkiaSharp" Version="2.88.8"/>
+        <PackageReference Include="Silk.NET.OpenGL" Version="2.23.0"/>
+        <PackageReference Include="Silk.NET.Windowing" Version="2.23.0"/>
+    </ItemGroup>
+    <ItemGroup Condition="'_IsPublishing' == 'yes'">
+        <None Include="scripts\**\main.js" CopyToOutputDirectory="PreserveNewest"/>
+    </ItemGroup>
+    <PropertyGroup Condition="'_IsPublishing' != 'yes'">
+        <DefineConstants>DEV</DefineConstants>
+    </PropertyGroup>
+</Project>

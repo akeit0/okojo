@@ -1,0 +1,9 @@
+{
+  "name": "okojo-ecma262-tool",
+  "private": true,
+  "description": "Local markdown conversion dependency for Read-Ecma262Spec.ps1",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "turndown": "^7.2.1"
+  }
+}

@@ -1,0 +1,7 @@
+﻿<wpf:ResourceDictionary xml:space="preserve" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:s="clr-namespace:System;assembly=mscorlib" xmlns:ss="urn:shemas-jetbrains-com:settings-storage-xaml" xmlns:wpf="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=25c9649f_002D63c0_002D4400_002D9ff5_002Df5d2f56c643f/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="HostObjectUsesAccessorDescriptorsForNonMethods" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
+  &lt;TestAncestor&gt;&#xD;
+    &lt;TestId&gt;NUnit3x::290A92B6-C913-0635-9B25-D0AAA52DECB9::net10.0::Okojo.Tests.HostInteropTests.HostObjectUsesAccessorDescriptorsForNonMethods&lt;/TestId&gt;&#xD;
+    &lt;TestId&gt;NUnit3x::290A92B6-C913-0635-9B25-D0AAA52DECB9::net10.0::Okojo.Tests.ArrayConstructorFeatureTests.ArrayLength_DefineAndSet_Coerce_Length_Twice_Before_Writable_Check&lt;/TestId&gt;&#xD;
+  &lt;/TestAncestor&gt;&#xD;
+&lt;/SessionState&gt;</s:String></wpf:ResourceDictionary>
