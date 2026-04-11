@@ -1,4 +1,8 @@
 # Okojo
+<img src="./docs/okojo_logo.svg" width="20%">
+
+
+"Okojo" means "ermine" or "stoat" in Japanese.
 
 Okojo is an experimental low allocation managed JavaScript engine for .NET, aimed at **correctness first**, strong observability/tooling, and practical host integration for modern ECMAScript workloads.
 
@@ -38,14 +42,14 @@ https://chartbenchmark.net/
 
 | Method | Scenario           | Mean       | Error     | StdDev   | Ratio | Gen0     | Allocated | Alloc Ratio |
 |------- |------------------- |-----------:|----------:|---------:|------:|---------:|----------:|------------:|
-| Okojo  | for-loop-sum       |   480.4 us |  52.50 us |  2.88 us |  0.31 |        - |      88 B |       0.000 |
-| Jint   | for-loop-sum       | 1,543.4 us | 324.05 us | 17.76 us |  1.00 | 142.5781 | 2236280 B |       1.000 |
+| Jint   | for-loop-sum       | 1,503.6 us | 245.87 us | 13.48 us |  1.00 | 142.5781 | 2236280 B |       1.000 |
+| Okojo  | for-loop-sum       |   471.0 us |  37.55 us |  2.06 us |  0.31 |        - |      88 B |       0.000 |
 |        |                    |            |           |          |       |          |           |             |
-| Okojo  | many-object        |   458.3 us |  38.16 us |  2.09 us |  0.31 |  27.3438 |  432000 B |        0.25 |
-| Jint   | many-object        | 1,469.6 us |  83.66 us |  4.59 us |  1.00 | 109.3750 | 1743560 B |        1.00 |
+| Jint   | many-object        | 1,506.1 us |  68.16 us |  3.74 us |  1.00 | 109.3750 | 1743560 B |        1.00 |
+| Okojo  | many-object        |   452.2 us |  14.31 us |  0.78 us |  0.30 |  27.3438 |  432000 B |        0.25 |
 |        |                    |            |           |          |       |          |           |             |
-| Okojo  | pure-function-call |   927.2 us |  77.95 us |  4.27 us |  0.29 |        - |     280 B |       0.000 |
-| Jint   | pure-function-call | 3,148.6 us |  44.52 us |  2.44 us |  1.00 | 324.2188 | 5121672 B |       1.000 |
+| Jint   | pure-function-call | 1,620.5 us | 293.68 us | 16.10 us |  1.00 | 162.1094 | 2561672 B |       1.000 |
+| Okojo  | pure-function-call |   464.0 us |  19.73 us |  1.08 us |  0.29 |        - |     280 B |       0.000 |
 
 
 ## Public package wave

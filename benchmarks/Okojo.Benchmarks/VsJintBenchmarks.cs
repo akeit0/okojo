@@ -28,7 +28,7 @@ public class VsJintBenchmarks
     private string source = string.Empty;
 
     //scripts/*.js
-    [Params("for-loop-sum","pure-function-call","many-object")] // "indexing", "lexical-block"//"loop","generator",
+    [Params("for-loop-sum", "pure-function-call", "many-object")] // "indexing", "lexical-block"//"loop","generator",
 
     // [Params("nop", "arith", "loop", "object", "many-object", "function-call", "closure-heavy", "with-eval-heavy",
     //     "math-call")]
@@ -59,6 +59,7 @@ public class VsJintBenchmarks
     //     return _sink;
     // }
     [Benchmark]
+    [BenchmarkCategory("Okojo")]
     public double Okojo_Execute_Function()
     {
         jsVm.Execute(jsFunction);
@@ -74,6 +75,8 @@ public class VsJintBenchmarks
     //     _sink = result.IsFloat64 ? result.Float64Value : double.NaN;
     //     return _sink;
     // }
+    [BenchmarkCategory("Jint")]
+
     [Benchmark(Baseline = true)]
     public double Jint_Execute_Function()
     {
