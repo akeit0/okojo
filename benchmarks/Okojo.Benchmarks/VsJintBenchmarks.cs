@@ -28,7 +28,7 @@ public class VsJintBenchmarks
     private string source = string.Empty;
 
     //scripts/*.js
-    [Params("loop")] // "indexing", "lexical-block"//"loop","generator",
+    [Params("for-loop-sum","pure-function-call","many-object")] // "indexing", "lexical-block"//"loop","generator",
 
     // [Params("nop", "arith", "loop", "object", "many-object", "function-call", "closure-heavy", "with-eval-heavy",
     //     "math-call")]
@@ -86,7 +86,7 @@ public class VsJintBenchmarks
     {
         public ConfigWithCustomEnvVars()
         {
-            AddJob(Job.ShortRun.WithRuntime(CoreRuntime.Core90)
+            AddJob(Job.ShortRun
                     .WithEnvironmentVariables(new EnvironmentVariable("DOTNET_TieredPGO", "0"))
                 )
                 //.

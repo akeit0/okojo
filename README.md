@@ -2,7 +2,7 @@
 
 Okojo is an experimental low allocation managed JavaScript engine for .NET, aimed at **correctness first**, strong observability/tooling, and practical host integration for modern ECMAScript workloads.
 
-This repository contains the core engine, host/runtime layers, web-platform support, WebAssembly integration, code-generation helpers, examples, Test262 infrastructure, and internal sandboxes used to drive compatibility work.
+This repository contains the core engine, host/runtime layers, minimum web-platform api support, WebAssembly integration, code-generation helpers, examples, Test262 infrastructure, and internal sandboxes used to drive compatibility work.
 
 ## What Okojo is trying to be
 
@@ -16,11 +16,37 @@ The current direction is:
 The project is still **prerelease**. Public APIs and package boundaries are being refined, but the repo is already organized around the package wave expected to ship first.
 
 ## Current status
-
 - core language and runtime correctness are the top priority
 - non-legacy, non-staging Test262 baseline coverage is currently passing in the working baseline
 - deprecated and legacy corners are intentionally not a priority unless explicitly re-approved
+- Except for intentional legacy, direct-eval, and the skipping of with statements, the baseline passes **100%** of test262. [See Test262 Section](#test262)
+- Unlike jint, its RegExp implementation is ECMAScript 262 compliant, although its performance is not very good.
 - browser-facing and Node-facing integration work is active, but not every `src/` project is part of the first public wave
+
+# Performance
+
+Although it is not as fast as other implementations that are famous for being more than just an interpreter, it is more than **3** times faster than [jint](https://github.com/sebastienros/jint). 
+
+It is expected to become about **1.5** times faster through performance tuning.
+I'd like to emphasize the **low allocation**.
+
+[for-loop-sum.js](benchmarks\Okojo.Benchmarks\scripts/for-loop-sum.js)
+[many-object](benchmarks\Okojo.Benchmarks\scripts/many-object.js)
+[pure-function-call](benchmarks\Okojo.Benchmarks\scripts/many-object.js)
+![img](./docs/benchmark.png)
+https://chartbenchmark.net/
+
+| Method | Scenario           | Mean       | Error     | StdDev   | Ratio | Gen0     | Allocated | Alloc Ratio |
+|------- |------------------- |-----------:|----------:|---------:|------:|---------:|----------:|------------:|
+| Okojo  | for-loop-sum       |   480.4 us |  52.50 us |  2.88 us |  0.31 |        - |      88 B |       0.000 |
+| Jint   | for-loop-sum       | 1,543.4 us | 324.05 us | 17.76 us |  1.00 | 142.5781 | 2236280 B |       1.000 |
+|        |                    |            |           |          |       |          |           |             |
+| Okojo  | many-object        |   458.3 us |  38.16 us |  2.09 us |  0.31 |  27.3438 |  432000 B |        0.25 |
+| Jint   | many-object        | 1,469.6 us |  83.66 us |  4.59 us |  1.00 | 109.3750 | 1743560 B |        1.00 |
+|        |                    |            |           |          |       |          |           |             |
+| Okojo  | pure-function-call |   927.2 us |  77.95 us |  4.27 us |  0.29 |        - |     280 B |       0.000 |
+| Jint   | pure-function-call | 3,148.6 us |  44.52 us |  2.44 us |  1.00 | 324.2188 | 5121672 B |       1.000 |
+
 
 ## Public package wave
 
@@ -451,19 +477,19 @@ dotnet test tests/Okojo.Tests/Okojo.Tests.csproj
 Focused Test262 example:
 
 ```powershell
-dotnet run --project ./tools/Test262Runner/ -c Release --filter test262/test/language --parallel 14
+dotnet run --project ./tools/Test262Runner/ -c Release --filter test262/test/language
 ```
 
-## Test262 progress and compatibility tracking
+## Test262 progress and compatibility tracking{#test262}
 
 This repo tracks compatibility progress in checked-in artifacts so work can be prioritized by **passed**, **failed**, and **classified skip** status rather than a single aggregate number.
-
+[TEST262_PROGRESS_INCREMENTAL.md](TEST262_PROGRESS_INCREMENTAL.md)
 Important files:
 
 | File | Purpose |
 | --- | --- |
 | [`TEST262_PROGRESS_INCREMENTAL.md`](TEST262_PROGRESS_INCREMENTAL.md) | Human-readable progress snapshot grouped by category and folder, including passed, failed, and split skip classes |
-| `TEST262_PROGRESS_INCREMENTAL.json` | Machine-readable version of the same incremental progress data |
+| `TEST262_PROGRESS_INCREMENTAL.json` | Machine-readable version of the same incremental progress data (gitignored)|
 | [`docs/TEST262_SKIP_TAXONOMY.md`](docs/TEST262_SKIP_TAXONOMY.md) | Skip classification policy and grouped skip inventory |
 | `tools/Test262Runner` | Runner and progress generation logic |
 
