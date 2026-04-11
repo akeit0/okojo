@@ -8,6 +8,7 @@ Okojo is an experimental low allocation managed JavaScript engine for .NET, aime
 
 This repository contains the core engine, host/runtime layers, minimum web-platform api support, WebAssembly integration, code-generation helpers, examples, Test262 infrastructure, and internal sandboxes used to drive compatibility work.
 
+
 ## What Okojo is trying to be
 
 The current direction is:
@@ -23,20 +24,22 @@ The project is still **prerelease**. Public APIs and package boundaries are bein
 - core language and runtime correctness are the top priority
 - non-legacy, non-staging Test262 baseline coverage is currently passing in the working baseline
 - deprecated and legacy corners are intentionally not a priority unless explicitly re-approved
-- Except for intentional legacy, direct-eval, and the skipping of with statements, the baseline passes **100%** of test262. [See Test262 Section](#test262)
+- Except for intentional legacy, direct-eval, and the skipping of with statements, the baseline passes **100%** of test262. [See Test262 Section](#test262-progress-and-compatibility-tracking)
 - Unlike jint, its RegExp implementation is ECMAScript 262 compliant, although its performance is not very good.
+- runtime support is currently **.NET 10+**
+- core runtime packages are intended to stay **NativeAOT-friendly by default**
 - browser-facing and Node-facing integration work is active, but not every `src/` project is part of the first public wave
 
-# Performance
+## Performance
 
 Although it is not as fast as other implementations that are famous for being more than just an interpreter, it is more than **3** times faster than [jint](https://github.com/sebastienros/jint). 
 
 It is expected to become about **1.5** times faster through performance tuning.
 I'd like to emphasize the **low allocation**.
 
-[for-loop-sum.js](benchmarks\Okojo.Benchmarks\scripts/for-loop-sum.js)
-[many-object](benchmarks\Okojo.Benchmarks\scripts/many-object.js)
-[pure-function-call](benchmarks\Okojo.Benchmarks\scripts/many-object.js)
+[for-loop-sum.js](benchmarks/Okojo.Benchmarks/scripts/for-loop-sum.js)
+[many-object.js](benchmarks/Okojo.Benchmarks/scripts/many-object.js)
+[pure-function-call.js](benchmarks/Okojo.Benchmarks/scripts/pure-function-call.js)
 ![img](./docs/benchmark.png)
 https://chartbenchmark.net/
 
@@ -50,6 +53,14 @@ https://chartbenchmark.net/
 |        |                    |            |           |          |       |          |           |             |
 | Jint   | pure-function-call | 1,620.5 us | 293.68 us | 16.10 us |  1.00 | 162.1094 | 2561672 B |       1.000 |
 | Okojo  | pure-function-call |   464.0 us |  19.73 us |  1.08 us |  0.29 |        - |     280 B |       0.000 |
+
+Benchmark project:
+
+```powershell
+dotnet run --project benchmarks/Okojo.Benchmarks/Okojo.Benchmarks.csproj -c Release
+```
+
+The benchmark suite uses BenchmarkDotNet and includes compile, promise, async, property-path, global-binding, and Jint comparison scenarios under `benchmarks/Okojo.Benchmarks`.
 
 
 ## Public package wave
@@ -102,6 +113,16 @@ Useful entry points:
 - `JsRealm.Execute(...)`
 - `JsRealm.Import(...)`
 - `JsRealm.LoadModule(...)`
+
+## Platform support and AOT
+
+Today, the runtime and host packages are supported on **.NET 10 and later**.
+
+The core runtime packages are intended to remain **AOT-compatible by default**. In this repo, projects under `src/` default to `IsAotCompatible=true`, and the packages that are pure runtime/hosting surfaces are kept on that path unless they explicitly opt out.
+
+The main exception is `Okojo.Reflection`, which is intentionally split out so that reflection-backed CLR interop stays opt-in instead of becoming part of the default runtime surface.
+
+The build-time helper packages such as `Okojo.Annotations`, `Okojo.SourceGenerator`, and `Okojo.DocGenerator.Annotations` are separate from the runtime support story and can be used from projects that feed Okojo-based generation or declaration workflows.
 
 ## Core surface: `JsRuntime`, `JsRealm`, and `JsValue`
 
@@ -161,6 +182,55 @@ Console.WriteLine(result.Int32Value); // 54
 
 That builder style is the preferred public composition path.
 
+## Reflection-backed CLR access
+
+If you want CLR namespace and type access from JavaScript, add `Okojo.Reflection` explicitly and opt into reflection-backed interop:
+
+```csharp
+using Okojo;
+using Okojo.Reflection;
+
+using var runtime = JsRuntime.CreateBuilder()
+    .AllowClrAccess(typeof(Console).Assembly, typeof(Enumerable).Assembly)
+    .Build();
+```
+
+From JavaScript, CLR access shows up through helper globals:
+
+- `clr` - root CLR namespace object
+- `$using(...)` - import CLR namespaces or types into a smaller resolver object
+- `$place(type, value?)` - create a placeholder object for `ref` and `out` style arguments
+- `$null(type)` - create a typed CLR null value
+- `$cast(type, value)` - force CLR-side conversion
+
+Minimal JavaScript-side examples:
+
+```js
+clr.System.Console.WriteLine("hello from CLR");
+
+const sys = $using(clr.System);
+sys.Console.WriteLine(sys.String.Concat("oko", "jo"));
+
+const result = $place(clr.System.Int32);
+const ok = clr.System.Int32.TryParse("42", result);
+clr.System.Console.WriteLine(result.value);
+```
+
+That last pattern is the basic `ref` / `out` shape: pass a `$place(...)` object to the CLR call, then read the updated `.value` after invocation.
+
+That split is deliberate:
+
+- `Okojo` keeps the default embedding surface simpler and more AOT-friendly
+- `Okojo.Reflection` is the opt-in package for reflection-based host interop
+
+Useful references:
+
+- `src/Okojo.Reflection/README.md`
+- `src/Okojo.Reflection/ClrAccessExtensions.cs`
+- `sandbox/OkojoRepl`
+```
+dotnet run --project .\sandbox\OkojoRepl\OkojoRepl.csproj 
+```
 ## Modules
 
 Okojo supports ECMAScript modules through the runtime loader surface.
@@ -243,6 +313,37 @@ Useful references:
 - `sandbox/OkojoInkProbe`
 - `src/Okojo.WebAssembly`
 - `src/Okojo.WebAssembly.Wasmtime`
+
+## Node-like execution and InkProbe
+
+`Okojo.Node` and `Okojo.Node.Cli` are not in the current public package wave yet, but they are already useful as integration and bring-up surfaces.
+
+The `okojonode` CLI supports script execution, eval, printing, and debugger-oriented entry points:
+
+```text
+okojonode <script> [arguments]
+okojonode inspect <script> [arguments]
+okojonode -e <code>
+okojonode -p <code>
+```
+
+One practical way to exercise the current Node-like stack is to run the InkProbe app through the CLI:
+
+```powershell
+dotnet run -c Release --project src/Okojo.Node.Cli/Okojo.Node.Cli.csproj sandbox/OkojoInkProbe/app/main.mjs
+```
+
+InkProbe itself is the focused sandbox for the same stack and is useful when you want a reduced Wasmtime-enabled repro with optional debugger logging:
+
+```powershell
+dotnet run --project sandbox/OkojoInkProbe/OkojoInkProbe.csproj -c Release -- --debugger
+```
+
+Useful references:
+
+- `sandbox/OkojoInkProbe`
+- `src/Okojo.Node.Cli/NodeCliApplication.cs`
+- `docs/OKOJO_NODE_INK_DEBUG_WORKFLOW.md`
 
 ## Source generation with `Okojo.Annotations` and `Okojo.SourceGenerator`
 
@@ -433,9 +534,11 @@ If you want concrete code before reading internals, start here:
 | `examples/OkojoHostEventLoopSandbox` | Browser-like queue wiring for timers, animation frames, and fetch |
 | `examples/OkojoGameLoopSandbox` | Frame-budgeted execution, module loading, and manual event-loop pumping |
 | `examples/OkojoArtSandbox` | Generated globals and objects driving an interactive sketch host |
+| `benchmarks/Okojo.Benchmarks` | BenchmarkDotNet suite for runtime, object-path, promise, compile, and Jint-comparison scenarios |
 | `sandbox/OkojoRuntimeDebugSandbox` | Runtime debugger checkpoints, breakpoints, module vs script execution |
 | `sandbox/OkojoProbeSandbox` | Small probes for script/module execution and namespace inspection |
 | `sandbox/OkojoInkProbe` | Node-like host with Wasmtime-enabled WebAssembly support |
+| `src/Okojo.Node.Cli` | Node-like CLI entry point for scripts, eval, print, inspect, and InkProbe launching |
 | `src/vscode-debug/extension` | VS Code debugger adapter scaffold and sample workspace integration |
 
 ## `src/` project map
