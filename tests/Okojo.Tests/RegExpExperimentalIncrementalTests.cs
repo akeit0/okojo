@@ -572,4 +572,28 @@ public class RegExpExperimentalIncrementalTests
         Assert.That(match!.Index, Is.EqualTo(1));
         Assert.That(match.Groups[0], Is.EqualTo("b"));
     }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesProgressSensitiveStarQuantifierInVm()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(?:a?)*a", "");
+
+        var match = engine.Exec(compiled, "a", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Groups[0], Is.EqualTo("a"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesProgressSensitiveBoundedQuantifierInVm()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(?:a?){0,2}a", "");
+
+        var match = engine.Exec(compiled, "a", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Groups[0], Is.EqualTo("a"));
+    }
 }

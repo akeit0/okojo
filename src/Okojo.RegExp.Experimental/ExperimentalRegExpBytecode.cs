@@ -6,6 +6,8 @@ internal enum ExperimentalRegExpOpcode : byte
 {
     Match,
     ClearCaptures,
+    SaveLoopPosition,
+    BranchIfLoopUnchanged,
     ScanAnyToEnd,
     ScanDotToEnd,
     ScanClassToEnd,
@@ -52,6 +54,7 @@ internal sealed class ExperimentalRegExpBytecodeProgram
     public ExperimentalRegExpBytecodeProgram[] LookaheadPrograms { get; init; } = [];
     public ScratchRegExpProgram.Node[] LookbehindNodes { get; init; } = [];
     public RegExpRuntimeFlags[] LookbehindFlags { get; init; } = [];
+    public int LoopSlotCount { get; init; }
     public string[] LiteralTexts { get; init; } = [];
     public ScratchRegExpProgram.ClassNode[] Classes { get; init; } = [];
     public ScratchRegExpProgram.PropertyEscapeNode[] PropertyEscapes { get; init; } = [];
@@ -86,6 +89,7 @@ internal static class ExperimentalRegExpCodeGenerator
             LookaheadPrograms = LowerLookaheadPrograms(irProgram.LookaheadPrograms),
             LookbehindNodes = irProgram.LookbehindNodes,
             LookbehindFlags = irProgram.LookbehindFlags,
+            LoopSlotCount = irProgram.LoopSlotCount,
             LiteralTexts = irProgram.LiteralTexts,
             Classes = irProgram.Classes,
             PropertyEscapes = irProgram.PropertyEscapes
@@ -149,6 +153,8 @@ internal static class ExperimentalRegExpCodeGenerator
         {
             ExperimentalRegExpIrOpcode.Match => ExperimentalRegExpOpcode.Match,
             ExperimentalRegExpIrOpcode.ClearCaptures => ExperimentalRegExpOpcode.ClearCaptures,
+            ExperimentalRegExpIrOpcode.SaveLoopPosition => ExperimentalRegExpOpcode.SaveLoopPosition,
+            ExperimentalRegExpIrOpcode.BranchIfLoopUnchanged => ExperimentalRegExpOpcode.BranchIfLoopUnchanged,
             ExperimentalRegExpIrOpcode.SaveStart => ExperimentalRegExpOpcode.SaveStart,
             ExperimentalRegExpIrOpcode.SaveEnd => ExperimentalRegExpOpcode.SaveEnd,
             ExperimentalRegExpIrOpcode.BackReference => ExperimentalRegExpOpcode.BackReference,
@@ -189,9 +195,12 @@ internal static class ExperimentalRegExpVm
         int startIndex, RegExpRuntimeFlags flags, ExperimentalRegExpCaptureState? captureState, out int endIndex)
     {
         var stack = new ExperimentalBacktrackStack();
+        using var loopState = program.LoopSlotCount == 0 ? null : new ExperimentalRegExpLoopState(program.LoopSlotCount);
         try
         {
-            return TryMatch(treeProgram, program, input, startIndex, flags, captureState, ref stack, out endIndex);
+            loopState?.Reset();
+            return TryMatch(treeProgram, program, input, startIndex, flags, captureState, loopState, ref stack,
+                out endIndex);
         }
         finally
         {
@@ -201,7 +210,7 @@ internal static class ExperimentalRegExpVm
 
     private static bool TryMatch(ScratchRegExpProgram treeProgram, ExperimentalRegExpBytecodeProgram program, string input,
         int startIndex, RegExpRuntimeFlags flags, ExperimentalRegExpCaptureState? captureState,
-        ref ExperimentalBacktrackStack stack, out int endIndex)
+        ExperimentalRegExpLoopState? loopState, ref ExperimentalBacktrackStack stack, out int endIndex)
     {
         var currentPos = startIndex;
         var instructions = program.Instructions;
@@ -210,7 +219,7 @@ internal static class ExperimentalRegExpVm
         {
             if ((uint)instructionIndex >= (uint)instructions.Length)
             {
-                if (TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
+                if (TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
                     continue;
 
                 endIndex = default;
@@ -232,6 +241,15 @@ internal static class ExperimentalRegExpVm
                     }
 
                     instructionIndex++;
+                    break;
+                case ExperimentalRegExpOpcode.SaveLoopPosition:
+                    loopState?.Save(instruction.Operand, currentPos);
+                    instructionIndex++;
+                    break;
+                case ExperimentalRegExpOpcode.BranchIfLoopUnchanged:
+                    instructionIndex = loopState is not null && loopState.IsUnchanged(instruction.Operand, currentPos)
+                        ? instruction.Operand2
+                        : instructionIndex + 1;
                     break;
                 case ExperimentalRegExpOpcode.ScanAnyToEnd:
                     currentPos = input.Length;
@@ -264,7 +282,7 @@ internal static class ExperimentalRegExpVm
                             instruction.OpCode == ExperimentalRegExpOpcode.BackReferenceIgnoreCase,
                             captureState, out currentPos))
                     {
-                        if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
+                        if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
                         {
                             endIndex = default;
                             return false;
@@ -282,7 +300,7 @@ internal static class ExperimentalRegExpVm
                             instruction.OpCode == ExperimentalRegExpOpcode.NamedBackReferenceIgnoreCase, captureState,
                             out currentPos))
                     {
-                        if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
+                        if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
                         {
                             endIndex = default;
                             return false;
@@ -297,13 +315,13 @@ internal static class ExperimentalRegExpVm
                 case ExperimentalRegExpOpcode.AssertNotLookahead:
                     var checkpoint = captureState?.Checkpoint ?? 0;
                     var lookaheadMatched = TryMatch(treeProgram, program.LookaheadPrograms[instruction.Operand], input,
-                        currentPos, flags, captureState, ref stack, out _);
+                        currentPos, flags, captureState, out _);
                     if (instruction.OpCode == ExperimentalRegExpOpcode.AssertLookahead)
                     {
                         if (!lookaheadMatched)
                         {
                             captureState?.Restore(checkpoint);
-                            if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
+                            if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
                             {
                                 endIndex = default;
                                 return false;
@@ -317,7 +335,7 @@ internal static class ExperimentalRegExpVm
                         captureState?.Restore(checkpoint);
                         if (lookaheadMatched)
                         {
-                            if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
+                            if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
                             {
                                 endIndex = default;
                                 return false;
@@ -340,7 +358,7 @@ internal static class ExperimentalRegExpVm
                         if (!lookbehindMatched)
                         {
                             captureState?.Restore(checkpoint);
-                            if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
+                            if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
                             {
                                 endIndex = default;
                                 return false;
@@ -354,7 +372,7 @@ internal static class ExperimentalRegExpVm
                         captureState?.Restore(checkpoint);
                         if (lookbehindMatched)
                         {
-                            if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
+                            if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
                             {
                                 endIndex = default;
                                 return false;
@@ -371,7 +389,7 @@ internal static class ExperimentalRegExpVm
                     if (currentPos > input.Length ||
                         !input.AsSpan(currentPos).StartsWith(literalText.AsSpan(), StringComparison.Ordinal))
                     {
-                        if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
+                        if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
                         {
                             endIndex = default;
                             return false;
@@ -390,7 +408,7 @@ internal static class ExperimentalRegExpVm
                         !ScratchRegExpMatcher.CodePointEqualsForVm(codePoint, instruction.Operand,
                             instruction.OpCode == ExperimentalRegExpOpcode.CharIgnoreCase))
                     {
-                        if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
+                        if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
                         {
                             endIndex = default;
                             return false;
@@ -407,7 +425,7 @@ internal static class ExperimentalRegExpVm
                             out codePoint) ||
                         ScratchRegExpMatcher.IsLineTerminatorForVm(codePoint))
                     {
-                        if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
+                        if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
                         {
                             endIndex = default;
                             return false;
@@ -423,7 +441,7 @@ internal static class ExperimentalRegExpVm
                     if (!ScratchRegExpMatcher.TryReadCodePointForVm(input, currentPos, flags.Unicode, out nextPos,
                             out _))
                     {
-                        if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
+                        if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
                         {
                             endIndex = default;
                             return false;
@@ -438,7 +456,7 @@ internal static class ExperimentalRegExpVm
                 case ExperimentalRegExpOpcode.AssertStart:
                     if (!ScratchRegExpMatcher.IsStartAnchorSatisfiedForVm(input, currentPos, multiline: false))
                     {
-                        if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
+                        if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
                         {
                             endIndex = default;
                             return false;
@@ -452,7 +470,7 @@ internal static class ExperimentalRegExpVm
                 case ExperimentalRegExpOpcode.AssertStartMultiline:
                     if (!ScratchRegExpMatcher.IsStartAnchorSatisfiedForVm(input, currentPos, multiline: true))
                     {
-                        if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
+                        if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
                         {
                             endIndex = default;
                             return false;
@@ -466,7 +484,7 @@ internal static class ExperimentalRegExpVm
                 case ExperimentalRegExpOpcode.AssertEnd:
                     if (!ScratchRegExpMatcher.IsEndAnchorSatisfiedForVm(input, currentPos, multiline: false))
                     {
-                        if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
+                        if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
                         {
                             endIndex = default;
                             return false;
@@ -480,7 +498,7 @@ internal static class ExperimentalRegExpVm
                 case ExperimentalRegExpOpcode.AssertEndMultiline:
                     if (!ScratchRegExpMatcher.IsEndAnchorSatisfiedForVm(input, currentPos, multiline: true))
                     {
-                        if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
+                        if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
                         {
                             endIndex = default;
                             return false;
@@ -496,7 +514,7 @@ internal static class ExperimentalRegExpVm
                     if (!ScratchRegExpMatcher.IsWordBoundaryForVm(input, currentPos, flags.Unicode,
                             instruction.OpCode == ExperimentalRegExpOpcode.AssertWordBoundaryIgnoreCase))
                     {
-                        if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
+                        if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
                         {
                             endIndex = default;
                             return false;
@@ -512,7 +530,7 @@ internal static class ExperimentalRegExpVm
                     if (ScratchRegExpMatcher.IsWordBoundaryForVm(input, currentPos, flags.Unicode,
                             instruction.OpCode == ExperimentalRegExpOpcode.AssertNotWordBoundaryIgnoreCase))
                     {
-                        if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
+                        if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
                         {
                             endIndex = default;
                             return false;
@@ -531,7 +549,7 @@ internal static class ExperimentalRegExpVm
                                 IgnoreCase = instruction.OpCode == ExperimentalRegExpOpcode.ClassIgnoreCase
                             }, out nextPos))
                     {
-                        if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
+                        if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
                         {
                             endIndex = default;
                             return false;
@@ -551,7 +569,7 @@ internal static class ExperimentalRegExpVm
                                 IgnoreCase = instruction.OpCode == ExperimentalRegExpOpcode.PropertyEscapeIgnoreCase
                             }, out nextPos))
                     {
-                        if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
+                        if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
                         {
                             endIndex = default;
                             return false;
@@ -567,7 +585,7 @@ internal static class ExperimentalRegExpVm
                     instructionIndex = instruction.Operand;
                     break;
                 case ExperimentalRegExpOpcode.Split:
-                    stack.Push(instruction.Operand2, currentPos, captureState?.Checkpoint ?? 0);
+                    stack.Push(instruction.Operand2, currentPos, captureState?.Checkpoint ?? 0, loopState?.Checkpoint ?? 0);
                     instructionIndex = instruction.Operand;
                     break;
                 default:
@@ -576,13 +594,14 @@ internal static class ExperimentalRegExpVm
         }
     }
 
-    private static bool TryBacktrack(ExperimentalRegExpCaptureState? captureState, ref ExperimentalBacktrackStack stack,
-        out int instructionIndex, out int currentPos)
+    private static bool TryBacktrack(ExperimentalRegExpCaptureState? captureState, ExperimentalRegExpLoopState? loopState,
+        ref ExperimentalBacktrackStack stack, out int instructionIndex, out int currentPos)
     {
-        if (!stack.TryPop(out instructionIndex, out currentPos, out var captureCheckpoint))
+        if (!stack.TryPop(out instructionIndex, out currentPos, out var captureCheckpoint, out var loopCheckpoint))
             return false;
 
         captureState?.Restore(captureCheckpoint);
+        loopState?.Restore(loopCheckpoint);
         return true;
     }
 
@@ -591,25 +610,29 @@ internal static class ExperimentalRegExpVm
         private int[]? values;
         private int count;
 
-        public void Push(int instructionIndex, int inputPosition, int captureCheckpoint)
+        public void Push(int instructionIndex, int inputPosition, int captureCheckpoint, int loopCheckpoint)
         {
-            EnsureCapacity(count + 3);
+            EnsureCapacity(count + 4);
             values![count++] = instructionIndex;
             values[count++] = inputPosition;
             values[count++] = captureCheckpoint;
+            values[count++] = loopCheckpoint;
         }
 
-        public bool TryPop(out int instructionIndex, out int inputPosition, out int captureCheckpoint)
+        public bool TryPop(out int instructionIndex, out int inputPosition, out int captureCheckpoint,
+            out int loopCheckpoint)
         {
             if (count == 0)
             {
                 instructionIndex = default;
                 inputPosition = default;
                 captureCheckpoint = default;
+                loopCheckpoint = default;
                 return false;
             }
 
-            captureCheckpoint = values![--count];
+            loopCheckpoint = values![--count];
+            captureCheckpoint = values[--count];
             inputPosition = values[--count];
             instructionIndex = values[--count];
             return true;
@@ -640,6 +663,70 @@ internal static class ExperimentalRegExpVm
             values = next;
         }
     }
+}
+
+internal sealed class ExperimentalRegExpLoopState : IDisposable
+{
+    private ExperimentalLoopLogEntry[] logEntries;
+    private int logCount;
+
+    public ExperimentalRegExpLoopState(int slotCount)
+    {
+        Positions = ArrayPool<int>.Shared.Rent(Math.Max(1, slotCount));
+        logEntries = ArrayPool<ExperimentalLoopLogEntry>.Shared.Rent(Math.Max(8, slotCount));
+        SlotCount = slotCount;
+        Reset();
+    }
+
+    public int SlotCount { get; }
+    public int[] Positions { get; }
+    public int Checkpoint => logCount;
+
+    public void Reset()
+    {
+        Array.Fill(Positions, -1, 0, SlotCount);
+        logCount = 0;
+    }
+
+    public void Save(int slot, int position)
+    {
+        EnsureLogCapacity(logCount + 1);
+        logEntries[logCount++] = new(slot, Positions[slot]);
+        Positions[slot] = position;
+    }
+
+    public bool IsUnchanged(int slot, int currentPos)
+    {
+        return Positions[slot] == currentPos;
+    }
+
+    public void Restore(int checkpoint)
+    {
+        while (logCount > checkpoint)
+        {
+            var entry = logEntries[--logCount];
+            Positions[entry.Slot] = entry.Position;
+        }
+    }
+
+    public void Dispose()
+    {
+        ArrayPool<int>.Shared.Return(Positions);
+        ArrayPool<ExperimentalLoopLogEntry>.Shared.Return(logEntries);
+    }
+
+    private void EnsureLogCapacity(int requiredCount)
+    {
+        if (logEntries.Length >= requiredCount)
+            return;
+
+        var next = ArrayPool<ExperimentalLoopLogEntry>.Shared.Rent(requiredCount * 2);
+        Array.Copy(logEntries, next, logCount);
+        ArrayPool<ExperimentalLoopLogEntry>.Shared.Return(logEntries);
+        logEntries = next;
+    }
+
+    private readonly record struct ExperimentalLoopLogEntry(int Slot, int Position);
 }
 
 internal sealed class ExperimentalRegExpCaptureState : IDisposable
