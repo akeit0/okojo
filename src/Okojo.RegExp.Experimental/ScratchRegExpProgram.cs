@@ -7,6 +7,7 @@ internal sealed class ScratchRegExpProgram
 {
     private const int MaxRequiredLiteralPrefixLength = 8;
     private const int MaxExactLiteralPatternLength = 64;
+    private const int MaxSearchLiteralSetSize = 8;
 
     public required Node Root { get; init; }
     public required RegExpRuntimeFlags Flags { get; init; }
@@ -23,6 +24,7 @@ internal sealed class ScratchRegExpProgram
     public required string? ExactLiteralText { get; init; }
     public required bool HasScopedModifiers { get; init; }
     public required Dictionary<Node, int[]> NodeCaptureIndices { get; init; }
+    public required SearchPlan CandidateSearchPlan { get; init; }
 
     public static ScratchRegExpProgram Parse(string pattern, RegExpRuntimeFlags flags)
     {
@@ -113,6 +115,36 @@ internal sealed class ScratchRegExpProgram
     }
 
     internal abstract record Node;
+
+    internal enum SearchAnchorKind : byte
+    {
+        None,
+        Start,
+        LineStart
+    }
+
+    internal enum SearchAtomKind : byte
+    {
+        None,
+        LiteralSet,
+        Class,
+        PropertyEscape,
+        Dot,
+        Any
+    }
+
+    internal sealed record SearchPlan(
+        SearchAnchorKind AnchorKind,
+        SearchAtomKind AtomKind,
+        int[] LiteralCodePoints,
+        ClassNode? Class,
+        PropertyEscapeNode? PropertyEscape)
+    {
+        public static SearchPlan None { get; } = new(SearchAnchorKind.None, SearchAtomKind.None, [], null, null);
+
+        public bool HasAnchor => AnchorKind != SearchAnchorKind.None;
+        public bool HasAtom => AtomKind != SearchAtomKind.None;
+    }
 
     internal sealed record EmptyNode : Node;
 
@@ -329,6 +361,9 @@ internal sealed class ScratchRegExpProgram
             var hasLeadingLiteral = !hasScopedModifiers && TryGetLeadingLiteral(root, out leadingLiteral);
             var requiredLiteralPrefix = hasScopedModifiers ? [] : GetRequiredLiteralPrefix(root);
             var exactLiteralCodePoints = hasScopedModifiers ? [] : GetExactLiteralPattern(root);
+            var candidateSearchPlan = hasScopedModifiers || !TryBuildSearchPlan(root, flags, out var searchPlan)
+                ? SearchPlan.None
+                : searchPlan;
             int[] exactLiteral = [];
             var hasExactLiteralPattern = !hasScopedModifiers &&
                                          captureCount == 0 &&
@@ -357,7 +392,8 @@ internal sealed class ScratchRegExpProgram
                     ? exactLiteralText
                     : null,
                 HasScopedModifiers = hasScopedModifiers,
-                NodeCaptureIndices = BuildCaptureIndexMap(root)
+                NodeCaptureIndices = BuildCaptureIndexMap(root),
+                CandidateSearchPlan = candidateSearchPlan
             };
         }
 
@@ -1873,6 +1909,288 @@ internal sealed class ScratchRegExpProgram
             if (prefix.Count > MaxRequiredLiteralPrefixLength)
                 prefix.RemoveRange(MaxRequiredLiteralPrefixLength, prefix.Count - MaxRequiredLiteralPrefixLength);
             return prefix.ToArray();
+        }
+
+        private static bool TryBuildSearchPlan(Node node, RegExpRuntimeFlags flags, out SearchPlan searchPlan)
+        {
+            if (!TryAnalyzeSearch(node, flags, out var analysis) ||
+                analysis.AnchorKind == SearchAnchorKind.None && analysis.AtomKind == SearchAtomKind.None)
+            {
+                searchPlan = SearchPlan.None;
+                return false;
+            }
+
+            searchPlan = new(analysis.AnchorKind, analysis.AtomKind, analysis.LiteralCodePoints, analysis.Class,
+                analysis.PropertyEscape);
+            return true;
+        }
+
+        private static bool TryAnalyzeSearch(Node node, RegExpRuntimeFlags flags, out SearchAnalysis analysis)
+        {
+            switch (node)
+            {
+                case EmptyNode:
+                case BoundaryNode:
+                case LookaheadNode:
+                case LookbehindNode:
+                    analysis = SearchAnalysis.Empty;
+                    return true;
+                case AnchorNode anchor when anchor.Start:
+                    analysis = SearchAnalysis.Empty with
+                    {
+                        AnchorKind = flags.Multiline ? SearchAnchorKind.LineStart : SearchAnchorKind.Start
+                    };
+                    return true;
+                case AnchorNode:
+                    analysis = SearchAnalysis.Empty;
+                    return true;
+                case LiteralNode literal:
+                    analysis = new(false, SearchAnchorKind.None, SearchAtomKind.LiteralSet, [literal.CodePoint], null,
+                        null);
+                    return true;
+                case DotNode:
+                    analysis = new(false, SearchAnchorKind.None,
+                        flags.DotAll ? SearchAtomKind.Any : SearchAtomKind.Dot, [], null, null);
+                    return true;
+                case ClassNode cls:
+                    analysis = new(false, SearchAnchorKind.None, SearchAtomKind.Class, [], cls, null);
+                    return true;
+                case PropertyEscapeNode propertyEscape:
+                    analysis = new(false, SearchAnchorKind.None, SearchAtomKind.PropertyEscape, [], null, propertyEscape);
+                    return true;
+                case CaptureNode capture:
+                    return TryAnalyzeSearch(capture.Child, flags, out analysis);
+                case ScopedModifiersNode scoped:
+                    return TryAnalyzeSearch(scoped.Child, flags with
+                    {
+                        IgnoreCase = scoped.IgnoreCase ?? flags.IgnoreCase,
+                        Multiline = scoped.Multiline ?? flags.Multiline,
+                        DotAll = scoped.DotAll ?? flags.DotAll
+                    }, out analysis);
+                case QuantifierNode quantifier:
+                    if (!TryAnalyzeSearch(quantifier.Child, flags, out var quantified))
+                    {
+                        analysis = default;
+                        return false;
+                    }
+
+                    analysis = quantifier.Min == 0
+                        ? quantified with { CanBeEmpty = true, AnchorKind = SearchAnchorKind.None }
+                        : quantified;
+                    return true;
+                case SequenceNode sequence:
+                    return TryAnalyzeSequence(sequence.Terms, flags, out analysis);
+                case AlternationNode alternation:
+                    return TryAnalyzeAlternation(alternation.Alternatives, flags, out analysis);
+                default:
+                    analysis = default;
+                    return false;
+            }
+        }
+
+        private static bool TryAnalyzeSequence(Node[] terms, RegExpRuntimeFlags flags, out SearchAnalysis analysis)
+        {
+            var current = SearchAnalysis.Empty;
+            for (var i = 0; i < terms.Length; i++)
+            {
+                if (!TryAnalyzeSearch(terms[i], flags, out var termAnalysis))
+                {
+                    analysis = default;
+                    return false;
+                }
+
+                if (termAnalysis.AnchorKind != SearchAnchorKind.None)
+                {
+                    if (current.AtomKind != SearchAtomKind.None ||
+                        current.AnchorKind != SearchAnchorKind.None && current.AnchorKind != termAnalysis.AnchorKind)
+                    {
+                        analysis = default;
+                        return false;
+                    }
+
+                    current = current with { AnchorKind = termAnalysis.AnchorKind };
+                }
+
+                if (termAnalysis.AtomKind != SearchAtomKind.None)
+                {
+                    if (!TryMergeSearchAtom(current, termAnalysis, out current))
+                    {
+                        analysis = default;
+                        return false;
+                    }
+                }
+
+                if (!termAnalysis.CanBeEmpty)
+                {
+                    analysis = current with { CanBeEmpty = false };
+                    return true;
+                }
+            }
+
+            analysis = current with { CanBeEmpty = true };
+            return true;
+        }
+
+        private static bool TryAnalyzeAlternation(Node[] alternatives, RegExpRuntimeFlags flags, out SearchAnalysis analysis)
+        {
+            var combined = SearchAnalysis.Empty;
+            var initialized = false;
+            for (var i = 0; i < alternatives.Length; i++)
+            {
+                if (!TryAnalyzeSearch(alternatives[i], flags, out var alternativeAnalysis))
+                {
+                    analysis = default;
+                    return false;
+                }
+
+                if (!initialized)
+                {
+                    combined = alternativeAnalysis;
+                    initialized = true;
+                    continue;
+                }
+
+                if (combined.AnchorKind != alternativeAnalysis.AnchorKind)
+                {
+                    analysis = default;
+                    return false;
+                }
+
+                if (!TryMergeSearchAtom(combined, alternativeAnalysis, out combined))
+                {
+                    analysis = default;
+                    return false;
+                }
+
+                combined = combined with { CanBeEmpty = combined.CanBeEmpty || alternativeAnalysis.CanBeEmpty };
+            }
+
+            analysis = initialized ? combined : SearchAnalysis.Empty;
+            return true;
+        }
+
+        private static bool TryMergeSearchAtom(SearchAnalysis left, SearchAnalysis right, out SearchAnalysis merged)
+        {
+            if (left.AtomKind == SearchAtomKind.None)
+            {
+                merged = left with
+                {
+                    AtomKind = right.AtomKind,
+                    LiteralCodePoints = right.LiteralCodePoints,
+                    Class = right.Class,
+                    PropertyEscape = right.PropertyEscape
+                };
+                return true;
+            }
+
+            if (right.AtomKind == SearchAtomKind.None)
+            {
+                merged = left;
+                return true;
+            }
+
+            if (left.AtomKind == SearchAtomKind.Any || right.AtomKind == SearchAtomKind.Any)
+            {
+                merged = left with
+                {
+                    AtomKind = SearchAtomKind.Any,
+                    LiteralCodePoints = [],
+                    Class = null,
+                    PropertyEscape = null
+                };
+                return true;
+            }
+
+            if (left.AtomKind == SearchAtomKind.Dot && right.AtomKind == SearchAtomKind.Dot)
+            {
+                merged = left;
+                return true;
+            }
+
+            if (left.AtomKind == SearchAtomKind.Dot &&
+                right.AtomKind == SearchAtomKind.LiteralSet &&
+                !ContainsLineTerminator(right.LiteralCodePoints))
+            {
+                merged = left;
+                return true;
+            }
+
+            if (right.AtomKind == SearchAtomKind.Dot &&
+                left.AtomKind == SearchAtomKind.LiteralSet &&
+                !ContainsLineTerminator(left.LiteralCodePoints))
+            {
+                merged = right with { AnchorKind = left.AnchorKind, CanBeEmpty = left.CanBeEmpty || right.CanBeEmpty };
+                return true;
+            }
+
+            if (left.AtomKind == SearchAtomKind.LiteralSet && right.AtomKind == SearchAtomKind.LiteralSet)
+            {
+                if (!TryUnionLiteralSets(left.LiteralCodePoints, right.LiteralCodePoints, out var union))
+                {
+                    merged = default;
+                    return false;
+                }
+
+                merged = left with { LiteralCodePoints = union };
+                return true;
+            }
+
+            if (left.AtomKind == SearchAtomKind.Class && right.AtomKind == SearchAtomKind.Class &&
+                Equals(left.Class, right.Class))
+            {
+                merged = left;
+                return true;
+            }
+
+            if (left.AtomKind == SearchAtomKind.PropertyEscape &&
+                right.AtomKind == SearchAtomKind.PropertyEscape &&
+                Equals(left.PropertyEscape, right.PropertyEscape))
+            {
+                merged = left;
+                return true;
+            }
+
+            merged = default;
+            return false;
+        }
+
+        private static bool TryUnionLiteralSets(int[] left, int[] right, out int[] union)
+        {
+            HashSet<int> codePoints = new();
+            for (var i = 0; i < left.Length; i++)
+                codePoints.Add(left[i]);
+            for (var i = 0; i < right.Length; i++)
+                codePoints.Add(right[i]);
+
+            if (codePoints.Count > MaxSearchLiteralSetSize)
+            {
+                union = [];
+                return false;
+            }
+
+            union = codePoints.ToArray();
+            return true;
+        }
+
+        private static bool ContainsLineTerminator(int[] codePoints)
+        {
+            for (var i = 0; i < codePoints.Length; i++)
+                if (codePoints[i] is 0x000A or 0x000D or 0x2028 or 0x2029)
+                    return true;
+
+            return false;
+        }
+
+        private readonly record struct SearchAnalysis(
+            bool CanBeEmpty,
+            SearchAnchorKind AnchorKind,
+            SearchAtomKind AtomKind,
+            int[] LiteralCodePoints,
+            ClassNode? Class,
+            PropertyEscapeNode? PropertyEscape)
+        {
+            public static SearchAnalysis Empty { get; } = new(true, SearchAnchorKind.None, SearchAtomKind.None, [], null,
+                null);
         }
 
         private static bool AppendRequiredLiteralPrefix(Node node, List<int> prefix)

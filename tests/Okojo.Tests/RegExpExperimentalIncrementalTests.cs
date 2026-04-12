@@ -120,6 +120,58 @@ public class RegExpExperimentalIncrementalTests
     }
 
     [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesLineStartSearchPlan()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"^foo", "m");
+
+        var match = engine.Exec(compiled, "xx\r\nfoo", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(4));
+        Assert.That(match.Groups[0], Is.EqualTo("foo"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesClassFirstSetSearchPlan()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"[ab]cd", "");
+
+        var match = engine.Exec(compiled, "xxxxbcd", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(4));
+        Assert.That(match.Groups[0], Is.EqualTo("bcd"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesPropertyFirstSetSearchPlan()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"\p{ASCII}+", "u");
+
+        var match = engine.Exec(compiled, "\u03a9\u03a9Az", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(2));
+        Assert.That(match.Groups[0], Is.EqualTo("Az"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesOptionalLiteralFirstSetSearchPlan()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"a?b", "");
+
+        var match = engine.Exec(compiled, "xxb", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(2));
+        Assert.That(match.Groups[0], Is.EqualTo("b"));
+    }
+
+    [Test]
     public void ExperimentalRegExpEngine_Incremental_UsesLinearBytecodeForWordBoundary()
     {
         var engine = ExperimentalRegExpEngine.Default;
