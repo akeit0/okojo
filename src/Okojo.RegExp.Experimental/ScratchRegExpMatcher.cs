@@ -20,7 +20,7 @@ internal static class ScratchRegExpMatcher
             return null;
         }
 
-        for (var pos = begin; pos <= input.Length;)
+        for (var pos = FindSearchCandidate(program, input, begin); pos <= input.Length;)
         {
             if (stateArena is not null)
                 stateArena.Reset();
@@ -1699,15 +1699,78 @@ internal static class ScratchRegExpMatcher
             return input.Length + 1;
 
         var nextPos = AdvanceStringIndex(input, pos, program.Flags.Unicode);
-        if (program.MinMatchLength > 0 && input.Length - nextPos < program.MinMatchLength)
+        return FindSearchCandidate(program, input, nextPos);
+    }
+
+    private static int FindSearchCandidate(ScratchRegExpProgram program, string input, int start)
+    {
+        if (start > input.Length)
             return input.Length + 1;
 
-        if (!program.HasLeadingLiteral || program.MinMatchLength <= 0)
-            return nextPos;
+        if (program.MinMatchLength > 0 && input.Length - start < program.MinMatchLength)
+            return input.Length + 1;
 
-        var candidate = FindNextLiteralCandidate(input, nextPos, program.LeadingLiteralCodePoint, program.Flags.Unicode,
+        if (program.RequiredLiteralPrefixCodePoints.Length == 0)
+            return start;
+
+        var candidate = FindNextRequiredPrefixCandidate(
+            input,
+            start,
+            program.RequiredLiteralPrefixCodePoints,
+            program.Flags.Unicode,
             program.Flags.IgnoreCase);
         return candidate < 0 ? input.Length + 1 : candidate;
+    }
+
+    private static int FindNextRequiredPrefixCandidate(string input, int start, int[] prefixCodePoints, bool unicode,
+        bool ignoreCase)
+    {
+        if (prefixCodePoints.Length == 0)
+            return Math.Max(0, start);
+
+        for (var pos = Math.Max(0, start); pos < input.Length;)
+        {
+            var candidate = FindNextLiteralCandidate(input, pos, prefixCodePoints[0], unicode, ignoreCase);
+            if (candidate < 0)
+                return -1;
+
+            if (HasRequiredLiteralPrefixAt(input, candidate, prefixCodePoints, unicode, ignoreCase))
+                return candidate;
+
+            pos = AdvanceStringIndex(input, candidate, unicode);
+        }
+
+        return -1;
+    }
+
+    private static bool HasRequiredLiteralPrefixAt(string input, int pos, int[] prefixCodePoints, bool unicode,
+        bool ignoreCase)
+    {
+        var currentPos = pos;
+        for (var i = 0; i < prefixCodePoints.Length; i++)
+        {
+            if (!TryReadCodePoint(input, currentPos, unicode, out var nextPos, out var cp) ||
+                !CodePointEquals(cp, prefixCodePoints[i], ignoreCase))
+                return false;
+
+            currentPos = nextPos;
+        }
+
+        return true;
+    }
+
+    private static int AdvanceStringIndex(string input, int index, bool unicode)
+    {
+        if (index >= input.Length)
+            return index + 1;
+
+        if (unicode &&
+            index + 1 < input.Length &&
+            char.IsHighSurrogate(input[index]) &&
+            char.IsLowSurrogate(input[index + 1]))
+            return index + 2;
+
+        return index + 1;
     }
 
     private static int FindNextLiteralCandidate(string input, int start, int literalCodePoint, bool unicode,
@@ -1725,20 +1788,6 @@ internal static class ScratchRegExpMatcher
         }
 
         return -1;
-    }
-
-    private static int AdvanceStringIndex(string input, int index, bool unicode)
-    {
-        if (index >= input.Length)
-            return index + 1;
-
-        if (unicode &&
-            index + 1 < input.Length &&
-            char.IsHighSurrogate(input[index]) &&
-            char.IsLowSurrogate(input[index + 1]))
-            return index + 2;
-
-        return index + 1;
     }
 
     private static bool TryReadCodePoint(string input, int pos, bool unicode, out int nextPos, out int codePoint)

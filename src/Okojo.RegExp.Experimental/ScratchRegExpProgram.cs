@@ -5,6 +5,8 @@ namespace Okojo.RegExp.Experimental;
 
 internal sealed class ScratchRegExpProgram
 {
+    private const int MaxRequiredLiteralPrefixLength = 8;
+
     public required Node Root { get; init; }
     public required RegExpRuntimeFlags Flags { get; init; }
     public required string[] NamedGroupNames { get; init; }
@@ -13,6 +15,7 @@ internal sealed class ScratchRegExpProgram
     public required int MinMatchLength { get; init; }
     public required int LeadingLiteralCodePoint { get; init; }
     public required bool HasLeadingLiteral { get; init; }
+    public required int[] RequiredLiteralPrefixCodePoints { get; init; }
     public required Dictionary<Node, int[]> NodeCaptureIndices { get; init; }
 
     public static ScratchRegExpProgram Parse(string pattern, RegExpRuntimeFlags flags)
@@ -325,6 +328,7 @@ internal sealed class ScratchRegExpProgram
                 MinMatchLength = TryComputeMinMatchLength(root, out var minMatchLength) ? minMatchLength : -1,
                 HasLeadingLiteral = TryGetLeadingLiteral(root, out var leadingLiteral),
                 LeadingLiteralCodePoint = leadingLiteral,
+                RequiredLiteralPrefixCodePoints = GetRequiredLiteralPrefix(root),
                 NodeCaptureIndices = BuildCaptureIndexMap(root)
             };
         }
@@ -1817,6 +1821,134 @@ internal sealed class ScratchRegExpProgram
                     codePoint = default;
                     return false;
             }
+        }
+
+        private static int[] GetRequiredLiteralPrefix(Node node)
+        {
+            var prefix = new List<int>(4);
+            AppendRequiredLiteralPrefix(node, prefix);
+            if (prefix.Count > MaxRequiredLiteralPrefixLength)
+                prefix.RemoveRange(MaxRequiredLiteralPrefixLength, prefix.Count - MaxRequiredLiteralPrefixLength);
+            return prefix.ToArray();
+        }
+
+        private static bool AppendRequiredLiteralPrefix(Node node, List<int> prefix)
+        {
+            if (prefix.Count >= MaxRequiredLiteralPrefixLength)
+                return false;
+
+            switch (node)
+            {
+                case EmptyNode:
+                case AnchorNode:
+                case BoundaryNode:
+                case LookaheadNode:
+                case LookbehindNode:
+                    return true;
+                case SequenceNode sequence:
+                    for (var i = 0; i < sequence.Terms.Length && prefix.Count < MaxRequiredLiteralPrefixLength; i++)
+                    {
+                        if (!AppendRequiredLiteralPrefix(sequence.Terms[i], prefix))
+                            return false;
+                    }
+
+                    return true;
+                case QuantifierNode quantifier:
+                {
+                    if (quantifier.Min == 0 || !TryGetExactLiteral(quantifier.Child, out var literalCodePoints))
+                        return false;
+
+                    for (var repeat = 0; repeat < quantifier.Min && prefix.Count < MaxRequiredLiteralPrefixLength; repeat++)
+                    for (var i = 0; i < literalCodePoints.Length && prefix.Count < MaxRequiredLiteralPrefixLength; i++)
+                        prefix.Add(literalCodePoints[i]);
+
+                    return quantifier.Max == quantifier.Min;
+                }
+                default:
+                    if (!TryGetExactLiteral(node, out var exactLiteral))
+                        return false;
+
+                    for (var i = 0; i < exactLiteral.Length && prefix.Count < MaxRequiredLiteralPrefixLength; i++)
+                        prefix.Add(exactLiteral[i]);
+                    return true;
+            }
+        }
+
+        private static bool TryGetExactLiteral(Node node, out int[] codePoints)
+        {
+            switch (node)
+            {
+                case EmptyNode:
+                case AnchorNode:
+                case BoundaryNode:
+                case LookaheadNode:
+                case LookbehindNode:
+                    codePoints = [];
+                    return true;
+                case LiteralNode literal:
+                    codePoints = [literal.CodePoint];
+                    return true;
+                case CaptureNode capture:
+                    return TryGetExactLiteral(capture.Child, out codePoints);
+                case ScopedModifiersNode scoped:
+                    return TryGetExactLiteral(scoped.Child, out codePoints);
+                case SequenceNode sequence:
+                {
+                    var builder = new List<int>(sequence.Terms.Length);
+                    for (var i = 0; i < sequence.Terms.Length; i++)
+                    {
+                        if (!TryGetExactLiteral(sequence.Terms[i], out var termLiteral))
+                        {
+                            codePoints = [];
+                            return false;
+                        }
+
+                        builder.AddRange(termLiteral);
+                        if (builder.Count > MaxRequiredLiteralPrefixLength)
+                            break;
+                    }
+
+                    codePoints = builder.ToArray();
+                    return true;
+                }
+                case QuantifierNode quantifier when quantifier.Min == quantifier.Max:
+                {
+                    if (!TryGetExactLiteral(quantifier.Child, out var childLiteral))
+                    {
+                        codePoints = [];
+                        return false;
+                    }
+
+                    var builder = new List<int>(Math.Min(MaxRequiredLiteralPrefixLength, childLiteral.Length * quantifier.Min));
+                    for (var repeat = 0; repeat < quantifier.Min && builder.Count < MaxRequiredLiteralPrefixLength; repeat++)
+                        builder.AddRange(childLiteral);
+                    if (builder.Count > MaxRequiredLiteralPrefixLength)
+                        builder.RemoveRange(MaxRequiredLiteralPrefixLength, builder.Count - MaxRequiredLiteralPrefixLength);
+                    codePoints = builder.ToArray();
+                    return true;
+                }
+                default:
+                    codePoints = [];
+                    return false;
+            }
+        }
+
+        private static bool IsZeroWidthOnly(Node node)
+        {
+            return node switch
+            {
+                EmptyNode => true,
+                AnchorNode => true,
+                BoundaryNode => true,
+                LookaheadNode => true,
+                LookbehindNode => true,
+                CaptureNode capture => IsZeroWidthOnly(capture.Child),
+                ScopedModifiersNode scoped => IsZeroWidthOnly(scoped.Child),
+                SequenceNode sequence => sequence.Terms.All(IsZeroWidthOnly),
+                QuantifierNode quantifier when quantifier.Min == 0 => true,
+                QuantifierNode quantifier when quantifier.Min == quantifier.Max => IsZeroWidthOnly(quantifier.Child),
+                _ => false
+            };
         }
 
         private static bool TryComputeMinMatchLength(Node node, out int minLength)
