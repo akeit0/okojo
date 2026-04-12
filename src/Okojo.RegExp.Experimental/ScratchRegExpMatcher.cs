@@ -11,6 +11,9 @@ internal static class ScratchRegExpMatcher
     public static RegExpMatchResult? Exec(ScratchRegExpProgram program, string input, int startIndex)
     {
         var begin = Math.Max(0, startIndex);
+        if (program.HasExactLiteralPattern)
+            return ExecExactLiteral(program, input, begin);
+
         using var stateArena = program.CaptureCount == 0 ? null : new ScratchMatchStateArena(program.CaptureCount);
         if (program.Flags.Sticky)
         {
@@ -28,6 +31,24 @@ internal static class ScratchRegExpMatcher
             var state = stateArena is null ? ScratchMatchState.Empty : stateArena.Root;
             if (TryMatchNode(program, program.Root, input, pos, program.Flags, state, out var endIndex))
                 return BuildMatch(program, input, pos, endIndex, state);
+
+            pos = NextSearchPosition(program, input, pos);
+        }
+
+        return null;
+    }
+
+    private static RegExpMatchResult? ExecExactLiteral(ScratchRegExpProgram program, string input, int begin)
+    {
+        if (program.Flags.Sticky)
+            return TryMatchExactLiteralAt(program, input, begin, out var stickyEnd)
+                ? BuildSimpleMatch(program, input, begin, stickyEnd)
+                : null;
+
+        for (var pos = FindSearchCandidate(program, input, begin); pos <= input.Length;)
+        {
+            if (TryMatchExactLiteralAt(program, input, pos, out var endIndex))
+                return BuildSimpleMatch(program, input, pos, endIndex);
 
             pos = NextSearchPosition(program, input, pos);
         }
@@ -89,6 +110,17 @@ internal static class ScratchRegExpMatcher
         }
 
         return new(startIndex, endIndex - startIndex, groups, namedGroups, groupIndices, namedGroupIndices);
+    }
+
+    private static RegExpMatchResult BuildSimpleMatch(ScratchRegExpProgram program, string input, int startIndex,
+        int endIndex)
+    {
+        string?[] groups = [null];
+        groups[0] = input.Substring(startIndex, endIndex - startIndex);
+        var groupIndices = program.Flags.HasIndices ? new RegExpMatchRange?[1] : null;
+        if (groupIndices is not null)
+            groupIndices[0] = new RegExpMatchRange(startIndex, endIndex);
+        return new(startIndex, endIndex - startIndex, groups, null, groupIndices, null);
     }
 
     private static bool TryMatchNode(ScratchRegExpProgram program, ScratchRegExpProgram.Node node, string input,
@@ -1720,6 +1752,26 @@ internal static class ScratchRegExpMatcher
             program.Flags.Unicode,
             program.Flags.IgnoreCase);
         return candidate < 0 ? input.Length + 1 : candidate;
+    }
+
+    private static bool TryMatchExactLiteralAt(ScratchRegExpProgram program, string input, int start, out int endIndex)
+    {
+        var currentPos = start;
+        var exactLiteral = program.ExactLiteralCodePoints;
+        for (var i = 0; i < exactLiteral.Length; i++)
+        {
+            if (!TryReadCodePoint(input, currentPos, program.Flags.Unicode, out var nextPos, out var cp) ||
+                !CodePointEquals(cp, exactLiteral[i], program.Flags.IgnoreCase))
+            {
+                endIndex = default;
+                return false;
+            }
+
+            currentPos = nextPos;
+        }
+
+        endIndex = currentPos;
+        return true;
     }
 
     private static int FindNextRequiredPrefixCandidate(string input, int start, int[] prefixCodePoints, bool unicode,

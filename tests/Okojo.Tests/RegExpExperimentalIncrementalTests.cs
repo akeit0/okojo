@@ -42,4 +42,30 @@ public class RegExpExperimentalIncrementalTests
         Assert.That(match!.Index, Is.EqualTo(1));
         Assert.That(match.Groups[0], Is.EqualTo("b"));
     }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesExactLiteralFastPath()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile("literal", "");
+
+        var match = engine.Exec(compiled, "xxliteralyy", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(2));
+        Assert.That(match.Groups[0], Is.EqualTo("literal"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesExactLiteralFastPathForFixedRepeat()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(?:ab){2}", "");
+
+        var match = engine.Exec(compiled, "zzabab", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(2));
+        Assert.That(match.Groups[0], Is.EqualTo("abab"));
+    }
 }

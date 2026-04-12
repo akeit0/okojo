@@ -16,6 +16,8 @@ internal sealed class ScratchRegExpProgram
     public required int LeadingLiteralCodePoint { get; init; }
     public required bool HasLeadingLiteral { get; init; }
     public required int[] RequiredLiteralPrefixCodePoints { get; init; }
+    public required int[] ExactLiteralCodePoints { get; init; }
+    public required bool HasExactLiteralPattern { get; init; }
     public required Dictionary<Node, int[]> NodeCaptureIndices { get; init; }
 
     public static ScratchRegExpProgram Parse(string pattern, RegExpRuntimeFlags flags)
@@ -329,6 +331,9 @@ internal sealed class ScratchRegExpProgram
                 HasLeadingLiteral = TryGetLeadingLiteral(root, out var leadingLiteral),
                 LeadingLiteralCodePoint = leadingLiteral,
                 RequiredLiteralPrefixCodePoints = GetRequiredLiteralPrefix(root),
+                ExactLiteralCodePoints = GetExactLiteralPattern(root),
+                HasExactLiteralPattern = captureCount == 0 && TryGetExactLiteralPattern(root, out var exactLiteral) &&
+                                         exactLiteral.Length != 0,
                 NodeCaptureIndices = BuildCaptureIndexMap(root)
             };
         }
@@ -1904,8 +1909,6 @@ internal sealed class ScratchRegExpProgram
                         }
 
                         builder.AddRange(termLiteral);
-                        if (builder.Count > MaxRequiredLiteralPrefixLength)
-                            break;
                     }
 
                     codePoints = builder.ToArray();
@@ -1924,6 +1927,64 @@ internal sealed class ScratchRegExpProgram
                         builder.AddRange(childLiteral);
                     if (builder.Count > MaxRequiredLiteralPrefixLength)
                         builder.RemoveRange(MaxRequiredLiteralPrefixLength, builder.Count - MaxRequiredLiteralPrefixLength);
+                    codePoints = builder.ToArray();
+                    return true;
+                }
+                default:
+                    codePoints = [];
+                    return false;
+            }
+        }
+
+        private static int[] GetExactLiteralPattern(Node node)
+        {
+            return TryGetExactLiteralPattern(node, out var exactLiteral) ? exactLiteral : [];
+        }
+
+        private static bool TryGetExactLiteralPattern(Node node, out int[] codePoints)
+        {
+            switch (node)
+            {
+                case EmptyNode:
+                    codePoints = [];
+                    return true;
+                case LiteralNode literal:
+                    codePoints = [literal.CodePoint];
+                    return true;
+                case CaptureNode capture:
+                    return TryGetExactLiteralPattern(capture.Child, out codePoints);
+                case ScopedModifiersNode scoped:
+                    return TryGetExactLiteralPattern(scoped.Child, out codePoints);
+                case SequenceNode sequence:
+                {
+                    var builder = new List<int>(sequence.Terms.Length);
+                    for (var i = 0; i < sequence.Terms.Length; i++)
+                    {
+                        if (!TryGetExactLiteralPattern(sequence.Terms[i], out var termLiteral))
+                        {
+                            codePoints = [];
+                            return false;
+                        }
+
+                        builder.AddRange(termLiteral);
+                        if (builder.Count > MaxRequiredLiteralPrefixLength)
+                            break;
+                    }
+
+                    codePoints = builder.ToArray();
+                    return true;
+                }
+                case QuantifierNode quantifier when quantifier.Min == quantifier.Max:
+                {
+                    if (!TryGetExactLiteralPattern(quantifier.Child, out var childLiteral))
+                    {
+                        codePoints = [];
+                        return false;
+                    }
+
+                    var builder = new List<int>(childLiteral.Length * quantifier.Min);
+                    for (var repeat = 0; repeat < quantifier.Min; repeat++)
+                        builder.AddRange(childLiteral);
                     codePoints = builder.ToArray();
                     return true;
                 }
