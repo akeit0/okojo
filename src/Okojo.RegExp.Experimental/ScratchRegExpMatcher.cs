@@ -1933,6 +1933,26 @@ internal static class ScratchRegExpMatcher
         return TryMatchPropertyEscapeForward(input, pos, propertyEscape, flags, out nextPos);
     }
 
+    internal static int ScanDotToEndForVm(string input, int pos, bool unicode)
+    {
+        var currentPos = pos;
+        while (TryReadCodePoint(input, currentPos, unicode, out var nextPos, out var codePoint) &&
+               !IsLineTerminator(codePoint))
+            currentPos = nextPos;
+
+        return currentPos;
+    }
+
+    internal static int ScanClassToEndForVm(string input, int pos, ScratchRegExpProgram.ClassNode cls,
+        RegExpRuntimeFlags flags)
+    {
+        var currentPos = pos;
+        while (TryMatchClassForward(input, currentPos, cls, flags, out var nextPos))
+            currentPos = nextPos;
+
+        return currentPos;
+    }
+
     private static int FindNextRequiredPrefixCandidate(string input, int start, int[] prefixCodePoints, bool unicode,
         bool ignoreCase)
     {

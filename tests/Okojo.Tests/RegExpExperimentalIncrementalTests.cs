@@ -283,4 +283,56 @@ public class RegExpExperimentalIncrementalTests
         Assert.That(match.Groups[4], Is.Null);
         Assert.That(match.Groups[5], Is.EqualTo("c"));
     }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesTailDotScan()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"a.*", "");
+
+        var match = engine.Exec(compiled, "zza12\nrest", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(2));
+        Assert.That(match.Groups[0], Is.EqualTo("a12"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesTailDotAllScan()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"a.*", "s");
+
+        var match = engine.Exec(compiled, "zza12\nrest", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(2));
+        Assert.That(match.Groups[0], Is.EqualTo("a12\nrest"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesTailClassScan()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"a[0-9]*", "");
+
+        var match = engine.Exec(compiled, "zza123x", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(2));
+        Assert.That(match.Groups[0], Is.EqualTo("a123"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesTailClassPlusScan()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"a[0-9]+", "");
+
+        var match = engine.Exec(compiled, "zza123x", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(2));
+        Assert.That(match.Groups[0], Is.EqualTo("a123"));
+    }
 }

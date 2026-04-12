@@ -6,6 +6,9 @@ internal enum ExperimentalRegExpOpcode : byte
 {
     Match,
     ClearCaptures,
+    ScanAnyToEnd,
+    ScanDotToEnd,
+    ScanClassToEnd,
     SaveStart,
     SaveEnd,
     LiteralText,
@@ -45,21 +48,63 @@ internal static class ExperimentalRegExpCodeGenerator
             return null;
 
         var source = irProgram.Instructions;
-        var instructions = new ExperimentalRegExpInstruction[source.Length];
+        var instructions = new List<ExperimentalRegExpInstruction>(source.Length);
         for (var i = 0; i < source.Length; i++)
         {
+            if (TryEmitTailScan(source, i, instructions, out var consumedInstructions))
+            {
+                i += consumedInstructions - 1;
+                continue;
+            }
+
             var instruction = source[i];
-            instructions[i] = new(MapOpcode(instruction.OpCode), instruction.Operand, instruction.Operand2);
+            instructions.Add(new(MapOpcode(instruction.OpCode), instruction.Operand, instruction.Operand2));
         }
 
         return new()
         {
-            Instructions = instructions,
+            Instructions = instructions.ToArray(),
             CaptureClearSets = irProgram.CaptureClearSets,
             LiteralTexts = irProgram.LiteralTexts,
             Classes = irProgram.Classes,
             PropertyEscapes = irProgram.PropertyEscapes
         };
+    }
+
+    private static bool TryEmitTailScan(ExperimentalRegExpIrInstruction[] source, int index,
+        List<ExperimentalRegExpInstruction> instructions, out int consumedInstructions)
+    {
+        consumedInstructions = 0;
+        if (index + 3 >= source.Length)
+            return false;
+
+        var split = source[index];
+        if (split.OpCode != ExperimentalRegExpIrOpcode.Split ||
+            split.Operand != index + 1 ||
+            split.Operand2 != index + 3 ||
+            source[index + 2].OpCode != ExperimentalRegExpIrOpcode.Jump ||
+            source[index + 2].Operand != index ||
+            source[index + 3].OpCode != ExperimentalRegExpIrOpcode.Match)
+            return false;
+
+        var child = source[index + 1];
+        switch (child.OpCode)
+        {
+            case ExperimentalRegExpIrOpcode.Any:
+                instructions.Add(new(ExperimentalRegExpOpcode.ScanAnyToEnd, 0));
+                consumedInstructions = 3;
+                return true;
+            case ExperimentalRegExpIrOpcode.Dot:
+                instructions.Add(new(ExperimentalRegExpOpcode.ScanDotToEnd, 0));
+                consumedInstructions = 3;
+                return true;
+            case ExperimentalRegExpIrOpcode.Class:
+                instructions.Add(new(ExperimentalRegExpOpcode.ScanClassToEnd, child.Operand));
+                consumedInstructions = 3;
+                return true;
+            default:
+                return false;
+        }
     }
 
     private static ExperimentalRegExpOpcode MapOpcode(ExperimentalRegExpIrOpcode opcode)
@@ -138,6 +183,19 @@ internal static class ExperimentalRegExpVm
                             captureState.Clear(clearSet[i]);
                     }
 
+                    instructionIndex++;
+                    break;
+                case ExperimentalRegExpOpcode.ScanAnyToEnd:
+                    currentPos = input.Length;
+                    instructionIndex++;
+                    break;
+                case ExperimentalRegExpOpcode.ScanDotToEnd:
+                    currentPos = ScratchRegExpMatcher.ScanDotToEndForVm(input, currentPos, flags.Unicode);
+                    instructionIndex++;
+                    break;
+                case ExperimentalRegExpOpcode.ScanClassToEnd:
+                    currentPos = ScratchRegExpMatcher.ScanClassToEndForVm(input, currentPos,
+                        program.Classes[instruction.Operand], flags);
                     instructionIndex++;
                     break;
                 case ExperimentalRegExpOpcode.SaveStart:
