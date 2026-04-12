@@ -13,6 +13,7 @@
     <Project Path="tools/Test262Runner/Test262Runner.csproj"/>
     <Project Path="tools/V8BytecodeTool/V8BytecodeTool.csproj"/>
     <Project Path="src/Okojo/Okojo.csproj"/>
+    <Project Path="src/Okojo.RegExp.Experimental/Okojo.RegExp.Experimental.csproj"/>
     <Project Path="src/Okojo.Reflection/Okojo.Reflection.csproj"/>
     <Project Path="src/Okojo.Diagnostics/Okojo.Diagnostics.csproj"/>
     <Project Path="src/Okojo.Hosting/Okojo.Hosting.csproj"/>

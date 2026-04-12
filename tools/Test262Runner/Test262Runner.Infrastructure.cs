@@ -540,6 +540,12 @@ internal static partial class Program
         return false;
     }
 
+    private enum Test262RegExpEngineMode
+    {
+        Current,
+        Experimental,
+        BuiltIn
+    }
 
     private sealed class Test262Options
     {
@@ -574,7 +580,7 @@ internal static partial class Program
         public bool FullPath { get; init; }
         public bool SkipPassed { get; init; }
         public bool QueryIncremental { get; init; }
-        public bool UseExternalRegExpEngine { get; init; } = true;
+        public Test262RegExpEngineMode RegExpEngineMode { get; init; } = Test262RegExpEngineMode.Current;
         public bool UseRealTimers { get; init; }
 
         public static Test262Options Parse(string[] args)
@@ -618,7 +624,7 @@ internal static partial class Program
             int? queryTop = null;
             var fullPath = false;
             var skipPassed = false;
-            var useExternalRegExpEngine = true;
+            var regExpEngineMode = Test262RegExpEngineMode.Current;
             var useRealTimers = false;
             for (var i = 0; i < args.Length; i++)
                 switch (args[i])
@@ -726,8 +732,11 @@ internal static partial class Program
                     case "--skip-passed":
                         skipPassed = true;
                         break;
+                    case "--regexp-engine" when i + 1 < args.Length:
+                        regExpEngineMode = ParseRegExpEngineMode(args[++i]);
+                        break;
                     case "--no-external-regexp":
-                        useExternalRegExpEngine = false;
+                        regExpEngineMode = Test262RegExpEngineMode.BuiltIn;
                         break;
                     case "--real-timers":
                         useRealTimers = true;
@@ -773,7 +782,7 @@ internal static partial class Program
                 FullPath = fullPath,
                 SkipPassed = skipPassed,
                 QueryIncremental = queryIncrementalPath is not null,
-                UseExternalRegExpEngine = useExternalRegExpEngine,
+                RegExpEngineMode = regExpEngineMode,
                 UseRealTimers = useRealTimers
             };
         }
@@ -785,6 +794,19 @@ internal static partial class Program
                 var trimmed = token.Trim();
                 if (trimmed.Length > 0) output.Add(trimmed);
             }
+        }
+
+        private static Test262RegExpEngineMode ParseRegExpEngineMode(string value)
+        {
+            return value.Trim().ToLowerInvariant() switch
+            {
+                "current" => Test262RegExpEngineMode.Current,
+                "experimental" => Test262RegExpEngineMode.Experimental,
+                "built-in" => Test262RegExpEngineMode.BuiltIn,
+                "builtin" => Test262RegExpEngineMode.BuiltIn,
+                _ => throw new ArgumentException(
+                    $"Unknown RegExp engine '{value}'. Expected built-in, current, or experimental.")
+            };
         }
 
         private static void PrintHelp()
@@ -825,7 +847,11 @@ internal static partial class Program
             Console.WriteLine("  --rebuild-cache             Rebuild metadata cache before run");
             Console.WriteLine("  --skip-passed               Skip tests recorded as passed in the local pass cache");
             Console.WriteLine(
+                "  --regexp-engine <mode>      Select RegExp path: built-in, current, or experimental");
+            Console.WriteLine(
                 "  --no-external-regexp        Use the built-in RegExp path instead of the external engine");
+            Console.WriteLine(
+                "                             Alias for --regexp-engine built-in");
             Console.WriteLine(
                 "  --real-timers               Use wall-clock timer waits instead of FakeTimeProvider-driven time");
             Console.WriteLine("  --max-listed <n>            Max listed failed/passed/skipped tests");

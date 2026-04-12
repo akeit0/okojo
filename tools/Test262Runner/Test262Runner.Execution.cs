@@ -6,6 +6,7 @@ using Okojo.Hosting;
 using Okojo.Objects;
 using Okojo.Parsing;
 using Okojo.RegExp;
+using Okojo.RegExp.Experimental;
 using Okojo.Runtime;
 using Okojo.WebPlatform;
 using Test262Runner;
@@ -13,6 +14,17 @@ using JsValue = Okojo.JsValue;
 
 internal static partial class Program
 {
+    private static IRegExpEngine? ResolveRegExpEngine(Test262Options options)
+    {
+        return options.RegExpEngineMode switch
+        {
+            Test262RegExpEngineMode.BuiltIn => null,
+            Test262RegExpEngineMode.Current => RegExpEngine.Default,
+            Test262RegExpEngineMode.Experimental => ExperimentalRegExpEngine.Default,
+            _ => throw new ArgumentOutOfRangeException(nameof(options))
+        };
+    }
+
     private static bool RunCandidatesWithWorkerThreads(
         IReadOnlyList<TestFileCandidate> runnable,
         HarnessAssets harness,
@@ -418,12 +430,12 @@ internal static partial class Program
         }
 
         var entryPath = Path.GetFullPath(sourcePath);
-        var useExternalRegExpEngine = options.UseExternalRegExpEngine;
+        var regExpEngine = ResolveRegExpEngine(options);
         var engine = isModuleCase
             ? JsRuntime.Create(engineOptions =>
             {
-                if (useExternalRegExpEngine)
-                    engineOptions.UseRegExpEngine(RegExpEngine.Default);
+                if (regExpEngine is not null)
+                    engineOptions.UseRegExpEngine(regExpEngine);
                 engineOptions.UseWorkerGlobals();
                 engineOptions.UseWebRuntimeGlobals();
                 engineOptions.ConfigureOptions(options =>
@@ -434,8 +446,8 @@ internal static partial class Program
             })
             : JsRuntime.Create(engineOptions =>
             {
-                if (useExternalRegExpEngine)
-                    engineOptions.UseRegExpEngine(RegExpEngine.Default);
+                if (regExpEngine is not null)
+                    engineOptions.UseRegExpEngine(regExpEngine);
                 engineOptions.UseWorkerGlobals();
                 engineOptions.UseWebRuntimeGlobals();
                 engineOptions.ConfigureOptions(options =>
