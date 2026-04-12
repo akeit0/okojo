@@ -11,6 +11,7 @@ tools/OkojoEcma262/node_modules/*
 
 artifacts/*
 **/artifacts/*
+logs/*
 TEST262_PROGRESS_HISTORY/*
 TEST262_PROGRESS_INCREMENTAL.json
 .dotnet/*
