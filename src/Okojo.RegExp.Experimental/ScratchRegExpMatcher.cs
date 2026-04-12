@@ -50,7 +50,8 @@ internal static class ScratchRegExpMatcher
         if (program.Flags.Sticky)
         {
             captureState?.Reset();
-            return ExperimentalRegExpVm.TryMatch(bytecodeProgram, input, begin, program.Flags, captureState, out var stickyEnd)
+            return ExperimentalRegExpVm.TryMatch(program, bytecodeProgram, input, begin, program.Flags, captureState,
+                out var stickyEnd)
                 ? BuildBytecodeMatch(program, input, begin, stickyEnd, captureState)
                 : null;
         }
@@ -58,7 +59,8 @@ internal static class ScratchRegExpMatcher
         for (var pos = FindSearchCandidate(program, input, begin); pos <= input.Length;)
         {
             captureState?.Reset();
-            if (ExperimentalRegExpVm.TryMatch(bytecodeProgram, input, pos, program.Flags, captureState, out var endIndex))
+            if (ExperimentalRegExpVm.TryMatch(program, bytecodeProgram, input, pos, program.Flags, captureState,
+                    out var endIndex))
                 return BuildBytecodeMatch(program, input, pos, endIndex, captureState);
 
             pos = NextSearchPosition(program, input, pos);
@@ -1870,8 +1872,8 @@ internal static class ScratchRegExpMatcher
         }
 
         if (compiledProgram.BytecodeProgram is not null)
-            return ExperimentalRegExpVm.TryMatch(compiledProgram.BytecodeProgram, input, start, program.Flags, null,
-                out endIndex);
+            return ExperimentalRegExpVm.TryMatch(program, compiledProgram.BytecodeProgram, input, start, program.Flags,
+                null, out endIndex);
 
         var currentPos = start;
         var exactLiteral = program.ExactLiteralCodePoints;
@@ -2033,6 +2035,23 @@ internal static class ScratchRegExpMatcher
         return false;
     }
 
+    internal static bool TryMatchLookbehindForVm(ScratchRegExpProgram program, ScratchRegExpProgram.Node child,
+        string input, int pos, RegExpRuntimeFlags flags, ExperimentalRegExpCaptureState? captureState)
+    {
+        using var stateArena = program.CaptureCount == 0 ? null : new ScratchMatchStateArena(program.CaptureCount);
+        var state = stateArena is null ? ScratchMatchState.Empty : stateArena.Root;
+        if (captureState is not null)
+            CopyVmCapturesToScratchState(captureState, state);
+
+        if (!TryMatchNodeBackward(program, child, input, pos, flags, state, out _))
+            return false;
+
+        if (captureState is not null)
+            CopyScratchStateToVmCaptures(state, captureState, program.CaptureCount);
+
+        return true;
+    }
+
     internal static int ScanDotToEndForVm(string input, int pos, bool unicode)
     {
         var currentPos = pos;
@@ -2041,6 +2060,35 @@ internal static class ScratchRegExpMatcher
             currentPos = nextPos;
 
         return currentPos;
+    }
+
+    private static void CopyVmCapturesToScratchState(ExperimentalRegExpCaptureState source, ScratchMatchState destination)
+    {
+        for (var i = 0; i <= source.CaptureCount; i++)
+        {
+            destination.Starts[i] = source.Starts[i];
+            destination.Ends[i] = source.Ends[i];
+            destination.Matched[i] = source.Matched[i];
+        }
+    }
+
+    private static void CopyScratchStateToVmCaptures(ScratchMatchState source, ExperimentalRegExpCaptureState destination,
+        int captureCount)
+    {
+        for (var i = 0; i <= captureCount; i++)
+        {
+            if (!source.Matched[i])
+            {
+                if (destination.Matched[i])
+                    destination.Clear(i);
+                continue;
+            }
+
+            if (!destination.Matched[i] || destination.Starts[i] != source.Starts[i])
+                destination.SaveStart(i, source.Starts[i]);
+            if (!destination.Matched[i] || destination.Ends[i] != source.Ends[i])
+                destination.SaveEnd(i, source.Ends[i]);
+        }
     }
 
     internal static int ScanClassToEndForVm(string input, int pos, ScratchRegExpProgram.ClassNode cls,

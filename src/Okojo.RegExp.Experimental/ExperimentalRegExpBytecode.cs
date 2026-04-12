@@ -18,6 +18,8 @@ internal enum ExperimentalRegExpOpcode : byte
     NamedBackReferenceIgnoreCase,
     AssertLookahead,
     AssertNotLookahead,
+    AssertLookbehind,
+    AssertNotLookbehind,
     LiteralText,
     Char,
     CharIgnoreCase,
@@ -48,6 +50,8 @@ internal sealed class ExperimentalRegExpBytecodeProgram
     public int[][] CaptureClearSets { get; init; } = [];
     public int[][] NamedBackReferenceCaptureSets { get; init; } = [];
     public ExperimentalRegExpBytecodeProgram[] LookaheadPrograms { get; init; } = [];
+    public ScratchRegExpProgram.Node[] LookbehindNodes { get; init; } = [];
+    public RegExpRuntimeFlags[] LookbehindFlags { get; init; } = [];
     public string[] LiteralTexts { get; init; } = [];
     public ScratchRegExpProgram.ClassNode[] Classes { get; init; } = [];
     public ScratchRegExpProgram.PropertyEscapeNode[] PropertyEscapes { get; init; } = [];
@@ -80,6 +84,8 @@ internal static class ExperimentalRegExpCodeGenerator
             CaptureClearSets = irProgram.CaptureClearSets,
             NamedBackReferenceCaptureSets = irProgram.NamedBackReferenceCaptureSets,
             LookaheadPrograms = LowerLookaheadPrograms(irProgram.LookaheadPrograms),
+            LookbehindNodes = irProgram.LookbehindNodes,
+            LookbehindFlags = irProgram.LookbehindFlags,
             LiteralTexts = irProgram.LiteralTexts,
             Classes = irProgram.Classes,
             PropertyEscapes = irProgram.PropertyEscapes
@@ -151,6 +157,8 @@ internal static class ExperimentalRegExpCodeGenerator
             ExperimentalRegExpIrOpcode.NamedBackReferenceIgnoreCase => ExperimentalRegExpOpcode.NamedBackReferenceIgnoreCase,
             ExperimentalRegExpIrOpcode.AssertLookahead => ExperimentalRegExpOpcode.AssertLookahead,
             ExperimentalRegExpIrOpcode.AssertNotLookahead => ExperimentalRegExpOpcode.AssertNotLookahead,
+            ExperimentalRegExpIrOpcode.AssertLookbehind => ExperimentalRegExpOpcode.AssertLookbehind,
+            ExperimentalRegExpIrOpcode.AssertNotLookbehind => ExperimentalRegExpOpcode.AssertNotLookbehind,
             ExperimentalRegExpIrOpcode.LiteralText => ExperimentalRegExpOpcode.LiteralText,
             ExperimentalRegExpIrOpcode.Char => ExperimentalRegExpOpcode.Char,
             ExperimentalRegExpIrOpcode.CharIgnoreCase => ExperimentalRegExpOpcode.CharIgnoreCase,
@@ -177,13 +185,13 @@ internal static class ExperimentalRegExpCodeGenerator
 
 internal static class ExperimentalRegExpVm
 {
-    public static bool TryMatch(ExperimentalRegExpBytecodeProgram program, string input, int startIndex,
-        RegExpRuntimeFlags flags, ExperimentalRegExpCaptureState? captureState, out int endIndex)
+    public static bool TryMatch(ScratchRegExpProgram treeProgram, ExperimentalRegExpBytecodeProgram program, string input,
+        int startIndex, RegExpRuntimeFlags flags, ExperimentalRegExpCaptureState? captureState, out int endIndex)
     {
         var stack = new ExperimentalBacktrackStack();
         try
         {
-            return TryMatch(program, input, startIndex, flags, captureState, ref stack, out endIndex);
+            return TryMatch(treeProgram, program, input, startIndex, flags, captureState, ref stack, out endIndex);
         }
         finally
         {
@@ -191,9 +199,9 @@ internal static class ExperimentalRegExpVm
         }
     }
 
-    private static bool TryMatch(ExperimentalRegExpBytecodeProgram program, string input, int startIndex,
-        RegExpRuntimeFlags flags, ExperimentalRegExpCaptureState? captureState, ref ExperimentalBacktrackStack stack,
-        out int endIndex)
+    private static bool TryMatch(ScratchRegExpProgram treeProgram, ExperimentalRegExpBytecodeProgram program, string input,
+        int startIndex, RegExpRuntimeFlags flags, ExperimentalRegExpCaptureState? captureState,
+        ref ExperimentalBacktrackStack stack, out int endIndex)
     {
         var currentPos = startIndex;
         var instructions = program.Instructions;
@@ -288,8 +296,8 @@ internal static class ExperimentalRegExpVm
                 case ExperimentalRegExpOpcode.AssertLookahead:
                 case ExperimentalRegExpOpcode.AssertNotLookahead:
                     var checkpoint = captureState?.Checkpoint ?? 0;
-                    var lookaheadMatched = TryMatch(program.LookaheadPrograms[instruction.Operand], input, currentPos,
-                        flags, captureState, out _);
+                    var lookaheadMatched = TryMatch(treeProgram, program.LookaheadPrograms[instruction.Operand], input,
+                        currentPos, flags, captureState, ref stack, out _);
                     if (instruction.OpCode == ExperimentalRegExpOpcode.AssertLookahead)
                     {
                         if (!lookaheadMatched)
@@ -308,6 +316,43 @@ internal static class ExperimentalRegExpVm
                     {
                         captureState?.Restore(checkpoint);
                         if (lookaheadMatched)
+                        {
+                            if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
+                            {
+                                endIndex = default;
+                                return false;
+                            }
+
+                            continue;
+                        }
+                    }
+
+                    instructionIndex++;
+                    break;
+                case ExperimentalRegExpOpcode.AssertLookbehind:
+                case ExperimentalRegExpOpcode.AssertNotLookbehind:
+                    checkpoint = captureState?.Checkpoint ?? 0;
+                    var lookbehindMatched = ScratchRegExpMatcher.TryMatchLookbehindForVm(treeProgram,
+                        program.LookbehindNodes[instruction.Operand], input, currentPos,
+                        program.LookbehindFlags[instruction.Operand], captureState);
+                    if (instruction.OpCode == ExperimentalRegExpOpcode.AssertLookbehind)
+                    {
+                        if (!lookbehindMatched)
+                        {
+                            captureState?.Restore(checkpoint);
+                            if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
+                            {
+                                endIndex = default;
+                                return false;
+                            }
+
+                            continue;
+                        }
+                    }
+                    else
+                    {
+                        captureState?.Restore(checkpoint);
+                        if (lookbehindMatched)
                         {
                             if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
                             {

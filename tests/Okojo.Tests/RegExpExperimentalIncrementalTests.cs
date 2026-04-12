@@ -495,4 +495,81 @@ public class RegExpExperimentalIncrementalTests
         Assert.That(match!.Groups[0], Is.EqualTo("b"));
         Assert.That(match.Groups[1], Is.Null);
     }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesPositiveLookbehindInVm()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(?<=ab)c", "");
+
+        var match = engine.Exec(compiled, "zzabc", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(4));
+        Assert.That(match.Groups[0], Is.EqualTo("c"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesNegativeLookbehindInVm()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(?<!ac)ab", "");
+
+        var match = engine.Exec(compiled, "zzab", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(2));
+        Assert.That(match.Groups[0], Is.EqualTo("ab"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_PreservesCapturesFromPositiveLookbehind()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(?<=(a))b", "");
+
+        var match = engine.Exec(compiled, "ab", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Groups[0], Is.EqualTo("b"));
+        Assert.That(match.Groups[1], Is.EqualTo("a"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_DoesNotLeakCapturesFromNegativeLookbehind()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(?<!(a))b", "");
+
+        var match = engine.Exec(compiled, "b", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Groups[0], Is.EqualTo("b"));
+        Assert.That(match.Groups[1], Is.Null);
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesZeroWidthLookaheadQuantifierInVm()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(?=a)*a", "");
+
+        var match = engine.Exec(compiled, "a", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Groups[0], Is.EqualTo("a"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesZeroWidthLookbehindQuantifierInVm()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(?<=a)+b", "");
+
+        var match = engine.Exec(compiled, "ab", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(1));
+        Assert.That(match.Groups[0], Is.EqualTo("b"));
+    }
 }
