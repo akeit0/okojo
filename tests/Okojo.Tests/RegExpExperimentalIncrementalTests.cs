@@ -183,4 +183,60 @@ public class RegExpExperimentalIncrementalTests
         Assert.That(match!.Index, Is.EqualTo(2));
         Assert.That(match.Groups[0], Is.EqualTo("aXc"));
     }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesIrVmCaptures()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"a(bc)d", "");
+
+        var match = engine.Exec(compiled, "zzabcd", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(2));
+        Assert.That(match.Groups[0], Is.EqualTo("abcd"));
+        Assert.That(match.Groups[1], Is.EqualTo("bc"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_RestoresCapturesAcrossAlternationBacktracking()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"a((?:bc)|b)d", "");
+
+        var match = engine.Exec(compiled, "zzabd", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(2));
+        Assert.That(match.Groups[0], Is.EqualTo("abd"));
+        Assert.That(match.Groups[1], Is.EqualTo("b"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_RestoresSkippedOptionalCapture()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"a(b)?c", "");
+
+        var match = engine.Exec(compiled, "zzac", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(2));
+        Assert.That(match.Groups[0], Is.EqualTo("ac"));
+        Assert.That(match.Groups[1], Is.Null);
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_KeepsLastQuantifiedCapture()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(ab)*c", "");
+
+        var match = engine.Exec(compiled, "zzababc", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(2));
+        Assert.That(match.Groups[0], Is.EqualTo("ababc"));
+        Assert.That(match.Groups[1], Is.EqualTo("ab"));
+    }
 }

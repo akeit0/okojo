@@ -5,6 +5,8 @@ namespace Okojo.RegExp.Experimental;
 internal enum ExperimentalRegExpOpcode : byte
 {
     Match,
+    SaveStart,
+    SaveEnd,
     Char,
     CharIgnoreCase,
     Dot,
@@ -59,6 +61,8 @@ internal static class ExperimentalRegExpCodeGenerator
         return opcode switch
         {
             ExperimentalRegExpIrOpcode.Match => ExperimentalRegExpOpcode.Match,
+            ExperimentalRegExpIrOpcode.SaveStart => ExperimentalRegExpOpcode.SaveStart,
+            ExperimentalRegExpIrOpcode.SaveEnd => ExperimentalRegExpOpcode.SaveEnd,
             ExperimentalRegExpIrOpcode.Char => ExperimentalRegExpOpcode.Char,
             ExperimentalRegExpIrOpcode.CharIgnoreCase => ExperimentalRegExpOpcode.CharIgnoreCase,
             ExperimentalRegExpIrOpcode.Dot => ExperimentalRegExpOpcode.Dot,
@@ -81,12 +85,12 @@ internal static class ExperimentalRegExpCodeGenerator
 internal static class ExperimentalRegExpVm
 {
     public static bool TryMatch(ExperimentalRegExpBytecodeProgram program, string input, int startIndex,
-        RegExpRuntimeFlags flags, out int endIndex)
+        RegExpRuntimeFlags flags, ExperimentalRegExpCaptureState? captureState, out int endIndex)
     {
         var stack = new ExperimentalBacktrackStack();
         try
         {
-            return TryMatch(program, input, startIndex, flags, ref stack, out endIndex);
+            return TryMatch(program, input, startIndex, flags, captureState, ref stack, out endIndex);
         }
         finally
         {
@@ -95,7 +99,8 @@ internal static class ExperimentalRegExpVm
     }
 
     private static bool TryMatch(ExperimentalRegExpBytecodeProgram program, string input, int startIndex,
-        RegExpRuntimeFlags flags, ref ExperimentalBacktrackStack stack, out int endIndex)
+        RegExpRuntimeFlags flags, ExperimentalRegExpCaptureState? captureState, ref ExperimentalBacktrackStack stack,
+        out int endIndex)
     {
         var currentPos = startIndex;
         var instructions = program.Instructions;
@@ -104,7 +109,7 @@ internal static class ExperimentalRegExpVm
         {
             if ((uint)instructionIndex >= (uint)instructions.Length)
             {
-                if (stack.TryPop(out instructionIndex, out currentPos))
+                if (TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
                     continue;
 
                 endIndex = default;
@@ -117,6 +122,14 @@ internal static class ExperimentalRegExpVm
                 case ExperimentalRegExpOpcode.Match:
                     endIndex = currentPos;
                     return true;
+                case ExperimentalRegExpOpcode.SaveStart:
+                    captureState?.SaveStart(instruction.Operand, currentPos);
+                    instructionIndex++;
+                    break;
+                case ExperimentalRegExpOpcode.SaveEnd:
+                    captureState?.SaveEnd(instruction.Operand, currentPos);
+                    instructionIndex++;
+                    break;
                 case ExperimentalRegExpOpcode.Char:
                 case ExperimentalRegExpOpcode.CharIgnoreCase:
                     if (!ScratchRegExpMatcher.TryReadCodePointForVm(input, currentPos, flags.Unicode, out var nextPos,
@@ -124,7 +137,7 @@ internal static class ExperimentalRegExpVm
                         !ScratchRegExpMatcher.CodePointEqualsForVm(codePoint, instruction.Operand,
                             instruction.OpCode == ExperimentalRegExpOpcode.CharIgnoreCase))
                     {
-                        if (!stack.TryPop(out instructionIndex, out currentPos))
+                        if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
                         {
                             endIndex = default;
                             return false;
@@ -141,7 +154,7 @@ internal static class ExperimentalRegExpVm
                             out codePoint) ||
                         ScratchRegExpMatcher.IsLineTerminatorForVm(codePoint))
                     {
-                        if (!stack.TryPop(out instructionIndex, out currentPos))
+                        if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
                         {
                             endIndex = default;
                             return false;
@@ -157,7 +170,7 @@ internal static class ExperimentalRegExpVm
                     if (!ScratchRegExpMatcher.TryReadCodePointForVm(input, currentPos, flags.Unicode, out nextPos,
                             out _))
                     {
-                        if (!stack.TryPop(out instructionIndex, out currentPos))
+                        if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
                         {
                             endIndex = default;
                             return false;
@@ -172,7 +185,7 @@ internal static class ExperimentalRegExpVm
                 case ExperimentalRegExpOpcode.AssertStart:
                     if (!ScratchRegExpMatcher.IsStartAnchorSatisfiedForVm(input, currentPos, multiline: false))
                     {
-                        if (!stack.TryPop(out instructionIndex, out currentPos))
+                        if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
                         {
                             endIndex = default;
                             return false;
@@ -186,7 +199,7 @@ internal static class ExperimentalRegExpVm
                 case ExperimentalRegExpOpcode.AssertStartMultiline:
                     if (!ScratchRegExpMatcher.IsStartAnchorSatisfiedForVm(input, currentPos, multiline: true))
                     {
-                        if (!stack.TryPop(out instructionIndex, out currentPos))
+                        if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
                         {
                             endIndex = default;
                             return false;
@@ -200,7 +213,7 @@ internal static class ExperimentalRegExpVm
                 case ExperimentalRegExpOpcode.AssertEnd:
                     if (!ScratchRegExpMatcher.IsEndAnchorSatisfiedForVm(input, currentPos, multiline: false))
                     {
-                        if (!stack.TryPop(out instructionIndex, out currentPos))
+                        if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
                         {
                             endIndex = default;
                             return false;
@@ -214,7 +227,7 @@ internal static class ExperimentalRegExpVm
                 case ExperimentalRegExpOpcode.AssertEndMultiline:
                     if (!ScratchRegExpMatcher.IsEndAnchorSatisfiedForVm(input, currentPos, multiline: true))
                     {
-                        if (!stack.TryPop(out instructionIndex, out currentPos))
+                        if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
                         {
                             endIndex = default;
                             return false;
@@ -228,7 +241,7 @@ internal static class ExperimentalRegExpVm
                 case ExperimentalRegExpOpcode.AssertWordBoundary:
                     if (!ScratchRegExpMatcher.IsWordBoundaryForVm(input, currentPos, flags.Unicode, flags.IgnoreCase))
                     {
-                        if (!stack.TryPop(out instructionIndex, out currentPos))
+                        if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
                         {
                             endIndex = default;
                             return false;
@@ -242,7 +255,7 @@ internal static class ExperimentalRegExpVm
                 case ExperimentalRegExpOpcode.AssertNotWordBoundary:
                     if (ScratchRegExpMatcher.IsWordBoundaryForVm(input, currentPos, flags.Unicode, flags.IgnoreCase))
                     {
-                        if (!stack.TryPop(out instructionIndex, out currentPos))
+                        if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
                         {
                             endIndex = default;
                             return false;
@@ -257,7 +270,7 @@ internal static class ExperimentalRegExpVm
                     if (!ScratchRegExpMatcher.TryMatchClassForVm(input, currentPos, program.Classes[instruction.Operand],
                             flags, out nextPos))
                     {
-                        if (!stack.TryPop(out instructionIndex, out currentPos))
+                        if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
                         {
                             endIndex = default;
                             return false;
@@ -273,7 +286,7 @@ internal static class ExperimentalRegExpVm
                     if (!ScratchRegExpMatcher.TryMatchPropertyEscapeForVm(input, currentPos,
                             program.PropertyEscapes[instruction.Operand], flags, out nextPos))
                     {
-                        if (!stack.TryPop(out instructionIndex, out currentPos))
+                        if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
                         {
                             endIndex = default;
                             return false;
@@ -289,7 +302,7 @@ internal static class ExperimentalRegExpVm
                     instructionIndex = instruction.Operand;
                     break;
                 case ExperimentalRegExpOpcode.Split:
-                    stack.Push(instruction.Operand2, currentPos);
+                    stack.Push(instruction.Operand2, currentPos, captureState?.Checkpoint ?? 0);
                     instructionIndex = instruction.Operand;
                     break;
                 default:
@@ -298,28 +311,41 @@ internal static class ExperimentalRegExpVm
         }
     }
 
+    private static bool TryBacktrack(ExperimentalRegExpCaptureState? captureState, ref ExperimentalBacktrackStack stack,
+        out int instructionIndex, out int currentPos)
+    {
+        if (!stack.TryPop(out instructionIndex, out currentPos, out var captureCheckpoint))
+            return false;
+
+        captureState?.Restore(captureCheckpoint);
+        return true;
+    }
+
     private ref struct ExperimentalBacktrackStack
     {
         private int[]? values;
         private int count;
 
-        public void Push(int instructionIndex, int inputPosition)
+        public void Push(int instructionIndex, int inputPosition, int captureCheckpoint)
         {
-            EnsureCapacity(count + 2);
+            EnsureCapacity(count + 3);
             values![count++] = instructionIndex;
             values[count++] = inputPosition;
+            values[count++] = captureCheckpoint;
         }
 
-        public bool TryPop(out int instructionIndex, out int inputPosition)
+        public bool TryPop(out int instructionIndex, out int inputPosition, out int captureCheckpoint)
         {
             if (count == 0)
             {
                 instructionIndex = default;
                 inputPosition = default;
+                captureCheckpoint = default;
                 return false;
             }
 
-            inputPosition = values![--count];
+            captureCheckpoint = values![--count];
+            inputPosition = values[--count];
             instructionIndex = values[--count];
             return true;
         }
@@ -349,4 +375,86 @@ internal static class ExperimentalRegExpVm
             values = next;
         }
     }
+}
+
+internal sealed class ExperimentalRegExpCaptureState : IDisposable
+{
+    private ExperimentalCaptureLogEntry[] logEntries;
+    private int logCount;
+
+    public ExperimentalRegExpCaptureState(int captureCount)
+    {
+        Starts = ArrayPool<int>.Shared.Rent(captureCount + 1);
+        Ends = ArrayPool<int>.Shared.Rent(captureCount + 1);
+        Matched = ArrayPool<bool>.Shared.Rent(captureCount + 1);
+        logEntries = ArrayPool<ExperimentalCaptureLogEntry>.Shared.Rent(Math.Max(8, captureCount + 1));
+        CaptureCount = captureCount;
+        Reset();
+    }
+
+    public int CaptureCount { get; }
+    public int[] Starts { get; }
+    public int[] Ends { get; }
+    public bool[] Matched { get; }
+    public int Checkpoint => logCount;
+
+    public void Reset()
+    {
+        Array.Clear(Starts, 0, CaptureCount + 1);
+        Array.Clear(Ends, 0, CaptureCount + 1);
+        Array.Clear(Matched, 0, CaptureCount + 1);
+        logCount = 0;
+    }
+
+    public void SaveStart(int index, int position)
+    {
+        Log(index);
+        Starts[index] = position;
+        Matched[index] = true;
+    }
+
+    public void SaveEnd(int index, int position)
+    {
+        Log(index);
+        Ends[index] = position;
+        Matched[index] = true;
+    }
+
+    public void Restore(int checkpoint)
+    {
+        while (logCount > checkpoint)
+        {
+            var entry = logEntries[--logCount];
+            Starts[entry.Index] = entry.Start;
+            Ends[entry.Index] = entry.End;
+            Matched[entry.Index] = entry.Matched;
+        }
+    }
+
+    public void Dispose()
+    {
+        ArrayPool<int>.Shared.Return(Starts);
+        ArrayPool<int>.Shared.Return(Ends);
+        ArrayPool<bool>.Shared.Return(Matched);
+        ArrayPool<ExperimentalCaptureLogEntry>.Shared.Return(logEntries);
+    }
+
+    private void Log(int index)
+    {
+        EnsureLogCapacity(logCount + 1);
+        logEntries[logCount++] = new(index, Starts[index], Ends[index], Matched[index]);
+    }
+
+    private void EnsureLogCapacity(int requiredCount)
+    {
+        if (logEntries.Length >= requiredCount)
+            return;
+
+        var next = ArrayPool<ExperimentalCaptureLogEntry>.Shared.Rent(requiredCount * 2);
+        Array.Copy(logEntries, next, logCount);
+        ArrayPool<ExperimentalCaptureLogEntry>.Shared.Return(logEntries);
+        logEntries = next;
+    }
+
+    private readonly record struct ExperimentalCaptureLogEntry(int Index, int Start, int End, bool Matched);
 }

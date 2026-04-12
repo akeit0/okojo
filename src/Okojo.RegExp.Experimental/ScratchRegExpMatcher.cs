@@ -46,15 +46,20 @@ internal static class ScratchRegExpMatcher
     {
         var program = compiledProgram.TreeProgram;
         var bytecodeProgram = compiledProgram.BytecodeProgram!;
+        using var captureState = program.CaptureCount == 0 ? null : new ExperimentalRegExpCaptureState(program.CaptureCount);
         if (program.Flags.Sticky)
-            return ExperimentalRegExpVm.TryMatch(bytecodeProgram, input, begin, program.Flags, out var stickyEnd)
-                ? BuildSimpleMatch(program, input, begin, stickyEnd)
+        {
+            captureState?.Reset();
+            return ExperimentalRegExpVm.TryMatch(bytecodeProgram, input, begin, program.Flags, captureState, out var stickyEnd)
+                ? BuildBytecodeMatch(program, input, begin, stickyEnd, captureState)
                 : null;
+        }
 
         for (var pos = FindSearchCandidate(program, input, begin); pos <= input.Length;)
         {
-            if (ExperimentalRegExpVm.TryMatch(bytecodeProgram, input, pos, program.Flags, out var endIndex))
-                return BuildSimpleMatch(program, input, pos, endIndex);
+            captureState?.Reset();
+            if (ExperimentalRegExpVm.TryMatch(bytecodeProgram, input, pos, program.Flags, captureState, out var endIndex))
+                return BuildBytecodeMatch(program, input, pos, endIndex, captureState);
 
             pos = NextSearchPosition(program, input, pos);
         }
@@ -147,6 +152,65 @@ internal static class ScratchRegExpMatcher
         if (groupIndices is not null)
             groupIndices[0] = new RegExpMatchRange(startIndex, endIndex);
         return new(startIndex, endIndex - startIndex, groups, null, groupIndices, null);
+    }
+
+    private static RegExpMatchResult BuildBytecodeMatch(ScratchRegExpProgram program, string input, int startIndex,
+        int endIndex, ExperimentalRegExpCaptureState? captureState)
+    {
+        if (captureState is null)
+            return BuildSimpleMatch(program, input, startIndex, endIndex);
+
+        var groups = new string?[program.CaptureCount + 1];
+        var hasIndices = program.Flags.HasIndices;
+        var groupIndices = hasIndices ? new RegExpMatchRange?[program.CaptureCount + 1] : null;
+        groups[0] = input.Substring(startIndex, endIndex - startIndex);
+        if (groupIndices is not null)
+            groupIndices[0] = new RegExpMatchRange(startIndex, endIndex);
+
+        for (var i = 1; i < groups.Length; i++)
+            if (captureState.Matched[i])
+            {
+                groups[i] = input.Substring(captureState.Starts[i], captureState.Ends[i] - captureState.Starts[i]);
+                if (groupIndices is not null)
+                    groupIndices[i] = new RegExpMatchRange(captureState.Starts[i], captureState.Ends[i]);
+            }
+
+        IReadOnlyDictionary<string, string?>? namedGroups = null;
+        IReadOnlyDictionary<string, RegExpMatchRange?>? namedGroupIndices = null;
+        if (program.NamedGroupNames.Length != 0)
+        {
+            var dict = new Dictionary<string, string?>(program.NamedGroupNames.Length, StringComparer.Ordinal);
+            var indexDict = hasIndices
+                ? new Dictionary<string, RegExpMatchRange?>(program.NamedGroupNames.Length, StringComparer.Ordinal)
+                : null;
+            for (var i = 0; i < program.NamedGroupNames.Length; i++)
+            {
+                var name = program.NamedGroupNames[i];
+                string? value = null;
+                RegExpMatchRange? range = null;
+                if (program.NamedCaptureIndexes.TryGetValue(name, out var indexes))
+                    for (var j = 0; j < indexes.Count; j++)
+                    {
+                        var index = indexes[j];
+                        if (!captureState.Matched[index])
+                            continue;
+
+                        value = groups[index];
+                        if (groupIndices is not null)
+                            range = groupIndices[index];
+                        break;
+                    }
+
+                dict[name] = value;
+                if (indexDict is not null)
+                    indexDict[name] = range;
+            }
+
+            namedGroups = dict;
+            namedGroupIndices = indexDict;
+        }
+
+        return new(startIndex, endIndex - startIndex, groups, namedGroups, groupIndices, namedGroupIndices);
     }
 
     private static bool TryMatchNode(ScratchRegExpProgram program, ScratchRegExpProgram.Node node, string input,
@@ -1806,7 +1870,7 @@ internal static class ScratchRegExpMatcher
         }
 
         if (compiledProgram.BytecodeProgram is not null)
-            return ExperimentalRegExpVm.TryMatch(compiledProgram.BytecodeProgram, input, start, program.Flags,
+            return ExperimentalRegExpVm.TryMatch(compiledProgram.BytecodeProgram, input, start, program.Flags, null,
                 out endIndex);
 
         var currentPos = start;

@@ -3,6 +3,8 @@ namespace Okojo.RegExp.Experimental;
 internal enum ExperimentalRegExpIrOpcode : byte
 {
     Match,
+    SaveStart,
+    SaveEnd,
     Char,
     CharIgnoreCase,
     Dot,
@@ -33,9 +35,6 @@ internal static class ExperimentalRegExpIrGenerator
 {
     public static ExperimentalRegExpIrProgram? TryGenerate(ScratchRegExpProgram treeProgram)
     {
-        if (treeProgram.CaptureCount != 0)
-            return null;
-
         var instructions = new List<ExperimentalRegExpIrInstruction>();
         var classes = new List<ScratchRegExpProgram.ClassNode>();
         var propertyEscapes = new List<ScratchRegExpProgram.PropertyEscapeNode>();
@@ -66,6 +65,12 @@ internal static class ExperimentalRegExpIrGenerator
                 return true;
             case ScratchRegExpProgram.AlternationNode alternation:
                 return TryEmitAlternation(alternation.Alternatives, flags, instructions, classes, propertyEscapes);
+            case ScratchRegExpProgram.CaptureNode capture:
+                instructions.Add(new(ExperimentalRegExpIrOpcode.SaveStart, capture.Index));
+                if (!TryEmitNode(capture.Child, flags, instructions, classes, propertyEscapes))
+                    return false;
+                instructions.Add(new(ExperimentalRegExpIrOpcode.SaveEnd, capture.Index));
+                return true;
             case ScratchRegExpProgram.LiteralNode literal:
                 instructions.Add(new(flags.IgnoreCase
                     ? ExperimentalRegExpIrOpcode.CharIgnoreCase
@@ -153,7 +158,7 @@ internal static class ExperimentalRegExpIrGenerator
             return true;
 
         if (childMinLength == 0)
-            return true;
+            return false;
 
         if (quantifier.Max == int.MaxValue)
             return TryEmitStar(quantifier.Child, quantifier.Greedy, flags, instructions, classes, propertyEscapes);
@@ -227,6 +232,8 @@ internal static class ExperimentalRegExpIrGenerator
             case ScratchRegExpProgram.PropertyEscapeNode:
                 minLength = 1;
                 return true;
+            case ScratchRegExpProgram.CaptureNode capture:
+                return TryComputeMinMatchLength(capture.Child, out minLength);
             case ScratchRegExpProgram.SequenceNode sequence:
             {
                 long total = 0;
