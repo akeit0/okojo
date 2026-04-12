@@ -96,6 +96,19 @@ public class RegExpExperimentalIncrementalTests
     }
 
     [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesSingletonClassLiteralPathForUnicodeIgnoreCase()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"[\u0390]", "ui");
+
+        var match = engine.Exec(compiled, "\u1fd3", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(0));
+        Assert.That(match.Groups[0], Is.EqualTo("\u1fd3"));
+    }
+
+    [Test]
     public void ExperimentalRegExpEngine_Incremental_BoundsExactLiteralExpansion()
     {
         var engine = ExperimentalRegExpEngine.Default;

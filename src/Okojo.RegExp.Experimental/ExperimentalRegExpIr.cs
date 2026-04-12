@@ -184,6 +184,14 @@ internal static class ExperimentalRegExpIrGenerator
                         : ExperimentalRegExpIrOpcode.AssertNotWordBoundary), 0));
                 return true;
             case ScratchRegExpProgram.ClassNode cls:
+                if (ScratchRegExpProgram.TryGetSingleLiteralClassCodePoint(cls, out var classCodePoint))
+                {
+                    instructions.Add(new(flags.IgnoreCase
+                        ? ExperimentalRegExpIrOpcode.CharIgnoreCase
+                        : ExperimentalRegExpIrOpcode.Char, classCodePoint));
+                    return true;
+                }
+
                 classes.Add(cls);
                 instructions.Add(new(flags.IgnoreCase
                     ? ExperimentalRegExpIrOpcode.ClassIgnoreCase

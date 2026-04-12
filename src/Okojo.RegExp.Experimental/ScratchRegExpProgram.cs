@@ -182,6 +182,45 @@ internal sealed class ScratchRegExpProgram
 
     internal sealed record ClassNode(ClassItem[] Items, bool Negated, ClassSetExpression? Expression = null) : Node;
 
+    internal static bool TryGetSingleLiteralClassCodePoint(ClassNode cls, out int codePoint)
+    {
+        if (cls.Expression is null &&
+            !cls.Negated &&
+            cls.Items.Length == 1 &&
+            cls.Items[0].Kind == ClassItemKind.Literal)
+        {
+            codePoint = cls.Items[0].CodePoint;
+            return true;
+        }
+
+        codePoint = default;
+        return false;
+    }
+
+    internal static bool TryGetSmallLiteralClassCodePoints(ClassNode cls, out int[] codePoints)
+    {
+        if (cls.Expression is not null || cls.Negated || cls.Items.Length == 0 || cls.Items.Length > MaxSearchLiteralSetSize)
+        {
+            codePoints = [];
+            return false;
+        }
+
+        var builder = new int[cls.Items.Length];
+        for (var i = 0; i < cls.Items.Length; i++)
+        {
+            if (cls.Items[i].Kind != ClassItemKind.Literal)
+            {
+                codePoints = [];
+                return false;
+            }
+
+            builder[i] = cls.Items[i].CodePoint;
+        }
+
+        codePoints = builder;
+        return true;
+    }
+
     internal abstract record ClassSetExpression;
 
     internal sealed record ClassSetItemExpression(ClassItem Item) : ClassSetExpression;
@@ -1953,7 +1992,9 @@ internal sealed class ScratchRegExpProgram
                         flags.DotAll ? SearchAtomKind.Any : SearchAtomKind.Dot, [], null, null);
                     return true;
                 case ClassNode cls:
-                    analysis = new(false, SearchAnchorKind.None, SearchAtomKind.Class, [], cls, null);
+                    analysis = TryGetSmallLiteralClassCodePoints(cls, out var classLiteralSet)
+                        ? new(false, SearchAnchorKind.None, SearchAtomKind.LiteralSet, classLiteralSet, null, null)
+                        : new(false, SearchAnchorKind.None, SearchAtomKind.Class, [], cls, null);
                     return true;
                 case PropertyEscapeNode propertyEscape:
                     analysis = new(false, SearchAnchorKind.None, SearchAtomKind.PropertyEscape, [], null, propertyEscape);

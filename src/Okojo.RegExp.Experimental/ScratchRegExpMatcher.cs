@@ -2425,6 +2425,9 @@ internal static class ScratchRegExpMatcher
         RegExpRuntimeFlags flags, out int endIndex)
     {
         var hasCodePoint = TryReadCodePoint(input, pos, flags.Unicode, out var nextPos, out var codePoint);
+        if (TryMatchSimpleClassForward(cls, flags, hasCodePoint, nextPos, codePoint, out endIndex))
+            return true;
+
         using var candidates = GetClassCandidatesForward(input, pos, cls, flags, hasCodePoint, nextPos, codePoint);
         var bestEnd = candidates.MaxOrDefault();
 
@@ -2448,6 +2451,9 @@ internal static class ScratchRegExpMatcher
         RegExpRuntimeFlags flags, out int startIndex)
     {
         var hasCodePoint = TryReadCodePointBackward(input, pos, flags.Unicode, out var prevPos, out var codePoint);
+        if (TryMatchSimpleClassBackward(cls, flags, hasCodePoint, prevPos, codePoint, out startIndex))
+            return true;
+
         using var candidates = GetClassCandidatesBackward(input, pos, cls, flags, hasCodePoint, prevPos, codePoint);
         var bestStart = candidates.MaxOrDefault();
 
@@ -2464,6 +2470,84 @@ internal static class ScratchRegExpMatcher
         }
 
         startIndex = prevPos;
+        return true;
+    }
+
+    private static bool TryMatchSimpleClassForward(ScratchRegExpProgram.ClassNode cls, RegExpRuntimeFlags flags,
+        bool hasCodePoint, int nextPos, int codePoint, out int endIndex)
+    {
+        if (!TryMatchSimpleClassCodePoint(cls, codePoint, flags, out var matched, hasCodePoint))
+        {
+            endIndex = default;
+            return false;
+        }
+
+        if (!cls.Negated)
+        {
+            endIndex = matched ? nextPos : default;
+            return matched;
+        }
+
+        if (matched || !hasCodePoint)
+        {
+            endIndex = default;
+            return false;
+        }
+
+        endIndex = nextPos;
+        return true;
+    }
+
+    private static bool TryMatchSimpleClassBackward(ScratchRegExpProgram.ClassNode cls, RegExpRuntimeFlags flags,
+        bool hasCodePoint, int prevPos, int codePoint, out int startIndex)
+    {
+        if (!TryMatchSimpleClassCodePoint(cls, codePoint, flags, out var matched, hasCodePoint))
+        {
+            startIndex = default;
+            return false;
+        }
+
+        if (!cls.Negated)
+        {
+            startIndex = matched ? prevPos : default;
+            return matched;
+        }
+
+        if (matched || !hasCodePoint)
+        {
+            startIndex = default;
+            return false;
+        }
+
+        startIndex = prevPos;
+        return true;
+    }
+
+    private static bool TryMatchSimpleClassCodePoint(ScratchRegExpProgram.ClassNode cls, int codePoint,
+        RegExpRuntimeFlags flags, out bool matched, bool hasCodePoint)
+    {
+        if (!hasCodePoint || cls.Expression is not null)
+        {
+            matched = false;
+            return cls.Expression is null;
+        }
+
+        matched = false;
+        for (var i = 0; i < cls.Items.Length; i++)
+        {
+            var item = cls.Items[i];
+            if (item.Kind == ScratchRegExpProgram.ClassItemKind.StringLiteral ||
+                item.Kind == ScratchRegExpProgram.ClassItemKind.PropertyEscape &&
+                item.PropertyKind == ScratchRegExpProgram.PropertyEscapeKind.StringProperty)
+                return false;
+
+            if (ClassItemMatchesCodePoint(item, codePoint, flags))
+            {
+                matched = true;
+                return true;
+            }
+        }
+
         return true;
     }
 
