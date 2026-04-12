@@ -21,6 +21,7 @@ internal sealed class ScratchRegExpProgram
     public required int[] ExactLiteralCodePoints { get; init; }
     public required bool HasExactLiteralPattern { get; init; }
     public required string? ExactLiteralText { get; init; }
+    public required bool HasScopedModifiers { get; init; }
     public required Dictionary<Node, int[]> NodeCaptureIndices { get; init; }
 
     public static ScratchRegExpProgram Parse(string pattern, RegExpRuntimeFlags flags)
@@ -323,6 +324,16 @@ internal sealed class ScratchRegExpProgram
                 if (captureCount < number)
                     throw new ArgumentException("Invalid regular expression pattern");
 
+            var hasScopedModifiers = ContainsScopedModifiers(root);
+            var leadingLiteral = 0;
+            var hasLeadingLiteral = !hasScopedModifiers && TryGetLeadingLiteral(root, out leadingLiteral);
+            var requiredLiteralPrefix = hasScopedModifiers ? [] : GetRequiredLiteralPrefix(root);
+            var exactLiteralCodePoints = hasScopedModifiers ? [] : GetExactLiteralPattern(root);
+            int[] exactLiteral = [];
+            var hasExactLiteralPattern = !hasScopedModifiers &&
+                                         captureCount == 0 &&
+                                         TryGetExactLiteralPattern(root, out exactLiteral) &&
+                                         exactLiteral.Length != 0;
             return new()
             {
                 Root = root,
@@ -331,20 +342,37 @@ internal sealed class ScratchRegExpProgram
                 NamedCaptureIndexes = namedCaptureIndexes,
                 CaptureCount = captureCount,
                 MinMatchLength = TryComputeMinMatchLength(root, out var minMatchLength) ? minMatchLength : -1,
-                HasLeadingLiteral = TryGetLeadingLiteral(root, out var leadingLiteral),
+                HasLeadingLiteral = hasLeadingLiteral,
                 LeadingLiteralCodePoint = leadingLiteral,
-                RequiredLiteralPrefixCodePoints = GetRequiredLiteralPrefix(root),
-                RequiredLiteralPrefixText = TryBuildLiteralText(GetRequiredLiteralPrefix(root), out var prefixText)
+                RequiredLiteralPrefixCodePoints = requiredLiteralPrefix,
+                RequiredLiteralPrefixText = !hasScopedModifiers &&
+                                            TryBuildLiteralText(requiredLiteralPrefix, out var prefixText)
                     ? prefixText
                     : null,
-                ExactLiteralCodePoints = GetExactLiteralPattern(root),
-                HasExactLiteralPattern = captureCount == 0 && TryGetExactLiteralPattern(root, out var exactLiteral) &&
-                                         exactLiteral.Length != 0,
-                ExactLiteralText = TryGetExactLiteralPattern(root, out exactLiteral) &&
-                                   TryBuildLiteralText(exactLiteral, out var exactLiteralText)
+                ExactLiteralCodePoints = exactLiteralCodePoints,
+                HasExactLiteralPattern = hasExactLiteralPattern,
+                ExactLiteralText = !hasScopedModifiers &&
+                                    TryGetExactLiteralPattern(root, out exactLiteral) &&
+                                    TryBuildLiteralText(exactLiteral, out var exactLiteralText)
                     ? exactLiteralText
                     : null,
+                HasScopedModifiers = hasScopedModifiers,
                 NodeCaptureIndices = BuildCaptureIndexMap(root)
+            };
+        }
+
+        private static bool ContainsScopedModifiers(Node node)
+        {
+            return node switch
+            {
+                ScopedModifiersNode => true,
+                CaptureNode capture => ContainsScopedModifiers(capture.Child),
+                LookaheadNode lookahead => ContainsScopedModifiers(lookahead.Child),
+                LookbehindNode lookbehind => ContainsScopedModifiers(lookbehind.Child),
+                SequenceNode sequence => Array.Exists(sequence.Terms, ContainsScopedModifiers),
+                AlternationNode alternation => Array.Exists(alternation.Alternatives, ContainsScopedModifiers),
+                QuantifierNode quantifier => ContainsScopedModifiers(quantifier.Child),
+                _ => false
             };
         }
 

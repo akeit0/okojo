@@ -1933,6 +1933,106 @@ internal static class ScratchRegExpMatcher
         return TryMatchPropertyEscapeForward(input, pos, propertyEscape, flags, out nextPos);
     }
 
+    internal static bool TryMatchBackReferenceForVm(string input, int pos, int captureIndex, RegExpRuntimeFlags flags,
+        bool ignoreCase, ExperimentalRegExpCaptureState? captureState, out int endIndex)
+    {
+        if (captureState is null || !captureState.Matched[captureIndex])
+        {
+            endIndex = pos;
+            return true;
+        }
+
+        var start = captureState.Starts[captureIndex];
+        var length = captureState.Ends[captureIndex] - start;
+        if (length == 0)
+        {
+            endIndex = pos;
+            return true;
+        }
+
+        if (pos + length > input.Length)
+        {
+            endIndex = default;
+            return false;
+        }
+
+        if (ignoreCase)
+        {
+            if (flags.Unicode)
+            {
+                var leftPos = start;
+                var rightPos = pos;
+                var leftEnd = start + length;
+                while (leftPos < leftEnd)
+                {
+                    if (!TryReadCodePoint(input, leftPos, true, out var nextLeftPos, out var leftCodePoint) ||
+                        !TryReadCodePoint(input, rightPos, true, out var nextRightPos, out var rightCodePoint) ||
+                        CanonicalizeCodePoint(leftCodePoint) != CanonicalizeCodePoint(rightCodePoint))
+                    {
+                        endIndex = default;
+                        return false;
+                    }
+
+                    leftPos = nextLeftPos;
+                    rightPos = nextRightPos;
+                }
+            }
+            else
+            {
+                for (var i = 0; i < length; i++)
+                    if (char.ToLowerInvariant(input[start + i]) != char.ToLowerInvariant(input[pos + i]))
+                    {
+                        endIndex = default;
+                        return false;
+                    }
+            }
+
+            endIndex = pos + length;
+            return true;
+        }
+
+        for (var i = 0; i < length; i++)
+            if (input[start + i] != input[pos + i])
+            {
+                endIndex = default;
+                return false;
+            }
+
+        endIndex = pos + length;
+        return true;
+    }
+
+    internal static bool TryMatchNamedBackReferenceForVm(string input, int pos, int[] captureIndexes,
+        RegExpRuntimeFlags flags, bool ignoreCase, ExperimentalRegExpCaptureState? captureState, out int endIndex)
+    {
+        if (captureState is null)
+        {
+            endIndex = pos;
+            return true;
+        }
+
+        var anyMatched = false;
+        for (var i = captureIndexes.Length - 1; i >= 0; i--)
+        {
+            var captureIndex = captureIndexes[i];
+            if (!captureState.Matched[captureIndex])
+                continue;
+
+            anyMatched = true;
+            if (TryMatchBackReferenceForVm(input, pos, captureIndex, flags, ignoreCase, captureState, out endIndex))
+                return true;
+        }
+
+        if (!anyMatched)
+        {
+            endIndex = pos;
+            return true;
+        }
+
+        endIndex = default;
+        return false;
+    }
+
     internal static int ScanDotToEndForVm(string input, int pos, bool unicode)
     {
         var currentPos = pos;

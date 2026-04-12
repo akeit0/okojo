@@ -335,4 +335,164 @@ public class RegExpExperimentalIncrementalTests
         Assert.That(match!.Index, Is.EqualTo(2));
         Assert.That(match.Groups[0], Is.EqualTo("a123"));
     }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesNumericBackReference()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(ab)c\1", "");
+
+        var match = engine.Exec(compiled, "zzabcab", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(2));
+        Assert.That(match.Groups[0], Is.EqualTo("abcab"));
+        Assert.That(match.Groups[1], Is.EqualTo("ab"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesNamedBackReference()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(?<x>ab)c\k<x>", "");
+
+        var match = engine.Exec(compiled, "zzabcab", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(2));
+        Assert.That(match.Groups[0], Is.EqualTo("abcab"));
+        Assert.That(match.Groups[1], Is.EqualTo("ab"));
+        Assert.That(match.NamedGroups, Is.Not.Null);
+        Assert.That(match.NamedGroups!["x"], Is.EqualTo("ab"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_TreatsUnmatchedBackReferenceAsEmpty()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(a)?b\1", "");
+
+        var match = engine.Exec(compiled, "zzb", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(2));
+        Assert.That(match.Groups[0], Is.EqualTo("b"));
+        Assert.That(match.Groups[1], Is.Null);
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_ScopedIgnoreCaseAffectsBackReference()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(a)(?i:\1)", "");
+
+        var match = engine.Exec(compiled, "zaA", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(1));
+        Assert.That(match.Groups[0], Is.EqualTo("aA"));
+        Assert.That(match.Groups[1], Is.EqualTo("a"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_ScopedRemoveIgnoreCaseAffectsBackReference()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(a)(?-i:\1)", "i");
+
+        var match = engine.Exec(compiled, "zAa", 0);
+
+        Assert.That(match, Is.Null);
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_ScopedIgnoreCaseAffectsCharacterClass()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(?i:[ab])c", "");
+
+        var match = engine.Exec(compiled, "zBc", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(1));
+        Assert.That(match.Groups[0], Is.EqualTo("Bc"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_ScopedIgnoreCaseAffectsLiteralFastPath()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(?i:s)t", "");
+
+        var match = engine.Exec(compiled, "zSt", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(1));
+        Assert.That(match.Groups[0], Is.EqualTo("St"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_ScopedIgnoreCaseAffectsWordBoundary()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(?i:Z\B)", "u");
+
+        var match = engine.Exec(compiled, "Z\u017F", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(0));
+        Assert.That(match.Groups[0], Is.EqualTo("Z"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesPositiveLookaheadInVm()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(?=ab)ab", "");
+
+        var match = engine.Exec(compiled, "zzab", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(2));
+        Assert.That(match.Groups[0], Is.EqualTo("ab"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesNegativeLookaheadInVm()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(?!ac)ab", "");
+
+        var match = engine.Exec(compiled, "zzab", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(2));
+        Assert.That(match.Groups[0], Is.EqualTo("ab"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_PreservesCapturesFromPositiveLookahead()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(?=(a))\1", "");
+
+        var match = engine.Exec(compiled, "a", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Groups[0], Is.EqualTo("a"));
+        Assert.That(match.Groups[1], Is.EqualTo("a"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_DoesNotLeakCapturesFromNegativeLookahead()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(?!(a))b", "");
+
+        var match = engine.Exec(compiled, "b", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Groups[0], Is.EqualTo("b"));
+        Assert.That(match.Groups[1], Is.Null);
+    }
 }
