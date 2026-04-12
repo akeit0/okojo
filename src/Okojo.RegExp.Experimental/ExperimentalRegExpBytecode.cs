@@ -1,3 +1,5 @@
+using System.Buffers;
+
 namespace Okojo.RegExp.Experimental;
 
 internal enum ExperimentalRegExpOpcode : byte
@@ -14,10 +16,13 @@ internal enum ExperimentalRegExpOpcode : byte
     AssertWordBoundary,
     AssertNotWordBoundary,
     Class,
-    PropertyEscape
+    PropertyEscape,
+    Jump,
+    Split
 }
 
-internal readonly record struct ExperimentalRegExpInstruction(ExperimentalRegExpOpcode OpCode, int Operand);
+internal readonly record struct ExperimentalRegExpInstruction(ExperimentalRegExpOpcode OpCode, int Operand,
+    int Operand2 = 0);
 
 internal sealed class ExperimentalRegExpBytecodeProgram
 {
@@ -28,68 +33,48 @@ internal sealed class ExperimentalRegExpBytecodeProgram
 
 internal static class ExperimentalRegExpCodeGenerator
 {
-    public static ExperimentalRegExpBytecodeProgram? TryGenerate(ScratchRegExpProgram treeProgram)
+    public static ExperimentalRegExpBytecodeProgram? TryGenerate(ExperimentalRegExpIrProgram? irProgram)
     {
-        if (treeProgram.CaptureCount != 0)
+        if (irProgram is null)
             return null;
 
-        var instructions = new List<ExperimentalRegExpInstruction>();
-        var classes = new List<ScratchRegExpProgram.ClassNode>();
-        var propertyEscapes = new List<ScratchRegExpProgram.PropertyEscapeNode>();
-        if (!TryEmitNode(treeProgram.Root, treeProgram.Flags, instructions, classes, propertyEscapes))
-            return null;
+        var source = irProgram.Instructions;
+        var instructions = new ExperimentalRegExpInstruction[source.Length];
+        for (var i = 0; i < source.Length; i++)
+        {
+            var instruction = source[i];
+            instructions[i] = new(MapOpcode(instruction.OpCode), instruction.Operand, instruction.Operand2);
+        }
 
-        instructions.Add(new(ExperimentalRegExpOpcode.Match, 0));
         return new()
         {
-            Instructions = instructions.ToArray(),
-            Classes = classes.ToArray(),
-            PropertyEscapes = propertyEscapes.ToArray()
+            Instructions = instructions,
+            Classes = irProgram.Classes,
+            PropertyEscapes = irProgram.PropertyEscapes
         };
     }
 
-    private static bool TryEmitNode(ScratchRegExpProgram.Node node, RegExpRuntimeFlags flags,
-        List<ExperimentalRegExpInstruction> instructions, List<ScratchRegExpProgram.ClassNode> classes,
-        List<ScratchRegExpProgram.PropertyEscapeNode> propertyEscapes)
+    private static ExperimentalRegExpOpcode MapOpcode(ExperimentalRegExpIrOpcode opcode)
     {
-        switch (node)
+        return opcode switch
         {
-            case ScratchRegExpProgram.EmptyNode:
-                return true;
-            case ScratchRegExpProgram.SequenceNode sequence:
-                for (var i = 0; i < sequence.Terms.Length; i++)
-                    if (!TryEmitNode(sequence.Terms[i], flags, instructions, classes, propertyEscapes))
-                        return false;
-                return true;
-            case ScratchRegExpProgram.LiteralNode literal:
-                instructions.Add(new(flags.IgnoreCase
-                    ? ExperimentalRegExpOpcode.CharIgnoreCase
-                    : ExperimentalRegExpOpcode.Char, literal.CodePoint));
-                return true;
-            case ScratchRegExpProgram.DotNode:
-                instructions.Add(new(flags.DotAll ? ExperimentalRegExpOpcode.Any : ExperimentalRegExpOpcode.Dot, 0));
-                return true;
-            case ScratchRegExpProgram.AnchorNode anchor:
-                instructions.Add(new(anchor.Start
-                    ? (flags.Multiline ? ExperimentalRegExpOpcode.AssertStartMultiline : ExperimentalRegExpOpcode.AssertStart)
-                    : (flags.Multiline ? ExperimentalRegExpOpcode.AssertEndMultiline : ExperimentalRegExpOpcode.AssertEnd), 0));
-                return true;
-            case ScratchRegExpProgram.BoundaryNode boundary:
-                instructions.Add(new(boundary.Positive
-                    ? ExperimentalRegExpOpcode.AssertWordBoundary
-                    : ExperimentalRegExpOpcode.AssertNotWordBoundary, 0));
-                return true;
-            case ScratchRegExpProgram.ClassNode cls:
-                classes.Add(cls);
-                instructions.Add(new(ExperimentalRegExpOpcode.Class, classes.Count - 1));
-                return true;
-            case ScratchRegExpProgram.PropertyEscapeNode propertyEscape:
-                propertyEscapes.Add(propertyEscape);
-                instructions.Add(new(ExperimentalRegExpOpcode.PropertyEscape, propertyEscapes.Count - 1));
-                return true;
-            default:
-                return false;
-        }
+            ExperimentalRegExpIrOpcode.Match => ExperimentalRegExpOpcode.Match,
+            ExperimentalRegExpIrOpcode.Char => ExperimentalRegExpOpcode.Char,
+            ExperimentalRegExpIrOpcode.CharIgnoreCase => ExperimentalRegExpOpcode.CharIgnoreCase,
+            ExperimentalRegExpIrOpcode.Dot => ExperimentalRegExpOpcode.Dot,
+            ExperimentalRegExpIrOpcode.Any => ExperimentalRegExpOpcode.Any,
+            ExperimentalRegExpIrOpcode.AssertStart => ExperimentalRegExpOpcode.AssertStart,
+            ExperimentalRegExpIrOpcode.AssertStartMultiline => ExperimentalRegExpOpcode.AssertStartMultiline,
+            ExperimentalRegExpIrOpcode.AssertEnd => ExperimentalRegExpOpcode.AssertEnd,
+            ExperimentalRegExpIrOpcode.AssertEndMultiline => ExperimentalRegExpOpcode.AssertEndMultiline,
+            ExperimentalRegExpIrOpcode.AssertWordBoundary => ExperimentalRegExpOpcode.AssertWordBoundary,
+            ExperimentalRegExpIrOpcode.AssertNotWordBoundary => ExperimentalRegExpOpcode.AssertNotWordBoundary,
+            ExperimentalRegExpIrOpcode.Class => ExperimentalRegExpOpcode.Class,
+            ExperimentalRegExpIrOpcode.PropertyEscape => ExperimentalRegExpOpcode.PropertyEscape,
+            ExperimentalRegExpIrOpcode.Jump => ExperimentalRegExpOpcode.Jump,
+            ExperimentalRegExpIrOpcode.Split => ExperimentalRegExpOpcode.Split,
+            _ => throw new InvalidOperationException($"Unknown regex IR opcode: {opcode}")
+        };
     }
 }
 
@@ -98,10 +83,34 @@ internal static class ExperimentalRegExpVm
     public static bool TryMatch(ExperimentalRegExpBytecodeProgram program, string input, int startIndex,
         RegExpRuntimeFlags flags, out int endIndex)
     {
+        var stack = new ExperimentalBacktrackStack();
+        try
+        {
+            return TryMatch(program, input, startIndex, flags, ref stack, out endIndex);
+        }
+        finally
+        {
+            stack.Dispose();
+        }
+    }
+
+    private static bool TryMatch(ExperimentalRegExpBytecodeProgram program, string input, int startIndex,
+        RegExpRuntimeFlags flags, ref ExperimentalBacktrackStack stack, out int endIndex)
+    {
         var currentPos = startIndex;
         var instructions = program.Instructions;
-        for (var instructionIndex = 0; instructionIndex < instructions.Length; instructionIndex++)
+        var instructionIndex = 0;
+        while (true)
         {
+            if ((uint)instructionIndex >= (uint)instructions.Length)
+            {
+                if (stack.TryPop(out instructionIndex, out currentPos))
+                    continue;
+
+                endIndex = default;
+                return false;
+            }
+
             var instruction = instructions[instructionIndex];
             switch (instruction.OpCode)
             {
@@ -115,107 +124,229 @@ internal static class ExperimentalRegExpVm
                         !ScratchRegExpMatcher.CodePointEqualsForVm(codePoint, instruction.Operand,
                             instruction.OpCode == ExperimentalRegExpOpcode.CharIgnoreCase))
                     {
-                        endIndex = default;
-                        return false;
+                        if (!stack.TryPop(out instructionIndex, out currentPos))
+                        {
+                            endIndex = default;
+                            return false;
+                        }
+
+                        continue;
                     }
 
                     currentPos = nextPos;
+                    instructionIndex++;
                     break;
                 case ExperimentalRegExpOpcode.Dot:
                     if (!ScratchRegExpMatcher.TryReadCodePointForVm(input, currentPos, flags.Unicode, out nextPos,
                             out codePoint) ||
                         ScratchRegExpMatcher.IsLineTerminatorForVm(codePoint))
                     {
-                        endIndex = default;
-                        return false;
+                        if (!stack.TryPop(out instructionIndex, out currentPos))
+                        {
+                            endIndex = default;
+                            return false;
+                        }
+
+                        continue;
                     }
 
                     currentPos = nextPos;
+                    instructionIndex++;
                     break;
                 case ExperimentalRegExpOpcode.Any:
                     if (!ScratchRegExpMatcher.TryReadCodePointForVm(input, currentPos, flags.Unicode, out nextPos,
                             out _))
                     {
-                        endIndex = default;
-                        return false;
+                        if (!stack.TryPop(out instructionIndex, out currentPos))
+                        {
+                            endIndex = default;
+                            return false;
+                        }
+
+                        continue;
                     }
 
                     currentPos = nextPos;
+                    instructionIndex++;
                     break;
                 case ExperimentalRegExpOpcode.AssertStart:
                     if (!ScratchRegExpMatcher.IsStartAnchorSatisfiedForVm(input, currentPos, multiline: false))
                     {
-                        endIndex = default;
-                        return false;
+                        if (!stack.TryPop(out instructionIndex, out currentPos))
+                        {
+                            endIndex = default;
+                            return false;
+                        }
+
+                        continue;
                     }
 
+                    instructionIndex++;
                     break;
                 case ExperimentalRegExpOpcode.AssertStartMultiline:
                     if (!ScratchRegExpMatcher.IsStartAnchorSatisfiedForVm(input, currentPos, multiline: true))
                     {
-                        endIndex = default;
-                        return false;
+                        if (!stack.TryPop(out instructionIndex, out currentPos))
+                        {
+                            endIndex = default;
+                            return false;
+                        }
+
+                        continue;
                     }
 
+                    instructionIndex++;
                     break;
                 case ExperimentalRegExpOpcode.AssertEnd:
                     if (!ScratchRegExpMatcher.IsEndAnchorSatisfiedForVm(input, currentPos, multiline: false))
                     {
-                        endIndex = default;
-                        return false;
+                        if (!stack.TryPop(out instructionIndex, out currentPos))
+                        {
+                            endIndex = default;
+                            return false;
+                        }
+
+                        continue;
                     }
 
+                    instructionIndex++;
                     break;
                 case ExperimentalRegExpOpcode.AssertEndMultiline:
                     if (!ScratchRegExpMatcher.IsEndAnchorSatisfiedForVm(input, currentPos, multiline: true))
                     {
-                        endIndex = default;
-                        return false;
+                        if (!stack.TryPop(out instructionIndex, out currentPos))
+                        {
+                            endIndex = default;
+                            return false;
+                        }
+
+                        continue;
                     }
 
+                    instructionIndex++;
                     break;
                 case ExperimentalRegExpOpcode.AssertWordBoundary:
                     if (!ScratchRegExpMatcher.IsWordBoundaryForVm(input, currentPos, flags.Unicode, flags.IgnoreCase))
                     {
-                        endIndex = default;
-                        return false;
+                        if (!stack.TryPop(out instructionIndex, out currentPos))
+                        {
+                            endIndex = default;
+                            return false;
+                        }
+
+                        continue;
                     }
 
+                    instructionIndex++;
                     break;
                 case ExperimentalRegExpOpcode.AssertNotWordBoundary:
                     if (ScratchRegExpMatcher.IsWordBoundaryForVm(input, currentPos, flags.Unicode, flags.IgnoreCase))
                     {
-                        endIndex = default;
-                        return false;
+                        if (!stack.TryPop(out instructionIndex, out currentPos))
+                        {
+                            endIndex = default;
+                            return false;
+                        }
+
+                        continue;
                     }
 
+                    instructionIndex++;
                     break;
                 case ExperimentalRegExpOpcode.Class:
                     if (!ScratchRegExpMatcher.TryMatchClassForVm(input, currentPos, program.Classes[instruction.Operand],
                             flags, out nextPos))
                     {
-                        endIndex = default;
-                        return false;
+                        if (!stack.TryPop(out instructionIndex, out currentPos))
+                        {
+                            endIndex = default;
+                            return false;
+                        }
+
+                        continue;
                     }
 
                     currentPos = nextPos;
+                    instructionIndex++;
                     break;
                 case ExperimentalRegExpOpcode.PropertyEscape:
                     if (!ScratchRegExpMatcher.TryMatchPropertyEscapeForVm(input, currentPos,
                             program.PropertyEscapes[instruction.Operand], flags, out nextPos))
                     {
-                        endIndex = default;
-                        return false;
+                        if (!stack.TryPop(out instructionIndex, out currentPos))
+                        {
+                            endIndex = default;
+                            return false;
+                        }
+
+                        continue;
                     }
 
                     currentPos = nextPos;
+                    instructionIndex++;
+                    break;
+                case ExperimentalRegExpOpcode.Jump:
+                    instructionIndex = instruction.Operand;
+                    break;
+                case ExperimentalRegExpOpcode.Split:
+                    stack.Push(instruction.Operand2, currentPos);
+                    instructionIndex = instruction.Operand;
                     break;
                 default:
                     throw new InvalidOperationException($"Unknown regex bytecode opcode: {instruction.OpCode}");
             }
         }
+    }
 
-        endIndex = default;
-        return false;
+    private ref struct ExperimentalBacktrackStack
+    {
+        private int[]? values;
+        private int count;
+
+        public void Push(int instructionIndex, int inputPosition)
+        {
+            EnsureCapacity(count + 2);
+            values![count++] = instructionIndex;
+            values[count++] = inputPosition;
+        }
+
+        public bool TryPop(out int instructionIndex, out int inputPosition)
+        {
+            if (count == 0)
+            {
+                instructionIndex = default;
+                inputPosition = default;
+                return false;
+            }
+
+            inputPosition = values![--count];
+            instructionIndex = values[--count];
+            return true;
+        }
+
+        public void Dispose()
+        {
+            if (values is null)
+                return;
+
+            ArrayPool<int>.Shared.Return(values);
+            values = null;
+            count = 0;
+        }
+
+        private void EnsureCapacity(int requiredCapacity)
+        {
+            if (values is not null && values.Length >= requiredCapacity)
+                return;
+
+            var next = ArrayPool<int>.Shared.Rent(requiredCapacity <= 8 ? 8 : requiredCapacity * 2);
+            if (values is not null && count != 0)
+                Array.Copy(values, next, count);
+
+            if (values is not null)
+                ArrayPool<int>.Shared.Return(values);
+
+            values = next;
+        }
     }
 }

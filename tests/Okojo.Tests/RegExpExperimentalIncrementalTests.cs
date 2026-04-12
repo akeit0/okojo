@@ -144,4 +144,43 @@ public class RegExpExperimentalIncrementalTests
         Assert.That(match!.Index, Is.EqualTo(0));
         Assert.That(match.Groups[0], Is.EqualTo("A"));
     }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesIrVmAlternationBacktracking()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"a(?:bc|b)d", "");
+
+        var match = engine.Exec(compiled, "zzabd", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(2));
+        Assert.That(match.Groups[0], Is.EqualTo("abd"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesIrVmGreedyQuantifier()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"ab*c", "");
+
+        var match = engine.Exec(compiled, "zzabbbc", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(2));
+        Assert.That(match.Groups[0], Is.EqualTo("abbbc"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesIrVmLazyQuantifier()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"a.+?c", "");
+
+        var match = engine.Exec(compiled, "zzaXcYc", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(2));
+        Assert.That(match.Groups[0], Is.EqualTo("aXc"));
+    }
 }
