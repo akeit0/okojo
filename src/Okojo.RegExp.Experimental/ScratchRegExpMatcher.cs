@@ -1745,6 +1745,13 @@ internal static class ScratchRegExpMatcher
         if (program.RequiredLiteralPrefixCodePoints.Length == 0)
             return start;
 
+        if (!program.Flags.IgnoreCase &&
+            program.RequiredLiteralPrefixText is { Length: > 0 } prefixText)
+        {
+            var textCandidate = input.IndexOf(prefixText, start, StringComparison.Ordinal);
+            return textCandidate < 0 ? input.Length + 1 : textCandidate;
+        }
+
         var candidate = FindNextRequiredPrefixCandidate(
             input,
             start,
@@ -1756,6 +1763,20 @@ internal static class ScratchRegExpMatcher
 
     private static bool TryMatchExactLiteralAt(ScratchRegExpProgram program, string input, int start, out int endIndex)
     {
+        if (!program.Flags.IgnoreCase &&
+            program.ExactLiteralText is { Length: > 0 } exactLiteralText)
+        {
+            if (start <= input.Length &&
+                input.AsSpan(start).StartsWith(exactLiteralText.AsSpan(), StringComparison.Ordinal))
+            {
+                endIndex = start + exactLiteralText.Length;
+                return true;
+            }
+
+            endIndex = default;
+            return false;
+        }
+
         var currentPos = start;
         var exactLiteral = program.ExactLiteralCodePoints;
         for (var i = 0; i < exactLiteral.Length; i++)

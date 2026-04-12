@@ -68,4 +68,17 @@ public class RegExpExperimentalIncrementalTests
         Assert.That(match!.Index, Is.EqualTo(2));
         Assert.That(match.Groups[0], Is.EqualTo("abab"));
     }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesExactLiteralFastPathForUnicodeLiteral()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"\ud834\udf06", "u");
+
+        var match = engine.Exec(compiled, "z𝌆z", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(1));
+        Assert.That(match.Groups[0], Is.EqualTo("𝌆"));
+    }
 }

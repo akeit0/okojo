@@ -16,8 +16,10 @@ internal sealed class ScratchRegExpProgram
     public required int LeadingLiteralCodePoint { get; init; }
     public required bool HasLeadingLiteral { get; init; }
     public required int[] RequiredLiteralPrefixCodePoints { get; init; }
+    public required string? RequiredLiteralPrefixText { get; init; }
     public required int[] ExactLiteralCodePoints { get; init; }
     public required bool HasExactLiteralPattern { get; init; }
+    public required string? ExactLiteralText { get; init; }
     public required Dictionary<Node, int[]> NodeCaptureIndices { get; init; }
 
     public static ScratchRegExpProgram Parse(string pattern, RegExpRuntimeFlags flags)
@@ -331,9 +333,16 @@ internal sealed class ScratchRegExpProgram
                 HasLeadingLiteral = TryGetLeadingLiteral(root, out var leadingLiteral),
                 LeadingLiteralCodePoint = leadingLiteral,
                 RequiredLiteralPrefixCodePoints = GetRequiredLiteralPrefix(root),
+                RequiredLiteralPrefixText = TryBuildLiteralText(GetRequiredLiteralPrefix(root), out var prefixText)
+                    ? prefixText
+                    : null,
                 ExactLiteralCodePoints = GetExactLiteralPattern(root),
                 HasExactLiteralPattern = captureCount == 0 && TryGetExactLiteralPattern(root, out var exactLiteral) &&
                                          exactLiteral.Length != 0,
+                ExactLiteralText = TryGetExactLiteralPattern(root, out exactLiteral) &&
+                                   TryBuildLiteralText(exactLiteral, out var exactLiteralText)
+                    ? exactLiteralText
+                    : null,
                 NodeCaptureIndices = BuildCaptureIndexMap(root)
             };
         }
@@ -2010,6 +2019,31 @@ internal sealed class ScratchRegExpProgram
                 QuantifierNode quantifier when quantifier.Min == quantifier.Max => IsZeroWidthOnly(quantifier.Child),
                 _ => false
             };
+        }
+
+        private static bool TryBuildLiteralText(int[] codePoints, out string text)
+        {
+            if (codePoints.Length == 0)
+            {
+                text = string.Empty;
+                return true;
+            }
+
+            var builder = new StringBuilder(codePoints.Length);
+            for (var i = 0; i < codePoints.Length; i++)
+            {
+                var codePoint = codePoints[i];
+                if (!Rune.TryCreate(codePoint, out var rune))
+                {
+                    text = string.Empty;
+                    return false;
+                }
+
+                builder.Append(rune.ToString());
+            }
+
+            text = builder.ToString();
+            return true;
         }
 
         private static bool TryComputeMinMatchLength(Node node, out int minLength)
