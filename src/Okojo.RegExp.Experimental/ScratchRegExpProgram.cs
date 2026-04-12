@@ -6,6 +6,7 @@ namespace Okojo.RegExp.Experimental;
 internal sealed class ScratchRegExpProgram
 {
     private const int MaxRequiredLiteralPrefixLength = 8;
+    private const int MaxExactLiteralPatternLength = 64;
 
     public required Node Root { get; init; }
     public required RegExpRuntimeFlags Flags { get; init; }
@@ -1976,8 +1977,11 @@ internal sealed class ScratchRegExpProgram
                         }
 
                         builder.AddRange(termLiteral);
-                        if (builder.Count > MaxRequiredLiteralPrefixLength)
-                            break;
+                        if (builder.Count > MaxExactLiteralPatternLength)
+                        {
+                            codePoints = [];
+                            return false;
+                        }
                     }
 
                     codePoints = builder.ToArray();
@@ -1986,6 +1990,18 @@ internal sealed class ScratchRegExpProgram
                 case QuantifierNode quantifier when quantifier.Min == quantifier.Max:
                 {
                     if (!TryGetExactLiteralPattern(quantifier.Child, out var childLiteral))
+                    {
+                        codePoints = [];
+                        return false;
+                    }
+
+                    if (childLiteral.Length == 0)
+                    {
+                        codePoints = [];
+                        return false;
+                    }
+
+                    if ((long)childLiteral.Length * quantifier.Min > MaxExactLiteralPatternLength)
                     {
                         codePoints = [];
                         return false;

@@ -8,11 +8,12 @@ internal static class ScratchRegExpMatcher
 {
     private const int ExhaustiveBacktrackingInputLimit = 256;
 
-    public static RegExpMatchResult? Exec(ScratchRegExpProgram program, string input, int startIndex)
+    public static RegExpMatchResult? Exec(ExperimentalCompiledProgram compiledProgram, string input, int startIndex)
     {
+        var program = compiledProgram.TreeProgram;
         var begin = Math.Max(0, startIndex);
         if (program.HasExactLiteralPattern)
-            return ExecExactLiteral(program, input, begin);
+            return ExecExactLiteral(compiledProgram, input, begin);
 
         using var stateArena = program.CaptureCount == 0 ? null : new ScratchMatchStateArena(program.CaptureCount);
         if (program.Flags.Sticky)
@@ -38,16 +39,18 @@ internal static class ScratchRegExpMatcher
         return null;
     }
 
-    private static RegExpMatchResult? ExecExactLiteral(ScratchRegExpProgram program, string input, int begin)
+    private static RegExpMatchResult? ExecExactLiteral(ExperimentalCompiledProgram compiledProgram, string input,
+        int begin)
     {
+        var program = compiledProgram.TreeProgram;
         if (program.Flags.Sticky)
-            return TryMatchExactLiteralAt(program, input, begin, out var stickyEnd)
+            return TryMatchExactLiteralAt(compiledProgram, input, begin, out var stickyEnd)
                 ? BuildSimpleMatch(program, input, begin, stickyEnd)
                 : null;
 
         for (var pos = FindSearchCandidate(program, input, begin); pos <= input.Length;)
         {
-            if (TryMatchExactLiteralAt(program, input, pos, out var endIndex))
+            if (TryMatchExactLiteralAt(compiledProgram, input, pos, out var endIndex))
                 return BuildSimpleMatch(program, input, pos, endIndex);
 
             pos = NextSearchPosition(program, input, pos);
@@ -1761,8 +1764,10 @@ internal static class ScratchRegExpMatcher
         return candidate < 0 ? input.Length + 1 : candidate;
     }
 
-    private static bool TryMatchExactLiteralAt(ScratchRegExpProgram program, string input, int start, out int endIndex)
+    private static bool TryMatchExactLiteralAt(ExperimentalCompiledProgram compiledProgram, string input, int start,
+        out int endIndex)
     {
+        var program = compiledProgram.TreeProgram;
         if (!program.Flags.IgnoreCase &&
             program.ExactLiteralText is { Length: > 0 } exactLiteralText)
         {
@@ -1776,6 +1781,10 @@ internal static class ScratchRegExpMatcher
             endIndex = default;
             return false;
         }
+
+        if (compiledProgram.BytecodeProgram is not null)
+            return ExperimentalRegExpVm.TryMatch(compiledProgram.BytecodeProgram, input, start, program.Flags,
+                out endIndex);
 
         var currentPos = start;
         var exactLiteral = program.ExactLiteralCodePoints;
@@ -1793,6 +1802,16 @@ internal static class ScratchRegExpMatcher
 
         endIndex = currentPos;
         return true;
+    }
+
+    internal static bool TryReadCodePointForVm(string input, int pos, bool unicode, out int nextPos, out int codePoint)
+    {
+        return TryReadCodePoint(input, pos, unicode, out nextPos, out codePoint);
+    }
+
+    internal static bool CodePointEqualsForVm(int left, int right, bool ignoreCase)
+    {
+        return CodePointEquals(left, right, ignoreCase);
     }
 
     private static int FindNextRequiredPrefixCandidate(string input, int start, int[] prefixCodePoints, bool unicode,

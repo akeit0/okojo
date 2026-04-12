@@ -81,4 +81,28 @@ public class RegExpExperimentalIncrementalTests
         Assert.That(match!.Index, Is.EqualTo(1));
         Assert.That(match.Groups[0], Is.EqualTo("𝌆"));
     }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesBytecodeLiteralPathForIgnoreCase()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile("foo", "i");
+
+        var match = engine.Exec(compiled, "xxFOOyy", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(2));
+        Assert.That(match.Groups[0], Is.EqualTo("FOO"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_BoundsExactLiteralExpansion()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile("b{1000000}", "");
+
+        var match = engine.Exec(compiled, "bbb", 0);
+
+        Assert.That(match, Is.Null);
+    }
 }
