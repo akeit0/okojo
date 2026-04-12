@@ -239,4 +239,48 @@ public class RegExpExperimentalIncrementalTests
         Assert.That(match.Groups[0], Is.EqualTo("ababc"));
         Assert.That(match.Groups[1], Is.EqualTo("ab"));
     }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesFusedLiteralRunsAroundCapture()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"fooo(bar)bazzz", "");
+
+        var match = engine.Exec(compiled, "xxfooobarbazzz", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(2));
+        Assert.That(match.Groups[0], Is.EqualTo("fooobarbazzz"));
+        Assert.That(match.Groups[1], Is.EqualTo("bar"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesFusedLiteralRunBeforeClass()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"alpha[0-9]omega", "");
+
+        var match = engine.Exec(compiled, "xxalpha7omega", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(2));
+        Assert.That(match.Groups[0], Is.EqualTo("alpha7omega"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_ClearsQuantifiedCapturesPerIteration()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(z)((a+)?(b+)?(c))*", "");
+
+        var match = engine.Exec(compiled, "zaacbbbcac", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Groups[0], Is.EqualTo("zaacbbbcac"));
+        Assert.That(match.Groups[1], Is.EqualTo("z"));
+        Assert.That(match.Groups[2], Is.EqualTo("ac"));
+        Assert.That(match.Groups[3], Is.EqualTo("a"));
+        Assert.That(match.Groups[4], Is.Null);
+        Assert.That(match.Groups[5], Is.EqualTo("c"));
+    }
 }

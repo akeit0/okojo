@@ -5,8 +5,10 @@ namespace Okojo.RegExp.Experimental;
 internal enum ExperimentalRegExpOpcode : byte
 {
     Match,
+    ClearCaptures,
     SaveStart,
     SaveEnd,
+    LiteralText,
     Char,
     CharIgnoreCase,
     Dot,
@@ -29,6 +31,8 @@ internal readonly record struct ExperimentalRegExpInstruction(ExperimentalRegExp
 internal sealed class ExperimentalRegExpBytecodeProgram
 {
     public required ExperimentalRegExpInstruction[] Instructions { get; init; }
+    public int[][] CaptureClearSets { get; init; } = [];
+    public string[] LiteralTexts { get; init; } = [];
     public ScratchRegExpProgram.ClassNode[] Classes { get; init; } = [];
     public ScratchRegExpProgram.PropertyEscapeNode[] PropertyEscapes { get; init; } = [];
 }
@@ -51,6 +55,8 @@ internal static class ExperimentalRegExpCodeGenerator
         return new()
         {
             Instructions = instructions,
+            CaptureClearSets = irProgram.CaptureClearSets,
+            LiteralTexts = irProgram.LiteralTexts,
             Classes = irProgram.Classes,
             PropertyEscapes = irProgram.PropertyEscapes
         };
@@ -61,8 +67,10 @@ internal static class ExperimentalRegExpCodeGenerator
         return opcode switch
         {
             ExperimentalRegExpIrOpcode.Match => ExperimentalRegExpOpcode.Match,
+            ExperimentalRegExpIrOpcode.ClearCaptures => ExperimentalRegExpOpcode.ClearCaptures,
             ExperimentalRegExpIrOpcode.SaveStart => ExperimentalRegExpOpcode.SaveStart,
             ExperimentalRegExpIrOpcode.SaveEnd => ExperimentalRegExpOpcode.SaveEnd,
+            ExperimentalRegExpIrOpcode.LiteralText => ExperimentalRegExpOpcode.LiteralText,
             ExperimentalRegExpIrOpcode.Char => ExperimentalRegExpOpcode.Char,
             ExperimentalRegExpIrOpcode.CharIgnoreCase => ExperimentalRegExpOpcode.CharIgnoreCase,
             ExperimentalRegExpIrOpcode.Dot => ExperimentalRegExpOpcode.Dot,
@@ -122,12 +130,39 @@ internal static class ExperimentalRegExpVm
                 case ExperimentalRegExpOpcode.Match:
                     endIndex = currentPos;
                     return true;
+                case ExperimentalRegExpOpcode.ClearCaptures:
+                    if (captureState is not null)
+                    {
+                        var clearSet = program.CaptureClearSets[instruction.Operand];
+                        for (var i = 0; i < clearSet.Length; i++)
+                            captureState.Clear(clearSet[i]);
+                    }
+
+                    instructionIndex++;
+                    break;
                 case ExperimentalRegExpOpcode.SaveStart:
                     captureState?.SaveStart(instruction.Operand, currentPos);
                     instructionIndex++;
                     break;
                 case ExperimentalRegExpOpcode.SaveEnd:
                     captureState?.SaveEnd(instruction.Operand, currentPos);
+                    instructionIndex++;
+                    break;
+                case ExperimentalRegExpOpcode.LiteralText:
+                    var literalText = program.LiteralTexts[instruction.Operand];
+                    if (currentPos > input.Length ||
+                        !input.AsSpan(currentPos).StartsWith(literalText.AsSpan(), StringComparison.Ordinal))
+                    {
+                        if (!TryBacktrack(captureState, ref stack, out instructionIndex, out currentPos))
+                        {
+                            endIndex = default;
+                            return false;
+                        }
+
+                        continue;
+                    }
+
+                    currentPos += literalText.Length;
                     instructionIndex++;
                     break;
                 case ExperimentalRegExpOpcode.Char:
@@ -418,6 +453,14 @@ internal sealed class ExperimentalRegExpCaptureState : IDisposable
         Log(index);
         Ends[index] = position;
         Matched[index] = true;
+    }
+
+    public void Clear(int index)
+    {
+        Log(index);
+        Starts[index] = 0;
+        Ends[index] = 0;
+        Matched[index] = false;
     }
 
     public void Restore(int checkpoint)
