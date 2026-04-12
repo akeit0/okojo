@@ -14,6 +14,8 @@ internal static class ScratchRegExpMatcher
         var begin = Math.Max(0, startIndex);
         if (program.HasExactLiteralPattern)
             return ExecExactLiteral(compiledProgram, input, begin);
+        if (compiledProgram.BytecodeProgram is not null)
+            return ExecLinearBytecode(compiledProgram, input, begin);
 
         using var stateArena = program.CaptureCount == 0 ? null : new ScratchMatchStateArena(program.CaptureCount);
         if (program.Flags.Sticky)
@@ -32,6 +34,27 @@ internal static class ScratchRegExpMatcher
             var state = stateArena is null ? ScratchMatchState.Empty : stateArena.Root;
             if (TryMatchNode(program, program.Root, input, pos, program.Flags, state, out var endIndex))
                 return BuildMatch(program, input, pos, endIndex, state);
+
+            pos = NextSearchPosition(program, input, pos);
+        }
+
+        return null;
+    }
+
+    private static RegExpMatchResult? ExecLinearBytecode(ExperimentalCompiledProgram compiledProgram, string input,
+        int begin)
+    {
+        var program = compiledProgram.TreeProgram;
+        var bytecodeProgram = compiledProgram.BytecodeProgram!;
+        if (program.Flags.Sticky)
+            return ExperimentalRegExpVm.TryMatch(bytecodeProgram, input, begin, program.Flags, out var stickyEnd)
+                ? BuildSimpleMatch(program, input, begin, stickyEnd)
+                : null;
+
+        for (var pos = FindSearchCandidate(program, input, begin); pos <= input.Length;)
+        {
+            if (ExperimentalRegExpVm.TryMatch(bytecodeProgram, input, pos, program.Flags, out var endIndex))
+                return BuildSimpleMatch(program, input, pos, endIndex);
 
             pos = NextSearchPosition(program, input, pos);
         }
@@ -1812,6 +1835,38 @@ internal static class ScratchRegExpMatcher
     internal static bool CodePointEqualsForVm(int left, int right, bool ignoreCase)
     {
         return CodePointEquals(left, right, ignoreCase);
+    }
+
+    internal static bool IsLineTerminatorForVm(int codePoint)
+    {
+        return IsLineTerminator(codePoint);
+    }
+
+    internal static bool IsWordBoundaryForVm(string input, int pos, bool unicode, bool ignoreCase)
+    {
+        return IsWordBoundary(input, pos, unicode, ignoreCase);
+    }
+
+    internal static bool IsStartAnchorSatisfiedForVm(string input, int pos, bool multiline)
+    {
+        return pos == 0 || (multiline && pos > 0 && IsLineTerminator(input[pos - 1]));
+    }
+
+    internal static bool IsEndAnchorSatisfiedForVm(string input, int pos, bool multiline)
+    {
+        return pos == input.Length || (multiline && pos < input.Length && IsLineTerminator(input[pos]));
+    }
+
+    internal static bool TryMatchClassForVm(string input, int pos, ScratchRegExpProgram.ClassNode cls,
+        RegExpRuntimeFlags flags, out int nextPos)
+    {
+        return TryMatchClassForward(input, pos, cls, flags, out nextPos);
+    }
+
+    internal static bool TryMatchPropertyEscapeForVm(string input, int pos,
+        ScratchRegExpProgram.PropertyEscapeNode propertyEscape, RegExpRuntimeFlags flags, out int nextPos)
+    {
+        return TryMatchPropertyEscapeForward(input, pos, propertyEscape, flags, out nextPos);
     }
 
     private static int FindNextRequiredPrefixCandidate(string input, int start, int[] prefixCodePoints, bool unicode,

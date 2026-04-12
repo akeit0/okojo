@@ -105,4 +105,43 @@ public class RegExpExperimentalIncrementalTests
 
         Assert.That(match, Is.Null);
     }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesLinearBytecodeForAnchorsClassAndDot()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"^[ab].$", "");
+
+        var match = engine.Exec(compiled, "a!", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(0));
+        Assert.That(match.Groups[0], Is.EqualTo("a!"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesLinearBytecodeForWordBoundary()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"\bfoo", "");
+
+        var match = engine.Exec(compiled, " foo", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(1));
+        Assert.That(match.Groups[0], Is.EqualTo("foo"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesLinearBytecodeForPropertyEscape()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"^\p{ASCII}$", "u");
+
+        var match = engine.Exec(compiled, "A", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(0));
+        Assert.That(match.Groups[0], Is.EqualTo("A"));
+    }
 }
