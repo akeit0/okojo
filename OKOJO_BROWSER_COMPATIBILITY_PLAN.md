@@ -24,10 +24,11 @@ Current next-phase priorities:
 
 1. refine the stable embedding and host API shape
 2. improve runtime performance and allocation behavior on hot paths
-3. add selectively chosen staging features that are worth carrying, such as `Temporal`
-4. complete and adopt the experimental compiler path
-5. improve `Okojo.Node` compatibility against real Node-facing workloads
-6. attempt real HTML/CSS renderer integration to test DOM-manipulation browser compatibility
+3. split and benchmark an experimental RegExp engine so `test262` and performance work can proceed without destabilizing the default engine immediately
+4. add selectively chosen staging features that are worth carrying, such as `Temporal`
+5. complete and adopt the experimental compiler path
+6. improve `Okojo.Node` compatibility against real Node-facing workloads
+7. attempt real HTML/CSS renderer integration to test DOM-manipulation browser compatibility
 
 ## Remaining Problem
 
