@@ -4,6 +4,12 @@
 
 This note covers the first optimization-focused RegExp workstream for Okojo.
 
+Implementation detail lives separately in:
+
+- `docs\OKOJO_REGEXP_IMPLEMENTATION_PLAN.md`
+
+Use this document for scope, rollout, validation surfaces, and repo wiring. Use the implementation plan for algorithm and optimization strategy.
+
 Included in this iteration:
 
 1. create a new experimental engine project at `src\Okojo.RegExp.Experimental`
@@ -148,6 +154,12 @@ Benchmark command:
 dnrelay bench --project benchmarks\Okojo.Benchmarks\Okojo.Benchmarks.csproj --select RegExp
 ```
 
+Benchmark policy note:
+
+- do not treat benchmark runs as the main edit-compile inner loop
+- use benchmarks after large engine changes once focused tests and targeted `test262` passes are green
+- ShortRun is acceptable for directional comparison in this workstream
+
 ### 3. Test262 runner engine selection
 
 Current state:
@@ -265,28 +277,14 @@ Intentional differences for the first Okojo experimental slice:
 
 ## Performance Plan
 
-First optimization targets:
+Detailed algorithm and optimization planning now lives in `docs\OKOJO_REGEXP_IMPLEMENTATION_PLAN.md`.
+
+High-level optimization targets for this workstream remain:
 
 1. reduce exec-time allocations
-2. reduce branchy interpreter overhead on common scans
-3. reduce repeated character-class and Unicode-table setup
+2. reduce dispatch and branching overhead on common scans
+3. precompute more search/class/Unicode metadata at compile time
 4. keep uncommon semantics on explicit slow paths
-
-First candidates after the clone exists:
-
-1. reusable pooled backtracking and capture storage
-2. first-character and fixed-prefix search hints
-3. specialized linear-scan opcodes for common loops
-4. compact instruction layout to improve cache locality
-5. predecoded character-class metadata
-6. reduced string-slice churn on capture materialization
-
-Data-layout rules for this workstream:
-
-1. for large primitive table data, prefer `ReadOnlySpan<T> Data => [ ... ]`
-2. do not use tuple-heavy static data for large embedded tables
-3. use `MemoryMarshal` when reinterpretation is required without copying
-4. if Unicode/property/opcode tables become large, introduce a generator rather than hand-maintaining giant source files
 
 ## Implementation Phases
 
@@ -338,7 +336,8 @@ Tooling expectations for this work:
 1. use `dnrelay` for build, test, run, and bench commands
 2. use `dotprobe-csharp` for symbol and workspace inspection when searching the C# surface
 3. use `rg` for regex/text search and `ast-grep` for syntax-aware structural search/replace
-4. keep the benchmark and `test262` commands short and repeatable enough for frequent local iteration
+4. keep the unit-test and focused `test262` commands short and repeatable for frequent local iteration
+5. treat benchmark runs as milestone validation after larger changes rather than per-edit validation
 
 Suggested recurring commands:
 
