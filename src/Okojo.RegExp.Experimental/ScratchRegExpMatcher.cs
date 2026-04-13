@@ -871,11 +871,13 @@ internal static class ScratchRegExpMatcher
                 break;
             case ScratchRegExpProgram.PropertyEscapeKind.Script:
                 matched = propertyValue is not null &&
-                          ScratchUnicodeScriptTables.Contains(propertyValue, codePoint);
+                          ScratchUnicodeScriptTables.Contains(ScratchUnicodeScriptTables.GetRanges(propertyValue),
+                              codePoint);
                 break;
             case ScratchRegExpProgram.PropertyEscapeKind.ScriptExtensions:
                 matched = propertyValue is not null &&
-                          ScratchUnicodeScriptExtensionsTables.Contains(propertyValue, codePoint);
+                          ScratchUnicodeScriptExtensionsTables.Contains(
+                              ScratchUnicodeScriptExtensionsTables.GetRanges(propertyValue), codePoint);
                 break;
             case ScratchRegExpProgram.PropertyEscapeKind.UppercaseLetter
                 when negated && flags.IgnoreCase:
@@ -2363,11 +2365,12 @@ internal static class ScratchRegExpMatcher
     private static bool ConsumeScriptPropertyRun(string input, int pos, string propertyValue, bool negated,
         RegExpRuntimeFlags flags, int endLimit, int maxCount, out int endPos, out int consumed)
     {
+        var ranges = ScratchUnicodeScriptTables.GetRanges(propertyValue);
         var currentPos = pos;
         consumed = 0;
         while (consumed < maxCount &&
                TryReadCodePointForVm(input, currentPos, flags.Unicode, endLimit, out var nextPos, out var codePoint) &&
-               (ScratchUnicodeScriptTables.Contains(propertyValue, codePoint) ^ negated))
+               (ScratchUnicodeScriptTables.Contains(ranges, codePoint) ^ negated))
         {
             consumed++;
             currentPos = nextPos;
@@ -2380,11 +2383,12 @@ internal static class ScratchRegExpMatcher
     private static bool ConsumeScriptExtensionsPropertyRun(string input, int pos, string propertyValue, bool negated,
         RegExpRuntimeFlags flags, int endLimit, int maxCount, out int endPos, out int consumed)
     {
+        var ranges = ScratchUnicodeScriptExtensionsTables.GetRanges(propertyValue);
         var currentPos = pos;
         consumed = 0;
         while (consumed < maxCount &&
                TryReadCodePointForVm(input, currentPos, flags.Unicode, endLimit, out var nextPos, out var codePoint) &&
-               (ScratchUnicodeScriptExtensionsTables.Contains(propertyValue, codePoint) ^ negated))
+               (ScratchUnicodeScriptExtensionsTables.Contains(ranges, codePoint) ^ negated))
         {
             consumed++;
             currentPos = nextPos;
