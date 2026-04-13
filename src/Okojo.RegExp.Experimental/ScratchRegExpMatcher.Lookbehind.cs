@@ -3,12 +3,12 @@ namespace Okojo.RegExp.Experimental;
 internal static partial class ScratchRegExpMatcher
 {
     private readonly struct ReverseLookbehindContext(
-        ExperimentalCompiledProgram? compiledProgram,
+        ExperimentalCompiledProgram compiledProgram,
         ScratchRegExpProgram program,
         string input,
         int startLimit)
     {
-        public ExperimentalCompiledProgram? CompiledProgram { get; } = compiledProgram;
+        public ExperimentalCompiledProgram CompiledProgram { get; } = compiledProgram;
         public ScratchRegExpProgram Program { get; } = program;
         public string Input { get; } = input;
         public int StartLimit { get; } = startLimit;
@@ -19,7 +19,7 @@ internal static partial class ScratchRegExpMatcher
         }
     }
 
-    private static bool TryMatchLookbehindAssertion(ExperimentalCompiledProgram? compiledProgram,
+    private static bool TryMatchLookbehindAssertionForVm(ExperimentalCompiledProgram compiledProgram,
         ScratchRegExpProgram program, ScratchRegExpProgram.Node child,
         string input, int pos, RegExpRuntimeFlags flags, ScratchMatchState state, out int startIndex,
         int startLimit, bool nestedInQuantifierContext = false)
@@ -177,11 +177,8 @@ internal static partial class ScratchRegExpMatcher
         out int startIndex, bool nestedInQuantifierContext)
     {
         using var snapshotLease = state.RentClone(out var snapshot);
-        var matched = context.CompiledProgram is not null
-            ? TryMatchLookaheadAssertionForVm(context.CompiledProgram, lookahead.Child, context.Input, pos, flags,
-                snapshot)
-            : TryMatchNode(context.Program, lookahead.Child, context.Input, pos, flags, snapshot, out _,
-                nestedInQuantifierContext);
+        var matched = TryMatchLookaheadAssertionForVm(context.CompiledProgram, lookahead.Child, context.Input, pos, flags,
+            snapshot);
         return TryCompleteZeroWidthAssertion(lookahead.Positive, matched, pos, state, snapshot, out startIndex);
     }
 

@@ -196,7 +196,8 @@ internal static partial class ScratchRegExpMatcher
         if (captureState is not null)
             CopyVmCapturesToScratchState(captureState, state);
 
-        if (!TryMatchLookbehindAssertion(compiledProgram, program, child, input, pos, flags, state, out _, startLimit))
+        if (!TryMatchLookbehindAssertionForVm(compiledProgram, program, child, input, pos, flags, state, out _,
+                startLimit))
             return false;
 
         if (captureState is not null)

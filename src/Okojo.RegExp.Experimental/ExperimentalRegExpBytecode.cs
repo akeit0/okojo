@@ -379,7 +379,6 @@ internal static class ExperimentalRegExpVm
         string input, int startIndex, RegExpRuntimeFlags flags, ExperimentalRegExpCaptureState? captureState,
         int endLimit, ExperimentalRegExpLoopState? loopState, ref ExperimentalBacktrackStack stack, out int endIndex)
     {
-        var treeProgram = compiledProgram.TreeProgram;
         var currentPos = startIndex;
         var instructions = program.Instructions;
         var instructionIndex = 0;

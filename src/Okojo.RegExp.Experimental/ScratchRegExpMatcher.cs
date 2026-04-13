@@ -703,8 +703,8 @@ internal static partial class ScratchRegExpMatcher
     {
         using var snapshotLease = state.RentClone(out var snapshot);
         var lookbehindStartLimit = GetLookbehindStartLimit(lookbehind.Child, pos);
-        var matched = TryMatchLookbehindAssertion(null, program, lookbehind.Child, input, pos, flags, snapshot, out _,
-            lookbehindStartLimit, nestedInQuantifierContext);
+        var matched = TryMatchNodeBackward(program, lookbehind.Child, input, pos, flags, snapshot, out _,
+            nestedInQuantifierContext, lookbehindStartLimit);
         Trace($"lookbehind positive={lookbehind.Positive} pos={pos} matched={matched}");
         if (lookbehind.Positive ? matched : !matched)
         {
