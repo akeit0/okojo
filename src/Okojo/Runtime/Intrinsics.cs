@@ -172,6 +172,7 @@ public partial class Intrinsics
     internal JsPlainObject AsyncGeneratorFunctionPrototype { get; }
     internal JsArray ArrayPrototype { get; }
     internal JsHostFunction ArrayPrototypeValuesFunction { get; set; } = null!;
+    internal JsHostFunction StringFromCodePointFunction { get; set; } = null!;
     internal JsNumberObject NumberPrototype { get; }
     internal JsBooleanObject BooleanPrototype { get; }
     internal JsStringObject StringPrototype { get; }

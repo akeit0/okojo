@@ -97,6 +97,10 @@ internal static partial class ScratchRegExpMatcher
     private static bool ConsumeCharacterSetRun(ExperimentalRegExpCharacterSet characterSet, string input, int pos,
         RegExpRuntimeFlags flags, int maxCount, out int endPos, out int consumed)
     {
+        if (characterSet.SimpleClass is { } simpleClass &&
+            TryConsumeSpecialSimpleClassRun(simpleClass, input, pos, flags, maxCount, out endPos, out consumed))
+            return consumed != 0;
+
         var currentPos = pos;
         consumed = 0;
         while (consumed < maxCount &&
@@ -108,6 +112,74 @@ internal static partial class ScratchRegExpMatcher
 
         endPos = currentPos;
         return consumed != 0;
+    }
+
+    private static bool TryConsumeSpecialSimpleClassRun(ExperimentalRegExpSimpleClass simpleClass, string input, int pos,
+        RegExpRuntimeFlags flags, int maxCount, out int endPos, out int consumed)
+    {
+        if (simpleClass.Negated || simpleClass.Items.Length != 1)
+        {
+            endPos = pos;
+            consumed = 0;
+            return false;
+        }
+
+        switch (simpleClass.Items[0].Kind)
+        {
+            case ExperimentalRegExpSimpleClassItemKind.Space:
+                ConsumeWhitespaceRun(input, pos, maxCount, out endPos, out consumed);
+                return true;
+            case ExperimentalRegExpSimpleClassItemKind.NotSpace:
+                ConsumeNonWhitespaceRun(input, pos, flags.Unicode, maxCount, out endPos, out consumed);
+                return true;
+            default:
+                endPos = pos;
+                consumed = 0;
+                return false;
+        }
+    }
+
+    private static void ConsumeWhitespaceRun(string input, int pos, int maxCount, out int endPos, out int consumed)
+    {
+        var currentPos = pos;
+        consumed = 0;
+        while (consumed < maxCount &&
+               (uint)currentPos < (uint)input.Length &&
+               IsSpace(input[currentPos]))
+        {
+            consumed++;
+            currentPos++;
+        }
+
+        endPos = currentPos;
+    }
+
+    private static void ConsumeNonWhitespaceRun(string input, int pos, bool unicode, int maxCount, out int endPos,
+        out int consumed)
+    {
+        var currentPos = pos;
+        consumed = 0;
+        while (consumed < maxCount && (uint)currentPos < (uint)input.Length)
+        {
+            if (IsSpace(input[currentPos]))
+                break;
+
+            consumed++;
+            currentPos = AdvanceWholeInputSimpleRunCodePoint(input, currentPos, unicode);
+        }
+
+        endPos = currentPos;
+    }
+
+    private static int AdvanceWholeInputSimpleRunCodePoint(string input, int pos, bool unicode)
+    {
+        if (unicode &&
+            pos + 1 < input.Length &&
+            char.IsHighSurrogate(input[pos]) &&
+            char.IsLowSurrogate(input[pos + 1]))
+            return pos + 2;
+
+        return pos + 1;
     }
 
     private static RegExpMatchResult? ExecLinearBytecode(ExperimentalCompiledProgram compiledProgram, string input,

@@ -105,6 +105,12 @@ internal static class JsRegExpRuntime
 
     internal static JsValue Exec(JsRealm realm, JsRegExpObject rx, string input)
     {
+        var match = ExecMatchResult(realm, rx, input);
+        return match is null ? JsValue.Null : BuildExecResult(realm, rx, match, input);
+    }
+
+    internal static RegExpMatchResult? ExecMatchResult(JsRealm realm, JsRegExpObject rx, string input)
+    {
         var lastIndex = GetLastIndex(realm, rx);
         var global = rx.Global;
         var sticky = rx.Sticky;
@@ -116,7 +122,7 @@ internal static class JsRegExpRuntime
             if (useLastIndex && lastIndex > input.Length)
             {
                 SetLastIndex(realm, rx, 0);
-                return JsValue.Null;
+                return null;
             }
 
             var engineMatch = rx.Engine.Exec(rx.CompiledPattern, input, startIndex);
@@ -124,19 +130,19 @@ internal static class JsRegExpRuntime
             {
                 if (useLastIndex)
                     SetLastIndex(realm, rx, 0);
-                return JsValue.Null;
+                return null;
             }
 
             if (useLastIndex)
                 SetLastIndex(realm, rx, engineMatch.Index + engineMatch.Length);
 
-            return BuildExecResult(realm, rx, engineMatch, input);
+            return engineMatch;
         }
 
         if (useLastIndex && lastIndex > input.Length)
         {
             SetLastIndex(realm, rx, 0);
-            return JsValue.Null;
+            return null;
         }
 
         var match = BuildRegexForExecution(rx).Match(input, startIndex);
@@ -145,76 +151,13 @@ internal static class JsRegExpRuntime
         {
             if (useLastIndex)
                 SetLastIndex(realm, rx, 0);
-            return JsValue.Null;
+            return null;
         }
 
         if (useLastIndex)
             SetLastIndex(realm, rx, match.Index + match.Length);
 
-        var array = realm.CreateArrayObject();
-        for (var i = 0; i < match.Groups.Count; i++)
-        {
-            var group = match.Groups[i];
-            FreshArrayOperations.DefineElement(array, (uint)i, i == 0 || group.Success
-                ? JsValue.FromString(group.Value)
-                : JsValue.Undefined);
-        }
-
-        var groupsValue = JsValue.Undefined;
-        if (rx.NamedGroupNames.Length != 0)
-        {
-            JsPlainObject groups = new(realm, false) { Prototype = null };
-            for (var i = 0; i < rx.NamedGroupNames.Length; i++)
-            {
-                var groupName = rx.NamedGroupNames[i];
-                var group = match.Groups[groupName];
-                groups.DefineDataProperty(groupName,
-                    group.Success ? JsValue.FromString(group.Value) : JsValue.Undefined,
-                    JsShapePropertyFlags.Open);
-            }
-
-            groupsValue = JsValue.FromObject(groups);
-        }
-
-        array.DefineDataProperty("groups", groupsValue, JsShapePropertyFlags.Open);
-        if (rx.CompiledPattern.ParsedFlags.HasIndices)
-        {
-            var ranges = new RegExpMatchRange?[match.Groups.Count];
-            for (var i = 0; i < match.Groups.Count; i++)
-            {
-                var group = match.Groups[i];
-                if (!group.Success && i != 0)
-                    continue;
-                ranges[i] = new RegExpMatchRange(group.Index, group.Index + group.Length);
-            }
-
-            var indices = CreateMatchIndicesArray(realm, ranges);
-            var indexGroupsValue = JsValue.Undefined;
-
-            if (rx.NamedGroupNames.Length != 0)
-            {
-                JsPlainObject groups = new(realm, false) { Prototype = null };
-                for (var i = 0; i < rx.NamedGroupNames.Length; i++)
-                {
-                    var groupName = rx.NamedGroupNames[i];
-                    var group = match.Groups[groupName];
-                    groups.DefineDataProperty(groupName,
-                        group.Success
-                            ? CreateMatchIndexPairArray(realm, new(group.Index, group.Index + group.Length))
-                            : JsValue.Undefined,
-                        JsShapePropertyFlags.Open);
-                }
-
-                indexGroupsValue = JsValue.FromObject(groups);
-            }
-
-            indices.DefineDataProperty("groups", indexGroupsValue, JsShapePropertyFlags.Open);
-            array.DefineDataProperty("indices", JsValue.FromObject(indices), JsShapePropertyFlags.Open);
-        }
-
-        array.DefineDataProperty("index", JsValue.FromInt32(match.Index), JsShapePropertyFlags.Open);
-        array.DefineDataProperty("input", JsValue.FromString(input), JsShapePropertyFlags.Open);
-        return array;
+        return CreateMatchResult(rx, match);
     }
 
     private static JsValue BuildExecResult(JsRealm realm, JsRegExpObject rx, RegExpMatchResult match, string input)
@@ -282,6 +225,46 @@ internal static class JsRegExpRuntime
         array.DefineDataProperty("index", JsValue.FromInt32(match.Index), JsShapePropertyFlags.Open);
         array.DefineDataProperty("input", JsValue.FromString(input), JsShapePropertyFlags.Open);
         return array;
+    }
+
+    private static RegExpMatchResult CreateMatchResult(JsRegExpObject rx, Match match)
+    {
+        var groups = new string?[match.Groups.Count];
+        RegExpMatchRange?[]? groupIndices = rx.CompiledPattern.ParsedFlags.HasIndices
+            ? new RegExpMatchRange?[match.Groups.Count]
+            : null;
+        for (var i = 0; i < match.Groups.Count; i++)
+        {
+            var group = match.Groups[i];
+            if (i == 0 || group.Success)
+                groups[i] = group.Value;
+
+            if (groupIndices is not null && (i == 0 || group.Success))
+                groupIndices[i] = new(group.Index, group.Index + group.Length);
+        }
+
+        Dictionary<string, string?>? namedGroups = null;
+        Dictionary<string, RegExpMatchRange?>? namedGroupIndices = null;
+        if (rx.NamedGroupNames.Length != 0)
+        {
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var groupName in rx.NamedGroupNames)
+            {
+                if (!seen.Add(groupName))
+                    continue;
+
+                var group = match.Groups[groupName];
+                (namedGroups ??= new(StringComparer.Ordinal))[groupName] = group.Success ? group.Value : null;
+                if (groupIndices is not null)
+                {
+                    (namedGroupIndices ??= new(StringComparer.Ordinal))[groupName] = group.Success
+                        ? new(group.Index, group.Index + group.Length)
+                        : null;
+                }
+            }
+        }
+
+        return new(match.Index, match.Length, groups, namedGroups, groupIndices, namedGroupIndices);
     }
 
     private static JsArray CreateMatchIndicesArray(JsRealm realm, RegExpMatchRange?[] ranges)

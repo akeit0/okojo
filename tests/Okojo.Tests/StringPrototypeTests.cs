@@ -615,6 +615,27 @@ public class StringPrototypeTests
     }
 
     [Test]
+    public void String_Replace_RegExp_BuiltinExecFastPath_Preserves_Exec_Get_Observability()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        realm.Eval("""
+                   let gets = 0;
+                   const re = /./g;
+                   Object.defineProperty(re, "exec", {
+                     get() {
+                       gets++;
+                       return RegExp.prototype.exec;
+                     }
+                   });
+                   [
+                     "ab".replace(re, "x"),
+                     gets
+                   ].join("|");
+                   """);
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("xx|3"));
+    }
+
+    [Test]
     public void String_Trim_On_RegExp_Object_Uses_RegExp_Source_Not_Slashed_Pattern_Stringification()
     {
         var realm = JsRuntime.Create().DefaultRealm;
