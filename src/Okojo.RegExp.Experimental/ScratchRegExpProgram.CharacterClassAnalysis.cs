@@ -33,8 +33,8 @@ internal sealed partial class ScratchRegExpProgram
                 ClassItemKind.Word => new(ExperimentalRegExpSimpleClassItemKind.Word),
                 ClassItemKind.NotWord => new(ExperimentalRegExpSimpleClassItemKind.NotWord),
                 ClassItemKind.PropertyEscape => new(ExperimentalRegExpSimpleClassItemKind.PropertyEscape,
-                    PropertyKind: cls.Items[i].PropertyKind, PropertyNegated: cls.Items[i].PropertyNegated,
-                    PropertyCategories: cls.Items[i].PropertyCategories, PropertyValue: cls.Items[i].PropertyValue),
+                    PropertyEscape: new ExperimentalRegExpPropertyEscape(cls.Items[i].PropertyKind,
+                        cls.Items[i].PropertyNegated, cls.Items[i].PropertyCategories, cls.Items[i].PropertyValue)),
                 _ => throw new InvalidOperationException($"Unsupported simple class item: {cls.Items[i].Kind}")
             };
 

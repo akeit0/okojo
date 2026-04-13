@@ -1974,7 +1974,7 @@ internal static class ScratchRegExpMatcher
     }
 
     internal static bool TryMatchPropertyEscapeForVm(string input, int pos,
-        ScratchRegExpProgram.PropertyEscapeNode propertyEscape, RegExpRuntimeFlags flags, out int nextPos)
+        ExperimentalRegExpPropertyEscape propertyEscape, RegExpRuntimeFlags flags, out int nextPos)
     {
         return TryMatchPropertyEscapeForward(input, pos, propertyEscape, flags, out nextPos);
     }
@@ -2492,8 +2492,8 @@ internal static class ScratchRegExpMatcher
             ExperimentalRegExpSimpleClassItemKind.Literal => CodePointEquals(codePoint, item.CodePoint, flags.IgnoreCase),
             ExperimentalRegExpSimpleClassItemKind.Range => CodePointInRange(codePoint, item.RangeStart, item.RangeEnd,
                 flags.IgnoreCase),
-            ExperimentalRegExpSimpleClassItemKind.PropertyEscape => PropertyEscapeMatches(item.PropertyKind,
-                item.PropertyNegated, item.PropertyCategories, item.PropertyValue, codePoint, flags),
+            ExperimentalRegExpSimpleClassItemKind.PropertyEscape => PropertyEscapeMatches(item.PropertyEscape, codePoint,
+                flags),
             _ => false
         };
     }
@@ -2836,7 +2836,7 @@ internal static class ScratchRegExpMatcher
     }
 
     private static bool TryMatchPropertyEscapeForward(string input, int pos,
-        ScratchRegExpProgram.PropertyEscapeNode propertyEscape, RegExpRuntimeFlags flags, out int endIndex)
+        ExperimentalRegExpPropertyEscape propertyEscape, RegExpRuntimeFlags flags, out int endIndex)
     {
         if (propertyEscape.Kind == ScratchRegExpProgram.PropertyEscapeKind.StringProperty &&
             propertyEscape.PropertyValue is not null)
@@ -2854,8 +2854,16 @@ internal static class ScratchRegExpMatcher
         return false;
     }
 
+    private static bool TryMatchPropertyEscapeForward(string input, int pos,
+        ScratchRegExpProgram.PropertyEscapeNode propertyEscape, RegExpRuntimeFlags flags, out int endIndex)
+    {
+        return TryMatchPropertyEscapeForward(input, pos,
+            new ExperimentalRegExpPropertyEscape(propertyEscape.Kind, propertyEscape.Negated, propertyEscape.Categories,
+                propertyEscape.PropertyValue), flags, out endIndex);
+    }
+
     private static bool TryMatchPropertyEscapeBackward(string input, int pos,
-        ScratchRegExpProgram.PropertyEscapeNode propertyEscape, RegExpRuntimeFlags flags, out int startIndex)
+        ExperimentalRegExpPropertyEscape propertyEscape, RegExpRuntimeFlags flags, out int startIndex)
     {
         if (propertyEscape.Kind == ScratchRegExpProgram.PropertyEscapeKind.StringProperty &&
             propertyEscape.PropertyValue is not null)
@@ -2871,6 +2879,14 @@ internal static class ScratchRegExpMatcher
 
         startIndex = default;
         return false;
+    }
+
+    private static bool TryMatchPropertyEscapeBackward(string input, int pos,
+        ScratchRegExpProgram.PropertyEscapeNode propertyEscape, RegExpRuntimeFlags flags, out int startIndex)
+    {
+        return TryMatchPropertyEscapeBackward(input, pos,
+            new ExperimentalRegExpPropertyEscape(propertyEscape.Kind, propertyEscape.Negated, propertyEscape.Categories,
+                propertyEscape.PropertyValue), flags, out startIndex);
     }
 
     private static bool MatchesStringAt(string input, int pos, string candidate)
@@ -2900,6 +2916,13 @@ internal static class ScratchRegExpMatcher
     }
 
     private static bool PropertyEscapeMatches(ScratchRegExpProgram.PropertyEscapeNode propertyEscape, int codePoint,
+        RegExpRuntimeFlags flags)
+    {
+        return PropertyEscapeMatches(propertyEscape.Kind, propertyEscape.Negated, propertyEscape.Categories,
+            propertyEscape.PropertyValue, codePoint, flags);
+    }
+
+    private static bool PropertyEscapeMatches(ExperimentalRegExpPropertyEscape propertyEscape, int codePoint,
         RegExpRuntimeFlags flags)
     {
         return PropertyEscapeMatches(propertyEscape.Kind, propertyEscape.Negated, propertyEscape.Categories,

@@ -61,7 +61,7 @@ internal sealed class ExperimentalRegExpBytecodeProgram
     public int LoopSlotCount { get; init; }
     public string[] LiteralTexts { get; init; } = [];
     public ExperimentalRegExpCharacterSet[] CharacterSets { get; init; } = [];
-    public ScratchRegExpProgram.PropertyEscapeNode[] PropertyEscapes { get; init; } = [];
+    public ExperimentalRegExpPropertyEscape[] PropertyEscapes { get; init; } = [];
 }
 
 internal static class ExperimentalRegExpCodeGenerator
@@ -105,7 +105,7 @@ internal static class ExperimentalRegExpCodeGenerator
             LoopSlotCount = irProgram.LoopSlotCount,
             LiteralTexts = irProgram.LiteralTexts,
             CharacterSets = characterSets,
-            PropertyEscapes = irProgram.PropertyEscapes
+            PropertyEscapes = BuildPropertyEscapes(irProgram.PropertyEscapes)
         };
     }
 
@@ -152,6 +152,19 @@ internal static class ExperimentalRegExpCodeGenerator
         var lowered = new ExperimentalRegExpBytecodeProgram[lookaheadPrograms.Length];
         for (var i = 0; i < lookaheadPrograms.Length; i++)
             lowered[i] = TryGenerate(lookaheadPrograms[i])!;
+        return lowered;
+    }
+
+    private static ExperimentalRegExpPropertyEscape[] BuildPropertyEscapes(
+        ScratchRegExpProgram.PropertyEscapeNode[] propertyEscapes)
+    {
+        if (propertyEscapes.Length == 0)
+            return [];
+
+        var lowered = new ExperimentalRegExpPropertyEscape[propertyEscapes.Length];
+        for (var i = 0; i < propertyEscapes.Length; i++)
+            lowered[i] = new(propertyEscapes[i].Kind, propertyEscapes[i].Negated, propertyEscapes[i].Categories,
+                propertyEscapes[i].PropertyValue);
         return lowered;
     }
 

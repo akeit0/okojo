@@ -5,6 +5,12 @@ internal readonly record struct ExperimentalRegExpAsciiBitmap(ulong Low, ulong H
     public bool HasValue => Low != 0 || High != 0;
 }
 
+internal readonly record struct ExperimentalRegExpPropertyEscape(
+    ScratchRegExpProgram.PropertyEscapeKind Kind,
+    bool Negated = false,
+    ScratchRegExpProgram.GeneralCategoryMask Categories = ScratchRegExpProgram.GeneralCategoryMask.None,
+    string? PropertyValue = null);
+
 internal enum ExperimentalRegExpSimpleClassItemKind : byte
 {
     Literal,
@@ -23,10 +29,7 @@ internal readonly record struct ExperimentalRegExpSimpleClassItem(
     int CodePoint = 0,
     int RangeStart = 0,
     int RangeEnd = 0,
-    ScratchRegExpProgram.PropertyEscapeKind PropertyKind = default,
-    bool PropertyNegated = false,
-    ScratchRegExpProgram.GeneralCategoryMask PropertyCategories = ScratchRegExpProgram.GeneralCategoryMask.None,
-    string? PropertyValue = null);
+    ExperimentalRegExpPropertyEscape PropertyEscape = default);
 
 internal sealed class ExperimentalRegExpSimpleClass
 {
