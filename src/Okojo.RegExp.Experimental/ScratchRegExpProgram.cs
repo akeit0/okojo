@@ -1,3 +1,5 @@
+using Okojo.Internals;
+using Okojo.Parsing;
 using System.Globalization;
 using System.Text;
 
@@ -93,16 +95,17 @@ internal sealed partial class ScratchRegExpProgram
 
     public static string CanonicalizeFlags(in RegExpRuntimeFlags flags)
     {
-        var sb = new StringBuilder(8);
-        if (flags.HasIndices) sb.Append('d');
-        if (flags.Global) sb.Append('g');
-        if (flags.IgnoreCase) sb.Append('i');
-        if (flags.Multiline) sb.Append('m');
-        if (flags.DotAll) sb.Append('s');
-        if (flags.UnicodeSets) sb.Append('v');
-        else if (flags.Unicode) sb.Append('u');
-        if (flags.Sticky) sb.Append('y');
-        return sb.ToString();
+        Span<char> initialBuffer = stackalloc char[8];
+        using var builder = new PooledCharBuilder(initialBuffer);
+        if (flags.HasIndices) builder.Append('d');
+        if (flags.Global) builder.Append('g');
+        if (flags.IgnoreCase) builder.Append('i');
+        if (flags.Multiline) builder.Append('m');
+        if (flags.DotAll) builder.Append('s');
+        if (flags.UnicodeSets) builder.Append('v');
+        else if (flags.Unicode) builder.Append('u');
+        if (flags.Sticky) builder.Append('y');
+        return builder.ToString();
     }
 
     private static void ThrowInvalidFlags()
@@ -1410,37 +1413,45 @@ internal sealed partial class ScratchRegExpProgram
         {
             pos++;
             using var strings = new ScratchPooledList<string>();
-            var current = new StringBuilder();
-            while (pos < pattern.Length)
+            Span<char> initialBuffer = stackalloc char[32];
+            var current = new PooledCharBuilder(initialBuffer);
+            try
             {
-                if (Peek('}'))
+                while (pos < pattern.Length)
                 {
-                    if (current.Length == 0)
-                        throw new ArgumentException("Invalid regular expression pattern");
+                    if (Peek('}'))
+                    {
+                        if (current.Length == 0)
+                            throw new ArgumentException("Invalid regular expression pattern");
 
-                    strings.Add(current.ToString());
-                    pos++;
-                    return new(ClassItemKind.StringLiteral, Strings: strings.ToArray());
+                        strings.Add(current.ToString());
+                        pos++;
+                        return new(ClassItemKind.StringLiteral, Strings: strings.ToArray());
+                    }
+
+                    if (Peek('|'))
+                    {
+                        if (current.Length == 0)
+                            throw new ArgumentException("Invalid regular expression pattern");
+
+                        strings.Add(current.ToString());
+                        current.Clear();
+                        pos++;
+                        continue;
+                    }
+
+                    AppendClassStringCharacter(ref current);
                 }
-
-                if (Peek('|'))
-                {
-                    if (current.Length == 0)
-                        throw new ArgumentException("Invalid regular expression pattern");
-
-                    strings.Add(current.ToString());
-                    current.Clear();
-                    pos++;
-                    continue;
-                }
-
-                AppendClassStringCharacter(current);
+            }
+            finally
+            {
+                current.Dispose();
             }
 
             throw new ArgumentException("Invalid regular expression pattern");
         }
 
-        private void AppendClassStringCharacter(StringBuilder builder)
+        private void AppendClassStringCharacter(ref PooledCharBuilder builder)
         {
             if (pos >= pattern.Length)
                 throw new ArgumentException("Invalid regular expression pattern");
@@ -1459,14 +1470,14 @@ internal sealed partial class ScratchRegExpProgram
             switch (next)
             {
                 case 'x':
-                    AppendCodePoint(builder, ParseFixedHexEscape(2));
+                    AppendCodePoint(ref builder, ParseFixedHexEscape(2));
                     return;
                 case 'u' when Peek('{'):
                     pos++;
-                    AppendCodePoint(builder, ParseBracedUnicodeScalar());
+                    AppendCodePoint(ref builder, ParseBracedUnicodeScalar());
                     return;
                 case 'u':
-                    AppendCodePoint(builder, ParseFixedHexEscape(4));
+                    AppendCodePoint(ref builder, ParseFixedHexEscape(4));
                     return;
                 default:
                     builder.Append(next);
@@ -1512,15 +1523,9 @@ internal sealed partial class ScratchRegExpProgram
             return scalar;
         }
 
-        private static void AppendCodePoint(StringBuilder builder, int codePoint)
+        private static void AppendCodePoint(ref PooledCharBuilder builder, int codePoint)
         {
-            if (codePoint <= 0xFFFF)
-            {
-                builder.Append((char)codePoint);
-                return;
-            }
-
-            builder.Append(char.ConvertFromUtf32(codePoint));
+            builder.AppendRune(codePoint);
         }
 
         private ClassItem ParseClassUnicodeEscape()
@@ -1651,30 +1656,38 @@ internal sealed partial class ScratchRegExpProgram
 
         private string ParseGroupName()
         {
-            var builder = new StringBuilder();
-            while (pos < pattern.Length && pattern[pos] != '>')
+            Span<char> initialBuffer = stackalloc char[32];
+            var builder = new PooledCharBuilder(initialBuffer);
+            try
             {
-                var ch = pattern[pos++];
-                if (ch != '\\')
+                while (pos < pattern.Length && pattern[pos] != '>')
                 {
-                    builder.Append(ch);
-                    continue;
+                    var ch = pattern[pos++];
+                    if (ch != '\\')
+                    {
+                        builder.Append(ch);
+                        continue;
+                    }
+
+                    if (pos >= pattern.Length || pattern[pos++] != 'u')
+                        throw new ArgumentException("Invalid capture group name");
+
+                    AppendGroupNameUnicodeEscape(ref builder);
                 }
 
-                if (pos >= pattern.Length || pattern[pos++] != 'u')
+                if (pos >= pattern.Length || builder.Length == 0)
                     throw new ArgumentException("Invalid capture group name");
 
-                AppendGroupNameUnicodeEscape(builder);
+                pos++;
+                return builder.ToString();
             }
-
-            if (pos >= pattern.Length || builder.Length == 0)
-                throw new ArgumentException("Invalid capture group name");
-
-            pos++;
-            return builder.ToString();
+            finally
+            {
+                builder.Dispose();
+            }
         }
 
-        private void AppendGroupNameUnicodeEscape(StringBuilder builder)
+        private void AppendGroupNameUnicodeEscape(ref PooledCharBuilder builder)
         {
             if (Peek('{'))
             {
@@ -1694,7 +1707,7 @@ internal sealed partial class ScratchRegExpProgram
                     throw new ArgumentException("Invalid capture group name");
 
                 pos++;
-                builder.Append(char.ConvertFromUtf32(scalar));
+                builder.AppendRune(scalar);
                 return;
             }
 
@@ -1887,11 +1900,17 @@ internal sealed partial class ScratchRegExpProgram
 
         private static int[] GetRequiredLiteralPrefix(Node node)
         {
-            var prefix = new List<int>(4);
-            AppendRequiredLiteralPrefix(node, prefix);
-            if (prefix.Count > MaxRequiredLiteralPrefixLength)
-                prefix.RemoveRange(MaxRequiredLiteralPrefixLength, prefix.Count - MaxRequiredLiteralPrefixLength);
-            return prefix.ToArray();
+            Span<int> initialBuffer = stackalloc int[MaxRequiredLiteralPrefixLength];
+            var prefix = new PooledArrayBuilder<int>(initialBuffer);
+            try
+            {
+                AppendRequiredLiteralPrefix(node, ref prefix);
+                return prefix.ToArray();
+            }
+            finally
+            {
+                prefix.Dispose();
+            }
         }
 
         private static bool TryBuildSearchPlan(Node node, RegExpRuntimeFlags flags, out SearchPlan searchPlan)
@@ -2183,9 +2202,9 @@ internal sealed partial class ScratchRegExpProgram
                 null);
         }
 
-        private static bool AppendRequiredLiteralPrefix(Node node, List<int> prefix)
+        private static bool AppendRequiredLiteralPrefix(Node node, ref PooledArrayBuilder<int> prefix)
         {
-            if (prefix.Count >= MaxRequiredLiteralPrefixLength)
+            if (prefix.Length >= MaxRequiredLiteralPrefixLength)
                 return false;
 
             switch (node)
@@ -2197,9 +2216,9 @@ internal sealed partial class ScratchRegExpProgram
                 case LookbehindNode:
                     return true;
                 case SequenceNode sequence:
-                    for (var i = 0; i < sequence.Terms.Length && prefix.Count < MaxRequiredLiteralPrefixLength; i++)
+                    for (var i = 0; i < sequence.Terms.Length && prefix.Length < MaxRequiredLiteralPrefixLength; i++)
                     {
-                        if (!AppendRequiredLiteralPrefix(sequence.Terms[i], prefix))
+                        if (!AppendRequiredLiteralPrefix(sequence.Terms[i], ref prefix))
                             return false;
                     }
 
@@ -2209,8 +2228,8 @@ internal sealed partial class ScratchRegExpProgram
                     if (quantifier.Min == 0 || !TryGetExactLiteral(quantifier.Child, out var literalCodePoints))
                         return false;
 
-                    for (var repeat = 0; repeat < quantifier.Min && prefix.Count < MaxRequiredLiteralPrefixLength; repeat++)
-                    for (var i = 0; i < literalCodePoints.Length && prefix.Count < MaxRequiredLiteralPrefixLength; i++)
+                    for (var repeat = 0; repeat < quantifier.Min && prefix.Length < MaxRequiredLiteralPrefixLength; repeat++)
+                    for (var i = 0; i < literalCodePoints.Length && prefix.Length < MaxRequiredLiteralPrefixLength; i++)
                         prefix.Add(literalCodePoints[i]);
 
                     return quantifier.Max == quantifier.Min;
@@ -2219,7 +2238,7 @@ internal sealed partial class ScratchRegExpProgram
                     if (!TryGetExactLiteral(node, out var exactLiteral))
                         return false;
 
-                    for (var i = 0; i < exactLiteral.Length && prefix.Count < MaxRequiredLiteralPrefixLength; i++)
+                    for (var i = 0; i < exactLiteral.Length && prefix.Length < MaxRequiredLiteralPrefixLength; i++)
                         prefix.Add(exactLiteral[i]);
                     return true;
             }
@@ -2245,7 +2264,8 @@ internal sealed partial class ScratchRegExpProgram
                     return TryGetExactLiteral(scoped.Child, out codePoints);
                 case SequenceNode sequence:
                 {
-                    var builder = new List<int>(sequence.Terms.Length);
+                    Span<int> initialBuffer = stackalloc int[Math.Min(Math.Max(sequence.Terms.Length, 1), 32)];
+                    using var builder = new PooledArrayBuilder<int>(initialBuffer);
                     for (var i = 0; i < sequence.Terms.Length; i++)
                     {
                         if (!TryGetExactLiteral(sequence.Terms[i], out var termLiteral))
@@ -2254,7 +2274,8 @@ internal sealed partial class ScratchRegExpProgram
                             return false;
                         }
 
-                        builder.AddRange(termLiteral);
+                        for (var j = 0; j < termLiteral.Length; j++)
+                            builder.Add(termLiteral[j]);
                     }
 
                     codePoints = builder.ToArray();
@@ -2268,11 +2289,11 @@ internal sealed partial class ScratchRegExpProgram
                         return false;
                     }
 
-                    var builder = new List<int>(Math.Min(MaxRequiredLiteralPrefixLength, childLiteral.Length * quantifier.Min));
-                    for (var repeat = 0; repeat < quantifier.Min && builder.Count < MaxRequiredLiteralPrefixLength; repeat++)
-                        builder.AddRange(childLiteral);
-                    if (builder.Count > MaxRequiredLiteralPrefixLength)
-                        builder.RemoveRange(MaxRequiredLiteralPrefixLength, builder.Count - MaxRequiredLiteralPrefixLength);
+                    Span<int> initialBuffer = stackalloc int[MaxRequiredLiteralPrefixLength];
+                    using var builder = new PooledArrayBuilder<int>(initialBuffer);
+                    for (var repeat = 0; repeat < quantifier.Min && builder.Length < MaxRequiredLiteralPrefixLength; repeat++)
+                    for (var i = 0; i < childLiteral.Length && builder.Length < MaxRequiredLiteralPrefixLength; i++)
+                        builder.Add(childLiteral[i]);
                     codePoints = builder.ToArray();
                     return true;
                 }
@@ -2308,7 +2329,8 @@ internal sealed partial class ScratchRegExpProgram
                 return true;
             }
 
-            var builder = new StringBuilder(codePoints.Length);
+            Span<char> initialBuffer = stackalloc char[Math.Min(Math.Max(codePoints.Length * 2, 8), 128)];
+            using var builder = new PooledCharBuilder(initialBuffer);
             for (var i = 0; i < codePoints.Length; i++)
             {
                 var codePoint = codePoints[i];
@@ -2318,7 +2340,7 @@ internal sealed partial class ScratchRegExpProgram
                     return false;
                 }
 
-                builder.Append(rune.ToString());
+                builder.AppendRune(rune);
             }
 
             text = builder.ToString();

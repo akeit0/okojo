@@ -1,3 +1,4 @@
+using Okojo.Internals;
 using System.Buffers;
 
 namespace Okojo.RegExp.Experimental;
@@ -75,44 +76,54 @@ internal static class ExperimentalRegExpCodeGenerator
 
         BuildCharacterSets(irProgram, out var characterSets, out var classOperandMap, out var literalSetOperandMap);
         var source = irProgram.Instructions;
-        var instructions = new List<ExperimentalRegExpInstruction>(source.Length);
-        for (var i = 0; i < source.Length; i++)
+        Span<ExperimentalRegExpInstruction> initialInstructionBuffer =
+            stackalloc ExperimentalRegExpInstruction[Math.Min(Math.Max(source.Length, 1), 64)];
+        var instructions = new PooledArrayBuilder<ExperimentalRegExpInstruction>(initialInstructionBuffer);
+        try
         {
-            if (TryEmitTailScan(source, classOperandMap, characterSets, i, instructions, out var consumedInstructions))
+            for (var i = 0; i < source.Length; i++)
             {
-                i += consumedInstructions - 1;
-                continue;
+                if (TryEmitTailScan(source, classOperandMap, characterSets, i, ref instructions,
+                        out var consumedInstructions))
+                {
+                    i += consumedInstructions - 1;
+                    continue;
+                }
+
+                var instruction = source[i];
+                if (instruction.OpCode == ExperimentalRegExpIrOpcode.Class &&
+                    characterSets[classOperandMap[instruction.Operand]].AsciiBitmap.HasValue)
+                {
+                    instructions.Add(new(ExperimentalRegExpOpcode.ClassAscii, classOperandMap[instruction.Operand],
+                        instruction.Operand2));
+                    continue;
+                }
+
+                instructions.Add(MapInstruction(instruction, classOperandMap, literalSetOperandMap));
             }
 
-            var instruction = source[i];
-            if (instruction.OpCode == ExperimentalRegExpIrOpcode.Class &&
-                characterSets[classOperandMap[instruction.Operand]].AsciiBitmap.HasValue)
+            var lookbehindPrograms = LowerLookbehindPrograms(irProgram.LookbehindNodes, irProgram.LookbehindFlags,
+                out var lookbehindMinMatchLengths);
+            return new()
             {
-                instructions.Add(new(ExperimentalRegExpOpcode.ClassAscii, classOperandMap[instruction.Operand],
-                    instruction.Operand2));
-                continue;
-            }
-
-            instructions.Add(MapInstruction(instruction, classOperandMap, literalSetOperandMap));
+                Instructions = instructions.ToArray(),
+                CaptureClearSets = irProgram.CaptureClearSets,
+                NamedBackReferenceCaptureSets = irProgram.NamedBackReferenceCaptureSets,
+                LookaheadPrograms = LowerLookaheadPrograms(irProgram.LookaheadPrograms),
+                LookbehindPrograms = lookbehindPrograms,
+                LookbehindNodes = irProgram.LookbehindNodes,
+                LookbehindFlags = irProgram.LookbehindFlags,
+                LookbehindMinMatchLengths = lookbehindMinMatchLengths,
+                LoopSlotCount = irProgram.LoopSlotCount,
+                LiteralTexts = irProgram.LiteralTexts,
+                CharacterSets = characterSets,
+                PropertyEscapes = BuildPropertyEscapes(irProgram.PropertyEscapes)
+            };
         }
-
-        var lookbehindPrograms = LowerLookbehindPrograms(irProgram.LookbehindNodes, irProgram.LookbehindFlags,
-            out var lookbehindMinMatchLengths);
-        return new()
+        finally
         {
-            Instructions = instructions.ToArray(),
-            CaptureClearSets = irProgram.CaptureClearSets,
-            NamedBackReferenceCaptureSets = irProgram.NamedBackReferenceCaptureSets,
-            LookaheadPrograms = LowerLookaheadPrograms(irProgram.LookaheadPrograms),
-            LookbehindPrograms = lookbehindPrograms,
-            LookbehindNodes = irProgram.LookbehindNodes,
-            LookbehindFlags = irProgram.LookbehindFlags,
-            LookbehindMinMatchLengths = lookbehindMinMatchLengths,
-            LoopSlotCount = irProgram.LoopSlotCount,
-            LiteralTexts = irProgram.LiteralTexts,
-            CharacterSets = characterSets,
-            PropertyEscapes = BuildPropertyEscapes(irProgram.PropertyEscapes)
-        };
+            instructions.Dispose();
+        }
     }
 
     private static void BuildCharacterSets(ExperimentalRegExpIrProgram irProgram,
@@ -210,7 +221,8 @@ internal static class ExperimentalRegExpCodeGenerator
     }
 
     private static bool TryEmitTailScan(ExperimentalRegExpIrInstruction[] source, int[] classOperandMap,
-        ExperimentalRegExpCharacterSet[] characterSets, int index, List<ExperimentalRegExpInstruction> instructions,
+        ExperimentalRegExpCharacterSet[] characterSets, int index,
+        ref PooledArrayBuilder<ExperimentalRegExpInstruction> instructions,
         out int consumedInstructions)
     {
         consumedInstructions = 0;

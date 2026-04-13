@@ -1,3 +1,4 @@
+using Okojo.Parsing;
 using System.Text;
 
 namespace Okojo.RegExp.Experimental;
@@ -537,7 +538,8 @@ internal static class ExperimentalRegExpIrGenerator
 
     private static bool TryBuildLiteralText(ScratchRegExpProgram.Node[] terms, int start, int end, out string text)
     {
-        var builder = new StringBuilder();
+        Span<char> initialBuffer = stackalloc char[Math.Min(Math.Max((end - start) * 2, 8), 128)];
+        using var builder = new PooledCharBuilder(initialBuffer);
         for (var i = start; i < end; i++)
         {
             if (terms[i] is not ScratchRegExpProgram.LiteralNode literal ||
@@ -547,7 +549,7 @@ internal static class ExperimentalRegExpIrGenerator
                 return false;
             }
 
-            builder.Append(rune.ToString());
+            builder.AppendRune(rune);
         }
 
         text = builder.ToString();
