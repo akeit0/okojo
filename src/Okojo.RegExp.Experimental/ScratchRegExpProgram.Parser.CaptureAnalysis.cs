@@ -116,15 +116,15 @@ internal sealed partial class ScratchRegExpProgram
             }
         }
 
-        private static int[] MaterializeSortedDistinct(ReadOnlySpan<int> values)
+        private static int[] MaterializeSortedDistinct(Span<int> values)
         {
             if (values.Length == 0)
                 return Array.Empty<int>();
             if (values.Length == 1)
                 return [values[0]];
 
-            var sortedValues = values.ToArray();
-            Array.Sort(sortedValues);
+            values.Sort();
+            var sortedValues = values;
 
             var uniqueCount = 1;
             for (var i = 1; i < sortedValues.Length; i++)
@@ -136,11 +136,9 @@ internal sealed partial class ScratchRegExpProgram
             }
 
             if (uniqueCount == sortedValues.Length)
-                return sortedValues;
+                return sortedValues.ToArray();
 
-            var result = new int[uniqueCount];
-            Array.Copy(sortedValues, result, uniqueCount);
-            return result;
+            return sortedValues[..uniqueCount].ToArray();
         }
     }
 }
