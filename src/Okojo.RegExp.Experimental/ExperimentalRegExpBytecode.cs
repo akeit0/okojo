@@ -63,6 +63,7 @@ internal sealed class ExperimentalRegExpBytecodeProgram
     public ScratchRegExpProgram.Node[] LookbehindNodes { get; init; } = [];
     public RegExpRuntimeFlags[] LookbehindFlags { get; init; } = [];
     public int[] LookbehindMinMatchLengths { get; init; } = [];
+    public int[] LookbehindMaxMatchLengths { get; init; } = [];
     public int LoopSlotCount { get; init; }
     public string[] LiteralTexts { get; init; } = [];
     public ExperimentalRegExpCharacterSet[] CharacterSets { get; init; } = [];
@@ -105,7 +106,7 @@ internal static class ExperimentalRegExpCodeGenerator
             }
 
             var lookbehindPrograms = LowerLookbehindPrograms(irProgram.LookbehindPrograms, irProgram.LookbehindNodes,
-                out var lookbehindMinMatchLengths);
+                out var lookbehindMinMatchLengths, out var lookbehindMaxMatchLengths);
             return new()
             {
                 Instructions = instructions.ToArray(),
@@ -116,6 +117,7 @@ internal static class ExperimentalRegExpCodeGenerator
                 LookbehindNodes = irProgram.LookbehindNodes,
                 LookbehindFlags = irProgram.LookbehindFlags,
                 LookbehindMinMatchLengths = lookbehindMinMatchLengths,
+                LookbehindMaxMatchLengths = lookbehindMaxMatchLengths,
                 LoopSlotCount = irProgram.LoopSlotCount,
                 LiteralTexts = irProgram.LiteralTexts,
                 CharacterSets = characterSets,
@@ -177,21 +179,28 @@ internal static class ExperimentalRegExpCodeGenerator
     private static ExperimentalRegExpBytecodeProgram?[] LowerLookbehindPrograms(
         ExperimentalRegExpIrProgram?[] lookbehindPrograms,
         ScratchRegExpProgram.Node[] lookbehindNodes,
-        out int[] lookbehindMinMatchLengths)
+        out int[] lookbehindMinMatchLengths,
+        out int[] lookbehindMaxMatchLengths)
     {
         if (lookbehindNodes.Length == 0)
         {
             lookbehindMinMatchLengths = [];
+            lookbehindMaxMatchLengths = [];
             return [];
         }
 
         var lowered = new ExperimentalRegExpBytecodeProgram?[lookbehindNodes.Length];
         lookbehindMinMatchLengths = new int[lookbehindNodes.Length];
+        lookbehindMaxMatchLengths = new int[lookbehindNodes.Length];
+        Array.Fill(lookbehindMinMatchLengths, -1);
+        Array.Fill(lookbehindMaxMatchLengths, -1);
         for (var i = 0; i < lookbehindNodes.Length; i++)
         {
             var node = lookbehindNodes[i];
             if (ScratchRegExpProgram.TryGetNodeMinMatchLength(node, out var minMatchLength))
                 lookbehindMinMatchLengths[i] = minMatchLength;
+            if (ScratchRegExpProgram.TryGetNodeMaxMatchLength(node, out var maxMatchLength))
+                lookbehindMaxMatchLengths[i] = maxMatchLength;
 
             lowered[i] = TryGenerate(lookbehindPrograms[i]);
         }
@@ -531,10 +540,12 @@ internal static class ExperimentalRegExpVm
                     var lookbehindMatched = lookbehindProgram is not null
                         ? ScratchRegExpMatcher.TryMatchLookbehindForwardProgramForVm(treeProgram, lookbehindProgram,
                             input, currentPos, program.LookbehindFlags[instruction.Operand],
-                            program.LookbehindMinMatchLengths[instruction.Operand], captureState)
+                            program.LookbehindMinMatchLengths[instruction.Operand],
+                            program.LookbehindMaxMatchLengths[instruction.Operand], captureState)
                         : ScratchRegExpMatcher.TryMatchLookbehindForVm(treeProgram,
                             program.LookbehindNodes[instruction.Operand], input, currentPos,
-                            program.LookbehindFlags[instruction.Operand], captureState);
+                            program.LookbehindFlags[instruction.Operand],
+                            program.LookbehindMinMatchLengths[instruction.Operand], captureState);
                     if (instruction.OpCode == ExperimentalRegExpOpcode.AssertLookbehind)
                     {
                         if (!lookbehindMatched)

@@ -31,6 +31,21 @@ internal static partial class ScratchUnicodeStringPropertyTables
         GetMatcher(property).AddMatchStartsBackward(input, pos, results);
     }
 
+    public static bool TryGetLengthRange(string property, out int minLength, out int maxLength)
+    {
+        var matcher = GetMatcher(property);
+        if (!matcher.HasCandidates)
+        {
+            minLength = default;
+            maxLength = default;
+            return false;
+        }
+
+        minLength = matcher.MinLength;
+        maxLength = matcher.MaxLength;
+        return true;
+    }
+
     private static StringPropertyMatcher GetMatcher(string property)
     {
         return property switch
@@ -114,11 +129,34 @@ internal static partial class ScratchUnicodeStringPropertyTables
     {
         private readonly StringPropertyBucket[] forwardBuckets;
         private readonly StringPropertyBucket[] backwardBuckets;
+        public int MinLength { get; }
+        public int MaxLength { get; }
+        public bool HasCandidates => forwardBuckets.Length != 0;
 
         public StringPropertyMatcher(string[] candidates)
         {
             forwardBuckets = BuildBuckets(candidates, ReadFirstCodePoint);
             backwardBuckets = BuildBuckets(candidates, ReadLastCodePoint);
+            if (candidates.Length == 0)
+            {
+                MinLength = 0;
+                MaxLength = 0;
+                return;
+            }
+
+            var minLength = int.MaxValue;
+            var maxLength = 0;
+            for (var i = 0; i < candidates.Length; i++)
+            {
+                var length = candidates[i].Length;
+                if (length < minLength)
+                    minLength = length;
+                if (length > maxLength)
+                    maxLength = length;
+            }
+
+            MinLength = minLength;
+            MaxLength = maxLength;
         }
 
         public bool TryMatchAt(string input, int pos, out int endIndex)

@@ -782,6 +782,42 @@ public class RegExpExperimentalIncrementalTests
     }
 
     [Test]
+    public void ExperimentalRegExpEngine_Incremental_TracksBoundedLookbehindLengthWindowForForwardVm()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(?<=a{1,3})b", "");
+        var bytecodeProgram = ((ExperimentalCompiledProgram)compiled.EngineState!).BytecodeProgram;
+
+        var match = engine.Exec(compiled, "aaab", 0);
+
+        Assert.That(bytecodeProgram, Is.Not.Null);
+        Assert.That(bytecodeProgram!.LookbehindPrograms[0], Is.Not.Null);
+        Assert.That(bytecodeProgram.LookbehindMinMatchLengths[0], Is.EqualTo(1));
+        Assert.That(bytecodeProgram.LookbehindMaxMatchLengths[0], Is.EqualTo(3));
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(3));
+        Assert.That(match.Groups[0], Is.EqualTo("b"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_TracksBoundedLookbehindLengthWindowForTreeFallback()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(?<=(a){1,3})b", "");
+        var bytecodeProgram = ((ExperimentalCompiledProgram)compiled.EngineState!).BytecodeProgram;
+
+        var match = engine.Exec(compiled, "aaab", 0);
+
+        Assert.That(bytecodeProgram, Is.Not.Null);
+        Assert.That(bytecodeProgram!.LookbehindPrograms[0], Is.Null);
+        Assert.That(bytecodeProgram.LookbehindMinMatchLengths[0], Is.EqualTo(1));
+        Assert.That(bytecodeProgram.LookbehindMaxMatchLengths[0], Is.EqualTo(3));
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Groups[0], Is.EqualTo("b"));
+        Assert.That(match.Groups[1], Is.EqualTo("a"));
+    }
+
+    [Test]
     public void ExperimentalRegExpEngine_Incremental_DoesNotLeakCapturesFromNegativeLookbehind()
     {
         var engine = ExperimentalRegExpEngine.Default;

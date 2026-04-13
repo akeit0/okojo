@@ -182,8 +182,12 @@ internal static partial class ScratchRegExpMatcher
     }
 
     internal static bool TryMatchLookbehindForVm(ScratchRegExpProgram program, ScratchRegExpProgram.Node child,
-        string input, int pos, RegExpRuntimeFlags flags, ExperimentalRegExpCaptureState? captureState)
+        string input, int pos, RegExpRuntimeFlags flags, int minMatchLength,
+        ExperimentalRegExpCaptureState? captureState)
     {
+        if (minMatchLength >= 0 && pos < minMatchLength)
+            return false;
+
         using var stateArena = program.CaptureCount == 0 ? null : new ScratchMatchStateArena(program.CaptureCount);
         var state = stateArena is null ? ScratchMatchState.Empty : stateArena.Root;
         if (captureState is not null)
@@ -200,13 +204,18 @@ internal static partial class ScratchRegExpMatcher
 
     internal static bool TryMatchLookbehindForwardProgramForVm(ScratchRegExpProgram program,
         ExperimentalRegExpBytecodeProgram lookbehindProgram, string input, int pos, RegExpRuntimeFlags flags,
-        int minMatchLength, ExperimentalRegExpCaptureState? captureState)
+        int minMatchLength, int maxMatchLength, ExperimentalRegExpCaptureState? captureState)
     {
-        if (pos < minMatchLength)
+        if (minMatchLength >= 0 && pos < minMatchLength)
             return false;
 
+        var earliestStart = 0;
+        if (maxMatchLength >= 0)
+            earliestStart = Math.Max(0, pos - maxMatchLength);
+
         var checkpoint = captureState?.Checkpoint ?? 0;
-        for (var candidateStart = pos - minMatchLength; candidateStart >= 0; candidateStart--)
+        var latestStart = minMatchLength >= 0 ? pos - minMatchLength : pos;
+        for (var candidateStart = latestStart; candidateStart >= earliestStart; candidateStart--)
         {
             captureState?.Restore(checkpoint);
             if (ExperimentalRegExpVm.TryMatch(program, lookbehindProgram, input, candidateStart, flags, captureState,
