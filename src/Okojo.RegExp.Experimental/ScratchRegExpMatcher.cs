@@ -11,6 +11,9 @@ internal static class ScratchRegExpMatcher
     {
         var program = compiledProgram.TreeProgram;
         var begin = Math.Max(0, startIndex);
+        if (compiledProgram.WholeInputPropertyRunPlan is { } wholeInputPropertyRunPlan)
+            return TryExecWholeInputPropertyRun(program, wholeInputPropertyRunPlan, input, begin);
+
         if (compiledProgram.BytecodeProgram is not null)
             return ExecLinearBytecode(compiledProgram, input, begin);
 
@@ -36,6 +39,20 @@ internal static class ScratchRegExpMatcher
         }
 
         return null;
+    }
+
+    private static RegExpMatchResult? TryExecWholeInputPropertyRun(ScratchRegExpProgram program,
+        ExperimentalWholeInputPropertyRunPlan plan, string input, int begin)
+    {
+        if (begin != 0)
+            return null;
+
+        ConsumePropertyEscapeRunForVm(input, 0, plan.PropertyEscape, program.Flags, input.Length, int.MaxValue,
+            out var endPos, out var consumed);
+        if (consumed < plan.MinCount || endPos != input.Length)
+            return null;
+
+        return BuildSimpleMatch(program, input, 0, endPos);
     }
 
     private static RegExpMatchResult? ExecLinearBytecode(ExperimentalCompiledProgram compiledProgram, string input,
@@ -2114,11 +2131,56 @@ internal static class ScratchRegExpMatcher
     internal static int ScanPropertyEscapeToEndForVm(string input, int pos,
         ExperimentalRegExpPropertyEscape propertyEscape, RegExpRuntimeFlags flags, int endLimit)
     {
-        var currentPos = pos;
-        while (TryMatchPropertyEscapeForVm(input, currentPos, propertyEscape, flags, endLimit, out var nextPos))
-            currentPos = nextPos;
+        ConsumePropertyEscapeRunForVm(input, pos, propertyEscape, flags, endLimit, int.MaxValue, out var endPos,
+            out _);
+        return endPos;
+    }
 
-        return currentPos;
+    internal static void ConsumePropertyEscapeRunForVm(string input, int pos,
+        ExperimentalRegExpPropertyEscape propertyEscape, RegExpRuntimeFlags flags, int endLimit, int maxCount,
+        out int endPos, out int consumed)
+    {
+        var currentPos = pos;
+        consumed = 0;
+
+        while (consumed < maxCount && (uint)currentPos < (uint)endLimit && (uint)currentPos < (uint)input.Length)
+        {
+            int codePoint;
+            int nextPos;
+
+            if (propertyEscape.Kind == ScratchRegExpProgram.PropertyEscapeKind.StringProperty &&
+                propertyEscape.PropertyValue is not null)
+            {
+                if (!ScratchUnicodeStringPropertyTables.TryMatchAt(propertyEscape.PropertyValue, input, currentPos,
+                        out nextPos) ||
+                    nextPos == currentPos ||
+                    nextPos > endLimit)
+                    break;
+            }
+            else if (flags.Unicode &&
+                     currentPos + 1 < endLimit &&
+                     currentPos + 1 < input.Length &&
+                     char.IsHighSurrogate(input[currentPos]) &&
+                     char.IsLowSurrogate(input[currentPos + 1]))
+            {
+                codePoint = char.ConvertToUtf32(input[currentPos], input[currentPos + 1]);
+                nextPos = currentPos + 2;
+                if (!FastPropertyEscapeMatches(propertyEscape, codePoint, flags))
+                    break;
+            }
+            else
+            {
+                codePoint = input[currentPos];
+                nextPos = currentPos + 1;
+                if (!FastPropertyEscapeMatches(propertyEscape, codePoint, flags))
+                    break;
+            }
+
+            consumed++;
+            currentPos = nextPos;
+        }
+
+        endPos = currentPos;
     }
 
     internal static bool TryMatchAsciiClassForVm(string input, int pos, ulong lowBitmap, ulong highBitmap, int endLimit,
