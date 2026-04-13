@@ -56,8 +56,10 @@ internal sealed class ExperimentalRegExpBytecodeProgram
     public int[][] CaptureClearSets { get; init; } = [];
     public int[][] NamedBackReferenceCaptureSets { get; init; } = [];
     public ExperimentalRegExpBytecodeProgram[] LookaheadPrograms { get; init; } = [];
+    public ExperimentalRegExpBytecodeProgram?[] LookbehindPrograms { get; init; } = [];
     public ScratchRegExpProgram.Node[] LookbehindNodes { get; init; } = [];
     public RegExpRuntimeFlags[] LookbehindFlags { get; init; } = [];
+    public int[] LookbehindMinMatchLengths { get; init; } = [];
     public int LoopSlotCount { get; init; }
     public string[] LiteralTexts { get; init; } = [];
     public ExperimentalRegExpCharacterSet[] CharacterSets { get; init; } = [];
@@ -94,14 +96,18 @@ internal static class ExperimentalRegExpCodeGenerator
             instructions.Add(MapInstruction(instruction, classOperandMap, literalSetOperandMap));
         }
 
+        var lookbehindPrograms = LowerLookbehindPrograms(irProgram.LookbehindNodes, irProgram.LookbehindFlags,
+            out var lookbehindMinMatchLengths);
         return new()
         {
             Instructions = instructions.ToArray(),
             CaptureClearSets = irProgram.CaptureClearSets,
             NamedBackReferenceCaptureSets = irProgram.NamedBackReferenceCaptureSets,
             LookaheadPrograms = LowerLookaheadPrograms(irProgram.LookaheadPrograms),
+            LookbehindPrograms = lookbehindPrograms,
             LookbehindNodes = irProgram.LookbehindNodes,
             LookbehindFlags = irProgram.LookbehindFlags,
+            LookbehindMinMatchLengths = lookbehindMinMatchLengths,
             LoopSlotCount = irProgram.LoopSlotCount,
             LiteralTexts = irProgram.LiteralTexts,
             CharacterSets = characterSets,
@@ -152,6 +158,41 @@ internal static class ExperimentalRegExpCodeGenerator
         var lowered = new ExperimentalRegExpBytecodeProgram[lookaheadPrograms.Length];
         for (var i = 0; i < lookaheadPrograms.Length; i++)
             lowered[i] = TryGenerate(lookaheadPrograms[i])!;
+        return lowered;
+    }
+
+    private static ExperimentalRegExpBytecodeProgram?[] LowerLookbehindPrograms(
+        ScratchRegExpProgram.Node[] lookbehindNodes,
+        RegExpRuntimeFlags[] lookbehindFlags,
+        out int[] lookbehindMinMatchLengths)
+    {
+        if (lookbehindNodes.Length == 0)
+        {
+            lookbehindMinMatchLengths = [];
+            return [];
+        }
+
+        var lowered = new ExperimentalRegExpBytecodeProgram?[lookbehindNodes.Length];
+        lookbehindMinMatchLengths = new int[lookbehindNodes.Length];
+        var emptyNodeCaptureIndices = new Dictionary<ScratchRegExpProgram.Node, int[]>();
+        var emptyNamedCaptureIndexes = new Dictionary<string, List<int>>(StringComparer.Ordinal);
+        for (var i = 0; i < lookbehindNodes.Length; i++)
+        {
+            var node = lookbehindNodes[i];
+            if (!ScratchRegExpProgram.CanUseForwardLookbehindVm(node) ||
+                !ScratchRegExpProgram.TryGetNodeMinMatchLength(node, out var minMatchLength))
+                continue;
+
+            var irProgram = ExperimentalRegExpIrGenerator.TryGenerate(node, lookbehindFlags[i], emptyNodeCaptureIndices,
+                emptyNamedCaptureIndexes);
+            if (irProgram is null)
+                continue;
+
+            lowered[i] = TryGenerate(irProgram);
+            if (lowered[i] is not null)
+                lookbehindMinMatchLengths[i] = minMatchLength;
+        }
+
         return lowered;
     }
 
@@ -434,9 +475,14 @@ internal static class ExperimentalRegExpVm
                 case ExperimentalRegExpOpcode.AssertLookbehind:
                 case ExperimentalRegExpOpcode.AssertNotLookbehind:
                     checkpoint = captureState?.Checkpoint ?? 0;
-                    var lookbehindMatched = ScratchRegExpMatcher.TryMatchLookbehindForVm(treeProgram,
-                        program.LookbehindNodes[instruction.Operand], input, currentPos,
-                        program.LookbehindFlags[instruction.Operand], captureState);
+                    var lookbehindProgram = program.LookbehindPrograms[instruction.Operand];
+                    var lookbehindMatched = lookbehindProgram is not null
+                        ? ScratchRegExpMatcher.TryMatchLookbehindForwardProgramForVm(treeProgram, lookbehindProgram,
+                            input, currentPos, program.LookbehindFlags[instruction.Operand],
+                            program.LookbehindMinMatchLengths[instruction.Operand])
+                        : ScratchRegExpMatcher.TryMatchLookbehindForVm(treeProgram,
+                            program.LookbehindNodes[instruction.Operand], input, currentPos,
+                            program.LookbehindFlags[instruction.Operand], captureState);
                     if (instruction.OpCode == ExperimentalRegExpOpcode.AssertLookbehind)
                     {
                         if (!lookbehindMatched)

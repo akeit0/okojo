@@ -2096,6 +2096,22 @@ internal static class ScratchRegExpMatcher
         return true;
     }
 
+    internal static bool TryMatchLookbehindForwardProgramForVm(ScratchRegExpProgram program,
+        ExperimentalRegExpBytecodeProgram lookbehindProgram, string input, int pos, RegExpRuntimeFlags flags,
+        int minMatchLength)
+    {
+        if (pos < minMatchLength)
+            return false;
+
+        for (var candidateStart = pos - minMatchLength; candidateStart >= 0; candidateStart--)
+            if (ExperimentalRegExpVm.TryMatch(program, lookbehindProgram, input, candidateStart, flags, null,
+                    out var endIndex) &&
+                endIndex == pos)
+                return true;
+
+        return false;
+    }
+
     internal static int ScanDotToEndForVm(string input, int pos, bool unicode)
     {
         var currentPos = pos;

@@ -631,9 +631,13 @@ public class RegExpExperimentalIncrementalTests
     {
         var engine = ExperimentalRegExpEngine.Default;
         var compiled = engine.Compile(@"(?<=ab)c", "");
+        var bytecodeProgram = ((ExperimentalCompiledProgram)compiled.EngineState!).BytecodeProgram;
 
         var match = engine.Exec(compiled, "zzabc", 0);
 
+        Assert.That(bytecodeProgram, Is.Not.Null);
+        Assert.That(bytecodeProgram!.LookbehindPrograms, Has.Length.EqualTo(1));
+        Assert.That(bytecodeProgram.LookbehindPrograms[0], Is.Not.Null);
         Assert.That(match, Is.Not.Null);
         Assert.That(match!.Index, Is.EqualTo(4));
         Assert.That(match.Groups[0], Is.EqualTo("c"));
@@ -657,12 +661,33 @@ public class RegExpExperimentalIncrementalTests
     {
         var engine = ExperimentalRegExpEngine.Default;
         var compiled = engine.Compile(@"(?<=(a))b", "");
+        var bytecodeProgram = ((ExperimentalCompiledProgram)compiled.EngineState!).BytecodeProgram;
 
         var match = engine.Exec(compiled, "ab", 0);
 
+        Assert.That(bytecodeProgram, Is.Not.Null);
+        Assert.That(bytecodeProgram!.LookbehindPrograms, Has.Length.EqualTo(1));
+        Assert.That(bytecodeProgram.LookbehindPrograms[0], Is.Null);
         Assert.That(match, Is.Not.Null);
         Assert.That(match!.Groups[0], Is.EqualTo("b"));
         Assert.That(match.Groups[1], Is.EqualTo("a"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_CompilesVariableLengthCaptureFreeLookbehindToForwardProgram()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(?<=a*)b", "");
+        var bytecodeProgram = ((ExperimentalCompiledProgram)compiled.EngineState!).BytecodeProgram;
+
+        var match = engine.Exec(compiled, "aaab", 0);
+
+        Assert.That(bytecodeProgram, Is.Not.Null);
+        Assert.That(bytecodeProgram!.LookbehindPrograms, Has.Length.EqualTo(1));
+        Assert.That(bytecodeProgram.LookbehindPrograms[0], Is.Not.Null);
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(3));
+        Assert.That(match.Groups[0], Is.EqualTo("b"));
     }
 
     [Test]

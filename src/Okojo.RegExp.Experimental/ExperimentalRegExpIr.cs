@@ -67,7 +67,7 @@ internal static class ExperimentalRegExpIrGenerator
             treeProgram.NamedCaptureIndexes);
     }
 
-    private static ExperimentalRegExpIrProgram? TryGenerate(ScratchRegExpProgram.Node root, RegExpRuntimeFlags flags,
+    internal static ExperimentalRegExpIrProgram? TryGenerate(ScratchRegExpProgram.Node root, RegExpRuntimeFlags flags,
         Dictionary<ScratchRegExpProgram.Node, int[]> nodeCaptureIndices, Dictionary<string, List<int>> namedCaptureIndexes)
     {
         var instructions = new List<ExperimentalRegExpIrInstruction>();
