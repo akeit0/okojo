@@ -14,6 +14,8 @@ internal enum ExperimentalRegExpOpcode : byte
     ScanAsciiClassToEnd,
     ScanClassToEnd,
     ScanClassToEndIgnoreCase,
+    ScanPropertyEscapeToEnd,
+    ScanPropertyEscapeToEndIgnoreCase,
     SaveStart,
     SaveEnd,
     BackReference,
@@ -235,7 +237,7 @@ internal static class ExperimentalRegExpCodeGenerator
             split.Operand2 != index + 3 ||
             source[index + 2].OpCode != ExperimentalRegExpIrOpcode.Jump ||
             source[index + 2].Operand != index ||
-            source[index + 3].OpCode != ExperimentalRegExpIrOpcode.Match)
+            !HasSafeTailScanSuffix(source, index + 3))
             return false;
 
         var child = source[index + 1];
@@ -260,9 +262,31 @@ internal static class ExperimentalRegExpCodeGenerator
                 instructions.Add(new(ExperimentalRegExpOpcode.ScanClassToEndIgnoreCase, classOperandMap[child.Operand]));
                 consumedInstructions = 3;
                 return true;
+            case ExperimentalRegExpIrOpcode.PropertyEscape:
+                instructions.Add(new(ExperimentalRegExpOpcode.ScanPropertyEscapeToEnd, child.Operand));
+                consumedInstructions = 3;
+                return true;
+            case ExperimentalRegExpIrOpcode.PropertyEscapeIgnoreCase:
+                instructions.Add(new(ExperimentalRegExpOpcode.ScanPropertyEscapeToEndIgnoreCase, child.Operand));
+                consumedInstructions = 3;
+                return true;
             default:
                 return false;
         }
+    }
+
+    private static bool HasSafeTailScanSuffix(ExperimentalRegExpIrInstruction[] source, int startIndex)
+    {
+        if ((uint)startIndex >= (uint)source.Length)
+            return false;
+
+        if (source[startIndex].OpCode == ExperimentalRegExpIrOpcode.Match)
+            return true;
+
+        return startIndex + 1 < source.Length &&
+               (source[startIndex].OpCode is ExperimentalRegExpIrOpcode.AssertEnd or
+                   ExperimentalRegExpIrOpcode.AssertEndMultiline) &&
+               source[startIndex + 1].OpCode == ExperimentalRegExpIrOpcode.Match;
     }
 
     private static ExperimentalRegExpInstruction MapInstruction(ExperimentalRegExpIrInstruction instruction,
@@ -418,6 +442,16 @@ internal static class ExperimentalRegExpVm
                         scanCharacterSet, flags with
                         {
                             IgnoreCase = instruction.OpCode == ExperimentalRegExpOpcode.ScanClassToEndIgnoreCase
+                        }, endLimit);
+                    instructionIndex++;
+                    break;
+                case ExperimentalRegExpOpcode.ScanPropertyEscapeToEnd:
+                case ExperimentalRegExpOpcode.ScanPropertyEscapeToEndIgnoreCase:
+                    currentPos = ScratchRegExpMatcher.ScanPropertyEscapeToEndForVm(input, currentPos,
+                        program.PropertyEscapes[instruction.Operand], flags with
+                        {
+                            IgnoreCase = instruction.OpCode ==
+                                         ExperimentalRegExpOpcode.ScanPropertyEscapeToEndIgnoreCase
                         }, endLimit);
                     instructionIndex++;
                     break;

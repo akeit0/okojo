@@ -1,3 +1,4 @@
+using Okojo.Internals;
 using Okojo.Parsing;
 using System.Text;
 
@@ -73,47 +74,129 @@ internal static class ExperimentalRegExpIrGenerator
     internal static ExperimentalRegExpIrProgram? TryGenerate(ScratchRegExpProgram.Node root, RegExpRuntimeFlags flags,
         Dictionary<ScratchRegExpProgram.Node, int[]> nodeCaptureIndices, Dictionary<string, List<int>> namedCaptureIndexes)
     {
-        var instructions = new List<ExperimentalRegExpIrInstruction>();
-        var captureClearSets = new List<int[]>();
-        var namedBackReferenceCaptureSets = new List<int[]>();
-        var lookaheadPrograms = new List<ExperimentalRegExpIrProgram>();
-        var lookbehindNodes = new List<ScratchRegExpProgram.Node>();
-        var lookbehindFlags = new List<RegExpRuntimeFlags>();
-        var loopSlots = new List<bool>();
-        var literalTexts = new List<string>();
-        var literalCodePointSets = new List<int[]>();
-        var classes = new List<ScratchRegExpProgram.ClassNode>();
-        var propertyEscapes = new List<ScratchRegExpProgram.PropertyEscapeNode>();
-        if (!TryEmitNode(root, flags, nodeCaptureIndices, instructions, captureClearSets, namedBackReferenceCaptureSets,
-                lookaheadPrograms, lookbehindNodes, lookbehindFlags, loopSlots, literalTexts, literalCodePointSets,
-                classes, propertyEscapes, namedCaptureIndexes))
+        using var state = new IrBuildState();
+        if (!TryEmitNode(root, flags, nodeCaptureIndices, state, namedCaptureIndexes))
             return null;
 
-        instructions.Add(new(ExperimentalRegExpIrOpcode.Match, 0));
-        return new()
+        state.AddInstruction(ExperimentalRegExpIrOpcode.Match);
+        return state.BuildProgram();
+    }
+
+    private sealed class IrBuildState : IDisposable
+    {
+        public ScratchPooledList<ExperimentalRegExpIrInstruction> Instructions { get; } = new();
+        public ScratchPooledList<int[]> CaptureClearSets { get; } = new();
+        public ScratchPooledList<int[]> NamedBackReferenceCaptureSets { get; } = new();
+        public ScratchPooledList<ExperimentalRegExpIrProgram> LookaheadPrograms { get; } = new();
+        public ScratchPooledList<ScratchRegExpProgram.Node> LookbehindNodes { get; } = new();
+        public ScratchPooledList<RegExpRuntimeFlags> LookbehindFlags { get; } = new();
+        public ScratchPooledList<string> LiteralTexts { get; } = new();
+        public ScratchPooledList<int[]> LiteralCodePointSets { get; } = new();
+        public ScratchPooledList<ScratchRegExpProgram.ClassNode> Classes { get; } = new();
+        public ScratchPooledList<ScratchRegExpProgram.PropertyEscapeNode> PropertyEscapes { get; } = new();
+
+        public int LoopSlotCount { get; private set; }
+
+        public int AddInstruction(ExperimentalRegExpIrOpcode opcode, int operand = 0, int operand2 = 0)
         {
-            Instructions = instructions.ToArray(),
-            CaptureClearSets = captureClearSets.ToArray(),
-            NamedBackReferenceCaptureSets = namedBackReferenceCaptureSets.ToArray(),
-            LookaheadPrograms = lookaheadPrograms.ToArray(),
-            LookbehindNodes = lookbehindNodes.ToArray(),
-            LookbehindFlags = lookbehindFlags.ToArray(),
-            LoopSlotCount = loopSlots.Count,
-            LiteralTexts = literalTexts.ToArray(),
-            LiteralCodePointSets = literalCodePointSets.ToArray(),
-            Classes = classes.ToArray(),
-            PropertyEscapes = propertyEscapes.ToArray()
-        };
+            Instructions.Add(new(opcode, operand, operand2));
+            return Instructions.Count - 1;
+        }
+
+        public void PatchInstruction(int index, int operand, int operand2 = 0)
+        {
+            Instructions[index] = new(Instructions[index].OpCode, operand, operand2);
+        }
+
+        public int AddCaptureClearSet(int[] captureClearSet)
+        {
+            CaptureClearSets.Add(captureClearSet);
+            return CaptureClearSets.Count - 1;
+        }
+
+        public int AddNamedBackReferenceCaptureSet(int[] captureIndexes)
+        {
+            NamedBackReferenceCaptureSets.Add(captureIndexes);
+            return NamedBackReferenceCaptureSets.Count - 1;
+        }
+
+        public int AddLookaheadProgram(ExperimentalRegExpIrProgram lookaheadProgram)
+        {
+            LookaheadPrograms.Add(lookaheadProgram);
+            return LookaheadPrograms.Count - 1;
+        }
+
+        public int AddLookbehind(ScratchRegExpProgram.Node lookbehindNode, RegExpRuntimeFlags flags)
+        {
+            LookbehindNodes.Add(lookbehindNode);
+            LookbehindFlags.Add(flags);
+            return LookbehindNodes.Count - 1;
+        }
+
+        public int AddLiteralText(string literalText)
+        {
+            LiteralTexts.Add(literalText);
+            return LiteralTexts.Count - 1;
+        }
+
+        public int AddLiteralCodePointSet(int[] literalCodePoints)
+        {
+            LiteralCodePointSets.Add(literalCodePoints);
+            return LiteralCodePointSets.Count - 1;
+        }
+
+        public int AddClass(ScratchRegExpProgram.ClassNode cls)
+        {
+            Classes.Add(cls);
+            return Classes.Count - 1;
+        }
+
+        public int AddPropertyEscape(ScratchRegExpProgram.PropertyEscapeNode propertyEscape)
+        {
+            PropertyEscapes.Add(propertyEscape);
+            return PropertyEscapes.Count - 1;
+        }
+
+        public int AllocateLoopSlot()
+        {
+            return LoopSlotCount++;
+        }
+
+        public ExperimentalRegExpIrProgram BuildProgram()
+        {
+            return new()
+            {
+                Instructions = Instructions.ToArray(),
+                CaptureClearSets = CaptureClearSets.ToArray(),
+                NamedBackReferenceCaptureSets = NamedBackReferenceCaptureSets.ToArray(),
+                LookaheadPrograms = LookaheadPrograms.ToArray(),
+                LookbehindNodes = LookbehindNodes.ToArray(),
+                LookbehindFlags = LookbehindFlags.ToArray(),
+                LoopSlotCount = LoopSlotCount,
+                LiteralTexts = LiteralTexts.ToArray(),
+                LiteralCodePointSets = LiteralCodePointSets.ToArray(),
+                Classes = Classes.ToArray(),
+                PropertyEscapes = PropertyEscapes.ToArray()
+            };
+        }
+
+        public void Dispose()
+        {
+            Instructions.Dispose();
+            CaptureClearSets.Dispose();
+            NamedBackReferenceCaptureSets.Dispose();
+            LookaheadPrograms.Dispose();
+            LookbehindNodes.Dispose();
+            LookbehindFlags.Dispose();
+            LiteralTexts.Dispose();
+            LiteralCodePointSets.Dispose();
+            Classes.Dispose();
+            PropertyEscapes.Dispose();
+        }
     }
 
     private static bool TryEmitNode(ScratchRegExpProgram.Node node, RegExpRuntimeFlags flags,
-        Dictionary<ScratchRegExpProgram.Node, int[]> nodeCaptureIndices,
-        List<ExperimentalRegExpIrInstruction> instructions, List<int[]> captureClearSets,
-        List<int[]> namedBackReferenceCaptureSets, List<ExperimentalRegExpIrProgram> lookaheadPrograms,
-        List<ScratchRegExpProgram.Node> lookbehindNodes, List<RegExpRuntimeFlags> lookbehindFlags,
-        List<bool> loopSlots,
-        List<string> literalTexts, List<int[]> literalCodePointSets,
-        List<ScratchRegExpProgram.ClassNode> classes, List<ScratchRegExpProgram.PropertyEscapeNode> propertyEscapes,
+        Dictionary<ScratchRegExpProgram.Node, int[]> nodeCaptureIndices, IrBuildState state,
         Dictionary<string, List<int>> namedCaptureIndexes)
     {
         switch (node)
@@ -121,35 +204,29 @@ internal static class ExperimentalRegExpIrGenerator
             case ScratchRegExpProgram.EmptyNode:
                 return true;
             case ScratchRegExpProgram.SequenceNode sequence:
-                return TryEmitSequence(sequence, flags, nodeCaptureIndices, instructions, captureClearSets,
-                    namedBackReferenceCaptureSets, lookaheadPrograms, lookbehindNodes, lookbehindFlags, loopSlots,
-                    literalTexts, literalCodePointSets, classes, propertyEscapes, namedCaptureIndexes);
+                return TryEmitSequence(sequence, flags, nodeCaptureIndices, state, namedCaptureIndexes);
             case ScratchRegExpProgram.AlternationNode alternation:
-                return TryEmitAlternation(alternation.Alternatives, flags, nodeCaptureIndices, instructions,
-                    captureClearSets, namedBackReferenceCaptureSets, lookaheadPrograms, lookbehindNodes,
-                    lookbehindFlags, loopSlots, literalTexts, literalCodePointSets, classes, propertyEscapes,
+                return TryEmitAlternation(alternation.Alternatives, flags, nodeCaptureIndices, state,
                     namedCaptureIndexes);
             case ScratchRegExpProgram.CaptureNode capture:
-                instructions.Add(new(ExperimentalRegExpIrOpcode.SaveStart, capture.Index));
-                if (!TryEmitNode(capture.Child, flags, nodeCaptureIndices, instructions, captureClearSets,
-                        namedBackReferenceCaptureSets, lookaheadPrograms, lookbehindNodes, lookbehindFlags,
-                        loopSlots, literalTexts, literalCodePointSets, classes, propertyEscapes, namedCaptureIndexes))
+                state.AddInstruction(ExperimentalRegExpIrOpcode.SaveStart, capture.Index);
+                if (!TryEmitNode(capture.Child, flags, nodeCaptureIndices, state, namedCaptureIndexes))
                     return false;
-                instructions.Add(new(ExperimentalRegExpIrOpcode.SaveEnd, capture.Index));
+                state.AddInstruction(ExperimentalRegExpIrOpcode.SaveEnd, capture.Index);
                 return true;
             case ScratchRegExpProgram.BackReferenceNode backReference:
-                instructions.Add(new(flags.IgnoreCase
+                state.AddInstruction(flags.IgnoreCase
                     ? ExperimentalRegExpIrOpcode.BackReferenceIgnoreCase
-                    : ExperimentalRegExpIrOpcode.BackReference, backReference.Index));
+                    : ExperimentalRegExpIrOpcode.BackReference, backReference.Index);
                 return true;
             case ScratchRegExpProgram.NamedBackReferenceNode namedBackReference:
                 if (!namedCaptureIndexes.TryGetValue(namedBackReference.Name, out var captureIndexes))
                     return false;
-                namedBackReferenceCaptureSets.Add(captureIndexes.ToArray());
-                instructions.Add(new(flags.IgnoreCase
+
+                state.AddInstruction(flags.IgnoreCase
                         ? ExperimentalRegExpIrOpcode.NamedBackReferenceIgnoreCase
                         : ExperimentalRegExpIrOpcode.NamedBackReference,
-                    namedBackReferenceCaptureSets.Count - 1));
+                    state.AddNamedBackReferenceCaptureSet(captureIndexes.ToArray()));
                 return true;
             case ScratchRegExpProgram.LookaheadNode lookahead:
             {
@@ -157,97 +234,85 @@ internal static class ExperimentalRegExpIrGenerator
                 if (lookaheadProgram is null)
                     return false;
 
-                lookaheadPrograms.Add(lookaheadProgram);
-                instructions.Add(new(lookahead.Positive
-                    ? ExperimentalRegExpIrOpcode.AssertLookahead
-                    : ExperimentalRegExpIrOpcode.AssertNotLookahead, lookaheadPrograms.Count - 1));
+                state.AddInstruction(lookahead.Positive
+                        ? ExperimentalRegExpIrOpcode.AssertLookahead
+                        : ExperimentalRegExpIrOpcode.AssertNotLookahead,
+                    state.AddLookaheadProgram(lookaheadProgram));
                 return true;
             }
             case ScratchRegExpProgram.LookbehindNode lookbehind:
-                lookbehindNodes.Add(lookbehind.Child);
-                lookbehindFlags.Add(flags);
-                instructions.Add(new(lookbehind.Positive
-                    ? ExperimentalRegExpIrOpcode.AssertLookbehind
-                    : ExperimentalRegExpIrOpcode.AssertNotLookbehind, lookbehindNodes.Count - 1));
+                state.AddInstruction(lookbehind.Positive
+                        ? ExperimentalRegExpIrOpcode.AssertLookbehind
+                        : ExperimentalRegExpIrOpcode.AssertNotLookbehind,
+                    state.AddLookbehind(lookbehind.Child, flags));
                 return true;
             case ScratchRegExpProgram.LiteralNode literal:
-                instructions.Add(new(flags.IgnoreCase
+                state.AddInstruction(flags.IgnoreCase
                     ? ExperimentalRegExpIrOpcode.CharIgnoreCase
-                    : ExperimentalRegExpIrOpcode.Char, literal.CodePoint));
+                    : ExperimentalRegExpIrOpcode.Char, literal.CodePoint);
                 return true;
             case ScratchRegExpProgram.DotNode:
-                instructions.Add(new(flags.DotAll ? ExperimentalRegExpIrOpcode.Any : ExperimentalRegExpIrOpcode.Dot, 0));
+                state.AddInstruction(flags.DotAll ? ExperimentalRegExpIrOpcode.Any : ExperimentalRegExpIrOpcode.Dot);
                 return true;
             case ScratchRegExpProgram.AnchorNode anchor:
-                instructions.Add(new(anchor.Start
+                state.AddInstruction(anchor.Start
                     ? (flags.Multiline ? ExperimentalRegExpIrOpcode.AssertStartMultiline : ExperimentalRegExpIrOpcode.AssertStart)
-                    : (flags.Multiline ? ExperimentalRegExpIrOpcode.AssertEndMultiline : ExperimentalRegExpIrOpcode.AssertEnd), 0));
+                    : (flags.Multiline ? ExperimentalRegExpIrOpcode.AssertEndMultiline : ExperimentalRegExpIrOpcode.AssertEnd));
                 return true;
             case ScratchRegExpProgram.BoundaryNode boundary:
-                instructions.Add(new(boundary.Positive
+                state.AddInstruction(boundary.Positive
                     ? (flags.IgnoreCase
                         ? ExperimentalRegExpIrOpcode.AssertWordBoundaryIgnoreCase
                         : ExperimentalRegExpIrOpcode.AssertWordBoundary)
                     : (flags.IgnoreCase
                         ? ExperimentalRegExpIrOpcode.AssertNotWordBoundaryIgnoreCase
-                        : ExperimentalRegExpIrOpcode.AssertNotWordBoundary), 0));
+                        : ExperimentalRegExpIrOpcode.AssertNotWordBoundary));
                 return true;
             case ScratchRegExpProgram.ClassNode cls:
                 if (ScratchRegExpProgram.TryGetSingleLiteralClassCodePoint(cls, out var classCodePoint))
                 {
-                    instructions.Add(new(flags.IgnoreCase
+                    state.AddInstruction(flags.IgnoreCase
                         ? ExperimentalRegExpIrOpcode.CharIgnoreCase
-                        : ExperimentalRegExpIrOpcode.Char, classCodePoint));
+                        : ExperimentalRegExpIrOpcode.Char, classCodePoint);
                     return true;
                 }
 
                 if (ScratchRegExpProgram.TryGetSmallLiteralClassCodePoints(cls, out var classCodePoints))
                 {
-                    literalCodePointSets.Add(classCodePoints);
-                    instructions.Add(new(flags.IgnoreCase
-                        ? ExperimentalRegExpIrOpcode.LiteralSetIgnoreCase
-                        : ExperimentalRegExpIrOpcode.LiteralSet, literalCodePointSets.Count - 1));
+                    state.AddInstruction(flags.IgnoreCase
+                            ? ExperimentalRegExpIrOpcode.LiteralSetIgnoreCase
+                            : ExperimentalRegExpIrOpcode.LiteralSet,
+                        state.AddLiteralCodePointSet(classCodePoints));
                     return true;
                 }
 
-                classes.Add(cls);
-                instructions.Add(new(flags.IgnoreCase
-                    ? ExperimentalRegExpIrOpcode.ClassIgnoreCase
-                    : ExperimentalRegExpIrOpcode.Class, classes.Count - 1));
+                state.AddInstruction(flags.IgnoreCase
+                        ? ExperimentalRegExpIrOpcode.ClassIgnoreCase
+                        : ExperimentalRegExpIrOpcode.Class,
+                    state.AddClass(cls));
                 return true;
             case ScratchRegExpProgram.PropertyEscapeNode propertyEscape:
-                propertyEscapes.Add(propertyEscape);
-                instructions.Add(new(flags.IgnoreCase
-                    ? ExperimentalRegExpIrOpcode.PropertyEscapeIgnoreCase
-                    : ExperimentalRegExpIrOpcode.PropertyEscape, propertyEscapes.Count - 1));
+                state.AddInstruction(flags.IgnoreCase
+                        ? ExperimentalRegExpIrOpcode.PropertyEscapeIgnoreCase
+                        : ExperimentalRegExpIrOpcode.PropertyEscape,
+                    state.AddPropertyEscape(propertyEscape));
                 return true;
             case ScratchRegExpProgram.QuantifierNode quantifier:
-                return TryEmitQuantifier(quantifier, flags, nodeCaptureIndices, instructions, captureClearSets,
-                    literalTexts, namedBackReferenceCaptureSets, lookaheadPrograms, lookbehindNodes, lookbehindFlags,
-                    loopSlots, literalCodePointSets, classes, propertyEscapes, namedCaptureIndexes);
+                return TryEmitQuantifier(quantifier, flags, nodeCaptureIndices, state, namedCaptureIndexes);
             case ScratchRegExpProgram.ScopedModifiersNode scoped:
                 return TryEmitNode(scoped.Child, flags with
                 {
                     IgnoreCase = scoped.IgnoreCase ?? flags.IgnoreCase,
                     Multiline = scoped.Multiline ?? flags.Multiline,
                     DotAll = scoped.DotAll ?? flags.DotAll
-                }, nodeCaptureIndices, instructions, captureClearSets, namedBackReferenceCaptureSets,
-                    lookaheadPrograms, lookbehindNodes, lookbehindFlags, loopSlots, literalTexts, literalCodePointSets,
-                    classes,
-                    propertyEscapes, namedCaptureIndexes);
+                }, nodeCaptureIndices, state, namedCaptureIndexes);
             default:
                 return false;
         }
     }
 
     private static bool TryEmitSequence(ScratchRegExpProgram.SequenceNode sequence, RegExpRuntimeFlags flags,
-        Dictionary<ScratchRegExpProgram.Node, int[]> nodeCaptureIndices,
-        List<ExperimentalRegExpIrInstruction> instructions, List<int[]> captureClearSets,
-        List<int[]> namedBackReferenceCaptureSets, List<ExperimentalRegExpIrProgram> lookaheadPrograms,
-        List<ScratchRegExpProgram.Node> lookbehindNodes, List<RegExpRuntimeFlags> lookbehindFlags,
-        List<bool> loopSlots,
-        List<string> literalTexts, List<int[]> literalCodePointSets,
-        List<ScratchRegExpProgram.ClassNode> classes, List<ScratchRegExpProgram.PropertyEscapeNode> propertyEscapes,
+        Dictionary<ScratchRegExpProgram.Node, int[]> nodeCaptureIndices, IrBuildState state,
         Dictionary<string, List<int>> namedCaptureIndexes)
     {
         for (var i = 0; i < sequence.Terms.Length;)
@@ -263,16 +328,13 @@ internal static class ExperimentalRegExpIrGenerator
                     if (!TryBuildLiteralText(sequence.Terms, i, runEnd, out var literalText))
                         return false;
 
-                    literalTexts.Add(literalText);
-                    instructions.Add(new(ExperimentalRegExpIrOpcode.LiteralText, literalTexts.Count - 1));
+                    state.AddInstruction(ExperimentalRegExpIrOpcode.LiteralText, state.AddLiteralText(literalText));
                     i = runEnd;
                     continue;
                 }
             }
 
-            if (!TryEmitNode(sequence.Terms[i], flags, nodeCaptureIndices, instructions, captureClearSets,
-                    namedBackReferenceCaptureSets, lookaheadPrograms, lookbehindNodes, lookbehindFlags, loopSlots,
-                    literalTexts, literalCodePointSets, classes, propertyEscapes, namedCaptureIndexes))
+            if (!TryEmitNode(sequence.Terms[i], flags, nodeCaptureIndices, state, namedCaptureIndexes))
                 return false;
 
             i++;
@@ -282,57 +344,41 @@ internal static class ExperimentalRegExpIrGenerator
     }
 
     private static bool TryEmitAlternation(ScratchRegExpProgram.Node[] alternatives, RegExpRuntimeFlags flags,
-        Dictionary<ScratchRegExpProgram.Node, int[]> nodeCaptureIndices,
-        List<ExperimentalRegExpIrInstruction> instructions, List<int[]> captureClearSets,
-        List<int[]> namedBackReferenceCaptureSets, List<ExperimentalRegExpIrProgram> lookaheadPrograms,
-        List<ScratchRegExpProgram.Node> lookbehindNodes, List<RegExpRuntimeFlags> lookbehindFlags,
-        List<bool> loopSlots,
-        List<string> literalTexts, List<int[]> literalCodePointSets,
-        List<ScratchRegExpProgram.ClassNode> classes, List<ScratchRegExpProgram.PropertyEscapeNode> propertyEscapes,
+        Dictionary<ScratchRegExpProgram.Node, int[]> nodeCaptureIndices, IrBuildState state,
         Dictionary<string, List<int>> namedCaptureIndexes)
     {
         if (alternatives.Length == 0)
             return true;
         if (alternatives.Length == 1)
-            return TryEmitNode(alternatives[0], flags, nodeCaptureIndices, instructions, captureClearSets,
-                namedBackReferenceCaptureSets, lookaheadPrograms, lookbehindNodes, lookbehindFlags, loopSlots,
-                literalTexts, literalCodePointSets, classes, propertyEscapes, namedCaptureIndexes);
+            return TryEmitNode(alternatives[0], flags, nodeCaptureIndices, state, namedCaptureIndexes);
 
-        List<int> endJumps = [];
+        Span<int> initialEndJumps = stackalloc int[Math.Min(alternatives.Length - 1, 8)];
+        using var endJumps = new PooledArrayBuilder<int>(initialEndJumps);
         for (var i = 0; i < alternatives.Length - 1; i++)
         {
-            var splitIndex = AddInstruction(instructions, ExperimentalRegExpIrOpcode.Split);
-            var firstTarget = instructions.Count;
-            if (!TryEmitNode(alternatives[i], flags, nodeCaptureIndices, instructions, captureClearSets,
-                    namedBackReferenceCaptureSets, lookaheadPrograms, lookbehindNodes, lookbehindFlags, loopSlots,
-                    literalTexts, literalCodePointSets, classes, propertyEscapes, namedCaptureIndexes))
+            var splitIndex = state.AddInstruction(ExperimentalRegExpIrOpcode.Split);
+            var firstTarget = state.Instructions.Count;
+            if (!TryEmitNode(alternatives[i], flags, nodeCaptureIndices, state, namedCaptureIndexes))
                 return false;
 
-            endJumps.Add(AddInstruction(instructions, ExperimentalRegExpIrOpcode.Jump));
-            var secondTarget = instructions.Count;
-            PatchInstruction(instructions, splitIndex, firstTarget, secondTarget);
+            endJumps.Add(state.AddInstruction(ExperimentalRegExpIrOpcode.Jump));
+            var secondTarget = state.Instructions.Count;
+            state.PatchInstruction(splitIndex, firstTarget, secondTarget);
         }
 
-        if (!TryEmitNode(alternatives[^1], flags, nodeCaptureIndices, instructions, captureClearSets,
-                namedBackReferenceCaptureSets, lookaheadPrograms, lookbehindNodes, lookbehindFlags, loopSlots,
-                literalTexts, literalCodePointSets, classes, propertyEscapes, namedCaptureIndexes))
+        if (!TryEmitNode(alternatives[^1], flags, nodeCaptureIndices, state, namedCaptureIndexes))
             return false;
 
-        var endTarget = instructions.Count;
-        for (var i = 0; i < endJumps.Count; i++)
-            PatchInstruction(instructions, endJumps[i], endTarget);
+        var endTarget = state.Instructions.Count;
+        var endJumpSpan = endJumps.AsSpan();
+        for (var i = 0; i < endJumpSpan.Length; i++)
+            state.PatchInstruction(endJumpSpan[i], endTarget);
 
         return true;
     }
 
     private static bool TryEmitQuantifier(ScratchRegExpProgram.QuantifierNode quantifier, RegExpRuntimeFlags flags,
-        Dictionary<ScratchRegExpProgram.Node, int[]> nodeCaptureIndices,
-        List<ExperimentalRegExpIrInstruction> instructions, List<int[]> captureClearSets, List<string> literalTexts,
-        List<int[]> namedBackReferenceCaptureSets, List<ExperimentalRegExpIrProgram> lookaheadPrograms,
-        List<ScratchRegExpProgram.Node> lookbehindNodes, List<RegExpRuntimeFlags> lookbehindFlags,
-        List<bool> loopSlots, List<int[]> literalCodePointSets,
-        List<ScratchRegExpProgram.ClassNode> classes,
-        List<ScratchRegExpProgram.PropertyEscapeNode> propertyEscapes,
+        Dictionary<ScratchRegExpProgram.Node, int[]> nodeCaptureIndices, IrBuildState state,
         Dictionary<string, List<int>> namedCaptureIndexes)
     {
         if (!CanUnrollQuantifier(quantifier))
@@ -343,9 +389,7 @@ internal static class ExperimentalRegExpIrGenerator
 
         var captureClearSet = GetCaptureClearSet(nodeCaptureIndices, quantifier.Child);
         for (var i = 0; i < quantifier.Min; i++)
-            if (!TryEmitQuantifiedChild(quantifier.Child, flags, nodeCaptureIndices, captureClearSet, instructions,
-                    captureClearSets, namedBackReferenceCaptureSets, lookaheadPrograms, lookbehindNodes,
-                    lookbehindFlags, loopSlots, literalCodePointSets, literalTexts, classes, propertyEscapes,
+            if (!TryEmitQuantifiedChild(quantifier.Child, flags, nodeCaptureIndices, captureClearSet, state,
                     namedCaptureIndexes))
                 return false;
 
@@ -359,29 +403,20 @@ internal static class ExperimentalRegExpIrGenerator
 
             if (quantifier.Max == int.MaxValue)
                 return TryEmitProgressSensitiveStar(quantifier.Child, quantifier.Greedy, flags, nodeCaptureIndices,
-                    captureClearSet, instructions, captureClearSets, namedBackReferenceCaptureSets, lookaheadPrograms,
-                    lookbehindNodes, lookbehindFlags, loopSlots, literalCodePointSets, literalTexts, classes,
-                    propertyEscapes,
-                    namedCaptureIndexes);
+                    captureClearSet, state, namedCaptureIndexes);
 
             return TryEmitProgressSensitiveOptionals(quantifier.Child, quantifier.Max - quantifier.Min,
-                quantifier.Greedy, flags, nodeCaptureIndices, captureClearSet, instructions, captureClearSets,
-                namedBackReferenceCaptureSets, lookaheadPrograms, lookbehindNodes, lookbehindFlags, loopSlots,
-                literalCodePointSets, literalTexts, classes, propertyEscapes, namedCaptureIndexes);
+                quantifier.Greedy, flags, nodeCaptureIndices, captureClearSet, state, namedCaptureIndexes);
         }
 
         if (quantifier.Max == int.MaxValue)
             return TryEmitStar(quantifier.Child, quantifier.Greedy, flags, nodeCaptureIndices, captureClearSet,
-                instructions, captureClearSets, namedBackReferenceCaptureSets, lookaheadPrograms, lookbehindNodes,
-                lookbehindFlags, loopSlots, literalCodePointSets, literalTexts, classes, propertyEscapes,
-                namedCaptureIndexes);
+                state, namedCaptureIndexes);
 
         var optionalCount = quantifier.Max - quantifier.Min;
         for (var i = 0; i < optionalCount; i++)
             if (!TryEmitOptional(quantifier.Child, quantifier.Greedy, flags, nodeCaptureIndices, captureClearSet,
-                    instructions, captureClearSets, namedBackReferenceCaptureSets, lookaheadPrograms, lookbehindNodes,
-                    lookbehindFlags, loopSlots, literalCodePointSets, literalTexts, classes, propertyEscapes,
-                    namedCaptureIndexes))
+                    state, namedCaptureIndexes))
                 return false;
 
         return true;
@@ -399,50 +434,34 @@ internal static class ExperimentalRegExpIrGenerator
     }
 
     private static bool TryEmitOptional(ScratchRegExpProgram.Node child, bool greedy, RegExpRuntimeFlags flags,
-        Dictionary<ScratchRegExpProgram.Node, int[]> nodeCaptureIndices, int[] captureClearSet,
-        List<ExperimentalRegExpIrInstruction> instructions, List<int[]> captureClearSets,
-        List<int[]> namedBackReferenceCaptureSets, List<ExperimentalRegExpIrProgram> lookaheadPrograms,
-        List<ScratchRegExpProgram.Node> lookbehindNodes, List<RegExpRuntimeFlags> lookbehindFlags,
-        List<bool> loopSlots, List<int[]> literalCodePointSets,
-        List<string> literalTexts,
-        List<ScratchRegExpProgram.ClassNode> classes, List<ScratchRegExpProgram.PropertyEscapeNode> propertyEscapes,
+        Dictionary<ScratchRegExpProgram.Node, int[]> nodeCaptureIndices, int[] captureClearSet, IrBuildState state,
         Dictionary<string, List<int>> namedCaptureIndexes)
     {
-        var splitIndex = AddInstruction(instructions, ExperimentalRegExpIrOpcode.Split);
-        var childStart = instructions.Count;
-        if (!TryEmitQuantifiedChild(child, flags, nodeCaptureIndices, captureClearSet, instructions, captureClearSets,
-                namedBackReferenceCaptureSets, lookaheadPrograms, lookbehindNodes, lookbehindFlags, loopSlots,
-                literalCodePointSets, literalTexts, classes, propertyEscapes, namedCaptureIndexes))
+        var splitIndex = state.AddInstruction(ExperimentalRegExpIrOpcode.Split);
+        var childStart = state.Instructions.Count;
+        if (!TryEmitQuantifiedChild(child, flags, nodeCaptureIndices, captureClearSet, state, namedCaptureIndexes))
             return false;
 
-        var after = instructions.Count;
-        PatchInstruction(instructions, splitIndex,
+        var after = state.Instructions.Count;
+        state.PatchInstruction(splitIndex,
             greedy ? childStart : after,
             greedy ? after : childStart);
         return true;
     }
 
     private static bool TryEmitStar(ScratchRegExpProgram.Node child, bool greedy, RegExpRuntimeFlags flags,
-        Dictionary<ScratchRegExpProgram.Node, int[]> nodeCaptureIndices, int[] captureClearSet,
-        List<ExperimentalRegExpIrInstruction> instructions, List<int[]> captureClearSets,
-        List<int[]> namedBackReferenceCaptureSets, List<ExperimentalRegExpIrProgram> lookaheadPrograms,
-        List<ScratchRegExpProgram.Node> lookbehindNodes, List<RegExpRuntimeFlags> lookbehindFlags,
-        List<bool> loopSlots, List<int[]> literalCodePointSets,
-        List<string> literalTexts,
-        List<ScratchRegExpProgram.ClassNode> classes, List<ScratchRegExpProgram.PropertyEscapeNode> propertyEscapes,
+        Dictionary<ScratchRegExpProgram.Node, int[]> nodeCaptureIndices, int[] captureClearSet, IrBuildState state,
         Dictionary<string, List<int>> namedCaptureIndexes)
     {
-        var loopHead = instructions.Count;
-        var splitIndex = AddInstruction(instructions, ExperimentalRegExpIrOpcode.Split);
-        var childStart = instructions.Count;
-        if (!TryEmitQuantifiedChild(child, flags, nodeCaptureIndices, captureClearSet, instructions, captureClearSets,
-                namedBackReferenceCaptureSets, lookaheadPrograms, lookbehindNodes, lookbehindFlags, loopSlots,
-                literalCodePointSets, literalTexts, classes, propertyEscapes, namedCaptureIndexes))
+        var loopHead = state.Instructions.Count;
+        var splitIndex = state.AddInstruction(ExperimentalRegExpIrOpcode.Split);
+        var childStart = state.Instructions.Count;
+        if (!TryEmitQuantifiedChild(child, flags, nodeCaptureIndices, captureClearSet, state, namedCaptureIndexes))
             return false;
 
-        instructions.Add(new(ExperimentalRegExpIrOpcode.Jump, loopHead));
-        var after = instructions.Count;
-        PatchInstruction(instructions, splitIndex,
+        state.AddInstruction(ExperimentalRegExpIrOpcode.Jump, loopHead);
+        var after = state.Instructions.Count;
+        state.PatchInstruction(splitIndex,
             greedy ? childStart : after,
             greedy ? after : childStart);
         return true;
@@ -450,44 +469,45 @@ internal static class ExperimentalRegExpIrGenerator
 
     private static bool TryEmitProgressSensitiveOptionals(ScratchRegExpProgram.Node child, int optionalCount, bool greedy,
         RegExpRuntimeFlags flags, Dictionary<ScratchRegExpProgram.Node, int[]> nodeCaptureIndices, int[] captureClearSet,
-        List<ExperimentalRegExpIrInstruction> instructions, List<int[]> captureClearSets,
-        List<int[]> namedBackReferenceCaptureSets, List<ExperimentalRegExpIrProgram> lookaheadPrograms,
-        List<ScratchRegExpProgram.Node> lookbehindNodes, List<RegExpRuntimeFlags> lookbehindFlags,
-        List<bool> loopSlots, List<int[]> literalCodePointSets, List<string> literalTexts,
-        List<ScratchRegExpProgram.ClassNode> classes,
-        List<ScratchRegExpProgram.PropertyEscapeNode> propertyEscapes,
-        Dictionary<string, List<int>> namedCaptureIndexes)
+        IrBuildState state, Dictionary<string, List<int>> namedCaptureIndexes)
     {
         if (optionalCount <= 0)
             return true;
 
-        List<int> progressBranches = [];
-        List<int> skipSplits = [];
+        Span<int> initialProgressBranches = stackalloc int[Math.Min(optionalCount, 8)];
+        Span<int> initialSkipSplits = stackalloc int[Math.Min(optionalCount, 8)];
+        using var progressBranches = new PooledArrayBuilder<int>(initialProgressBranches);
+        using var skipSplits = new PooledArrayBuilder<int>(initialSkipSplits);
         for (var i = 0; i < optionalCount; i++)
         {
-            var loopSlot = AllocateLoopSlot(loopSlots);
-            instructions.Add(new(ExperimentalRegExpIrOpcode.SaveLoopPosition, loopSlot));
-            var splitIndex = AddInstruction(instructions, ExperimentalRegExpIrOpcode.Split);
-            var childStart = instructions.Count;
-            if (!TryEmitQuantifiedChild(child, flags, nodeCaptureIndices, captureClearSet, instructions, captureClearSets,
-                    namedBackReferenceCaptureSets, lookaheadPrograms, lookbehindNodes, lookbehindFlags, loopSlots,
-                    literalCodePointSets, literalTexts, classes, propertyEscapes, namedCaptureIndexes))
+            var loopSlot = state.AllocateLoopSlot();
+            state.AddInstruction(ExperimentalRegExpIrOpcode.SaveLoopPosition, loopSlot);
+            var splitIndex = state.AddInstruction(ExperimentalRegExpIrOpcode.Split);
+            var childStart = state.Instructions.Count;
+            if (!TryEmitQuantifiedChild(child, flags, nodeCaptureIndices, captureClearSet, state, namedCaptureIndexes))
                 return false;
 
-            progressBranches.Add(AddInstruction(instructions, ExperimentalRegExpIrOpcode.BranchIfLoopUnchanged));
+            progressBranches.Add(state.AddInstruction(ExperimentalRegExpIrOpcode.BranchIfLoopUnchanged));
             skipSplits.Add(splitIndex);
-            PatchInstruction(instructions, splitIndex,
+            state.PatchInstruction(splitIndex,
                 greedy ? childStart : 0,
                 greedy ? 0 : childStart);
         }
 
-        var afterAll = instructions.Count;
-        for (var i = 0; i < progressBranches.Count; i++)
-            PatchInstruction(instructions, progressBranches[i], instructions[progressBranches[i]].Operand, afterAll);
-        for (var i = 0; i < skipSplits.Count; i++)
+        var afterAll = state.Instructions.Count;
+        var progressBranchSpan = progressBranches.AsSpan();
+        for (var i = 0; i < progressBranchSpan.Length; i++)
         {
-            var split = instructions[skipSplits[i]];
-            PatchInstruction(instructions, skipSplits[i],
+            var progressBranchIndex = progressBranchSpan[i];
+            state.PatchInstruction(progressBranchIndex, state.Instructions[progressBranchIndex].Operand, afterAll);
+        }
+
+        var skipSplitSpan = skipSplits.AsSpan();
+        for (var i = 0; i < skipSplitSpan.Length; i++)
+        {
+            var splitIndex = skipSplitSpan[i];
+            var split = state.Instructions[splitIndex];
+            state.PatchInstruction(splitIndex,
                 greedy ? split.Operand : afterAll,
                 greedy ? afterAll : split.Operand2);
         }
@@ -497,53 +517,34 @@ internal static class ExperimentalRegExpIrGenerator
 
     private static bool TryEmitProgressSensitiveStar(ScratchRegExpProgram.Node child, bool greedy,
         RegExpRuntimeFlags flags, Dictionary<ScratchRegExpProgram.Node, int[]> nodeCaptureIndices, int[] captureClearSet,
-        List<ExperimentalRegExpIrInstruction> instructions, List<int[]> captureClearSets,
-        List<int[]> namedBackReferenceCaptureSets, List<ExperimentalRegExpIrProgram> lookaheadPrograms,
-        List<ScratchRegExpProgram.Node> lookbehindNodes, List<RegExpRuntimeFlags> lookbehindFlags,
-        List<bool> loopSlots, List<int[]> literalCodePointSets, List<string> literalTexts,
-        List<ScratchRegExpProgram.ClassNode> classes,
-        List<ScratchRegExpProgram.PropertyEscapeNode> propertyEscapes,
-        Dictionary<string, List<int>> namedCaptureIndexes)
+        IrBuildState state, Dictionary<string, List<int>> namedCaptureIndexes)
     {
-        var loopHead = instructions.Count;
-        var loopSlot = AllocateLoopSlot(loopSlots);
-        instructions.Add(new(ExperimentalRegExpIrOpcode.SaveLoopPosition, loopSlot));
-        var splitIndex = AddInstruction(instructions, ExperimentalRegExpIrOpcode.Split);
-        var childStart = instructions.Count;
-        if (!TryEmitQuantifiedChild(child, flags, nodeCaptureIndices, captureClearSet, instructions, captureClearSets,
-                namedBackReferenceCaptureSets, lookaheadPrograms, lookbehindNodes, lookbehindFlags, loopSlots,
-                literalCodePointSets, literalTexts, classes, propertyEscapes, namedCaptureIndexes))
+        var loopHead = state.Instructions.Count;
+        var loopSlot = state.AllocateLoopSlot();
+        state.AddInstruction(ExperimentalRegExpIrOpcode.SaveLoopPosition, loopSlot);
+        var splitIndex = state.AddInstruction(ExperimentalRegExpIrOpcode.Split);
+        var childStart = state.Instructions.Count;
+        if (!TryEmitQuantifiedChild(child, flags, nodeCaptureIndices, captureClearSet, state, namedCaptureIndexes))
             return false;
 
-        var progressBranch = AddInstruction(instructions, ExperimentalRegExpIrOpcode.BranchIfLoopUnchanged);
-        instructions.Add(new(ExperimentalRegExpIrOpcode.Jump, loopHead));
-        var after = instructions.Count;
-        PatchInstruction(instructions, splitIndex,
+        var progressBranch = state.AddInstruction(ExperimentalRegExpIrOpcode.BranchIfLoopUnchanged);
+        state.AddInstruction(ExperimentalRegExpIrOpcode.Jump, loopHead);
+        var after = state.Instructions.Count;
+        state.PatchInstruction(splitIndex,
             greedy ? childStart : after,
             greedy ? after : childStart);
-        PatchInstruction(instructions, progressBranch, loopSlot, after);
+        state.PatchInstruction(progressBranch, loopSlot, after);
         return true;
     }
 
     private static bool TryEmitQuantifiedChild(ScratchRegExpProgram.Node child, RegExpRuntimeFlags flags,
-        Dictionary<ScratchRegExpProgram.Node, int[]> nodeCaptureIndices, int[] captureClearSet,
-        List<ExperimentalRegExpIrInstruction> instructions, List<int[]> captureClearSets,
-        List<int[]> namedBackReferenceCaptureSets, List<ExperimentalRegExpIrProgram> lookaheadPrograms,
-        List<ScratchRegExpProgram.Node> lookbehindNodes, List<RegExpRuntimeFlags> lookbehindFlags,
-        List<bool> loopSlots, List<int[]> literalCodePointSets,
-        List<string> literalTexts,
-        List<ScratchRegExpProgram.ClassNode> classes, List<ScratchRegExpProgram.PropertyEscapeNode> propertyEscapes,
+        Dictionary<ScratchRegExpProgram.Node, int[]> nodeCaptureIndices, int[] captureClearSet, IrBuildState state,
         Dictionary<string, List<int>> namedCaptureIndexes)
     {
         if (captureClearSet.Length != 0)
-        {
-            captureClearSets.Add(captureClearSet);
-            instructions.Add(new(ExperimentalRegExpIrOpcode.ClearCaptures, captureClearSets.Count - 1));
-        }
+            state.AddInstruction(ExperimentalRegExpIrOpcode.ClearCaptures, state.AddCaptureClearSet(captureClearSet));
 
-        return TryEmitNode(child, flags, nodeCaptureIndices, instructions, captureClearSets,
-            namedBackReferenceCaptureSets, lookaheadPrograms, lookbehindNodes, lookbehindFlags, loopSlots,
-            literalTexts, literalCodePointSets, classes, propertyEscapes, namedCaptureIndexes);
+        return TryEmitNode(child, flags, nodeCaptureIndices, state, namedCaptureIndexes);
     }
 
     private static int[] GetCaptureClearSet(Dictionary<ScratchRegExpProgram.Node, int[]> nodeCaptureIndices,
@@ -570,18 +571,6 @@ internal static class ExperimentalRegExpIrGenerator
 
         text = builder.ToString();
         return true;
-    }
-
-    private static int AddInstruction(List<ExperimentalRegExpIrInstruction> instructions, ExperimentalRegExpIrOpcode opcode)
-    {
-        instructions.Add(new(opcode, 0));
-        return instructions.Count - 1;
-    }
-
-    private static int AllocateLoopSlot(List<bool> loopSlots)
-    {
-        loopSlots.Add(true);
-        return loopSlots.Count - 1;
     }
 
     private static bool IsAlwaysZeroWidth(ScratchRegExpProgram.Node node)
@@ -614,11 +603,4 @@ internal static class ExperimentalRegExpIrGenerator
                 return false;
         }
     }
-
-    private static void PatchInstruction(List<ExperimentalRegExpIrInstruction> instructions, int index, int operand,
-        int operand2 = 0)
-    {
-        instructions[index] = new(instructions[index].OpCode, operand, operand2);
-    }
-
 }

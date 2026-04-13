@@ -774,11 +774,30 @@ internal static class ScratchRegExpMatcher
     private static bool FastPropertyEscapeMatches(ScratchRegExpProgram.PropertyEscapeNode propertyEscape, int codePoint,
         RegExpRuntimeFlags flags)
     {
+        return FastPropertyEscapeMatches(propertyEscape.Kind, propertyEscape.Negated, propertyEscape.Categories,
+            propertyEscape.PropertyValue, codePoint, flags);
+    }
+
+    private static bool FastPropertyEscapeMatches(ExperimentalRegExpPropertyEscape propertyEscape, int codePoint,
+        RegExpRuntimeFlags flags)
+    {
+        return FastPropertyEscapeMatches(propertyEscape.Kind, propertyEscape.Negated, propertyEscape.Categories,
+            propertyEscape.PropertyValue, codePoint, flags);
+    }
+
+    private static bool FastPropertyEscapeMatches(
+        ScratchRegExpProgram.PropertyEscapeKind kind,
+        bool negated,
+        ScratchRegExpProgram.GeneralCategoryMask categories,
+        string? propertyValue,
+        int codePoint,
+        RegExpRuntimeFlags flags)
+    {
         bool matched;
-        switch (propertyEscape.Kind)
+        switch (kind)
         {
             case ScratchRegExpProgram.PropertyEscapeKind.GeneralCategory:
-                matched = ScratchUnicodeGeneralCategoryTables.Contains(propertyEscape.Categories, codePoint);
+                matched = ScratchUnicodeGeneralCategoryTables.Contains(categories, codePoint);
                 break;
             case ScratchRegExpProgram.PropertyEscapeKind.Ascii:
                 matched = codePoint <= 0x7F;
@@ -791,21 +810,21 @@ internal static class ScratchRegExpMatcher
                     ScratchRegExpProgram.GeneralCategoryMask.Unassigned, codePoint);
                 break;
             case ScratchRegExpProgram.PropertyEscapeKind.Script:
-                matched = propertyEscape.PropertyValue is not null &&
-                          ScratchUnicodeScriptTables.Contains(propertyEscape.PropertyValue, codePoint);
+                matched = propertyValue is not null &&
+                          ScratchUnicodeScriptTables.Contains(propertyValue, codePoint);
                 break;
             case ScratchRegExpProgram.PropertyEscapeKind.ScriptExtensions:
-                matched = propertyEscape.PropertyValue is not null &&
-                          ScratchUnicodeScriptExtensionsTables.Contains(propertyEscape.PropertyValue, codePoint);
+                matched = propertyValue is not null &&
+                          ScratchUnicodeScriptExtensionsTables.Contains(propertyValue, codePoint);
                 break;
             case ScratchRegExpProgram.PropertyEscapeKind.UppercaseLetter
-                when propertyEscape.Negated && flags.IgnoreCase:
+                when negated && flags.IgnoreCase:
                 return true;
             default:
-                return PropertyEscapeMatches(propertyEscape, codePoint, flags);
+                return PropertyEscapeMatches(kind, negated, categories, propertyValue, codePoint, flags);
         }
 
-        return propertyEscape.Negated ? !matched : matched;
+        return negated ? !matched : matched;
     }
 
     private static bool TryConsumeSimpleQuantifiedChild(
@@ -2092,6 +2111,16 @@ internal static class ScratchRegExpMatcher
         return currentPos;
     }
 
+    internal static int ScanPropertyEscapeToEndForVm(string input, int pos,
+        ExperimentalRegExpPropertyEscape propertyEscape, RegExpRuntimeFlags flags, int endLimit)
+    {
+        var currentPos = pos;
+        while (TryMatchPropertyEscapeForVm(input, currentPos, propertyEscape, flags, endLimit, out var nextPos))
+            currentPos = nextPos;
+
+        return currentPos;
+    }
+
     internal static bool TryMatchAsciiClassForVm(string input, int pos, ulong lowBitmap, ulong highBitmap, int endLimit,
         out int nextPos)
     {
@@ -2441,8 +2470,8 @@ internal static class ScratchRegExpMatcher
             ExperimentalRegExpSimpleClassItemKind.Literal => CodePointEquals(codePoint, item.CodePoint, flags.IgnoreCase),
             ExperimentalRegExpSimpleClassItemKind.Range => CodePointInRange(codePoint, item.RangeStart, item.RangeEnd,
                 flags.IgnoreCase),
-            ExperimentalRegExpSimpleClassItemKind.PropertyEscape => PropertyEscapeMatches(item.PropertyEscape, codePoint,
-                flags),
+            ExperimentalRegExpSimpleClassItemKind.PropertyEscape => FastPropertyEscapeMatches(item.PropertyEscape,
+                codePoint, flags),
             _ => false
         };
     }
@@ -2793,7 +2822,7 @@ internal static class ScratchRegExpMatcher
                 out endIndex);
 
         if (TryReadCodePoint(input, pos, flags.Unicode, out var nextPos, out var cp) &&
-            PropertyEscapeMatches(propertyEscape, cp, flags))
+            FastPropertyEscapeMatches(propertyEscape, cp, flags))
         {
             endIndex = nextPos;
             return true;
@@ -2820,7 +2849,7 @@ internal static class ScratchRegExpMatcher
                 out startIndex);
 
         if (TryReadCodePointBackward(input, pos, flags.Unicode, out var prevPos, out var cp) &&
-            PropertyEscapeMatches(propertyEscape, cp, flags))
+            FastPropertyEscapeMatches(propertyEscape, cp, flags))
         {
             startIndex = prevPos;
             return true;

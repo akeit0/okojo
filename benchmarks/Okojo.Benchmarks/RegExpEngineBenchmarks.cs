@@ -9,8 +9,8 @@ namespace Okojo.Benchmarks;
 
 [MemoryDiagnoser]
 [ShortRunJob]
-[WarmupCount(8)]
-[IterationCount(8)]
+[WarmupCount(4)]
+[IterationCount(4)]
 [Orderer(SummaryOrderPolicy.Declared)]
 public class RegExpEngineBenchmarks
 {
@@ -27,6 +27,10 @@ public class RegExpEngineBenchmarks
             ["literal-scan"] = new("literal-scan", "a+", "", "baaaaaaaaaaaaaaaaa"),
             ["ascii-word-scan"] = new("ascii-word-scan", @"\w+", "", "zzzzzzzzzzzzzzzzzzaaaaaaaaaaaaaa_0099!"),
             ["first-set-class-scan"] = new("first-set-class-scan", @"[A-Z]foo", "", "zzzzzzzzzzzzzzzzzzQfoo"),
+            ["property-whole-input"] = new("property-whole-input", @"^\p{Uppercase_Letter}+$", "u",
+                Repeat("ABCDEFGHIJKLMNOPQRSTUVWXYZ", 32)),
+            ["string-property-whole-input"] = new("string-property-whole-input", @"^\p{RGI_Emoji}+$", "v",
+                Repeat("1\uFE0F\u20E3", 64)),
             ["named-capture"] = new("named-capture", @"(?<name>a)(b)?", "g", "zabz", 1),
             ["unicode-casefold"] = new("unicode-casefold", @"[\u0390]", "ui", "\u1fd3"),
             ["unicode-class-set-casefold"] = new("unicode-class-set-casefold", @"[\u0390x]", "ui", "\u1fd3"),
@@ -47,7 +51,8 @@ public class RegExpEngineBenchmarks
     private JsRealm experimentalRealm = null!;
     private int sink;
 
-    [Params("literal-scan", "ascii-word-scan", "first-set-class-scan", "unicode-casefold", "unicode-class-set-casefold", "lookahead-backref")]
+    [Params("literal-scan", "ascii-word-scan", "first-set-class-scan", "property-whole-input",
+        "string-property-whole-input", "unicode-casefold", "unicode-class-set-casefold", "lookahead-backref")]
     public string Scenario { get; set; } = "literal-scan";
 
     [GlobalSetup]
@@ -155,5 +160,13 @@ public class RegExpEngineBenchmarks
         return $$"""
                  "{{value.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "\\r").Replace("\n", "\\n")}}"
                  """;
+    }
+
+    private static string Repeat(string value, int count)
+    {
+        var builder = new System.Text.StringBuilder(value.Length * count);
+        for (var i = 0; i < count; i++)
+            builder.Append(value);
+        return builder.ToString();
     }
 }
