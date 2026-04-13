@@ -145,11 +145,25 @@ internal sealed partial class ScratchRegExpProgram
         public bool HasAtom => AtomKind != SearchAtomKind.None;
     }
 
-    internal sealed record EmptyNode : Node;
+    internal sealed record EmptyNode : Node
+    {
+        public static EmptyNode Instance { get; } = new();
+
+        private EmptyNode()
+        {
+        }
+    }
 
     internal sealed record LiteralNode(int CodePoint) : Node;
 
-    internal sealed record DotNode : Node;
+    internal sealed record DotNode : Node
+    {
+        public static DotNode Instance { get; } = new();
+
+        private DotNode()
+        {
+        }
+    }
 
     internal sealed record AnchorNode(bool Start) : Node;
 
@@ -425,7 +439,7 @@ internal sealed partial class ScratchRegExpProgram
             while (pos < pattern.Length && pattern[pos] != ')' && pattern[pos] != '|')
                 terms.Add(ParseQuantifiedAtom());
 
-            return terms.Count == 0 ? new EmptyNode() : terms.Count == 1 ? terms[0] : new SequenceNode(terms.ToArray());
+            return terms.Count == 0 ? EmptyNode.Instance : terms.Count == 1 ? terms[0] : new SequenceNode(terms.ToArray());
         }
 
         private Node ParseQuantifiedAtom()
@@ -543,7 +557,7 @@ internal sealed partial class ScratchRegExpProgram
         private Node ParseAtom()
         {
             if (pos >= pattern.Length)
-                return new EmptyNode();
+                return EmptyNode.Instance;
 
             var ch = pattern[pos++];
             if (ch is '*' or '+' or '?')
@@ -565,7 +579,7 @@ internal sealed partial class ScratchRegExpProgram
             {
                 '(' => ParseGroup(),
                 '[' => ParseClass(),
-                '.' => new DotNode(),
+                '.' => DotNode.Instance,
                 '^' => new AnchorNode(true),
                 '$' => new AnchorNode(false),
                 '\\' => ParseEscape(),

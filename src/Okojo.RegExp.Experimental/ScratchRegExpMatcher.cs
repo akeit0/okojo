@@ -138,62 +138,6 @@ internal static partial class ScratchRegExpMatcher
         return null;
     }
 
-    private static RegExpMatchResult BuildMatch(ScratchRegExpProgram program, string input, int startIndex,
-        int endIndex,
-        ScratchMatchState state)
-    {
-        var groups = new string?[program.CaptureCount + 1];
-        var hasIndices = program.Flags.HasIndices;
-        var groupIndices = hasIndices ? new RegExpMatchRange?[program.CaptureCount + 1] : null;
-        groups[0] = input.Substring(startIndex, endIndex - startIndex);
-        if (groupIndices is not null)
-            groupIndices[0] = new RegExpMatchRange(startIndex, endIndex);
-        for (var i = 1; i < groups.Length; i++)
-            if (state.Matched[i])
-            {
-                groups[i] = input.Substring(state.Starts[i], state.Ends[i] - state.Starts[i]);
-                if (groupIndices is not null)
-                    groupIndices[i] = new RegExpMatchRange(state.Starts[i], state.Ends[i]);
-            }
-
-        IReadOnlyDictionary<string, string?>? namedGroups = null;
-        IReadOnlyDictionary<string, RegExpMatchRange?>? namedGroupIndices = null;
-        if (program.NamedGroupNames.Length != 0)
-        {
-            var dict = new Dictionary<string, string?>(program.NamedGroupNames.Length, StringComparer.Ordinal);
-            var indexDict = hasIndices
-                ? new Dictionary<string, RegExpMatchRange?>(program.NamedGroupNames.Length, StringComparer.Ordinal)
-                : null;
-            for (var i = 0; i < program.NamedGroupNames.Length; i++)
-            {
-                var name = program.NamedGroupNames[i];
-                string? value = null;
-                RegExpMatchRange? range = null;
-                if (program.NamedCaptureIndexes.TryGetValue(name, out var indexes))
-                    for (var j = 0; j < indexes.Count; j++)
-                    {
-                        var index = indexes[j];
-                        if (!state.Matched[index])
-                            continue;
-
-                        value = groups[index];
-                        if (groupIndices is not null)
-                            range = groupIndices[index];
-                        break;
-                    }
-
-                dict[name] = value;
-                if (indexDict is not null)
-                    indexDict[name] = range;
-            }
-
-            namedGroups = dict;
-            namedGroupIndices = indexDict;
-        }
-
-        return new(startIndex, endIndex - startIndex, groups, namedGroups, groupIndices, namedGroupIndices);
-    }
-
     private static RegExpMatchResult BuildSimpleMatch(ScratchRegExpProgram program, string input, int startIndex,
         int endIndex)
     {
@@ -351,86 +295,23 @@ internal static partial class ScratchRegExpMatcher
 
                 break;
             case ScratchRegExpProgram.CaptureNode capture:
-            {
-                using var snapshotLease = state.RentClone(out var snapshot);
-                snapshot.Starts[capture.Index] = pos;
-                snapshot.Matched[capture.Index] = true;
-                if (TryMatchNode(program, capture.Child, input, pos, flags, snapshot, out nextPos,
-                        nestedInQuantifierContext))
-                {
-                    snapshot.Ends[capture.Index] = nextPos;
-                    state.CopyFrom(snapshot);
-                    endIndex = nextPos;
-                    return true;
-                }
-
-                break;
-            }
-            case ScratchRegExpProgram.ScopedModifiersNode scoped:
-            {
-                var scopedFlags = ApplyScopedModifiers(flags, scoped);
-                if (TryMatchNode(program, scoped.Child, input, pos, scopedFlags, state, out nextPos,
-                        nestedInQuantifierContext))
-                {
-                    endIndex = nextPos;
-                    return true;
-                }
-
-                break;
-            }
-            case ScratchRegExpProgram.LookaheadNode lookahead:
-            {
-                using var snapshotLease = state.RentClone(out var snapshot);
-                var matched = TryMatchNode(program, lookahead.Child, input, pos, flags, snapshot, out _,
+                return TryMatchCaptureNode(program, capture, input, pos, flags, state, out endIndex,
                     nestedInQuantifierContext);
-                Trace($"lookahead positive={lookahead.Positive} pos={pos} matched={matched}");
-                if (lookahead.Positive ? matched : !matched)
-                {
-                    if (lookahead.Positive && matched)
-                        state.CopyFrom(snapshot);
-                    Trace($"lookahead success positive={lookahead.Positive} pos={pos}");
-                    endIndex = pos;
-                    return true;
-                }
-
-                Trace($"lookahead fail positive={lookahead.Positive} pos={pos}");
-                break;
-            }
+            case ScratchRegExpProgram.ScopedModifiersNode scoped:
+                return TryMatchScopedNode(program, scoped, input, pos, flags, state, out endIndex,
+                    nestedInQuantifierContext);
+            case ScratchRegExpProgram.LookaheadNode lookahead:
+                return TryMatchLookaheadNode(program, lookahead, input, pos, flags, state, out endIndex,
+                    nestedInQuantifierContext);
             case ScratchRegExpProgram.LookbehindNode lookbehind:
-            {
-                using var snapshotLease = state.RentClone(out var snapshot);
-                var lookbehindStartLimit = GetLookbehindStartLimit(lookbehind.Child, pos);
-                var matched = TryMatchLookbehindAssertion(program, lookbehind.Child, input, pos, flags, snapshot,
-                    out _, lookbehindStartLimit, nestedInQuantifierContext);
-                Trace($"lookbehind positive={lookbehind.Positive} pos={pos} matched={matched}");
-                if (lookbehind.Positive ? matched : !matched)
-                {
-                    if (lookbehind.Positive && matched)
-                        state.CopyFrom(snapshot);
-                    Trace($"lookbehind success positive={lookbehind.Positive} pos={pos}");
-                    endIndex = pos;
-                    return true;
-                }
-
-                Trace($"lookbehind fail positive={lookbehind.Positive} pos={pos}");
-                break;
-            }
+                return TryMatchLookbehindNode(program, lookbehind, input, pos, flags, state, out endIndex,
+                    nestedInQuantifierContext);
             case ScratchRegExpProgram.SequenceNode sequence:
                 return TryMatchSequence(program, sequence.Terms, 0, input, pos, flags, state, out endIndex,
                     nestedInQuantifierContext);
             case ScratchRegExpProgram.AlternationNode alternation:
-                foreach (var alternative in alternation.Alternatives)
-                {
-                    using var snapshotLease = state.RentClone(out var snapshot);
-                    if (TryMatchNode(program, alternative, input, pos, flags, snapshot, out endIndex,
-                            nestedInQuantifierContext))
-                    {
-                        state.CopyFrom(snapshot);
-                        return true;
-                    }
-                }
-
-                break;
+                return TryMatchAlternationNode(program, alternation, input, pos, flags, state, out endIndex,
+                    nestedInQuantifierContext);
             case ScratchRegExpProgram.QuantifierNode quantifier:
                 return TryMatchQuantifier(program, quantifier, input, pos, flags, state, null, 0, out endIndex,
                     nestedInQuantifierContext);
@@ -766,6 +647,96 @@ internal static partial class ScratchRegExpMatcher
 
         endIndex = currentPos;
         return true;
+    }
+
+    private static bool TryMatchCaptureNode(ScratchRegExpProgram program, ScratchRegExpProgram.CaptureNode capture,
+        string input, int pos, RegExpRuntimeFlags flags, ScratchMatchState state, out int endIndex,
+        bool nestedInQuantifierContext)
+    {
+        using var snapshotLease = state.RentClone(out var snapshot);
+        snapshot.Starts[capture.Index] = pos;
+        snapshot.Matched[capture.Index] = true;
+        if (TryMatchNode(program, capture.Child, input, pos, flags, snapshot, out endIndex, nestedInQuantifierContext))
+        {
+            snapshot.Ends[capture.Index] = endIndex;
+            state.CopyFrom(snapshot);
+            return true;
+        }
+
+        endIndex = default;
+        return false;
+    }
+
+    private static bool TryMatchScopedNode(ScratchRegExpProgram program, ScratchRegExpProgram.ScopedModifiersNode scoped,
+        string input, int pos, RegExpRuntimeFlags flags, ScratchMatchState state, out int endIndex,
+        bool nestedInQuantifierContext)
+    {
+        return TryMatchNode(program, scoped.Child, input, pos, ApplyScopedModifiers(flags, scoped), state, out endIndex,
+            nestedInQuantifierContext);
+    }
+
+    private static bool TryMatchLookaheadNode(ScratchRegExpProgram program, ScratchRegExpProgram.LookaheadNode lookahead,
+        string input, int pos, RegExpRuntimeFlags flags, ScratchMatchState state, out int endIndex,
+        bool nestedInQuantifierContext)
+    {
+        using var snapshotLease = state.RentClone(out var snapshot);
+        var matched = TryMatchNode(program, lookahead.Child, input, pos, flags, snapshot, out _,
+            nestedInQuantifierContext);
+        Trace($"lookahead positive={lookahead.Positive} pos={pos} matched={matched}");
+        if (lookahead.Positive ? matched : !matched)
+        {
+            if (lookahead.Positive && matched)
+                state.CopyFrom(snapshot);
+            Trace($"lookahead success positive={lookahead.Positive} pos={pos}");
+            endIndex = pos;
+            return true;
+        }
+
+        Trace($"lookahead fail positive={lookahead.Positive} pos={pos}");
+        endIndex = default;
+        return false;
+    }
+
+    private static bool TryMatchLookbehindNode(ScratchRegExpProgram program,
+        ScratchRegExpProgram.LookbehindNode lookbehind, string input, int pos, RegExpRuntimeFlags flags,
+        ScratchMatchState state, out int endIndex, bool nestedInQuantifierContext)
+    {
+        using var snapshotLease = state.RentClone(out var snapshot);
+        var lookbehindStartLimit = GetLookbehindStartLimit(lookbehind.Child, pos);
+        var matched = TryMatchLookbehindAssertion(program, lookbehind.Child, input, pos, flags, snapshot, out _,
+            lookbehindStartLimit, nestedInQuantifierContext);
+        Trace($"lookbehind positive={lookbehind.Positive} pos={pos} matched={matched}");
+        if (lookbehind.Positive ? matched : !matched)
+        {
+            if (lookbehind.Positive && matched)
+                state.CopyFrom(snapshot);
+            Trace($"lookbehind success positive={lookbehind.Positive} pos={pos}");
+            endIndex = pos;
+            return true;
+        }
+
+        Trace($"lookbehind fail positive={lookbehind.Positive} pos={pos}");
+        endIndex = default;
+        return false;
+    }
+
+    private static bool TryMatchAlternationNode(ScratchRegExpProgram program,
+        ScratchRegExpProgram.AlternationNode alternation, string input, int pos, RegExpRuntimeFlags flags,
+        ScratchMatchState state, out int endIndex, bool nestedInQuantifierContext)
+    {
+        foreach (var alternative in alternation.Alternatives)
+        {
+            using var snapshotLease = state.RentClone(out var snapshot);
+            if (TryMatchNode(program, alternative, input, pos, flags, snapshot, out endIndex,
+                    nestedInQuantifierContext))
+            {
+                state.CopyFrom(snapshot);
+                return true;
+            }
+        }
+
+        endIndex = default;
+        return false;
     }
 
     private static bool TryConsumeSimpleQuantifiedChildRun(
