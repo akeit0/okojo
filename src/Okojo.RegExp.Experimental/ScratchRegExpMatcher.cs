@@ -954,7 +954,7 @@ internal static class ScratchRegExpMatcher
         out int endIndex, bool nestedInQuantifierContext = false, int? captureIndex = null)
     {
         using var fastPositions = new ScratchPooledList<(int Pos, ScratchMatchState State)>();
-        var hasRestMinLength = TryComputeSequenceMinMatchLength(rest, restIndex, out var restMinLength);
+        var hasRestMinLength = ScratchRegExpProgram.TryGetSequenceMinMatchLength(rest, restIndex, out var restMinLength);
         var hasRestLeadingLiteral = TryGetSequenceLeadingLiteral(rest, restIndex, out var restLeadingLiteral);
         var preferGreedyOrder = quantifier.Greedy || nestedInQuantifierContext;
         if (quantifier.Min == 0)
@@ -1188,101 +1188,6 @@ internal static class ScratchRegExpMatcher
                 return TryGetSequenceLeadingLiteral(sequence.Terms, 0, out codePoint);
             default:
                 codePoint = default;
-                return false;
-        }
-    }
-
-    private static bool TryComputeSequenceMinMatchLength(IReadOnlyList<ScratchRegExpProgram.Node>? terms, int index,
-        out int minLength)
-    {
-        if (terms is null || index < 0 || index >= terms.Count)
-        {
-            minLength = 0;
-            return true;
-        }
-
-        long sum = 0;
-        for (var i = index; i < terms.Count; i++)
-        {
-            if (!TryComputeMinMatchLength(terms[i], out var termLength))
-            {
-                minLength = default;
-                return false;
-            }
-
-            sum += termLength;
-            if (sum > int.MaxValue)
-            {
-                minLength = int.MaxValue;
-                return true;
-            }
-        }
-
-        minLength = (int)sum;
-        return true;
-    }
-
-    private static bool TryComputeMinMatchLength(ScratchRegExpProgram.Node node, out int minLength)
-    {
-        switch (node)
-        {
-            case ScratchRegExpProgram.EmptyNode:
-            case ScratchRegExpProgram.AnchorNode:
-            case ScratchRegExpProgram.BoundaryNode:
-            case ScratchRegExpProgram.LookaheadNode:
-            case ScratchRegExpProgram.LookbehindNode:
-                minLength = 0;
-                return true;
-            case ScratchRegExpProgram.LiteralNode:
-            case ScratchRegExpProgram.DotNode:
-            case ScratchRegExpProgram.ClassNode:
-            case ScratchRegExpProgram.PropertyEscapeNode:
-                minLength = 1;
-                return true;
-            case ScratchRegExpProgram.CaptureNode capture:
-                return TryComputeMinMatchLength(capture.Child, out minLength);
-            case ScratchRegExpProgram.ScopedModifiersNode scoped:
-                return TryComputeMinMatchLength(scoped.Child, out minLength);
-            case ScratchRegExpProgram.SequenceNode sequence:
-                return TryComputeSequenceMinMatchLength(sequence.Terms, 0, out minLength);
-            case ScratchRegExpProgram.AlternationNode alternation:
-            {
-                if (alternation.Alternatives.Length == 0)
-                {
-                    minLength = 0;
-                    return true;
-                }
-
-                var best = int.MaxValue;
-                for (var i = 0; i < alternation.Alternatives.Length; i++)
-                {
-                    if (!TryComputeMinMatchLength(alternation.Alternatives[i], out var alternativeLength))
-                    {
-                        minLength = default;
-                        return false;
-                    }
-
-                    if (alternativeLength < best)
-                        best = alternativeLength;
-                }
-
-                minLength = best;
-                return true;
-            }
-            case ScratchRegExpProgram.QuantifierNode quantifier:
-            {
-                if (!TryComputeMinMatchLength(quantifier.Child, out var childLength))
-                {
-                    minLength = default;
-                    return false;
-                }
-
-                var total = (long)childLength * quantifier.Min;
-                minLength = total > int.MaxValue ? int.MaxValue : (int)total;
-                return true;
-            }
-            default:
-                minLength = default;
                 return false;
         }
     }

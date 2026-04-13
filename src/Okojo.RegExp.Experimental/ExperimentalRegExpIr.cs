@@ -332,7 +332,7 @@ internal static class ExperimentalRegExpIrGenerator
         List<ScratchRegExpProgram.PropertyEscapeNode> propertyEscapes,
         Dictionary<string, List<int>> namedCaptureIndexes)
     {
-        if (!TryComputeMinMatchLength(quantifier.Child, out var childMinLength))
+        if (!ScratchRegExpProgram.TryGetNodeMinMatchLength(quantifier.Child, out var childMinLength))
             return false;
 
         var captureClearSet = GetCaptureClearSet(nodeCaptureIndices, quantifier.Child);
@@ -603,80 +603,4 @@ internal static class ExperimentalRegExpIrGenerator
         instructions[index] = new(instructions[index].OpCode, operand, operand2);
     }
 
-    private static bool TryComputeMinMatchLength(ScratchRegExpProgram.Node node, out int minLength)
-    {
-        switch (node)
-        {
-            case ScratchRegExpProgram.EmptyNode:
-            case ScratchRegExpProgram.AnchorNode:
-            case ScratchRegExpProgram.BoundaryNode:
-                minLength = 0;
-                return true;
-            case ScratchRegExpProgram.LiteralNode:
-            case ScratchRegExpProgram.DotNode:
-            case ScratchRegExpProgram.ClassNode:
-            case ScratchRegExpProgram.PropertyEscapeNode:
-                minLength = 1;
-                return true;
-            case ScratchRegExpProgram.CaptureNode capture:
-                return TryComputeMinMatchLength(capture.Child, out minLength);
-            case ScratchRegExpProgram.SequenceNode sequence:
-            {
-                long total = 0;
-                for (var i = 0; i < sequence.Terms.Length; i++)
-                {
-                    if (!TryComputeMinMatchLength(sequence.Terms[i], out var termLength))
-                    {
-                        minLength = default;
-                        return false;
-                    }
-
-                    total += termLength;
-                    if (total > int.MaxValue)
-                    {
-                        minLength = int.MaxValue;
-                        return true;
-                    }
-                }
-
-                minLength = (int)total;
-                return true;
-            }
-            case ScratchRegExpProgram.AlternationNode alternation:
-            {
-                var best = int.MaxValue;
-                for (var i = 0; i < alternation.Alternatives.Length; i++)
-                {
-                    if (!TryComputeMinMatchLength(alternation.Alternatives[i], out var alternativeLength))
-                    {
-                        minLength = default;
-                        return false;
-                    }
-
-                    if (alternativeLength < best)
-                        best = alternativeLength;
-                }
-
-                minLength = best == int.MaxValue ? 0 : best;
-                return true;
-            }
-            case ScratchRegExpProgram.QuantifierNode quantifier:
-            {
-                if (!TryComputeMinMatchLength(quantifier.Child, out var childLength))
-                {
-                    minLength = default;
-                    return false;
-                }
-
-                var total = (long)childLength * quantifier.Min;
-                minLength = total > int.MaxValue ? int.MaxValue : (int)total;
-                return true;
-            }
-            case ScratchRegExpProgram.ScopedModifiersNode scoped:
-                return TryComputeMinMatchLength(scoped.Child, out minLength);
-            default:
-                minLength = default;
-                return false;
-        }
-    }
 }

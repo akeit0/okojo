@@ -2,6 +2,35 @@ namespace Okojo.RegExp.Experimental;
 
 internal sealed partial class ScratchRegExpProgram
 {
+    internal static bool TryGetSequenceMinMatchLength(IReadOnlyList<Node>? terms, int index, out int minLength)
+    {
+        if (terms is null || index < 0 || index >= terms.Count)
+        {
+            minLength = 0;
+            return true;
+        }
+
+        long sum = 0;
+        for (var i = index; i < terms.Count; i++)
+        {
+            if (!TryGetNodeMinMatchLength(terms[i], out var termLength))
+            {
+                minLength = default;
+                return false;
+            }
+
+            sum += termLength;
+            if (sum > int.MaxValue)
+            {
+                minLength = int.MaxValue;
+                return true;
+            }
+        }
+
+        minLength = (int)sum;
+        return true;
+    }
+
     internal static bool TryGetNodeMinMatchLength(Node node, out int minLength)
     {
         switch (node)
@@ -28,27 +57,7 @@ internal sealed partial class ScratchRegExpProgram
                 minLength = default;
                 return false;
             case SequenceNode sequence:
-            {
-                long sum = 0;
-                for (var i = 0; i < sequence.Terms.Length; i++)
-                {
-                    if (!TryGetNodeMinMatchLength(sequence.Terms[i], out var termLength))
-                    {
-                        minLength = default;
-                        return false;
-                    }
-
-                    sum += termLength;
-                    if (sum > int.MaxValue)
-                    {
-                        minLength = int.MaxValue;
-                        return true;
-                    }
-                }
-
-                minLength = (int)sum;
-                return true;
-            }
+                return TryGetSequenceMinMatchLength(sequence.Terms, 0, out minLength);
             case AlternationNode alternation:
             {
                 if (alternation.Alternatives.Length == 0)

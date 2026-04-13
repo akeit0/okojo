@@ -366,7 +366,7 @@ internal sealed partial class ScratchRegExpProgram
                 NamedGroupNames = namedGroupNames.ToArray(),
                 NamedCaptureIndexes = namedCaptureIndexes,
                 CaptureCount = captureCount,
-                MinMatchLength = TryComputeMinMatchLength(root, out var minMatchLength) ? minMatchLength : -1,
+                MinMatchLength = TryGetNodeMinMatchLength(root, out var minMatchLength) ? minMatchLength : -1,
                 HasLeadingLiteral = hasLeadingLiteral,
                 LeadingLiteralCodePoint = leadingLiteral,
                 RequiredLiteralPrefixCodePoints = requiredLiteralPrefix,
@@ -2320,96 +2320,5 @@ internal sealed partial class ScratchRegExpProgram
             return true;
         }
 
-        private static bool TryComputeMinMatchLength(Node node, out int minLength)
-        {
-            switch (node)
-            {
-                case EmptyNode:
-                case AnchorNode:
-                case BoundaryNode:
-                    minLength = 0;
-                    return true;
-                case LiteralNode:
-                case DotNode:
-                case ClassNode:
-                    minLength = 1;
-                    return true;
-                case CaptureNode capture:
-                    return TryComputeMinMatchLength(capture.Child, out minLength);
-                case LookaheadNode:
-                case LookbehindNode:
-                    minLength = 0;
-                    return true;
-                case ScopedModifiersNode scoped:
-                    return TryComputeMinMatchLength(scoped.Child, out minLength);
-                case PropertyEscapeNode:
-                    minLength = 1;
-                    return true;
-                case BackReferenceNode:
-                    minLength = default;
-                    return false;
-                case SequenceNode sequence:
-                {
-                    long sum = 0;
-                    foreach (var term in sequence.Terms)
-                    {
-                        if (!TryComputeMinMatchLength(term, out var termLength))
-                        {
-                            minLength = default;
-                            return false;
-                        }
-
-                        sum += termLength;
-                        if (sum > int.MaxValue)
-                        {
-                            minLength = int.MaxValue;
-                            return true;
-                        }
-                    }
-
-                    minLength = (int)sum;
-                    return true;
-                }
-                case AlternationNode alternation:
-                {
-                    if (alternation.Alternatives.Length == 0)
-                    {
-                        minLength = 0;
-                        return true;
-                    }
-
-                    var best = int.MaxValue;
-                    foreach (var alternative in alternation.Alternatives)
-                    {
-                        if (!TryComputeMinMatchLength(alternative, out var alternativeLength))
-                        {
-                            minLength = default;
-                            return false;
-                        }
-
-                        if (alternativeLength < best)
-                            best = alternativeLength;
-                    }
-
-                    minLength = best;
-                    return true;
-                }
-                case QuantifierNode quantifier:
-                {
-                    if (!TryComputeMinMatchLength(quantifier.Child, out var childLength))
-                    {
-                        minLength = default;
-                        return false;
-                    }
-
-                    var total = (long)childLength * quantifier.Min;
-                    minLength = total > int.MaxValue ? int.MaxValue : (int)total;
-                    return true;
-                }
-                default:
-                    minLength = default;
-                    return false;
-            }
-        }
     }
 }
