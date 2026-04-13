@@ -350,23 +350,24 @@ internal static class ExperimentalRegExpCodeGenerator
 
 internal static class ExperimentalRegExpVm
 {
-    public static bool TryMatch(ScratchRegExpProgram treeProgram, ExperimentalRegExpBytecodeProgram program, string input,
-        int startIndex, RegExpRuntimeFlags flags, ExperimentalRegExpCaptureState? captureState, out int endIndex)
+    public static bool TryMatch(ExperimentalCompiledProgram compiledProgram, ExperimentalRegExpBytecodeProgram program,
+        string input, int startIndex, RegExpRuntimeFlags flags, ExperimentalRegExpCaptureState? captureState,
+        out int endIndex)
     {
-        return TryMatch(treeProgram, program, input, startIndex, flags, captureState, input.Length, out endIndex);
+        return TryMatch(compiledProgram, program, input, startIndex, flags, captureState, input.Length, out endIndex);
     }
 
-    public static bool TryMatch(ScratchRegExpProgram treeProgram, ExperimentalRegExpBytecodeProgram program, string input,
-        int startIndex, RegExpRuntimeFlags flags, ExperimentalRegExpCaptureState? captureState, int endLimit,
-        out int endIndex)
+    public static bool TryMatch(ExperimentalCompiledProgram compiledProgram, ExperimentalRegExpBytecodeProgram program,
+        string input, int startIndex, RegExpRuntimeFlags flags, ExperimentalRegExpCaptureState? captureState,
+        int endLimit, out int endIndex)
     {
         var stack = new ExperimentalBacktrackStack();
         using var loopState = program.LoopSlotCount == 0 ? null : new ExperimentalRegExpLoopState(program.LoopSlotCount);
         try
         {
             loopState?.Reset();
-            return TryMatch(treeProgram, program, input, startIndex, flags, captureState, endLimit, loopState, ref stack,
-                out endIndex);
+            return TryMatch(compiledProgram, program, input, startIndex, flags, captureState, endLimit, loopState,
+                ref stack, out endIndex);
         }
         finally
         {
@@ -374,10 +375,11 @@ internal static class ExperimentalRegExpVm
         }
     }
 
-    private static bool TryMatch(ScratchRegExpProgram treeProgram, ExperimentalRegExpBytecodeProgram program, string input,
-        int startIndex, RegExpRuntimeFlags flags, ExperimentalRegExpCaptureState? captureState, int endLimit,
-        ExperimentalRegExpLoopState? loopState, ref ExperimentalBacktrackStack stack, out int endIndex)
+    private static bool TryMatch(ExperimentalCompiledProgram compiledProgram, ExperimentalRegExpBytecodeProgram program,
+        string input, int startIndex, RegExpRuntimeFlags flags, ExperimentalRegExpCaptureState? captureState,
+        int endLimit, ExperimentalRegExpLoopState? loopState, ref ExperimentalBacktrackStack stack, out int endIndex)
     {
+        var treeProgram = compiledProgram.TreeProgram;
         var currentPos = startIndex;
         var instructions = program.Instructions;
         var instructionIndex = 0;
@@ -523,7 +525,7 @@ internal static class ExperimentalRegExpVm
                 case ExperimentalRegExpOpcode.AssertLookahead:
                 case ExperimentalRegExpOpcode.AssertNotLookahead:
                     var checkpoint = captureState?.Checkpoint ?? 0;
-                    var lookaheadMatched = TryMatch(treeProgram, program.LookaheadPrograms[instruction.Operand], input,
+                    var lookaheadMatched = TryMatch(compiledProgram, program.LookaheadPrograms[instruction.Operand], input,
                         currentPos, flags, captureState, endLimit, out _);
                     if (instruction.OpCode == ExperimentalRegExpOpcode.AssertLookahead)
                     {
@@ -561,11 +563,11 @@ internal static class ExperimentalRegExpVm
                     checkpoint = captureState?.Checkpoint ?? 0;
                     var lookbehindProgram = program.LookbehindPrograms[instruction.Operand];
                     var lookbehindMatched = lookbehindProgram is not null
-                        ? ScratchRegExpMatcher.TryMatchLookbehindForwardProgramForVm(treeProgram, lookbehindProgram,
+                        ? ScratchRegExpMatcher.TryMatchLookbehindForwardProgramForVm(compiledProgram, lookbehindProgram,
                             input, currentPos, program.LookbehindFlags[instruction.Operand],
                             program.LookbehindMinMatchLengths[instruction.Operand],
                             program.LookbehindMaxMatchLengths[instruction.Operand], captureState)
-                        : ScratchRegExpMatcher.TryMatchLookbehindForVm(treeProgram,
+                        : ScratchRegExpMatcher.TryMatchLookbehindForVm(compiledProgram,
                             program.LookbehindNodes[instruction.Operand], input, currentPos,
                             program.LookbehindFlags[instruction.Operand],
                             program.LookbehindMinMatchLengths[instruction.Operand],

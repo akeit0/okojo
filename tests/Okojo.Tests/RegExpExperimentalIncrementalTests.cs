@@ -896,12 +896,14 @@ public class RegExpExperimentalIncrementalTests
     {
         var engine = ExperimentalRegExpEngine.Default;
         var compiled = engine.Compile(@"(?<=(?=ab)ab)c", "");
-        var bytecodeProgram = ((ExperimentalCompiledProgram)compiled.EngineState!).BytecodeProgram;
+        var compiledState = (ExperimentalCompiledProgram)compiled.EngineState!;
+        var bytecodeProgram = compiledState.BytecodeProgram;
 
         var match = engine.Exec(compiled, "abc", 0);
 
         Assert.That(bytecodeProgram, Is.Not.Null);
         Assert.That(bytecodeProgram!.LookbehindPrograms[0], Is.Null);
+        Assert.That(compiledState.LookaheadAssertionPrograms.Count, Is.GreaterThan(0));
         Assert.That(match, Is.Not.Null);
         Assert.That(match!.Groups[0], Is.EqualTo("c"));
     }

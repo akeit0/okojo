@@ -3,25 +3,29 @@ namespace Okojo.RegExp.Experimental;
 internal static partial class ScratchRegExpMatcher
 {
     private readonly struct ReverseLookbehindContext(
+        ExperimentalCompiledProgram? compiledProgram,
         ScratchRegExpProgram program,
         string input,
         int startLimit)
     {
+        public ExperimentalCompiledProgram? CompiledProgram { get; } = compiledProgram;
         public ScratchRegExpProgram Program { get; } = program;
         public string Input { get; } = input;
         public int StartLimit { get; } = startLimit;
 
         public ReverseLookbehindContext WithStartLimit(int startLimit)
         {
-            return new(Program, Input, startLimit);
+            return new(CompiledProgram, Program, Input, startLimit);
         }
     }
 
-    private static bool TryMatchLookbehindAssertion(ScratchRegExpProgram program, ScratchRegExpProgram.Node child,
+    private static bool TryMatchLookbehindAssertion(ExperimentalCompiledProgram? compiledProgram,
+        ScratchRegExpProgram program, ScratchRegExpProgram.Node child,
         string input, int pos, RegExpRuntimeFlags flags, ScratchMatchState state, out int startIndex,
         int startLimit, bool nestedInQuantifierContext = false)
     {
-        return TryMatchLookbehindNode(new(program, input, startLimit), child, pos, flags, state, out startIndex,
+        return TryMatchLookbehindNode(new(compiledProgram, program, input, startLimit), child, pos, flags, state,
+            out startIndex,
             nestedInQuantifierContext);
     }
 
@@ -140,8 +144,11 @@ internal static partial class ScratchRegExpMatcher
             case ScratchRegExpProgram.LookaheadNode lookahead:
             {
                 using var snapshotLease = state.RentClone(out var snapshot);
-                var matched = TryMatchNode(context.Program, lookahead.Child, context.Input, pos, flags, snapshot, out _,
-                    nestedInQuantifierContext);
+                var matched = context.CompiledProgram is not null
+                    ? TryMatchLookaheadAssertionForVm(context.CompiledProgram, lookahead.Child, context.Input, pos,
+                        flags, snapshot)
+                    : TryMatchNode(context.Program, lookahead.Child, context.Input, pos, flags, snapshot, out _,
+                        nestedInQuantifierContext);
                 if (lookahead.Positive ? matched : !matched)
                 {
                     if (lookahead.Positive && matched)

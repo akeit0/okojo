@@ -181,10 +181,12 @@ internal static partial class ScratchRegExpMatcher
         return false;
     }
 
-    internal static bool TryMatchLookbehindForVm(ScratchRegExpProgram program, ScratchRegExpProgram.Node child,
+    internal static bool TryMatchLookbehindForVm(ExperimentalCompiledProgram compiledProgram,
+        ScratchRegExpProgram.Node child,
         string input, int pos, RegExpRuntimeFlags flags, int minMatchLength, int maxMatchLength,
         ExperimentalRegExpCaptureState? captureState)
     {
+        var program = compiledProgram.TreeProgram;
         if (minMatchLength >= 0 && pos < minMatchLength)
             return false;
 
@@ -194,7 +196,7 @@ internal static partial class ScratchRegExpMatcher
         if (captureState is not null)
             CopyVmCapturesToScratchState(captureState, state);
 
-        if (!TryMatchLookbehindAssertion(program, child, input, pos, flags, state, out _, startLimit))
+        if (!TryMatchLookbehindAssertion(compiledProgram, program, child, input, pos, flags, state, out _, startLimit))
             return false;
 
         if (captureState is not null)
@@ -203,10 +205,11 @@ internal static partial class ScratchRegExpMatcher
         return true;
     }
 
-    internal static bool TryMatchLookbehindForwardProgramForVm(ScratchRegExpProgram program,
+    internal static bool TryMatchLookbehindForwardProgramForVm(ExperimentalCompiledProgram compiledProgram,
         ExperimentalRegExpBytecodeProgram lookbehindProgram, string input, int pos, RegExpRuntimeFlags flags,
         int minMatchLength, int maxMatchLength, ExperimentalRegExpCaptureState? captureState)
     {
+        var program = compiledProgram.TreeProgram;
         if (minMatchLength >= 0 && pos < minMatchLength)
             return false;
 
@@ -219,7 +222,8 @@ internal static partial class ScratchRegExpMatcher
         for (var candidateStart = earliestStart; candidateStart <= latestStart; candidateStart++)
         {
             captureState?.Restore(checkpoint);
-            if (ExperimentalRegExpVm.TryMatch(program, lookbehindProgram, input, candidateStart, flags, captureState,
+            if (ExperimentalRegExpVm.TryMatch(compiledProgram, lookbehindProgram, input, candidateStart, flags,
+                    captureState,
                     pos, out var endIndex) &&
                 endIndex == pos)
                 return true;
@@ -228,6 +232,26 @@ internal static partial class ScratchRegExpMatcher
         captureState?.Restore(checkpoint);
 
         return false;
+    }
+
+    internal static bool TryMatchLookaheadAssertionForVm(ExperimentalCompiledProgram compiledProgram,
+        ScratchRegExpProgram.Node child, string input, int pos, RegExpRuntimeFlags flags, ScratchMatchState state)
+    {
+        if (!compiledProgram.TryGetLookaheadAssertionProgram(child, flags, out var lookaheadProgram))
+            throw new InvalidOperationException("Experimental lookahead assertion program was not precompiled.");
+
+        using var captureState = compiledProgram.TreeProgram.CaptureCount == 0
+            ? null
+            : new ExperimentalRegExpCaptureState(compiledProgram.TreeProgram.CaptureCount);
+        if (captureState is not null)
+            CopyScratchStateToVmCaptures(state, captureState, compiledProgram.TreeProgram.CaptureCount);
+
+        var matched = ExperimentalRegExpVm.TryMatch(compiledProgram, lookaheadProgram, input, pos, flags, captureState,
+            out _);
+        if (matched && captureState is not null)
+            CopyVmCapturesToScratchState(captureState, state);
+
+        return matched;
     }
 
     internal static int ScanDotToEndForVm(string input, int pos, bool unicode, int endLimit)

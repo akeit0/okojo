@@ -119,7 +119,8 @@ internal static partial class ScratchRegExpMatcher
         if (program.Flags.Sticky)
         {
             captureState?.Reset();
-            return ExperimentalRegExpVm.TryMatch(program, bytecodeProgram, input, begin, program.Flags, captureState,
+            return ExperimentalRegExpVm.TryMatch(compiledProgram, bytecodeProgram, input, begin, program.Flags,
+                captureState,
                 out var stickyEnd)
                 ? BuildBytecodeMatch(program, input, begin, stickyEnd, captureState)
                 : null;
@@ -128,7 +129,7 @@ internal static partial class ScratchRegExpMatcher
         for (var pos = FindSearchCandidate(program, input, begin); pos <= input.Length;)
         {
             captureState?.Reset();
-            if (ExperimentalRegExpVm.TryMatch(program, bytecodeProgram, input, pos, program.Flags, captureState,
+            if (ExperimentalRegExpVm.TryMatch(compiledProgram, bytecodeProgram, input, pos, program.Flags, captureState,
                     out var endIndex))
                 return BuildBytecodeMatch(program, input, pos, endIndex, captureState);
 
@@ -493,7 +494,7 @@ internal static partial class ScratchRegExpMatcher
         int index, string input, int pos,
         RegExpRuntimeFlags flags, ScratchMatchState state, out int endIndex, bool nestedInQuantifierContext = false)
     {
-        if (TryMatchAnchoredWholeStringSequence(terms, index, input, pos, flags, state, out endIndex))
+        if (TryMatchAnchoredWholeStringSequence(terms, index, input, pos, flags, out endIndex))
             return true;
 
         if (index >= terms.Count)
@@ -597,7 +598,6 @@ internal static partial class ScratchRegExpMatcher
         string input,
         int pos,
         RegExpRuntimeFlags flags,
-        ScratchMatchState state,
         out int endIndex)
     {
         if (index != 0 || pos != 0 || terms.Count != 3)
@@ -703,7 +703,7 @@ internal static partial class ScratchRegExpMatcher
     {
         using var snapshotLease = state.RentClone(out var snapshot);
         var lookbehindStartLimit = GetLookbehindStartLimit(lookbehind.Child, pos);
-        var matched = TryMatchLookbehindAssertion(program, lookbehind.Child, input, pos, flags, snapshot, out _,
+        var matched = TryMatchLookbehindAssertion(null, program, lookbehind.Child, input, pos, flags, snapshot, out _,
             lookbehindStartLimit, nestedInQuantifierContext);
         Trace($"lookbehind positive={lookbehind.Positive} pos={pos} matched={matched}");
         if (lookbehind.Positive ? matched : !matched)

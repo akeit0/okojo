@@ -20,11 +20,20 @@ internal readonly record struct ExperimentalWholeInputSimpleRunPlan(
     int MinCount,
     int MaxCount);
 
+internal readonly record struct ExperimentalLookaheadAssertionKey(
+    ScratchRegExpProgram.Node Child,
+    RegExpRuntimeFlags Flags);
+
 internal sealed class ExperimentalCompiledProgram
 {
     public required ScratchRegExpProgram TreeProgram { get; init; }
     public ExperimentalRegExpBytecodeProgram? BytecodeProgram { get; init; }
     public ExperimentalWholeInputSimpleRunPlan? WholeInputSimpleRunPlan { get; init; }
+    public Dictionary<ExperimentalLookaheadAssertionKey, ExperimentalRegExpBytecodeProgram> LookaheadAssertionPrograms
+    {
+        get;
+        init;
+    } = [];
 
     public static ExperimentalCompiledProgram Create(ScratchRegExpProgram treeProgram)
     {
@@ -41,12 +50,80 @@ internal sealed class ExperimentalCompiledProgram
         var irProgram = ExperimentalRegExpIrGenerator.TryGenerate(treeProgram);
         var bytecodeProgram = ExperimentalRegExpCodeGenerator.TryGenerate(irProgram)
             ?? throw new InvalidOperationException("Experimental regexp compilation did not produce bytecode.");
+        var lookaheadAssertionPrograms = BuildLookaheadAssertionPrograms(treeProgram);
         return new()
         {
             TreeProgram = treeProgram,
             BytecodeProgram = bytecodeProgram,
-            WholeInputSimpleRunPlan = null
+            WholeInputSimpleRunPlan = null,
+            LookaheadAssertionPrograms = lookaheadAssertionPrograms
         };
+    }
+
+    internal bool TryGetLookaheadAssertionProgram(ScratchRegExpProgram.Node child, RegExpRuntimeFlags flags,
+        out ExperimentalRegExpBytecodeProgram program)
+    {
+        return LookaheadAssertionPrograms.TryGetValue(new(child, flags), out program!);
+    }
+
+    private static Dictionary<ExperimentalLookaheadAssertionKey, ExperimentalRegExpBytecodeProgram>
+        BuildLookaheadAssertionPrograms(ScratchRegExpProgram treeProgram)
+    {
+        var programs = new Dictionary<ExperimentalLookaheadAssertionKey, ExperimentalRegExpBytecodeProgram>();
+        CollectLookaheadAssertionPrograms(treeProgram.Root, treeProgram.Flags, treeProgram.NodeCaptureIndices,
+            treeProgram.NamedCaptureIndexes, programs);
+        return programs;
+    }
+
+    private static void CollectLookaheadAssertionPrograms(ScratchRegExpProgram.Node node, RegExpRuntimeFlags flags,
+        Dictionary<ScratchRegExpProgram.Node, int[]> nodeCaptureIndices, Dictionary<string, List<int>> namedCaptureIndexes,
+        Dictionary<ExperimentalLookaheadAssertionKey, ExperimentalRegExpBytecodeProgram> programs)
+    {
+        switch (node)
+        {
+            case ScratchRegExpProgram.LookaheadNode lookahead:
+            {
+                var key = new ExperimentalLookaheadAssertionKey(lookahead.Child, flags);
+                if (!programs.ContainsKey(key))
+                {
+                    var irProgram = ExperimentalRegExpIrGenerator.TryGenerate(lookahead.Child, flags, nodeCaptureIndices,
+                        namedCaptureIndexes);
+                    var bytecodeProgram = ExperimentalRegExpCodeGenerator.TryGenerate(irProgram)
+                        ?? throw new InvalidOperationException("Experimental lookahead assertion compilation failed.");
+                    programs.Add(key, bytecodeProgram);
+                }
+
+                CollectLookaheadAssertionPrograms(lookahead.Child, flags, nodeCaptureIndices, namedCaptureIndexes,
+                    programs);
+                break;
+            }
+            case ScratchRegExpProgram.CaptureNode capture:
+                CollectLookaheadAssertionPrograms(capture.Child, flags, nodeCaptureIndices, namedCaptureIndexes,
+                    programs);
+                break;
+            case ScratchRegExpProgram.ScopedModifiersNode scoped:
+                CollectLookaheadAssertionPrograms(scoped.Child, ApplyScopedModifiers(flags, scoped), nodeCaptureIndices,
+                    namedCaptureIndexes, programs);
+                break;
+            case ScratchRegExpProgram.LookbehindNode lookbehind:
+                CollectLookaheadAssertionPrograms(lookbehind.Child, flags, nodeCaptureIndices, namedCaptureIndexes,
+                    programs);
+                break;
+            case ScratchRegExpProgram.QuantifierNode quantifier:
+                CollectLookaheadAssertionPrograms(quantifier.Child, flags, nodeCaptureIndices, namedCaptureIndexes,
+                    programs);
+                break;
+            case ScratchRegExpProgram.SequenceNode sequence:
+                for (var i = 0; i < sequence.Terms.Length; i++)
+                    CollectLookaheadAssertionPrograms(sequence.Terms[i], flags, nodeCaptureIndices, namedCaptureIndexes,
+                        programs);
+                break;
+            case ScratchRegExpProgram.AlternationNode alternation:
+                for (var i = 0; i < alternation.Alternatives.Length; i++)
+                    CollectLookaheadAssertionPrograms(alternation.Alternatives[i], flags, nodeCaptureIndices,
+                        namedCaptureIndexes, programs);
+                break;
+        }
     }
 
     private static ExperimentalWholeInputSimpleRunPlan? TryBuildWholeInputSimpleRunPlan(ScratchRegExpProgram treeProgram)
