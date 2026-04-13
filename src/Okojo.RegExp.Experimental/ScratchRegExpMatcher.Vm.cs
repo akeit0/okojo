@@ -194,7 +194,7 @@ internal static partial class ScratchRegExpMatcher
         if (captureState is not null)
             CopyVmCapturesToScratchState(captureState, state);
 
-        if (!TryMatchNodeBackward(program, child, input, pos, flags, state, out _, startLimit: startLimit))
+        if (!TryMatchLookbehindAssertion(program, child, input, pos, flags, state, out _, startLimit))
             return false;
 
         if (captureState is not null)

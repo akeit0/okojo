@@ -39,10 +39,12 @@ internal sealed class ExperimentalCompiledProgram
         }
 
         var irProgram = ExperimentalRegExpIrGenerator.TryGenerate(treeProgram);
+        var bytecodeProgram = ExperimentalRegExpCodeGenerator.TryGenerate(irProgram)
+            ?? throw new InvalidOperationException("Experimental regexp compilation did not produce bytecode.");
         return new()
         {
             TreeProgram = treeProgram,
-            BytecodeProgram = ExperimentalRegExpCodeGenerator.TryGenerate(irProgram),
+            BytecodeProgram = bytecodeProgram,
             WholeInputSimpleRunPlan = null
         };
     }

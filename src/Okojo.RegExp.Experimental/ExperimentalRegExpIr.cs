@@ -10,6 +10,9 @@ internal enum ExperimentalRegExpIrOpcode : byte
     ClearCaptures,
     SaveLoopPosition,
     BranchIfLoopUnchanged,
+    SetLoopCounter,
+    BranchIfLoopCounterZero,
+    DecrementLoopCounter,
     SaveStart,
     SaveEnd,
     BackReference,
@@ -393,22 +396,26 @@ internal static class ExperimentalRegExpIrGenerator
         Dictionary<ScratchRegExpProgram.Node, int[]> nodeCaptureIndices, IrBuildState state,
         Dictionary<string, List<int>> namedCaptureIndexes)
     {
-        if (!CanUnrollQuantifier(quantifier))
-            return false;
-
-        if (!ScratchRegExpProgram.TryGetNodeMinMatchLength(quantifier.Child, out var childMinLength))
-            return false;
-
         var captureClearSet = GetCaptureClearSet(nodeCaptureIndices, quantifier.Child);
-        for (var i = 0; i < quantifier.Min; i++)
-            if (!TryEmitQuantifiedChild(quantifier.Child, flags, nodeCaptureIndices, captureClearSet, state,
-                    namedCaptureIndexes))
-                return false;
+        var hasChildMinLength = ScratchRegExpProgram.TryGetNodeMinMatchLength(quantifier.Child, out var childMinLength);
+        var maybeZeroWidth = !hasChildMinLength || childMinLength == 0;
+        if (quantifier.Min <= MaxUnrolledQuantifierCount)
+        {
+            for (var i = 0; i < quantifier.Min; i++)
+                if (!TryEmitQuantifiedChild(quantifier.Child, flags, nodeCaptureIndices, captureClearSet, state,
+                        namedCaptureIndexes))
+                    return false;
+        }
+        else if (!TryEmitCountedRequiredRepeats(quantifier.Child, quantifier.Min, flags, nodeCaptureIndices,
+                     captureClearSet, state, namedCaptureIndexes))
+        {
+            return false;
+        }
 
         if (quantifier.Max == quantifier.Min)
             return true;
 
-        if (childMinLength == 0)
+        if (maybeZeroWidth)
         {
             if (IsAlwaysZeroWidth(quantifier.Child))
                 return true;
@@ -417,8 +424,13 @@ internal static class ExperimentalRegExpIrGenerator
                 return TryEmitProgressSensitiveStar(quantifier.Child, quantifier.Greedy, flags, nodeCaptureIndices,
                     captureClearSet, state, namedCaptureIndexes);
 
-            return TryEmitProgressSensitiveOptionals(quantifier.Child, quantifier.Max - quantifier.Min,
-                quantifier.Greedy, flags, nodeCaptureIndices, captureClearSet, state, namedCaptureIndexes);
+            var zeroWidthOptionalCount = quantifier.Max - quantifier.Min;
+            if (hasChildMinLength && zeroWidthOptionalCount <= MaxUnrolledQuantifierCount)
+                return TryEmitProgressSensitiveOptionals(quantifier.Child, zeroWidthOptionalCount,
+                    quantifier.Greedy, flags, nodeCaptureIndices, captureClearSet, state, namedCaptureIndexes);
+
+            return TryEmitCountedOptionals(quantifier.Child, zeroWidthOptionalCount, quantifier.Greedy, true, flags,
+                nodeCaptureIndices, captureClearSet, state, namedCaptureIndexes);
         }
 
         if (quantifier.Max == int.MaxValue)
@@ -426,23 +438,74 @@ internal static class ExperimentalRegExpIrGenerator
                 state, namedCaptureIndexes);
 
         var optionalCount = quantifier.Max - quantifier.Min;
-        for (var i = 0; i < optionalCount; i++)
-            if (!TryEmitOptional(quantifier.Child, quantifier.Greedy, flags, nodeCaptureIndices, captureClearSet,
-                    state, namedCaptureIndexes))
-                return false;
+        if (optionalCount <= MaxUnrolledQuantifierCount)
+        {
+            for (var i = 0; i < optionalCount; i++)
+                if (!TryEmitOptional(quantifier.Child, quantifier.Greedy, flags, nodeCaptureIndices, captureClearSet,
+                        state, namedCaptureIndexes))
+                    return false;
+        }
+        else if (!TryEmitCountedOptionals(quantifier.Child, optionalCount, quantifier.Greedy, false, flags,
+                     nodeCaptureIndices, captureClearSet, state, namedCaptureIndexes))
+        {
+            return false;
+        }
 
         return true;
     }
 
-    private static bool CanUnrollQuantifier(ScratchRegExpProgram.QuantifierNode quantifier)
+    private static bool TryEmitCountedRequiredRepeats(ScratchRegExpProgram.Node child, int count,
+        RegExpRuntimeFlags flags, Dictionary<ScratchRegExpProgram.Node, int[]> nodeCaptureIndices, int[] captureClearSet,
+        IrBuildState state, Dictionary<string, List<int>> namedCaptureIndexes)
     {
-        if (quantifier.Min > MaxUnrolledQuantifierCount)
-            return false;
-
-        if (quantifier.Max == int.MaxValue)
+        if (count <= 0)
             return true;
 
-        return quantifier.Max - quantifier.Min <= MaxUnrolledQuantifierCount;
+        var counterSlot = state.AllocateLoopSlot();
+        state.AddInstruction(ExperimentalRegExpIrOpcode.SetLoopCounter, counterSlot, count);
+        var loopHead = state.Instructions.Count;
+        var branchIfZero = state.AddInstruction(ExperimentalRegExpIrOpcode.BranchIfLoopCounterZero, counterSlot);
+        if (!TryEmitQuantifiedChild(child, flags, nodeCaptureIndices, captureClearSet, state, namedCaptureIndexes))
+            return false;
+
+        state.AddInstruction(ExperimentalRegExpIrOpcode.DecrementLoopCounter, counterSlot);
+        state.AddInstruction(ExperimentalRegExpIrOpcode.Jump, loopHead);
+        state.PatchInstruction(branchIfZero, counterSlot, state.Instructions.Count);
+        return true;
+    }
+
+    private static bool TryEmitCountedOptionals(ScratchRegExpProgram.Node child, int optionalCount, bool greedy,
+        bool progressSensitive, RegExpRuntimeFlags flags,
+        Dictionary<ScratchRegExpProgram.Node, int[]> nodeCaptureIndices, int[] captureClearSet, IrBuildState state,
+        Dictionary<string, List<int>> namedCaptureIndexes)
+    {
+        if (optionalCount <= 0)
+            return true;
+
+        var counterSlot = state.AllocateLoopSlot();
+        state.AddInstruction(ExperimentalRegExpIrOpcode.SetLoopCounter, counterSlot, optionalCount);
+        var loopHead = state.Instructions.Count;
+        var branchIfZero = state.AddInstruction(ExperimentalRegExpIrOpcode.BranchIfLoopCounterZero, counterSlot);
+        var progressSlot = progressSensitive ? state.AllocateLoopSlot() : -1;
+        if (progressSensitive)
+            state.AddInstruction(ExperimentalRegExpIrOpcode.SaveLoopPosition, progressSlot);
+
+        var splitIndex = state.AddInstruction(ExperimentalRegExpIrOpcode.Split);
+        var childStart = state.Instructions.Count;
+        if (!TryEmitQuantifiedChild(child, flags, nodeCaptureIndices, captureClearSet, state, namedCaptureIndexes))
+            return false;
+
+        if (progressSensitive)
+            state.AddInstruction(ExperimentalRegExpIrOpcode.BranchIfLoopUnchanged, progressSlot);
+
+        state.AddInstruction(ExperimentalRegExpIrOpcode.DecrementLoopCounter, counterSlot);
+        state.AddInstruction(ExperimentalRegExpIrOpcode.Jump, loopHead);
+        var after = state.Instructions.Count;
+        state.PatchInstruction(branchIfZero, counterSlot, after);
+        state.PatchInstruction(splitIndex,
+            greedy ? childStart : after,
+            greedy ? after : childStart);
+        return true;
     }
 
     private static bool TryEmitOptional(ScratchRegExpProgram.Node child, bool greedy, RegExpRuntimeFlags flags,
@@ -571,8 +634,19 @@ internal static class ExperimentalRegExpIrGenerator
         using var builder = new PooledCharBuilder(initialBuffer);
         for (var i = start; i < end; i++)
         {
-            if (terms[i] is not ScratchRegExpProgram.LiteralNode literal ||
-                !Rune.TryCreate(literal.CodePoint, out var rune))
+            if (terms[i] is not ScratchRegExpProgram.LiteralNode literal)
+            {
+                text = string.Empty;
+                return false;
+            }
+
+            if (literal.CodePoint <= char.MaxValue)
+            {
+                builder.Append((char)literal.CodePoint);
+                continue;
+            }
+
+            if (!Rune.TryCreate(literal.CodePoint, out var rune))
             {
                 text = string.Empty;
                 return false;

@@ -14,31 +14,7 @@ internal static partial class ScratchRegExpMatcher
         if (compiledProgram.WholeInputSimpleRunPlan is { } wholeInputSimpleRunPlan)
             return TryExecWholeInputSimpleRun(program, wholeInputSimpleRunPlan, input, begin);
 
-        if (compiledProgram.BytecodeProgram is not null)
-            return ExecLinearBytecode(compiledProgram, input, begin);
-
-        using var stateArena = program.CaptureCount == 0 ? null : new ScratchMatchStateArena(program.CaptureCount);
-        if (program.Flags.Sticky)
-        {
-            var state = stateArena is null ? ScratchMatchState.Empty : stateArena.Root;
-            if (TryMatchNode(program, program.Root, input, begin, program.Flags, state, out var endIndex))
-                return BuildMatch(program, input, begin, endIndex, state);
-            return null;
-        }
-
-        for (var pos = FindSearchCandidate(program, input, begin); pos <= input.Length;)
-        {
-            if (stateArena is not null)
-                stateArena.Reset();
-
-            var state = stateArena is null ? ScratchMatchState.Empty : stateArena.Root;
-            if (TryMatchNode(program, program.Root, input, pos, program.Flags, state, out var endIndex))
-                return BuildMatch(program, input, pos, endIndex, state);
-
-            pos = NextSearchPosition(program, input, pos);
-        }
-
-        return null;
+        return ExecLinearBytecode(compiledProgram, input, begin);
     }
 
     private static RegExpMatchResult? TryExecWholeInputSimpleRun(ScratchRegExpProgram program,
@@ -424,8 +400,8 @@ internal static partial class ScratchRegExpMatcher
             {
                 using var snapshotLease = state.RentClone(out var snapshot);
                 var lookbehindStartLimit = GetLookbehindStartLimit(lookbehind.Child, pos);
-                var matched = TryMatchNodeBackward(program, lookbehind.Child, input, pos, flags, snapshot, out _,
-                    nestedInQuantifierContext, lookbehindStartLimit);
+                var matched = TryMatchLookbehindAssertion(program, lookbehind.Child, input, pos, flags, snapshot,
+                    out _, lookbehindStartLimit, nestedInQuantifierContext);
                 Trace($"lookbehind positive={lookbehind.Positive} pos={pos} matched={matched}");
                 if (lookbehind.Positive ? matched : !matched)
                 {

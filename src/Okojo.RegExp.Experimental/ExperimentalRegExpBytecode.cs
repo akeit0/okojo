@@ -9,6 +9,9 @@ internal enum ExperimentalRegExpOpcode : byte
     ClearCaptures,
     SaveLoopPosition,
     BranchIfLoopUnchanged,
+    SetLoopCounter,
+    BranchIfLoopCounterZero,
+    DecrementLoopCounter,
     ScanAnyToEnd,
     ScanDotToEnd,
     ScanAsciiClassToEnd,
@@ -297,6 +300,9 @@ internal static class ExperimentalRegExpCodeGenerator
             ExperimentalRegExpIrOpcode.ClearCaptures => ExperimentalRegExpOpcode.ClearCaptures,
             ExperimentalRegExpIrOpcode.SaveLoopPosition => ExperimentalRegExpOpcode.SaveLoopPosition,
             ExperimentalRegExpIrOpcode.BranchIfLoopUnchanged => ExperimentalRegExpOpcode.BranchIfLoopUnchanged,
+            ExperimentalRegExpIrOpcode.SetLoopCounter => ExperimentalRegExpOpcode.SetLoopCounter,
+            ExperimentalRegExpIrOpcode.BranchIfLoopCounterZero => ExperimentalRegExpOpcode.BranchIfLoopCounterZero,
+            ExperimentalRegExpIrOpcode.DecrementLoopCounter => ExperimentalRegExpOpcode.DecrementLoopCounter,
             ExperimentalRegExpIrOpcode.SaveStart => ExperimentalRegExpOpcode.SaveStart,
             ExperimentalRegExpIrOpcode.SaveEnd => ExperimentalRegExpOpcode.SaveEnd,
             ExperimentalRegExpIrOpcode.BackReference => ExperimentalRegExpOpcode.BackReference,
@@ -418,6 +424,23 @@ internal static class ExperimentalRegExpVm
                         continue;
                     }
 
+                    instructionIndex++;
+                    break;
+                case ExperimentalRegExpOpcode.SetLoopCounter:
+                    loopState?.SetCounter(instruction.Operand, instruction.Operand2);
+                    instructionIndex++;
+                    break;
+                case ExperimentalRegExpOpcode.BranchIfLoopCounterZero:
+                    if (loopState is not null && loopState.IsCounterZero(instruction.Operand))
+                    {
+                        instructionIndex = instruction.Operand2;
+                        break;
+                    }
+
+                    instructionIndex++;
+                    break;
+                case ExperimentalRegExpOpcode.DecrementLoopCounter:
+                    loopState?.DecrementCounter(instruction.Operand);
                     instructionIndex++;
                     break;
                 case ExperimentalRegExpOpcode.ScanAnyToEnd:
@@ -909,6 +932,7 @@ internal sealed class ExperimentalRegExpLoopState : IDisposable
     public ExperimentalRegExpLoopState(int slotCount)
     {
         Positions = ArrayPool<int>.Shared.Rent(Math.Max(1, slotCount));
+        Counters = ArrayPool<int>.Shared.Rent(Math.Max(1, slotCount));
         logEntries = ArrayPool<ExperimentalLoopLogEntry>.Shared.Rent(Math.Max(8, slotCount));
         SlotCount = slotCount;
         Reset();
@@ -916,18 +940,20 @@ internal sealed class ExperimentalRegExpLoopState : IDisposable
 
     public int SlotCount { get; }
     public int[] Positions { get; }
+    public int[] Counters { get; }
     public int Checkpoint => logCount;
 
     public void Reset()
     {
         Array.Fill(Positions, -1, 0, SlotCount);
+        Array.Clear(Counters, 0, SlotCount);
         logCount = 0;
     }
 
     public void Save(int slot, int position)
     {
         EnsureLogCapacity(logCount + 1);
-        logEntries[logCount++] = new(slot, Positions[slot]);
+        logEntries[logCount++] = new(slot, Positions[slot], ExperimentalLoopValueKind.Position);
         Positions[slot] = position;
     }
 
@@ -936,18 +962,41 @@ internal sealed class ExperimentalRegExpLoopState : IDisposable
         return Positions[slot] == currentPos;
     }
 
+    public void SetCounter(int slot, int value)
+    {
+        EnsureLogCapacity(logCount + 1);
+        logEntries[logCount++] = new(slot, Counters[slot], ExperimentalLoopValueKind.Counter);
+        Counters[slot] = value;
+    }
+
+    public bool IsCounterZero(int slot)
+    {
+        return Counters[slot] == 0;
+    }
+
+    public void DecrementCounter(int slot)
+    {
+        EnsureLogCapacity(logCount + 1);
+        logEntries[logCount++] = new(slot, Counters[slot], ExperimentalLoopValueKind.Counter);
+        Counters[slot]--;
+    }
+
     public void Restore(int checkpoint)
     {
         while (logCount > checkpoint)
         {
             var entry = logEntries[--logCount];
-            Positions[entry.Slot] = entry.Position;
+            if (entry.Kind == ExperimentalLoopValueKind.Position)
+                Positions[entry.Slot] = entry.PreviousValue;
+            else
+                Counters[entry.Slot] = entry.PreviousValue;
         }
     }
 
     public void Dispose()
     {
         ArrayPool<int>.Shared.Return(Positions);
+        ArrayPool<int>.Shared.Return(Counters);
         ArrayPool<ExperimentalLoopLogEntry>.Shared.Return(logEntries);
     }
 
@@ -962,7 +1011,13 @@ internal sealed class ExperimentalRegExpLoopState : IDisposable
         logEntries = next;
     }
 
-    private readonly record struct ExperimentalLoopLogEntry(int Slot, int Position);
+    private enum ExperimentalLoopValueKind : byte
+    {
+        Position,
+        Counter
+    }
+
+    private readonly record struct ExperimentalLoopLogEntry(int Slot, int PreviousValue, ExperimentalLoopValueKind Kind);
 }
 
 internal sealed class ExperimentalRegExpCaptureState : IDisposable

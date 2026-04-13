@@ -83,6 +83,21 @@ public class RegExpExperimentalIncrementalTests
     }
 
     [Test]
+    public void ExperimentalRegExpEngine_Incremental_CompilesNonUnicodeAstralLiteralWithoutTreeExec()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile("𠮷", "");
+        var compiledState = (ExperimentalCompiledProgram)compiled.EngineState!;
+
+        var match = engine.Exec(compiled, "𠮷a", 0);
+
+        Assert.That(compiledState.BytecodeProgram, Is.Not.Null);
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(0));
+        Assert.That(match.Groups[0], Is.EqualTo("𠮷"));
+    }
+
+    [Test]
     public void ExperimentalRegExpEngine_Incremental_UsesBytecodeLiteralPathForIgnoreCase()
     {
         var engine = ExperimentalRegExpEngine.Default;
@@ -146,7 +161,7 @@ public class RegExpExperimentalIncrementalTests
     }
 
     [Test]
-    public void ExperimentalRegExpEngine_Incremental_FallsBackForHugeQuantifierBounds()
+    public void ExperimentalRegExpEngine_Incremental_CompilesHugeFixedQuantifierWithoutTreeExec()
     {
         var engine = ExperimentalRegExpEngine.Default;
         var compiled = engine.Compile("b{9007199254740991}", "");
@@ -154,8 +169,22 @@ public class RegExpExperimentalIncrementalTests
 
         var match = engine.Exec(compiled, "bbb", 0);
 
-        Assert.That(compiledState.BytecodeProgram, Is.Null);
+        Assert.That(compiledState.BytecodeProgram, Is.Not.Null);
         Assert.That(match, Is.Null);
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_CompilesHugeBoundedQuantifierWithoutTreeExec()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile("b{1,9007199254740991}c", "");
+        var compiledState = (ExperimentalCompiledProgram)compiled.EngineState!;
+
+        var match = engine.Exec(compiled, "bbbc", 0);
+
+        Assert.That(compiledState.BytecodeProgram, Is.Not.Null);
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Groups[0], Is.EqualTo("bbbc"));
     }
 
     [Test]
@@ -860,6 +889,36 @@ public class RegExpExperimentalIncrementalTests
         Assert.That(match, Is.Not.Null);
         Assert.That(match!.Groups[0], Is.EqualTo("b"));
         Assert.That(match.Groups[1], Is.Null);
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesReverseRunnerForNestedLookaheadInLookbehind()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(?<=(?=ab)ab)c", "");
+        var bytecodeProgram = ((ExperimentalCompiledProgram)compiled.EngineState!).BytecodeProgram;
+
+        var match = engine.Exec(compiled, "abc", 0);
+
+        Assert.That(bytecodeProgram, Is.Not.Null);
+        Assert.That(bytecodeProgram!.LookbehindPrograms[0], Is.Null);
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Groups[0], Is.EqualTo("c"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesReverseRunnerForNestedLookbehindInLookbehind()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(?<=(?<=a)b)c", "");
+        var bytecodeProgram = ((ExperimentalCompiledProgram)compiled.EngineState!).BytecodeProgram;
+
+        var match = engine.Exec(compiled, "abc", 0);
+
+        Assert.That(bytecodeProgram, Is.Not.Null);
+        Assert.That(bytecodeProgram!.LookbehindPrograms[0], Is.Null);
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Groups[0], Is.EqualTo("c"));
     }
 
     [Test]
