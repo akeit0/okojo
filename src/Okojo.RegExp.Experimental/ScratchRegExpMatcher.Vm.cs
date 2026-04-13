@@ -200,16 +200,22 @@ internal static partial class ScratchRegExpMatcher
 
     internal static bool TryMatchLookbehindForwardProgramForVm(ScratchRegExpProgram program,
         ExperimentalRegExpBytecodeProgram lookbehindProgram, string input, int pos, RegExpRuntimeFlags flags,
-        int minMatchLength)
+        int minMatchLength, ExperimentalRegExpCaptureState? captureState)
     {
         if (pos < minMatchLength)
             return false;
 
+        var checkpoint = captureState?.Checkpoint ?? 0;
         for (var candidateStart = pos - minMatchLength; candidateStart >= 0; candidateStart--)
-            if (ExperimentalRegExpVm.TryMatch(program, lookbehindProgram, input, candidateStart, flags, null,
+        {
+            captureState?.Restore(checkpoint);
+            if (ExperimentalRegExpVm.TryMatch(program, lookbehindProgram, input, candidateStart, flags, captureState,
                     pos, out var endIndex) &&
                 endIndex == pos)
                 return true;
+        }
+
+        captureState?.Restore(checkpoint);
 
         return false;
     }

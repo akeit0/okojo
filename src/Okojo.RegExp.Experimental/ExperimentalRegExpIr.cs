@@ -52,6 +52,7 @@ internal sealed class ExperimentalRegExpIrProgram
     public int[][] CaptureClearSets { get; init; } = [];
     public int[][] NamedBackReferenceCaptureSets { get; init; } = [];
     public ExperimentalRegExpIrProgram[] LookaheadPrograms { get; init; } = [];
+    public ExperimentalRegExpIrProgram?[] LookbehindPrograms { get; init; } = [];
     public ScratchRegExpProgram.Node[] LookbehindNodes { get; init; } = [];
     public RegExpRuntimeFlags[] LookbehindFlags { get; init; } = [];
     public int LoopSlotCount { get; init; }
@@ -88,6 +89,7 @@ internal static class ExperimentalRegExpIrGenerator
         public ScratchPooledList<int[]> CaptureClearSets { get; } = new();
         public ScratchPooledList<int[]> NamedBackReferenceCaptureSets { get; } = new();
         public ScratchPooledList<ExperimentalRegExpIrProgram> LookaheadPrograms { get; } = new();
+        public ScratchPooledList<ExperimentalRegExpIrProgram?> LookbehindPrograms { get; } = new();
         public ScratchPooledList<ScratchRegExpProgram.Node> LookbehindNodes { get; } = new();
         public ScratchPooledList<RegExpRuntimeFlags> LookbehindFlags { get; } = new();
         public ScratchPooledList<string> LiteralTexts { get; } = new();
@@ -126,8 +128,10 @@ internal static class ExperimentalRegExpIrGenerator
             return LookaheadPrograms.Count - 1;
         }
 
-        public int AddLookbehind(ScratchRegExpProgram.Node lookbehindNode, RegExpRuntimeFlags flags)
+        public int AddLookbehind(ScratchRegExpProgram.Node lookbehindNode, RegExpRuntimeFlags flags,
+            ExperimentalRegExpIrProgram? lookbehindProgram)
         {
+            LookbehindPrograms.Add(lookbehindProgram);
             LookbehindNodes.Add(lookbehindNode);
             LookbehindFlags.Add(flags);
             return LookbehindNodes.Count - 1;
@@ -170,6 +174,7 @@ internal static class ExperimentalRegExpIrGenerator
                 CaptureClearSets = CaptureClearSets.ToArray(),
                 NamedBackReferenceCaptureSets = NamedBackReferenceCaptureSets.ToArray(),
                 LookaheadPrograms = LookaheadPrograms.ToArray(),
+                LookbehindPrograms = LookbehindPrograms.ToArray(),
                 LookbehindNodes = LookbehindNodes.ToArray(),
                 LookbehindFlags = LookbehindFlags.ToArray(),
                 LoopSlotCount = LoopSlotCount,
@@ -186,6 +191,7 @@ internal static class ExperimentalRegExpIrGenerator
             CaptureClearSets.Dispose();
             NamedBackReferenceCaptureSets.Dispose();
             LookaheadPrograms.Dispose();
+            LookbehindPrograms.Dispose();
             LookbehindNodes.Dispose();
             LookbehindFlags.Dispose();
             LiteralTexts.Dispose();
@@ -241,11 +247,16 @@ internal static class ExperimentalRegExpIrGenerator
                 return true;
             }
             case ScratchRegExpProgram.LookbehindNode lookbehind:
+            {
+                ExperimentalRegExpIrProgram? lookbehindProgram = null;
+                if (ScratchRegExpProgram.CanUseForwardLookbehindVm(lookbehind.Child))
+                    lookbehindProgram = TryGenerate(lookbehind.Child, flags, nodeCaptureIndices, namedCaptureIndexes);
                 state.AddInstruction(lookbehind.Positive
                         ? ExperimentalRegExpIrOpcode.AssertLookbehind
                         : ExperimentalRegExpIrOpcode.AssertNotLookbehind,
-                    state.AddLookbehind(lookbehind.Child, flags));
+                    state.AddLookbehind(lookbehind.Child, flags, lookbehindProgram));
                 return true;
+            }
             case ScratchRegExpProgram.LiteralNode literal:
                 state.AddInstruction(flags.IgnoreCase
                     ? ExperimentalRegExpIrOpcode.CharIgnoreCase

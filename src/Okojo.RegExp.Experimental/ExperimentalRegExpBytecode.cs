@@ -104,7 +104,7 @@ internal static class ExperimentalRegExpCodeGenerator
                 instructions.Add(MapInstruction(instruction, classOperandMap, literalSetOperandMap));
             }
 
-            var lookbehindPrograms = LowerLookbehindPrograms(irProgram.LookbehindNodes, irProgram.LookbehindFlags,
+            var lookbehindPrograms = LowerLookbehindPrograms(irProgram.LookbehindPrograms, irProgram.LookbehindNodes,
                 out var lookbehindMinMatchLengths);
             return new()
             {
@@ -175,8 +175,8 @@ internal static class ExperimentalRegExpCodeGenerator
     }
 
     private static ExperimentalRegExpBytecodeProgram?[] LowerLookbehindPrograms(
+        ExperimentalRegExpIrProgram?[] lookbehindPrograms,
         ScratchRegExpProgram.Node[] lookbehindNodes,
-        RegExpRuntimeFlags[] lookbehindFlags,
         out int[] lookbehindMinMatchLengths)
     {
         if (lookbehindNodes.Length == 0)
@@ -187,23 +187,13 @@ internal static class ExperimentalRegExpCodeGenerator
 
         var lowered = new ExperimentalRegExpBytecodeProgram?[lookbehindNodes.Length];
         lookbehindMinMatchLengths = new int[lookbehindNodes.Length];
-        var emptyNodeCaptureIndices = new Dictionary<ScratchRegExpProgram.Node, int[]>();
-        var emptyNamedCaptureIndexes = new Dictionary<string, List<int>>(StringComparer.Ordinal);
         for (var i = 0; i < lookbehindNodes.Length; i++)
         {
             var node = lookbehindNodes[i];
-            if (!ScratchRegExpProgram.CanUseForwardLookbehindVm(node) ||
-                !ScratchRegExpProgram.TryGetNodeMinMatchLength(node, out var minMatchLength))
-                continue;
-
-            var irProgram = ExperimentalRegExpIrGenerator.TryGenerate(node, lookbehindFlags[i], emptyNodeCaptureIndices,
-                emptyNamedCaptureIndexes);
-            if (irProgram is null)
-                continue;
-
-            lowered[i] = TryGenerate(irProgram);
-            if (lowered[i] is not null)
+            if (ScratchRegExpProgram.TryGetNodeMinMatchLength(node, out var minMatchLength))
                 lookbehindMinMatchLengths[i] = minMatchLength;
+
+            lowered[i] = TryGenerate(lookbehindPrograms[i]);
         }
 
         return lowered;
@@ -541,7 +531,7 @@ internal static class ExperimentalRegExpVm
                     var lookbehindMatched = lookbehindProgram is not null
                         ? ScratchRegExpMatcher.TryMatchLookbehindForwardProgramForVm(treeProgram, lookbehindProgram,
                             input, currentPos, program.LookbehindFlags[instruction.Operand],
-                            program.LookbehindMinMatchLengths[instruction.Operand])
+                            program.LookbehindMinMatchLengths[instruction.Operand], captureState)
                         : ScratchRegExpMatcher.TryMatchLookbehindForVm(treeProgram,
                             program.LookbehindNodes[instruction.Operand], input, currentPos,
                             program.LookbehindFlags[instruction.Operand], captureState);
