@@ -163,10 +163,11 @@ internal static class JsRegExpRuntime
     private static JsValue BuildExecResult(JsRealm realm, JsRegExpObject rx, RegExpMatchResult match, string input)
     {
         var array = realm.CreateArrayObject();
+        var values= array.InitializeDenseElementsNoCollision(match.Groups.Length);
         for (var i = 0; i < match.Groups.Length; i++)
-            FreshArrayOperations.DefineElement(array, (uint)i, match.Groups[i] is null
+            values[i]= match.Groups[i] is null
                 ? JsValue.Undefined
-                : JsValue.FromString(match.Groups[i]!));
+                : JsValue.FromString(match.Groups[i]!);
 
         var groupsValue = JsValue.Undefined;
         if (rx.NamedGroupNames.Length != 0)
@@ -189,7 +190,7 @@ internal static class JsRegExpRuntime
             groupsValue = JsValue.FromObject(groups);
         }
 
-        array.DefineDataProperty("groups", groupsValue, JsShapePropertyFlags.Open);
+        array.DefineDataPropertyAtom(realm, AtomTable.IdGroups, groupsValue, JsShapePropertyFlags.Open);
         if (rx.CompiledPattern.ParsedFlags.HasIndices)
         {
             var indices = CreateMatchIndicesArray(realm,
@@ -218,7 +219,7 @@ internal static class JsRegExpRuntime
                 indexGroupsValue = JsValue.FromObject(groups);
             }
 
-            indices.DefineDataProperty("groups", indexGroupsValue, JsShapePropertyFlags.Open);
+            indices.DefineDataPropertyAtom(realm, AtomTable.IdGroups, indexGroupsValue, JsShapePropertyFlags.Open);
             array.DefineDataProperty("indices", JsValue.FromObject(indices), JsShapePropertyFlags.Open);
         }
 

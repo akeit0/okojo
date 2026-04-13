@@ -138,13 +138,13 @@ public partial class Intrinsics
                         cursor += 2;
                         continue;
                     case '\'':
-                    {
-                        var tailPos = Math.Min(position + matched.Length, stringLength);
-                        if (tailPos < stringLength)
-                            result.Append(input, tailPos, stringLength - tailPos);
-                        cursor += 2;
-                        continue;
-                    }
+                        {
+                            var tailPos = Math.Min(position + matched.Length, stringLength);
+                            if (tailPos < stringLength)
+                                result.Append(input, tailPos, stringLength - tailPos);
+                            cursor += 2;
+                            continue;
+                        }
                 }
 
                 if (char.IsAsciiDigit(next))
@@ -827,6 +827,8 @@ public partial class Intrinsics
             var replaceValue = args.Length > 1 ? args[1] : JsValue.Undefined;
             var functionalReplace = replaceValue.TryGetObject(out var replaceObj) && replaceObj is JsFunction;
             var replacementTemplate = functionalReplace ? string.Empty : realm.ToJsStringSlowPath(replaceValue);
+            var replacementNeedsSubstitution = functionalReplace ||
+                                               replacementTemplate.IndexOf('$') >= 0;
             var inputValue = JsValue.FromString(input);
             var result = new PooledCharBuilder(
                 stackalloc char[Math.Min(input.Length + Math.Max(replacementTemplate.Length, 16), 256)]);
@@ -868,29 +870,28 @@ public partial class Intrinsics
 
                     var matchIndex = rawMatch is not null
                         ? rawMatch.Index
-                        : matchObj!.TryGetProperty("index", out var indexValue)
+                        : matchObj!.TryGetPropertyAtom(realm, IdIndex, out var indexValue, out _)
                             ? (int)ToLength(indexValue, realm)
                             : 0;
                     var matched = rawMatch is not null
                         ? rawMatch.Groups[0] ?? string.Empty
-                        : realm.ToJsStringSlowPath(matchObj!.TryGetProperty("0", out var matchedValue)
-                            ? matchedValue
-                            : JsValue.Undefined);
+                        : matchObj!.TryGetElement(0, out var matchedValue)
+                            ? realm.ToJsStringSlowPath(matchedValue)
+                            : "undefined";
 
                     if (matchIndex < nextSourcePosition)
                         continue;
 
                     result.Append(input, nextSourcePosition, matchIndex - nextSourcePosition);
 
-                    var captureCount = rawMatch is not null
-                        ? Math.Max(0, rawMatch.Groups.Length - 1)
-                        : matchObj!.TryGetProperty("length", out var lengthValue)
-                            ? Math.Max(0, (int)ToLength(lengthValue, realm) - 1)
-                            : 0;
-
                     string replacement;
                     if (functionalReplace)
                     {
+                        var captureCount = rawMatch is not null
+                            ? Math.Max(0, rawMatch.Groups.Length - 1)
+                            : matchObj!.TryGetPropertyAtom(realm, IdLength, out var lengthValue, out _)
+                                ? Math.Max(0, (int)ToLength(lengthValue, realm) - 1)
+                                : 0;
                         var replaceFnObj = (JsFunction)replaceObj!;
                         var groupsArgValue = JsValue.Undefined;
                         var hasGroups = false;
@@ -900,7 +901,7 @@ public partial class Intrinsics
                             if (hasGroups)
                                 groupsArgValue = JsValue.FromObject(CreateNamedCapturesObject(realm, rawMatch.NamedGroups!));
                         }
-                        else if (matchObj!.TryGetProperty("groups", out var groupsArg) && !groupsArg.IsUndefined)
+                        else if (matchObj!.TryGetPropertyAtom(realm, IdGroups, out var groupsArg, out _) && !groupsArg.IsUndefined)
                         {
                             hasGroups = true;
                             groupsArgValue = groupsArg;
@@ -920,8 +921,7 @@ public partial class Intrinsics
                                 continue;
                             }
 
-                            var captureKey = (captureIndex + 1).ToString();
-                            var hasCapture = matchObj!.TryGetProperty(captureKey, out var captureValue);
+                            var hasCapture = matchObj!.TryGetElement((uint)(captureIndex + 1), out var captureValue);
                             replaceArgs[captureIndex + 1] = hasCapture ? captureValue : JsValue.Undefined;
                         }
 
@@ -934,6 +934,33 @@ public partial class Intrinsics
                     }
                     else
                     {
+                        if (!replacementNeedsSubstitution && rawMatch is not null)
+                        {
+                            replacement = replacementTemplate;
+                            result.Append(replacement);
+                            nextSourcePosition = matchIndex + matched.Length;
+
+                            if (!isGlobal)
+                                break;
+
+                            if (matched.Length == 0)
+                            {
+                                var lastIndex = obj.TryGetPropertyAtom(realm, IdLastIndex, out var lastIndexValue, out _)
+                                    ? ToLength(lastIndexValue, realm)
+                                    : 0;
+                                SetPropertyAtomOrThrow(realm, obj, IdLastIndex,
+                                    FromLengthValue(AdvanceStringIndexLong(input, lastIndex, fullUnicode)),
+                                    "[Symbol.replace]");
+                            }
+
+                            continue;
+                        }
+
+                        var captureCount = rawMatch is not null
+                            ? Math.Max(0, rawMatch.Groups.Length - 1)
+                            : matchObj!.TryGetPropertyAtom(realm, IdLength, out var lengthValue, out _)
+                                ? Math.Max(0, (int)ToLength(lengthValue, realm) - 1)
+                                : 0;
                         JsObject? groups = null;
                         ReadOnlySpan<string?> captures;
                         if (rawMatch is not null)
@@ -948,14 +975,14 @@ public partial class Intrinsics
                             var capturesArray = new string?[captureCount];
                             for (var captureIndex = 0; captureIndex < captureCount; captureIndex++)
                             {
-                                var captureKey = (captureIndex + 1).ToString();
-                                if (!matchObj!.TryGetProperty(captureKey, out var captureValue) || captureValue.IsUndefined)
+                                var captureKey = (uint)(captureIndex + 1);
+                                if (!matchObj!.TryGetElement(captureKey, out var captureValue) || captureValue.IsUndefined)
                                     continue;
                                 capturesArray[captureIndex] = realm.ToJsStringSlowPath(captureValue);
                             }
 
                             captures = capturesArray;
-                            if (matchObj!.TryGetProperty("groups", out var groupsValue) &&
+                            if (matchObj!.TryGetPropertyAtom(realm, IdGroups, out var groupsValue, out _) &&
                                 !groupsValue.IsUndefined)
                             {
                                 if (!realm.TryToObject(groupsValue, out var groupsObj))
@@ -1087,11 +1114,11 @@ public partial class Intrinsics
                 q = p;
             }
 
-            add_tail:
+        add_tail:
             if (p > text.Length)
                 p = text.Length;
             FreshArrayOperations.DefineElement(result, lengthA++, JsValue.FromString(text[p..]));
-            done:
+        done:
             result.SetLength(lengthA);
             return result;
         }, "[Symbol.split]", 2);
