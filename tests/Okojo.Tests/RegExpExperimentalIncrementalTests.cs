@@ -857,4 +857,98 @@ public class RegExpExperimentalIncrementalTests
         Assert.That(match, Is.Not.Null);
         Assert.That(match!.Groups[0], Is.EqualTo("a"));
     }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_PooledIntSet_UnionFromEmptyKeepsDistinctValues()
+    {
+        using var values = new ScratchPooledIntSet();
+
+        values.UnionWith([4, 2, 4, 1, 2]);
+
+        Assert.That(values.Count, Is.EqualTo(3));
+        Assert.That(values[0], Is.EqualTo(1));
+        Assert.That(values[1], Is.EqualTo(2));
+        Assert.That(values[2], Is.EqualTo(4));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_PooledIntSet_LargeUnionNormalizesOnce()
+    {
+        using var left = new ScratchPooledIntSet();
+        using var right = new ScratchPooledIntSet();
+
+        left.UnionWith([9, 3, 7, 3, 1]);
+        right.UnionWith([8, 7, 2, 9, 5]);
+        left.UnionWith(right);
+
+        Assert.That(left.Count, Is.EqualTo(7));
+        Assert.That(left[0], Is.EqualTo(1));
+        Assert.That(left[1], Is.EqualTo(2));
+        Assert.That(left[2], Is.EqualTo(3));
+        Assert.That(left[3], Is.EqualTo(5));
+        Assert.That(left[4], Is.EqualTo(7));
+        Assert.That(left[5], Is.EqualTo(8));
+        Assert.That(left[6], Is.EqualTo(9));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_PooledIntSet_SortedSetOperationsStayDistinct()
+    {
+        using var left = new ScratchPooledIntSet();
+        using var right = new ScratchPooledIntSet();
+
+        left.UnionWith([7, 1, 5, 3]);
+        right.UnionWith([6, 5, 2, 1]);
+
+        left.IntersectWith(right);
+        Assert.That(left.Count, Is.EqualTo(2));
+        Assert.That(left[0], Is.EqualTo(1));
+        Assert.That(left[1], Is.EqualTo(5));
+
+        left.UnionWith([1, 4, 8]);
+        left.ExceptWith(right);
+        Assert.That(left.Count, Is.EqualTo(2));
+        Assert.That(left[0], Is.EqualTo(4));
+        Assert.That(left[1], Is.EqualTo(8));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_MatchesStringPropertyRunsWithoutLinearPropertyScan()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"^\p{RGI_Emoji}+$", "v");
+        const string input = "1\uFE0F\u20E32\uFE0F\u20E3";
+
+        var match = engine.Exec(compiled, input, 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Groups[0], Is.EqualTo(input));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_MatchesStringPropertyClassSetCandidates()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"^[\p{Emoji_Keycap_Sequence}]+$", "v");
+        const string input = "1\uFE0F\u20E32\uFE0F\u20E3";
+
+        var match = engine.Exec(compiled, input, 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Groups[0], Is.EqualTo(input));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_MatchesStringPropertyLookbehindBackward()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(?<=\p{Emoji_Keycap_Sequence})a", "v");
+        const string input = "1\uFE0F\u20E3a";
+
+        var match = engine.Exec(compiled, input, 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(input.Length - 1));
+        Assert.That(match.Groups[0], Is.EqualTo("a"));
+    }
 }

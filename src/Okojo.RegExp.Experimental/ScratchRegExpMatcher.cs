@@ -1886,9 +1886,10 @@ internal static partial class ScratchRegExpMatcher
         }
 
         matched = false;
-        for (var i = 0; i < cls.Items.Length; i++)
+        var clsItems = cls.Items;
+        for (var i = 0; i < clsItems.Length; i++)
         {
-            var item = cls.Items[i];
+            var item = clsItems[i];
             if (item.Kind == ScratchRegExpProgram.ClassItemKind.StringLiteral ||
                 item.Kind == ScratchRegExpProgram.ClassItemKind.PropertyEscape &&
                 item.PropertyKind == ScratchRegExpProgram.PropertyEscapeKind.StringProperty)
@@ -2074,8 +2075,7 @@ internal static partial class ScratchRegExpMatcher
             item.PropertyKind == ScratchRegExpProgram.PropertyEscapeKind.StringProperty &&
             item.PropertyValue is not null)
         {
-            foreach (var end in ScratchUnicodeStringPropertyTables.MatchEndsAt(item.PropertyValue, input, pos))
-                results.Add(end);
+            ScratchUnicodeStringPropertyTables.AddMatchEndsAt(item.PropertyValue, input, pos, results);
             return;
         }
 
@@ -2107,9 +2107,7 @@ internal static partial class ScratchRegExpMatcher
             item.PropertyKind == ScratchRegExpProgram.PropertyEscapeKind.StringProperty &&
             item.PropertyValue is not null)
         {
-            foreach (var start in
-                     ScratchUnicodeStringPropertyTables.MatchStartsBackward(item.PropertyValue, input, pos))
-                results.Add(start);
+            ScratchUnicodeStringPropertyTables.AddMatchStartsBackward(item.PropertyValue, input, pos, results);
             return;
         }
 
