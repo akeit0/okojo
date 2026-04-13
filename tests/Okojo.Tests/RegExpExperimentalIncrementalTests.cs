@@ -154,7 +154,6 @@ public class RegExpExperimentalIncrementalTests
 
         var match = engine.Exec(compiled, "bbb", 0);
 
-        Assert.That(compiledState.IrProgram, Is.Null);
         Assert.That(compiledState.BytecodeProgram, Is.Null);
         Assert.That(match, Is.Null);
     }

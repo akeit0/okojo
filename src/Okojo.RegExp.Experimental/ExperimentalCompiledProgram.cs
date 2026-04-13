@@ -7,19 +7,27 @@ internal readonly record struct ExperimentalWholeInputPropertyRunPlan(
 internal sealed class ExperimentalCompiledProgram
 {
     public required ScratchRegExpProgram TreeProgram { get; init; }
-    public ExperimentalRegExpIrProgram? IrProgram { get; init; }
     public ExperimentalRegExpBytecodeProgram? BytecodeProgram { get; init; }
     public ExperimentalWholeInputPropertyRunPlan? WholeInputPropertyRunPlan { get; init; }
 
     public static ExperimentalCompiledProgram Create(ScratchRegExpProgram treeProgram)
     {
+        var wholeInputPropertyRunPlan = TryBuildWholeInputPropertyRunPlan(treeProgram);
+        if (wholeInputPropertyRunPlan is not null)
+        {
+            return new()
+            {
+                TreeProgram = treeProgram,
+                WholeInputPropertyRunPlan = wholeInputPropertyRunPlan
+            };
+        }
+
         var irProgram = ExperimentalRegExpIrGenerator.TryGenerate(treeProgram);
         return new()
         {
             TreeProgram = treeProgram,
-            IrProgram = irProgram,
             BytecodeProgram = ExperimentalRegExpCodeGenerator.TryGenerate(irProgram),
-            WholeInputPropertyRunPlan = TryBuildWholeInputPropertyRunPlan(treeProgram)
+            WholeInputPropertyRunPlan = null
         };
     }
 
