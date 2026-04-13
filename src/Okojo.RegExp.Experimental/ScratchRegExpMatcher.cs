@@ -423,8 +423,9 @@ internal static partial class ScratchRegExpMatcher
             case ScratchRegExpProgram.LookbehindNode lookbehind:
             {
                 using var snapshotLease = state.RentClone(out var snapshot);
+                var lookbehindStartLimit = GetLookbehindStartLimit(lookbehind.Child, pos);
                 var matched = TryMatchNodeBackward(program, lookbehind.Child, input, pos, flags, snapshot, out _,
-                    nestedInQuantifierContext);
+                    nestedInQuantifierContext, lookbehindStartLimit);
                 Trace($"lookbehind positive={lookbehind.Positive} pos={pos} matched={matched}");
                 if (lookbehind.Positive ? matched : !matched)
                 {
@@ -465,8 +466,15 @@ internal static partial class ScratchRegExpMatcher
 
     private static bool TryMatchNodeBackward(ScratchRegExpProgram program, ScratchRegExpProgram.Node node, string input,
         int pos,
-        RegExpRuntimeFlags flags, ScratchMatchState state, out int startIndex, bool nestedInQuantifierContext = false)
+        RegExpRuntimeFlags flags, ScratchMatchState state, out int startIndex, bool nestedInQuantifierContext = false,
+        int startLimit = 0)
     {
+        if (pos < startLimit)
+        {
+            startIndex = default;
+            return false;
+        }
+
         switch (node)
         {
             case ScratchRegExpProgram.EmptyNode:
@@ -474,6 +482,7 @@ internal static partial class ScratchRegExpMatcher
                 return true;
             case ScratchRegExpProgram.LiteralNode literal:
                 if (TryReadCodePointBackward(input, pos, flags.Unicode, out var prevPos, out var cp) &&
+                    prevPos >= startLimit &&
                     CodePointEquals(cp, literal.CodePoint, flags.IgnoreCase))
                 {
                     startIndex = prevPos;
@@ -483,6 +492,7 @@ internal static partial class ScratchRegExpMatcher
                 break;
             case ScratchRegExpProgram.DotNode:
                 if (TryReadCodePointBackward(input, pos, flags.Unicode, out prevPos, out cp) &&
+                    prevPos >= startLimit &&
                     (flags.DotAll || !IsLineTerminator(cp)))
                 {
                     startIndex = prevPos;
@@ -516,7 +526,7 @@ internal static partial class ScratchRegExpMatcher
 
                 break;
             case ScratchRegExpProgram.ClassNode cls:
-                if (TryMatchClassBackward(input, pos, cls, flags, out prevPos))
+                if (TryMatchClassBackward(input, pos, cls, flags, out prevPos, startLimit))
                 {
                     startIndex = prevPos;
                     return true;
@@ -524,7 +534,7 @@ internal static partial class ScratchRegExpMatcher
 
                 break;
             case ScratchRegExpProgram.PropertyEscapeNode propertyEscape:
-                if (TryMatchPropertyEscapeBackward(input, pos, propertyEscape, flags, out prevPos))
+                if (TryMatchPropertyEscapeBackward(input, pos, propertyEscape, flags, out prevPos, startLimit))
                 {
                     startIndex = prevPos;
                     return true;
@@ -532,12 +542,12 @@ internal static partial class ScratchRegExpMatcher
 
                 break;
             case ScratchRegExpProgram.BackReferenceNode backReference:
-                if (TryMatchBackReferenceBackward(backReference, input, pos, flags, state, out startIndex))
+                if (TryMatchBackReferenceBackward(backReference, input, pos, flags, state, out startIndex, startLimit))
                     return true;
                 break;
             case ScratchRegExpProgram.NamedBackReferenceNode namedBackReference:
                 if (TryMatchNamedBackReferenceBackward(program, namedBackReference, input, pos, flags, state,
-                        out startIndex))
+                        out startIndex, startLimit))
                     return true;
                 break;
             case ScratchRegExpProgram.CaptureNode capture:
@@ -546,7 +556,7 @@ internal static partial class ScratchRegExpMatcher
                 snapshot.Ends[capture.Index] = pos;
                 snapshot.Matched[capture.Index] = true;
                 if (TryMatchNodeBackward(program, capture.Child, input, pos, flags, snapshot, out var captureStart,
-                        nestedInQuantifierContext))
+                        nestedInQuantifierContext, startLimit))
                 {
                     snapshot.Starts[capture.Index] = captureStart;
                     state.CopyFrom(snapshot);
@@ -560,7 +570,7 @@ internal static partial class ScratchRegExpMatcher
             {
                 var scopedFlags = ApplyScopedModifiers(flags, scoped);
                 if (TryMatchNodeBackward(program, scoped.Child, input, pos, scopedFlags, state, out startIndex,
-                        nestedInQuantifierContext))
+                        nestedInQuantifierContext, startLimit))
                     return true;
                 break;
             }
@@ -582,8 +592,9 @@ internal static partial class ScratchRegExpMatcher
             case ScratchRegExpProgram.LookbehindNode lookbehind:
             {
                 using var snapshotLease = state.RentClone(out var snapshot);
+                var lookbehindStartLimit = Math.Max(startLimit, GetLookbehindStartLimit(lookbehind.Child, pos));
                 var matched = TryMatchNodeBackward(program, lookbehind.Child, input, pos, flags, snapshot, out _,
-                    nestedInQuantifierContext);
+                    nestedInQuantifierContext, lookbehindStartLimit);
                 if (lookbehind.Positive ? matched : !matched)
                 {
                     if (lookbehind.Positive && matched)
@@ -597,13 +608,13 @@ internal static partial class ScratchRegExpMatcher
             case ScratchRegExpProgram.SequenceNode sequence:
                 return TryMatchSequenceBackward(program, sequence.Terms, sequence.Terms.Length - 1, input, pos, flags,
                     state,
-                    out startIndex, nestedInQuantifierContext);
+                    out startIndex, nestedInQuantifierContext, startLimit);
             case ScratchRegExpProgram.AlternationNode alternation:
                 foreach (var alternative in alternation.Alternatives)
                 {
                     using var snapshotLease = state.RentClone(out var snapshot);
                     if (TryMatchNodeBackward(program, alternative, input, pos, flags, snapshot, out startIndex,
-                            nestedInQuantifierContext))
+                            nestedInQuantifierContext, startLimit))
                     {
                         state.CopyFrom(snapshot);
                         return true;
@@ -614,7 +625,7 @@ internal static partial class ScratchRegExpMatcher
             case ScratchRegExpProgram.QuantifierNode quantifier:
                 return TryMatchQuantifierBackward(program, quantifier, input, pos, flags, state, null, -1,
                     out startIndex,
-                    nestedInQuantifierContext);
+                    nestedInQuantifierContext, null, startLimit);
         }
 
         startIndex = default;
@@ -863,7 +874,7 @@ internal static partial class ScratchRegExpMatcher
     private static bool TryMatchSequenceBackward(ScratchRegExpProgram program,
         IReadOnlyList<ScratchRegExpProgram.Node> terms, int index,
         string input, int pos, RegExpRuntimeFlags flags, ScratchMatchState state, out int startIndex,
-        bool nestedInQuantifierContext = false)
+        bool nestedInQuantifierContext = false, int startLimit = 0)
     {
         if (index < 0)
         {
@@ -880,7 +891,7 @@ internal static partial class ScratchRegExpMatcher
             state.Ends[capture.Index] = pos;
             state.Matched[capture.Index] = true;
             if (TryMatchQuantifierBackward(program, captureQuantifier, input, pos, flags, state, terms, index - 1,
-                    out startIndex, nestedInQuantifierContext, capture.Index))
+                    out startIndex, nestedInQuantifierContext, capture.Index, startLimit))
                 return true;
 
             state.CopyFrom(checkpoint);
@@ -895,21 +906,21 @@ internal static partial class ScratchRegExpMatcher
             using var checkpointLease = state.RentSibling(out var checkpoint);
             checkpoint.CopyFrom(state);
             if (TryMatchNodeBackward(program, term, input, pos, flags, state, out var greedyPrevPos,
-                    nestedInQuantifierContext) &&
+                    nestedInQuantifierContext, startLimit) &&
                 TryMatchSequenceBackward(program, terms, index - 1, input, greedyPrevPos, flags, state, out startIndex,
-                    nestedInQuantifierContext) &&
+                    nestedInQuantifierContext, startLimit) &&
                 trustCaptureFastPath)
                 return true;
 
             state.CopyFrom(checkpoint);
             using var captureResults = new ScratchPooledList<(int Pos, ScratchMatchState State)>();
             CollectNodeMatchesBackward(program, term, input, pos, flags, state, captureResults,
-                nestedInQuantifierContext);
+                nestedInQuantifierContext, startLimit);
             for (var i = 0; i < captureResults.Count; i++)
             {
                 var (captureStart, captureState) = captureResults[i];
                 if (TryMatchSequenceBackward(program, terms, index - 1, input, captureStart, flags, captureState,
-                        out startIndex, nestedInQuantifierContext))
+                        out startIndex, nestedInQuantifierContext, startLimit))
                 {
                     state.CopyFrom(captureState);
                     return true;
@@ -928,9 +939,9 @@ internal static partial class ScratchRegExpMatcher
             {
                 state.CopyFrom(checkpoint);
                 if (TryMatchNodeBackward(program, alternative, input, pos, flags, state, out var altPrevPos,
-                        nestedInQuantifierContext) &&
+                        nestedInQuantifierContext, startLimit) &&
                     TryMatchSequenceBackward(program, terms, index - 1, input, altPrevPos, flags, state, out startIndex,
-                        nestedInQuantifierContext))
+                        nestedInQuantifierContext, startLimit))
                     return true;
             }
 
@@ -941,13 +952,14 @@ internal static partial class ScratchRegExpMatcher
 
         if (term is ScratchRegExpProgram.QuantifierNode quantifier)
             return TryMatchQuantifierBackward(program, quantifier, input, pos, flags, state, terms, index - 1,
-                out startIndex, nestedInQuantifierContext);
+                out startIndex, nestedInQuantifierContext, null, startLimit);
 
         using var fallbackCheckpointLease = state.RentSibling(out var fallbackCheckpoint);
         fallbackCheckpoint.CopyFrom(state);
-        if (TryMatchNodeBackward(program, term, input, pos, flags, state, out var prevPos, nestedInQuantifierContext) &&
+        if (TryMatchNodeBackward(program, term, input, pos, flags, state, out var prevPos, nestedInQuantifierContext,
+                startLimit) &&
             TryMatchSequenceBackward(program, terms, index - 1, input, prevPos, flags, state, out startIndex,
-                nestedInQuantifierContext))
+                nestedInQuantifierContext, startLimit))
             return true;
 
         state.CopyFrom(fallbackCheckpoint);
@@ -1381,11 +1393,12 @@ internal static partial class ScratchRegExpMatcher
         RegExpRuntimeFlags flags,
         ScratchMatchState state,
         ScratchPooledList<(int Pos, ScratchMatchState State)> results,
-        bool nestedInQuantifierContext = false)
+        bool nestedInQuantifierContext = false,
+        int startLimit = 0)
     {
         var snapshot = state.Clone();
         if (TryMatchNodeBackward(program, node, input, pos, flags, snapshot, out var prevPos,
-                nestedInQuantifierContext))
+                nestedInQuantifierContext, startLimit))
             results.Add((prevPos, snapshot));
     }
 
@@ -1405,7 +1418,7 @@ internal static partial class ScratchRegExpMatcher
         ScratchRegExpProgram.QuantifierNode quantifier, string input,
         int pos, RegExpRuntimeFlags flags, ScratchMatchState state, IReadOnlyList<ScratchRegExpProgram.Node>? rest,
         int restIndex,
-        out int startIndex, bool nestedInQuantifierContext = false, int? captureIndex = null)
+        out int startIndex, bool nestedInQuantifierContext = false, int? captureIndex = null, int startLimit = 0)
     {
         using var positions = new ScratchPooledList<(int Pos, ScratchMatchState State)>();
         positions.Add((pos, state.Clone()));
@@ -1422,7 +1435,7 @@ internal static partial class ScratchRegExpMatcher
                     stepState.ClearCapture(childCaptureIndices[i]);
 
             if (!TryMatchNodeBackward(program, quantifier.Child, input, currentPos, flags, stepState,
-                    out var childStart, true))
+                    out var childStart, true, startLimit))
                 break;
 
             if (childStart == currentPos)
@@ -1454,7 +1467,7 @@ internal static partial class ScratchRegExpMatcher
 
             return TryMatchSequenceBackward(program, rest, restIndex, input, candidatePos, flags, candidateState,
                 out restStart,
-                nestedInQuantifierContext);
+                nestedInQuantifierContext, startLimit);
         }
 
         if (quantifier.Greedy || nestedInQuantifierContext)
@@ -1624,7 +1637,7 @@ internal static partial class ScratchRegExpMatcher
 
     private static bool TryMatchBackReferenceBackward(ScratchRegExpProgram.BackReferenceNode backReference,
         string input, int pos,
-        RegExpRuntimeFlags flags, ScratchMatchState state, out int startIndex)
+        RegExpRuntimeFlags flags, ScratchMatchState state, out int startIndex, int startLimit = 0)
     {
         if (!state.Matched[backReference.Index])
         {
@@ -1641,7 +1654,7 @@ internal static partial class ScratchRegExpMatcher
         }
 
         var candidateStart = pos - length;
-        if (candidateStart < 0)
+        if (candidateStart < 0 || candidateStart < startLimit)
         {
             startIndex = default;
             return false;
@@ -1677,7 +1690,7 @@ internal static partial class ScratchRegExpMatcher
 
     private static bool TryMatchNamedBackReferenceBackward(ScratchRegExpProgram program,
         ScratchRegExpProgram.NamedBackReferenceNode backReference, string input, int pos, RegExpRuntimeFlags flags,
-        ScratchMatchState state, out int startIndex)
+        ScratchMatchState state, out int startIndex, int startLimit = 0)
     {
         if (!program.NamedCaptureIndexes.TryGetValue(backReference.Name, out var indexes))
         {
@@ -1694,7 +1707,8 @@ internal static partial class ScratchRegExpMatcher
 
             anyMatched = true;
             var numericBackReference = new ScratchRegExpProgram.BackReferenceNode(index);
-            if (TryMatchBackReferenceBackward(numericBackReference, input, pos, flags, state, out startIndex))
+            if (TryMatchBackReferenceBackward(numericBackReference, input, pos, flags, state, out startIndex,
+                    startLimit))
                 return true;
         }
 
@@ -1801,14 +1815,15 @@ internal static partial class ScratchRegExpMatcher
     }
 
     private static bool TryMatchClassBackward(string input, int pos, ScratchRegExpProgram.ClassNode cls,
-        RegExpRuntimeFlags flags, out int startIndex)
+        RegExpRuntimeFlags flags, out int startIndex, int startLimit = 0)
     {
         var hasCodePoint = TryReadCodePointBackward(input, pos, flags.Unicode, out var prevPos, out var codePoint);
-        if (TryMatchSimpleClassBackward(cls, flags, hasCodePoint, prevPos, codePoint, out startIndex))
+        if (TryMatchSimpleClassBackward(cls, flags, hasCodePoint && prevPos >= startLimit, prevPos, codePoint,
+                out startIndex))
             return true;
 
         using var candidates = GetClassCandidatesBackward(input, pos, cls, flags, hasCodePoint, prevPos, codePoint);
-        var bestStart = candidates.MaxOrDefault();
+        var bestStart = GetMaxCandidateAtOrAbove(candidates, startLimit);
 
         if (!cls.Negated)
         {
@@ -1824,6 +1839,26 @@ internal static partial class ScratchRegExpMatcher
 
         startIndex = prevPos;
         return true;
+    }
+
+    private static int GetMaxCandidateAtOrAbove(ScratchPooledIntSet candidates, int minimum)
+    {
+        var best = -1;
+        for (var i = 0; i < candidates.Count; i++)
+        {
+            var candidate = candidates[i];
+            if (candidate >= minimum && candidate > best)
+                best = candidate;
+        }
+
+        return best;
+    }
+
+    private static int GetLookbehindStartLimit(ScratchRegExpProgram.Node node, int pos)
+    {
+        return ScratchRegExpProgram.TryGetNodeMaxMatchLength(node, out var maxMatchLength) && maxMatchLength >= 0
+            ? Math.Max(0, pos - maxMatchLength)
+            : 0;
     }
 
     private static bool TryMatchSimpleClassForward(ScratchRegExpProgram.ClassNode cls, RegExpRuntimeFlags flags,

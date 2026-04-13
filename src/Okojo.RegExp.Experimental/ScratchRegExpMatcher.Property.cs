@@ -327,14 +327,22 @@ internal static partial class ScratchRegExpMatcher
     }
 
     private static bool TryMatchPropertyEscapeBackward(string input, int pos,
-        ExperimentalRegExpPropertyEscape propertyEscape, RegExpRuntimeFlags flags, out int startIndex)
+        ExperimentalRegExpPropertyEscape propertyEscape, RegExpRuntimeFlags flags, out int startIndex, int startLimit = 0)
     {
         if (propertyEscape.Kind == ScratchRegExpProgram.PropertyEscapeKind.StringProperty &&
             propertyEscape.PropertyValue is not null)
-            return ScratchUnicodeStringPropertyTables.TryMatchBackward(propertyEscape.PropertyValue, input, pos,
-                out startIndex);
+        {
+            if (ScratchUnicodeStringPropertyTables.TryMatchBackward(propertyEscape.PropertyValue, input, pos,
+                    out startIndex) &&
+                startIndex >= startLimit)
+                return true;
+
+            startIndex = default;
+            return false;
+        }
 
         if (TryReadCodePointBackward(input, pos, flags.Unicode, out var prevPos, out var cp) &&
+            prevPos >= startLimit &&
             FastPropertyEscapeMatches(propertyEscape, cp, flags))
         {
             startIndex = prevPos;
@@ -346,11 +354,12 @@ internal static partial class ScratchRegExpMatcher
     }
 
     private static bool TryMatchPropertyEscapeBackward(string input, int pos,
-        ScratchRegExpProgram.PropertyEscapeNode propertyEscape, RegExpRuntimeFlags flags, out int startIndex)
+        ScratchRegExpProgram.PropertyEscapeNode propertyEscape, RegExpRuntimeFlags flags, out int startIndex,
+        int startLimit = 0)
     {
         return TryMatchPropertyEscapeBackward(input, pos,
             new ExperimentalRegExpPropertyEscape(propertyEscape.Kind, propertyEscape.Negated, propertyEscape.Categories,
-                propertyEscape.PropertyValue), flags, out startIndex);
+                propertyEscape.PropertyValue), flags, out startIndex, startLimit);
     }
 
     private static bool PropertyEscapeMatches(ScratchRegExpProgram.PropertyEscapeNode propertyEscape, int codePoint,

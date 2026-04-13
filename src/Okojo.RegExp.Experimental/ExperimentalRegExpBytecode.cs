@@ -545,7 +545,8 @@ internal static class ExperimentalRegExpVm
                         : ScratchRegExpMatcher.TryMatchLookbehindForVm(treeProgram,
                             program.LookbehindNodes[instruction.Operand], input, currentPos,
                             program.LookbehindFlags[instruction.Operand],
-                            program.LookbehindMinMatchLengths[instruction.Operand], captureState);
+                            program.LookbehindMinMatchLengths[instruction.Operand],
+                            program.LookbehindMaxMatchLengths[instruction.Operand], captureState);
                     if (instruction.OpCode == ExperimentalRegExpOpcode.AssertLookbehind)
                     {
                         if (!lookbehindMatched)

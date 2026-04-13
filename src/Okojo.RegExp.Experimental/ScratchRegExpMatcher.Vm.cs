@@ -182,18 +182,19 @@ internal static partial class ScratchRegExpMatcher
     }
 
     internal static bool TryMatchLookbehindForVm(ScratchRegExpProgram program, ScratchRegExpProgram.Node child,
-        string input, int pos, RegExpRuntimeFlags flags, int minMatchLength,
+        string input, int pos, RegExpRuntimeFlags flags, int minMatchLength, int maxMatchLength,
         ExperimentalRegExpCaptureState? captureState)
     {
         if (minMatchLength >= 0 && pos < minMatchLength)
             return false;
 
+        var startLimit = maxMatchLength >= 0 ? Math.Max(0, pos - maxMatchLength) : 0;
         using var stateArena = program.CaptureCount == 0 ? null : new ScratchMatchStateArena(program.CaptureCount);
         var state = stateArena is null ? ScratchMatchState.Empty : stateArena.Root;
         if (captureState is not null)
             CopyVmCapturesToScratchState(captureState, state);
 
-        if (!TryMatchNodeBackward(program, child, input, pos, flags, state, out _))
+        if (!TryMatchNodeBackward(program, child, input, pos, flags, state, out _, startLimit: startLimit))
             return false;
 
         if (captureState is not null)
