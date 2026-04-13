@@ -11,8 +11,8 @@ internal static class ScratchRegExpMatcher
     {
         var program = compiledProgram.TreeProgram;
         var begin = Math.Max(0, startIndex);
-        if (compiledProgram.WholeInputPropertyRunPlan is { } wholeInputPropertyRunPlan)
-            return TryExecWholeInputPropertyRun(program, wholeInputPropertyRunPlan, input, begin);
+        if (compiledProgram.WholeInputSimpleRunPlan is { } wholeInputSimpleRunPlan)
+            return TryExecWholeInputSimpleRun(program, wholeInputSimpleRunPlan, input, begin);
 
         if (compiledProgram.BytecodeProgram is not null)
             return ExecLinearBytecode(compiledProgram, input, begin);
@@ -41,18 +41,97 @@ internal static class ScratchRegExpMatcher
         return null;
     }
 
-    private static RegExpMatchResult? TryExecWholeInputPropertyRun(ScratchRegExpProgram program,
-        ExperimentalWholeInputPropertyRunPlan plan, string input, int begin)
+    private static RegExpMatchResult? TryExecWholeInputSimpleRun(ScratchRegExpProgram program,
+        ExperimentalWholeInputSimpleRunPlan plan, string input, int begin)
     {
         if (begin != 0)
             return null;
 
-        ConsumePropertyEscapeRunForVm(input, 0, plan.PropertyEscape, program.Flags, input.Length, int.MaxValue,
-            out var endPos, out var consumed);
-        if (consumed < plan.MinCount || endPos != input.Length)
+        var currentPos = 0;
+        var consumed = 0;
+        if (TryConsumeWholeInputSimpleRun(plan.Atom, input, 0, plan.MaxCount, out var bulkEnd, out var bulkConsumed))
+        {
+            currentPos = bulkEnd;
+            consumed = bulkConsumed;
+        }
+
+        if (consumed < plan.MinCount || currentPos != input.Length)
             return null;
 
-        return BuildSimpleMatch(program, input, 0, endPos);
+        return BuildSimpleMatch(program, input, 0, currentPos);
+    }
+
+    private static bool TryConsumeWholeInputSimpleRun(ExperimentalWholeInputSimpleAtomPlan atom, string input, int pos,
+        int maxCount, out int endPos, out int consumed)
+    {
+        switch (atom.Kind)
+        {
+            case ExperimentalWholeInputSimpleAtomKind.Literal:
+                return ConsumeLiteralRun(atom.LiteralCodePoint, input, pos, atom.Flags, maxCount, out endPos, out consumed);
+            case ExperimentalWholeInputSimpleAtomKind.Dot:
+                return ConsumeDotRun(input, pos, atom.Flags, maxCount, out endPos, out consumed);
+            case ExperimentalWholeInputSimpleAtomKind.CharacterSet:
+                return ConsumeCharacterSetRun(atom.CharacterSet!, input, pos, atom.Flags, maxCount, out endPos,
+                    out consumed);
+            case ExperimentalWholeInputSimpleAtomKind.PropertyEscape:
+                ConsumePropertyEscapeRunForVm(input, pos, atom.PropertyEscape, atom.Flags, input.Length, maxCount,
+                    out endPos, out consumed);
+                return consumed != 0;
+            default:
+                endPos = pos;
+                consumed = 0;
+                return false;
+        }
+    }
+
+    private static bool ConsumeLiteralRun(int literalCodePoint, string input, int pos, RegExpRuntimeFlags flags,
+        int maxCount, out int endPos, out int consumed)
+    {
+        var currentPos = pos;
+        consumed = 0;
+        while (consumed < maxCount &&
+               TryReadCodePoint(input, currentPos, flags.Unicode, out var nextPos, out var codePoint) &&
+               CodePointEquals(codePoint, literalCodePoint, flags.IgnoreCase))
+        {
+            consumed++;
+            currentPos = nextPos;
+        }
+
+        endPos = currentPos;
+        return consumed != 0;
+    }
+
+    private static bool ConsumeDotRun(string input, int pos, RegExpRuntimeFlags flags, int maxCount, out int endPos,
+        out int consumed)
+    {
+        var currentPos = pos;
+        consumed = 0;
+        while (consumed < maxCount &&
+               TryReadCodePoint(input, currentPos, flags.Unicode, out var nextPos, out var codePoint) &&
+               (flags.DotAll || !IsLineTerminator(codePoint)))
+        {
+            consumed++;
+            currentPos = nextPos;
+        }
+
+        endPos = currentPos;
+        return consumed != 0;
+    }
+
+    private static bool ConsumeCharacterSetRun(ExperimentalRegExpCharacterSet characterSet, string input, int pos,
+        RegExpRuntimeFlags flags, int maxCount, out int endPos, out int consumed)
+    {
+        var currentPos = pos;
+        consumed = 0;
+        while (consumed < maxCount &&
+               TryMatchCharacterSetForVm(input, currentPos, characterSet, flags, input.Length, out var nextPos))
+        {
+            consumed++;
+            currentPos = nextPos;
+        }
+
+        endPos = currentPos;
+        return consumed != 0;
     }
 
     private static RegExpMatchResult? ExecLinearBytecode(ExperimentalCompiledProgram compiledProgram, string input,
@@ -747,45 +826,9 @@ internal static class ScratchRegExpMatcher
         out int endPos,
         out int consumed)
     {
-        var currentPos = pos;
-        consumed = 0;
-
-        while (consumed < maxCount && (uint)currentPos < (uint)input.Length)
-        {
-            int codePoint;
-            int nextPos;
-
-            if (propertyEscape.Kind == ScratchRegExpProgram.PropertyEscapeKind.StringProperty &&
-                propertyEscape.PropertyValue is not null)
-            {
-                if (!ScratchUnicodeStringPropertyTables.TryMatchAt(propertyEscape.PropertyValue, input, currentPos,
-                        out nextPos) ||
-                    nextPos == currentPos)
-                    break;
-            }
-            else if (flags.Unicode &&
-                     currentPos + 1 < input.Length &&
-                     char.IsHighSurrogate(input[currentPos]) &&
-                     char.IsLowSurrogate(input[currentPos + 1]))
-            {
-                codePoint = char.ConvertToUtf32(input[currentPos], input[currentPos + 1]);
-                nextPos = currentPos + 2;
-                if (!FastPropertyEscapeMatches(propertyEscape, codePoint, flags))
-                    break;
-            }
-            else
-            {
-                codePoint = input[currentPos];
-                nextPos = currentPos + 1;
-                if (!FastPropertyEscapeMatches(propertyEscape, codePoint, flags))
-                    break;
-            }
-
-            consumed++;
-            currentPos = nextPos;
-        }
-
-        endPos = currentPos;
+        ConsumePropertyEscapeRunForVm(input, pos,
+            new(propertyEscape.Kind, propertyEscape.Negated, propertyEscape.Categories, propertyEscape.PropertyValue),
+            flags, input.Length, maxCount, out endPos, out consumed);
     }
 
     private static bool FastPropertyEscapeMatches(ScratchRegExpProgram.PropertyEscapeNode propertyEscape, int codePoint,
@@ -2140,6 +2183,10 @@ internal static class ScratchRegExpMatcher
         ExperimentalRegExpPropertyEscape propertyEscape, RegExpRuntimeFlags flags, int endLimit, int maxCount,
         out int endPos, out int consumed)
     {
+        if (TryConsumeSpecializedPropertyEscapeRun(input, pos, propertyEscape, flags, endLimit, maxCount, out endPos,
+                out consumed))
+            return;
+
         var currentPos = pos;
         consumed = 0;
 
@@ -2181,6 +2228,170 @@ internal static class ScratchRegExpMatcher
         }
 
         endPos = currentPos;
+    }
+
+    private static bool TryConsumeSpecializedPropertyEscapeRun(string input, int pos,
+        ExperimentalRegExpPropertyEscape propertyEscape, RegExpRuntimeFlags flags, int endLimit, int maxCount,
+        out int endPos, out int consumed)
+    {
+        switch (propertyEscape.Kind)
+        {
+            case ScratchRegExpProgram.PropertyEscapeKind.StringProperty when propertyEscape.PropertyValue is not null:
+                return ConsumeStringPropertyRun(input, pos, propertyEscape.PropertyValue, endLimit, maxCount, out endPos,
+                    out consumed);
+            case ScratchRegExpProgram.PropertyEscapeKind.GeneralCategory:
+                return ConsumeGeneralCategoryPropertyRun(input, pos, propertyEscape, flags, endLimit, maxCount,
+                    out endPos, out consumed);
+            case ScratchRegExpProgram.PropertyEscapeKind.Ascii:
+                return ConsumeAsciiPropertyRun(input, pos, propertyEscape.Negated, flags, endLimit, maxCount,
+                    out endPos, out consumed);
+            case ScratchRegExpProgram.PropertyEscapeKind.Any:
+                return ConsumeAnyPropertyRun(input, pos, propertyEscape.Negated, flags, endLimit, maxCount,
+                    out endPos, out consumed);
+            case ScratchRegExpProgram.PropertyEscapeKind.Assigned:
+                return ConsumeAssignedPropertyRun(input, pos, propertyEscape.Negated, flags, endLimit, maxCount,
+                    out endPos, out consumed);
+            case ScratchRegExpProgram.PropertyEscapeKind.Script when propertyEscape.PropertyValue is not null:
+                return ConsumeScriptPropertyRun(input, pos, propertyEscape.PropertyValue, propertyEscape.Negated, flags,
+                    endLimit, maxCount, out endPos, out consumed);
+            case ScratchRegExpProgram.PropertyEscapeKind.ScriptExtensions when propertyEscape.PropertyValue is not null:
+                return ConsumeScriptExtensionsPropertyRun(input, pos, propertyEscape.PropertyValue,
+                    propertyEscape.Negated, flags, endLimit, maxCount, out endPos, out consumed);
+            case ScratchRegExpProgram.PropertyEscapeKind.UppercaseLetter when propertyEscape.Negated && flags.IgnoreCase:
+                return ConsumeAnyPropertyRun(input, pos, negated: false, flags, endLimit, maxCount, out endPos,
+                    out consumed);
+            default:
+                endPos = default;
+                consumed = default;
+                return false;
+        }
+    }
+
+    private static bool ConsumeStringPropertyRun(string input, int pos, string propertyValue, int endLimit, int maxCount,
+        out int endPos, out int consumed)
+    {
+        var currentPos = pos;
+        consumed = 0;
+        while (consumed < maxCount &&
+               ScratchUnicodeStringPropertyTables.TryMatchAt(propertyValue, input, currentPos, out var nextPos) &&
+               nextPos != currentPos &&
+               nextPos <= endLimit)
+        {
+            consumed++;
+            currentPos = nextPos;
+        }
+
+        endPos = currentPos;
+        return true;
+    }
+
+    private static bool ConsumeGeneralCategoryPropertyRun(string input, int pos,
+        ExperimentalRegExpPropertyEscape propertyEscape, RegExpRuntimeFlags flags, int endLimit, int maxCount,
+        out int endPos, out int consumed)
+    {
+        var currentPos = pos;
+        consumed = 0;
+        while (consumed < maxCount &&
+               TryReadCodePointForVm(input, currentPos, flags.Unicode, endLimit, out var nextPos, out var codePoint) &&
+               (ScratchUnicodeGeneralCategoryTables.Contains(propertyEscape.Categories, codePoint) ^
+                propertyEscape.Negated))
+        {
+            consumed++;
+            currentPos = nextPos;
+        }
+
+        endPos = currentPos;
+        return true;
+    }
+
+    private static bool ConsumeAsciiPropertyRun(string input, int pos, bool negated, RegExpRuntimeFlags flags,
+        int endLimit, int maxCount, out int endPos, out int consumed)
+    {
+        var currentPos = pos;
+        consumed = 0;
+        while (consumed < maxCount &&
+               TryReadCodePointForVm(input, currentPos, flags.Unicode, endLimit, out var nextPos, out var codePoint) &&
+               ((codePoint <= 0x7F) ^ negated))
+        {
+            consumed++;
+            currentPos = nextPos;
+        }
+
+        endPos = currentPos;
+        return true;
+    }
+
+    private static bool ConsumeAnyPropertyRun(string input, int pos, bool negated, RegExpRuntimeFlags flags,
+        int endLimit, int maxCount, out int endPos, out int consumed)
+    {
+        var currentPos = pos;
+        consumed = 0;
+        if (negated)
+        {
+            endPos = currentPos;
+            return true;
+        }
+
+        while (consumed < maxCount &&
+               TryReadCodePointForVm(input, currentPos, flags.Unicode, endLimit, out var nextPos, out _))
+        {
+            consumed++;
+            currentPos = nextPos;
+        }
+
+        endPos = currentPos;
+        return true;
+    }
+
+    private static bool ConsumeAssignedPropertyRun(string input, int pos, bool negated, RegExpRuntimeFlags flags,
+        int endLimit, int maxCount, out int endPos, out int consumed)
+    {
+        var currentPos = pos;
+        consumed = 0;
+        while (consumed < maxCount &&
+               TryReadCodePointForVm(input, currentPos, flags.Unicode, endLimit, out var nextPos, out var codePoint) &&
+               (IsAssignedCodePoint(codePoint) ^ negated))
+        {
+            consumed++;
+            currentPos = nextPos;
+        }
+
+        endPos = currentPos;
+        return true;
+    }
+
+    private static bool ConsumeScriptPropertyRun(string input, int pos, string propertyValue, bool negated,
+        RegExpRuntimeFlags flags, int endLimit, int maxCount, out int endPos, out int consumed)
+    {
+        var currentPos = pos;
+        consumed = 0;
+        while (consumed < maxCount &&
+               TryReadCodePointForVm(input, currentPos, flags.Unicode, endLimit, out var nextPos, out var codePoint) &&
+               (ScratchUnicodeScriptTables.Contains(propertyValue, codePoint) ^ negated))
+        {
+            consumed++;
+            currentPos = nextPos;
+        }
+
+        endPos = currentPos;
+        return true;
+    }
+
+    private static bool ConsumeScriptExtensionsPropertyRun(string input, int pos, string propertyValue, bool negated,
+        RegExpRuntimeFlags flags, int endLimit, int maxCount, out int endPos, out int consumed)
+    {
+        var currentPos = pos;
+        consumed = 0;
+        while (consumed < maxCount &&
+               TryReadCodePointForVm(input, currentPos, flags.Unicode, endLimit, out var nextPos, out var codePoint) &&
+               (ScratchUnicodeScriptExtensionsTables.Contains(propertyValue, codePoint) ^ negated))
+        {
+            consumed++;
+            currentPos = nextPos;
+        }
+
+        endPos = currentPos;
+        return true;
     }
 
     internal static bool TryMatchAsciiClassForVm(string input, int pos, ulong lowBitmap, ulong highBitmap, int endLimit,

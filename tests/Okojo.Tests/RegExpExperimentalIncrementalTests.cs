@@ -159,6 +159,20 @@ public class RegExpExperimentalIncrementalTests
     }
 
     [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesWholeInputSimpleRunPlanForAnchoredClassQuantifier()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"^[A-Z]+$", "");
+        var compiledState = (ExperimentalCompiledProgram)compiled.EngineState!;
+
+        var match = engine.Exec(compiled, "ABCXYZ", 0);
+
+        Assert.That(compiledState.BytecodeProgram, Is.Null);
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Groups[0], Is.EqualTo("ABCXYZ"));
+    }
+
+    [Test]
     public void ExperimentalRegExpEngine_Incremental_UsesLinearBytecodeForAnchorsClassAndDot()
     {
         var engine = ExperimentalRegExpEngine.Default;
