@@ -142,39 +142,11 @@ internal static partial class ScratchRegExpMatcher
                 break;
             }
             case ScratchRegExpProgram.LookaheadNode lookahead:
-            {
-                using var snapshotLease = state.RentClone(out var snapshot);
-                var matched = context.CompiledProgram is not null
-                    ? TryMatchLookaheadAssertionForVm(context.CompiledProgram, lookahead.Child, context.Input, pos,
-                        flags, snapshot)
-                    : TryMatchNode(context.Program, lookahead.Child, context.Input, pos, flags, snapshot, out _,
-                        nestedInQuantifierContext);
-                if (lookahead.Positive ? matched : !matched)
-                {
-                    if (lookahead.Positive && matched)
-                        state.CopyFrom(snapshot);
-                    startIndex = pos;
-                    return true;
-                }
-
-                break;
-            }
-            case ScratchRegExpProgram.LookbehindNode lookbehind:
-            {
-                using var snapshotLease = state.RentClone(out var snapshot);
-                var nestedContext = context.WithStartLimit(GetLookbehindStartLimit(lookbehind.Child, pos));
-                var matched = TryMatchLookbehindNode(nestedContext, lookbehind.Child, pos, flags, snapshot, out _,
+                return TryMatchLookaheadInLookbehind(context, lookahead, pos, flags, state, out startIndex,
                     nestedInQuantifierContext);
-                if (lookbehind.Positive ? matched : !matched)
-                {
-                    if (lookbehind.Positive && matched)
-                        state.CopyFrom(snapshot);
-                    startIndex = pos;
-                    return true;
-                }
-
-                break;
-            }
+            case ScratchRegExpProgram.LookbehindNode lookbehind:
+                return TryMatchNestedLookbehindInLookbehind(context, lookbehind, pos, flags, state, out startIndex,
+                    nestedInQuantifierContext);
             case ScratchRegExpProgram.SequenceNode sequence:
                 return TryMatchLookbehindSequence(context, sequence.Terms, sequence.Terms.Length - 1, pos, flags, state,
                     out startIndex, nestedInQuantifierContext);
@@ -194,6 +166,45 @@ internal static partial class ScratchRegExpMatcher
             case ScratchRegExpProgram.QuantifierNode quantifier:
                 return TryMatchLookbehindQuantifier(context, quantifier, pos, flags, state, null, -1, out startIndex,
                     nestedInQuantifierContext);
+        }
+
+        startIndex = default;
+        return false;
+    }
+
+    private static bool TryMatchLookaheadInLookbehind(ReverseLookbehindContext context,
+        ScratchRegExpProgram.LookaheadNode lookahead, int pos, RegExpRuntimeFlags flags, ScratchMatchState state,
+        out int startIndex, bool nestedInQuantifierContext)
+    {
+        using var snapshotLease = state.RentClone(out var snapshot);
+        var matched = context.CompiledProgram is not null
+            ? TryMatchLookaheadAssertionForVm(context.CompiledProgram, lookahead.Child, context.Input, pos, flags,
+                snapshot)
+            : TryMatchNode(context.Program, lookahead.Child, context.Input, pos, flags, snapshot, out _,
+                nestedInQuantifierContext);
+        return TryCompleteZeroWidthAssertion(lookahead.Positive, matched, pos, state, snapshot, out startIndex);
+    }
+
+    private static bool TryMatchNestedLookbehindInLookbehind(ReverseLookbehindContext context,
+        ScratchRegExpProgram.LookbehindNode lookbehind, int pos, RegExpRuntimeFlags flags, ScratchMatchState state,
+        out int startIndex, bool nestedInQuantifierContext)
+    {
+        using var snapshotLease = state.RentClone(out var snapshot);
+        var nestedContext = context.WithStartLimit(GetLookbehindStartLimit(lookbehind.Child, pos));
+        var matched = TryMatchLookbehindNode(nestedContext, lookbehind.Child, pos, flags, snapshot, out _,
+            nestedInQuantifierContext);
+        return TryCompleteZeroWidthAssertion(lookbehind.Positive, matched, pos, state, snapshot, out startIndex);
+    }
+
+    private static bool TryCompleteZeroWidthAssertion(bool positive, bool matched, int pos, ScratchMatchState state,
+        ScratchMatchState snapshot, out int startIndex)
+    {
+        if (positive ? matched : !matched)
+        {
+            if (positive && matched)
+                state.CopyFrom(snapshot);
+            startIndex = pos;
+            return true;
         }
 
         startIndex = default;
