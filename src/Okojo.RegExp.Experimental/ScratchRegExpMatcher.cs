@@ -12,8 +12,6 @@ internal static class ScratchRegExpMatcher
     {
         var program = compiledProgram.TreeProgram;
         var begin = Math.Max(0, startIndex);
-        if (program.HasExactLiteralPattern)
-            return ExecExactLiteral(compiledProgram, input, begin);
         if (compiledProgram.BytecodeProgram is not null)
             return ExecLinearBytecode(compiledProgram, input, begin);
 
@@ -62,26 +60,6 @@ internal static class ScratchRegExpMatcher
             if (ExperimentalRegExpVm.TryMatch(program, bytecodeProgram, input, pos, program.Flags, captureState,
                     out var endIndex))
                 return BuildBytecodeMatch(program, input, pos, endIndex, captureState);
-
-            pos = NextSearchPosition(program, input, pos);
-        }
-
-        return null;
-    }
-
-    private static RegExpMatchResult? ExecExactLiteral(ExperimentalCompiledProgram compiledProgram, string input,
-        int begin)
-    {
-        var program = compiledProgram.TreeProgram;
-        if (program.Flags.Sticky)
-            return TryMatchExactLiteralAt(compiledProgram, input, begin, out var stickyEnd)
-                ? BuildSimpleMatch(program, input, begin, stickyEnd)
-                : null;
-
-        for (var pos = FindSearchCandidate(program, input, begin); pos <= input.Length;)
-        {
-            if (TryMatchExactLiteralAt(compiledProgram, input, pos, out var endIndex))
-                return BuildSimpleMatch(program, input, pos, endIndex);
 
             pos = NextSearchPosition(program, input, pos);
         }
@@ -1942,46 +1920,6 @@ internal static class ScratchRegExpMatcher
         }
     }
 
-    private static bool TryMatchExactLiteralAt(ExperimentalCompiledProgram compiledProgram, string input, int start,
-        out int endIndex)
-    {
-        var program = compiledProgram.TreeProgram;
-        if (!program.Flags.IgnoreCase &&
-            program.ExactLiteralText is { Length: > 0 } exactLiteralText)
-        {
-            if (start <= input.Length &&
-                input.AsSpan(start).StartsWith(exactLiteralText.AsSpan(), StringComparison.Ordinal))
-            {
-                endIndex = start + exactLiteralText.Length;
-                return true;
-            }
-
-            endIndex = default;
-            return false;
-        }
-
-        if (compiledProgram.BytecodeProgram is not null)
-            return ExperimentalRegExpVm.TryMatch(program, compiledProgram.BytecodeProgram, input, start, program.Flags,
-                null, out endIndex);
-
-        var currentPos = start;
-        var exactLiteral = program.ExactLiteralCodePoints;
-        for (var i = 0; i < exactLiteral.Length; i++)
-        {
-            if (!TryReadCodePoint(input, currentPos, program.Flags.Unicode, out var nextPos, out var cp) ||
-                !CodePointEquals(cp, exactLiteral[i], program.Flags.IgnoreCase))
-            {
-                endIndex = default;
-                return false;
-            }
-
-            currentPos = nextPos;
-        }
-
-        endIndex = currentPos;
-        return true;
-    }
-
     internal static bool TryReadCodePointForVm(string input, int pos, bool unicode, out int nextPos, out int codePoint)
     {
         return TryReadCodePoint(input, pos, unicode, out nextPos, out codePoint);
@@ -1990,6 +1928,20 @@ internal static class ScratchRegExpMatcher
     internal static bool CodePointEqualsForVm(int left, int right, bool ignoreCase)
     {
         return CodePointEquals(left, right, ignoreCase);
+    }
+
+    internal static bool TryMatchLiteralSetForVm(string input, int pos, int[] codePoints, bool ignoreCase, bool unicode,
+        out int nextPos)
+    {
+        if (!TryReadCodePoint(input, pos, unicode, out nextPos, out var codePoint))
+            return false;
+
+        for (var i = 0; i < codePoints.Length; i++)
+            if (CodePointEquals(codePoint, codePoints[i], ignoreCase))
+                return true;
+
+        nextPos = default;
+        return false;
     }
 
     internal static bool IsLineTerminatorForVm(int codePoint)

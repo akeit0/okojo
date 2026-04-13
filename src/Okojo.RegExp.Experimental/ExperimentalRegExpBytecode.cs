@@ -24,6 +24,8 @@ internal enum ExperimentalRegExpOpcode : byte
     AssertLookbehind,
     AssertNotLookbehind,
     LiteralText,
+    LiteralSet,
+    LiteralSetIgnoreCase,
     Char,
     CharIgnoreCase,
     Dot,
@@ -58,10 +60,7 @@ internal sealed class ExperimentalRegExpBytecodeProgram
     public RegExpRuntimeFlags[] LookbehindFlags { get; init; } = [];
     public int LoopSlotCount { get; init; }
     public string[] LiteralTexts { get; init; } = [];
-    public ScratchRegExpProgram.ClassNode[] Classes { get; init; } = [];
-    public bool[] HasAsciiClassBitmap { get; init; } = [];
-    public ulong[] AsciiClassBitmapLow { get; init; } = [];
-    public ulong[] AsciiClassBitmapHigh { get; init; } = [];
+    public ExperimentalRegExpCharacterSet[] CharacterSets { get; init; } = [];
     public ScratchRegExpProgram.PropertyEscapeNode[] PropertyEscapes { get; init; } = [];
 }
 
@@ -72,13 +71,12 @@ internal static class ExperimentalRegExpCodeGenerator
         if (irProgram is null)
             return null;
 
-        BuildAsciiClassBitmaps(irProgram.Classes, out var hasAsciiClassBitmap, out var asciiClassBitmapLow,
-            out var asciiClassBitmapHigh);
+        BuildCharacterSets(irProgram, out var characterSets, out var classOperandMap, out var literalSetOperandMap);
         var source = irProgram.Instructions;
         var instructions = new List<ExperimentalRegExpInstruction>(source.Length);
         for (var i = 0; i < source.Length; i++)
         {
-            if (TryEmitTailScan(source, hasAsciiClassBitmap, i, instructions, out var consumedInstructions))
+            if (TryEmitTailScan(source, classOperandMap, characterSets, i, instructions, out var consumedInstructions))
             {
                 i += consumedInstructions - 1;
                 continue;
@@ -86,13 +84,14 @@ internal static class ExperimentalRegExpCodeGenerator
 
             var instruction = source[i];
             if (instruction.OpCode == ExperimentalRegExpIrOpcode.Class &&
-                hasAsciiClassBitmap[instruction.Operand])
+                characterSets[classOperandMap[instruction.Operand]].AsciiBitmap.HasValue)
             {
-                instructions.Add(new(ExperimentalRegExpOpcode.ClassAscii, instruction.Operand, instruction.Operand2));
+                instructions.Add(new(ExperimentalRegExpOpcode.ClassAscii, classOperandMap[instruction.Operand],
+                    instruction.Operand2));
                 continue;
             }
 
-            instructions.Add(new(MapOpcode(instruction.OpCode), instruction.Operand, instruction.Operand2));
+            instructions.Add(MapInstruction(instruction, classOperandMap, literalSetOperandMap));
         }
 
         return new()
@@ -105,23 +104,42 @@ internal static class ExperimentalRegExpCodeGenerator
             LookbehindFlags = irProgram.LookbehindFlags,
             LoopSlotCount = irProgram.LoopSlotCount,
             LiteralTexts = irProgram.LiteralTexts,
-            Classes = irProgram.Classes,
-            HasAsciiClassBitmap = hasAsciiClassBitmap,
-            AsciiClassBitmapLow = asciiClassBitmapLow,
-            AsciiClassBitmapHigh = asciiClassBitmapHigh,
+            CharacterSets = characterSets,
             PropertyEscapes = irProgram.PropertyEscapes
         };
     }
 
-    private static void BuildAsciiClassBitmaps(ScratchRegExpProgram.ClassNode[] classes, out bool[] hasBitmap,
-        out ulong[] lowBitmap, out ulong[] highBitmap)
+    private static void BuildCharacterSets(ExperimentalRegExpIrProgram irProgram,
+        out ExperimentalRegExpCharacterSet[] characterSets, out int[] classOperandMap, out int[] literalSetOperandMap)
     {
-        hasBitmap = new bool[classes.Length];
-        lowBitmap = new ulong[classes.Length];
-        highBitmap = new ulong[classes.Length];
-        for (var i = 0; i < classes.Length; i++)
-            if (ScratchRegExpProgram.TryBuildAsciiClassBitmap(classes[i], out lowBitmap[i], out highBitmap[i]))
-                hasBitmap[i] = true;
+        var builder = new List<ExperimentalRegExpCharacterSet>(irProgram.Classes.Length + irProgram.LiteralCodePointSets.Length);
+        classOperandMap = new int[irProgram.Classes.Length];
+        literalSetOperandMap = new int[irProgram.LiteralCodePointSets.Length];
+
+        for (var i = 0; i < irProgram.Classes.Length; i++)
+        {
+            var asciiBitmap = ScratchRegExpProgram.TryBuildAsciiClassBitmap(irProgram.Classes[i], out var lowMask,
+                out var highMask)
+                ? new ExperimentalRegExpAsciiBitmap(lowMask, highMask)
+                : default;
+            classOperandMap[i] = builder.Count;
+            builder.Add(new()
+            {
+                Class = irProgram.Classes[i],
+                AsciiBitmap = asciiBitmap
+            });
+        }
+
+        for (var i = 0; i < irProgram.LiteralCodePointSets.Length; i++)
+        {
+            literalSetOperandMap[i] = builder.Count;
+            builder.Add(new()
+            {
+                LiteralCodePoints = irProgram.LiteralCodePointSets[i]
+            });
+        }
+
+        characterSets = builder.ToArray();
     }
 
     private static ExperimentalRegExpBytecodeProgram[] LowerLookaheadPrograms(ExperimentalRegExpIrProgram[] lookaheadPrograms)
@@ -135,8 +153,9 @@ internal static class ExperimentalRegExpCodeGenerator
         return lowered;
     }
 
-    private static bool TryEmitTailScan(ExperimentalRegExpIrInstruction[] source, bool[] hasAsciiClassBitmap, int index,
-        List<ExperimentalRegExpInstruction> instructions, out int consumedInstructions)
+    private static bool TryEmitTailScan(ExperimentalRegExpIrInstruction[] source, int[] classOperandMap,
+        ExperimentalRegExpCharacterSet[] characterSets, int index, List<ExperimentalRegExpInstruction> instructions,
+        out int consumedInstructions)
     {
         consumedInstructions = 0;
         if (index + 3 >= source.Length)
@@ -163,13 +182,14 @@ internal static class ExperimentalRegExpCodeGenerator
                 consumedInstructions = 3;
                 return true;
             case ExperimentalRegExpIrOpcode.Class:
-                instructions.Add(new(hasAsciiClassBitmap[child.Operand]
+                var classOperand = classOperandMap[child.Operand];
+                instructions.Add(new(characterSets[classOperand].AsciiBitmap.HasValue
                     ? ExperimentalRegExpOpcode.ScanAsciiClassToEnd
-                    : ExperimentalRegExpOpcode.ScanClassToEnd, child.Operand));
+                    : ExperimentalRegExpOpcode.ScanClassToEnd, classOperand));
                 consumedInstructions = 3;
                 return true;
             case ExperimentalRegExpIrOpcode.ClassIgnoreCase:
-                instructions.Add(new(ExperimentalRegExpOpcode.ScanClassToEndIgnoreCase, child.Operand));
+                instructions.Add(new(ExperimentalRegExpOpcode.ScanClassToEndIgnoreCase, classOperandMap[child.Operand]));
                 consumedInstructions = 3;
                 return true;
             default:
@@ -177,9 +197,10 @@ internal static class ExperimentalRegExpCodeGenerator
         }
     }
 
-    private static ExperimentalRegExpOpcode MapOpcode(ExperimentalRegExpIrOpcode opcode)
+    private static ExperimentalRegExpInstruction MapInstruction(ExperimentalRegExpIrInstruction instruction,
+        int[] classOperandMap, int[] literalSetOperandMap)
     {
-        return opcode switch
+        var opcode = instruction.OpCode switch
         {
             ExperimentalRegExpIrOpcode.Match => ExperimentalRegExpOpcode.Match,
             ExperimentalRegExpIrOpcode.ClearCaptures => ExperimentalRegExpOpcode.ClearCaptures,
@@ -196,6 +217,8 @@ internal static class ExperimentalRegExpCodeGenerator
             ExperimentalRegExpIrOpcode.AssertLookbehind => ExperimentalRegExpOpcode.AssertLookbehind,
             ExperimentalRegExpIrOpcode.AssertNotLookbehind => ExperimentalRegExpOpcode.AssertNotLookbehind,
             ExperimentalRegExpIrOpcode.LiteralText => ExperimentalRegExpOpcode.LiteralText,
+            ExperimentalRegExpIrOpcode.LiteralSet => ExperimentalRegExpOpcode.LiteralSet,
+            ExperimentalRegExpIrOpcode.LiteralSetIgnoreCase => ExperimentalRegExpOpcode.LiteralSetIgnoreCase,
             ExperimentalRegExpIrOpcode.Char => ExperimentalRegExpOpcode.Char,
             ExperimentalRegExpIrOpcode.CharIgnoreCase => ExperimentalRegExpOpcode.CharIgnoreCase,
             ExperimentalRegExpIrOpcode.Dot => ExperimentalRegExpOpcode.Dot,
@@ -214,8 +237,17 @@ internal static class ExperimentalRegExpCodeGenerator
             ExperimentalRegExpIrOpcode.PropertyEscapeIgnoreCase => ExperimentalRegExpOpcode.PropertyEscapeIgnoreCase,
             ExperimentalRegExpIrOpcode.Jump => ExperimentalRegExpOpcode.Jump,
             ExperimentalRegExpIrOpcode.Split => ExperimentalRegExpOpcode.Split,
-            _ => throw new InvalidOperationException($"Unknown regex IR opcode: {opcode}")
+            _ => throw new InvalidOperationException($"Unknown regex IR opcode: {instruction.OpCode}")
         };
+
+        var operand = instruction.OpCode switch
+        {
+            ExperimentalRegExpIrOpcode.Class or ExperimentalRegExpIrOpcode.ClassIgnoreCase => classOperandMap[instruction.Operand],
+            ExperimentalRegExpIrOpcode.LiteralSet or ExperimentalRegExpIrOpcode.LiteralSetIgnoreCase => literalSetOperandMap[instruction.Operand],
+            _ => instruction.Operand
+        };
+
+        return new(opcode, operand, instruction.Operand2);
     }
 }
 
@@ -290,14 +322,16 @@ internal static class ExperimentalRegExpVm
                     instructionIndex++;
                     break;
                 case ExperimentalRegExpOpcode.ScanAsciiClassToEnd:
+                    var asciiScanCharacterSet = program.CharacterSets[instruction.Operand];
                     currentPos = ScratchRegExpMatcher.ScanAsciiClassToEndForVm(input, currentPos,
-                        program.AsciiClassBitmapLow[instruction.Operand], program.AsciiClassBitmapHigh[instruction.Operand]);
+                        asciiScanCharacterSet.AsciiBitmap.Low, asciiScanCharacterSet.AsciiBitmap.High);
                     instructionIndex++;
                     break;
                 case ExperimentalRegExpOpcode.ScanClassToEnd:
                 case ExperimentalRegExpOpcode.ScanClassToEndIgnoreCase:
+                    var scanCharacterSet = program.CharacterSets[instruction.Operand];
                     currentPos = ScratchRegExpMatcher.ScanClassToEndForVm(input, currentPos,
-                        program.Classes[instruction.Operand], flags with
+                        scanCharacterSet.Class!, flags with
                         {
                             IgnoreCase = instruction.OpCode == ExperimentalRegExpOpcode.ScanClassToEndIgnoreCase
                         });
@@ -436,6 +470,26 @@ internal static class ExperimentalRegExpVm
                     currentPos += literalText.Length;
                     instructionIndex++;
                     break;
+                case ExperimentalRegExpOpcode.LiteralSet:
+                case ExperimentalRegExpOpcode.LiteralSetIgnoreCase:
+                    var literalSet = program.CharacterSets[instruction.Operand];
+                    if (!ScratchRegExpMatcher.TryMatchLiteralSetForVm(input, currentPos,
+                            literalSet.LiteralCodePoints,
+                            instruction.OpCode == ExperimentalRegExpOpcode.LiteralSetIgnoreCase,
+                            flags.Unicode, out var literalSetNextPos))
+                    {
+                        if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
+                        {
+                            endIndex = default;
+                            return false;
+                        }
+
+                        continue;
+                    }
+
+                    currentPos = literalSetNextPos;
+                    instructionIndex++;
+                    break;
                 case ExperimentalRegExpOpcode.Char:
                 case ExperimentalRegExpOpcode.CharIgnoreCase:
                     if (!ScratchRegExpMatcher.TryReadCodePointForVm(input, currentPos, flags.Unicode, out var nextPos,
@@ -489,8 +543,9 @@ internal static class ExperimentalRegExpVm
                     instructionIndex++;
                     break;
                 case ExperimentalRegExpOpcode.ClassAscii:
+                    var asciiCharacterSet = program.CharacterSets[instruction.Operand];
                     if (!ScratchRegExpMatcher.TryMatchAsciiClassForVm(input, currentPos,
-                            program.AsciiClassBitmapLow[instruction.Operand], program.AsciiClassBitmapHigh[instruction.Operand],
+                            asciiCharacterSet.AsciiBitmap.Low, asciiCharacterSet.AsciiBitmap.High,
                             out nextPos))
                     {
                         if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
@@ -595,7 +650,8 @@ internal static class ExperimentalRegExpVm
                     break;
                 case ExperimentalRegExpOpcode.Class:
                 case ExperimentalRegExpOpcode.ClassIgnoreCase:
-                    if (!ScratchRegExpMatcher.TryMatchClassForVm(input, currentPos, program.Classes[instruction.Operand],
+                    var classCharacterSet = program.CharacterSets[instruction.Operand];
+                    if (!ScratchRegExpMatcher.TryMatchClassForVm(input, currentPos, classCharacterSet.Class!,
                             flags with
                             {
                                 IgnoreCase = instruction.OpCode == ExperimentalRegExpOpcode.ClassIgnoreCase

@@ -3,10 +3,9 @@ using System.Text;
 
 namespace Okojo.RegExp.Experimental;
 
-internal sealed class ScratchRegExpProgram
+internal sealed partial class ScratchRegExpProgram
 {
     private const int MaxRequiredLiteralPrefixLength = 8;
-    private const int MaxExactLiteralPatternLength = 64;
     private const int MaxSearchLiteralSetSize = 8;
 
     public required Node Root { get; init; }
@@ -19,9 +18,6 @@ internal sealed class ScratchRegExpProgram
     public required bool HasLeadingLiteral { get; init; }
     public required int[] RequiredLiteralPrefixCodePoints { get; init; }
     public required string? RequiredLiteralPrefixText { get; init; }
-    public required int[] ExactLiteralCodePoints { get; init; }
-    public required bool HasExactLiteralPattern { get; init; }
-    public required string? ExactLiteralText { get; init; }
     public required bool HasScopedModifiers { get; init; }
     public required Dictionary<Node, int[]> NodeCaptureIndices { get; init; }
     public required SearchPlan CandidateSearchPlan { get; init; }
@@ -181,126 +177,6 @@ internal sealed class ScratchRegExpProgram
     internal sealed record QuantifierNode(Node Child, int Min, int Max, bool Greedy) : Node;
 
     internal sealed record ClassNode(ClassItem[] Items, bool Negated, ClassSetExpression? Expression = null) : Node;
-
-    internal static bool TryGetSingleLiteralClassCodePoint(ClassNode cls, out int codePoint)
-    {
-        if (cls.Expression is null &&
-            !cls.Negated &&
-            cls.Items.Length == 1 &&
-            cls.Items[0].Kind == ClassItemKind.Literal)
-        {
-            codePoint = cls.Items[0].CodePoint;
-            return true;
-        }
-
-        codePoint = default;
-        return false;
-    }
-
-    internal static bool TryGetSmallLiteralClassCodePoints(ClassNode cls, out int[] codePoints)
-    {
-        if (cls.Expression is not null || cls.Negated || cls.Items.Length == 0 || cls.Items.Length > MaxSearchLiteralSetSize)
-        {
-            codePoints = [];
-            return false;
-        }
-
-        var builder = new int[cls.Items.Length];
-        for (var i = 0; i < cls.Items.Length; i++)
-        {
-            if (cls.Items[i].Kind != ClassItemKind.Literal)
-            {
-                codePoints = [];
-                return false;
-            }
-
-            builder[i] = cls.Items[i].CodePoint;
-        }
-
-        codePoints = builder;
-        return true;
-    }
-
-    internal static bool TryBuildAsciiClassBitmap(ClassNode cls, out ulong lowMask, out ulong highMask)
-    {
-        lowMask = 0;
-        highMask = 0;
-        if (cls.Expression is not null || cls.Negated || cls.Items.Length == 0)
-            return false;
-
-        for (var i = 0; i < cls.Items.Length; i++)
-            if (!TryAddAsciiClassItem(cls.Items[i], ref lowMask, ref highMask))
-            {
-                lowMask = 0;
-                highMask = 0;
-                return false;
-            }
-
-        return true;
-    }
-
-    private static bool TryAddAsciiClassItem(ClassItem item, ref ulong lowMask, ref ulong highMask)
-    {
-        switch (item.Kind)
-        {
-            case ClassItemKind.Literal:
-                return TryAddAsciiCodePoint(item.CodePoint, ref lowMask, ref highMask);
-            case ClassItemKind.Range:
-                if ((uint)item.RangeEnd >= 128)
-                    return false;
-                for (var cp = item.RangeStart; cp <= item.RangeEnd; cp++)
-                    AddAsciiCodePoint(cp, ref lowMask, ref highMask);
-                return true;
-            case ClassItemKind.Digit:
-                AddAsciiRange('0', '9', ref lowMask, ref highMask);
-                return true;
-            case ClassItemKind.Word:
-                AddAsciiRange('0', '9', ref lowMask, ref highMask);
-                AddAsciiRange('A', 'Z', ref lowMask, ref highMask);
-                AddAsciiRange('a', 'z', ref lowMask, ref highMask);
-                AddAsciiCodePoint('_', ref lowMask, ref highMask);
-                return true;
-            case ClassItemKind.PropertyEscape:
-                switch (item.PropertyKind)
-                {
-                    case PropertyEscapeKind.Ascii:
-                        AddAsciiRange(0, 127, ref lowMask, ref highMask);
-                        return true;
-                    case PropertyEscapeKind.AsciiHexDigit:
-                        AddAsciiRange('0', '9', ref lowMask, ref highMask);
-                        AddAsciiRange('A', 'F', ref lowMask, ref highMask);
-                        AddAsciiRange('a', 'f', ref lowMask, ref highMask);
-                        return true;
-                    default:
-                        return false;
-                }
-            default:
-                return false;
-        }
-    }
-
-    private static bool TryAddAsciiCodePoint(int codePoint, ref ulong lowMask, ref ulong highMask)
-    {
-        if ((uint)codePoint >= 128)
-            return false;
-
-        AddAsciiCodePoint(codePoint, ref lowMask, ref highMask);
-        return true;
-    }
-
-    private static void AddAsciiRange(int start, int end, ref ulong lowMask, ref ulong highMask)
-    {
-        for (var cp = start; cp <= end; cp++)
-            AddAsciiCodePoint(cp, ref lowMask, ref highMask);
-    }
-
-    private static void AddAsciiCodePoint(int codePoint, ref ulong lowMask, ref ulong highMask)
-    {
-        if (codePoint < 64)
-            lowMask |= 1UL << codePoint;
-        else
-            highMask |= 1UL << (codePoint - 64);
-    }
 
     internal abstract record ClassSetExpression;
 
@@ -480,15 +356,9 @@ internal sealed class ScratchRegExpProgram
             var leadingLiteral = 0;
             var hasLeadingLiteral = !hasScopedModifiers && TryGetLeadingLiteral(root, out leadingLiteral);
             var requiredLiteralPrefix = hasScopedModifiers ? [] : GetRequiredLiteralPrefix(root);
-            var exactLiteralCodePoints = hasScopedModifiers ? [] : GetExactLiteralPattern(root);
             var candidateSearchPlan = hasScopedModifiers || !TryBuildSearchPlan(root, flags, out var searchPlan)
                 ? SearchPlan.None
                 : searchPlan;
-            int[] exactLiteral = [];
-            var hasExactLiteralPattern = !hasScopedModifiers &&
-                                         captureCount == 0 &&
-                                         TryGetExactLiteralPattern(root, out exactLiteral) &&
-                                         exactLiteral.Length != 0;
             return new()
             {
                 Root = root,
@@ -503,13 +373,6 @@ internal sealed class ScratchRegExpProgram
                 RequiredLiteralPrefixText = !hasScopedModifiers &&
                                             TryBuildLiteralText(requiredLiteralPrefix, out var prefixText)
                     ? prefixText
-                    : null,
-                ExactLiteralCodePoints = exactLiteralCodePoints,
-                HasExactLiteralPattern = hasExactLiteralPattern,
-                ExactLiteralText = !hasScopedModifiers &&
-                                    TryGetExactLiteralPattern(root, out exactLiteral) &&
-                                    TryBuildLiteralText(exactLiteral, out var exactLiteralText)
-                    ? exactLiteralText
                     : null,
                 HasScopedModifiers = hasScopedModifiers,
                 NodeCaptureIndices = BuildCaptureIndexMap(root),
@@ -2405,79 +2268,6 @@ internal sealed class ScratchRegExpProgram
                         builder.AddRange(childLiteral);
                     if (builder.Count > MaxRequiredLiteralPrefixLength)
                         builder.RemoveRange(MaxRequiredLiteralPrefixLength, builder.Count - MaxRequiredLiteralPrefixLength);
-                    codePoints = builder.ToArray();
-                    return true;
-                }
-                default:
-                    codePoints = [];
-                    return false;
-            }
-        }
-
-        private static int[] GetExactLiteralPattern(Node node)
-        {
-            return TryGetExactLiteralPattern(node, out var exactLiteral) ? exactLiteral : [];
-        }
-
-        private static bool TryGetExactLiteralPattern(Node node, out int[] codePoints)
-        {
-            switch (node)
-            {
-                case EmptyNode:
-                    codePoints = [];
-                    return true;
-                case LiteralNode literal:
-                    codePoints = [literal.CodePoint];
-                    return true;
-                case CaptureNode capture:
-                    return TryGetExactLiteralPattern(capture.Child, out codePoints);
-                case ScopedModifiersNode scoped:
-                    return TryGetExactLiteralPattern(scoped.Child, out codePoints);
-                case SequenceNode sequence:
-                {
-                    var builder = new List<int>(sequence.Terms.Length);
-                    for (var i = 0; i < sequence.Terms.Length; i++)
-                    {
-                        if (!TryGetExactLiteralPattern(sequence.Terms[i], out var termLiteral))
-                        {
-                            codePoints = [];
-                            return false;
-                        }
-
-                        builder.AddRange(termLiteral);
-                        if (builder.Count > MaxExactLiteralPatternLength)
-                        {
-                            codePoints = [];
-                            return false;
-                        }
-                    }
-
-                    codePoints = builder.ToArray();
-                    return true;
-                }
-                case QuantifierNode quantifier when quantifier.Min == quantifier.Max:
-                {
-                    if (!TryGetExactLiteralPattern(quantifier.Child, out var childLiteral))
-                    {
-                        codePoints = [];
-                        return false;
-                    }
-
-                    if (childLiteral.Length == 0)
-                    {
-                        codePoints = [];
-                        return false;
-                    }
-
-                    if ((long)childLiteral.Length * quantifier.Min > MaxExactLiteralPatternLength)
-                    {
-                        codePoints = [];
-                        return false;
-                    }
-
-                    var builder = new List<int>(childLiteral.Length * quantifier.Min);
-                    for (var repeat = 0; repeat < quantifier.Min; repeat++)
-                        builder.AddRange(childLiteral);
                     codePoints = builder.ToArray();
                     return true;
                 }

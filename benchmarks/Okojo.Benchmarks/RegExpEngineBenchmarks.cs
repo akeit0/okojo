@@ -29,6 +29,7 @@ public class RegExpEngineBenchmarks
             ["first-set-class-scan"] = new("first-set-class-scan", @"[A-Z]foo", "", "zzzzzzzzzzzzzzzzzzQfoo"),
             ["named-capture"] = new("named-capture", @"(?<name>a)(b)?", "g", "zabz", 1),
             ["unicode-casefold"] = new("unicode-casefold", @"[\u0390]", "ui", "\u1fd3"),
+            ["unicode-class-set-casefold"] = new("unicode-class-set-casefold", @"[\u0390x]", "ui", "\u1fd3"),
             ["lookahead-backref"] = new("lookahead-backref", @"(.*?)a(?!(a+)b\2c)\2(.*)", "", "baaabaac"),
             ["global-empty"] = new("global-empty", @"a*", "g", string.Empty)
         };
@@ -46,7 +47,7 @@ public class RegExpEngineBenchmarks
     private JsRealm experimentalRealm = null!;
     private int sink;
 
-    [Params("literal-scan", "ascii-word-scan", "first-set-class-scan", "unicode-casefold", "lookahead-backref")]
+    [Params("literal-scan", "ascii-word-scan", "first-set-class-scan", "unicode-casefold", "unicode-class-set-casefold", "lookahead-backref")]
     public string Scenario { get; set; } = "literal-scan";
 
     [GlobalSetup]
