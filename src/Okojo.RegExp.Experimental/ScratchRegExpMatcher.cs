@@ -317,59 +317,6 @@ internal static partial class ScratchRegExpMatcher
         return consumed != 0;
     }
 
-    private static bool TryGetSequenceLeadingLiteral(IReadOnlyList<ScratchRegExpProgram.Node>? terms, int index,
-        out int codePoint)
-    {
-        if (terms is null || index < 0 || index >= terms.Count)
-        {
-            codePoint = default;
-            return false;
-        }
-
-        for (var i = index; i < terms.Count; i++)
-        {
-            if (TryGetLeadingLiteral(terms[i], out codePoint))
-                return true;
-
-            if (!IsZeroWidthNode(terms[i]))
-                return false;
-        }
-
-        codePoint = default;
-        return false;
-    }
-
-    private static bool TryGetLeadingLiteral(ScratchRegExpProgram.Node node, out int codePoint)
-    {
-        switch (node)
-        {
-            case ScratchRegExpProgram.LiteralNode literal:
-                codePoint = literal.CodePoint;
-                return true;
-            case ScratchRegExpProgram.CaptureNode capture:
-                return TryGetLeadingLiteral(capture.Child, out codePoint);
-            case ScratchRegExpProgram.ScopedModifiersNode scoped:
-                return TryGetLeadingLiteral(scoped.Child, out codePoint);
-            case ScratchRegExpProgram.QuantifierNode quantifier when quantifier.Min > 0:
-                return TryGetLeadingLiteral(quantifier.Child, out codePoint);
-            case ScratchRegExpProgram.SequenceNode sequence:
-                return TryGetSequenceLeadingLiteral(sequence.Terms, 0, out codePoint);
-            default:
-                codePoint = default;
-                return false;
-        }
-    }
-
-    private static bool IsZeroWidthNode(ScratchRegExpProgram.Node node)
-    {
-        return node is ScratchRegExpProgram.EmptyNode
-            or ScratchRegExpProgram.AnchorNode
-            or ScratchRegExpProgram.BoundaryNode
-            or ScratchRegExpProgram.LookaheadNode
-            or ScratchRegExpProgram.LookbehindNode;
-    }
-
-
     private static bool CanUseFastBacktrackingPath(ScratchRegExpProgram.Node node)
     {
         switch (node)
