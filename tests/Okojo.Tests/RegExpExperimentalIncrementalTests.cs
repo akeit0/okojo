@@ -454,6 +454,19 @@ public class RegExpExperimentalIncrementalTests
     }
 
     [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesSimplePropertyClassPath()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"[\p{ASCII}]+", "u");
+
+        var match = engine.Exec(compiled, "zzABC09_", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(0));
+        Assert.That(match.Groups[0], Is.EqualTo("zzABC09_"));
+    }
+
+    [Test]
     public void ExperimentalRegExpEngine_Incremental_UsesNumericBackReference()
     {
         var engine = ExperimentalRegExpEngine.Default;

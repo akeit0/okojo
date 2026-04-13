@@ -1964,10 +1964,13 @@ internal static class ScratchRegExpMatcher
         return pos == input.Length || (multiline && pos < input.Length && IsLineTerminator(input[pos]));
     }
 
-    internal static bool TryMatchClassForVm(string input, int pos, ScratchRegExpProgram.ClassNode cls,
+    internal static bool TryMatchCharacterSetForVm(string input, int pos, ExperimentalRegExpCharacterSet characterSet,
         RegExpRuntimeFlags flags, out int nextPos)
     {
-        return TryMatchClassForward(input, pos, cls, flags, out nextPos);
+        if (characterSet.SimpleClass is not null)
+            return TryMatchSimpleClassForward(characterSet.SimpleClass, input, pos, flags, out nextPos);
+
+        return TryMatchClassForward(input, pos, characterSet.ComplexClass!, flags, out nextPos);
     }
 
     internal static bool TryMatchPropertyEscapeForVm(string input, int pos,
@@ -2132,11 +2135,11 @@ internal static class ScratchRegExpMatcher
         }
     }
 
-    internal static int ScanClassToEndForVm(string input, int pos, ScratchRegExpProgram.ClassNode cls,
+    internal static int ScanCharacterSetToEndForVm(string input, int pos, ExperimentalRegExpCharacterSet characterSet,
         RegExpRuntimeFlags flags)
     {
         var currentPos = pos;
-        while (TryMatchClassForward(input, currentPos, cls, flags, out var nextPos))
+        while (TryMatchCharacterSetForVm(input, currentPos, characterSet, flags, out var nextPos))
             currentPos = nextPos;
 
         return currentPos;
@@ -2403,6 +2406,32 @@ internal static class ScratchRegExpMatcher
                canonical == '_';
     }
 
+    private static bool TryMatchSimpleClassForward(ExperimentalRegExpSimpleClass cls, string input, int pos,
+        RegExpRuntimeFlags flags, out int endIndex)
+    {
+        var hasCodePoint = TryReadCodePoint(input, pos, flags.Unicode, out var nextPos, out var codePoint);
+        if (!TryMatchSimpleClassCodePoint(cls, codePoint, flags, out var matched, hasCodePoint))
+        {
+            endIndex = default;
+            return false;
+        }
+
+        if (!cls.Negated)
+        {
+            endIndex = matched ? nextPos : default;
+            return matched;
+        }
+
+        if (matched || !hasCodePoint)
+        {
+            endIndex = default;
+            return false;
+        }
+
+        endIndex = nextPos;
+        return true;
+    }
+
     private static bool TryMatchClassForward(string input, int pos, ScratchRegExpProgram.ClassNode cls,
         RegExpRuntimeFlags flags, out int endIndex)
     {
@@ -2426,6 +2455,26 @@ internal static class ScratchRegExpMatcher
         }
 
         endIndex = nextPos;
+        return true;
+    }
+
+    private static bool TryMatchSimpleClassCodePoint(ExperimentalRegExpSimpleClass cls, int codePoint,
+        RegExpRuntimeFlags flags, out bool matched, bool hasCodePoint)
+    {
+        if (!hasCodePoint)
+        {
+            matched = false;
+            return true;
+        }
+
+        matched = false;
+        for (var i = 0; i < cls.Items.Length; i++)
+            if (ClassItemMatchesCodePoint(cls.Items[i], codePoint, flags))
+            {
+                matched = true;
+                return true;
+            }
+
         return true;
     }
 

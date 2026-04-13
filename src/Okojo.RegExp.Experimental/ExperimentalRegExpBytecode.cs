@@ -122,10 +122,12 @@ internal static class ExperimentalRegExpCodeGenerator
                 out var highMask)
                 ? new ExperimentalRegExpAsciiBitmap(lowMask, highMask)
                 : default;
+            var hasSimpleClass = ScratchRegExpProgram.TryCreateSimpleClass(irProgram.Classes[i], out var simpleClass);
             classOperandMap[i] = builder.Count;
             builder.Add(new()
             {
-                Class = irProgram.Classes[i],
+                SimpleClass = hasSimpleClass ? simpleClass : null,
+                ComplexClass = hasSimpleClass ? null : irProgram.Classes[i],
                 AsciiBitmap = asciiBitmap
             });
         }
@@ -330,8 +332,8 @@ internal static class ExperimentalRegExpVm
                 case ExperimentalRegExpOpcode.ScanClassToEnd:
                 case ExperimentalRegExpOpcode.ScanClassToEndIgnoreCase:
                     var scanCharacterSet = program.CharacterSets[instruction.Operand];
-                    currentPos = ScratchRegExpMatcher.ScanClassToEndForVm(input, currentPos,
-                        scanCharacterSet.Class!, flags with
+                    currentPos = ScratchRegExpMatcher.ScanCharacterSetToEndForVm(input, currentPos,
+                        scanCharacterSet, flags with
                         {
                             IgnoreCase = instruction.OpCode == ExperimentalRegExpOpcode.ScanClassToEndIgnoreCase
                         });
@@ -651,7 +653,7 @@ internal static class ExperimentalRegExpVm
                 case ExperimentalRegExpOpcode.Class:
                 case ExperimentalRegExpOpcode.ClassIgnoreCase:
                     var classCharacterSet = program.CharacterSets[instruction.Operand];
-                    if (!ScratchRegExpMatcher.TryMatchClassForVm(input, currentPos, classCharacterSet.Class!,
+                    if (!ScratchRegExpMatcher.TryMatchCharacterSetForVm(input, currentPos, classCharacterSet,
                             flags with
                             {
                                 IgnoreCase = instruction.OpCode == ExperimentalRegExpOpcode.ClassIgnoreCase

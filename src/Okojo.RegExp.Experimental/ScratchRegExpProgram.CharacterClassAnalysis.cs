@@ -2,6 +2,31 @@ namespace Okojo.RegExp.Experimental;
 
 internal sealed partial class ScratchRegExpProgram
 {
+    internal static bool TryCreateSimpleClass(ClassNode cls, out ExperimentalRegExpSimpleClass simpleClass)
+    {
+        if (cls.Expression is not null)
+        {
+            simpleClass = null!;
+            return false;
+        }
+
+        for (var i = 0; i < cls.Items.Length; i++)
+            if (cls.Items[i].Kind == ClassItemKind.StringLiteral ||
+                cls.Items[i].Kind == ClassItemKind.PropertyEscape &&
+                cls.Items[i].PropertyKind == PropertyEscapeKind.StringProperty)
+            {
+                simpleClass = null!;
+                return false;
+            }
+
+        simpleClass = new()
+        {
+            Items = cls.Items,
+            Negated = cls.Negated
+        };
+        return true;
+    }
+
     internal static bool TryGetSingleLiteralClassCodePoint(ClassNode cls, out int codePoint)
     {
         if (cls.Expression is null &&
