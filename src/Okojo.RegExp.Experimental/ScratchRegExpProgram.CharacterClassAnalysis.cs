@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices.Marshalling;
+
 namespace Okojo.RegExp.Experimental;
 
 internal sealed partial class ScratchRegExpProgram
@@ -10,22 +12,28 @@ internal sealed partial class ScratchRegExpProgram
             return false;
         }
 
-        for (var i = 0; i < cls.Items.Length; i++)
-            if (cls.Items[i].Kind == ClassItemKind.StringLiteral ||
-                cls.Items[i].Kind == ClassItemKind.PropertyEscape &&
-                cls.Items[i].PropertyKind == PropertyEscapeKind.StringProperty)
+        var clsItems = cls.Items;
+        for (var i = 0; i < clsItems.Length; i++)
+        {
+            var item = clsItems[i];
+            if (item.Kind == ClassItemKind.StringLiteral ||
+                item.Kind == ClassItemKind.PropertyEscape &&
+                item.PropertyKind == PropertyEscapeKind.StringProperty)
             {
                 simpleClass = null!;
                 return false;
             }
+        }
 
-        var items = new ExperimentalRegExpSimpleClassItem[cls.Items.Length];
-        for (var i = 0; i < cls.Items.Length; i++)
-            items[i] = cls.Items[i].Kind switch
+        var items = new ExperimentalRegExpSimpleClassItem[clsItems.Length];
+        for (var i = 0; i < clsItems.Length; i++)
+        {
+            var item = clsItems[i];
+            items[i] = item.Kind switch
             {
-                ClassItemKind.Literal => new(ExperimentalRegExpSimpleClassItemKind.Literal, CodePoint: cls.Items[i].CodePoint),
-                ClassItemKind.Range => new(ExperimentalRegExpSimpleClassItemKind.Range, RangeStart: cls.Items[i].RangeStart,
-                    RangeEnd: cls.Items[i].RangeEnd),
+                ClassItemKind.Literal => new(ExperimentalRegExpSimpleClassItemKind.Literal, CodePoint: item.CodePoint),
+                ClassItemKind.Range => new(ExperimentalRegExpSimpleClassItemKind.Range, RangeStart: item.RangeStart,
+                    RangeEnd: item.RangeEnd),
                 ClassItemKind.Digit => new(ExperimentalRegExpSimpleClassItemKind.Digit),
                 ClassItemKind.NotDigit => new(ExperimentalRegExpSimpleClassItemKind.NotDigit),
                 ClassItemKind.Space => new(ExperimentalRegExpSimpleClassItemKind.Space),
@@ -33,10 +41,11 @@ internal sealed partial class ScratchRegExpProgram
                 ClassItemKind.Word => new(ExperimentalRegExpSimpleClassItemKind.Word),
                 ClassItemKind.NotWord => new(ExperimentalRegExpSimpleClassItemKind.NotWord),
                 ClassItemKind.PropertyEscape => new(ExperimentalRegExpSimpleClassItemKind.PropertyEscape,
-                    PropertyEscape: new ExperimentalRegExpPropertyEscape(cls.Items[i].PropertyKind,
-                        cls.Items[i].PropertyNegated, cls.Items[i].PropertyCategories, cls.Items[i].PropertyValue)),
-                _ => throw new InvalidOperationException($"Unsupported simple class item: {cls.Items[i].Kind}")
+                    PropertyEscape: new ExperimentalRegExpPropertyEscape(item.PropertyKind,
+                        item.PropertyNegated, item.PropertyCategories, item.PropertyValue)),
+                _ => throw new InvalidOperationException($"Unsupported simple class item: {item.Kind}")
             };
+        }
 
         simpleClass = new()
         {
@@ -69,16 +78,20 @@ internal sealed partial class ScratchRegExpProgram
             return false;
         }
 
-        var builder = new int[cls.Items.Length];
-        for (var i = 0; i < cls.Items.Length; i++)
+        var items = cls.Items;
+        for (var i = 0; i < items.Length; i++)
         {
-            if (cls.Items[i].Kind != ClassItemKind.Literal)
+            if (items[i].Kind != ClassItemKind.Literal)
             {
                 codePoints = [];
                 return false;
             }
+        }
 
-            builder[i] = cls.Items[i].CodePoint;
+        var builder = new int[items.Length];
+        for (var i = 0; i < items.Length; i++)
+        {
+            builder[i] = items[i].CodePoint;
         }
 
         codePoints = builder;
@@ -92,13 +105,16 @@ internal sealed partial class ScratchRegExpProgram
         if (cls.Expression is not null || cls.Negated || cls.Items.Length == 0)
             return false;
 
-        for (var i = 0; i < cls.Items.Length; i++)
-            if (!TryAddAsciiClassItem(cls.Items[i], ref lowMask, ref highMask))
+        var items = cls.Items;
+        for (var i = 0; i < items.Length; i++)
+        {
+            if (!TryAddAsciiClassItem(items[i], ref lowMask, ref highMask))
             {
                 lowMask = 0;
                 highMask = 0;
                 return false;
             }
+        }
 
         return true;
     }
