@@ -146,6 +146,20 @@ public class RegExpExperimentalIncrementalTests
     }
 
     [Test]
+    public void ExperimentalRegExpEngine_Incremental_FallsBackForHugeQuantifierBounds()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile("b{9007199254740991}", "");
+        var compiledState = (ExperimentalCompiledProgram)compiled.EngineState!;
+
+        var match = engine.Exec(compiled, "bbb", 0);
+
+        Assert.That(compiledState.IrProgram, Is.Null);
+        Assert.That(compiledState.BytecodeProgram, Is.Null);
+        Assert.That(match, Is.Null);
+    }
+
+    [Test]
     public void ExperimentalRegExpEngine_Incremental_UsesLinearBytecodeForAnchorsClassAndDot()
     {
         var engine = ExperimentalRegExpEngine.Default;

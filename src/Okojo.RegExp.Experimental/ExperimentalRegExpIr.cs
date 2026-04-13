@@ -62,6 +62,8 @@ internal sealed class ExperimentalRegExpIrProgram
 
 internal static class ExperimentalRegExpIrGenerator
 {
+    private const int MaxUnrolledQuantifierCount = 4096;
+
     public static ExperimentalRegExpIrProgram? TryGenerate(ScratchRegExpProgram treeProgram)
     {
         return TryGenerate(treeProgram.Root, treeProgram.Flags, treeProgram.NodeCaptureIndices,
@@ -333,6 +335,9 @@ internal static class ExperimentalRegExpIrGenerator
         List<ScratchRegExpProgram.PropertyEscapeNode> propertyEscapes,
         Dictionary<string, List<int>> namedCaptureIndexes)
     {
+        if (!CanUnrollQuantifier(quantifier))
+            return false;
+
         if (!ScratchRegExpProgram.TryGetNodeMinMatchLength(quantifier.Child, out var childMinLength))
             return false;
 
@@ -380,6 +385,17 @@ internal static class ExperimentalRegExpIrGenerator
                 return false;
 
         return true;
+    }
+
+    private static bool CanUnrollQuantifier(ScratchRegExpProgram.QuantifierNode quantifier)
+    {
+        if (quantifier.Min > MaxUnrolledQuantifierCount)
+            return false;
+
+        if (quantifier.Max == int.MaxValue)
+            return true;
+
+        return quantifier.Max - quantifier.Min <= MaxUnrolledQuantifierCount;
     }
 
     private static bool TryEmitOptional(ScratchRegExpProgram.Node child, bool greedy, RegExpRuntimeFlags flags,
