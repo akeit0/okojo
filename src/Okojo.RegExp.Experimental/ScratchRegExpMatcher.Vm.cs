@@ -215,7 +215,7 @@ internal static partial class ScratchRegExpMatcher
 
         var checkpoint = captureState?.Checkpoint ?? 0;
         var latestStart = minMatchLength >= 0 ? pos - minMatchLength : pos;
-        for (var candidateStart = latestStart; candidateStart >= earliestStart; candidateStart--)
+        for (var candidateStart = earliestStart; candidateStart <= latestStart; candidateStart++)
         {
             captureState?.Restore(checkpoint);
             if (ExperimentalRegExpVm.TryMatch(program, lookbehindProgram, input, candidateStart, flags, captureState,

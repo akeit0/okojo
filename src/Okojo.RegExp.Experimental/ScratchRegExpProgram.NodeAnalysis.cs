@@ -476,4 +476,72 @@ internal sealed partial class ScratchRegExpProgram
                 return false;
         }
     }
+
+    internal static bool CanUseCaptureAwareForwardLookbehindVm(Node node)
+    {
+        switch (node)
+        {
+            case EmptyNode:
+            case LiteralNode:
+            case DotNode:
+            case AnchorNode:
+            case BoundaryNode:
+            case ClassNode:
+            case PropertyEscapeNode:
+                return true;
+            case CaptureNode capture:
+                return CanUseCaptureAwareForwardLookbehindVm(capture.Child);
+            case SequenceNode sequence:
+                for (var i = 0; i < sequence.Terms.Length; i++)
+                    if (!CanUseCaptureAwareForwardLookbehindVm(sequence.Terms[i]))
+                        return false;
+                return true;
+            case AlternationNode alternation:
+                for (var i = 0; i < alternation.Alternatives.Length; i++)
+                    if (!CanUseCaptureAwareForwardLookbehindVm(alternation.Alternatives[i]))
+                        return false;
+                return true;
+            case QuantifierNode quantifier:
+                if (ContainsCaptureNode(quantifier.Child))
+                    return false;
+                return CanUseCaptureAwareForwardLookbehindVm(quantifier.Child);
+            case ScopedModifiersNode scoped:
+                return CanUseCaptureAwareForwardLookbehindVm(scoped.Child);
+            case BackReferenceNode:
+            case NamedBackReferenceNode:
+            case LookaheadNode:
+            case LookbehindNode:
+            default:
+                return false;
+        }
+    }
+
+    private static bool ContainsCaptureNode(Node node)
+    {
+        switch (node)
+        {
+            case CaptureNode:
+                return true;
+            case SequenceNode sequence:
+                for (var i = 0; i < sequence.Terms.Length; i++)
+                    if (ContainsCaptureNode(sequence.Terms[i]))
+                        return true;
+                return false;
+            case AlternationNode alternation:
+                for (var i = 0; i < alternation.Alternatives.Length; i++)
+                    if (ContainsCaptureNode(alternation.Alternatives[i]))
+                        return true;
+                return false;
+            case QuantifierNode quantifier:
+                return ContainsCaptureNode(quantifier.Child);
+            case ScopedModifiersNode scoped:
+                return ContainsCaptureNode(scoped.Child);
+            case LookaheadNode lookahead:
+                return ContainsCaptureNode(lookahead.Child);
+            case LookbehindNode lookbehind:
+                return ContainsCaptureNode(lookbehind.Child);
+            default:
+                return false;
+        }
+    }
 }

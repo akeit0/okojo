@@ -724,7 +724,7 @@ public class RegExpExperimentalIncrementalTests
 
         Assert.That(bytecodeProgram, Is.Not.Null);
         Assert.That(bytecodeProgram!.LookbehindPrograms, Has.Length.EqualTo(1));
-        Assert.That(bytecodeProgram.LookbehindPrograms[0], Is.Null);
+        Assert.That(bytecodeProgram.LookbehindPrograms[0], Is.Not.Null);
         Assert.That(match, Is.Not.Null);
         Assert.That(match!.Groups[0], Is.EqualTo("b"));
         Assert.That(match.Groups[1], Is.EqualTo("a"));
@@ -800,7 +800,7 @@ public class RegExpExperimentalIncrementalTests
     }
 
     [Test]
-    public void ExperimentalRegExpEngine_Incremental_TracksBoundedLookbehindLengthWindowForTreeFallback()
+    public void ExperimentalRegExpEngine_Incremental_KeepsRepeatedCaptureLookbehindOnTreePath()
     {
         var engine = ExperimentalRegExpEngine.Default;
         var compiled = engine.Compile(@"(?<=(a){1,3})b", "");
@@ -814,6 +814,38 @@ public class RegExpExperimentalIncrementalTests
         Assert.That(bytecodeProgram.LookbehindMaxMatchLengths[0], Is.EqualTo(3));
         Assert.That(match, Is.Not.Null);
         Assert.That(match!.Groups[0], Is.EqualTo("b"));
+        Assert.That(match.Groups[1], Is.EqualTo("a"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesForwardVmForNonRepeatedCaptureLookbehind()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(?<=([ab]{1,2})c)d", "");
+        var bytecodeProgram = ((ExperimentalCompiledProgram)compiled.EngineState!).BytecodeProgram;
+
+        var match = engine.Exec(compiled, "abcd", 0);
+
+        Assert.That(bytecodeProgram, Is.Not.Null);
+        Assert.That(bytecodeProgram!.LookbehindPrograms[0], Is.Not.Null);
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Groups[0], Is.EqualTo("d"));
+        Assert.That(match.Groups[1], Is.EqualTo("ab"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesForwardVmForBackreferenceLookbehind()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(?<=([ab])\1)c", "");
+        var bytecodeProgram = ((ExperimentalCompiledProgram)compiled.EngineState!).BytecodeProgram;
+
+        var match = engine.Exec(compiled, "aac", 0);
+
+        Assert.That(bytecodeProgram, Is.Not.Null);
+        Assert.That(bytecodeProgram!.LookbehindPrograms[0], Is.Null);
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Groups[0], Is.EqualTo("c"));
         Assert.That(match.Groups[1], Is.EqualTo("a"));
     }
 

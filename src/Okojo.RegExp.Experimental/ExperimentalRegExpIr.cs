@@ -249,7 +249,8 @@ internal static class ExperimentalRegExpIrGenerator
             case ScratchRegExpProgram.LookbehindNode lookbehind:
             {
                 ExperimentalRegExpIrProgram? lookbehindProgram = null;
-                if (ScratchRegExpProgram.CanUseForwardLookbehindVm(lookbehind.Child))
+                if (ScratchRegExpProgram.CanUseForwardLookbehindVm(lookbehind.Child) ||
+                    lookbehind.Positive && ScratchRegExpProgram.CanUseCaptureAwareForwardLookbehindVm(lookbehind.Child))
                     lookbehindProgram = TryGenerate(lookbehind.Child, flags, nodeCaptureIndices, namedCaptureIndexes);
                 state.AddInstruction(lookbehind.Positive
                         ? ExperimentalRegExpIrOpcode.AssertLookbehind
