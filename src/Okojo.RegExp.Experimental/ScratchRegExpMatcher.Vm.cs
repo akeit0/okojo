@@ -196,7 +196,7 @@ internal static partial class ScratchRegExpMatcher
         if (captureState is not null)
             CopyVmCapturesToScratchState(captureState, state);
 
-        if (!TryMatchLookbehindAssertionForVm(compiledProgram, program, child, input, pos, flags, state, out _,
+        if (!TryMatchLookbehindAssertionForVm(compiledProgram, child, input, pos, flags, state, out _,
                 startLimit))
             return false;
 
@@ -267,11 +267,14 @@ internal static partial class ScratchRegExpMatcher
 
     private static void CopyVmCapturesToScratchState(ExperimentalRegExpCaptureState source, ScratchMatchState destination)
     {
+        var destStarts = destination.Starts.AsSpan();
+        var destEnds = destination.Ends.AsSpan();
+        var destMatched = destination.Matched.AsSpan();
         for (var i = 0; i <= source.CaptureCount; i++)
         {
-            destination.Starts[i] = source.Starts[i];
-            destination.Ends[i] = source.Ends[i];
-            destination.Matched[i] = source.Matched[i];
+            destStarts[i] = source.Starts[i];
+            destEnds[i] = source.Ends[i];
+            destMatched[i] = source.Matched[i] ? 1 : 0;
         }
     }
 

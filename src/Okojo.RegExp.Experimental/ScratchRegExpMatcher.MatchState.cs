@@ -118,6 +118,11 @@ internal readonly struct ScratchMatchStateIntView(ScratchMatchStateArena? arena,
                 arena.Buffer[offset + index] = value;
         }
     }
+
+    public Span<int> AsSpan()
+    {
+        return arena is null ? Span<int>.Empty : arena.Buffer.AsSpan(offset, Length);
+    }
 }
 
 internal readonly struct ScratchMatchStateBoolView(ScratchMatchStateArena? arena, int offset, int length)
@@ -132,6 +137,11 @@ internal readonly struct ScratchMatchStateBoolView(ScratchMatchStateArena? arena
             if (arena is not null)
                 arena.Buffer[offset + index] = value ? 1 : 0;
         }
+    }
+
+    public Span<int> AsSpan()
+    {
+        return arena is null ? Span<int>.Empty : arena.Buffer.AsSpan(offset, Length);
     }
 }
 

@@ -4,27 +4,26 @@ internal static partial class ScratchRegExpMatcher
 {
     private readonly struct ReverseLookbehindContext(
         ExperimentalCompiledProgram compiledProgram,
-        ScratchRegExpProgram program,
         string input,
         int startLimit)
     {
         public ExperimentalCompiledProgram CompiledProgram { get; } = compiledProgram;
-        public ScratchRegExpProgram Program { get; } = program;
+        public ScratchRegExpProgram Program => CompiledProgram.TreeProgram;
         public string Input { get; } = input;
         public int StartLimit { get; } = startLimit;
 
         public ReverseLookbehindContext WithStartLimit(int startLimit)
         {
-            return new(CompiledProgram, Program, Input, startLimit);
+            return new(CompiledProgram, Input, startLimit);
         }
     }
 
     private static bool TryMatchLookbehindAssertionForVm(ExperimentalCompiledProgram compiledProgram,
-        ScratchRegExpProgram program, ScratchRegExpProgram.Node child,
+        ScratchRegExpProgram.Node child,
         string input, int pos, RegExpRuntimeFlags flags, ScratchMatchState state, out int startIndex,
         int startLimit, bool nestedInQuantifierContext = false)
     {
-        return TryMatchLookbehindNode(new(compiledProgram, program, input, startLimit), child, pos, flags, state,
+        return TryMatchLookbehindNode(new(compiledProgram, input, startLimit), child, pos, flags, state,
             out startIndex,
             nestedInQuantifierContext);
     }

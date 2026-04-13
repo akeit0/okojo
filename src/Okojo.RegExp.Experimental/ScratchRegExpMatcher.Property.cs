@@ -16,13 +16,6 @@ internal static partial class ScratchRegExpMatcher
             flags, input.Length, maxCount, out endPos, out consumed);
     }
 
-    private static bool FastPropertyEscapeMatches(ScratchRegExpProgram.PropertyEscapeNode propertyEscape, int codePoint,
-        RegExpRuntimeFlags flags)
-    {
-        return FastPropertyEscapeMatches(propertyEscape.Kind, propertyEscape.Negated, propertyEscape.Categories,
-            propertyEscape.PropertyValue, codePoint, flags);
-    }
-
     private static bool FastPropertyEscapeMatches(ExperimentalRegExpPropertyEscape propertyEscape, int codePoint,
         RegExpRuntimeFlags flags)
     {
@@ -360,20 +353,6 @@ internal static partial class ScratchRegExpMatcher
         return TryMatchPropertyEscapeBackward(input, pos,
             new ExperimentalRegExpPropertyEscape(propertyEscape.Kind, propertyEscape.Negated, propertyEscape.Categories,
                 propertyEscape.PropertyValue), flags, out startIndex, startLimit);
-    }
-
-    private static bool PropertyEscapeMatches(ScratchRegExpProgram.PropertyEscapeNode propertyEscape, int codePoint,
-        RegExpRuntimeFlags flags)
-    {
-        return PropertyEscapeMatches(propertyEscape.Kind, propertyEscape.Negated, propertyEscape.Categories,
-            propertyEscape.PropertyValue, codePoint, flags);
-    }
-
-    private static bool PropertyEscapeMatches(ExperimentalRegExpPropertyEscape propertyEscape, int codePoint,
-        RegExpRuntimeFlags flags)
-    {
-        return PropertyEscapeMatches(propertyEscape.Kind, propertyEscape.Negated, propertyEscape.Categories,
-            propertyEscape.PropertyValue, codePoint, flags);
     }
 
     private static bool PropertyEscapeMatches(
