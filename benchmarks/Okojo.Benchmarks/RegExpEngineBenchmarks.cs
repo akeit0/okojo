@@ -25,6 +25,7 @@ public class RegExpEngineBenchmarks
         new Dictionary<string, RegExpScenario>(StringComparer.Ordinal)
         {
             ["literal-scan"] = new("literal-scan", "a+", "", "baaaaaaaaaaaaaaaaa"),
+            ["ascii-word-scan"] = new("ascii-word-scan", @"\w+", "", "zzzzzzzzzzzzzzzzzzaaaaaaaaaaaaaa_0099!"),
             ["first-set-class-scan"] = new("first-set-class-scan", @"[A-Z]foo", "", "zzzzzzzzzzzzzzzzzzQfoo"),
             ["named-capture"] = new("named-capture", @"(?<name>a)(b)?", "g", "zabz", 1),
             ["unicode-casefold"] = new("unicode-casefold", @"[\u0390]", "ui", "\u1fd3"),
@@ -45,7 +46,7 @@ public class RegExpEngineBenchmarks
     private JsRealm experimentalRealm = null!;
     private int sink;
 
-    [Params("literal-scan", "first-set-class-scan", "unicode-casefold", "lookahead-backref")]
+    [Params("literal-scan", "ascii-word-scan", "first-set-class-scan", "unicode-casefold", "lookahead-backref")]
     public string Scenario { get; set; } = "literal-scan";
 
     [GlobalSetup]

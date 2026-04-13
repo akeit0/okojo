@@ -10,6 +10,7 @@ internal enum ExperimentalRegExpOpcode : byte
     BranchIfLoopUnchanged,
     ScanAnyToEnd,
     ScanDotToEnd,
+    ScanAsciiClassToEnd,
     ScanClassToEnd,
     ScanClassToEndIgnoreCase,
     SaveStart,
@@ -27,6 +28,7 @@ internal enum ExperimentalRegExpOpcode : byte
     CharIgnoreCase,
     Dot,
     Any,
+    ClassAscii,
     AssertStart,
     AssertStartMultiline,
     AssertEnd,
@@ -57,6 +59,9 @@ internal sealed class ExperimentalRegExpBytecodeProgram
     public int LoopSlotCount { get; init; }
     public string[] LiteralTexts { get; init; } = [];
     public ScratchRegExpProgram.ClassNode[] Classes { get; init; } = [];
+    public bool[] HasAsciiClassBitmap { get; init; } = [];
+    public ulong[] AsciiClassBitmapLow { get; init; } = [];
+    public ulong[] AsciiClassBitmapHigh { get; init; } = [];
     public ScratchRegExpProgram.PropertyEscapeNode[] PropertyEscapes { get; init; } = [];
 }
 
@@ -67,17 +72,26 @@ internal static class ExperimentalRegExpCodeGenerator
         if (irProgram is null)
             return null;
 
+        BuildAsciiClassBitmaps(irProgram.Classes, out var hasAsciiClassBitmap, out var asciiClassBitmapLow,
+            out var asciiClassBitmapHigh);
         var source = irProgram.Instructions;
         var instructions = new List<ExperimentalRegExpInstruction>(source.Length);
         for (var i = 0; i < source.Length; i++)
         {
-            if (TryEmitTailScan(source, i, instructions, out var consumedInstructions))
+            if (TryEmitTailScan(source, hasAsciiClassBitmap, i, instructions, out var consumedInstructions))
             {
                 i += consumedInstructions - 1;
                 continue;
             }
 
             var instruction = source[i];
+            if (instruction.OpCode == ExperimentalRegExpIrOpcode.Class &&
+                hasAsciiClassBitmap[instruction.Operand])
+            {
+                instructions.Add(new(ExperimentalRegExpOpcode.ClassAscii, instruction.Operand, instruction.Operand2));
+                continue;
+            }
+
             instructions.Add(new(MapOpcode(instruction.OpCode), instruction.Operand, instruction.Operand2));
         }
 
@@ -92,8 +106,22 @@ internal static class ExperimentalRegExpCodeGenerator
             LoopSlotCount = irProgram.LoopSlotCount,
             LiteralTexts = irProgram.LiteralTexts,
             Classes = irProgram.Classes,
+            HasAsciiClassBitmap = hasAsciiClassBitmap,
+            AsciiClassBitmapLow = asciiClassBitmapLow,
+            AsciiClassBitmapHigh = asciiClassBitmapHigh,
             PropertyEscapes = irProgram.PropertyEscapes
         };
+    }
+
+    private static void BuildAsciiClassBitmaps(ScratchRegExpProgram.ClassNode[] classes, out bool[] hasBitmap,
+        out ulong[] lowBitmap, out ulong[] highBitmap)
+    {
+        hasBitmap = new bool[classes.Length];
+        lowBitmap = new ulong[classes.Length];
+        highBitmap = new ulong[classes.Length];
+        for (var i = 0; i < classes.Length; i++)
+            if (ScratchRegExpProgram.TryBuildAsciiClassBitmap(classes[i], out lowBitmap[i], out highBitmap[i]))
+                hasBitmap[i] = true;
     }
 
     private static ExperimentalRegExpBytecodeProgram[] LowerLookaheadPrograms(ExperimentalRegExpIrProgram[] lookaheadPrograms)
@@ -107,7 +135,7 @@ internal static class ExperimentalRegExpCodeGenerator
         return lowered;
     }
 
-    private static bool TryEmitTailScan(ExperimentalRegExpIrInstruction[] source, int index,
+    private static bool TryEmitTailScan(ExperimentalRegExpIrInstruction[] source, bool[] hasAsciiClassBitmap, int index,
         List<ExperimentalRegExpInstruction> instructions, out int consumedInstructions)
     {
         consumedInstructions = 0;
@@ -135,7 +163,9 @@ internal static class ExperimentalRegExpCodeGenerator
                 consumedInstructions = 3;
                 return true;
             case ExperimentalRegExpIrOpcode.Class:
-                instructions.Add(new(ExperimentalRegExpOpcode.ScanClassToEnd, child.Operand));
+                instructions.Add(new(hasAsciiClassBitmap[child.Operand]
+                    ? ExperimentalRegExpOpcode.ScanAsciiClassToEnd
+                    : ExperimentalRegExpOpcode.ScanClassToEnd, child.Operand));
                 consumedInstructions = 3;
                 return true;
             case ExperimentalRegExpIrOpcode.ClassIgnoreCase:
@@ -257,6 +287,11 @@ internal static class ExperimentalRegExpVm
                     break;
                 case ExperimentalRegExpOpcode.ScanDotToEnd:
                     currentPos = ScratchRegExpMatcher.ScanDotToEndForVm(input, currentPos, flags.Unicode);
+                    instructionIndex++;
+                    break;
+                case ExperimentalRegExpOpcode.ScanAsciiClassToEnd:
+                    currentPos = ScratchRegExpMatcher.ScanAsciiClassToEndForVm(input, currentPos,
+                        program.AsciiClassBitmapLow[instruction.Operand], program.AsciiClassBitmapHigh[instruction.Operand]);
                     instructionIndex++;
                     break;
                 case ExperimentalRegExpOpcode.ScanClassToEnd:
@@ -440,6 +475,23 @@ internal static class ExperimentalRegExpVm
                 case ExperimentalRegExpOpcode.Any:
                     if (!ScratchRegExpMatcher.TryReadCodePointForVm(input, currentPos, flags.Unicode, out nextPos,
                             out _))
+                    {
+                        if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
+                        {
+                            endIndex = default;
+                            return false;
+                        }
+
+                        continue;
+                    }
+
+                    currentPos = nextPos;
+                    instructionIndex++;
+                    break;
+                case ExperimentalRegExpOpcode.ClassAscii:
+                    if (!ScratchRegExpMatcher.TryMatchAsciiClassForVm(input, currentPos,
+                            program.AsciiClassBitmapLow[instruction.Operand], program.AsciiClassBitmapHigh[instruction.Operand],
+                            out nextPos))
                     {
                         if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
                         {

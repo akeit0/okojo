@@ -2190,6 +2190,36 @@ internal static class ScratchRegExpMatcher
         return currentPos;
     }
 
+    internal static bool TryMatchAsciiClassForVm(string input, int pos, ulong lowBitmap, ulong highBitmap, out int nextPos)
+    {
+        if ((uint)pos < (uint)input.Length && input[pos] <= 0x7F && MatchesAsciiBitmap(input[pos], lowBitmap, highBitmap))
+        {
+            nextPos = pos + 1;
+            return true;
+        }
+
+        nextPos = default;
+        return false;
+    }
+
+    internal static int ScanAsciiClassToEndForVm(string input, int pos, ulong lowBitmap, ulong highBitmap)
+    {
+        var currentPos = pos;
+        while ((uint)currentPos < (uint)input.Length &&
+               input[currentPos] <= 0x7F &&
+               MatchesAsciiBitmap(input[currentPos], lowBitmap, highBitmap))
+            currentPos++;
+
+        return currentPos;
+    }
+
+    private static bool MatchesAsciiBitmap(char ch, ulong lowBitmap, ulong highBitmap)
+    {
+        return ch < 64
+            ? (lowBitmap & (1UL << ch)) != 0
+            : (highBitmap & (1UL << (ch - 64))) != 0;
+    }
+
     private static int FindNextRequiredPrefixCandidate(string input, int start, int[] prefixCodePoints, bool unicode,
         bool ignoreCase)
     {
