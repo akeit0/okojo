@@ -407,7 +407,7 @@ internal sealed partial class ScratchRegExpProgram
             if (map.TryGetValue(node, out var existing))
                 return existing;
 
-            HashSet<int> indices = new();
+            using var indices = new ScratchPooledIntSet();
             switch (node)
             {
                 case CaptureNode capture:
@@ -2141,11 +2141,9 @@ internal sealed partial class ScratchRegExpProgram
 
         private static bool TryUnionLiteralSets(int[] left, int[] right, out int[] union)
         {
-            HashSet<int> codePoints = new();
-            for (var i = 0; i < left.Length; i++)
-                codePoints.Add(left[i]);
-            for (var i = 0; i < right.Length; i++)
-                codePoints.Add(right[i]);
+            using var codePoints = new ScratchPooledIntSet();
+            codePoints.UnionWith(left);
+            codePoints.UnionWith(right);
 
             if (codePoints.Count > MaxSearchLiteralSetSize)
             {
@@ -2153,7 +2151,14 @@ internal sealed partial class ScratchRegExpProgram
                 return false;
             }
 
-            union = codePoints.ToArray();
+            union = codePoints.Count == 0 ? [] : new int[codePoints.Count];
+            if (union.Length > 0)
+            {
+                codePoints.CopyTo(union);
+                if (union.Length > 1)
+                    Array.Sort(union);
+            }
+
             return true;
         }
 

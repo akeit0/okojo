@@ -38,6 +38,12 @@ internal sealed class ScratchPooledIntSet : IDisposable
             Add(other[i]);
     }
 
+    public void UnionWith(ReadOnlySpan<int> values)
+    {
+        for (var i = 0; i < values.Length; i++)
+            Add(values[i]);
+    }
+
     public void IntersectWith(ScratchPooledIntSet other)
     {
         var write = 0;
@@ -72,6 +78,11 @@ internal sealed class ScratchPooledIntSet : IDisposable
                 max = buffer[i];
 
         return max;
+    }
+
+    public void CopyTo(Span<int> destination)
+    {
+        buffer.AsSpan(0, Count).CopyTo(destination);
     }
 
     private bool Contains(int value)
