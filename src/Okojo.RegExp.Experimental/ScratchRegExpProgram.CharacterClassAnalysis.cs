@@ -19,9 +19,28 @@ internal sealed partial class ScratchRegExpProgram
                 return false;
             }
 
+        var items = new ExperimentalRegExpSimpleClassItem[cls.Items.Length];
+        for (var i = 0; i < cls.Items.Length; i++)
+            items[i] = cls.Items[i].Kind switch
+            {
+                ClassItemKind.Literal => new(ExperimentalRegExpSimpleClassItemKind.Literal, CodePoint: cls.Items[i].CodePoint),
+                ClassItemKind.Range => new(ExperimentalRegExpSimpleClassItemKind.Range, RangeStart: cls.Items[i].RangeStart,
+                    RangeEnd: cls.Items[i].RangeEnd),
+                ClassItemKind.Digit => new(ExperimentalRegExpSimpleClassItemKind.Digit),
+                ClassItemKind.NotDigit => new(ExperimentalRegExpSimpleClassItemKind.NotDigit),
+                ClassItemKind.Space => new(ExperimentalRegExpSimpleClassItemKind.Space),
+                ClassItemKind.NotSpace => new(ExperimentalRegExpSimpleClassItemKind.NotSpace),
+                ClassItemKind.Word => new(ExperimentalRegExpSimpleClassItemKind.Word),
+                ClassItemKind.NotWord => new(ExperimentalRegExpSimpleClassItemKind.NotWord),
+                ClassItemKind.PropertyEscape => new(ExperimentalRegExpSimpleClassItemKind.PropertyEscape,
+                    PropertyKind: cls.Items[i].PropertyKind, PropertyNegated: cls.Items[i].PropertyNegated,
+                    PropertyCategories: cls.Items[i].PropertyCategories, PropertyValue: cls.Items[i].PropertyValue),
+                _ => throw new InvalidOperationException($"Unsupported simple class item: {cls.Items[i].Kind}")
+            };
+
         simpleClass = new()
         {
-            Items = cls.Items,
+            Items = items,
             Negated = cls.Negated
         };
         return true;

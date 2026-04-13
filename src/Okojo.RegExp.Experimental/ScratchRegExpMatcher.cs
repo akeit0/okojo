@@ -2469,13 +2469,33 @@ internal static class ScratchRegExpMatcher
 
         matched = false;
         for (var i = 0; i < cls.Items.Length; i++)
-            if (ClassItemMatchesCodePoint(cls.Items[i], codePoint, flags))
+            if (SimpleClassItemMatchesCodePoint(cls.Items[i], codePoint, flags))
             {
                 matched = true;
                 return true;
             }
 
         return true;
+    }
+
+    private static bool SimpleClassItemMatchesCodePoint(ExperimentalRegExpSimpleClassItem item, int codePoint,
+        RegExpRuntimeFlags flags)
+    {
+        return item.Kind switch
+        {
+            ExperimentalRegExpSimpleClassItemKind.Digit => codePoint is >= '0' and <= '9',
+            ExperimentalRegExpSimpleClassItemKind.NotDigit => !(codePoint is >= '0' and <= '9'),
+            ExperimentalRegExpSimpleClassItemKind.Space => IsSpace(codePoint),
+            ExperimentalRegExpSimpleClassItemKind.NotSpace => !IsSpace(codePoint),
+            ExperimentalRegExpSimpleClassItemKind.Word => IsWord(codePoint, flags.Unicode, flags.IgnoreCase),
+            ExperimentalRegExpSimpleClassItemKind.NotWord => !IsWord(codePoint, flags.Unicode, flags.IgnoreCase),
+            ExperimentalRegExpSimpleClassItemKind.Literal => CodePointEquals(codePoint, item.CodePoint, flags.IgnoreCase),
+            ExperimentalRegExpSimpleClassItemKind.Range => CodePointInRange(codePoint, item.RangeStart, item.RangeEnd,
+                flags.IgnoreCase),
+            ExperimentalRegExpSimpleClassItemKind.PropertyEscape => PropertyEscapeMatches(item.PropertyKind,
+                item.PropertyNegated, item.PropertyCategories, item.PropertyValue, codePoint, flags),
+            _ => false
+        };
     }
 
     private static bool TryMatchClassBackward(string input, int pos, ScratchRegExpProgram.ClassNode cls,
