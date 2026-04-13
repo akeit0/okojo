@@ -163,9 +163,9 @@ internal static class JsRegExpRuntime
     private static JsValue BuildExecResult(JsRealm realm, JsRegExpObject rx, RegExpMatchResult match, string input)
     {
         var array = realm.CreateArrayObject();
-        var values= array.InitializeDenseElementsNoCollision(match.Groups.Length);
+        var values = array.InitializeDenseElementsNoCollision(match.Groups.Length);
         for (var i = 0; i < match.Groups.Length; i++)
-            values[i]= match.Groups[i] is null
+            values[i] = match.Groups[i] is null
                 ? JsValue.Undefined
                 : JsValue.FromString(match.Groups[i]!);
 
