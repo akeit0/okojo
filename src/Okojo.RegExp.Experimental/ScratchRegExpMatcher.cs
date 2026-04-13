@@ -1713,6 +1713,10 @@ internal static class ScratchRegExpMatcher
         if (start > input.Length)
             return input.Length + 1;
 
+        if (program.MinMatchLength == 0 &&
+            program.CandidateSearchPlan.AnchorKind == ScratchRegExpProgram.SearchAnchorKind.None)
+            return Math.Max(0, start);
+
         if (program.MinMatchLength > 0 && input.Length - start < program.MinMatchLength)
             return input.Length + 1;
 
@@ -1791,6 +1795,9 @@ internal static class ScratchRegExpMatcher
 
     private static bool IsPlausibleSearchCandidate(ScratchRegExpProgram program, string input, int pos)
     {
+        if (program.MinMatchLength == 0)
+            return true;
+
         if (program.RequiredLiteralPrefixCodePoints.Length != 0 &&
             !HasRequiredLiteralPrefixAt(input, pos, program.RequiredLiteralPrefixCodePoints, program.Flags.Unicode,
                 program.Flags.IgnoreCase))
@@ -1824,8 +1831,16 @@ internal static class ScratchRegExpMatcher
         }
     }
 
-    internal static bool TryReadCodePointForVm(string input, int pos, bool unicode, out int nextPos, out int codePoint)
+    internal static bool TryReadCodePointForVm(string input, int pos, bool unicode, int endLimit, out int nextPos,
+        out int codePoint)
     {
+        if (pos >= endLimit)
+        {
+            nextPos = default;
+            codePoint = default;
+            return false;
+        }
+
         return TryReadCodePoint(input, pos, unicode, out nextPos, out codePoint);
     }
 
@@ -1835,9 +1850,9 @@ internal static class ScratchRegExpMatcher
     }
 
     internal static bool TryMatchLiteralSetForVm(string input, int pos, int[] codePoints, bool ignoreCase, bool unicode,
-        out int nextPos)
+        int endLimit, out int nextPos)
     {
-        if (!TryReadCodePoint(input, pos, unicode, out nextPos, out var codePoint))
+        if (!TryReadCodePointForVm(input, pos, unicode, endLimit, out nextPos, out var codePoint))
             return false;
 
         for (var i = 0; i < codePoints.Length; i++)
@@ -1869,8 +1884,14 @@ internal static class ScratchRegExpMatcher
     }
 
     internal static bool TryMatchCharacterSetForVm(string input, int pos, ExperimentalRegExpCharacterSet characterSet,
-        RegExpRuntimeFlags flags, out int nextPos)
+        RegExpRuntimeFlags flags, int endLimit, out int nextPos)
     {
+        if (pos >= endLimit)
+        {
+            nextPos = default;
+            return false;
+        }
+
         if (characterSet.SimpleClass is not null)
             return TryMatchSimpleClassForward(characterSet.SimpleClass, input, pos, flags, out nextPos);
 
@@ -1878,8 +1899,14 @@ internal static class ScratchRegExpMatcher
     }
 
     internal static bool TryMatchPropertyEscapeForVm(string input, int pos,
-        ExperimentalRegExpPropertyEscape propertyEscape, RegExpRuntimeFlags flags, out int nextPos)
+        ExperimentalRegExpPropertyEscape propertyEscape, RegExpRuntimeFlags flags, int endLimit, out int nextPos)
     {
+        if (pos >= endLimit)
+        {
+            nextPos = default;
+            return false;
+        }
+
         return TryMatchPropertyEscapeForward(input, pos, propertyEscape, flags, out nextPos);
     }
 
@@ -2009,17 +2036,17 @@ internal static class ScratchRegExpMatcher
 
         for (var candidateStart = pos - minMatchLength; candidateStart >= 0; candidateStart--)
             if (ExperimentalRegExpVm.TryMatch(program, lookbehindProgram, input, candidateStart, flags, null,
-                    out var endIndex) &&
+                    pos, out var endIndex) &&
                 endIndex == pos)
                 return true;
 
         return false;
     }
 
-    internal static int ScanDotToEndForVm(string input, int pos, bool unicode)
+    internal static int ScanDotToEndForVm(string input, int pos, bool unicode, int endLimit)
     {
         var currentPos = pos;
-        while (TryReadCodePoint(input, currentPos, unicode, out var nextPos, out var codePoint) &&
+        while (TryReadCodePointForVm(input, currentPos, unicode, endLimit, out var nextPos, out var codePoint) &&
                !IsLineTerminator(codePoint))
             currentPos = nextPos;
 
@@ -2056,18 +2083,20 @@ internal static class ScratchRegExpMatcher
     }
 
     internal static int ScanCharacterSetToEndForVm(string input, int pos, ExperimentalRegExpCharacterSet characterSet,
-        RegExpRuntimeFlags flags)
+        RegExpRuntimeFlags flags, int endLimit)
     {
         var currentPos = pos;
-        while (TryMatchCharacterSetForVm(input, currentPos, characterSet, flags, out var nextPos))
+        while (TryMatchCharacterSetForVm(input, currentPos, characterSet, flags, endLimit, out var nextPos))
             currentPos = nextPos;
 
         return currentPos;
     }
 
-    internal static bool TryMatchAsciiClassForVm(string input, int pos, ulong lowBitmap, ulong highBitmap, out int nextPos)
+    internal static bool TryMatchAsciiClassForVm(string input, int pos, ulong lowBitmap, ulong highBitmap, int endLimit,
+        out int nextPos)
     {
-        if ((uint)pos < (uint)input.Length && input[pos] <= 0x7F && MatchesAsciiBitmap(input[pos], lowBitmap, highBitmap))
+        if (pos < endLimit && (uint)pos < (uint)input.Length && input[pos] <= 0x7F &&
+            MatchesAsciiBitmap(input[pos], lowBitmap, highBitmap))
         {
             nextPos = pos + 1;
             return true;
@@ -2077,10 +2106,10 @@ internal static class ScratchRegExpMatcher
         return false;
     }
 
-    internal static int ScanAsciiClassToEndForVm(string input, int pos, ulong lowBitmap, ulong highBitmap)
+    internal static int ScanAsciiClassToEndForVm(string input, int pos, ulong lowBitmap, ulong highBitmap, int endLimit)
     {
         var currentPos = pos;
-        while ((uint)currentPos < (uint)input.Length &&
+        while (currentPos < endLimit &&
                input[currentPos] <= 0x7F &&
                MatchesAsciiBitmap(input[currentPos], lowBitmap, highBitmap))
             currentPos++;

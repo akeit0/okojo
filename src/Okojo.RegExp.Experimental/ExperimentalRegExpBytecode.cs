@@ -324,12 +324,19 @@ internal static class ExperimentalRegExpVm
     public static bool TryMatch(ScratchRegExpProgram treeProgram, ExperimentalRegExpBytecodeProgram program, string input,
         int startIndex, RegExpRuntimeFlags flags, ExperimentalRegExpCaptureState? captureState, out int endIndex)
     {
+        return TryMatch(treeProgram, program, input, startIndex, flags, captureState, input.Length, out endIndex);
+    }
+
+    public static bool TryMatch(ScratchRegExpProgram treeProgram, ExperimentalRegExpBytecodeProgram program, string input,
+        int startIndex, RegExpRuntimeFlags flags, ExperimentalRegExpCaptureState? captureState, int endLimit,
+        out int endIndex)
+    {
         var stack = new ExperimentalBacktrackStack();
         using var loopState = program.LoopSlotCount == 0 ? null : new ExperimentalRegExpLoopState(program.LoopSlotCount);
         try
         {
             loopState?.Reset();
-            return TryMatch(treeProgram, program, input, startIndex, flags, captureState, loopState, ref stack,
+            return TryMatch(treeProgram, program, input, startIndex, flags, captureState, endLimit, loopState, ref stack,
                 out endIndex);
         }
         finally
@@ -339,7 +346,7 @@ internal static class ExperimentalRegExpVm
     }
 
     private static bool TryMatch(ScratchRegExpProgram treeProgram, ExperimentalRegExpBytecodeProgram program, string input,
-        int startIndex, RegExpRuntimeFlags flags, ExperimentalRegExpCaptureState? captureState,
+        int startIndex, RegExpRuntimeFlags flags, ExperimentalRegExpCaptureState? captureState, int endLimit,
         ExperimentalRegExpLoopState? loopState, ref ExperimentalBacktrackStack stack, out int endIndex)
     {
         var currentPos = startIndex;
@@ -377,22 +384,31 @@ internal static class ExperimentalRegExpVm
                     instructionIndex++;
                     break;
                 case ExperimentalRegExpOpcode.BranchIfLoopUnchanged:
-                    instructionIndex = loopState is not null && loopState.IsUnchanged(instruction.Operand, currentPos)
-                        ? instruction.Operand2
-                        : instructionIndex + 1;
+                    if (loopState is not null && loopState.IsUnchanged(instruction.Operand, currentPos))
+                    {
+                        if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
+                        {
+                            endIndex = default;
+                            return false;
+                        }
+
+                        continue;
+                    }
+
+                    instructionIndex++;
                     break;
                 case ExperimentalRegExpOpcode.ScanAnyToEnd:
-                    currentPos = input.Length;
+                    currentPos = endLimit;
                     instructionIndex++;
                     break;
                 case ExperimentalRegExpOpcode.ScanDotToEnd:
-                    currentPos = ScratchRegExpMatcher.ScanDotToEndForVm(input, currentPos, flags.Unicode);
+                    currentPos = ScratchRegExpMatcher.ScanDotToEndForVm(input, currentPos, flags.Unicode, endLimit);
                     instructionIndex++;
                     break;
                 case ExperimentalRegExpOpcode.ScanAsciiClassToEnd:
                     var asciiScanCharacterSet = program.CharacterSets[instruction.Operand];
                     currentPos = ScratchRegExpMatcher.ScanAsciiClassToEndForVm(input, currentPos,
-                        asciiScanCharacterSet.AsciiBitmap.Low, asciiScanCharacterSet.AsciiBitmap.High);
+                        asciiScanCharacterSet.AsciiBitmap.Low, asciiScanCharacterSet.AsciiBitmap.High, endLimit);
                     instructionIndex++;
                     break;
                 case ExperimentalRegExpOpcode.ScanClassToEnd:
@@ -402,7 +418,7 @@ internal static class ExperimentalRegExpVm
                         scanCharacterSet, flags with
                         {
                             IgnoreCase = instruction.OpCode == ExperimentalRegExpOpcode.ScanClassToEndIgnoreCase
-                        });
+                        }, endLimit);
                     instructionIndex++;
                     break;
                 case ExperimentalRegExpOpcode.SaveStart:
@@ -452,7 +468,7 @@ internal static class ExperimentalRegExpVm
                 case ExperimentalRegExpOpcode.AssertNotLookahead:
                     var checkpoint = captureState?.Checkpoint ?? 0;
                     var lookaheadMatched = TryMatch(treeProgram, program.LookaheadPrograms[instruction.Operand], input,
-                        currentPos, flags, captureState, out _);
+                        currentPos, flags, captureState, endLimit, out _);
                     if (instruction.OpCode == ExperimentalRegExpOpcode.AssertLookahead)
                     {
                         if (!lookaheadMatched)
@@ -549,7 +565,7 @@ internal static class ExperimentalRegExpVm
                     if (!ScratchRegExpMatcher.TryMatchLiteralSetForVm(input, currentPos,
                             literalSet.LiteralCodePoints,
                             instruction.OpCode == ExperimentalRegExpOpcode.LiteralSetIgnoreCase,
-                            flags.Unicode, out var literalSetNextPos))
+                            flags.Unicode, endLimit, out var literalSetNextPos))
                     {
                         if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
                         {
@@ -565,7 +581,8 @@ internal static class ExperimentalRegExpVm
                     break;
                 case ExperimentalRegExpOpcode.Char:
                 case ExperimentalRegExpOpcode.CharIgnoreCase:
-                    if (!ScratchRegExpMatcher.TryReadCodePointForVm(input, currentPos, flags.Unicode, out var nextPos,
+                    if (!ScratchRegExpMatcher.TryReadCodePointForVm(input, currentPos, flags.Unicode, endLimit,
+                            out var nextPos,
                             out var codePoint) ||
                         !ScratchRegExpMatcher.CodePointEqualsForVm(codePoint, instruction.Operand,
                             instruction.OpCode == ExperimentalRegExpOpcode.CharIgnoreCase))
@@ -583,7 +600,8 @@ internal static class ExperimentalRegExpVm
                     instructionIndex++;
                     break;
                 case ExperimentalRegExpOpcode.Dot:
-                    if (!ScratchRegExpMatcher.TryReadCodePointForVm(input, currentPos, flags.Unicode, out nextPos,
+                    if (!ScratchRegExpMatcher.TryReadCodePointForVm(input, currentPos, flags.Unicode, endLimit,
+                            out nextPos,
                             out codePoint) ||
                         ScratchRegExpMatcher.IsLineTerminatorForVm(codePoint))
                     {
@@ -600,7 +618,8 @@ internal static class ExperimentalRegExpVm
                     instructionIndex++;
                     break;
                 case ExperimentalRegExpOpcode.Any:
-                    if (!ScratchRegExpMatcher.TryReadCodePointForVm(input, currentPos, flags.Unicode, out nextPos,
+                    if (!ScratchRegExpMatcher.TryReadCodePointForVm(input, currentPos, flags.Unicode, endLimit,
+                            out nextPos,
                             out _))
                     {
                         if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
@@ -619,7 +638,7 @@ internal static class ExperimentalRegExpVm
                     var asciiCharacterSet = program.CharacterSets[instruction.Operand];
                     if (!ScratchRegExpMatcher.TryMatchAsciiClassForVm(input, currentPos,
                             asciiCharacterSet.AsciiBitmap.Low, asciiCharacterSet.AsciiBitmap.High,
-                            out nextPos))
+                            endLimit, out nextPos))
                     {
                         if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
                         {
@@ -728,7 +747,7 @@ internal static class ExperimentalRegExpVm
                             flags with
                             {
                                 IgnoreCase = instruction.OpCode == ExperimentalRegExpOpcode.ClassIgnoreCase
-                            }, out nextPos))
+                            }, endLimit, out nextPos))
                     {
                         if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
                         {
@@ -748,7 +767,7 @@ internal static class ExperimentalRegExpVm
                             program.PropertyEscapes[instruction.Operand], flags with
                             {
                                 IgnoreCase = instruction.OpCode == ExperimentalRegExpOpcode.PropertyEscapeIgnoreCase
-                            }, out nextPos))
+                            }, endLimit, out nextPos))
                     {
                         if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
                         {

@@ -225,6 +225,36 @@ public class RegExpExperimentalIncrementalTests
     }
 
     [Test]
+    public void ExperimentalRegExpEngine_Incremental_DoesNotSkipEmptyStarMatchAtStart()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"d*", "");
+
+        var match = engine.Exec(compiled, "abcddddefg", 0);
+
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(0));
+        Assert.That(match.Groups[0], Is.EqualTo(string.Empty));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_DoesNotSkipEmptyLookaheadAlternativeMatch()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(?!a|b)|c", "");
+
+        var emptyInputMatch = engine.Exec(compiled, string.Empty, 0);
+        var nonMatchingLiteralInputMatch = engine.Exec(compiled, "d", 0);
+
+        Assert.That(emptyInputMatch, Is.Not.Null);
+        Assert.That(emptyInputMatch!.Index, Is.EqualTo(0));
+        Assert.That(emptyInputMatch.Groups[0], Is.EqualTo(string.Empty));
+        Assert.That(nonMatchingLiteralInputMatch, Is.Not.Null);
+        Assert.That(nonMatchingLiteralInputMatch!.Index, Is.EqualTo(0));
+        Assert.That(nonMatchingLiteralInputMatch.Groups[0], Is.EqualTo(string.Empty));
+    }
+
+    [Test]
     public void ExperimentalRegExpEngine_Incremental_UsesLinearBytecodeForWordBoundary()
     {
         var engine = ExperimentalRegExpEngine.Default;
@@ -705,6 +735,40 @@ public class RegExpExperimentalIncrementalTests
     }
 
     [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesBoundedForwardProgramForVariableLengthLookbehind()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(?<=\w*)[^abc]{3}", "");
+        var bytecodeProgram = ((ExperimentalCompiledProgram)compiled.EngineState!).BytecodeProgram;
+
+        var match = engine.Exec(compiled, "abcdef", 0);
+
+        Assert.That(bytecodeProgram, Is.Not.Null);
+        Assert.That(bytecodeProgram!.LookbehindPrograms, Has.Length.EqualTo(1));
+        Assert.That(bytecodeProgram.LookbehindPrograms[0], Is.Not.Null);
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(3));
+        Assert.That(match.Groups[0], Is.EqualTo("def"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_UsesBoundedForwardProgramForAnchoredVariableLengthLookbehind()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(?<=^\w+)def", "");
+        var bytecodeProgram = ((ExperimentalCompiledProgram)compiled.EngineState!).BytecodeProgram;
+
+        var match = engine.Exec(compiled, "abcdefdef", 0);
+
+        Assert.That(bytecodeProgram, Is.Not.Null);
+        Assert.That(bytecodeProgram!.LookbehindPrograms, Has.Length.EqualTo(1));
+        Assert.That(bytecodeProgram.LookbehindPrograms[0], Is.Not.Null);
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Index, Is.EqualTo(3));
+        Assert.That(match.Groups[0], Is.EqualTo("def"));
+    }
+
+    [Test]
     public void ExperimentalRegExpEngine_Incremental_DoesNotLeakCapturesFromNegativeLookbehind()
     {
         var engine = ExperimentalRegExpEngine.Default;
@@ -752,6 +816,21 @@ public class RegExpExperimentalIncrementalTests
 
         Assert.That(match, Is.Not.Null);
         Assert.That(match!.Groups[0], Is.EqualTo("a"));
+    }
+
+    [Test]
+    public void ExperimentalRegExpEngine_Incremental_DoesNotAcceptEmptyNullableIterationInVm()
+    {
+        var engine = ExperimentalRegExpEngine.Default;
+        var compiled = engine.Compile(@"(a?b??)*", "");
+        var compiledState = (ExperimentalCompiledProgram)compiled.EngineState!;
+
+        var match = engine.Exec(compiled, "ab", 0);
+
+        Assert.That(compiledState.BytecodeProgram, Is.Not.Null);
+        Assert.That(match, Is.Not.Null);
+        Assert.That(match!.Groups[0], Is.EqualTo("ab"));
+        Assert.That(match.Groups[1], Is.EqualTo("b"));
     }
 
     [Test]
