@@ -63,7 +63,7 @@ public sealed partial class JsAgent : IDisposable
         ModuleGraph = new(this);
         ModuleLinker = new(() => Engine.ModuleSourceLoader);
         ExecutionCheckPolicy = new(Options, Engine.TimeProvider);
-        ExecutionCheckInterval = Options.CheckInterval;
+        ExecutionCheckInterval = Math.Min(Options.CheckInterval, Options.MaxInstructions);
         ExecutionCheckpointHookBits = (int)Options.ExecutionCheckpointHooks;
         ExecutionCheckCountdown = ExecutionCheckPolicy.HasPeriodicChecks ? ExecutionCheckInterval : ulong.MaxValue;
         HostDefined = Options.HostDefined;
@@ -382,6 +382,7 @@ public sealed partial class JsAgent : IDisposable
     {
         Options.SetMaxInstructions(maxInstructions);
         ExecutionCheckPolicy.SetMaxInstructions(maxInstructions);
+        ExecutionCheckInterval = Math.Min(Options.CheckInterval, Options.MaxInstructions);
         RefreshExecutionCheckScheduling(false);
     }
 
