@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Okojo.RegExp.Experimental;
+namespace Okojo.RegExp;
 
 internal static partial class ScratchRegExpMatcher
 {

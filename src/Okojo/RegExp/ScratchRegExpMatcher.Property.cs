@@ -1,4 +1,4 @@
-namespace Okojo.RegExp.Experimental;
+namespace Okojo.RegExp;
 
 internal static partial class ScratchRegExpMatcher
 {
@@ -16,7 +16,7 @@ internal static partial class ScratchRegExpMatcher
             flags, input.Length, maxCount, out endPos, out consumed);
     }
 
-    private static bool FastPropertyEscapeMatches(ExperimentalRegExpPropertyEscape propertyEscape, int codePoint,
+    private static bool FastPropertyEscapeMatches(RegExpPropertyEscape propertyEscape, int codePoint,
         RegExpRuntimeFlags flags)
     {
         return FastPropertyEscapeMatches(propertyEscape.Kind, propertyEscape.Negated, propertyEscape.Categories,
@@ -68,7 +68,7 @@ internal static partial class ScratchRegExpMatcher
     }
 
     internal static int ScanPropertyEscapeToEndForVm(string input, int pos,
-        ExperimentalRegExpPropertyEscape propertyEscape, RegExpRuntimeFlags flags, int endLimit)
+        RegExpPropertyEscape propertyEscape, RegExpRuntimeFlags flags, int endLimit)
     {
         ConsumePropertyEscapeRunForVm(input, pos, propertyEscape, flags, endLimit, int.MaxValue, out var endPos,
             out _);
@@ -76,7 +76,7 @@ internal static partial class ScratchRegExpMatcher
     }
 
     internal static void ConsumePropertyEscapeRunForVm(string input, int pos,
-        ExperimentalRegExpPropertyEscape propertyEscape, RegExpRuntimeFlags flags, int endLimit, int maxCount,
+        RegExpPropertyEscape propertyEscape, RegExpRuntimeFlags flags, int endLimit, int maxCount,
         out int endPos, out int consumed)
     {
         if (TryConsumeSpecializedPropertyEscapeRun(input, pos, propertyEscape, flags, endLimit, maxCount, out endPos,
@@ -127,7 +127,7 @@ internal static partial class ScratchRegExpMatcher
     }
 
     private static bool TryConsumeSpecializedPropertyEscapeRun(string input, int pos,
-        ExperimentalRegExpPropertyEscape propertyEscape, RegExpRuntimeFlags flags, int endLimit, int maxCount,
+        RegExpPropertyEscape propertyEscape, RegExpRuntimeFlags flags, int endLimit, int maxCount,
         out int endPos, out int consumed)
     {
         switch (propertyEscape.Kind)
@@ -182,7 +182,7 @@ internal static partial class ScratchRegExpMatcher
     }
 
     private static bool ConsumeGeneralCategoryPropertyRun(string input, int pos,
-        ExperimentalRegExpPropertyEscape propertyEscape, RegExpRuntimeFlags flags, int endLimit, int maxCount,
+        RegExpPropertyEscape propertyEscape, RegExpRuntimeFlags flags, int endLimit, int maxCount,
         out int endPos, out int consumed)
     {
         var currentPos = pos;
@@ -293,7 +293,7 @@ internal static partial class ScratchRegExpMatcher
     }
 
     private static bool TryMatchPropertyEscapeForward(string input, int pos,
-        ExperimentalRegExpPropertyEscape propertyEscape, RegExpRuntimeFlags flags, out int endIndex)
+        RegExpPropertyEscape propertyEscape, RegExpRuntimeFlags flags, out int endIndex)
     {
         if (propertyEscape.Kind == ScratchRegExpProgram.PropertyEscapeKind.StringProperty &&
             propertyEscape.PropertyValue is not null)
@@ -315,12 +315,12 @@ internal static partial class ScratchRegExpMatcher
         ScratchRegExpProgram.PropertyEscapeNode propertyEscape, RegExpRuntimeFlags flags, out int endIndex)
     {
         return TryMatchPropertyEscapeForward(input, pos,
-            new ExperimentalRegExpPropertyEscape(propertyEscape.Kind, propertyEscape.Negated, propertyEscape.Categories,
+            new RegExpPropertyEscape(propertyEscape.Kind, propertyEscape.Negated, propertyEscape.Categories,
                 propertyEscape.PropertyValue), flags, out endIndex);
     }
 
     private static bool TryMatchPropertyEscapeBackward(string input, int pos,
-        ExperimentalRegExpPropertyEscape propertyEscape, RegExpRuntimeFlags flags, out int startIndex, int startLimit = 0)
+        RegExpPropertyEscape propertyEscape, RegExpRuntimeFlags flags, out int startIndex, int startLimit = 0)
     {
         if (propertyEscape.Kind == ScratchRegExpProgram.PropertyEscapeKind.StringProperty &&
             propertyEscape.PropertyValue is not null)
@@ -351,7 +351,7 @@ internal static partial class ScratchRegExpMatcher
         int startLimit = 0)
     {
         return TryMatchPropertyEscapeBackward(input, pos,
-            new ExperimentalRegExpPropertyEscape(propertyEscape.Kind, propertyEscape.Negated, propertyEscape.Categories,
+            new RegExpPropertyEscape(propertyEscape.Kind, propertyEscape.Negated, propertyEscape.Categories,
                 propertyEscape.PropertyValue), flags, out startIndex, startLimit);
     }
 

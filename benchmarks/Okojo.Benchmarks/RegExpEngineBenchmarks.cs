@@ -2,7 +2,7 @@ using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Order;
 using Okojo.Objects;
 using Okojo.RegExp;
-using Okojo.RegExp.Experimental;
+//using Okojo.RegExp.Experimental;// keep for future use
 using Okojo.Runtime;
 
 namespace Okojo.Benchmarks;
@@ -39,7 +39,7 @@ public class RegExpEngineBenchmarks
         };
 
     private readonly IRegExpEngine currentEngine = RegExpEngine.Default;
-    private readonly IRegExpEngine experimentalEngine = ExperimentalRegExpEngine.Default;
+    //private readonly IRegExpEngine experimentalEngine = ExperimentalRegExpEngine.Default;
     private RegExpScenario scenario = null!;
     private RegExpCompiledPattern currentCompiled = null!;
     private RegExpCompiledPattern experimentalCompiled = null!;
@@ -60,14 +60,14 @@ public class RegExpEngineBenchmarks
     {
         scenario = ScenarioMap[Scenario];
         currentCompiled = currentEngine.Compile(scenario.Pattern, scenario.Flags);
-        experimentalCompiled = experimentalEngine.Compile(scenario.Pattern, scenario.Flags);
+        //experimentalCompiled = experimentalEngine.Compile(scenario.Pattern, scenario.Flags);
 
         currentRuntime = JsRuntime.CreateBuilder()
             .UseRegExpEngine(RegExpEngine.Default)
             .Build();
-        experimentalRuntime = JsRuntime.CreateBuilder()
-            .UseRegExpEngine(ExperimentalRegExpEngine.Default)
-            .Build();
+        //experimentalRuntime = JsRuntime.CreateBuilder()
+        // .UseRegExpEngine(ExperimentalRegExpEngine.Default)
+        // .Build();
         currentRealm = currentRuntime.DefaultRealm;
         experimentalRealm = experimentalRuntime.DefaultRealm;
 
@@ -88,11 +88,11 @@ public class RegExpEngineBenchmarks
         return CompileAndExec(currentEngine, scenario);
     }
 
-    [Benchmark]
-    public int Experimental_Compile_And_FirstExec()
-    {
-        return CompileAndExec(experimentalEngine, scenario);
-    }
+    // [Benchmark]
+    // public int Experimental_Compile_And_FirstExec()
+    // {
+    //     return CompileAndExec(experimentalEngine, scenario);
+    // }
 
     [Benchmark]
     public int Current_ReusedExec()
@@ -100,11 +100,11 @@ public class RegExpEngineBenchmarks
         return ExecCompiled(currentEngine, currentCompiled, scenario);
     }
 
-    [Benchmark]
-    public int Experimental_ReusedExec()
-    {
-        return ExecCompiled(experimentalEngine, experimentalCompiled, scenario);
-    }
+    // [Benchmark]
+    // public int Experimental_ReusedExec()
+    // {
+    //     return ExecCompiled(experimentalEngine, experimentalCompiled, scenario);
+    // }
 
     [Benchmark]
     public int Current_JsRuntimePath()
@@ -114,13 +114,13 @@ public class RegExpEngineBenchmarks
         return sink;
     }
 
-    [Benchmark]
-    public int Experimental_JsRuntimePath()
-    {
-        experimentalRealm.Execute(experimentalJsFunction);
-        sink = experimentalRealm.Accumulator.IsNumber ? experimentalRealm.Accumulator.Int32Value : -1;
-        return sink;
-    }
+    // [Benchmark]
+    // public int Experimental_JsRuntimePath()
+    // {
+    //     experimentalRealm.Execute(experimentalJsFunction);
+    //     sink = experimentalRealm.Accumulator.IsNumber ? experimentalRealm.Accumulator.Int32Value : -1;
+    //     return sink;
+    // }
 
     private static JsBytecodeFunction CompileRealmFunction(JsRealm realm, RegExpScenario scenario)
     {

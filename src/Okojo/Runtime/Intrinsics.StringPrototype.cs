@@ -166,7 +166,7 @@ public partial class Intrinsics
                 replacerValue.IsUndefined || replacerValue.IsNull)
                 return JsValue.Undefined;
 
-            if (!replacerValue.TryGetObject(out var replacerObj) || replacerObj is not JsFunction replacerFn)
+            if (!(replacerValue.Obj is JsFunction replacerFn))
                 throw new JsRuntimeException(JsErrorKind.TypeError, "Symbol.replace method must be callable");
 
             Span<JsValue> replaceArgs =

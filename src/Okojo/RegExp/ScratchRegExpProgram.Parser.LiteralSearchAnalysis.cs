@@ -2,7 +2,7 @@ using Okojo.Internals;
 using Okojo.Parsing;
 using System.Text;
 
-namespace Okojo.RegExp.Experimental;
+namespace Okojo.RegExp;
 
 internal sealed partial class ScratchRegExpProgram
 {

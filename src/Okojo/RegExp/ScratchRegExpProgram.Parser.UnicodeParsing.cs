@@ -1,6 +1,6 @@
 using Okojo.Parsing;
 
-namespace Okojo.RegExp.Experimental;
+namespace Okojo.RegExp;
 
 internal sealed partial class ScratchRegExpProgram
 {

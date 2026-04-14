@@ -10,7 +10,6 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\src\Okojo\Okojo.csproj"/>
-        <ProjectReference Include="..\..\src\Okojo.RegExp.Experimental\Okojo.RegExp.Experimental.csproj"/>
     </ItemGroup>
 
     <ItemGroup>

@@ -1,6 +1,6 @@
 namespace Okojo.RegExp;
 
-internal static class ScratchUnicodeStringPropertyTables
+internal static partial class ScratchUnicodeStringPropertyTables
 {
     private static readonly string[] BasicEmojiStrings =
     [
@@ -7951,60 +7951,4 @@ internal static class ScratchUnicodeStringPropertyTables
         };
     }
 
-    public static bool TryMatchAt(string property, string input, int pos, out int endIndex)
-    {
-        foreach (var candidate in GetStrings(property))
-            if (pos + candidate.Length <= input.Length && input.AsSpan(pos, candidate.Length).SequenceEqual(candidate))
-            {
-                endIndex = pos + candidate.Length;
-                return true;
-            }
-
-        endIndex = default;
-        return false;
-    }
-
-    public static bool TryMatchBackward(string property, string input, int pos, out int startIndex)
-    {
-        foreach (var candidate in GetStrings(property))
-            if (pos >= candidate.Length &&
-                input.AsSpan(pos - candidate.Length, candidate.Length).SequenceEqual(candidate))
-            {
-                startIndex = pos - candidate.Length;
-                return true;
-            }
-
-        startIndex = default;
-        return false;
-    }
-
-    public static IEnumerable<int> MatchEndsAt(string property, string input, int pos)
-    {
-        foreach (var candidate in GetStrings(property))
-            if (pos + candidate.Length <= input.Length && input.AsSpan(pos, candidate.Length).SequenceEqual(candidate))
-                yield return pos + candidate.Length;
-    }
-
-    public static IEnumerable<int> MatchStartsBackward(string property, string input, int pos)
-    {
-        foreach (var candidate in GetStrings(property))
-            if (pos >= candidate.Length &&
-                input.AsSpan(pos - candidate.Length, candidate.Length).SequenceEqual(candidate))
-                yield return pos - candidate.Length;
-    }
-
-    private static string[] GetStrings(string property)
-    {
-        return property switch
-        {
-            "Basic_Emoji" => BasicEmojiStrings,
-            "Emoji_Keycap_Sequence" => EmojiKeycapSequenceStrings,
-            "RGI_Emoji" => RgiEmojiStrings,
-            "RGI_Emoji_Flag_Sequence" => RgiEmojiFlagSequenceStrings,
-            "RGI_Emoji_Modifier_Sequence" => RgiEmojiModifierSequenceStrings,
-            "RGI_Emoji_Tag_Sequence" => RgiEmojiTagSequenceStrings,
-            "RGI_Emoji_ZWJ_Sequence" => RgiEmojiZwjSequenceStrings,
-            _ => []
-        };
-    }
 }

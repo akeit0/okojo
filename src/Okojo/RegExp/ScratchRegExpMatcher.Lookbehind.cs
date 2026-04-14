@@ -1,13 +1,13 @@
-namespace Okojo.RegExp.Experimental;
+namespace Okojo.RegExp;
 
 internal static partial class ScratchRegExpMatcher
 {
     private readonly struct ReverseLookbehindContext(
-        ExperimentalCompiledProgram compiledProgram,
+        CompiledProgram compiledProgram,
         string input,
         int startLimit)
     {
-        public ExperimentalCompiledProgram CompiledProgram { get; } = compiledProgram;
+        public CompiledProgram CompiledProgram { get; } = compiledProgram;
         public ScratchRegExpProgram Program => CompiledProgram.TreeProgram;
         public string Input { get; } = input;
         public int StartLimit { get; } = startLimit;
@@ -18,7 +18,7 @@ internal static partial class ScratchRegExpMatcher
         }
     }
 
-    private static bool TryMatchLookbehindAssertionForVm(ExperimentalCompiledProgram compiledProgram,
+    private static bool TryMatchLookbehindAssertionForVm(CompiledProgram compiledProgram,
         ScratchRegExpProgram.Node child,
         string input, int pos, RegExpRuntimeFlags flags, ScratchMatchState state, out int startIndex,
         int startLimit, bool nestedInQuantifierContext = false)

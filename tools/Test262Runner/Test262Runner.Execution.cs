@@ -6,7 +6,6 @@ using Okojo.Hosting;
 using Okojo.Objects;
 using Okojo.Parsing;
 using Okojo.RegExp;
-using Okojo.RegExp.Experimental;
 using Okojo.Runtime;
 using Okojo.WebPlatform;
 using Test262Runner;
@@ -20,7 +19,7 @@ internal static partial class Program
         {
             Test262RegExpEngineMode.BuiltIn => null,
             Test262RegExpEngineMode.Current => RegExpEngine.Default,
-            Test262RegExpEngineMode.Experimental => ExperimentalRegExpEngine.Default,
+            // Test262RegExpEngineMode.Experimental => ExperimentalRegExpEngine.Default,
             _ => throw new ArgumentOutOfRangeException(nameof(options))
         };
     }

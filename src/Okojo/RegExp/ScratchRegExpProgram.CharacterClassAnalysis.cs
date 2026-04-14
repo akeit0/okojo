@@ -1,10 +1,10 @@
 using System.Runtime.InteropServices.Marshalling;
 
-namespace Okojo.RegExp.Experimental;
+namespace Okojo.RegExp;
 
 internal sealed partial class ScratchRegExpProgram
 {
-    internal static bool TryCreateSimpleClass(ClassNode cls, out ExperimentalRegExpSimpleClass simpleClass)
+    internal static bool TryCreateSimpleClass(ClassNode cls, out RegExpSimpleClass simpleClass)
     {
         if (cls.Expression is not null)
         {
@@ -25,23 +25,23 @@ internal sealed partial class ScratchRegExpProgram
             }
         }
 
-        var items = new ExperimentalRegExpSimpleClassItem[clsItems.Length];
+        var items = new RegExpSimpleClassItem[clsItems.Length];
         for (var i = 0; i < clsItems.Length; i++)
         {
             var item = clsItems[i];
             items[i] = item.Kind switch
             {
-                ClassItemKind.Literal => new(ExperimentalRegExpSimpleClassItemKind.Literal, CodePoint: item.CodePoint),
-                ClassItemKind.Range => new(ExperimentalRegExpSimpleClassItemKind.Range, RangeStart: item.RangeStart,
+                ClassItemKind.Literal => new(RegExpSimpleClassItemKind.Literal, CodePoint: item.CodePoint),
+                ClassItemKind.Range => new(RegExpSimpleClassItemKind.Range, RangeStart: item.RangeStart,
                     RangeEnd: item.RangeEnd),
-                ClassItemKind.Digit => new(ExperimentalRegExpSimpleClassItemKind.Digit),
-                ClassItemKind.NotDigit => new(ExperimentalRegExpSimpleClassItemKind.NotDigit),
-                ClassItemKind.Space => new(ExperimentalRegExpSimpleClassItemKind.Space),
-                ClassItemKind.NotSpace => new(ExperimentalRegExpSimpleClassItemKind.NotSpace),
-                ClassItemKind.Word => new(ExperimentalRegExpSimpleClassItemKind.Word),
-                ClassItemKind.NotWord => new(ExperimentalRegExpSimpleClassItemKind.NotWord),
-                ClassItemKind.PropertyEscape => new(ExperimentalRegExpSimpleClassItemKind.PropertyEscape,
-                    PropertyEscape: new ExperimentalRegExpPropertyEscape(item.PropertyKind,
+                ClassItemKind.Digit => new(RegExpSimpleClassItemKind.Digit),
+                ClassItemKind.NotDigit => new(RegExpSimpleClassItemKind.NotDigit),
+                ClassItemKind.Space => new(RegExpSimpleClassItemKind.Space),
+                ClassItemKind.NotSpace => new(RegExpSimpleClassItemKind.NotSpace),
+                ClassItemKind.Word => new(RegExpSimpleClassItemKind.Word),
+                ClassItemKind.NotWord => new(RegExpSimpleClassItemKind.NotWord),
+                ClassItemKind.PropertyEscape => new(RegExpSimpleClassItemKind.PropertyEscape,
+                    PropertyEscape: new RegExpPropertyEscape(item.PropertyKind,
                         item.PropertyNegated, item.PropertyCategories, item.PropertyValue)),
                 _ => throw new InvalidOperationException($"Unsupported simple class item: {item.Kind}")
             };

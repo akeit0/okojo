@@ -1,9 +1,9 @@
 using Okojo.Internals;
 using System.Buffers;
 
-namespace Okojo.RegExp.Experimental;
+namespace Okojo.RegExp;
 
-internal enum ExperimentalRegExpOpcode : byte
+internal enum RegExpOpcode : byte
 {
     Match,
     ClearCaptures,
@@ -53,38 +53,38 @@ internal enum ExperimentalRegExpOpcode : byte
     Split
 }
 
-internal readonly record struct ExperimentalRegExpInstruction(ExperimentalRegExpOpcode OpCode, int Operand,
+internal readonly record struct RegExpInstruction(RegExpOpcode OpCode, int Operand,
     int Operand2 = 0);
 
-internal sealed class ExperimentalRegExpBytecodeProgram
+internal sealed class RegExpBytecodeProgram
 {
-    public required ExperimentalRegExpInstruction[] Instructions { get; init; }
+    public required RegExpInstruction[] Instructions { get; init; }
     public int[][] CaptureClearSets { get; init; } = [];
     public int[][] NamedBackReferenceCaptureSets { get; init; } = [];
-    public ExperimentalRegExpBytecodeProgram[] LookaheadPrograms { get; init; } = [];
-    public ExperimentalRegExpBytecodeProgram?[] LookbehindPrograms { get; init; } = [];
+    public RegExpBytecodeProgram[] LookaheadPrograms { get; init; } = [];
+    public RegExpBytecodeProgram?[] LookbehindPrograms { get; init; } = [];
     public ScratchRegExpProgram.Node[] LookbehindNodes { get; init; } = [];
     public RegExpRuntimeFlags[] LookbehindFlags { get; init; } = [];
     public int[] LookbehindMinMatchLengths { get; init; } = [];
     public int[] LookbehindMaxMatchLengths { get; init; } = [];
     public int LoopSlotCount { get; init; }
     public string[] LiteralTexts { get; init; } = [];
-    public ExperimentalRegExpCharacterSet[] CharacterSets { get; init; } = [];
-    public ExperimentalRegExpPropertyEscape[] PropertyEscapes { get; init; } = [];
+    public RegExpCharacterSet[] CharacterSets { get; init; } = [];
+    public RegExpPropertyEscape[] PropertyEscapes { get; init; } = [];
 }
 
-internal static class ExperimentalRegExpCodeGenerator
+internal static class RegExpCodeGenerator
 {
-    public static ExperimentalRegExpBytecodeProgram? TryGenerate(ExperimentalRegExpIrProgram? irProgram)
+    public static RegExpBytecodeProgram? TryGenerate(RegExpIrProgram? irProgram)
     {
         if (irProgram is null)
             return null;
 
         BuildCharacterSets(irProgram, out var characterSets, out var classOperandMap, out var literalSetOperandMap);
         var source = irProgram.Instructions;
-        Span<ExperimentalRegExpInstruction> initialInstructionBuffer =
-            stackalloc ExperimentalRegExpInstruction[Math.Min(Math.Max(source.Length, 1), 64)];
-        var instructions = new PooledArrayBuilder<ExperimentalRegExpInstruction>(initialInstructionBuffer);
+        Span<RegExpInstruction> initialInstructionBuffer =
+            stackalloc RegExpInstruction[Math.Min(Math.Max(source.Length, 1), 64)];
+        var instructions = new PooledArrayBuilder<RegExpInstruction>(initialInstructionBuffer);
         try
         {
             for (var i = 0; i < source.Length; i++)
@@ -97,10 +97,10 @@ internal static class ExperimentalRegExpCodeGenerator
                 }
 
                 var instruction = source[i];
-                if (instruction.OpCode == ExperimentalRegExpIrOpcode.Class &&
+                if (instruction.OpCode == RegExpIrOpcode.Class &&
                     characterSets[classOperandMap[instruction.Operand]].AsciiBitmap.HasValue)
                 {
-                    instructions.Add(new(ExperimentalRegExpOpcode.ClassAscii, classOperandMap[instruction.Operand],
+                    instructions.Add(new(RegExpOpcode.ClassAscii, classOperandMap[instruction.Operand],
                         instruction.Operand2));
                     continue;
                 }
@@ -133,10 +133,10 @@ internal static class ExperimentalRegExpCodeGenerator
         }
     }
 
-    private static void BuildCharacterSets(ExperimentalRegExpIrProgram irProgram,
-        out ExperimentalRegExpCharacterSet[] characterSets, out int[] classOperandMap, out int[] literalSetOperandMap)
+    private static void BuildCharacterSets(RegExpIrProgram irProgram,
+        out RegExpCharacterSet[] characterSets, out int[] classOperandMap, out int[] literalSetOperandMap)
     {
-        var builder = new List<ExperimentalRegExpCharacterSet>(irProgram.Classes.Length + irProgram.LiteralCodePointSets.Length);
+        var builder = new List<RegExpCharacterSet>(irProgram.Classes.Length + irProgram.LiteralCodePointSets.Length);
         classOperandMap = new int[irProgram.Classes.Length];
         literalSetOperandMap = new int[irProgram.LiteralCodePointSets.Length];
 
@@ -144,7 +144,7 @@ internal static class ExperimentalRegExpCodeGenerator
         {
             var asciiBitmap = ScratchRegExpProgram.TryBuildAsciiClassBitmap(irProgram.Classes[i], out var lowMask,
                 out var highMask)
-                ? new ExperimentalRegExpAsciiBitmap(lowMask, highMask)
+                ? new RegExpAsciiBitmap(lowMask, highMask)
                 : default;
             var hasSimpleClass = ScratchRegExpProgram.TryCreateSimpleClass(irProgram.Classes[i], out var simpleClass);
             classOperandMap[i] = builder.Count;
@@ -168,19 +168,19 @@ internal static class ExperimentalRegExpCodeGenerator
         characterSets = builder.ToArray();
     }
 
-    private static ExperimentalRegExpBytecodeProgram[] LowerLookaheadPrograms(ExperimentalRegExpIrProgram[] lookaheadPrograms)
+    private static RegExpBytecodeProgram[] LowerLookaheadPrograms(RegExpIrProgram[] lookaheadPrograms)
     {
         if (lookaheadPrograms.Length == 0)
             return [];
 
-        var lowered = new ExperimentalRegExpBytecodeProgram[lookaheadPrograms.Length];
+        var lowered = new RegExpBytecodeProgram[lookaheadPrograms.Length];
         for (var i = 0; i < lookaheadPrograms.Length; i++)
             lowered[i] = TryGenerate(lookaheadPrograms[i])!;
         return lowered;
     }
 
-    private static ExperimentalRegExpBytecodeProgram?[] LowerLookbehindPrograms(
-        ExperimentalRegExpIrProgram?[] lookbehindPrograms,
+    private static RegExpBytecodeProgram?[] LowerLookbehindPrograms(
+        RegExpIrProgram?[] lookbehindPrograms,
         ScratchRegExpProgram.Node[] lookbehindNodes,
         out int[] lookbehindMinMatchLengths,
         out int[] lookbehindMaxMatchLengths)
@@ -192,7 +192,7 @@ internal static class ExperimentalRegExpCodeGenerator
             return [];
         }
 
-        var lowered = new ExperimentalRegExpBytecodeProgram?[lookbehindNodes.Length];
+        var lowered = new RegExpBytecodeProgram?[lookbehindNodes.Length];
         lookbehindMinMatchLengths = new int[lookbehindNodes.Length];
         lookbehindMaxMatchLengths = new int[lookbehindNodes.Length];
         Array.Fill(lookbehindMinMatchLengths, -1);
@@ -211,22 +211,22 @@ internal static class ExperimentalRegExpCodeGenerator
         return lowered;
     }
 
-    private static ExperimentalRegExpPropertyEscape[] BuildPropertyEscapes(
+    private static RegExpPropertyEscape[] BuildPropertyEscapes(
         ScratchRegExpProgram.PropertyEscapeNode[] propertyEscapes)
     {
         if (propertyEscapes.Length == 0)
             return [];
 
-        var lowered = new ExperimentalRegExpPropertyEscape[propertyEscapes.Length];
+        var lowered = new RegExpPropertyEscape[propertyEscapes.Length];
         for (var i = 0; i < propertyEscapes.Length; i++)
             lowered[i] = new(propertyEscapes[i].Kind, propertyEscapes[i].Negated, propertyEscapes[i].Categories,
                 propertyEscapes[i].PropertyValue);
         return lowered;
     }
 
-    private static bool TryEmitTailScan(ExperimentalRegExpIrInstruction[] source, int[] classOperandMap,
-        ExperimentalRegExpCharacterSet[] characterSets, int index,
-        ref PooledArrayBuilder<ExperimentalRegExpInstruction> instructions,
+    private static bool TryEmitTailScan(RegExpIrInstruction[] source, int[] classOperandMap,
+        RegExpCharacterSet[] characterSets, int index,
+        ref PooledArrayBuilder<RegExpInstruction> instructions,
         out int consumedInstructions)
     {
         consumedInstructions = 0;
@@ -234,10 +234,10 @@ internal static class ExperimentalRegExpCodeGenerator
             return false;
 
         var split = source[index];
-        if (split.OpCode != ExperimentalRegExpIrOpcode.Split ||
+        if (split.OpCode != RegExpIrOpcode.Split ||
             split.Operand != index + 1 ||
             split.Operand2 != index + 3 ||
-            source[index + 2].OpCode != ExperimentalRegExpIrOpcode.Jump ||
+            source[index + 2].OpCode != RegExpIrOpcode.Jump ||
             source[index + 2].Operand != index ||
             !HasSafeTailScanSuffix(source, index + 3))
             return false;
@@ -245,31 +245,31 @@ internal static class ExperimentalRegExpCodeGenerator
         var child = source[index + 1];
         switch (child.OpCode)
         {
-            case ExperimentalRegExpIrOpcode.Any:
-                instructions.Add(new(ExperimentalRegExpOpcode.ScanAnyToEnd, 0));
+            case RegExpIrOpcode.Any:
+                instructions.Add(new(RegExpOpcode.ScanAnyToEnd, 0));
                 consumedInstructions = 3;
                 return true;
-            case ExperimentalRegExpIrOpcode.Dot:
-                instructions.Add(new(ExperimentalRegExpOpcode.ScanDotToEnd, 0));
+            case RegExpIrOpcode.Dot:
+                instructions.Add(new(RegExpOpcode.ScanDotToEnd, 0));
                 consumedInstructions = 3;
                 return true;
-            case ExperimentalRegExpIrOpcode.Class:
+            case RegExpIrOpcode.Class:
                 var classOperand = classOperandMap[child.Operand];
                 instructions.Add(new(characterSets[classOperand].AsciiBitmap.HasValue
-                    ? ExperimentalRegExpOpcode.ScanAsciiClassToEnd
-                    : ExperimentalRegExpOpcode.ScanClassToEnd, classOperand));
+                    ? RegExpOpcode.ScanAsciiClassToEnd
+                    : RegExpOpcode.ScanClassToEnd, classOperand));
                 consumedInstructions = 3;
                 return true;
-            case ExperimentalRegExpIrOpcode.ClassIgnoreCase:
-                instructions.Add(new(ExperimentalRegExpOpcode.ScanClassToEndIgnoreCase, classOperandMap[child.Operand]));
+            case RegExpIrOpcode.ClassIgnoreCase:
+                instructions.Add(new(RegExpOpcode.ScanClassToEndIgnoreCase, classOperandMap[child.Operand]));
                 consumedInstructions = 3;
                 return true;
-            case ExperimentalRegExpIrOpcode.PropertyEscape:
-                instructions.Add(new(ExperimentalRegExpOpcode.ScanPropertyEscapeToEnd, child.Operand));
+            case RegExpIrOpcode.PropertyEscape:
+                instructions.Add(new(RegExpOpcode.ScanPropertyEscapeToEnd, child.Operand));
                 consumedInstructions = 3;
                 return true;
-            case ExperimentalRegExpIrOpcode.PropertyEscapeIgnoreCase:
-                instructions.Add(new(ExperimentalRegExpOpcode.ScanPropertyEscapeToEndIgnoreCase, child.Operand));
+            case RegExpIrOpcode.PropertyEscapeIgnoreCase:
+                instructions.Add(new(RegExpOpcode.ScanPropertyEscapeToEndIgnoreCase, child.Operand));
                 consumedInstructions = 3;
                 return true;
             default:
@@ -277,70 +277,70 @@ internal static class ExperimentalRegExpCodeGenerator
         }
     }
 
-    private static bool HasSafeTailScanSuffix(ExperimentalRegExpIrInstruction[] source, int startIndex)
+    private static bool HasSafeTailScanSuffix(RegExpIrInstruction[] source, int startIndex)
     {
         if ((uint)startIndex >= (uint)source.Length)
             return false;
 
-        if (source[startIndex].OpCode == ExperimentalRegExpIrOpcode.Match)
+        if (source[startIndex].OpCode == RegExpIrOpcode.Match)
             return true;
 
         return startIndex + 1 < source.Length &&
-               (source[startIndex].OpCode is ExperimentalRegExpIrOpcode.AssertEnd or
-                   ExperimentalRegExpIrOpcode.AssertEndMultiline) &&
-               source[startIndex + 1].OpCode == ExperimentalRegExpIrOpcode.Match;
+               (source[startIndex].OpCode is RegExpIrOpcode.AssertEnd or
+                   RegExpIrOpcode.AssertEndMultiline) &&
+               source[startIndex + 1].OpCode == RegExpIrOpcode.Match;
     }
 
-    private static ExperimentalRegExpInstruction MapInstruction(ExperimentalRegExpIrInstruction instruction,
+    private static RegExpInstruction MapInstruction(RegExpIrInstruction instruction,
         int[] classOperandMap, int[] literalSetOperandMap)
     {
         var opcode = instruction.OpCode switch
         {
-            ExperimentalRegExpIrOpcode.Match => ExperimentalRegExpOpcode.Match,
-            ExperimentalRegExpIrOpcode.ClearCaptures => ExperimentalRegExpOpcode.ClearCaptures,
-            ExperimentalRegExpIrOpcode.SaveLoopPosition => ExperimentalRegExpOpcode.SaveLoopPosition,
-            ExperimentalRegExpIrOpcode.BranchIfLoopUnchanged => ExperimentalRegExpOpcode.BranchIfLoopUnchanged,
-            ExperimentalRegExpIrOpcode.SetLoopCounter => ExperimentalRegExpOpcode.SetLoopCounter,
-            ExperimentalRegExpIrOpcode.BranchIfLoopCounterZero => ExperimentalRegExpOpcode.BranchIfLoopCounterZero,
-            ExperimentalRegExpIrOpcode.DecrementLoopCounter => ExperimentalRegExpOpcode.DecrementLoopCounter,
-            ExperimentalRegExpIrOpcode.SaveStart => ExperimentalRegExpOpcode.SaveStart,
-            ExperimentalRegExpIrOpcode.SaveEnd => ExperimentalRegExpOpcode.SaveEnd,
-            ExperimentalRegExpIrOpcode.BackReference => ExperimentalRegExpOpcode.BackReference,
-            ExperimentalRegExpIrOpcode.BackReferenceIgnoreCase => ExperimentalRegExpOpcode.BackReferenceIgnoreCase,
-            ExperimentalRegExpIrOpcode.NamedBackReference => ExperimentalRegExpOpcode.NamedBackReference,
-            ExperimentalRegExpIrOpcode.NamedBackReferenceIgnoreCase => ExperimentalRegExpOpcode.NamedBackReferenceIgnoreCase,
-            ExperimentalRegExpIrOpcode.AssertLookahead => ExperimentalRegExpOpcode.AssertLookahead,
-            ExperimentalRegExpIrOpcode.AssertNotLookahead => ExperimentalRegExpOpcode.AssertNotLookahead,
-            ExperimentalRegExpIrOpcode.AssertLookbehind => ExperimentalRegExpOpcode.AssertLookbehind,
-            ExperimentalRegExpIrOpcode.AssertNotLookbehind => ExperimentalRegExpOpcode.AssertNotLookbehind,
-            ExperimentalRegExpIrOpcode.LiteralText => ExperimentalRegExpOpcode.LiteralText,
-            ExperimentalRegExpIrOpcode.LiteralSet => ExperimentalRegExpOpcode.LiteralSet,
-            ExperimentalRegExpIrOpcode.LiteralSetIgnoreCase => ExperimentalRegExpOpcode.LiteralSetIgnoreCase,
-            ExperimentalRegExpIrOpcode.Char => ExperimentalRegExpOpcode.Char,
-            ExperimentalRegExpIrOpcode.CharIgnoreCase => ExperimentalRegExpOpcode.CharIgnoreCase,
-            ExperimentalRegExpIrOpcode.Dot => ExperimentalRegExpOpcode.Dot,
-            ExperimentalRegExpIrOpcode.Any => ExperimentalRegExpOpcode.Any,
-            ExperimentalRegExpIrOpcode.AssertStart => ExperimentalRegExpOpcode.AssertStart,
-            ExperimentalRegExpIrOpcode.AssertStartMultiline => ExperimentalRegExpOpcode.AssertStartMultiline,
-            ExperimentalRegExpIrOpcode.AssertEnd => ExperimentalRegExpOpcode.AssertEnd,
-            ExperimentalRegExpIrOpcode.AssertEndMultiline => ExperimentalRegExpOpcode.AssertEndMultiline,
-            ExperimentalRegExpIrOpcode.AssertWordBoundary => ExperimentalRegExpOpcode.AssertWordBoundary,
-            ExperimentalRegExpIrOpcode.AssertWordBoundaryIgnoreCase => ExperimentalRegExpOpcode.AssertWordBoundaryIgnoreCase,
-            ExperimentalRegExpIrOpcode.AssertNotWordBoundary => ExperimentalRegExpOpcode.AssertNotWordBoundary,
-            ExperimentalRegExpIrOpcode.AssertNotWordBoundaryIgnoreCase => ExperimentalRegExpOpcode.AssertNotWordBoundaryIgnoreCase,
-            ExperimentalRegExpIrOpcode.Class => ExperimentalRegExpOpcode.Class,
-            ExperimentalRegExpIrOpcode.ClassIgnoreCase => ExperimentalRegExpOpcode.ClassIgnoreCase,
-            ExperimentalRegExpIrOpcode.PropertyEscape => ExperimentalRegExpOpcode.PropertyEscape,
-            ExperimentalRegExpIrOpcode.PropertyEscapeIgnoreCase => ExperimentalRegExpOpcode.PropertyEscapeIgnoreCase,
-            ExperimentalRegExpIrOpcode.Jump => ExperimentalRegExpOpcode.Jump,
-            ExperimentalRegExpIrOpcode.Split => ExperimentalRegExpOpcode.Split,
+            RegExpIrOpcode.Match => RegExpOpcode.Match,
+            RegExpIrOpcode.ClearCaptures => RegExpOpcode.ClearCaptures,
+            RegExpIrOpcode.SaveLoopPosition => RegExpOpcode.SaveLoopPosition,
+            RegExpIrOpcode.BranchIfLoopUnchanged => RegExpOpcode.BranchIfLoopUnchanged,
+            RegExpIrOpcode.SetLoopCounter => RegExpOpcode.SetLoopCounter,
+            RegExpIrOpcode.BranchIfLoopCounterZero => RegExpOpcode.BranchIfLoopCounterZero,
+            RegExpIrOpcode.DecrementLoopCounter => RegExpOpcode.DecrementLoopCounter,
+            RegExpIrOpcode.SaveStart => RegExpOpcode.SaveStart,
+            RegExpIrOpcode.SaveEnd => RegExpOpcode.SaveEnd,
+            RegExpIrOpcode.BackReference => RegExpOpcode.BackReference,
+            RegExpIrOpcode.BackReferenceIgnoreCase => RegExpOpcode.BackReferenceIgnoreCase,
+            RegExpIrOpcode.NamedBackReference => RegExpOpcode.NamedBackReference,
+            RegExpIrOpcode.NamedBackReferenceIgnoreCase => RegExpOpcode.NamedBackReferenceIgnoreCase,
+            RegExpIrOpcode.AssertLookahead => RegExpOpcode.AssertLookahead,
+            RegExpIrOpcode.AssertNotLookahead => RegExpOpcode.AssertNotLookahead,
+            RegExpIrOpcode.AssertLookbehind => RegExpOpcode.AssertLookbehind,
+            RegExpIrOpcode.AssertNotLookbehind => RegExpOpcode.AssertNotLookbehind,
+            RegExpIrOpcode.LiteralText => RegExpOpcode.LiteralText,
+            RegExpIrOpcode.LiteralSet => RegExpOpcode.LiteralSet,
+            RegExpIrOpcode.LiteralSetIgnoreCase => RegExpOpcode.LiteralSetIgnoreCase,
+            RegExpIrOpcode.Char => RegExpOpcode.Char,
+            RegExpIrOpcode.CharIgnoreCase => RegExpOpcode.CharIgnoreCase,
+            RegExpIrOpcode.Dot => RegExpOpcode.Dot,
+            RegExpIrOpcode.Any => RegExpOpcode.Any,
+            RegExpIrOpcode.AssertStart => RegExpOpcode.AssertStart,
+            RegExpIrOpcode.AssertStartMultiline => RegExpOpcode.AssertStartMultiline,
+            RegExpIrOpcode.AssertEnd => RegExpOpcode.AssertEnd,
+            RegExpIrOpcode.AssertEndMultiline => RegExpOpcode.AssertEndMultiline,
+            RegExpIrOpcode.AssertWordBoundary => RegExpOpcode.AssertWordBoundary,
+            RegExpIrOpcode.AssertWordBoundaryIgnoreCase => RegExpOpcode.AssertWordBoundaryIgnoreCase,
+            RegExpIrOpcode.AssertNotWordBoundary => RegExpOpcode.AssertNotWordBoundary,
+            RegExpIrOpcode.AssertNotWordBoundaryIgnoreCase => RegExpOpcode.AssertNotWordBoundaryIgnoreCase,
+            RegExpIrOpcode.Class => RegExpOpcode.Class,
+            RegExpIrOpcode.ClassIgnoreCase => RegExpOpcode.ClassIgnoreCase,
+            RegExpIrOpcode.PropertyEscape => RegExpOpcode.PropertyEscape,
+            RegExpIrOpcode.PropertyEscapeIgnoreCase => RegExpOpcode.PropertyEscapeIgnoreCase,
+            RegExpIrOpcode.Jump => RegExpOpcode.Jump,
+            RegExpIrOpcode.Split => RegExpOpcode.Split,
             _ => throw new InvalidOperationException($"Unknown regex IR opcode: {instruction.OpCode}")
         };
 
         var operand = instruction.OpCode switch
         {
-            ExperimentalRegExpIrOpcode.Class or ExperimentalRegExpIrOpcode.ClassIgnoreCase => classOperandMap[instruction.Operand],
-            ExperimentalRegExpIrOpcode.LiteralSet or ExperimentalRegExpIrOpcode.LiteralSetIgnoreCase => literalSetOperandMap[instruction.Operand],
+            RegExpIrOpcode.Class or RegExpIrOpcode.ClassIgnoreCase => classOperandMap[instruction.Operand],
+            RegExpIrOpcode.LiteralSet or RegExpIrOpcode.LiteralSetIgnoreCase => literalSetOperandMap[instruction.Operand],
             _ => instruction.Operand
         };
 
@@ -348,21 +348,21 @@ internal static class ExperimentalRegExpCodeGenerator
     }
 }
 
-internal static class ExperimentalRegExpVm
+internal static class RegExpVm
 {
-    public static bool TryMatch(ExperimentalCompiledProgram compiledProgram, ExperimentalRegExpBytecodeProgram program,
-        string input, int startIndex, RegExpRuntimeFlags flags, ExperimentalRegExpCaptureState? captureState,
+    public static bool TryMatch(CompiledProgram compiledProgram, RegExpBytecodeProgram program,
+        string input, int startIndex, RegExpRuntimeFlags flags, RegExpCaptureState? captureState,
         out int endIndex)
     {
         return TryMatch(compiledProgram, program, input, startIndex, flags, captureState, input.Length, out endIndex);
     }
 
-    public static bool TryMatch(ExperimentalCompiledProgram compiledProgram, ExperimentalRegExpBytecodeProgram program,
-        string input, int startIndex, RegExpRuntimeFlags flags, ExperimentalRegExpCaptureState? captureState,
+    public static bool TryMatch(CompiledProgram compiledProgram, RegExpBytecodeProgram program,
+        string input, int startIndex, RegExpRuntimeFlags flags, RegExpCaptureState? captureState,
         int endLimit, out int endIndex)
     {
-        var stack = new ExperimentalBacktrackStack();
-        using var loopState = program.LoopSlotCount == 0 ? null : new ExperimentalRegExpLoopState(program.LoopSlotCount);
+        var stack = new BacktrackStack();
+        using var loopState = program.LoopSlotCount == 0 ? null : new RegExpLoopState(program.LoopSlotCount);
         try
         {
             loopState?.Reset();
@@ -375,9 +375,9 @@ internal static class ExperimentalRegExpVm
         }
     }
 
-    private static bool TryMatch(ExperimentalCompiledProgram compiledProgram, ExperimentalRegExpBytecodeProgram program,
-        string input, int startIndex, RegExpRuntimeFlags flags, ExperimentalRegExpCaptureState? captureState,
-        int endLimit, ExperimentalRegExpLoopState? loopState, ref ExperimentalBacktrackStack stack, out int endIndex)
+    private static bool TryMatch(CompiledProgram compiledProgram, RegExpBytecodeProgram program,
+        string input, int startIndex, RegExpRuntimeFlags flags, RegExpCaptureState? captureState,
+        int endLimit, RegExpLoopState? loopState, ref BacktrackStack stack, out int endIndex)
     {
         var currentPos = startIndex;
         var instructions = program.Instructions;
@@ -396,10 +396,10 @@ internal static class ExperimentalRegExpVm
             var instruction = instructions[instructionIndex];
             switch (instruction.OpCode)
             {
-                case ExperimentalRegExpOpcode.Match:
+                case RegExpOpcode.Match:
                     endIndex = currentPos;
                     return true;
-                case ExperimentalRegExpOpcode.ClearCaptures:
+                case RegExpOpcode.ClearCaptures:
                     if (captureState is not null)
                     {
                         var clearSet = program.CaptureClearSets[instruction.Operand];
@@ -409,11 +409,11 @@ internal static class ExperimentalRegExpVm
 
                     instructionIndex++;
                     break;
-                case ExperimentalRegExpOpcode.SaveLoopPosition:
+                case RegExpOpcode.SaveLoopPosition:
                     loopState?.Save(instruction.Operand, currentPos);
                     instructionIndex++;
                     break;
-                case ExperimentalRegExpOpcode.BranchIfLoopUnchanged:
+                case RegExpOpcode.BranchIfLoopUnchanged:
                     if (loopState is not null && loopState.IsUnchanged(instruction.Operand, currentPos))
                     {
                         if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
@@ -427,11 +427,11 @@ internal static class ExperimentalRegExpVm
 
                     instructionIndex++;
                     break;
-                case ExperimentalRegExpOpcode.SetLoopCounter:
+                case RegExpOpcode.SetLoopCounter:
                     loopState?.SetCounter(instruction.Operand, instruction.Operand2);
                     instructionIndex++;
                     break;
-                case ExperimentalRegExpOpcode.BranchIfLoopCounterZero:
+                case RegExpOpcode.BranchIfLoopCounterZero:
                     if (loopState is not null && loopState.IsCounterZero(instruction.Operand))
                     {
                         instructionIndex = instruction.Operand2;
@@ -440,56 +440,56 @@ internal static class ExperimentalRegExpVm
 
                     instructionIndex++;
                     break;
-                case ExperimentalRegExpOpcode.DecrementLoopCounter:
+                case RegExpOpcode.DecrementLoopCounter:
                     loopState?.DecrementCounter(instruction.Operand);
                     instructionIndex++;
                     break;
-                case ExperimentalRegExpOpcode.ScanAnyToEnd:
+                case RegExpOpcode.ScanAnyToEnd:
                     currentPos = endLimit;
                     instructionIndex++;
                     break;
-                case ExperimentalRegExpOpcode.ScanDotToEnd:
+                case RegExpOpcode.ScanDotToEnd:
                     currentPos = ScratchRegExpMatcher.ScanDotToEndForVm(input, currentPos, flags.Unicode, endLimit);
                     instructionIndex++;
                     break;
-                case ExperimentalRegExpOpcode.ScanAsciiClassToEnd:
+                case RegExpOpcode.ScanAsciiClassToEnd:
                     var asciiScanCharacterSet = program.CharacterSets[instruction.Operand];
                     currentPos = ScratchRegExpMatcher.ScanAsciiClassToEndForVm(input, currentPos,
                         asciiScanCharacterSet.AsciiBitmap.Low, asciiScanCharacterSet.AsciiBitmap.High, endLimit);
                     instructionIndex++;
                     break;
-                case ExperimentalRegExpOpcode.ScanClassToEnd:
-                case ExperimentalRegExpOpcode.ScanClassToEndIgnoreCase:
+                case RegExpOpcode.ScanClassToEnd:
+                case RegExpOpcode.ScanClassToEndIgnoreCase:
                     var scanCharacterSet = program.CharacterSets[instruction.Operand];
                     currentPos = ScratchRegExpMatcher.ScanCharacterSetToEndForVm(input, currentPos,
                         scanCharacterSet, flags with
                         {
-                            IgnoreCase = instruction.OpCode == ExperimentalRegExpOpcode.ScanClassToEndIgnoreCase
+                            IgnoreCase = instruction.OpCode == RegExpOpcode.ScanClassToEndIgnoreCase
                         }, endLimit);
                     instructionIndex++;
                     break;
-                case ExperimentalRegExpOpcode.ScanPropertyEscapeToEnd:
-                case ExperimentalRegExpOpcode.ScanPropertyEscapeToEndIgnoreCase:
+                case RegExpOpcode.ScanPropertyEscapeToEnd:
+                case RegExpOpcode.ScanPropertyEscapeToEndIgnoreCase:
                     currentPos = ScratchRegExpMatcher.ScanPropertyEscapeToEndForVm(input, currentPos,
                         program.PropertyEscapes[instruction.Operand], flags with
                         {
                             IgnoreCase = instruction.OpCode ==
-                                         ExperimentalRegExpOpcode.ScanPropertyEscapeToEndIgnoreCase
+                                         RegExpOpcode.ScanPropertyEscapeToEndIgnoreCase
                         }, endLimit);
                     instructionIndex++;
                     break;
-                case ExperimentalRegExpOpcode.SaveStart:
+                case RegExpOpcode.SaveStart:
                     captureState?.SaveStart(instruction.Operand, currentPos);
                     instructionIndex++;
                     break;
-                case ExperimentalRegExpOpcode.SaveEnd:
+                case RegExpOpcode.SaveEnd:
                     captureState?.SaveEnd(instruction.Operand, currentPos);
                     instructionIndex++;
                     break;
-                case ExperimentalRegExpOpcode.BackReference:
-                case ExperimentalRegExpOpcode.BackReferenceIgnoreCase:
+                case RegExpOpcode.BackReference:
+                case RegExpOpcode.BackReferenceIgnoreCase:
                     if (!ScratchRegExpMatcher.TryMatchBackReferenceForVm(input, currentPos, instruction.Operand, flags,
-                            instruction.OpCode == ExperimentalRegExpOpcode.BackReferenceIgnoreCase,
+                            instruction.OpCode == RegExpOpcode.BackReferenceIgnoreCase,
                             captureState, out currentPos))
                     {
                         if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
@@ -503,11 +503,11 @@ internal static class ExperimentalRegExpVm
 
                     instructionIndex++;
                     break;
-                case ExperimentalRegExpOpcode.NamedBackReference:
-                case ExperimentalRegExpOpcode.NamedBackReferenceIgnoreCase:
+                case RegExpOpcode.NamedBackReference:
+                case RegExpOpcode.NamedBackReferenceIgnoreCase:
                     if (!ScratchRegExpMatcher.TryMatchNamedBackReferenceForVm(input, currentPos,
                             program.NamedBackReferenceCaptureSets[instruction.Operand], flags,
-                            instruction.OpCode == ExperimentalRegExpOpcode.NamedBackReferenceIgnoreCase, captureState,
+                            instruction.OpCode == RegExpOpcode.NamedBackReferenceIgnoreCase, captureState,
                             out currentPos))
                     {
                         if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
@@ -521,12 +521,12 @@ internal static class ExperimentalRegExpVm
 
                     instructionIndex++;
                     break;
-                case ExperimentalRegExpOpcode.AssertLookahead:
-                case ExperimentalRegExpOpcode.AssertNotLookahead:
+                case RegExpOpcode.AssertLookahead:
+                case RegExpOpcode.AssertNotLookahead:
                     var checkpoint = captureState?.Checkpoint ?? 0;
                     var lookaheadMatched = TryMatch(compiledProgram, program.LookaheadPrograms[instruction.Operand], input,
                         currentPos, flags, captureState, endLimit, out _);
-                    if (instruction.OpCode == ExperimentalRegExpOpcode.AssertLookahead)
+                    if (instruction.OpCode == RegExpOpcode.AssertLookahead)
                     {
                         if (!lookaheadMatched)
                         {
@@ -557,8 +557,8 @@ internal static class ExperimentalRegExpVm
 
                     instructionIndex++;
                     break;
-                case ExperimentalRegExpOpcode.AssertLookbehind:
-                case ExperimentalRegExpOpcode.AssertNotLookbehind:
+                case RegExpOpcode.AssertLookbehind:
+                case RegExpOpcode.AssertNotLookbehind:
                     checkpoint = captureState?.Checkpoint ?? 0;
                     var lookbehindProgram = program.LookbehindPrograms[instruction.Operand];
                     var lookbehindMatched = lookbehindProgram is not null
@@ -571,7 +571,7 @@ internal static class ExperimentalRegExpVm
                             program.LookbehindFlags[instruction.Operand],
                             program.LookbehindMinMatchLengths[instruction.Operand],
                             program.LookbehindMaxMatchLengths[instruction.Operand], captureState);
-                    if (instruction.OpCode == ExperimentalRegExpOpcode.AssertLookbehind)
+                    if (instruction.OpCode == RegExpOpcode.AssertLookbehind)
                     {
                         if (!lookbehindMatched)
                         {
@@ -602,7 +602,7 @@ internal static class ExperimentalRegExpVm
 
                     instructionIndex++;
                     break;
-                case ExperimentalRegExpOpcode.LiteralText:
+                case RegExpOpcode.LiteralText:
                     var literalText = program.LiteralTexts[instruction.Operand];
                     if (currentPos > input.Length ||
                         !input.AsSpan(currentPos).StartsWith(literalText.AsSpan(), StringComparison.Ordinal))
@@ -619,12 +619,12 @@ internal static class ExperimentalRegExpVm
                     currentPos += literalText.Length;
                     instructionIndex++;
                     break;
-                case ExperimentalRegExpOpcode.LiteralSet:
-                case ExperimentalRegExpOpcode.LiteralSetIgnoreCase:
+                case RegExpOpcode.LiteralSet:
+                case RegExpOpcode.LiteralSetIgnoreCase:
                     var literalSet = program.CharacterSets[instruction.Operand];
                     if (!ScratchRegExpMatcher.TryMatchLiteralSetForVm(input, currentPos,
                             literalSet.LiteralCodePoints,
-                            instruction.OpCode == ExperimentalRegExpOpcode.LiteralSetIgnoreCase,
+                            instruction.OpCode == RegExpOpcode.LiteralSetIgnoreCase,
                             flags.Unicode, endLimit, out var literalSetNextPos))
                     {
                         if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
@@ -639,13 +639,13 @@ internal static class ExperimentalRegExpVm
                     currentPos = literalSetNextPos;
                     instructionIndex++;
                     break;
-                case ExperimentalRegExpOpcode.Char:
-                case ExperimentalRegExpOpcode.CharIgnoreCase:
+                case RegExpOpcode.Char:
+                case RegExpOpcode.CharIgnoreCase:
                     if (!ScratchRegExpMatcher.TryReadCodePointForVm(input, currentPos, flags.Unicode, endLimit,
                             out var nextPos,
                             out var codePoint) ||
                         !ScratchRegExpMatcher.CodePointEqualsForVm(codePoint, instruction.Operand,
-                            instruction.OpCode == ExperimentalRegExpOpcode.CharIgnoreCase))
+                            instruction.OpCode == RegExpOpcode.CharIgnoreCase))
                     {
                         if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
                         {
@@ -659,7 +659,7 @@ internal static class ExperimentalRegExpVm
                     currentPos = nextPos;
                     instructionIndex++;
                     break;
-                case ExperimentalRegExpOpcode.Dot:
+                case RegExpOpcode.Dot:
                     if (!ScratchRegExpMatcher.TryReadCodePointForVm(input, currentPos, flags.Unicode, endLimit,
                             out nextPos,
                             out codePoint) ||
@@ -677,7 +677,7 @@ internal static class ExperimentalRegExpVm
                     currentPos = nextPos;
                     instructionIndex++;
                     break;
-                case ExperimentalRegExpOpcode.Any:
+                case RegExpOpcode.Any:
                     if (!ScratchRegExpMatcher.TryReadCodePointForVm(input, currentPos, flags.Unicode, endLimit,
                             out nextPos,
                             out _))
@@ -694,7 +694,7 @@ internal static class ExperimentalRegExpVm
                     currentPos = nextPos;
                     instructionIndex++;
                     break;
-                case ExperimentalRegExpOpcode.ClassAscii:
+                case RegExpOpcode.ClassAscii:
                     var asciiCharacterSet = program.CharacterSets[instruction.Operand];
                     if (!ScratchRegExpMatcher.TryMatchAsciiClassForVm(input, currentPos,
                             asciiCharacterSet.AsciiBitmap.Low, asciiCharacterSet.AsciiBitmap.High,
@@ -712,7 +712,7 @@ internal static class ExperimentalRegExpVm
                     currentPos = nextPos;
                     instructionIndex++;
                     break;
-                case ExperimentalRegExpOpcode.AssertStart:
+                case RegExpOpcode.AssertStart:
                     if (!ScratchRegExpMatcher.IsStartAnchorSatisfiedForVm(input, currentPos, multiline: false))
                     {
                         if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
@@ -726,7 +726,7 @@ internal static class ExperimentalRegExpVm
 
                     instructionIndex++;
                     break;
-                case ExperimentalRegExpOpcode.AssertStartMultiline:
+                case RegExpOpcode.AssertStartMultiline:
                     if (!ScratchRegExpMatcher.IsStartAnchorSatisfiedForVm(input, currentPos, multiline: true))
                     {
                         if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
@@ -740,7 +740,7 @@ internal static class ExperimentalRegExpVm
 
                     instructionIndex++;
                     break;
-                case ExperimentalRegExpOpcode.AssertEnd:
+                case RegExpOpcode.AssertEnd:
                     if (!ScratchRegExpMatcher.IsEndAnchorSatisfiedForVm(input, currentPos, multiline: false))
                     {
                         if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
@@ -754,7 +754,7 @@ internal static class ExperimentalRegExpVm
 
                     instructionIndex++;
                     break;
-                case ExperimentalRegExpOpcode.AssertEndMultiline:
+                case RegExpOpcode.AssertEndMultiline:
                     if (!ScratchRegExpMatcher.IsEndAnchorSatisfiedForVm(input, currentPos, multiline: true))
                     {
                         if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
@@ -768,10 +768,10 @@ internal static class ExperimentalRegExpVm
 
                     instructionIndex++;
                     break;
-                case ExperimentalRegExpOpcode.AssertWordBoundary:
-                case ExperimentalRegExpOpcode.AssertWordBoundaryIgnoreCase:
+                case RegExpOpcode.AssertWordBoundary:
+                case RegExpOpcode.AssertWordBoundaryIgnoreCase:
                     if (!ScratchRegExpMatcher.IsWordBoundaryForVm(input, currentPos, flags.Unicode,
-                            instruction.OpCode == ExperimentalRegExpOpcode.AssertWordBoundaryIgnoreCase))
+                            instruction.OpCode == RegExpOpcode.AssertWordBoundaryIgnoreCase))
                     {
                         if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
                         {
@@ -784,10 +784,10 @@ internal static class ExperimentalRegExpVm
 
                     instructionIndex++;
                     break;
-                case ExperimentalRegExpOpcode.AssertNotWordBoundary:
-                case ExperimentalRegExpOpcode.AssertNotWordBoundaryIgnoreCase:
+                case RegExpOpcode.AssertNotWordBoundary:
+                case RegExpOpcode.AssertNotWordBoundaryIgnoreCase:
                     if (ScratchRegExpMatcher.IsWordBoundaryForVm(input, currentPos, flags.Unicode,
-                            instruction.OpCode == ExperimentalRegExpOpcode.AssertNotWordBoundaryIgnoreCase))
+                            instruction.OpCode == RegExpOpcode.AssertNotWordBoundaryIgnoreCase))
                     {
                         if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
                         {
@@ -800,13 +800,13 @@ internal static class ExperimentalRegExpVm
 
                     instructionIndex++;
                     break;
-                case ExperimentalRegExpOpcode.Class:
-                case ExperimentalRegExpOpcode.ClassIgnoreCase:
+                case RegExpOpcode.Class:
+                case RegExpOpcode.ClassIgnoreCase:
                     var classCharacterSet = program.CharacterSets[instruction.Operand];
                     if (!ScratchRegExpMatcher.TryMatchCharacterSetForVm(input, currentPos, classCharacterSet,
                             flags with
                             {
-                                IgnoreCase = instruction.OpCode == ExperimentalRegExpOpcode.ClassIgnoreCase
+                                IgnoreCase = instruction.OpCode == RegExpOpcode.ClassIgnoreCase
                             }, endLimit, out nextPos))
                     {
                         if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
@@ -821,12 +821,12 @@ internal static class ExperimentalRegExpVm
                     currentPos = nextPos;
                     instructionIndex++;
                     break;
-                case ExperimentalRegExpOpcode.PropertyEscape:
-                case ExperimentalRegExpOpcode.PropertyEscapeIgnoreCase:
+                case RegExpOpcode.PropertyEscape:
+                case RegExpOpcode.PropertyEscapeIgnoreCase:
                     if (!ScratchRegExpMatcher.TryMatchPropertyEscapeForVm(input, currentPos,
                             program.PropertyEscapes[instruction.Operand], flags with
                             {
-                                IgnoreCase = instruction.OpCode == ExperimentalRegExpOpcode.PropertyEscapeIgnoreCase
+                                IgnoreCase = instruction.OpCode == RegExpOpcode.PropertyEscapeIgnoreCase
                             }, endLimit, out nextPos))
                     {
                         if (!TryBacktrack(captureState, loopState, ref stack, out instructionIndex, out currentPos))
@@ -841,10 +841,10 @@ internal static class ExperimentalRegExpVm
                     currentPos = nextPos;
                     instructionIndex++;
                     break;
-                case ExperimentalRegExpOpcode.Jump:
+                case RegExpOpcode.Jump:
                     instructionIndex = instruction.Operand;
                     break;
-                case ExperimentalRegExpOpcode.Split:
+                case RegExpOpcode.Split:
                     stack.Push(instruction.Operand2, currentPos, captureState?.Checkpoint ?? 0, loopState?.Checkpoint ?? 0);
                     instructionIndex = instruction.Operand;
                     break;
@@ -854,8 +854,8 @@ internal static class ExperimentalRegExpVm
         }
     }
 
-    private static bool TryBacktrack(ExperimentalRegExpCaptureState? captureState, ExperimentalRegExpLoopState? loopState,
-        ref ExperimentalBacktrackStack stack, out int instructionIndex, out int currentPos)
+    private static bool TryBacktrack(RegExpCaptureState? captureState, RegExpLoopState? loopState,
+        ref BacktrackStack stack, out int instructionIndex, out int currentPos)
     {
         if (!stack.TryPop(out instructionIndex, out currentPos, out var captureCheckpoint, out var loopCheckpoint))
             return false;
@@ -865,7 +865,7 @@ internal static class ExperimentalRegExpVm
         return true;
     }
 
-    private ref struct ExperimentalBacktrackStack
+    private ref struct BacktrackStack
     {
         private int[]? values;
         private int count;
@@ -925,16 +925,16 @@ internal static class ExperimentalRegExpVm
     }
 }
 
-internal sealed class ExperimentalRegExpLoopState : IDisposable
+internal sealed class RegExpLoopState : IDisposable
 {
-    private ExperimentalLoopLogEntry[] logEntries;
+    private LoopLogEntry[] logEntries;
     private int logCount;
 
-    public ExperimentalRegExpLoopState(int slotCount)
+    public RegExpLoopState(int slotCount)
     {
         Positions = ArrayPool<int>.Shared.Rent(Math.Max(1, slotCount));
         Counters = ArrayPool<int>.Shared.Rent(Math.Max(1, slotCount));
-        logEntries = ArrayPool<ExperimentalLoopLogEntry>.Shared.Rent(Math.Max(8, slotCount));
+        logEntries = ArrayPool<LoopLogEntry>.Shared.Rent(Math.Max(8, slotCount));
         SlotCount = slotCount;
         Reset();
     }
@@ -954,7 +954,7 @@ internal sealed class ExperimentalRegExpLoopState : IDisposable
     public void Save(int slot, int position)
     {
         EnsureLogCapacity(logCount + 1);
-        logEntries[logCount++] = new(slot, Positions[slot], ExperimentalLoopValueKind.Position);
+        logEntries[logCount++] = new(slot, Positions[slot], LoopValueKind.Position);
         Positions[slot] = position;
     }
 
@@ -966,7 +966,7 @@ internal sealed class ExperimentalRegExpLoopState : IDisposable
     public void SetCounter(int slot, int value)
     {
         EnsureLogCapacity(logCount + 1);
-        logEntries[logCount++] = new(slot, Counters[slot], ExperimentalLoopValueKind.Counter);
+        logEntries[logCount++] = new(slot, Counters[slot], LoopValueKind.Counter);
         Counters[slot] = value;
     }
 
@@ -978,7 +978,7 @@ internal sealed class ExperimentalRegExpLoopState : IDisposable
     public void DecrementCounter(int slot)
     {
         EnsureLogCapacity(logCount + 1);
-        logEntries[logCount++] = new(slot, Counters[slot], ExperimentalLoopValueKind.Counter);
+        logEntries[logCount++] = new(slot, Counters[slot], LoopValueKind.Counter);
         Counters[slot]--;
     }
 
@@ -987,7 +987,7 @@ internal sealed class ExperimentalRegExpLoopState : IDisposable
         while (logCount > checkpoint)
         {
             var entry = logEntries[--logCount];
-            if (entry.Kind == ExperimentalLoopValueKind.Position)
+            if (entry.Kind == LoopValueKind.Position)
                 Positions[entry.Slot] = entry.PreviousValue;
             else
                 Counters[entry.Slot] = entry.PreviousValue;
@@ -998,7 +998,7 @@ internal sealed class ExperimentalRegExpLoopState : IDisposable
     {
         ArrayPool<int>.Shared.Return(Positions);
         ArrayPool<int>.Shared.Return(Counters);
-        ArrayPool<ExperimentalLoopLogEntry>.Shared.Return(logEntries);
+        ArrayPool<LoopLogEntry>.Shared.Return(logEntries);
     }
 
     private void EnsureLogCapacity(int requiredCount)
@@ -1006,32 +1006,32 @@ internal sealed class ExperimentalRegExpLoopState : IDisposable
         if (logEntries.Length >= requiredCount)
             return;
 
-        var next = ArrayPool<ExperimentalLoopLogEntry>.Shared.Rent(requiredCount * 2);
+        var next = ArrayPool<LoopLogEntry>.Shared.Rent(requiredCount * 2);
         Array.Copy(logEntries, next, logCount);
-        ArrayPool<ExperimentalLoopLogEntry>.Shared.Return(logEntries);
+        ArrayPool<LoopLogEntry>.Shared.Return(logEntries);
         logEntries = next;
     }
 
-    private enum ExperimentalLoopValueKind : byte
+    private enum LoopValueKind : byte
     {
         Position,
         Counter
     }
 
-    private readonly record struct ExperimentalLoopLogEntry(int Slot, int PreviousValue, ExperimentalLoopValueKind Kind);
+    private readonly record struct LoopLogEntry(int Slot, int PreviousValue, LoopValueKind Kind);
 }
 
-internal sealed class ExperimentalRegExpCaptureState : IDisposable
+internal sealed class RegExpCaptureState : IDisposable
 {
-    private ExperimentalCaptureLogEntry[] logEntries;
+    private CaptureLogEntry[] logEntries;
     private int logCount;
 
-    public ExperimentalRegExpCaptureState(int captureCount)
+    public RegExpCaptureState(int captureCount)
     {
         Starts = ArrayPool<int>.Shared.Rent(captureCount + 1);
         Ends = ArrayPool<int>.Shared.Rent(captureCount + 1);
         Matched = ArrayPool<bool>.Shared.Rent(captureCount + 1);
-        logEntries = ArrayPool<ExperimentalCaptureLogEntry>.Shared.Rent(Math.Max(8, captureCount + 1));
+        logEntries = ArrayPool<CaptureLogEntry>.Shared.Rent(Math.Max(8, captureCount + 1));
         CaptureCount = captureCount;
         Reset();
     }
@@ -1088,7 +1088,7 @@ internal sealed class ExperimentalRegExpCaptureState : IDisposable
         ArrayPool<int>.Shared.Return(Starts);
         ArrayPool<int>.Shared.Return(Ends);
         ArrayPool<bool>.Shared.Return(Matched);
-        ArrayPool<ExperimentalCaptureLogEntry>.Shared.Return(logEntries);
+        ArrayPool<CaptureLogEntry>.Shared.Return(logEntries);
     }
 
     private void Log(int index)
@@ -1102,11 +1102,11 @@ internal sealed class ExperimentalRegExpCaptureState : IDisposable
         if (logEntries.Length >= requiredCount)
             return;
 
-        var next = ArrayPool<ExperimentalCaptureLogEntry>.Shared.Rent(requiredCount * 2);
+        var next = ArrayPool<CaptureLogEntry>.Shared.Rent(requiredCount * 2);
         Array.Copy(logEntries, next, logCount);
-        ArrayPool<ExperimentalCaptureLogEntry>.Shared.Return(logEntries);
+        ArrayPool<CaptureLogEntry>.Shared.Return(logEntries);
         logEntries = next;
     }
 
-    private readonly record struct ExperimentalCaptureLogEntry(int Index, int Start, int End, bool Matched);
+    private readonly record struct CaptureLogEntry(int Index, int Start, int End, bool Matched);
 }

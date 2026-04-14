@@ -1,6 +1,6 @@
-namespace Okojo.RegExp.Experimental;
+namespace Okojo.RegExp;
 
-internal enum ExperimentalWholeInputSimpleAtomKind : byte
+internal enum WholeInputSimpleAtomKind : byte
 {
     Literal,
     Dot,
@@ -8,34 +8,34 @@ internal enum ExperimentalWholeInputSimpleAtomKind : byte
     PropertyEscape
 }
 
-internal readonly record struct ExperimentalWholeInputSimpleAtomPlan(
-    ExperimentalWholeInputSimpleAtomKind Kind,
+internal readonly record struct WholeInputSimpleAtomPlan(
+    WholeInputSimpleAtomKind Kind,
     RegExpRuntimeFlags Flags,
     int LiteralCodePoint = 0,
-    ExperimentalRegExpCharacterSet? CharacterSet = null,
-    ExperimentalRegExpPropertyEscape PropertyEscape = default);
+    RegExpCharacterSet? CharacterSet = null,
+    RegExpPropertyEscape PropertyEscape = default);
 
-internal readonly record struct ExperimentalWholeInputSimpleRunPlan(
-    ExperimentalWholeInputSimpleAtomPlan Atom,
+internal readonly record struct WholeInputSimpleRunPlan(
+    WholeInputSimpleAtomPlan Atom,
     int MinCount,
     int MaxCount);
 
-internal readonly record struct ExperimentalLookaheadAssertionKey(
+internal readonly record struct LookaheadAssertionKey(
     ScratchRegExpProgram.Node Child,
     RegExpRuntimeFlags Flags);
 
-internal sealed class ExperimentalCompiledProgram
+internal sealed class CompiledProgram
 {
     public required ScratchRegExpProgram TreeProgram { get; init; }
-    public ExperimentalRegExpBytecodeProgram? BytecodeProgram { get; init; }
-    public ExperimentalWholeInputSimpleRunPlan? WholeInputSimpleRunPlan { get; init; }
-    public Dictionary<ExperimentalLookaheadAssertionKey, ExperimentalRegExpBytecodeProgram> LookaheadAssertionPrograms
+    public RegExpBytecodeProgram? BytecodeProgram { get; init; }
+    public WholeInputSimpleRunPlan? WholeInputSimpleRunPlan { get; init; }
+    public Dictionary<LookaheadAssertionKey, RegExpBytecodeProgram> LookaheadAssertionPrograms
     {
         get;
         init;
     } = [];
 
-    public static ExperimentalCompiledProgram Create(ScratchRegExpProgram treeProgram)
+    public static CompiledProgram Create(ScratchRegExpProgram treeProgram)
     {
         var wholeInputSimpleRunPlan = TryBuildWholeInputSimpleRunPlan(treeProgram);
         if (wholeInputSimpleRunPlan is not null)
@@ -47,9 +47,9 @@ internal sealed class ExperimentalCompiledProgram
             };
         }
 
-        var irProgram = ExperimentalRegExpIrGenerator.TryGenerate(treeProgram);
-        var bytecodeProgram = ExperimentalRegExpCodeGenerator.TryGenerate(irProgram)
-            ?? throw new InvalidOperationException("Experimental regexp compilation did not produce bytecode.");
+        var irProgram = RegExpIrGenerator.TryGenerate(treeProgram);
+        var bytecodeProgram = RegExpCodeGenerator.TryGenerate(irProgram)
+            ?? throw new InvalidOperationException(" regexp compilation did not produce bytecode.");
         var lookaheadAssertionPrograms = BuildLookaheadAssertionPrograms(treeProgram);
         return new()
         {
@@ -61,15 +61,15 @@ internal sealed class ExperimentalCompiledProgram
     }
 
     internal bool TryGetLookaheadAssertionProgram(ScratchRegExpProgram.Node child, RegExpRuntimeFlags flags,
-        out ExperimentalRegExpBytecodeProgram program)
+        out RegExpBytecodeProgram program)
     {
         return LookaheadAssertionPrograms.TryGetValue(new(child, flags), out program!);
     }
 
-    private static Dictionary<ExperimentalLookaheadAssertionKey, ExperimentalRegExpBytecodeProgram>
+    private static Dictionary<LookaheadAssertionKey, RegExpBytecodeProgram>
         BuildLookaheadAssertionPrograms(ScratchRegExpProgram treeProgram)
     {
-        var programs = new Dictionary<ExperimentalLookaheadAssertionKey, ExperimentalRegExpBytecodeProgram>();
+        var programs = new Dictionary<LookaheadAssertionKey, RegExpBytecodeProgram>();
         CollectLookaheadAssertionPrograms(treeProgram.Root, treeProgram.Flags, treeProgram.NodeCaptureIndices,
             treeProgram.NamedCaptureIndexes, programs);
         return programs;
@@ -77,19 +77,19 @@ internal sealed class ExperimentalCompiledProgram
 
     private static void CollectLookaheadAssertionPrograms(ScratchRegExpProgram.Node node, RegExpRuntimeFlags flags,
         Dictionary<ScratchRegExpProgram.Node, int[]> nodeCaptureIndices, Dictionary<string, List<int>> namedCaptureIndexes,
-        Dictionary<ExperimentalLookaheadAssertionKey, ExperimentalRegExpBytecodeProgram> programs)
+        Dictionary<LookaheadAssertionKey, RegExpBytecodeProgram> programs)
     {
         switch (node)
         {
             case ScratchRegExpProgram.LookaheadNode lookahead:
             {
-                var key = new ExperimentalLookaheadAssertionKey(lookahead.Child, flags);
+                var key = new LookaheadAssertionKey(lookahead.Child, flags);
                 if (!programs.ContainsKey(key))
                 {
-                    var irProgram = ExperimentalRegExpIrGenerator.TryGenerate(lookahead.Child, flags, nodeCaptureIndices,
+                    var irProgram = RegExpIrGenerator.TryGenerate(lookahead.Child, flags, nodeCaptureIndices,
                         namedCaptureIndexes);
-                    var bytecodeProgram = ExperimentalRegExpCodeGenerator.TryGenerate(irProgram)
-                        ?? throw new InvalidOperationException("Experimental lookahead assertion compilation failed.");
+                    var bytecodeProgram = RegExpCodeGenerator.TryGenerate(irProgram)
+                        ?? throw new InvalidOperationException(" lookahead assertion compilation failed.");
                     programs.Add(key, bytecodeProgram);
                 }
 
@@ -126,7 +126,7 @@ internal sealed class ExperimentalCompiledProgram
         }
     }
 
-    private static ExperimentalWholeInputSimpleRunPlan? TryBuildWholeInputSimpleRunPlan(ScratchRegExpProgram treeProgram)
+    private static WholeInputSimpleRunPlan? TryBuildWholeInputSimpleRunPlan(ScratchRegExpProgram treeProgram)
     {
         if (treeProgram.CaptureCount != 0 ||
             treeProgram.Flags.Multiline ||
@@ -142,24 +142,24 @@ internal sealed class ExperimentalCompiledProgram
     }
 
     private static bool TryBuildWholeInputSimpleAtomPlan(ScratchRegExpProgram.Node node, RegExpRuntimeFlags flags,
-        out ExperimentalWholeInputSimpleAtomPlan atomPlan)
+        out WholeInputSimpleAtomPlan atomPlan)
     {
         switch (node)
         {
             case ScratchRegExpProgram.ScopedModifiersNode scoped:
                 return TryBuildWholeInputSimpleAtomPlan(scoped.Child, ApplyScopedModifiers(flags, scoped), out atomPlan);
             case ScratchRegExpProgram.LiteralNode literal:
-                atomPlan = new(ExperimentalWholeInputSimpleAtomKind.Literal, flags, LiteralCodePoint: literal.CodePoint);
+                atomPlan = new(WholeInputSimpleAtomKind.Literal, flags, LiteralCodePoint: literal.CodePoint);
                 return true;
             case ScratchRegExpProgram.DotNode:
-                atomPlan = new(ExperimentalWholeInputSimpleAtomKind.Dot, flags);
+                atomPlan = new(WholeInputSimpleAtomKind.Dot, flags);
                 return true;
             case ScratchRegExpProgram.ClassNode cls:
-                atomPlan = new(ExperimentalWholeInputSimpleAtomKind.CharacterSet, flags,
+                atomPlan = new(WholeInputSimpleAtomKind.CharacterSet, flags,
                     CharacterSet: CreateCharacterSet(cls));
                 return true;
             case ScratchRegExpProgram.PropertyEscapeNode propertyEscape:
-                atomPlan = new(ExperimentalWholeInputSimpleAtomKind.PropertyEscape, flags,
+                atomPlan = new(WholeInputSimpleAtomKind.PropertyEscape, flags,
                     PropertyEscape: new(propertyEscape.Kind, propertyEscape.Negated, propertyEscape.Categories,
                         propertyEscape.PropertyValue));
                 return true;
@@ -169,10 +169,10 @@ internal sealed class ExperimentalCompiledProgram
         }
     }
 
-    private static ExperimentalRegExpCharacterSet CreateCharacterSet(ScratchRegExpProgram.ClassNode cls)
+    private static RegExpCharacterSet CreateCharacterSet(ScratchRegExpProgram.ClassNode cls)
     {
         var asciiBitmap = ScratchRegExpProgram.TryBuildAsciiClassBitmap(cls, out var lowMask, out var highMask)
-            ? new ExperimentalRegExpAsciiBitmap(lowMask, highMask)
+            ? new RegExpAsciiBitmap(lowMask, highMask)
             : default;
         var hasSimpleClass = ScratchRegExpProgram.TryCreateSimpleClass(cls, out var simpleClass);
         return new()

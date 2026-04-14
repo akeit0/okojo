@@ -2,9 +2,9 @@ using Okojo.Internals;
 using Okojo.Parsing;
 using System.Text;
 
-namespace Okojo.RegExp.Experimental;
+namespace Okojo.RegExp;
 
-internal enum ExperimentalRegExpIrOpcode : byte
+internal enum RegExpIrOpcode : byte
 {
     Match,
     ClearCaptures,
@@ -46,16 +46,16 @@ internal enum ExperimentalRegExpIrOpcode : byte
     Split
 }
 
-internal readonly record struct ExperimentalRegExpIrInstruction(ExperimentalRegExpIrOpcode OpCode, int Operand,
+internal readonly record struct RegExpIrInstruction(RegExpIrOpcode OpCode, int Operand,
     int Operand2 = 0);
 
-internal sealed class ExperimentalRegExpIrProgram
+internal sealed class RegExpIrProgram
 {
-    public required ExperimentalRegExpIrInstruction[] Instructions { get; init; }
+    public required RegExpIrInstruction[] Instructions { get; init; }
     public int[][] CaptureClearSets { get; init; } = [];
     public int[][] NamedBackReferenceCaptureSets { get; init; } = [];
-    public ExperimentalRegExpIrProgram[] LookaheadPrograms { get; init; } = [];
-    public ExperimentalRegExpIrProgram?[] LookbehindPrograms { get; init; } = [];
+    public RegExpIrProgram[] LookaheadPrograms { get; init; } = [];
+    public RegExpIrProgram?[] LookbehindPrograms { get; init; } = [];
     public ScratchRegExpProgram.Node[] LookbehindNodes { get; init; } = [];
     public RegExpRuntimeFlags[] LookbehindFlags { get; init; } = [];
     public int LoopSlotCount { get; init; }
@@ -65,34 +65,34 @@ internal sealed class ExperimentalRegExpIrProgram
     public ScratchRegExpProgram.PropertyEscapeNode[] PropertyEscapes { get; init; } = [];
 }
 
-internal static class ExperimentalRegExpIrGenerator
+internal static class RegExpIrGenerator
 {
     private const int MaxUnrolledQuantifierCount = 4096;
 
-    public static ExperimentalRegExpIrProgram? TryGenerate(ScratchRegExpProgram treeProgram)
+    public static RegExpIrProgram? TryGenerate(ScratchRegExpProgram treeProgram)
     {
         return TryGenerate(treeProgram.Root, treeProgram.Flags, treeProgram.NodeCaptureIndices,
             treeProgram.NamedCaptureIndexes);
     }
 
-    internal static ExperimentalRegExpIrProgram? TryGenerate(ScratchRegExpProgram.Node root, RegExpRuntimeFlags flags,
+    internal static RegExpIrProgram? TryGenerate(ScratchRegExpProgram.Node root, RegExpRuntimeFlags flags,
         Dictionary<ScratchRegExpProgram.Node, int[]> nodeCaptureIndices, Dictionary<string, List<int>> namedCaptureIndexes)
     {
         using var state = new IrBuildState();
         if (!TryEmitNode(root, flags, nodeCaptureIndices, state, namedCaptureIndexes))
             return null;
 
-        state.AddInstruction(ExperimentalRegExpIrOpcode.Match);
+        state.AddInstruction(RegExpIrOpcode.Match);
         return state.BuildProgram();
     }
 
     private sealed class IrBuildState : IDisposable
     {
-        public ScratchPooledList<ExperimentalRegExpIrInstruction> Instructions { get; } = new();
+        public ScratchPooledList<RegExpIrInstruction> Instructions { get; } = new();
         public ScratchPooledList<int[]> CaptureClearSets { get; } = new();
         public ScratchPooledList<int[]> NamedBackReferenceCaptureSets { get; } = new();
-        public ScratchPooledList<ExperimentalRegExpIrProgram> LookaheadPrograms { get; } = new();
-        public ScratchPooledList<ExperimentalRegExpIrProgram?> LookbehindPrograms { get; } = new();
+        public ScratchPooledList<RegExpIrProgram> LookaheadPrograms { get; } = new();
+        public ScratchPooledList<RegExpIrProgram?> LookbehindPrograms { get; } = new();
         public ScratchPooledList<ScratchRegExpProgram.Node> LookbehindNodes { get; } = new();
         public ScratchPooledList<RegExpRuntimeFlags> LookbehindFlags { get; } = new();
         public ScratchPooledList<string> LiteralTexts { get; } = new();
@@ -102,7 +102,7 @@ internal static class ExperimentalRegExpIrGenerator
 
         public int LoopSlotCount { get; private set; }
 
-        public int AddInstruction(ExperimentalRegExpIrOpcode opcode, int operand = 0, int operand2 = 0)
+        public int AddInstruction(RegExpIrOpcode opcode, int operand = 0, int operand2 = 0)
         {
             Instructions.Add(new(opcode, operand, operand2));
             return Instructions.Count - 1;
@@ -125,14 +125,14 @@ internal static class ExperimentalRegExpIrGenerator
             return NamedBackReferenceCaptureSets.Count - 1;
         }
 
-        public int AddLookaheadProgram(ExperimentalRegExpIrProgram lookaheadProgram)
+        public int AddLookaheadProgram(RegExpIrProgram lookaheadProgram)
         {
             LookaheadPrograms.Add(lookaheadProgram);
             return LookaheadPrograms.Count - 1;
         }
 
         public int AddLookbehind(ScratchRegExpProgram.Node lookbehindNode, RegExpRuntimeFlags flags,
-            ExperimentalRegExpIrProgram? lookbehindProgram)
+            RegExpIrProgram? lookbehindProgram)
         {
             LookbehindPrograms.Add(lookbehindProgram);
             LookbehindNodes.Add(lookbehindNode);
@@ -169,7 +169,7 @@ internal static class ExperimentalRegExpIrGenerator
             return LoopSlotCount++;
         }
 
-        public ExperimentalRegExpIrProgram BuildProgram()
+        public RegExpIrProgram BuildProgram()
         {
             return new()
             {
@@ -218,23 +218,23 @@ internal static class ExperimentalRegExpIrGenerator
                 return TryEmitAlternation(alternation.Alternatives, flags, nodeCaptureIndices, state,
                     namedCaptureIndexes);
             case ScratchRegExpProgram.CaptureNode capture:
-                state.AddInstruction(ExperimentalRegExpIrOpcode.SaveStart, capture.Index);
+                state.AddInstruction(RegExpIrOpcode.SaveStart, capture.Index);
                 if (!TryEmitNode(capture.Child, flags, nodeCaptureIndices, state, namedCaptureIndexes))
                     return false;
-                state.AddInstruction(ExperimentalRegExpIrOpcode.SaveEnd, capture.Index);
+                state.AddInstruction(RegExpIrOpcode.SaveEnd, capture.Index);
                 return true;
             case ScratchRegExpProgram.BackReferenceNode backReference:
                 state.AddInstruction(flags.IgnoreCase
-                    ? ExperimentalRegExpIrOpcode.BackReferenceIgnoreCase
-                    : ExperimentalRegExpIrOpcode.BackReference, backReference.Index);
+                    ? RegExpIrOpcode.BackReferenceIgnoreCase
+                    : RegExpIrOpcode.BackReference, backReference.Index);
                 return true;
             case ScratchRegExpProgram.NamedBackReferenceNode namedBackReference:
                 if (!namedCaptureIndexes.TryGetValue(namedBackReference.Name, out var captureIndexes))
                     return false;
 
                 state.AddInstruction(flags.IgnoreCase
-                        ? ExperimentalRegExpIrOpcode.NamedBackReferenceIgnoreCase
-                        : ExperimentalRegExpIrOpcode.NamedBackReference,
+                        ? RegExpIrOpcode.NamedBackReferenceIgnoreCase
+                        : RegExpIrOpcode.NamedBackReference,
                     state.AddNamedBackReferenceCaptureSet(captureIndexes.ToArray()));
                 return true;
             case ScratchRegExpProgram.LookaheadNode lookahead:
@@ -244,72 +244,72 @@ internal static class ExperimentalRegExpIrGenerator
                     return false;
 
                 state.AddInstruction(lookahead.Positive
-                        ? ExperimentalRegExpIrOpcode.AssertLookahead
-                        : ExperimentalRegExpIrOpcode.AssertNotLookahead,
+                        ? RegExpIrOpcode.AssertLookahead
+                        : RegExpIrOpcode.AssertNotLookahead,
                     state.AddLookaheadProgram(lookaheadProgram));
                 return true;
             }
             case ScratchRegExpProgram.LookbehindNode lookbehind:
             {
-                ExperimentalRegExpIrProgram? lookbehindProgram = null;
+                RegExpIrProgram? lookbehindProgram = null;
                 if (ScratchRegExpProgram.CanUseForwardLookbehindVm(lookbehind.Child) ||
                     lookbehind.Positive && ScratchRegExpProgram.CanUseCaptureAwareForwardLookbehindVm(lookbehind.Child))
                     lookbehindProgram = TryGenerate(lookbehind.Child, flags, nodeCaptureIndices, namedCaptureIndexes);
                 state.AddInstruction(lookbehind.Positive
-                        ? ExperimentalRegExpIrOpcode.AssertLookbehind
-                        : ExperimentalRegExpIrOpcode.AssertNotLookbehind,
+                        ? RegExpIrOpcode.AssertLookbehind
+                        : RegExpIrOpcode.AssertNotLookbehind,
                     state.AddLookbehind(lookbehind.Child, flags, lookbehindProgram));
                 return true;
             }
             case ScratchRegExpProgram.LiteralNode literal:
                 state.AddInstruction(flags.IgnoreCase
-                    ? ExperimentalRegExpIrOpcode.CharIgnoreCase
-                    : ExperimentalRegExpIrOpcode.Char, literal.CodePoint);
+                    ? RegExpIrOpcode.CharIgnoreCase
+                    : RegExpIrOpcode.Char, literal.CodePoint);
                 return true;
             case ScratchRegExpProgram.DotNode:
-                state.AddInstruction(flags.DotAll ? ExperimentalRegExpIrOpcode.Any : ExperimentalRegExpIrOpcode.Dot);
+                state.AddInstruction(flags.DotAll ? RegExpIrOpcode.Any : RegExpIrOpcode.Dot);
                 return true;
             case ScratchRegExpProgram.AnchorNode anchor:
                 state.AddInstruction(anchor.Start
-                    ? (flags.Multiline ? ExperimentalRegExpIrOpcode.AssertStartMultiline : ExperimentalRegExpIrOpcode.AssertStart)
-                    : (flags.Multiline ? ExperimentalRegExpIrOpcode.AssertEndMultiline : ExperimentalRegExpIrOpcode.AssertEnd));
+                    ? (flags.Multiline ? RegExpIrOpcode.AssertStartMultiline : RegExpIrOpcode.AssertStart)
+                    : (flags.Multiline ? RegExpIrOpcode.AssertEndMultiline : RegExpIrOpcode.AssertEnd));
                 return true;
             case ScratchRegExpProgram.BoundaryNode boundary:
                 state.AddInstruction(boundary.Positive
                     ? (flags.IgnoreCase
-                        ? ExperimentalRegExpIrOpcode.AssertWordBoundaryIgnoreCase
-                        : ExperimentalRegExpIrOpcode.AssertWordBoundary)
+                        ? RegExpIrOpcode.AssertWordBoundaryIgnoreCase
+                        : RegExpIrOpcode.AssertWordBoundary)
                     : (flags.IgnoreCase
-                        ? ExperimentalRegExpIrOpcode.AssertNotWordBoundaryIgnoreCase
-                        : ExperimentalRegExpIrOpcode.AssertNotWordBoundary));
+                        ? RegExpIrOpcode.AssertNotWordBoundaryIgnoreCase
+                        : RegExpIrOpcode.AssertNotWordBoundary));
                 return true;
             case ScratchRegExpProgram.ClassNode cls:
                 if (ScratchRegExpProgram.TryGetSingleLiteralClassCodePoint(cls, out var classCodePoint))
                 {
                     state.AddInstruction(flags.IgnoreCase
-                        ? ExperimentalRegExpIrOpcode.CharIgnoreCase
-                        : ExperimentalRegExpIrOpcode.Char, classCodePoint);
+                        ? RegExpIrOpcode.CharIgnoreCase
+                        : RegExpIrOpcode.Char, classCodePoint);
                     return true;
                 }
 
                 if (ScratchRegExpProgram.TryGetSmallLiteralClassCodePoints(cls, out var classCodePoints))
                 {
                     state.AddInstruction(flags.IgnoreCase
-                            ? ExperimentalRegExpIrOpcode.LiteralSetIgnoreCase
-                            : ExperimentalRegExpIrOpcode.LiteralSet,
+                            ? RegExpIrOpcode.LiteralSetIgnoreCase
+                            : RegExpIrOpcode.LiteralSet,
                         state.AddLiteralCodePointSet(classCodePoints));
                     return true;
                 }
 
                 state.AddInstruction(flags.IgnoreCase
-                        ? ExperimentalRegExpIrOpcode.ClassIgnoreCase
-                        : ExperimentalRegExpIrOpcode.Class,
+                        ? RegExpIrOpcode.ClassIgnoreCase
+                        : RegExpIrOpcode.Class,
                     state.AddClass(cls));
                 return true;
             case ScratchRegExpProgram.PropertyEscapeNode propertyEscape:
                 state.AddInstruction(flags.IgnoreCase
-                        ? ExperimentalRegExpIrOpcode.PropertyEscapeIgnoreCase
-                        : ExperimentalRegExpIrOpcode.PropertyEscape,
+                        ? RegExpIrOpcode.PropertyEscapeIgnoreCase
+                        : RegExpIrOpcode.PropertyEscape,
                     state.AddPropertyEscape(propertyEscape));
                 return true;
             case ScratchRegExpProgram.QuantifierNode quantifier:
@@ -343,7 +343,7 @@ internal static class ExperimentalRegExpIrGenerator
                     if (!TryBuildLiteralText(sequence.Terms, i, runEnd, out var literalText))
                         return false;
 
-                    state.AddInstruction(ExperimentalRegExpIrOpcode.LiteralText, state.AddLiteralText(literalText));
+                    state.AddInstruction(RegExpIrOpcode.LiteralText, state.AddLiteralText(literalText));
                     i = runEnd;
                     continue;
                 }
@@ -371,12 +371,12 @@ internal static class ExperimentalRegExpIrGenerator
         using var endJumps = new PooledArrayBuilder<int>(initialEndJumps);
         for (var i = 0; i < alternatives.Length - 1; i++)
         {
-            var splitIndex = state.AddInstruction(ExperimentalRegExpIrOpcode.Split);
+            var splitIndex = state.AddInstruction(RegExpIrOpcode.Split);
             var firstTarget = state.Instructions.Count;
             if (!TryEmitNode(alternatives[i], flags, nodeCaptureIndices, state, namedCaptureIndexes))
                 return false;
 
-            endJumps.Add(state.AddInstruction(ExperimentalRegExpIrOpcode.Jump));
+            endJumps.Add(state.AddInstruction(RegExpIrOpcode.Jump));
             var secondTarget = state.Instructions.Count;
             state.PatchInstruction(splitIndex, firstTarget, secondTarget);
         }
@@ -462,14 +462,14 @@ internal static class ExperimentalRegExpIrGenerator
             return true;
 
         var counterSlot = state.AllocateLoopSlot();
-        state.AddInstruction(ExperimentalRegExpIrOpcode.SetLoopCounter, counterSlot, count);
+        state.AddInstruction(RegExpIrOpcode.SetLoopCounter, counterSlot, count);
         var loopHead = state.Instructions.Count;
-        var branchIfZero = state.AddInstruction(ExperimentalRegExpIrOpcode.BranchIfLoopCounterZero, counterSlot);
+        var branchIfZero = state.AddInstruction(RegExpIrOpcode.BranchIfLoopCounterZero, counterSlot);
         if (!TryEmitQuantifiedChild(child, flags, nodeCaptureIndices, captureClearSet, state, namedCaptureIndexes))
             return false;
 
-        state.AddInstruction(ExperimentalRegExpIrOpcode.DecrementLoopCounter, counterSlot);
-        state.AddInstruction(ExperimentalRegExpIrOpcode.Jump, loopHead);
+        state.AddInstruction(RegExpIrOpcode.DecrementLoopCounter, counterSlot);
+        state.AddInstruction(RegExpIrOpcode.Jump, loopHead);
         state.PatchInstruction(branchIfZero, counterSlot, state.Instructions.Count);
         return true;
     }
@@ -483,23 +483,23 @@ internal static class ExperimentalRegExpIrGenerator
             return true;
 
         var counterSlot = state.AllocateLoopSlot();
-        state.AddInstruction(ExperimentalRegExpIrOpcode.SetLoopCounter, counterSlot, optionalCount);
+        state.AddInstruction(RegExpIrOpcode.SetLoopCounter, counterSlot, optionalCount);
         var loopHead = state.Instructions.Count;
-        var branchIfZero = state.AddInstruction(ExperimentalRegExpIrOpcode.BranchIfLoopCounterZero, counterSlot);
+        var branchIfZero = state.AddInstruction(RegExpIrOpcode.BranchIfLoopCounterZero, counterSlot);
         var progressSlot = progressSensitive ? state.AllocateLoopSlot() : -1;
         if (progressSensitive)
-            state.AddInstruction(ExperimentalRegExpIrOpcode.SaveLoopPosition, progressSlot);
+            state.AddInstruction(RegExpIrOpcode.SaveLoopPosition, progressSlot);
 
-        var splitIndex = state.AddInstruction(ExperimentalRegExpIrOpcode.Split);
+        var splitIndex = state.AddInstruction(RegExpIrOpcode.Split);
         var childStart = state.Instructions.Count;
         if (!TryEmitQuantifiedChild(child, flags, nodeCaptureIndices, captureClearSet, state, namedCaptureIndexes))
             return false;
 
         if (progressSensitive)
-            state.AddInstruction(ExperimentalRegExpIrOpcode.BranchIfLoopUnchanged, progressSlot);
+            state.AddInstruction(RegExpIrOpcode.BranchIfLoopUnchanged, progressSlot);
 
-        state.AddInstruction(ExperimentalRegExpIrOpcode.DecrementLoopCounter, counterSlot);
-        state.AddInstruction(ExperimentalRegExpIrOpcode.Jump, loopHead);
+        state.AddInstruction(RegExpIrOpcode.DecrementLoopCounter, counterSlot);
+        state.AddInstruction(RegExpIrOpcode.Jump, loopHead);
         var after = state.Instructions.Count;
         state.PatchInstruction(branchIfZero, counterSlot, after);
         state.PatchInstruction(splitIndex,
@@ -512,7 +512,7 @@ internal static class ExperimentalRegExpIrGenerator
         Dictionary<ScratchRegExpProgram.Node, int[]> nodeCaptureIndices, int[] captureClearSet, IrBuildState state,
         Dictionary<string, List<int>> namedCaptureIndexes)
     {
-        var splitIndex = state.AddInstruction(ExperimentalRegExpIrOpcode.Split);
+        var splitIndex = state.AddInstruction(RegExpIrOpcode.Split);
         var childStart = state.Instructions.Count;
         if (!TryEmitQuantifiedChild(child, flags, nodeCaptureIndices, captureClearSet, state, namedCaptureIndexes))
             return false;
@@ -529,12 +529,12 @@ internal static class ExperimentalRegExpIrGenerator
         Dictionary<string, List<int>> namedCaptureIndexes)
     {
         var loopHead = state.Instructions.Count;
-        var splitIndex = state.AddInstruction(ExperimentalRegExpIrOpcode.Split);
+        var splitIndex = state.AddInstruction(RegExpIrOpcode.Split);
         var childStart = state.Instructions.Count;
         if (!TryEmitQuantifiedChild(child, flags, nodeCaptureIndices, captureClearSet, state, namedCaptureIndexes))
             return false;
 
-        state.AddInstruction(ExperimentalRegExpIrOpcode.Jump, loopHead);
+        state.AddInstruction(RegExpIrOpcode.Jump, loopHead);
         var after = state.Instructions.Count;
         state.PatchInstruction(splitIndex,
             greedy ? childStart : after,
@@ -556,13 +556,13 @@ internal static class ExperimentalRegExpIrGenerator
         for (var i = 0; i < optionalCount; i++)
         {
             var loopSlot = state.AllocateLoopSlot();
-            state.AddInstruction(ExperimentalRegExpIrOpcode.SaveLoopPosition, loopSlot);
-            var splitIndex = state.AddInstruction(ExperimentalRegExpIrOpcode.Split);
+            state.AddInstruction(RegExpIrOpcode.SaveLoopPosition, loopSlot);
+            var splitIndex = state.AddInstruction(RegExpIrOpcode.Split);
             var childStart = state.Instructions.Count;
             if (!TryEmitQuantifiedChild(child, flags, nodeCaptureIndices, captureClearSet, state, namedCaptureIndexes))
                 return false;
 
-            progressBranches.Add(state.AddInstruction(ExperimentalRegExpIrOpcode.BranchIfLoopUnchanged));
+            progressBranches.Add(state.AddInstruction(RegExpIrOpcode.BranchIfLoopUnchanged));
             skipSplits.Add(splitIndex);
             state.PatchInstruction(splitIndex,
                 greedy ? childStart : 0,
@@ -596,14 +596,14 @@ internal static class ExperimentalRegExpIrGenerator
     {
         var loopHead = state.Instructions.Count;
         var loopSlot = state.AllocateLoopSlot();
-        state.AddInstruction(ExperimentalRegExpIrOpcode.SaveLoopPosition, loopSlot);
-        var splitIndex = state.AddInstruction(ExperimentalRegExpIrOpcode.Split);
+        state.AddInstruction(RegExpIrOpcode.SaveLoopPosition, loopSlot);
+        var splitIndex = state.AddInstruction(RegExpIrOpcode.Split);
         var childStart = state.Instructions.Count;
         if (!TryEmitQuantifiedChild(child, flags, nodeCaptureIndices, captureClearSet, state, namedCaptureIndexes))
             return false;
 
-        var progressBranch = state.AddInstruction(ExperimentalRegExpIrOpcode.BranchIfLoopUnchanged);
-        state.AddInstruction(ExperimentalRegExpIrOpcode.Jump, loopHead);
+        var progressBranch = state.AddInstruction(RegExpIrOpcode.BranchIfLoopUnchanged);
+        state.AddInstruction(RegExpIrOpcode.Jump, loopHead);
         var after = state.Instructions.Count;
         state.PatchInstruction(splitIndex,
             greedy ? childStart : after,
@@ -617,7 +617,7 @@ internal static class ExperimentalRegExpIrGenerator
         Dictionary<string, List<int>> namedCaptureIndexes)
     {
         if (captureClearSet.Length != 0)
-            state.AddInstruction(ExperimentalRegExpIrOpcode.ClearCaptures, state.AddCaptureClearSet(captureClearSet));
+            state.AddInstruction(RegExpIrOpcode.ClearCaptures, state.AddCaptureClearSet(captureClearSet));
 
         return TryEmitNode(child, flags, nodeCaptureIndices, state, namedCaptureIndexes);
     }

@@ -1,4 +1,4 @@
-namespace Okojo.RegExp.Experimental;
+namespace Okojo.RegExp;
 
 internal static partial class ScratchUnicodeStringPropertyTables
 {

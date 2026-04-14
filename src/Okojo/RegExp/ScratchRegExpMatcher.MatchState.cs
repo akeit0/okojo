@@ -1,6 +1,6 @@
 using System.Buffers;
 
-namespace Okojo.RegExp.Experimental;
+namespace Okojo.RegExp;
 
 internal sealed class ScratchMatchStateArena : IDisposable
 {
