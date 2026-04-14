@@ -48,6 +48,9 @@ public static class JavaScriptParser
 
 internal sealed partial class JsParser
 {
+    private const string ParseDepthExceededDataKey = "Okojo.Parsing.JsParser.ParseDepthExceeded";
+    private const string ParseDepthExceededMessage = "Maximum parser recursion depth exceeded";
+    private const int MaxParseDepth = 256;
     private static readonly HashSet<string> StrictModeReservedWords = new(StringComparer.Ordinal)
     {
         "implements",
@@ -67,6 +70,7 @@ internal sealed partial class JsParser
     private readonly bool isModule;
     private readonly JsLexer lexer;
     private readonly string? locationSource;
+    private readonly ParserDepthState parseDepthState;
 
     private readonly HashSet<int> nameCrashIdSet = new();
     private readonly HashSet<string> nameCrashTextSet = new(StringComparer.Ordinal);
@@ -85,23 +89,25 @@ internal sealed partial class JsParser
     private bool sawTopLevelAwait;
     private bool strictMode;
 
-    public JsParser(string source, string? sourcePath = null)
+    internal JsParser(string source, string? sourcePath = null)
         : this(source, false, false, sourcePath)
     {
     }
 
-    public JsParser(string source, bool allowSuperProperty, bool allowSuperCall, string? sourcePath = null)
+    internal JsParser(string source, bool allowSuperProperty, bool allowSuperCall, string? sourcePath = null)
         : this(source, allowSuperProperty, allowSuperCall, false, sourcePath: sourcePath)
     {
     }
 
-    public JsParser(string source, bool allowSuperProperty, bool allowSuperCall, bool allowTopLevelAwait,
-        bool isModule = false, string? sourcePath = null, int basePosition = 0, string? locationSource = null)
+    internal JsParser(string source, bool allowSuperProperty, bool allowSuperCall, bool allowTopLevelAwait,
+        bool isModule = false, string? sourcePath = null, int basePosition = 0, string? locationSource = null,
+        ParserDepthState? parseDepthState = null)
     {
         this.source = source ?? throw new ArgumentNullException(nameof(source));
         this.locationSource = locationSource ?? source;
         this.sourcePath = sourcePath;
         this.basePosition = basePosition;
+        this.parseDepthState = parseDepthState ?? new ParserDepthState();
         lexer = new(source);
         current = lexer.NextToken();
         this.allowSuperProperty = allowSuperProperty;
@@ -114,6 +120,7 @@ internal sealed partial class JsParser
 
     public JsProgram ParseProgram()
     {
+        using var depthCounter = AddDepth();
         var start = current.Position;
         var statements = new List<JsStatement>(8);
         var lexicalNames = new HashSet<string>(StringComparer.Ordinal);
@@ -153,6 +160,7 @@ internal sealed partial class JsParser
 
     private JsStatement ParseStatement()
     {
+        using var depthCounter = AddDepth();
         var start = current.Position;
         if (current.Kind == JsTokenKind.Identifier &&
             CurrentSourceTextEquals("using") &&
@@ -241,6 +249,7 @@ internal sealed partial class JsParser
 
     private JsBlockStatement ParseBlockStatement(bool isFunctionBody)
     {
+        using var depthCounter = AddDepth();
         var strictBeforeBlock = strictMode;
         if (isFunctionBody)
             level++;
@@ -675,6 +684,7 @@ internal sealed partial class JsParser
 
     private JsFunctionDeclaration ParseFunctionDeclaration(bool isAsyncPrefix = false)
     {
+        using var depthCounter = AddDepth();
         MarkNestedFunctionSyntaxSeen();
         var start = current.Position;
         var isAsync = false;
@@ -920,7 +930,7 @@ internal sealed partial class JsParser
             if (current.Kind is JsTokenKind.In or JsTokenKind.Of)
                 return true;
         }
-        catch (JsParseException)
+        catch (JsParseException ex) when (!IsDepthLimitExceeded(ex))
         {
         }
 
@@ -1476,6 +1486,7 @@ internal sealed partial class JsParser
 
     private JsExpression ParseAssignment(bool allowIn)
     {
+        using var depthCounter = AddDepth();
         var start = current.Position;
         if (TryParseArrowFunctionExpression(start, out var arrowExpr)) return arrowExpr;
 
@@ -1514,7 +1525,7 @@ internal sealed partial class JsParser
                     left = ParseConditional(allowIn);
                 }
             }
-            catch
+            catch (JsParseException ex) when (!IsDepthLimitExceeded(ex))
             {
                 RestoreSnapshot(snapshot);
                 left = ParseConditional(allowIn);
@@ -1865,6 +1876,7 @@ internal sealed partial class JsParser
 
     private JsExpression ParseExponentiation()
     {
+        using var depthCounter = AddDepth();
         var start = current.Position;
         var left = ParseUnary();
         if (current.Kind == JsTokenKind.Pow)
@@ -1880,6 +1892,7 @@ internal sealed partial class JsParser
 
     private JsExpression ParseUnary()
     {
+        using var depthCounter = AddDepth();
         var start = current.Position;
         if (IsAwaitKeywordInCurrentScope()) return At(ParseAwaitExpression(), start);
 
@@ -1991,6 +2004,7 @@ internal sealed partial class JsParser
 
     private JsExpression ParseNewExpression()
     {
+        using var depthCounter = AddDepth();
         var start = current.Position;
         Expect(JsTokenKind.New);
         JsExpression expr;
@@ -2208,6 +2222,7 @@ internal sealed partial class JsParser
 
     private JsExpression ParseMemberAndCall()
     {
+        using var depthCounter = AddDepth();
         var expr = ParsePrimary();
         var inOptionalChain = false;
         while (true)
@@ -2335,6 +2350,7 @@ internal sealed partial class JsParser
 
     private JsExpression ParsePrimary()
     {
+        using var depthCounter = AddDepth();
         var start = current.Position;
         if (current.Kind == JsTokenKind.At)
         {
@@ -2358,7 +2374,7 @@ internal sealed partial class JsParser
             return At(expr, start);
         }
 
-        if (current.Kind == JsTokenKind.LeftBracket) return At(ParseArrayExpression(), start);
+        if (current.Kind == JsTokenKind.LeftBracket) return At(ParseArrayPatternExpression(false), start);
 
         if (current.Kind == JsTokenKind.LeftBrace) return At(ParseObjectExpression(), start);
 
@@ -2474,18 +2490,9 @@ internal sealed partial class JsParser
         return At(new JsRegExpLiteralExpression(pattern, flags), start);
     }
 
-    private JsArrayExpression ParseArrayPatternExpression()
+    private JsArrayExpression ParseArrayPatternExpression(bool isPattern = true)
     {
-        return ParseArrayLiteralOrPattern(true);
-    }
-
-    private JsArrayExpression ParseArrayExpression()
-    {
-        return ParseArrayLiteralOrPattern(false);
-    }
-
-    private JsArrayExpression ParseArrayLiteralOrPattern(bool isPattern)
-    {
+        using var depthCounter = AddDepth();
         var start = current.Position;
         Expect(JsTokenKind.LeftBracket);
         var elements = new List<JsExpression?>(4);
@@ -2535,6 +2542,7 @@ internal sealed partial class JsParser
 
     private JsObjectExpression ParseObjectExpression()
     {
+        using var depthCounter = AddDepth();
         var start = current.Position;
         Expect(JsTokenKind.LeftBrace);
         var properties = new List<JsObjectProperty>(4);
@@ -2804,6 +2812,7 @@ internal sealed partial class JsParser
 
     private JsObjectExpression ParseObjectBindingPattern()
     {
+        using var depthCounter = AddDepth();
         var start = current.Position;
         Expect(JsTokenKind.LeftBrace);
         var properties = new List<JsObjectProperty>(4);
@@ -3376,7 +3385,7 @@ internal sealed partial class JsParser
     private JsParser CreateNestedExpressionParser(string nestedSource, int nestedBasePosition)
     {
         return new(nestedSource, allowSuperProperty, allowSuperCall, allowTopLevelAwait, isModule, sourcePath,
-            nestedBasePosition)
+            nestedBasePosition, parseDepthState: parseDepthState)
         {
             strictMode = strictMode,
             generatorFunctionLevel = generatorFunctionLevel,
@@ -3801,6 +3810,40 @@ internal sealed partial class JsParser
     private JsParseException Error(string message, int position)
     {
         return new(message, position + basePosition, locationSource);
+    }
+
+    private ParseDepthScope AddDepth()
+    {
+        if (parseDepthState.Depth >= MaxParseDepth)
+            throw CreateDepthLimitExceededError(current.Position);
+
+        parseDepthState.Depth++;
+        return new(parseDepthState);
+    }
+
+    private JsParseException CreateDepthLimitExceededError(int position)
+    {
+        var exception = Error(ParseDepthExceededMessage, position);
+        exception.Data[ParseDepthExceededDataKey] = true;
+        return exception;
+    }
+
+    private static bool IsDepthLimitExceeded(JsParseException exception)
+    {
+        return exception.Data[ParseDepthExceededDataKey] is true;
+    }
+
+    internal sealed class ParserDepthState
+    {
+        public int Depth;
+    }
+
+    private readonly struct ParseDepthScope(ParserDepthState state) : IDisposable
+    {
+        public void Dispose()
+        {
+            state.Depth--;
+        }
     }
 
     private readonly struct ParserSnapshot(

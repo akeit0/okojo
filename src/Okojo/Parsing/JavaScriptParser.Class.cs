@@ -13,6 +13,7 @@ internal sealed partial class JsParser
     private JsClassDeclaration ParseClassDeclaration(IReadOnlyList<JsExpression>? decorators = null,
         int? startOverride = null)
     {
+        using var depthCounter = AddDepth();
         MarkNestedFunctionSyntaxSeen();
         var start = startOverride ?? current.Position;
         if (current.Kind != JsTokenKind.ReservedWord || !CurrentSourceTextEquals("class"))
@@ -28,6 +29,7 @@ internal sealed partial class JsParser
     private JsClassExpression ParseClassExpression(bool allowUnnamed, IReadOnlyList<JsExpression>? decorators = null,
         int? startOverride = null)
     {
+        using var depthCounter = AddDepth();
         MarkNestedFunctionSyntaxSeen();
         var start = startOverride ?? current.Position;
         if (current.Kind != JsTokenKind.ReservedWord || !CurrentSourceTextEquals("class"))
