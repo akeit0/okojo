@@ -135,8 +135,10 @@ internal static partial class ScratchUnicodeStringPropertyTables
 
         public StringPropertyMatcher(string[] candidates)
         {
-            forwardBuckets = BuildBuckets(candidates, ReadFirstCodePoint);
-            backwardBuckets = BuildBuckets(candidates, ReadLastCodePoint);
+            var bucketMap = new Dictionary<int, List<string>>();
+            forwardBuckets = BuildBuckets(candidates, bucketMap, ReadFirstCodePoint);
+            bucketMap.Clear();
+            backwardBuckets = BuildBuckets(candidates, bucketMap, ReadLastCodePoint);
             if (candidates.Length == 0)
             {
                 MinLength = 0;
@@ -257,9 +259,8 @@ internal static partial class ScratchUnicodeStringPropertyTables
             return -1;
         }
 
-        private static StringPropertyBucket[] BuildBuckets(string[] candidates, Func<string, int> selector)
+        private static StringPropertyBucket[] BuildBuckets(string[] candidates, Dictionary<int, List<string>> bucketMap, Func<string, int> selector)
         {
-            var bucketMap = new Dictionary<int, List<string>>();
             foreach (var candidate in candidates)
             {
                 var key = selector(candidate);
