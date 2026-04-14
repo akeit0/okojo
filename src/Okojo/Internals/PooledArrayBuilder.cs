@@ -29,7 +29,7 @@ internal ref struct PooledArrayBuilder<T>(Span<T> initialBuffer)
         buffer[Length++] = item;
     }
 
-    public ReadOnlySpan<T> AsSpan()
+    public Span<T> AsSpan()
     {
         return buffer[..Length];
     }

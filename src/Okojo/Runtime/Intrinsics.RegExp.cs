@@ -1,4 +1,6 @@
 using System.Text;
+using Okojo.RegExp;
+using Okojo.Parsing;
 
 namespace Okojo.Runtime;
 
@@ -136,13 +138,13 @@ public partial class Intrinsics
                         cursor += 2;
                         continue;
                     case '\'':
-                    {
-                        var tailPos = Math.Min(position + matched.Length, stringLength);
-                        if (tailPos < stringLength)
-                            result.Append(input, tailPos, stringLength - tailPos);
-                        cursor += 2;
-                        continue;
-                    }
+                        {
+                            var tailPos = Math.Min(position + matched.Length, stringLength);
+                            if (tailPos < stringLength)
+                                result.Append(input, tailPos, stringLength - tailPos);
+                            cursor += 2;
+                            continue;
+                        }
                 }
 
                 if (char.IsAsciiDigit(next))
@@ -202,6 +204,19 @@ public partial class Intrinsics
             }
 
             return result.ToString();
+        }
+
+        static JsObject CreateNamedCapturesObject(JsRealm realm, IReadOnlyDictionary<string, string?> namedGroups)
+        {
+            JsPlainObject groups = new(realm, false) { Prototype = null };
+            foreach (var pair in namedGroups)
+            {
+                groups.DefineDataProperty(pair.Key,
+                    pair.Value is null ? JsValue.Undefined : JsValue.FromString(pair.Value),
+                    JsShapePropertyFlags.Open);
+            }
+
+            return groups;
         }
 
         static JsValue FromLengthValue(long value)
@@ -812,115 +827,200 @@ public partial class Intrinsics
             var replaceValue = args.Length > 1 ? args[1] : JsValue.Undefined;
             var functionalReplace = replaceValue.TryGetObject(out var replaceObj) && replaceObj is JsFunction;
             var replacementTemplate = functionalReplace ? string.Empty : realm.ToJsStringSlowPath(replaceValue);
-            var result = new StringBuilder(input.Length);
+            var replacementNeedsSubstitution = functionalReplace ||
+                                               replacementTemplate.IndexOf('$') >= 0;
+            var inputValue = JsValue.FromString(input);
+            var result = new PooledCharBuilder(
+                stackalloc char[Math.Min(input.Length + Math.Max(replacementTemplate.Length, 16), 256)]);
             if (!obj.TryGetPropertyAtom(realm, IdFlags, out var flagsValue, out _))
                 flagsValue = JsValue.Undefined;
             var flags = realm.ToJsStringSlowPath(flagsValue);
             var isGlobal = flags.IndexOf('g') >= 0;
             var fullUnicode = flags.IndexOf('u') >= 0 || flags.IndexOf('v') >= 0;
-
-            if (isGlobal)
-                SetPropertyAtomOrThrow(realm, obj, IdLastIndex, JsValue.FromInt32(0), "[Symbol.replace]");
-            var nextSourcePosition = 0;
-            while (true)
+            try
             {
-                if (!obj.TryGetPropertyAtom(realm, IdExec, out var execValue, out _) ||
-                    !execValue.TryGetObject(out var execObj) ||
-                    execObj is not JsFunction execFn)
-                    throw new JsRuntimeException(JsErrorKind.TypeError,
-                        "RegExp.prototype[Symbol.replace] called on incompatible receiver");
-
-                var matchValue = realm.InvokeFunction(execFn, JsValue.FromObject(obj), [JsValue.FromString(input)]);
-                if (matchValue.IsNull)
-                    break;
-                if (!matchValue.TryGetObject(out var matchObj))
-                    throw new JsRuntimeException(JsErrorKind.TypeError,
-                        "RegExp exec method must return an object or null");
-
-                var matchIndex = matchObj.TryGetProperty("index", out var indexValue)
-                    ? (int)ToLength(indexValue, realm)
-                    : 0;
-                var matched = realm.ToJsStringSlowPath(matchObj.TryGetProperty("0", out var matchedValue)
-                    ? matchedValue
-                    : JsValue.Undefined);
-
-                if (matchIndex < nextSourcePosition)
-                    continue;
-
-                result.Append(input, nextSourcePosition, matchIndex - nextSourcePosition);
-
-                var captureCount = matchObj.TryGetProperty("length", out var lengthValue)
-                    ? Math.Max(0, (int)ToLength(lengthValue, realm) - 1)
-                    : 0;
-
-                string replacement;
-                if (functionalReplace)
+                if (isGlobal)
+                    SetPropertyAtomOrThrow(realm, obj, IdLastIndex, JsValue.FromInt32(0), "[Symbol.replace]");
+                var nextSourcePosition = 0;
+                while (true)
                 {
-                    var replaceFnObj = (JsFunction)replaceObj!;
-                    var hasGroups = matchObj.TryGetProperty("groups", out var groupsArg) && !groupsArg.IsUndefined;
-                    var replaceArgs = new JsValue[captureCount + 3 + (hasGroups ? 1 : 0)];
-                    replaceArgs[0] = JsValue.FromString(matched);
-                    for (var captureIndex = 0; captureIndex < captureCount; captureIndex++)
-                    {
-                        var captureKey = (captureIndex + 1).ToString();
-                        var hasCapture = matchObj.TryGetProperty(captureKey, out var captureValue);
-                        if (!hasCapture)
-                            captureValue = JsValue.Undefined;
-                        replaceArgs[captureIndex + 1] = captureValue;
-                    }
+                    if (!obj.TryGetPropertyAtom(realm, IdExec, out var execValue, out _) ||
+                        !execValue.TryGetObject(out var execObj) ||
+                        execObj is not JsFunction execFunction)
+                        throw new JsRuntimeException(JsErrorKind.TypeError,
+                            "RegExp.prototype[Symbol.replace] called on incompatible receiver");
 
-                    replaceArgs[captureCount + 1] = JsValue.FromInt32(matchIndex);
-                    replaceArgs[captureCount + 2] = JsValue.FromString(input);
-                    if (hasGroups)
-                        replaceArgs[captureCount + 3] = groupsArg;
-                    replacement =
-                        realm.ToJsStringSlowPath(realm.InvokeFunction(replaceFnObj, JsValue.Undefined, replaceArgs));
-                }
-                else
-                {
-                    var captures = new string?[captureCount];
-                    for (var captureIndex = 0; captureIndex < captureCount; captureIndex++)
+                    RegExpMatchResult? rawMatch = null;
+                    JsObject? matchObj = null;
+                    if (ReferenceEquals(execFunction, execFn) && obj is JsRegExpObject rx)
                     {
-                        var captureKey = (captureIndex + 1).ToString();
-                        if (!matchObj.TryGetProperty(captureKey, out var captureValue) || captureValue.IsUndefined)
-                            continue;
-                        captures[captureIndex] = realm.ToJsStringSlowPath(captureValue);
+                        rawMatch = JsRegExpRuntime.ExecMatchResult(realm, rx, input);
+                        if (rawMatch is null)
+                            break;
                     }
-
-                    JsObject? groups = null;
-                    if (matchObj.TryGetProperty("groups", out var groupsValue) &&
-                        !groupsValue.IsUndefined)
+                    else
                     {
-                        if (!realm.TryToObject(groupsValue, out var groupsObj))
+                        var matchValue = realm.InvokeFunction(execFunction, JsValue.FromObject(obj), [inputValue]);
+                        if (matchValue.IsNull)
+                            break;
+                        if (!matchValue.TryGetObject(out matchObj))
                             throw new JsRuntimeException(JsErrorKind.TypeError,
-                                "RegExp.prototype[Symbol.replace] groups value must be coercible to object");
-                        groups = groupsObj;
+                                "RegExp exec method must return an object or null");
                     }
 
-                    replacement = ApplyReplacementTemplate(matched, input, matchIndex, captures, groups, realm,
-                        replacementTemplate);
+                    var matchIndex = rawMatch is not null
+                        ? rawMatch.Index
+                        : matchObj!.TryGetPropertyAtom(realm, IdIndex, out var indexValue, out _)
+                            ? (int)ToLength(indexValue, realm)
+                            : 0;
+                    var matched = rawMatch is not null
+                        ? rawMatch.Groups[0] ?? string.Empty
+                        : matchObj!.TryGetElement(0, out var matchedValue)
+                            ? realm.ToJsStringSlowPath(matchedValue)
+                            : "undefined";
+
+                    if (matchIndex < nextSourcePosition)
+                        continue;
+
+                    result.Append(input, nextSourcePosition, matchIndex - nextSourcePosition);
+
+                    string replacement;
+                    if (functionalReplace)
+                    {
+                        var captureCount = rawMatch is not null
+                            ? Math.Max(0, rawMatch.Groups.Length - 1)
+                            : matchObj!.TryGetPropertyAtom(realm, IdLength, out var lengthValue, out _)
+                                ? Math.Max(0, (int)ToLength(lengthValue, realm) - 1)
+                                : 0;
+                        var replaceFnObj = (JsFunction)replaceObj!;
+                        var groupsArgValue = JsValue.Undefined;
+                        var hasGroups = false;
+                        if (rawMatch is not null)
+                        {
+                            hasGroups = rawMatch.NamedGroups is not null && rawMatch.NamedGroups.Count != 0;
+                            if (hasGroups)
+                                groupsArgValue = JsValue.FromObject(CreateNamedCapturesObject(realm, rawMatch.NamedGroups!));
+                        }
+                        else if (matchObj!.TryGetPropertyAtom(realm, IdGroups, out var groupsArg, out _) && !groupsArg.IsUndefined)
+                        {
+                            hasGroups = true;
+                            groupsArgValue = groupsArg;
+                        }
+
+                        var replaceArgCount = captureCount + 3 + (hasGroups ? 1 : 0);
+                        var replaceArgs = new JsValue[replaceArgCount];
+                        replaceArgs[0] = JsValue.FromString(matched);
+                        for (var captureIndex = 0; captureIndex < captureCount; captureIndex++)
+                        {
+                            if (rawMatch is not null)
+                            {
+                                var capture = rawMatch.Groups[captureIndex + 1];
+                                replaceArgs[captureIndex + 1] = capture is null
+                                    ? JsValue.Undefined
+                                    : JsValue.FromString(capture);
+                                continue;
+                            }
+
+                            var hasCapture = matchObj!.TryGetElement((uint)(captureIndex + 1), out var captureValue);
+                            replaceArgs[captureIndex + 1] = hasCapture ? captureValue : JsValue.Undefined;
+                        }
+
+                        replaceArgs[captureCount + 1] = JsValue.FromInt32(matchIndex);
+                        replaceArgs[captureCount + 2] = inputValue;
+                        if (hasGroups)
+                            replaceArgs[captureCount + 3] = groupsArgValue;
+                        replacement =
+                            realm.ToJsStringSlowPath(realm.InvokeFunction(replaceFnObj, JsValue.Undefined, replaceArgs));
+                    }
+                    else
+                    {
+                        if (!replacementNeedsSubstitution && rawMatch is not null)
+                        {
+                            replacement = replacementTemplate;
+                            result.Append(replacement);
+                            nextSourcePosition = matchIndex + matched.Length;
+
+                            if (!isGlobal)
+                                break;
+
+                            if (matched.Length == 0)
+                            {
+                                var lastIndex = obj.TryGetPropertyAtom(realm, IdLastIndex, out var lastIndexValue, out _)
+                                    ? ToLength(lastIndexValue, realm)
+                                    : 0;
+                                SetPropertyAtomOrThrow(realm, obj, IdLastIndex,
+                                    FromLengthValue(AdvanceStringIndexLong(input, lastIndex, fullUnicode)),
+                                    "[Symbol.replace]");
+                            }
+
+                            continue;
+                        }
+
+                        var captureCount = rawMatch is not null
+                            ? Math.Max(0, rawMatch.Groups.Length - 1)
+                            : matchObj!.TryGetPropertyAtom(realm, IdLength, out var lengthValue, out _)
+                                ? Math.Max(0, (int)ToLength(lengthValue, realm) - 1)
+                                : 0;
+                        JsObject? groups = null;
+                        ReadOnlySpan<string?> captures;
+                        if (rawMatch is not null)
+                        {
+                            captures = rawMatch.Groups.AsSpan(1);
+                            if (rawMatch.NamedGroups is not null &&
+                                replacementTemplate.Contains("$<", StringComparison.Ordinal))
+                                groups = CreateNamedCapturesObject(realm, rawMatch.NamedGroups);
+                        }
+                        else
+                        {
+                            var capturesArray = new string?[captureCount];
+                            for (var captureIndex = 0; captureIndex < captureCount; captureIndex++)
+                            {
+                                var captureKey = (uint)(captureIndex + 1);
+                                if (!matchObj!.TryGetElement(captureKey, out var captureValue) || captureValue.IsUndefined)
+                                    continue;
+                                capturesArray[captureIndex] = realm.ToJsStringSlowPath(captureValue);
+                            }
+
+                            captures = capturesArray;
+                            if (matchObj!.TryGetPropertyAtom(realm, IdGroups, out var groupsValue, out _) &&
+                                !groupsValue.IsUndefined)
+                            {
+                                if (!realm.TryToObject(groupsValue, out var groupsObj))
+                                    throw new JsRuntimeException(JsErrorKind.TypeError,
+                                        "RegExp.prototype[Symbol.replace] groups value must be coercible to object");
+                                groups = groupsObj;
+                            }
+                        }
+
+                        replacement = ApplyReplacementTemplate(matched, input, matchIndex, captures, groups, realm,
+                            replacementTemplate);
+                    }
+
+                    result.Append(replacement);
+                    nextSourcePosition = matchIndex + matched.Length;
+
+                    if (!isGlobal)
+                        break;
+
+                    if (matched.Length == 0)
+                    {
+                        var lastIndex = obj.TryGetPropertyAtom(realm, IdLastIndex, out var lastIndexValue, out _)
+                            ? ToLength(lastIndexValue, realm)
+                            : 0;
+                        SetPropertyAtomOrThrow(realm, obj, IdLastIndex,
+                            FromLengthValue(AdvanceStringIndexLong(input, lastIndex, fullUnicode)), "[Symbol.replace]");
+                    }
                 }
 
-                result.Append(replacement);
-                nextSourcePosition = matchIndex + matched.Length;
+                if (nextSourcePosition < input.Length)
+                    result.Append(input, nextSourcePosition, input.Length - nextSourcePosition);
 
-                if (!isGlobal)
-                    break;
-
-                if (matched.Length == 0)
-                {
-                    var lastIndex = obj.TryGetPropertyAtom(realm, IdLastIndex, out var lastIndexValue, out _)
-                        ? ToLength(lastIndexValue, realm)
-                        : 0;
-                    SetPropertyAtomOrThrow(realm, obj, IdLastIndex,
-                        FromLengthValue(AdvanceStringIndexLong(input, lastIndex, fullUnicode)), "[Symbol.replace]");
-                }
+                return JsValue.FromString(result.ToString());
             }
-
-            if (nextSourcePosition < input.Length)
-                result.Append(input, nextSourcePosition, input.Length - nextSourcePosition);
-
-            return JsValue.FromString(result.ToString());
+            finally
+            {
+                result.Dispose();
+            }
         }, "[Symbol.replace]", 2);
 
         var splitFn = new JsHostFunction(Realm, (in info) =>
@@ -1014,11 +1114,11 @@ public partial class Intrinsics
                 q = p;
             }
 
-            add_tail:
+        add_tail:
             if (p > text.Length)
                 p = text.Length;
             FreshArrayOperations.DefineElement(result, lengthA++, JsValue.FromString(text[p..]));
-            done:
+        done:
             result.SetLength(lengthA);
             return result;
         }, "[Symbol.split]", 2);

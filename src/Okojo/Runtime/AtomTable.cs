@@ -456,6 +456,8 @@ public sealed class AtomTable
     public const int IdAny = 448; // "any"
     public const int IdAllSettled = 449; // "allSettled"
     public const int IdWithResolvers = 450; // "withResolvers"
+    public const int IdGroups = 451; // "groups"
+    public const int IdIndex = 452; // "index"
 
 
     // Symbol-keyed property atoms are negative to avoid collisions with string atoms.
@@ -926,7 +928,9 @@ public sealed class AtomTable
         "all",
         "any",
         "allSettled",
-        "withResolvers"
+        "withResolvers",
+        "groups",
+        "index"
     };
 
     private static readonly string[] PredefinedSymbolAtoms =

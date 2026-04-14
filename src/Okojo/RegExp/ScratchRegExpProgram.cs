@@ -1,10 +1,15 @@
+using Okojo.Internals;
+using Okojo.Parsing;
 using System.Globalization;
 using System.Text;
 
 namespace Okojo.RegExp;
 
-internal sealed class ScratchRegExpProgram
+internal sealed partial class ScratchRegExpProgram
 {
+    private const int MaxRequiredLiteralPrefixLength = 8;
+    private const int MaxSearchLiteralSetSize = 8;
+
     public required Node Root { get; init; }
     public required RegExpRuntimeFlags Flags { get; init; }
     public required string[] NamedGroupNames { get; init; }
@@ -13,7 +18,11 @@ internal sealed class ScratchRegExpProgram
     public required int MinMatchLength { get; init; }
     public required int LeadingLiteralCodePoint { get; init; }
     public required bool HasLeadingLiteral { get; init; }
+    public required int[] RequiredLiteralPrefixCodePoints { get; init; }
+    public required string? RequiredLiteralPrefixText { get; init; }
+    public required bool HasScopedModifiers { get; init; }
     public required Dictionary<Node, int[]> NodeCaptureIndices { get; init; }
+    public required SearchPlan CandidateSearchPlan { get; init; }
 
     public static ScratchRegExpProgram Parse(string pattern, RegExpRuntimeFlags flags)
     {
@@ -86,16 +95,17 @@ internal sealed class ScratchRegExpProgram
 
     public static string CanonicalizeFlags(in RegExpRuntimeFlags flags)
     {
-        var sb = new StringBuilder(8);
-        if (flags.HasIndices) sb.Append('d');
-        if (flags.Global) sb.Append('g');
-        if (flags.IgnoreCase) sb.Append('i');
-        if (flags.Multiline) sb.Append('m');
-        if (flags.DotAll) sb.Append('s');
-        if (flags.UnicodeSets) sb.Append('v');
-        else if (flags.Unicode) sb.Append('u');
-        if (flags.Sticky) sb.Append('y');
-        return sb.ToString();
+        Span<char> initialBuffer = stackalloc char[8];
+        using var builder = new PooledCharBuilder(initialBuffer);
+        if (flags.HasIndices) builder.Append('d');
+        if (flags.Global) builder.Append('g');
+        if (flags.IgnoreCase) builder.Append('i');
+        if (flags.Multiline) builder.Append('m');
+        if (flags.DotAll) builder.Append('s');
+        if (flags.UnicodeSets) builder.Append('v');
+        else if (flags.Unicode) builder.Append('u');
+        if (flags.Sticky) builder.Append('y');
+        return builder.ToString();
     }
 
     private static void ThrowInvalidFlags()
@@ -105,11 +115,55 @@ internal sealed class ScratchRegExpProgram
 
     internal abstract record Node;
 
-    internal sealed record EmptyNode : Node;
+    internal enum SearchAnchorKind : byte
+    {
+        None,
+        Start,
+        LineStart
+    }
+
+    internal enum SearchAtomKind : byte
+    {
+        None,
+        LiteralSet,
+        Class,
+        PropertyEscape,
+        Dot,
+        Any
+    }
+
+    internal sealed record SearchPlan(
+        SearchAnchorKind AnchorKind,
+        SearchAtomKind AtomKind,
+        int[] LiteralCodePoints,
+        ClassNode? Class,
+        PropertyEscapeNode? PropertyEscape)
+    {
+        public static SearchPlan None { get; } = new(SearchAnchorKind.None, SearchAtomKind.None, [], null, null);
+
+        public bool HasAnchor => AnchorKind != SearchAnchorKind.None;
+        public bool HasAtom => AtomKind != SearchAtomKind.None;
+    }
+
+    internal sealed record EmptyNode : Node
+    {
+        public static EmptyNode Instance { get; } = new();
+
+        private EmptyNode()
+        {
+        }
+    }
 
     internal sealed record LiteralNode(int CodePoint) : Node;
 
-    internal sealed record DotNode : Node;
+    internal sealed record DotNode : Node
+    {
+        public static DotNode Instance { get; } = new();
+
+        private DotNode()
+        {
+        }
+    }
 
     internal sealed record AnchorNode(bool Start) : Node;
 
@@ -290,7 +344,7 @@ internal sealed class ScratchRegExpProgram
         string? PropertyValue = null,
         string[]? Strings = null);
 
-    private sealed class Parser(string pattern, RegExpRuntimeFlags flags)
+    private sealed partial class Parser(string pattern, RegExpRuntimeFlags flags)
     {
         private readonly Dictionary<string, List<int>> namedCaptureIndexes = new(StringComparer.Ordinal);
         private readonly List<string> namedGroupNames = new();
@@ -315,6 +369,13 @@ internal sealed class ScratchRegExpProgram
                 if (captureCount < number)
                     throw new ArgumentException("Invalid regular expression pattern");
 
+            var hasScopedModifiers = ContainsScopedModifiers(root);
+            var leadingLiteral = 0;
+            var hasLeadingLiteral = !hasScopedModifiers && TryGetLeadingLiteral(root, out leadingLiteral);
+            var requiredLiteralPrefix = hasScopedModifiers ? [] : GetRequiredLiteralPrefix(root);
+            var candidateSearchPlan = hasScopedModifiers || !TryBuildSearchPlan(root, flags, out var searchPlan)
+                ? SearchPlan.None
+                : searchPlan;
             return new()
             {
                 Root = root,
@@ -322,64 +383,33 @@ internal sealed class ScratchRegExpProgram
                 NamedGroupNames = namedGroupNames.ToArray(),
                 NamedCaptureIndexes = namedCaptureIndexes,
                 CaptureCount = captureCount,
-                MinMatchLength = TryComputeMinMatchLength(root, out var minMatchLength) ? minMatchLength : -1,
-                HasLeadingLiteral = TryGetLeadingLiteral(root, out var leadingLiteral),
+                MinMatchLength = TryGetNodeMinMatchLength(root, out var minMatchLength) ? minMatchLength : -1,
+                HasLeadingLiteral = hasLeadingLiteral,
                 LeadingLiteralCodePoint = leadingLiteral,
-                NodeCaptureIndices = BuildCaptureIndexMap(root)
+                RequiredLiteralPrefixCodePoints = requiredLiteralPrefix,
+                RequiredLiteralPrefixText = !hasScopedModifiers &&
+                                            TryBuildLiteralText(requiredLiteralPrefix, out var prefixText)
+                    ? prefixText
+                    : null,
+                HasScopedModifiers = hasScopedModifiers,
+                NodeCaptureIndices = BuildCaptureIndexMap(root),
+                CandidateSearchPlan = candidateSearchPlan
             };
         }
 
-        private static Dictionary<Node, int[]> BuildCaptureIndexMap(Node root)
+        private static bool ContainsScopedModifiers(Node node)
         {
-            var map = new Dictionary<Node, int[]>(ReferenceEqualityComparer.Instance);
-            CollectCaptureIndices(root, map);
-            return map;
-        }
-
-        private static int[] CollectCaptureIndices(Node node, Dictionary<Node, int[]> map)
-        {
-            if (map.TryGetValue(node, out var existing))
-                return existing;
-
-            HashSet<int> indices = new();
-            switch (node)
+            return node switch
             {
-                case CaptureNode capture:
-                    indices.Add(capture.Index);
-                    indices.UnionWith(CollectCaptureIndices(capture.Child, map));
-                    break;
-                case LookaheadNode lookahead:
-                    indices.UnionWith(CollectCaptureIndices(lookahead.Child, map));
-                    break;
-                case LookbehindNode lookbehind:
-                    indices.UnionWith(CollectCaptureIndices(lookbehind.Child, map));
-                    break;
-                case ScopedModifiersNode scoped:
-                    indices.UnionWith(CollectCaptureIndices(scoped.Child, map));
-                    break;
-                case SequenceNode sequence:
-                    foreach (var term in sequence.Terms)
-                        indices.UnionWith(CollectCaptureIndices(term, map));
-                    break;
-                case AlternationNode alternation:
-                    foreach (var alternative in alternation.Alternatives)
-                        indices.UnionWith(CollectCaptureIndices(alternative, map));
-                    break;
-                case QuantifierNode quantifier:
-                    indices.UnionWith(CollectCaptureIndices(quantifier.Child, map));
-                    break;
-            }
-
-            var array = indices.Count == 0 ? Array.Empty<int>() : new int[indices.Count];
-            if (array.Length != 0)
-            {
-                indices.CopyTo(array);
-                if (array.Length > 1)
-                    Array.Sort(array);
-            }
-
-            map[node] = array;
-            return array;
+                ScopedModifiersNode => true,
+                CaptureNode capture => ContainsScopedModifiers(capture.Child),
+                LookaheadNode lookahead => ContainsScopedModifiers(lookahead.Child),
+                LookbehindNode lookbehind => ContainsScopedModifiers(lookbehind.Child),
+                SequenceNode sequence => Array.Exists(sequence.Terms, ContainsScopedModifiers),
+                AlternationNode alternation => Array.Exists(alternation.Alternatives, ContainsScopedModifiers),
+                QuantifierNode quantifier => ContainsScopedModifiers(quantifier.Child),
+                _ => false
+            };
         }
 
         private Node ParseAlternation()
@@ -409,7 +439,7 @@ internal sealed class ScratchRegExpProgram
             while (pos < pattern.Length && pattern[pos] != ')' && pattern[pos] != '|')
                 terms.Add(ParseQuantifiedAtom());
 
-            return terms.Count == 0 ? new EmptyNode() : terms.Count == 1 ? terms[0] : new SequenceNode(terms.ToArray());
+            return terms.Count == 0 ? EmptyNode.Instance : terms.Count == 1 ? terms[0] : new SequenceNode(terms.ToArray());
         }
 
         private Node ParseQuantifiedAtom()
@@ -527,7 +557,7 @@ internal sealed class ScratchRegExpProgram
         private Node ParseAtom()
         {
             if (pos >= pattern.Length)
-                return new EmptyNode();
+                return EmptyNode.Instance;
 
             var ch = pattern[pos++];
             if (ch is '*' or '+' or '?')
@@ -549,7 +579,7 @@ internal sealed class ScratchRegExpProgram
             {
                 '(' => ParseGroup(),
                 '[' => ParseClass(),
-                '.' => new DotNode(),
+                '.' => DotNode.Instance,
                 '^' => new AnchorNode(true),
                 '$' => new AnchorNode(false),
                 '\\' => ParseEscape(),
@@ -1340,123 +1370,6 @@ internal sealed class ScratchRegExpProgram
             return new(ClassItemKind.Literal, upper % 32);
         }
 
-        private ClassItem ParseClassStringDisjunction()
-        {
-            pos++;
-            using var strings = new ScratchPooledList<string>();
-            var current = new StringBuilder();
-            while (pos < pattern.Length)
-            {
-                if (Peek('}'))
-                {
-                    if (current.Length == 0)
-                        throw new ArgumentException("Invalid regular expression pattern");
-
-                    strings.Add(current.ToString());
-                    pos++;
-                    return new(ClassItemKind.StringLiteral, Strings: strings.ToArray());
-                }
-
-                if (Peek('|'))
-                {
-                    if (current.Length == 0)
-                        throw new ArgumentException("Invalid regular expression pattern");
-
-                    strings.Add(current.ToString());
-                    current.Clear();
-                    pos++;
-                    continue;
-                }
-
-                AppendClassStringCharacter(current);
-            }
-
-            throw new ArgumentException("Invalid regular expression pattern");
-        }
-
-        private void AppendClassStringCharacter(StringBuilder builder)
-        {
-            if (pos >= pattern.Length)
-                throw new ArgumentException("Invalid regular expression pattern");
-
-            var ch = pattern[pos++];
-            if (ch != '\\')
-            {
-                builder.Append(ch);
-                return;
-            }
-
-            if (pos >= pattern.Length)
-                throw new ArgumentException("Invalid regular expression pattern");
-
-            var next = pattern[pos++];
-            switch (next)
-            {
-                case 'x':
-                    AppendCodePoint(builder, ParseFixedHexEscape(2));
-                    return;
-                case 'u' when Peek('{'):
-                    pos++;
-                    AppendCodePoint(builder, ParseBracedUnicodeScalar());
-                    return;
-                case 'u':
-                    AppendCodePoint(builder, ParseFixedHexEscape(4));
-                    return;
-                default:
-                    builder.Append(next);
-                    return;
-            }
-        }
-
-        private int ParseFixedHexEscape(int digits)
-        {
-            if (pos + digits > pattern.Length)
-                throw new ArgumentException("Invalid regular expression pattern");
-
-            var value = 0;
-            for (var i = 0; i < digits; i++)
-            {
-                var hex = HexToInt(pattern[pos++]);
-                if (hex < 0)
-                    throw new ArgumentException("Invalid regular expression pattern");
-                value = (value << 4) | hex;
-            }
-
-            return value;
-        }
-
-        private int ParseBracedUnicodeScalar()
-        {
-            var scalar = 0;
-            var start = pos;
-            while (pos < pattern.Length && pattern[pos] != '}')
-            {
-                var hex = HexToInt(pattern[pos]);
-                if (hex < 0)
-                    throw new ArgumentException("Invalid regular expression pattern");
-
-                scalar = checked((scalar << 4) | hex);
-                pos++;
-            }
-
-            if (pos == start || pos >= pattern.Length)
-                throw new ArgumentException("Invalid regular expression pattern");
-
-            pos++;
-            return scalar;
-        }
-
-        private static void AppendCodePoint(StringBuilder builder, int codePoint)
-        {
-            if (codePoint <= 0xFFFF)
-            {
-                builder.Append((char)codePoint);
-                return;
-            }
-
-            builder.Append(char.ConvertFromUtf32(codePoint));
-        }
-
         private ClassItem ParseClassUnicodeEscape()
         {
             pos++;
@@ -1583,70 +1496,6 @@ internal sealed class ScratchRegExpProgram
             return -1;
         }
 
-        private string ParseGroupName()
-        {
-            var builder = new StringBuilder();
-            while (pos < pattern.Length && pattern[pos] != '>')
-            {
-                var ch = pattern[pos++];
-                if (ch != '\\')
-                {
-                    builder.Append(ch);
-                    continue;
-                }
-
-                if (pos >= pattern.Length || pattern[pos++] != 'u')
-                    throw new ArgumentException("Invalid capture group name");
-
-                AppendGroupNameUnicodeEscape(builder);
-            }
-
-            if (pos >= pattern.Length || builder.Length == 0)
-                throw new ArgumentException("Invalid capture group name");
-
-            pos++;
-            return builder.ToString();
-        }
-
-        private void AppendGroupNameUnicodeEscape(StringBuilder builder)
-        {
-            if (Peek('{'))
-            {
-                pos++;
-                var scalar = 0;
-                var start = pos;
-                while (pos < pattern.Length && pattern[pos] != '}')
-                {
-                    var hex = HexToInt(pattern[pos]);
-                    if (hex < 0)
-                        throw new ArgumentException("Invalid capture group name");
-                    scalar = checked((scalar << 4) | hex);
-                    pos++;
-                }
-
-                if (pos == start || pos >= pattern.Length)
-                    throw new ArgumentException("Invalid capture group name");
-
-                pos++;
-                builder.Append(char.ConvertFromUtf32(scalar));
-                return;
-            }
-
-            if (pos + 4 > pattern.Length)
-                throw new ArgumentException("Invalid capture group name");
-
-            var value = 0;
-            for (var i = 0; i < 4; i++)
-            {
-                var hex = HexToInt(pattern[pos++]);
-                if (hex < 0)
-                    throw new ArgumentException("Invalid capture group name");
-                value = (value << 4) | hex;
-            }
-
-            builder.Append((char)value);
-        }
-
         private static bool IsInvalidUnicodeIdentityEscape(char ch)
         {
             if (ch > 0x7F)
@@ -1751,164 +1600,5 @@ internal sealed class ScratchRegExpProgram
                        UnicodeCategory.ConnectorPunctuation;
         }
 
-        private static bool TryGetLeadingLiteral(Node node, out int codePoint)
-        {
-            switch (node)
-            {
-                case EmptyNode:
-                case AnchorNode:
-                case BoundaryNode:
-                    codePoint = default;
-                    return false;
-                case LiteralNode literal:
-                    codePoint = literal.CodePoint;
-                    return true;
-                case CaptureNode capture:
-                    return TryGetLeadingLiteral(capture.Child, out codePoint);
-                case LookaheadNode:
-                case LookbehindNode:
-                    codePoint = default;
-                    return false;
-                case ScopedModifiersNode scoped:
-                    return TryGetLeadingLiteral(scoped.Child, out codePoint);
-                case PropertyEscapeNode:
-                    codePoint = default;
-                    return false;
-                case QuantifierNode quantifier:
-                    if (quantifier.Min == 0)
-                        goto default;
-                    return TryGetLeadingLiteral(quantifier.Child, out codePoint);
-                case SequenceNode sequence:
-                    foreach (var term in sequence.Terms)
-                    {
-                        if (term is EmptyNode or AnchorNode or BoundaryNode)
-                            continue;
-
-                        if (term is CaptureNode captureTerm && TryGetLeadingLiteral(captureTerm.Child, out codePoint))
-                            return true;
-                        if (term is LookaheadNode or LookbehindNode)
-                            continue;
-                        if (term is QuantifierNode quantifierTerm)
-                        {
-                            if (quantifierTerm.Min == 0)
-                            {
-                                codePoint = default;
-                                return false;
-                            }
-
-                            if (TryGetLeadingLiteral(quantifierTerm.Child, out codePoint))
-                                return true;
-                            return false;
-                        }
-
-                        if (term is LiteralNode literalTerm)
-                        {
-                            codePoint = literalTerm.CodePoint;
-                            return true;
-                        }
-
-                        codePoint = default;
-                        return false;
-                    }
-
-                    codePoint = default;
-                    return false;
-                default:
-                    codePoint = default;
-                    return false;
-            }
-        }
-
-        private static bool TryComputeMinMatchLength(Node node, out int minLength)
-        {
-            switch (node)
-            {
-                case EmptyNode:
-                case AnchorNode:
-                case BoundaryNode:
-                    minLength = 0;
-                    return true;
-                case LiteralNode:
-                case DotNode:
-                case ClassNode:
-                    minLength = 1;
-                    return true;
-                case CaptureNode capture:
-                    return TryComputeMinMatchLength(capture.Child, out minLength);
-                case LookaheadNode:
-                case LookbehindNode:
-                    minLength = 0;
-                    return true;
-                case ScopedModifiersNode scoped:
-                    return TryComputeMinMatchLength(scoped.Child, out minLength);
-                case PropertyEscapeNode:
-                    minLength = 1;
-                    return true;
-                case BackReferenceNode:
-                    minLength = default;
-                    return false;
-                case SequenceNode sequence:
-                {
-                    long sum = 0;
-                    foreach (var term in sequence.Terms)
-                    {
-                        if (!TryComputeMinMatchLength(term, out var termLength))
-                        {
-                            minLength = default;
-                            return false;
-                        }
-
-                        sum += termLength;
-                        if (sum > int.MaxValue)
-                        {
-                            minLength = int.MaxValue;
-                            return true;
-                        }
-                    }
-
-                    minLength = (int)sum;
-                    return true;
-                }
-                case AlternationNode alternation:
-                {
-                    if (alternation.Alternatives.Length == 0)
-                    {
-                        minLength = 0;
-                        return true;
-                    }
-
-                    var best = int.MaxValue;
-                    foreach (var alternative in alternation.Alternatives)
-                    {
-                        if (!TryComputeMinMatchLength(alternative, out var alternativeLength))
-                        {
-                            minLength = default;
-                            return false;
-                        }
-
-                        if (alternativeLength < best)
-                            best = alternativeLength;
-                    }
-
-                    minLength = best;
-                    return true;
-                }
-                case QuantifierNode quantifier:
-                {
-                    if (!TryComputeMinMatchLength(quantifier.Child, out var childLength))
-                    {
-                        minLength = default;
-                        return false;
-                    }
-
-                    var total = (long)childLength * quantifier.Min;
-                    minLength = total > int.MaxValue ? int.MaxValue : (int)total;
-                    return true;
-                }
-                default:
-                    minLength = default;
-                    return false;
-            }
-        }
     }
 }

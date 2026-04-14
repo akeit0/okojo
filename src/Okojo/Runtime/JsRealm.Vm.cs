@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
@@ -1526,6 +1527,9 @@ public sealed partial class JsRealm
     internal JsValue InvokeFunctionWithArrayLikeArguments(JsFunction fn, JsValue thisValue, in JsValue argumentsList,
         int callerPc)
     {
+        if (TryInvokeStringFromCodePointDenseArrayFastPath(fn, argumentsList, out var fastPathResult))
+            return fastPathResult;
+
         var savedSp = StackTop;
         var argOffset = CopyArrayLikeArgumentsToStackTop(argumentsList, out var argCount);
         try
@@ -1590,6 +1594,9 @@ public sealed partial class JsRealm
         if (!value.TryGetObject(out var obj))
             throw new JsRuntimeException(JsErrorKind.TypeError, "CreateListFromArrayLike requires object");
 
+        if (TryCopyDenseArrayLikeArgumentsToStackTop(obj, out argCount, out var denseArgOffset))
+            return denseArgOffset;
+
         var lengthLong = GetArrayLikeLengthLong(this, obj);
         argCount = lengthLong <= 0
             ? 0
@@ -1608,6 +1615,91 @@ public sealed partial class JsRealm
 
         StackTop = argOffset + argCount;
         return argOffset;
+    }
+
+    private bool TryInvokeStringFromCodePointDenseArrayFastPath(JsFunction fn, in JsValue argumentsList,
+        out JsValue result)
+    {
+        if (!ReferenceEquals(fn, Intrinsics.StringFromCodePointFunction) ||
+            !argumentsList.TryGetObject(out var obj) ||
+            obj is not JsArray { Dense: { } denseArray } array ||
+            array.IndexedProperties is not null)
+        {
+            result = default;
+            return false;
+        }
+
+        var argCount = array.Length >= int.MaxValue ? int.MaxValue : (int)array.Length;
+        if (argCount == 0)
+        {
+            result = JsValue.FromString(string.Empty);
+            return true;
+        }
+
+        var rented = ArrayPool<char>.Shared.Rent(argCount * 2);
+        try
+        {
+            var length = 0;
+            for (var i = 0; i < argCount; i++)
+            {
+                var value = (uint)i < (uint)denseArray.Length ? denseArray[i] : JsValue.Undefined;
+                if (value.IsTheHole)
+                    value = JsValue.Undefined;
+
+                var n = value.IsNumber ? value.NumberValue : this.ToNumberSlowPath(value);
+                if (double.IsNaN(n) || double.IsInfinity(n) || n != Math.Truncate(n) || n < 0d || n > 0x10FFFF)
+                    throw new JsRuntimeException(JsErrorKind.RangeError, "Invalid code point");
+
+                var codePoint = (int)n;
+                if (codePoint <= char.MaxValue)
+                {
+                    rented[length++] = (char)codePoint;
+                    continue;
+                }
+
+                codePoint -= 0x10000;
+                rented[length++] = (char)((codePoint >> 10) + 0xD800);
+                rented[length++] = (char)((codePoint & 0x3FF) + 0xDC00);
+            }
+
+            result = JsValue.FromString(new string(rented, 0, length));
+            return true;
+        }
+        finally
+        {
+            ArrayPool<char>.Shared.Return(rented);
+        }
+    }
+
+    private bool TryCopyDenseArrayLikeArgumentsToStackTop(JsObject obj, out int argCount, out int argOffset)
+    {
+        if (obj is not JsArray { Dense: { } denseArray } array || array.IndexedProperties is not null)
+        {
+            argCount = 0;
+            argOffset = 0;
+            return false;
+        }
+
+        argCount = array.Length >= int.MaxValue ? int.MaxValue : (int)array.Length;
+        argOffset = StackTop;
+        var fullStack = Stack.AsSpan();
+        if (argOffset + argCount > fullStack.Length)
+            throw new StackOverflowException();
+
+        for (var i = 0; i < argCount; i++)
+        {
+            if ((uint)i < (uint)denseArray.Length)
+            {
+                var value = denseArray[i];
+                fullStack[argOffset + i] = value.IsTheHole ? JsValue.Undefined : value;
+                continue;
+            }
+
+            fullStack[argOffset + i] = JsValue.Undefined;
+        }
+
+        StackTop = argOffset + argCount;
+        return true;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

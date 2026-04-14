@@ -166,7 +166,7 @@ public partial class Intrinsics
                 replacerValue.IsUndefined || replacerValue.IsNull)
                 return JsValue.Undefined;
 
-            if (!replacerValue.TryGetObject(out var replacerObj) || replacerObj is not JsFunction replacerFn)
+            if (!(replacerValue.Obj is JsFunction replacerFn))
                 throw new JsRuntimeException(JsErrorKind.TypeError, "Symbol.replace method must be callable");
 
             Span<JsValue> replaceArgs =
@@ -1319,21 +1319,38 @@ public partial class Intrinsics
             var args = info.Arguments;
             if (args.Length == 0)
                 return JsValue.FromString(string.Empty);
-            using var builder = new PooledCharBuilder(stackalloc char[128]);
-            for (var i = 0; i < args.Length; i++)
-            {
-                var n = realm.ToNumber(args[i]);
-                if (double.IsNaN(n) || double.IsInfinity(n) || n != Math.Truncate(n) || n < 0d || n > 0x10FFFF)
-                    throw new JsRuntimeException(JsErrorKind.RangeError, "Invalid code point");
-                var codePoint = (int)n;
-                if (codePoint <= char.MaxValue)
-                    builder.Append((char)codePoint);
-                else
-                    builder.AppendRune(codePoint);
-            }
 
-            return JsValue.FromString(builder.ToString());
+            var rented = ArrayPool<char>.Shared.Rent(args.Length * 2);
+            try
+            {
+                var length = 0;
+                for (var i = 0; i < args.Length; i++)
+                {
+                    var arg = args[i];
+                    var n = arg.IsNumber ? arg.NumberValue : realm.ToNumber(arg);
+                    if (double.IsNaN(n) || double.IsInfinity(n) || n != Math.Truncate(n) || n < 0d || n > 0x10FFFF)
+                        throw new JsRuntimeException(JsErrorKind.RangeError, "Invalid code point");
+
+                    var codePoint = (int)n;
+                    if (codePoint <= char.MaxValue)
+                    {
+                        rented[length++] = (char)codePoint;
+                        continue;
+                    }
+
+                    codePoint -= 0x10000;
+                    rented[length++] = (char)((codePoint >> 10) + 0xD800);
+                    rented[length++] = (char)((codePoint & 0x3FF) + 0xDC00);
+                }
+
+                return JsValue.FromString(new string(rented, 0, length));
+            }
+            finally
+            {
+                ArrayPool<char>.Shared.Return(rented);
+            }
         }, "fromCodePoint", 1);
+        StringFromCodePointFunction = fromCodePointFn;
 
         var rawFn = new JsHostFunction(Realm, (in info) =>
         {
