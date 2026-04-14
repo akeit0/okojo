@@ -157,7 +157,25 @@ Some commonly useful `JsValue` members:
 - `AsString()`, `TryGetString(...)`
 - `AsObject()`, `TryGetObject(...)`
 - implicit conversions from `int`, `double`, `bool`, and `string`
+## Execution duration Constraints
+You can set execution duration in instructions level.
+```cs
+using var rt = JsRuntime.CreateBuilder()
+    .UseAgent(agent =>
+    {
+        agent.SetExecutionTimeout(TimeSpan.FromSeconds(2));
+        agent.SetMaxInstructions(100_000);
+        agent.SetCheckInterval(1000);
+    })
+    .Build();
+var realm = rt.MainRealm;
+// var agent = realm.Agent.SetCheckInterval(10000);
+realm.Evaluate("while(true){}");
+```
 
+```
+Unhandled exception. Okojo.Runtime.JsRuntimeException: Execution limit exceeded
+```
 ## Installing host globals
 
 You can install globals directly from the runtime builder without defining a full host object model.
