@@ -4,7 +4,6 @@ internal sealed partial class JsParser
 {
     private JsFunctionExpression ParseFunctionExpression(bool isAsyncPrefix = false)
     {
-        using var depthCounter = AddDepth();
         MarkNestedFunctionSyntaxSeen();
         var start = current.Position;
         var isAsync = false;
