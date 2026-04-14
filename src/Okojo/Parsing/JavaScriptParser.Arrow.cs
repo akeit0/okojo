@@ -168,7 +168,7 @@ internal sealed partial class JsParser
             expr = At(ParseArrowFunctionExpressionCore(parsedParams), start);
             return true;
         }
-        catch (JsParseException)
+        catch (JsParseException ex) when (!IsDepthLimitExceeded(ex))
         {
             RestoreSnapshot(snapshot);
             return false;

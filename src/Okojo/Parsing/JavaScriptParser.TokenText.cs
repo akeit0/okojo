@@ -59,6 +59,7 @@ internal sealed partial class JsParser
 
     private ParsedPropertyName ParsePropertyName(bool allowPrivateIdentifier, bool deriveComputedLiteralKeyText)
     {
+        using var depthCounter = AddDepth();
         if (current.Kind == JsTokenKind.LeftBracket)
         {
             Next();

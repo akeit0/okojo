@@ -48,6 +48,9 @@ public static class JavaScriptParser
 
 internal sealed partial class JsParser
 {
+    private const string ParseDepthExceededDataKey = "Okojo.Parsing.JsParser.ParseDepthExceeded";
+    private const string ParseDepthExceededMessage = "Maximum parser recursion depth exceeded";
+    private const int MaxParseDepth = 256;
     private static readonly HashSet<string> StrictModeReservedWords = new(StringComparer.Ordinal)
     {
         "implements",
@@ -67,6 +70,7 @@ internal sealed partial class JsParser
     private readonly bool isModule;
     private readonly JsLexer lexer;
     private readonly string? locationSource;
+    private readonly ParserDepthState parseDepthState;
 
     private readonly HashSet<int> nameCrashIdSet = new();
     private readonly HashSet<string> nameCrashTextSet = new(StringComparer.Ordinal);
@@ -85,23 +89,25 @@ internal sealed partial class JsParser
     private bool sawTopLevelAwait;
     private bool strictMode;
 
-    public JsParser(string source, string? sourcePath = null)
+    internal JsParser(string source, string? sourcePath = null)
         : this(source, false, false, sourcePath)
     {
     }
 
-    public JsParser(string source, bool allowSuperProperty, bool allowSuperCall, string? sourcePath = null)
+    internal JsParser(string source, bool allowSuperProperty, bool allowSuperCall, string? sourcePath = null)
         : this(source, allowSuperProperty, allowSuperCall, false, sourcePath: sourcePath)
     {
     }
 
-    public JsParser(string source, bool allowSuperProperty, bool allowSuperCall, bool allowTopLevelAwait,
-        bool isModule = false, string? sourcePath = null, int basePosition = 0, string? locationSource = null)
+    internal JsParser(string source, bool allowSuperProperty, bool allowSuperCall, bool allowTopLevelAwait,
+        bool isModule = false, string? sourcePath = null, int basePosition = 0, string? locationSource = null,
+        ParserDepthState? parseDepthState = null)
     {
         this.source = source ?? throw new ArgumentNullException(nameof(source));
         this.locationSource = locationSource ?? source;
         this.sourcePath = sourcePath;
         this.basePosition = basePosition;
+        this.parseDepthState = parseDepthState ?? new ParserDepthState();
         lexer = new(source);
         current = lexer.NextToken();
         this.allowSuperProperty = allowSuperProperty;
@@ -114,6 +120,7 @@ internal sealed partial class JsParser
 
     public JsProgram ParseProgram()
     {
+        using var depthCounter = AddDepth();
         var start = current.Position;
         var statements = new List<JsStatement>(8);
         var lexicalNames = new HashSet<string>(StringComparer.Ordinal);
@@ -153,6 +160,7 @@ internal sealed partial class JsParser
 
     private JsStatement ParseStatement()
     {
+        using var depthCounter = AddDepth();
         var start = current.Position;
         if (current.Kind == JsTokenKind.Identifier &&
             CurrentSourceTextEquals("using") &&
@@ -920,7 +928,7 @@ internal sealed partial class JsParser
             if (current.Kind is JsTokenKind.In or JsTokenKind.Of)
                 return true;
         }
-        catch (JsParseException)
+        catch (JsParseException ex) when (!IsDepthLimitExceeded(ex))
         {
         }
 
@@ -1456,12 +1464,6 @@ internal sealed partial class JsParser
     private JsExpression ParseExpression(bool allowIn = true)
     {
         var start = current.Position;
-        return At(ParseSequence(allowIn), start);
-    }
-
-    private JsExpression ParseSequence(bool allowIn)
-    {
-        var start = current.Position;
         var expr = ParseAssignment(allowIn);
         if (!Match(JsTokenKind.Comma)) return expr;
 
@@ -1476,6 +1478,7 @@ internal sealed partial class JsParser
 
     private JsExpression ParseAssignment(bool allowIn)
     {
+        using var depthCounter = AddDepth();
         var start = current.Position;
         if (TryParseArrowFunctionExpression(start, out var arrowExpr)) return arrowExpr;
 
@@ -1499,31 +1502,8 @@ internal sealed partial class JsParser
 
         var lhsStartsWithParen = current.Kind == JsTokenKind.LeftParen;
         JsExpression left;
-        if (current.Kind is JsTokenKind.LeftBrace or JsTokenKind.LeftBracket)
-        {
-            var snapshot = CaptureSnapshot();
-            try
-            {
-                left = current.Kind == JsTokenKind.LeftBrace
-                    ? ParseObjectBindingPattern()
-                    : ParseArrayPatternExpression();
-
-                if (current.Kind != JsTokenKind.Assign)
-                {
-                    RestoreSnapshot(snapshot);
-                    left = ParseConditional(allowIn);
-                }
-            }
-            catch
-            {
-                RestoreSnapshot(snapshot);
-                left = ParseConditional(allowIn);
-            }
-        }
-        else
-        {
-            left = ParseConditional(allowIn);
-        }
+        if (!TryParsePatternAssignmentOrArrowLeft(out left))
+            left = ParseConditionalExpression(allowIn);
 
         if (Match(JsTokenKind.Arrow))
         {
@@ -1674,10 +1654,28 @@ internal sealed partial class JsParser
         return At(new JsAwaitExpression(argument), start);
     }
 
-    private JsExpression ParseConditional(bool allowIn)
+    private JsExpression ParseConditionalExpression(bool allowIn)
     {
         var start = current.Position;
-        var test = ParseCoalesce(allowIn);
+        var lhsStartsWithParen = current.Kind == JsTokenKind.LeftParen;
+        var left = ParseBinaryExpressionInfo(allowIn);
+        var test = left.Expression;
+        var lhsHasLogicalAndOr = left.HasLogicalAndOr;
+        while (current.Kind == JsTokenKind.NullishCoalescing)
+        {
+            if (lhsHasLogicalAndOr && !lhsStartsWithParen)
+                throw Error("Cannot mix '??' with '&&' or '||' without parentheses.", start);
+
+            Next();
+            var rhsStartsWithParen = current.Kind == JsTokenKind.LeftParen;
+            var right = ParseBinaryExpressionInfo(allowIn);
+            if (right.HasLogicalAndOr && !rhsStartsWithParen)
+                throw Error("Cannot mix '??' with '&&' or '||' without parentheses.", start);
+            test = At(new JsBinaryExpression(JsBinaryOperator.NullishCoalescing, test, right.Expression), start);
+            lhsStartsWithParen = false;
+            lhsHasLogicalAndOr = false;
+        }
+
         if (Match(JsTokenKind.Question))
         {
             var consequent = ParseAssignment(true);
@@ -1689,197 +1687,104 @@ internal sealed partial class JsParser
         return At(test, start);
     }
 
-    private JsExpression ParseCoalesce(bool allowIn)
+    private LogicalParseInfo ParseBinaryExpressionInfo(bool allowIn)
     {
-        var start = current.Position;
-        var lhsStartsWithParen = current.Kind == JsTokenKind.LeftParen;
-        var left = ParseLogicalOrInfo(allowIn);
-        var expr = left.Expression;
-        var lhsHasLogicalAndOr = left.HasLogicalAndOr;
-        while (current.Kind == JsTokenKind.NullishCoalescing)
+        var expr = ParseUnary();
+        Span<BinaryParseOperatorInfo> initialOperatorBuffer = stackalloc BinaryParseOperatorInfo[8];
+        var operators = new PooledBinaryParseOperatorInfoStack(initialOperatorBuffer);
+        var operands = new PooledExpressionStack();
+        var hasLogicalAndOr = false;
+        try
         {
-            if (lhsHasLogicalAndOr && !lhsStartsWithParen)
-                throw Error("Cannot mix '??' with '&&' or '||' without parentheses.", start);
+            while (TryGetBinaryParseOperatorInfo(current, allowIn, out var operatorInfo))
+            {
+                if (operators.Count == 0)
+                    operands.Push(expr);
 
-            var op = JsBinaryOperator.NullishCoalescing;
-            Next();
-            var rhsStartsWithParen = current.Kind == JsTokenKind.LeftParen;
-            var right = ParseLogicalOrInfo(allowIn);
-            if (right.HasLogicalAndOr && !rhsStartsWithParen)
-                throw Error("Cannot mix '??' with '&&' or '||' without parentheses.", start);
-            expr = At(new JsBinaryExpression(op, expr, right.Expression), start);
-            lhsStartsWithParen = false;
-            lhsHasLogicalAndOr = false;
+                hasLogicalAndOr |= operatorInfo.IsLogicalAndOr;
+
+                while (operators.Count > 0 && ShouldReduceBinaryOperator(operators.Peek(), operatorInfo))
+                {
+                    var reducedOperator = operators.Pop();
+                    var right = operands.Pop();
+                    var left = operands.Pop();
+                    operands.Push(
+                        At(new JsBinaryExpression(reducedOperator.Operator, left, right), left.Position - basePosition));
+                }
+
+                operators.Push(operatorInfo);
+                Next();
+                operands.Push(ParseUnary());
+            }
+
+            while (operators.Count > 0)
+            {
+                var reducedOperator = operators.Pop();
+                var right = operands.Pop();
+                var left = operands.Pop();
+                operands.Push(
+                    At(new JsBinaryExpression(reducedOperator.Operator, left, right), left.Position - basePosition));
+            }
+
+            return operators.Count == 0 && operands.Count == 0
+                ? new(expr, hasLogicalAndOr)
+                : new(operands.Pop(), hasLogicalAndOr);
         }
-
-        return At(expr, start);
+        finally
+        {
+            operands.Dispose();
+            operators.Dispose();
+        }
     }
 
-    private LogicalParseInfo ParseLogicalOrInfo(bool allowIn)
+    private static bool TryGetBinaryParseOperatorInfo(
+        in JsToken token,
+        bool allowIn,
+        out BinaryParseOperatorInfo operatorInfo)
     {
-        var start = current.Position;
-        var left = ParseLogicalAndInfo(allowIn);
-        var expr = left.Expression;
-        var hasLogical = left.HasLogicalAndOr;
-        while (current.Kind == JsTokenKind.OrOr)
+        operatorInfo = token.Kind switch
         {
-            var op = JsBinaryOperator.LogicalOr;
-            Next();
-            var right = ParseLogicalAndInfo(allowIn);
-            expr = At(new JsBinaryExpression(op, expr, right.Expression), start);
-            hasLogical = true;
-        }
+            JsTokenKind.OrOr => new(JsBinaryOperator.LogicalOr, 1, true),
+            JsTokenKind.AndAnd => new(JsBinaryOperator.LogicalAnd, 2, true),
+            JsTokenKind.Pipe => new(JsBinaryOperator.BitwiseOr, 3),
+            JsTokenKind.Caret => new(JsBinaryOperator.BitwiseXor, 4),
+            JsTokenKind.Ampersand => new(JsBinaryOperator.BitwiseAnd, 5),
+            JsTokenKind.Eq => new(JsBinaryOperator.Equal, 6),
+            JsTokenKind.Neq => new(JsBinaryOperator.NotEqual, 6),
+            JsTokenKind.StrictEq => new(JsBinaryOperator.StrictEqual, 6),
+            JsTokenKind.StrictNeq => new(JsBinaryOperator.StrictNotEqual, 6),
+            JsTokenKind.Lt => new(JsBinaryOperator.LessThan, 7),
+            JsTokenKind.Lte => new(JsBinaryOperator.LessThanOrEqual, 7),
+            JsTokenKind.Gt => new(JsBinaryOperator.GreaterThan, 7),
+            JsTokenKind.Gte => new(JsBinaryOperator.GreaterThanOrEqual, 7),
+            JsTokenKind.In when allowIn => new(JsBinaryOperator.In, 7),
+            JsTokenKind.Instanceof => new(JsBinaryOperator.Instanceof, 7),
+            JsTokenKind.Shl => new(JsBinaryOperator.ShiftLeft, 8),
+            JsTokenKind.Sar => new(JsBinaryOperator.ShiftRight, 8),
+            JsTokenKind.Shr => new(JsBinaryOperator.ShiftRightLogical, 8),
+            JsTokenKind.Plus => new(JsBinaryOperator.Add, 9),
+            JsTokenKind.Minus => new(JsBinaryOperator.Subtract, 9),
+            JsTokenKind.Star => new(JsBinaryOperator.Multiply, 10),
+            JsTokenKind.Slash => new(JsBinaryOperator.Divide, 10),
+            JsTokenKind.Percent => new(JsBinaryOperator.Modulo, 10),
+            JsTokenKind.Pow => new(JsBinaryOperator.Exponentiate, 11, false, true),
+            _ => default
+        };
 
-        return new(At(expr, start), hasLogical);
+        return operatorInfo.Precedence != 0;
     }
 
-    private LogicalParseInfo ParseLogicalAndInfo(bool allowIn)
+    private static bool ShouldReduceBinaryOperator(
+        BinaryParseOperatorInfo stackedOperator,
+        BinaryParseOperatorInfo incomingOperator)
     {
-        var start = current.Position;
-        var expr = ParseBitwiseOr(allowIn);
-        var hasLogical = false;
-        while (current.Kind == JsTokenKind.AndAnd)
-        {
-            var op = JsBinaryOperator.LogicalAnd;
-            Next();
-            expr = At(new JsBinaryExpression(op, expr, ParseBitwiseOr(allowIn)), start);
-            hasLogical = true;
-        }
-
-        return new(At(expr, start), hasLogical);
-    }
-
-    private JsExpression ParseBitwiseOr(bool allowIn)
-    {
-        var start = current.Position;
-        var expr = ParseBitwiseXor(allowIn);
-        while (current.Kind == JsTokenKind.Pipe)
-        {
-            var op = JsBinaryOperator.BitwiseOr;
-            Next();
-            expr = At(new JsBinaryExpression(op, expr, ParseBitwiseXor(allowIn)), start);
-        }
-
-        return At(expr, start);
-    }
-
-    private JsExpression ParseBitwiseXor(bool allowIn)
-    {
-        var start = current.Position;
-        var expr = ParseBitwiseAnd(allowIn);
-        while (current.Kind == JsTokenKind.Caret)
-        {
-            var op = JsBinaryOperator.BitwiseXor;
-            Next();
-            expr = At(new JsBinaryExpression(op, expr, ParseBitwiseAnd(allowIn)), start);
-        }
-
-        return At(expr, start);
-    }
-
-    private JsExpression ParseBitwiseAnd(bool allowIn)
-    {
-        var start = current.Position;
-        var expr = ParseEquality(allowIn);
-        while (current.Kind == JsTokenKind.Ampersand)
-        {
-            var op = JsBinaryOperator.BitwiseAnd;
-            Next();
-            expr = At(new JsBinaryExpression(op, expr, ParseEquality(allowIn)), start);
-        }
-
-        return At(expr, start);
-    }
-
-    private JsExpression ParseEquality(bool allowIn)
-    {
-        var start = current.Position;
-        var expr = ParseRelational(allowIn);
-        while (current.Kind is JsTokenKind.Eq or JsTokenKind.Neq or JsTokenKind.StrictEq or JsTokenKind.StrictNeq)
-        {
-            var op = GetBinaryOperator(current);
-            Next();
-            expr = At(new JsBinaryExpression(op, expr, ParseRelational(allowIn)), start);
-        }
-
-        return At(expr, start);
-    }
-
-    private JsExpression ParseRelational(bool allowIn)
-    {
-        var start = current.Position;
-        var expr = ParseShift();
-        while (current.Kind is JsTokenKind.Lt or JsTokenKind.Lte or JsTokenKind.Gt or JsTokenKind.Gte ||
-               (allowIn && current.Kind == JsTokenKind.In) ||
-               current.Kind == JsTokenKind.Instanceof)
-        {
-            var op = GetBinaryOperator(current);
-            Next();
-            expr = At(new JsBinaryExpression(op, expr, ParseShift()), start);
-        }
-
-        return At(expr, start);
-    }
-
-    private JsExpression ParseShift()
-    {
-        var start = current.Position;
-        var expr = ParseAdditive();
-        while (current.Kind is JsTokenKind.Shl or JsTokenKind.Sar or JsTokenKind.Shr)
-        {
-            var op = GetBinaryOperator(current);
-            Next();
-            expr = At(new JsBinaryExpression(op, expr, ParseAdditive()), start);
-        }
-
-        return At(expr, start);
-    }
-
-    private JsExpression ParseAdditive()
-    {
-        var start = current.Position;
-        var expr = ParseMultiplicative();
-        while (current.Kind is JsTokenKind.Plus or JsTokenKind.Minus)
-        {
-            var op = GetBinaryOperator(current);
-            Next();
-            expr = At(new JsBinaryExpression(op, expr, ParseMultiplicative()), start);
-        }
-
-        return At(expr, start);
-    }
-
-    private JsExpression ParseMultiplicative()
-    {
-        var start = current.Position;
-        var expr = ParseExponentiation();
-        while (current.Kind is JsTokenKind.Star or JsTokenKind.Slash or JsTokenKind.Percent)
-        {
-            var op = GetBinaryOperator(current);
-            Next();
-            expr = At(new JsBinaryExpression(op, expr, ParseExponentiation()), start);
-        }
-
-        return At(expr, start);
-    }
-
-    private JsExpression ParseExponentiation()
-    {
-        var start = current.Position;
-        var left = ParseUnary();
-        if (current.Kind == JsTokenKind.Pow)
-        {
-            var op = JsBinaryOperator.Exponentiate;
-            Next();
-            var right = ParseExponentiation();
-            return At(new JsBinaryExpression(op, left, right), start);
-        }
-
-        return At(left, start);
+        return stackedOperator.Precedence > incomingOperator.Precedence ||
+               (stackedOperator.Precedence == incomingOperator.Precedence && !incomingOperator.IsRightAssociative);
     }
 
     private JsExpression ParseUnary()
     {
+        using var depthCounter = AddDepth();
         var start = current.Position;
         if (IsAwaitKeywordInCurrentScope()) return At(ParseAwaitExpression(), start);
 
@@ -1903,7 +1808,118 @@ internal sealed partial class JsParser
             return At(new JsUnaryExpression(op, ParseUnary()), start);
         }
 
-        return At(ParsePostfix(), start);
+        var expr = ParsePrimary();
+        var inOptionalChain = false;
+        while (true)
+        {
+            if (current.Kind == JsTokenKind.Question && !Peek().HasLineTerminatorBefore &&
+                Peek().Kind == JsTokenKind.Dot)
+            {
+                Next();
+                Expect(JsTokenKind.Dot);
+                inOptionalChain = true;
+
+                if (current.Kind == JsTokenKind.PrivateIdentifier)
+                {
+                    var privateName = GetPrivateIdentifierText(current);
+                    Next();
+                    expr = new JsMemberExpression(expr, new JsLiteralExpression(privateName), false,
+                        true, true);
+                    continue;
+                }
+
+                if (Match(JsTokenKind.LeftBracket))
+                {
+                    if (expr is JsSuperExpression && !allowSuperProperty)
+                        throw Error("Invalid use of super property access", current.Position);
+
+                    var propExpr = ParseExpression();
+                    Expect(JsTokenKind.RightBracket);
+                    expr = new JsMemberExpression(expr, propExpr, true, false,
+                        true);
+                    continue;
+                }
+
+                if (Match(JsTokenKind.LeftParen))
+                {
+                    var args = ParseArgumentListAfterOpenParen();
+                    expr = new JsCallExpression(expr, args, true);
+                    continue;
+                }
+
+                var optionalProp = ParseIdentifierName();
+                expr = new JsMemberExpression(expr, new JsLiteralExpression(optionalProp), false,
+                    false, true);
+                continue;
+            }
+
+            if (Match(JsTokenKind.Dot))
+            {
+                if (expr is JsSuperExpression && !allowSuperProperty)
+                    throw Error("Invalid use of super property access", current.Position);
+
+                if (current.Kind == JsTokenKind.PrivateIdentifier)
+                {
+                    var privateName = GetPrivateIdentifierText(current);
+                    Next();
+                    expr = new JsMemberExpression(expr, new JsLiteralExpression(privateName), false,
+                        true, inOptionalChain);
+                    continue;
+                }
+
+                var prop = ParseIdentifierName();
+                expr = new JsMemberExpression(expr, new JsLiteralExpression(prop), false,
+                    false, inOptionalChain);
+                continue;
+            }
+
+            if (Match(JsTokenKind.LeftBracket))
+            {
+                if (expr is JsSuperExpression && !allowSuperProperty)
+                    throw Error("Invalid use of super property access", current.Position);
+
+                var propExpr = ParseExpression();
+                Expect(JsTokenKind.RightBracket);
+                expr = new JsMemberExpression(expr, propExpr, true, false,
+                    inOptionalChain);
+                continue;
+            }
+
+            if (Match(JsTokenKind.LeftParen))
+            {
+                if (expr is JsSuperExpression && !allowSuperCall)
+                    throw Error("Invalid use of super() call", current.Position);
+
+                var args = ParseArgumentListAfterOpenParen();
+                expr = new JsCallExpression(expr, args, inOptionalChain);
+                continue;
+            }
+
+            if (current.Kind == JsTokenKind.Template)
+            {
+                var templateToken = current;
+                Next();
+                var templateExpr = ParseTemplateLiteralAsTemplate(templateToken, true);
+                expr = At(new JsTaggedTemplateExpression(expr, templateExpr), expr.Position);
+                continue;
+            }
+
+            break;
+        }
+
+        if (expr is JsSuperExpression) throw Error("Invalid use of super", current.Position);
+
+        if (current.Kind is JsTokenKind.PlusPlus or JsTokenKind.MinusMinus &&
+            !current.HasLineTerminatorBefore)
+        {
+            var op = GetUpdateOperator(current);
+            EnsureUpdateTargetAllowed(expr, current.Position);
+            EnsureStrictAssignmentTargetAllowed(expr);
+            Next();
+            return new JsUpdateExpression(op, expr, false);
+        }
+
+        return At(expr, start);
     }
 
     private bool IsAwaitKeywordInCurrentScope()
@@ -1938,33 +1954,6 @@ internal sealed partial class JsParser
         };
     }
 
-    private static JsBinaryOperator GetBinaryOperator(in JsToken token)
-    {
-        return token.Kind switch
-        {
-            JsTokenKind.Eq => JsBinaryOperator.Equal,
-            JsTokenKind.Neq => JsBinaryOperator.NotEqual,
-            JsTokenKind.StrictEq => JsBinaryOperator.StrictEqual,
-            JsTokenKind.StrictNeq => JsBinaryOperator.StrictNotEqual,
-            JsTokenKind.Lt => JsBinaryOperator.LessThan,
-            JsTokenKind.Lte => JsBinaryOperator.LessThanOrEqual,
-            JsTokenKind.Gt => JsBinaryOperator.GreaterThan,
-            JsTokenKind.Gte => JsBinaryOperator.GreaterThanOrEqual,
-            JsTokenKind.In => JsBinaryOperator.In,
-            JsTokenKind.Instanceof => JsBinaryOperator.Instanceof,
-            JsTokenKind.Shl => JsBinaryOperator.ShiftLeft,
-            JsTokenKind.Sar => JsBinaryOperator.ShiftRight,
-            JsTokenKind.Shr => JsBinaryOperator.ShiftRightLogical,
-            JsTokenKind.Plus => JsBinaryOperator.Add,
-            JsTokenKind.Minus => JsBinaryOperator.Subtract,
-            JsTokenKind.Star => JsBinaryOperator.Multiply,
-            JsTokenKind.Slash => JsBinaryOperator.Divide,
-            JsTokenKind.Percent => JsBinaryOperator.Modulo,
-            JsTokenKind.Pow => JsBinaryOperator.Exponentiate,
-            _ => throw new InvalidOperationException($"Unexpected binary operator token {token.Kind}.")
-        };
-    }
-
     private static JsAssignmentOperator GetAssignmentOperator(in JsToken token)
     {
         return token.Kind switch
@@ -1991,6 +1980,7 @@ internal sealed partial class JsParser
 
     private JsExpression ParseNewExpression()
     {
+        using var depthCounter = AddDepth();
         var start = current.Position;
         Expect(JsTokenKind.New);
         JsExpression expr;
@@ -2176,22 +2166,6 @@ internal sealed partial class JsParser
         return expr;
     }
 
-    private JsExpression ParsePostfix()
-    {
-        var expr = ParseMemberAndCall();
-        if (current.Kind is JsTokenKind.PlusPlus or JsTokenKind.MinusMinus &&
-            !current.HasLineTerminatorBefore)
-        {
-            var op = GetUpdateOperator(current);
-            EnsureUpdateTargetAllowed(expr, current.Position);
-            EnsureStrictAssignmentTargetAllowed(expr);
-            Next();
-            return new JsUpdateExpression(op, expr, false);
-        }
-
-        return expr;
-    }
-
     private void EnsureStrictAssignmentTargetAllowed(JsExpression target)
     {
         if (!strictMode) return;
@@ -2204,112 +2178,6 @@ internal sealed partial class JsParser
         if (target is JsIdentifierExpression or JsMemberExpression)
             return;
         throw Error("Invalid left-hand side expression in update operation", position);
-    }
-
-    private JsExpression ParseMemberAndCall()
-    {
-        var expr = ParsePrimary();
-        var inOptionalChain = false;
-        while (true)
-        {
-            if (current.Kind == JsTokenKind.Question && !Peek().HasLineTerminatorBefore &&
-                Peek().Kind == JsTokenKind.Dot)
-            {
-                Next();
-                Expect(JsTokenKind.Dot);
-                inOptionalChain = true;
-
-                if (current.Kind == JsTokenKind.PrivateIdentifier)
-                {
-                    var privateName = GetPrivateIdentifierText(current);
-                    Next();
-                    expr = new JsMemberExpression(expr, new JsLiteralExpression(privateName), false,
-                        true, true);
-                    continue;
-                }
-
-                if (Match(JsTokenKind.LeftBracket))
-                {
-                    if (expr is JsSuperExpression && !allowSuperProperty)
-                        throw Error("Invalid use of super property access", current.Position);
-
-                    var propExpr = ParseExpression();
-                    Expect(JsTokenKind.RightBracket);
-                    expr = new JsMemberExpression(expr, propExpr, true, false,
-                        true);
-                    continue;
-                }
-
-                if (Match(JsTokenKind.LeftParen))
-                {
-                    var args = ParseArgumentListAfterOpenParen();
-                    expr = new JsCallExpression(expr, args, true);
-                    continue;
-                }
-
-                var optionalProp = ParseIdentifierName();
-                expr = new JsMemberExpression(expr, new JsLiteralExpression(optionalProp), false,
-                    false, true);
-                continue;
-            }
-
-            if (Match(JsTokenKind.Dot))
-            {
-                if (expr is JsSuperExpression && !allowSuperProperty)
-                    throw Error("Invalid use of super property access", current.Position);
-
-                if (current.Kind == JsTokenKind.PrivateIdentifier)
-                {
-                    var privateName = GetPrivateIdentifierText(current);
-                    Next();
-                    expr = new JsMemberExpression(expr, new JsLiteralExpression(privateName), false,
-                        true, inOptionalChain);
-                    continue;
-                }
-
-                var prop = ParseIdentifierName();
-                expr = new JsMemberExpression(expr, new JsLiteralExpression(prop), false,
-                    false, inOptionalChain);
-                continue;
-            }
-
-            if (Match(JsTokenKind.LeftBracket))
-            {
-                if (expr is JsSuperExpression && !allowSuperProperty)
-                    throw Error("Invalid use of super property access", current.Position);
-
-                var propExpr = ParseExpression();
-                Expect(JsTokenKind.RightBracket);
-                expr = new JsMemberExpression(expr, propExpr, true, false,
-                    inOptionalChain);
-                continue;
-            }
-
-            if (Match(JsTokenKind.LeftParen))
-            {
-                if (expr is JsSuperExpression && !allowSuperCall)
-                    throw Error("Invalid use of super() call", current.Position);
-
-                var args = ParseArgumentListAfterOpenParen();
-                expr = new JsCallExpression(expr, args, inOptionalChain);
-                continue;
-            }
-
-            if (current.Kind == JsTokenKind.Template)
-            {
-                var templateToken = current;
-                Next();
-                var templateExpr = ParseTemplateLiteralAsTemplate(templateToken, true);
-                expr = At(new JsTaggedTemplateExpression(expr, templateExpr), expr.Position);
-                continue;
-            }
-
-            break;
-        }
-
-        if (expr is JsSuperExpression) throw Error("Invalid use of super", current.Position);
-
-        return expr;
     }
 
     private IReadOnlyList<JsExpression> ParseArgumentListAfterOpenParen()
@@ -2335,6 +2203,7 @@ internal sealed partial class JsParser
 
     private JsExpression ParsePrimary()
     {
+        using var depthCounter = AddDepth();
         var start = current.Position;
         if (current.Kind == JsTokenKind.At)
         {
@@ -2358,7 +2227,7 @@ internal sealed partial class JsParser
             return At(expr, start);
         }
 
-        if (current.Kind == JsTokenKind.LeftBracket) return At(ParseArrayExpression(), start);
+        if (current.Kind == JsTokenKind.LeftBracket) return At(ParseArrayPatternExpression(false), start);
 
         if (current.Kind == JsTokenKind.LeftBrace) return At(ParseObjectExpression(), start);
 
@@ -2474,18 +2343,9 @@ internal sealed partial class JsParser
         return At(new JsRegExpLiteralExpression(pattern, flags), start);
     }
 
-    private JsArrayExpression ParseArrayPatternExpression()
+    private JsArrayExpression ParseArrayPatternExpression(bool isPattern = true)
     {
-        return ParseArrayLiteralOrPattern(true);
-    }
-
-    private JsArrayExpression ParseArrayExpression()
-    {
-        return ParseArrayLiteralOrPattern(false);
-    }
-
-    private JsArrayExpression ParseArrayLiteralOrPattern(bool isPattern)
-    {
+        using var depthCounter = AddDepth();
         var start = current.Position;
         Expect(JsTokenKind.LeftBracket);
         var elements = new List<JsExpression?>(4);
@@ -2502,7 +2362,7 @@ internal sealed partial class JsParser
                     ? ParsePatternExpressionElement()
                     : ParseAssignment(true)));
             else
-                elements.Add(isPattern ? ParsePatternExpressionElement() : ParseAssignment(true));
+                elements.Add(isPattern ? ParsePatternExpressionElement() : ParseArrayLiteralElementExpression());
 
             if (Match(JsTokenKind.Comma))
                 continue;
@@ -2514,10 +2374,22 @@ internal sealed partial class JsParser
         return At(new JsArrayExpression(elements), start);
     }
 
+    private JsExpression ParseArrayLiteralElementExpression()
+    {
+        if (current.Kind is JsTokenKind.LeftBracket or JsTokenKind.LeftBrace &&
+            !LooksLikePatternAssignmentOrArrowHead())
+            return ParseConditionalExpression(true);
+
+        return ParseAssignment(true);
+    }
+
     private JsExpression ParsePatternExpressionElement()
     {
+        using var depthCounter = AddDepth();
         var element = current.Kind switch
         {
+            JsTokenKind.LeftBrace or JsTokenKind.LeftBracket when LooksLikeLiteralAssignmentTargetExpression() =>
+                ParseAssignment(true),
             JsTokenKind.LeftBrace => ParseObjectBindingPattern(),
             JsTokenKind.LeftBracket => ParseArrayPatternExpression(),
             _ => ParseAssignment(true)
@@ -2535,6 +2407,7 @@ internal sealed partial class JsParser
 
     private JsObjectExpression ParseObjectExpression()
     {
+        using var depthCounter = AddDepth();
         var start = current.Position;
         Expect(JsTokenKind.LeftBrace);
         var properties = new List<JsObjectProperty>(4);
@@ -2804,6 +2677,7 @@ internal sealed partial class JsParser
 
     private JsObjectExpression ParseObjectBindingPattern()
     {
+        using var depthCounter = AddDepth();
         var start = current.Position;
         Expect(JsTokenKind.LeftBrace);
         var properties = new List<JsObjectProperty>(4);
@@ -3376,7 +3250,7 @@ internal sealed partial class JsParser
     private JsParser CreateNestedExpressionParser(string nestedSource, int nestedBasePosition)
     {
         return new(nestedSource, allowSuperProperty, allowSuperCall, allowTopLevelAwait, isModule, sourcePath,
-            nestedBasePosition)
+            nestedBasePosition, parseDepthState: parseDepthState)
         {
             strictMode = strictMode,
             generatorFunctionLevel = generatorFunctionLevel,
@@ -3803,6 +3677,221 @@ internal sealed partial class JsParser
         return new(message, position + basePosition, locationSource);
     }
 
+    private bool TryParsePatternAssignmentOrArrowLeft(out JsExpression left)
+    {
+        left = null!;
+        if (current.Kind is not (JsTokenKind.LeftBrace or JsTokenKind.LeftBracket))
+            return false;
+
+        var snapshot = CaptureSnapshot();
+        Span<JsTokenKind> initialBuffer = stackalloc JsTokenKind[16];
+        var closeTokenStack = new PooledTokenKindStack(initialBuffer);
+        try
+        {
+            closeTokenStack.Push(current.Kind == JsTokenKind.LeftBrace
+                ? JsTokenKind.RightBrace
+                : JsTokenKind.RightBracket);
+            Next();
+
+            while (closeTokenStack.Count > 0)
+            {
+                switch (current.Kind)
+                {
+                    case JsTokenKind.Eof:
+                        return false;
+                    case JsTokenKind.LeftBrace:
+                        closeTokenStack.Push(JsTokenKind.RightBrace);
+                        break;
+                    case JsTokenKind.LeftBracket:
+                        closeTokenStack.Push(JsTokenKind.RightBracket);
+                        break;
+                    case JsTokenKind.LeftParen:
+                        closeTokenStack.Push(JsTokenKind.RightParen);
+                        break;
+                    case JsTokenKind.RightBrace:
+                    case JsTokenKind.RightBracket:
+                    case JsTokenKind.RightParen:
+                        if (closeTokenStack.Peek() != current.Kind)
+                            return false;
+
+                        closeTokenStack.Pop();
+                        break;
+                }
+
+                Next();
+            }
+
+            if (current.Kind is not (JsTokenKind.Assign or JsTokenKind.Arrow))
+                return false;
+
+            RestoreSnapshot(snapshot);
+            left = current.Kind == JsTokenKind.LeftBrace
+                ? ParseObjectBindingPattern()
+                : ParseArrayPatternExpression();
+            return current.Kind is JsTokenKind.Assign or JsTokenKind.Arrow;
+        }
+        catch (JsParseException ex) when (!IsDepthLimitExceeded(ex))
+        {
+            return false;
+        }
+        finally
+        {
+            closeTokenStack.Dispose();
+            if (left is null)
+                RestoreSnapshot(snapshot);
+        }
+    }
+
+    private bool LooksLikePatternAssignmentOrArrowHead()
+    {
+        if (current.Kind is not (JsTokenKind.LeftBrace or JsTokenKind.LeftBracket))
+            return false;
+
+        var snapshot = CaptureSnapshot();
+        Span<JsTokenKind> initialBuffer = stackalloc JsTokenKind[16];
+        var closeTokenStack = new PooledTokenKindStack(initialBuffer);
+        try
+        {
+            closeTokenStack.Push(current.Kind == JsTokenKind.LeftBrace
+                ? JsTokenKind.RightBrace
+                : JsTokenKind.RightBracket);
+            Next();
+
+            while (closeTokenStack.Count > 0)
+            {
+                switch (current.Kind)
+                {
+                    case JsTokenKind.Eof:
+                        return false;
+                    case JsTokenKind.LeftBrace:
+                        closeTokenStack.Push(JsTokenKind.RightBrace);
+                        break;
+                    case JsTokenKind.LeftBracket:
+                        closeTokenStack.Push(JsTokenKind.RightBracket);
+                        break;
+                    case JsTokenKind.LeftParen:
+                        closeTokenStack.Push(JsTokenKind.RightParen);
+                        break;
+                    case JsTokenKind.RightBrace:
+                    case JsTokenKind.RightBracket:
+                    case JsTokenKind.RightParen:
+                        if (closeTokenStack.Peek() != current.Kind)
+                            return false;
+
+                        closeTokenStack.Pop();
+                        break;
+                }
+
+                Next();
+            }
+
+            return current.Kind is JsTokenKind.Assign or JsTokenKind.Arrow;
+        }
+        catch (JsParseException ex) when (!IsDepthLimitExceeded(ex))
+        {
+            return false;
+        }
+        finally
+        {
+            closeTokenStack.Dispose();
+            RestoreSnapshot(snapshot);
+        }
+    }
+
+    private bool LooksLikeLiteralAssignmentTargetExpression()
+    {
+        if (current.Kind is not (JsTokenKind.LeftBrace or JsTokenKind.LeftBracket))
+            return false;
+
+        var snapshot = CaptureSnapshot();
+        Span<JsTokenKind> initialBuffer = stackalloc JsTokenKind[16];
+        var closeTokenStack = new PooledTokenKindStack(initialBuffer);
+        try
+        {
+            closeTokenStack.Push(current.Kind == JsTokenKind.LeftBrace
+                ? JsTokenKind.RightBrace
+                : JsTokenKind.RightBracket);
+            Next();
+
+            while (closeTokenStack.Count > 0)
+            {
+                switch (current.Kind)
+                {
+                    case JsTokenKind.Eof:
+                        return false;
+                    case JsTokenKind.LeftBrace:
+                        closeTokenStack.Push(JsTokenKind.RightBrace);
+                        break;
+                    case JsTokenKind.LeftBracket:
+                        closeTokenStack.Push(JsTokenKind.RightBracket);
+                        break;
+                    case JsTokenKind.LeftParen:
+                        closeTokenStack.Push(JsTokenKind.RightParen);
+                        break;
+                    case JsTokenKind.RightBrace:
+                    case JsTokenKind.RightBracket:
+                    case JsTokenKind.RightParen:
+                        if (closeTokenStack.Peek() != current.Kind)
+                            return false;
+
+                        closeTokenStack.Pop();
+                        break;
+                }
+
+                Next();
+            }
+
+            if (current.Kind is JsTokenKind.Dot or JsTokenKind.LeftBracket)
+                return true;
+
+            return current.Kind == JsTokenKind.Question && !Peek().HasLineTerminatorBefore &&
+                   Peek().Kind == JsTokenKind.Dot;
+        }
+        catch (JsParseException ex) when (!IsDepthLimitExceeded(ex))
+        {
+            return false;
+        }
+        finally
+        {
+            closeTokenStack.Dispose();
+            RestoreSnapshot(snapshot);
+        }
+    }
+
+    private ParseDepthScope AddDepth()
+    {
+        if (parseDepthState.Depth >= MaxParseDepth)
+            throw CreateDepthLimitExceededError(current.Position);
+
+        parseDepthState.Depth++;
+        return new(parseDepthState);
+    }
+
+    private JsParseException CreateDepthLimitExceededError(int position)
+    {
+        var exception = Error(ParseDepthExceededMessage, position);
+        exception.Data[ParseDepthExceededDataKey] = true;
+        return exception;
+    }
+
+    private static bool IsDepthLimitExceeded(JsParseException exception)
+    {
+        return exception.Data[ParseDepthExceededDataKey] is true;
+    }
+
+    internal sealed class ParserDepthState
+    {
+        public int Depth;
+    }
+
+    private readonly struct ParseDepthScope(ParserDepthState state) : IDisposable
+    {
+        public void Dispose()
+        {
+            state.Depth--;
+        }
+    }
+
     private readonly struct ParserSnapshot(
         int lexerIndex,
         JsToken current,
@@ -3830,4 +3919,9 @@ internal sealed partial class JsParser
     }
 
     private readonly record struct LogicalParseInfo(JsExpression Expression, bool HasLogicalAndOr);
+    private readonly record struct BinaryParseOperatorInfo(
+        JsBinaryOperator Operator,
+        int Precedence,
+        bool IsLogicalAndOr = false,
+        bool IsRightAssociative = false);
 }

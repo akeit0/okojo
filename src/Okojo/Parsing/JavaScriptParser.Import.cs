@@ -4,6 +4,7 @@ internal sealed partial class JsParser
 {
     private JsExpression ParseImportPrimaryExpression(int start)
     {
+        using var depthCounter = AddDepth();
         if (Peek().Kind == JsTokenKind.Dot)
             return ParseImportMetaExpression(start);
         if (Peek().Kind == JsTokenKind.LeftParen)
