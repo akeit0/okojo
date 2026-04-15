@@ -554,6 +554,8 @@ internal static partial class Program
         public string? ProgressDocPath { get; init; }
         public string? ProgressJsonPath { get; init; }
         public string? QueryIncrementalPath { get; init; }
+        public string? SingleTestPath { get; init; }
+        public bool WorkerMode { get; init; }
         public string? Filter { get; init; }
         public HashSet<string> Categories { get; init; } = new(StringComparer.OrdinalIgnoreCase);
         public HashSet<string> Features { get; init; } = new(StringComparer.OrdinalIgnoreCase);
@@ -597,6 +599,8 @@ internal static partial class Program
             string? progressDocPath = null;
             string? progressJsonPath = null;
             string? queryIncrementalPath = null;
+            string? singleTestPath = null;
+            var workerMode = false;
             string? filter = null;
             var categories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var features = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -649,6 +653,12 @@ internal static partial class Program
                             queryIncrementalPath = args[++i];
                         else
                             queryIncrementalPath = string.Empty;
+                        break;
+                    case "--single-test" when i + 1 < args.Length:
+                        singleTestPath = args[++i];
+                        break;
+                    case "--worker-mode":
+                        workerMode = true;
                         break;
                     case "--filter" when i + 1 < args.Length:
                         filter = args[++i];
@@ -756,6 +766,8 @@ internal static partial class Program
                 ProgressDocPath = progressDocPath,
                 ProgressJsonPath = progressJsonPath,
                 QueryIncrementalPath = queryIncrementalPath,
+                SingleTestPath = singleTestPath,
+                WorkerMode = workerMode,
                 Filter = filter,
                 Categories = categories,
                 Features = features,
@@ -820,6 +832,10 @@ internal static partial class Program
                 "  --progress-json [path]      Write machine-readable progress snapshot (default: TEST262_PROGRESS.json)");
             Console.WriteLine(
                 "  --query-incremental [path]  Print failed/skipped/progress from TEST262_PROGRESS_INCREMENTAL.json");
+            Console.WriteLine(
+                "  --single-test <path>        Internal manager mode: run one test and emit a JSON result");
+            Console.WriteLine(
+                "  --worker-mode               Internal manager mode: serve multiple test requests over stdin/stdout");
             Console.WriteLine("  --filter <text>             Path substring filter");
             Console.WriteLine("  --category <name[,name]>    Category/path filter (repeatable)");
             Console.WriteLine("  --feature <name[,name]>     Include tests requiring these features (repeatable)");
