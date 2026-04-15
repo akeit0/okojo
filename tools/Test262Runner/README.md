@@ -52,6 +52,9 @@ Explicit paths are optional:
 --progress-json my-report.json
 ```
 
+Either flag works independently. For example, `--progress-json .\test_262.json` writes the JSON snapshot and still
+updates the incremental progress store even if `--progress-doc` is not present.
+
 ### Full-scope progress
 
 A full-scope run writes:
