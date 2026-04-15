@@ -45,7 +45,7 @@ internal static class IncrementalProgressCli
             .Where(entry => MatchesCategoryFilter(entry.RelativePath, categories))
             .Where(entry => MatchesFeatureFilter(entry.Features, features))
             .Where(entry => MatchesStatusFilter(entry.Status, statuses))
-            .Where(entry => MatchesReasonFilter(entry.SkipReason, reasonFilter))
+            .Where(entry => MatchesReasonFilter(entry, reasonFilter))
             .Where(entry => MatchesUpdatedSince(entry.LastUpdated, updatedSince))
             .OrderBy(static entry => entry.RelativePath, StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -127,6 +127,22 @@ internal static class IncrementalProgressCli
         else
             foreach (var item in skipReasons)
                 Console.WriteLine($"- {item.Reason}: {item.Count}");
+
+        Console.WriteLine();
+        var failureReasons = entries
+            .Where(static entry => string.Equals(entry.Status, "failed", StringComparison.Ordinal) &&
+                                   !string.IsNullOrWhiteSpace(entry.FailureReason))
+            .GroupBy(static entry => entry.FailureReason!, StringComparer.Ordinal)
+            .OrderBy(static group => group.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(static group => new { Reason = group.Key, Count = group.Count() })
+            .ToArray();
+        Console.WriteLine("## Failure Reasons");
+        Console.WriteLine();
+        if (failureReasons.Length == 0)
+            Console.WriteLine("(none)");
+        else
+            foreach (var item in failureReasons)
+                Console.WriteLine($"- {item.Reason}: {item.Count}");
     }
 
     private static string ResolveIncrementalJsonPath(string repoRoot, string? queryPathArg)
@@ -198,12 +214,14 @@ internal static class IncrementalProgressCli
         return statuses.Contains(status);
     }
 
-    private static bool MatchesReasonFilter(string? skipReason, string? reasonFilter)
+    private static bool MatchesReasonFilter(IncrementalProgressEntry entry, string? reasonFilter)
     {
         if (string.IsNullOrWhiteSpace(reasonFilter))
             return true;
-        return !string.IsNullOrWhiteSpace(skipReason) &&
-               skipReason.Contains(reasonFilter, StringComparison.OrdinalIgnoreCase);
+        return (!string.IsNullOrWhiteSpace(entry.SkipReason) &&
+                entry.SkipReason.Contains(reasonFilter, StringComparison.OrdinalIgnoreCase)) ||
+               (!string.IsNullOrWhiteSpace(entry.FailureReason) &&
+                entry.FailureReason.Contains(reasonFilter, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool MatchesUpdatedSince(DateTimeOffset lastUpdated, DateTimeOffset? updatedSince)
@@ -342,6 +360,9 @@ internal static class IncrementalProgressCli
         return string.Equals(status, "skipped", StringComparison.Ordinal) &&
                !string.IsNullOrWhiteSpace(entry.SkipReason)
             ? $" | {entry.SkipReason}"
+            : string.Equals(status, "failed", StringComparison.Ordinal) &&
+              !string.IsNullOrWhiteSpace(entry.FailureReason)
+                ? $" | {entry.FailureReason}"
             : string.Empty;
     }
 

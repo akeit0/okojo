@@ -1,11 +1,13 @@
 # Test262Runner
 
-`tools/Test262Runner` runs focused or broad Test262 slices against Okojo and can emit progress reports.
+`tools/Test262Runner` runs focused or broad Test262 slices against Okojo, can emit progress reports, and now
+isolates test execution in persistent child worker processes so per-test timeouts fail a case without killing the
+whole run.
 
 ## Build
 
 ```powershell
-dotnet build tools/Test262Runner/Test262Runner.csproj -c Release /p:UseSharedCompilation=false
+dotnet build .\tools\Test262Runner\Test262Runner.csproj -c Release
 ```
 
 ## Common Runs
@@ -13,14 +15,26 @@ dotnet build tools/Test262Runner/Test262Runner.csproj -c Release /p:UseSharedCom
 Full or broad run:
 
 ```powershell
-dotnet run --project tools/Test262Runner/Test262Runner.csproj -c Release -- --category built-ins
+dotnet run --project .\tools\Test262Runner\Test262Runner.csproj -c Release -- --category built-ins
 ```
 
 Focused continuation:
 
 ```powershell
-dotnet run --project tools/Test262Runner/Test262Runner.csproj -c Release -- --category built-ins --filter /Date/ --skip-passed
+dotnet run --project .\tools\Test262Runner\Test262Runner.csproj -c Release -- --category built-ins --filter /Date/ --skip-passed
 ```
+
+Timeout-focused sweep:
+
+```powershell
+dotnet run --project .\tools\Test262Runner\Test262Runner.csproj -c Release -- --filter test/staging --progress-doc --stop-on-long-test-seconds 8
+```
+
+Notes:
+
+- each runner thread reuses one child worker process for multiple tests
+- if a test exceeds the effective per-case timeout, only that worker is killed and restarted
+- timeout failures are recorded as normal failed cases (`long-running test exceeded <n>s` or `Timeout after <ms> ms`)
 
 ## Progress Outputs
 
@@ -117,31 +131,37 @@ Status columns:
 Read failed tests, skipped tests, and grouped progress from the incremental store:
 
 ```powershell
-dotnet run --project tools/Test262Runner/Test262Runner.csproj -c Release -- --query-incremental
+dotnet run --project .\tools\Test262Runner\Test262Runner.csproj -c Release -- --query-incremental
 ```
 
 Optional filters reuse the normal runner filters:
 
 ```powershell
-dotnet run --project tools/Test262Runner/Test262Runner.csproj -c Release -- --query-incremental --category built-ins --filter /Date/
+dotnet run --project .\tools\Test262Runner\Test262Runner.csproj -c Release -- --query-incremental --category built-ins --filter /Date/
 ```
 
 Status-only example:
 
 ```powershell
-dotnet run --project tools/Test262Runner/Test262Runner.csproj -c Release -- --query-incremental --status failed --group-by folder
+dotnet run --project .\tools\Test262Runner\Test262Runner.csproj -c Release -- --query-incremental --status failed --group-by folder
 ```
 
 Reason/timestamp example:
 
 ```powershell
-dotnet run --project tools/Test262Runner/Test262Runner.csproj -c Release -- --query-incremental --status skipped --reason "excluded feature" --updated-since 2026-03-11 --show-skipped
+dotnet run --project .\tools\Test262Runner\Test262Runner.csproj -c Release -- --query-incremental --status skipped --reason "excluded feature" --updated-since 2026-03-11 --show-skipped
 ```
 
 List/top example:
 
 ```powershell
-dotnet run --project tools/Test262Runner/Test262Runner.csproj -c Release -- --query-incremental --group-by feature --top 10 --list skipped --show-skipped
+dotnet run --project .\tools\Test262Runner\Test262Runner.csproj -c Release -- --query-incremental --group-by feature --top 10 --list skipped --show-skipped
+```
+
+Timeout failure example:
+
+```powershell
+dotnet run --project .\tools\Test262Runner\Test262Runner.csproj -c Release -- --query-incremental --status failed --reason "long-running test exceeded" --group-by none --list failed
 ```
 
 Notes:
@@ -149,7 +169,7 @@ Notes:
 - default source is `TEST262_PROGRESS_INCREMENTAL.json`
 - `--query-incremental <path>` can point to another incremental json file
 - `--status` supports `failed`, `skipped`, `passed`, `not-yet`
-- `--reason` filters skipped entries by reason substring
+- `--reason` filters failed and skipped entries by reason substring
 - `--updated-since` filters entries by latest test update time
 - `--group-by` supports `all`, `category`, `folder`, `feature`, `none`
 - `--list` supports `failed`, `skipped`, `passed`, `not-yet`, `all`, `none`
@@ -160,4 +180,5 @@ Notes:
     - `By Feature`
     - status list selected by `--list`
 - skip reason summary
+- failure reason summary
 - `--show-skipped` without `--list` keeps the old failed+skipped behavior

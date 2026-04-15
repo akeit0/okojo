@@ -6,11 +6,19 @@ using Okojo.Runtime;
 //Console.WriteLine($"StackFrame {Unsafe.SizeOf<StackFrame>()}");
 //Console.WriteLine($"SavedCallFrame {Unsafe.SizeOf<SavedCallFrame>()}");
 //return;
-var source = ScriptSourceLoader.LoadScenario("pure-function-call");
 
-var managedVm = JsRuntime.Create().DefaultRealm;
-managedVm.Execute(new JsCompiler(managedVm).Compile(JavaScriptParser.ParseScript(source)));
-var function = (JsBytecodeFunction)managedVm.Accumulator.AsObject();
-for (var i = 0; i < 40000; i++) managedVm.Execute(function);
+using var rt = JsRuntime.CreateBuilder()
+    .UseAgent(agent =>
+    {
+        agent.SetExecutionTimeout(TimeSpan.FromSeconds(2));
+        agent.SetMaxInstructions(100_000);
+        agent.SetCheckInterval(1000);
+    })
+    .Build();
+var realm = rt.MainRealm;
+var agent = realm.Agent;
+agent.SetCheckInterval(10000);
+realm.Evaluate("while(true){}");
+    // rt.MainRealm.Evaluate("++++++++++++[");
 //Thread.Sleep(2);
 // Console.WriteLine(result.ToString());

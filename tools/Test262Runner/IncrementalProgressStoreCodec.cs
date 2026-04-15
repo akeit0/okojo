@@ -24,6 +24,7 @@ internal static class IncrementalProgressStoreCodec
                 features,
                 DecodeStatus(entry.S),
                 entry.K,
+                entry.M,
                 DecodeSkipSpecStatus(entry.T),
                 entry.U == 0 ? DateTimeOffset.MinValue : DateTimeOffset.FromUnixTimeSeconds(entry.U));
         }).ToArray();
@@ -45,6 +46,7 @@ internal static class IncrementalProgressStoreCodec
                 entry.Path,
                 EncodeStatus(entry.Status),
                 string.IsNullOrWhiteSpace(entry.SkipReason) ? null : entry.SkipReason,
+                string.IsNullOrWhiteSpace(entry.FailureReason) ? null : entry.FailureReason,
                 EncodeSkipSpecStatus(entry.SkipSpecStatus),
                 entry.LastUpdated == DateTimeOffset.MinValue ? 0 : entry.LastUpdated.ToUnixTimeSeconds(),
                 entry.Features.Count == 0 ? null : entry.Features.Select(feature => featureIndex[feature]).ToArray()))
@@ -114,6 +116,9 @@ internal static class IncrementalProgressStoreCodec
         [property: JsonPropertyName("k")]
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         string? K,
+        [property: JsonPropertyName("m")]
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        string? M,
         [property: JsonPropertyName("t")]
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         byte T,

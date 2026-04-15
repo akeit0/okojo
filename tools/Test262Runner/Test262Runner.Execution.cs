@@ -29,6 +29,7 @@ internal static partial class Program
         HarnessAssets harness,
         RunnerProgressState progress,
         Stopwatch runSw,
+        string resolvedRoot,
         string repoRoot,
         Test262Options options,
         Action<string> log,
@@ -59,9 +60,6 @@ internal static partial class Program
             parallelCandidates.Add(candidate);
         }
 
-        var exclusiveCandidatePaths = exclusiveCandidates.Select(static candidate => candidate.Path)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
         var workerCount = Math.Max(1, Math.Min(options.Parallelism, Math.Max(1, parallelCandidates.Count)));
         var logGate = new object();
         var nextIndex = -1;
@@ -69,10 +67,9 @@ internal static partial class Program
         var stoppedByTotalTimeout = false;
         var workers = new Thread[workerCount];
 
-        void ExecuteCandidate(TestFileCandidate candidate)
+        void ExecuteCandidate(TestFileCandidate candidate, WorkerChildProcess worker)
         {
             var path = candidate.Path;
-            var meta = candidate.Metadata;
             var normalizedPath = NormalizeCachePath(path);
             progress.MarkWorking(normalizedPath);
 
@@ -85,111 +82,25 @@ internal static partial class Program
 
             try
             {
-                var harnessSource = BuildHarnessSource(harness, meta);
-                var source = File.ReadAllText(path);
-                var isExclusiveCandidate = exclusiveCandidatePaths.Contains(path);
-                var isAtomicsCandidate = path.Replace('\\', '/')
-                    .Contains("/built-ins/Atomics/", StringComparison.OrdinalIgnoreCase);
-                var isLegacySuite = path.Contains($"{Path.DirectorySeparatorChar}suite{Path.DirectorySeparatorChar}",
-                                        StringComparison.OrdinalIgnoreCase) ||
-                                    path.Contains("/suite/", StringComparison.OrdinalIgnoreCase) ||
-                                    path.Contains("\\suite\\", StringComparison.OrdinalIgnoreCase);
-                var isModuleCase = IsModuleCase(meta, path);
-                var strictModes = isModuleCase
-                    ? new[] { true }
-                    : meta.Flags.Contains("onlyStrict")
-                        ? new[] { true }
-                        : meta.Flags.Contains("noStrict")
-                            ? new[] { false }
-                            : isLegacySuite
-                                ? new[] { false }
-                                : new[] { false, true };
-
-                var allPassed = true;
-                var failReason = string.Empty;
-                var fileTimings = default(RunnerCaseTimings);
-
-                void ResetRunState()
-                {
-                    allPassed = true;
-                    failReason = string.Empty;
-                    fileTimings = default;
-                }
-
-                void RunModes()
-                {
-                    foreach (var strict in strictModes)
-                    {
-                        var effectiveTimeoutMs = options.TimeoutMs;
-                        if (options.StopOnLongTestSeconds > 0)
-                        {
-                            var longTimeoutMs = checked(options.StopOnLongTestSeconds * 1000);
-                            if (effectiveTimeoutMs <= 0 || longTimeoutMs < effectiveTimeoutMs)
-                                effectiveTimeoutMs = longTimeoutMs;
-                        }
-
-                        if (!RunCase(source, harnessSource, strict, meta.IsNegative, meta.Flags.Contains("async"),
-                                isModuleCase, path,
-                                effectiveTimeoutMs, repoRoot, options.FullPath, options, out var message,
-                                out var caseTimings))
-                        {
-                            fileTimings.Add(caseTimings);
-                            if (message.Contains("With statements are not supported in Okojo"))
-                            {
-                                skipped.Add((path, SkipList.FormatReason("with statement not supported")));
-                                progress.RecordTimings(fileTimings);
-                                progress.IncrementCompleted();
-                                progress.IncrementExecuted();
-                                allPassed = false;
-                                failReason = "__SKIPPED__";
-                                return;
-                            }
-
-                            allPassed = false;
-                            failReason = $"{(strict ? "strict" : "sloppy")}: {message}";
-                            if (options.StopOnLongTestSeconds > 0 &&
-                                message.StartsWith("Timeout after ", StringComparison.Ordinal))
-                            {
-                                failed.Add((path, $"long-running test exceeded {options.StopOnLongTestSeconds}s"));
-                                progress.RecordTimings(fileTimings);
-                                progress.IncrementFailed();
-                                progress.IncrementExecuted();
-                                progress.IncrementCompleted();
-                                failReason = "__FAILED_RECORDED__";
-                            }
-
-                            return;
-                        }
-
-                        fileTimings.Add(caseTimings);
-                    }
-                }
-
-                RunModes();
-
-                if ((isExclusiveCandidate || isAtomicsCandidate) &&
-                    !allPassed &&
-                    failReason is not "__SKIPPED__" and not "__FAILED_RECORDED__")
-                {
-                    ResetRunState();
-                    RunModes();
-                }
-
-                if (failReason == "__SKIPPED__" || failReason == "__FAILED_RECORDED__")
-                    return;
-
-                if (allPassed)
+                _ = harness;
+                var result = worker.ExecuteCandidate(candidate);
+                if (result.Outcome == CandidateOutcome.Passed)
                 {
                     passed.Add(path);
                     progress.IncrementPassed();
                 }
+                else if (result.Outcome == CandidateOutcome.Skipped)
+                {
+                    skipped.Add((path, result.Message));
+                    progress.IncrementSkipped();
+                }
                 else
                 {
-                    failed.Add((path, failReason));
+                    failed.Add((path, result.Message));
                     progress.IncrementFailed();
                 }
 
-                progress.RecordTimings(fileTimings);
+                progress.RecordTimings(result.Timings);
                 progress.IncrementExecuted();
                 progress.IncrementCompleted();
 
@@ -209,6 +120,7 @@ internal static partial class Program
 
         void WorkerLoop()
         {
+            using var worker = new WorkerChildProcess(resolvedRoot, repoRoot, options);
             while (Volatile.Read(ref stopRequested) == 0)
             {
                 var index = Interlocked.Increment(ref nextIndex);
@@ -218,7 +130,7 @@ internal static partial class Program
                 if (Volatile.Read(ref stopRequested) != 0)
                     return;
 
-                ExecuteCandidate(parallelCandidates[index]);
+                ExecuteCandidate(parallelCandidates[index], worker);
             }
         }
 
@@ -245,14 +157,6 @@ internal static partial class Program
             var progressInterval = options.ProgressSeconds > 0
                 ? TimeSpan.FromSeconds(options.ProgressSeconds)
                 : Timeout.InfiniteTimeSpan;
-            var effectivePerTestTimeoutMs = options.TimeoutMs;
-            if (options.StopOnLongTestSeconds > 0)
-            {
-                var longTimeoutMs = checked(options.StopOnLongTestSeconds * 1000);
-                if (effectivePerTestTimeoutMs <= 0 || longTimeoutMs < effectivePerTestTimeoutMs)
-                    effectivePerTestTimeoutMs = longTimeoutMs;
-            }
-
             var nextProgressAt = progressInterval == Timeout.InfiniteTimeSpan
                 ? Timeout.InfiniteTimeSpan
                 : progressInterval;
@@ -265,26 +169,6 @@ internal static partial class Program
                 {
                     stoppedByTotalTimeout = true;
                     Interlocked.Exchange(ref stopRequested, 1);
-                }
-
-                if (effectivePerTestTimeoutMs > 0)
-                {
-                    var timedOut = progress.GetWorkingSnapshot()
-                        .Where(item => item.Elapsed.TotalMilliseconds > effectivePerTestTimeoutMs)
-                        .OrderByDescending(item => item.Elapsed)
-                        .ToArray();
-                    if (timedOut.Length != 0)
-                    {
-                        lock (logGate)
-                        {
-                            log($"Hard timeout: worker exceeded {effectivePerTestTimeoutMs} ms.");
-                            foreach (var item in timedOut)
-                                log(
-                                    $"  - {MakeDisplayPath(repoRoot, item.Path, options.FullPath)} ({item.Elapsed.TotalSeconds:F1}s)");
-                        }
-
-                        Environment.Exit(124);
-                    }
                 }
 
                 if (progressInterval != Timeout.InfiniteTimeSpan &&
@@ -333,6 +217,7 @@ internal static partial class Program
         if (Volatile.Read(ref stopRequested) == 0)
         {
             var logExclusivePhase = options.UseRealTimers;
+            using var exclusiveWorker = new WorkerChildProcess(resolvedRoot, repoRoot, options);
             if (logExclusivePhase && exclusiveCandidates.Count != 0)
                 lock (logGate)
                 {
@@ -351,11 +236,99 @@ internal static partial class Program
                             $"[exclusive {i + 1}/{exclusiveCandidates.Count}] {MakeDisplayPath(repoRoot, exclusiveCandidates[i].Path, options.FullPath)}");
                     }
 
-                ExecuteCandidate(exclusiveCandidates[i]);
+                ExecuteCandidate(exclusiveCandidates[i], exclusiveWorker);
             }
         }
 
         return stoppedByTotalTimeout;
+    }
+
+    private static CandidateExecutionResult ExecuteCandidateCore(
+        TestFileCandidate candidate,
+        HarnessAssets harness,
+        string repoRoot,
+        Test262Options options)
+    {
+        var path = candidate.Path;
+        var meta = candidate.Metadata;
+        var harnessSource = BuildHarnessSource(harness, meta);
+        var source = File.ReadAllText(path);
+        var normalizedPath = path.Replace('\\', '/');
+        var isAtomicsCandidate = normalizedPath.Contains("/built-ins/Atomics/", StringComparison.OrdinalIgnoreCase);
+        var isExclusiveCandidate = isAtomicsCandidate && RequiresExclusiveExecution(path, source);
+        var isLegacySuite = path.Contains($"{Path.DirectorySeparatorChar}suite{Path.DirectorySeparatorChar}",
+                                StringComparison.OrdinalIgnoreCase) ||
+                            path.Contains("/suite/", StringComparison.OrdinalIgnoreCase) ||
+                            path.Contains("\\suite\\", StringComparison.OrdinalIgnoreCase);
+        var isModuleCase = IsModuleCase(meta, path);
+        var strictModes = isModuleCase
+            ? new[] { true }
+            : meta.Flags.Contains("onlyStrict")
+                ? new[] { true }
+                : meta.Flags.Contains("noStrict")
+                    ? new[] { false }
+                    : isLegacySuite
+                        ? new[] { false }
+                        : new[] { false, true };
+        var outcome = CandidateOutcome.Passed;
+        var message = "ok";
+        var canRetry = false;
+        var fileTimings = default(RunnerCaseTimings);
+
+        void ResetRunState()
+        {
+            outcome = CandidateOutcome.Passed;
+            message = "ok";
+            canRetry = false;
+            fileTimings = default;
+        }
+
+        void RunModes()
+        {
+            foreach (var strict in strictModes)
+            {
+                var effectiveTimeoutMs = GetEffectiveCaseTimeoutMs(options);
+                if (RunCase(source, harnessSource, strict, meta.IsNegative, meta.Flags.Contains("async"), isModuleCase,
+                        path, effectiveTimeoutMs, repoRoot, options.FullPath, options, out var runMessage,
+                        out var caseTimings))
+                {
+                    fileTimings.Add(caseTimings);
+                    continue;
+                }
+
+                fileTimings.Add(caseTimings);
+                if (runMessage.Contains("With statements are not supported in Okojo", StringComparison.Ordinal))
+                {
+                    outcome = CandidateOutcome.Skipped;
+                    message = SkipList.FormatReason("with statement not supported");
+                    canRetry = false;
+                    return;
+                }
+
+                outcome = CandidateOutcome.Failed;
+                message = $"{(strict ? "strict" : "sloppy")}: {runMessage}";
+                canRetry = true;
+                if (options.StopOnLongTestSeconds > 0 &&
+                    runMessage.StartsWith("Timeout after ", StringComparison.Ordinal))
+                {
+                    message = $"long-running test exceeded {options.StopOnLongTestSeconds}s";
+                    canRetry = false;
+                }
+
+                return;
+            }
+        }
+
+        RunModes();
+        if ((isExclusiveCandidate || isAtomicsCandidate) &&
+            outcome == CandidateOutcome.Failed &&
+            canRetry)
+        {
+            ResetRunState();
+            RunModes();
+        }
+
+        return new(outcome, message, fileTimings);
     }
 
     private static bool RunCase(

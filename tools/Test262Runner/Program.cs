@@ -9,6 +9,18 @@ internal static partial class Program
         var options = Test262Options.Parse(args);
         var resolvedRoot = ResolveRootPath(options.Root);
         var repoRoot = FindRepoRoot(resolvedRoot);
+        if (options.WorkerMode)
+        {
+            RunWorkerProcess(resolvedRoot, repoRoot, options);
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(options.SingleTestPath))
+        {
+            RunSingleTestProcess(resolvedRoot, repoRoot, options);
+            return;
+        }
+
         if (options.QueryIncremental)
         {
             IncrementalProgressCli.Run(
@@ -134,6 +146,7 @@ internal static partial class Program
             harness,
             progress,
             runSw,
+            resolvedRoot,
             repoRoot,
             options,
             Log,
