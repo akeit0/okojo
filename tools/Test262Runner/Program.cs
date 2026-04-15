@@ -46,6 +46,8 @@ internal static partial class Program
         var progressOutput = ResolveProgressOutput(options, repoRoot, resolvedRoot);
         var progressDocPath = progressOutput.DocPath;
         var progressJsonPath = progressOutput.JsonPath;
+        var hasProgressOutputs = !string.IsNullOrWhiteSpace(progressDocPath) ||
+                                 !string.IsNullOrWhiteSpace(progressJsonPath);
         var report = new StringBuilder();
 
         void Log(string line = "")
@@ -219,7 +221,7 @@ internal static partial class Program
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
         File.WriteAllText(outputPath, report.ToString(), new UTF8Encoding(false));
 
-        if (!string.IsNullOrWhiteSpace(progressDocPath))
+        if (hasProgressOutputs)
         {
             var progressSnapshot = BuildProgressSnapshot(
                 repoRoot,
@@ -232,9 +234,10 @@ internal static partial class Program
                 failed,
                 skipped);
 
-            WriteProgressDoc(
-                progressDocPath,
-                progressSnapshot);
+            if (!string.IsNullOrWhiteSpace(progressDocPath))
+                WriteProgressDoc(
+                    progressDocPath,
+                    progressSnapshot);
 
             if (!string.IsNullOrWhiteSpace(progressJsonPath))
                 WriteProgressJson(progressJsonPath, progressSnapshot);
@@ -262,7 +265,7 @@ internal static partial class Program
             Log($"Progress doc written: {MakeDisplayPath(repoRoot, progressDocPath, options.FullPath)}");
         if (!string.IsNullOrWhiteSpace(progressJsonPath))
             Log($"Progress json written: {MakeDisplayPath(repoRoot, progressJsonPath, options.FullPath)}");
-        if (!string.IsNullOrWhiteSpace(progressDocPath))
+        if (hasProgressOutputs)
         {
             var incrementalOutput = ResolveIncrementalProgressOutput(repoRoot);
             Log(
