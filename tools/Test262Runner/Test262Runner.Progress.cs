@@ -103,7 +103,7 @@ internal static partial class Program
         foreach (var item in universe)
             if (!entryByPath.ContainsKey(item.Path))
                 entryByPath[item.Path] = new(item.Path, item.RelativePath, item.Features.ToArray(), "not-yet", null,
-                    null, DateTimeOffset.MinValue);
+                    null, null, DateTimeOffset.MinValue);
 
         var currentStatuses = BuildCurrentStatusMap(files, runnable, skipped, passedCache, passed, failed,
             options.SkipPassed, resolvedRoot);
@@ -119,6 +119,7 @@ internal static partial class Program
                 existing.Features,
                 status.Status,
                 status.SkipReason,
+                status.FailureReason,
                 status.SkipSpecStatus,
                 now);
         }
@@ -197,26 +198,26 @@ internal static partial class Program
         {
             var path = GetProgressRelativePath(candidate.Path, resolvedRoot);
             if (runnableSet.Contains(path) || (skipPassed && passedCacheSet.Contains(path)))
-                statuses[path] = new("not-yet", null, null);
+                statuses[path] = new("not-yet", null, null, null);
         }
 
         foreach (var path in passed)
-            statuses[GetProgressRelativePath(path, resolvedRoot)] = new("passed", null, null);
+            statuses[GetProgressRelativePath(path, resolvedRoot)] = new("passed", null, null, null);
 
-        foreach (var (path, _) in failed)
-            statuses[GetProgressRelativePath(path, resolvedRoot)] = new("failed", null, null);
+        foreach (var (path, message) in failed)
+            statuses[GetProgressRelativePath(path, resolvedRoot)] = new("failed", null, message, null);
 
         foreach (var (path, reason) in skipped)
         {
             var normalized = GetProgressRelativePath(path, resolvedRoot);
             if (string.Equals(reason, "already passed cache", StringComparison.OrdinalIgnoreCase))
             {
-                statuses[normalized] = new("passed", null, null);
+                statuses[normalized] = new("passed", null, null, null);
                 continue;
             }
 
             var skipInfo = ResolveSkipInfo(reason);
-            statuses[normalized] = new("skipped", skipInfo.Reason, skipInfo.SpecStatus);
+            statuses[normalized] = new("skipped", skipInfo.Reason, null, skipInfo.SpecStatus);
         }
 
         return statuses;
@@ -648,6 +649,7 @@ internal static partial class Program
     private sealed record CurrentProgressStatus(
         string Status,
         string? SkipReason,
+        string? FailureReason,
         string? SkipSpecStatus);
 
     private sealed record IncrementalBuildResult(

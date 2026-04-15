@@ -840,7 +840,7 @@ internal static partial class Program
             Console.WriteLine("  --category <name[,name]>    Category/path filter (repeatable)");
             Console.WriteLine("  --feature <name[,name]>     Include tests requiring these features (repeatable)");
             Console.WriteLine("  --status <name[,name]>      Query status filter: failed, skipped, passed, not-yet");
-            Console.WriteLine("  --reason <text>             Query skip reason substring filter");
+            Console.WriteLine("  --reason <text>             Query failed/skip reason substring filter");
             Console.WriteLine("  --updated-since <date>      Query only tests updated on/after the given date");
             Console.WriteLine("  --group-by <name>           Query grouping: all, category, folder, feature, none");
             Console.WriteLine(
