@@ -657,6 +657,45 @@ public class ModuleExecutionGapTests
         Assert.That(ex.InnerException, Is.TypeOf<InvalidOperationException>());
     }
 
+    [Test]
+    public void EvaluateModule_TopLevel_Using_And_AwaitUsing_Dispose_During_Module_Completion()
+    {
+        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
+        {
+            ["/mods/main.js"] = """
+                                export const order = [];
+                                await using a = {
+                                  async [Symbol.asyncDispose]() {
+                                    await 0;
+                                    order.push("dispose-a");
+                                  }
+                                };
+                                using b = {
+                                  [Symbol.dispose]() {
+                                    order.push("dispose-b");
+                                  }
+                                };
+                                order.push("body");
+                                """
+        });
+
+        var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
+        var realm = engine.MainRealm;
+        var ns = engine.MainAgent.EvaluateModule(realm, "/mods/main.js");
+        Assert.That(ns.TryGetObject(out var nsObj), Is.True);
+        Assert.That(nsObj, Is.Not.Null);
+        Assert.That(nsObj!.TryGetProperty("order", out var orderValue), Is.True);
+        Assert.That(orderValue.TryGetObject(out var orderObj), Is.True);
+        Assert.That(orderObj, Is.InstanceOf<JsArray>());
+        var order = (JsArray)orderObj!;
+        Assert.That(order.TryGetElement(0, out var first), Is.True);
+        Assert.That(order.TryGetElement(1, out var second), Is.True);
+        Assert.That(order.TryGetElement(2, out var third), Is.True);
+        Assert.That(first.AsString(), Is.EqualTo("body"));
+        Assert.That(second.AsString(), Is.EqualTo("dispose-b"));
+        Assert.That(third.AsString(), Is.EqualTo("dispose-a"));
+    }
+
     private sealed class ThrowingResolveModuleLoader : IModuleSourceLoader
     {
         public string ResolveSpecifier(string specifier, string? referrer)

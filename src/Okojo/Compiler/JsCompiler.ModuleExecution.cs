@@ -170,37 +170,49 @@ public sealed partial class JsCompiler
         enableAliasScopeRegisterAllocation = true;
         try
         {
-            for (var i = 0; i < executionPlan.Operations.Count; i++)
+            void EmitModuleExecutionOps()
             {
-                var op = executionPlan.Operations[i];
-                switch (op.Kind)
+                for (var i = 0; i < executionPlan.Operations.Count; i++)
                 {
-                    case ModuleExecutionOpKind.ExecuteStatement:
-                        if (op.Statement is null)
-                            throw new InvalidOperationException("Module execution op missing statement.");
-                        VisitStatement(op.Statement);
-                        if (StatementAlwaysReturns(op.Statement) || StatementNeverCompletesNormally(op.Statement))
-                            alwaysReturns = true;
-                        break;
-                    case ModuleExecutionOpKind.ExportDefaultExpression:
-                        if (op.Expression is null)
-                            throw new InvalidOperationException(
-                                "Module execution op missing default-export expression.");
-                        if (string.IsNullOrEmpty(op.ExportLocalName))
-                            throw new InvalidOperationException(
-                                "Module execution default-export op missing local export name.");
-                        EmitExportDefaultOperation(op.Expression, op.ExportLocalName, op.SetDefaultName);
-                        break;
-                    case ModuleExecutionOpKind.InitializeHoistedDefaultExport:
-                        EmitLdaTheHole();
-                        break;
-                    default:
-                        throw new InvalidOperationException("Unknown module execution op kind.");
-                }
+                    var op = executionPlan.Operations[i];
+                    switch (op.Kind)
+                    {
+                        case ModuleExecutionOpKind.ExecuteStatement:
+                            if (op.Statement is null)
+                                throw new InvalidOperationException("Module execution op missing statement.");
+                            VisitStatement(op.Statement);
+                            if (StatementAlwaysReturns(op.Statement) || StatementNeverCompletesNormally(op.Statement))
+                                alwaysReturns = true;
+                            break;
+                        case ModuleExecutionOpKind.ExportDefaultExpression:
+                            if (op.Expression is null)
+                            {
+                                throw new InvalidOperationException(
+                                    "Module execution op missing default-export expression.");
+                            }
+                            if (string.IsNullOrEmpty(op.ExportLocalName))
+                            {
+                                throw new InvalidOperationException(
+                                    "Module execution default-export op missing local export name.");
+                            }
+                            EmitExportDefaultOperation(op.Expression, op.ExportLocalName, op.SetDefaultName);
+                            break;
+                        case ModuleExecutionOpKind.InitializeHoistedDefaultExport:
+                            EmitLdaTheHole();
+                            break;
+                        default:
+                            throw new InvalidOperationException("Unknown module execution op kind.");
+                    }
 
-                if (alwaysReturns)
-                    break;
+                    if (alwaysReturns)
+                        break;
+                }
             }
+
+            if (executionPlan.HasTopLevelUsingLike)
+                EmitModuleTopLevelExplicitResourceScope(EmitModuleExecutionOps, executionPlan.HasTopLevelAwaitUsingLike);
+            else
+                EmitModuleExecutionOps();
         }
         finally
         {

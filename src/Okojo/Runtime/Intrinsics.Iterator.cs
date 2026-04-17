@@ -541,20 +541,31 @@ public partial class Intrinsics
         var asyncDisposeFn = new JsHostFunction(Realm, (in info) =>
         {
             var realm = info.Realm;
-            var thisValue = info.ThisValue;
-            if (!thisValue.TryGetObject(out var iteratorObj))
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "AsyncIterator.prototype[Symbol.asyncDispose] called on incompatible receiver");
-
-            if (iteratorObj.TryGetPropertyAtom(realm, IdReturn, out var returnValue, out _) &&
-                !returnValue.IsUndefined && !returnValue.IsNull)
+            try
             {
-                var result = CallIteratorHelperMethod(realm, returnValue, iteratorObj,
-                    "AsyncIterator return must be callable");
-                return realm.PromiseResolveValue(result);
-            }
+                var thisValue = info.ThisValue;
+                if (!thisValue.TryGetObject(out var iteratorObj))
+                {
+                    throw new JsRuntimeException(JsErrorKind.TypeError,
+                        "AsyncIterator.prototype[Symbol.asyncDispose] called on incompatible receiver");
+                }
 
-            return realm.PromiseResolveValue(JsValue.Undefined);
+                if (iteratorObj.TryGetPropertyAtom(realm, IdReturn, out var returnValue, out _) &&
+                    !returnValue.IsUndefined && !returnValue.IsNull)
+                {
+                    var result = CallIteratorHelperMethod(realm, returnValue, iteratorObj,
+                        "AsyncIterator return must be callable");
+                    return realm.PromiseResolveValue(result);
+                }
+
+                return realm.PromiseResolveValue(JsValue.Undefined);
+            }
+            catch (JsRuntimeException ex)
+            {
+                var promise = realm.CreatePromiseObject();
+                realm.RejectPromise(promise, realm.GetPromiseAbruptReason(ex));
+                return promise;
+            }
         }, "[Symbol.asyncDispose]", 0);
 
         var fromFn = new JsHostFunction(Realm, (in info) =>

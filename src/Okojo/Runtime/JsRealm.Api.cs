@@ -1,6 +1,7 @@
 using Okojo.Bytecode;
 using Okojo.Compiler;
 using Okojo.Parsing;
+using Okojo.Runtime.Interop;
 
 namespace Okojo.Runtime;
 
@@ -22,6 +23,38 @@ public sealed partial class JsRealm
     public JsValue Eval(string source, bool pumpJobsAfterRun = true)
     {
         return Evaluate(source, pumpJobsAfterRun);
+    }
+
+    public ValueTask<JsValue> EvaluateAsync(string source, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        var replTopLevelLexicalNames = new HashSet<string>(StringComparer.Ordinal);
+        var replTopLevelConstNames = new HashSet<string>(StringComparer.Ordinal);
+        var compileContext = new JsCompilerContext
+        {
+            IsRepl = true,
+            ReplTopLevelLexicalNames = replTopLevelLexicalNames,
+            ReplTopLevelConstNames = replTopLevelConstNames
+        };
+        var program = JavaScriptParser.ParseScript(source, false, false, true, "<eval>");
+        var script = program.HasTopLevelAwait
+            ? JsCompiler.Compile(this, program, compileContext, JsBytecodeFunctionKind.Async)
+            : JsCompiler.Compile(this, program, compileContext);
+
+        if (!program.HasTopLevelAwait)
+        {
+            Execute(script);
+            return AwaitEvaluatedValueAsync(Accumulator, cancellationToken);
+        }
+
+        var root = new JsBytecodeFunction(
+            this,
+            script,
+            "root",
+            isStrict: script.StrictDeclared,
+            kind: JsBytecodeFunctionKind.Async);
+        var rawResult = Call(root, JsValue.FromObject(GlobalObject));
+        return AwaitEvaluatedValueAsync(rawResult, cancellationToken);
     }
 
     public JsValue Import(string specifier, string? referrer = null)
@@ -69,5 +102,27 @@ public sealed partial class JsRealm
     {
         var program = JavaScriptParser.ParseScript(source);
         return JsCompiler.Compile(this, program);
+    }
+
+    private async ValueTask<JsValue> AwaitEvaluatedValueAsync(
+        JsValue value,
+        CancellationToken cancellationToken)
+    {
+        if (!value.TryGetObject(out var obj) || obj is not JsPromiseObject promise)
+            return value;
+
+        while (promise.IsPending)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            PumpJobs();
+            if (!promise.IsPending)
+                break;
+            await Task.Yield();
+        }
+
+        if (promise.IsRejected)
+            throw new PromiseRejectedException(promise.SettledResult);
+
+        return promise.SettledResult;
     }
 }

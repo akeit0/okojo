@@ -14,6 +14,7 @@ artifacts/*
 logs/*
 TEST262_PROGRESS_HISTORY/*
 TEST262_PROGRESS_INCREMENTAL.json
+TEST262_PROGRESS.json
 .dotnet/*
 benchmarks/Okojo.Benchmarks/*.log
 benchmarks/Okojo.Benchmarks/artifacts/*

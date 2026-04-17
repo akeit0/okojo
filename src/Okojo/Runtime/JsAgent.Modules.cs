@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using Okojo.Compiler;
 using Okojo.Parsing;
+using Okojo.Runtime.Interop;
 
 namespace Okojo.Runtime;
 
@@ -374,6 +375,7 @@ public sealed partial class JsAgent
             targetNode.EvaluationStarted = true;
             if (targetNode.RequiresTopLevelAwait)
                 EnsureAsyncEvaluationState(targetNode, targetRealm);
+            EnsureModuleExplicitResourceStack(targetNode, targetRealm, targetPlan.ExecutionPlan);
 
             PushModuleRuntimeBindings(targetNode.ExecutionBindings!);
             try
@@ -393,8 +395,11 @@ public sealed partial class JsAgent
                 catch (Exception ex)
                 {
                     var wrapped = WrapModuleExecutionException(targetResolvedId, ex);
-                    FailModuleEvaluation(targetNode, targetResolvedId, targetRealm,
-                        wrapped.ThrownValue ?? targetRealm.CreateErrorObjectFromException(wrapped), wrapped);
+                    FinalizeModuleExecution(targetNode, targetResolvedId, targetRealm,
+                        new(
+                            ModuleExecutionCompletionKind.Throw,
+                            wrapped.ThrownValue ?? targetRealm.CreateErrorObjectFromException(wrapped),
+                            wrapped));
                     if (shouldWait)
                     {
                         if (wrapped == ex) throw;
@@ -414,7 +419,8 @@ public sealed partial class JsAgent
                     return;
                 }
 
-                CompleteModuleEvaluation(targetNode, targetRealm);
+                FinalizeModuleExecution(targetNode, targetResolvedId, targetRealm,
+                    new(ModuleExecutionCompletionKind.Normal, JsValue.Undefined, null));
                 if (shouldWait)
                     WaitForPendingTopLevelAwait(targetNode, targetResolvedId, targetRealm);
             }
@@ -429,7 +435,75 @@ public sealed partial class JsAgent
         {
             var onFulfilled = new JsHostFunction(targetRealm, (in info) =>
             {
-                CompleteModuleEvaluation(targetNode, info.Realm);
+                FinalizeModuleExecution(targetNode, targetResolvedId, info.Realm,
+                    new(ModuleExecutionCompletionKind.Normal, JsValue.Undefined, null));
+                return JsValue.Undefined;
+            }, string.Empty, 0);
+            var onRejected = new JsHostFunction(targetRealm, (in info) =>
+            {
+                var reason = info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0];
+                FinalizeModuleExecution(targetNode, targetResolvedId, info.Realm,
+                    new(ModuleExecutionCompletionKind.Throw, reason, null));
+                return JsValue.Undefined;
+            }, string.Empty, 1);
+            _ = targetRealm.PromiseThen(
+                executionPromise,
+                JsValue.FromObject(onFulfilled),
+                JsValue.FromObject(onRejected));
+        }
+
+        void FinalizeModuleExecution(ModuleRecordNode targetNode, string targetResolvedId, JsRealm targetRealm,
+            ModuleExecutionCompletion completion)
+        {
+            var explicitResourceStack = targetNode.ExecutionBindings?.ExplicitResourceStack;
+            if (explicitResourceStack is null || explicitResourceStack.IsDisposed)
+            {
+                if (completion.IsAbrupt)
+                    FailModuleEvaluation(targetNode, targetResolvedId, targetRealm, completion.Value, completion.Failure);
+                else
+                    CompleteModuleEvaluation(targetNode, targetRealm);
+                return;
+            }
+
+            JsValue cleanupResult;
+            try
+            {
+                cleanupResult = targetRealm.Intrinsics.DisposeCompilerDisposableStack(
+                    explicitResourceStack,
+                    (int)completion.Kind,
+                    completion.Value);
+            }
+            catch (Exception ex)
+            {
+                var cleanupReason = GetModuleCleanupExceptionReason(targetRealm, ex);
+                var cleanupFailure = ex as JsRuntimeException ??
+                                     CreateModuleAwaitRejectedException(targetResolvedId, cleanupReason);
+                FailModuleEvaluation(targetNode, targetResolvedId, targetRealm, cleanupReason, cleanupFailure);
+                return;
+            }
+
+            if (cleanupResult.TryGetObject(out var cleanupObj) && cleanupObj is JsPromiseObject cleanupPromise)
+            {
+                EnsureAsyncEvaluationState(targetNode, targetRealm);
+                AttachModuleCleanupPromise(targetNode, targetResolvedId, targetRealm, cleanupPromise, completion);
+                return;
+            }
+
+            if (completion.IsAbrupt)
+                FailModuleEvaluation(targetNode, targetResolvedId, targetRealm, completion.Value, completion.Failure);
+            else
+                CompleteModuleEvaluation(targetNode, targetRealm);
+        }
+
+        void AttachModuleCleanupPromise(ModuleRecordNode targetNode, string targetResolvedId, JsRealm targetRealm,
+            JsPromiseObject cleanupPromise, ModuleExecutionCompletion completion)
+        {
+            var onFulfilled = new JsHostFunction(targetRealm, (in info) =>
+            {
+                if (completion.IsAbrupt)
+                    FailModuleEvaluation(targetNode, targetResolvedId, info.Realm, completion.Value, completion.Failure);
+                else
+                    CompleteModuleEvaluation(targetNode, info.Realm);
                 return JsValue.Undefined;
             }, string.Empty, 0);
             var onRejected = new JsHostFunction(targetRealm, (in info) =>
@@ -439,9 +513,23 @@ public sealed partial class JsAgent
                 return JsValue.Undefined;
             }, string.Empty, 1);
             _ = targetRealm.PromiseThen(
-                executionPromise,
+                cleanupPromise,
                 JsValue.FromObject(onFulfilled),
                 JsValue.FromObject(onRejected));
+        }
+
+        void EnsureModuleExplicitResourceStack(ModuleRecordNode targetNode, JsRealm targetRealm,
+            ModuleExecutionPlan executionPlan)
+        {
+            if (!executionPlan.HasTopLevelUsingLike)
+                return;
+
+            var bindings = targetNode.ExecutionBindings!;
+            if (bindings.ExplicitResourceStack is null)
+            {
+                bindings.ExplicitResourceStack = targetRealm.Intrinsics.CreateCompilerDisposableStack(
+                    executionPlan.HasTopLevelAwaitUsingLike);
+            }
         }
 
         void CompleteModuleEvaluation(ModuleRecordNode targetNode, JsRealm targetRealm)
@@ -830,6 +918,21 @@ public sealed partial class JsAgent
             $"Top-level await module '{resolvedId}' rejected",
             "MODULE_TOP_LEVEL_AWAIT_REJECTED",
             reason);
+    }
+
+    private static JsValue GetModuleCleanupExceptionReason(JsRealm realm, Exception ex)
+    {
+        return ex switch
+        {
+            PromiseRejectedException promiseRejected => promiseRejected.Reason,
+            JsRuntimeException runtime => runtime.ThrownValue ?? realm.CreateErrorObjectFromException(runtime),
+            _ => realm.CreateErrorObjectFromException(new JsRuntimeException(
+                JsErrorKind.InternalError,
+                ex.Message,
+                null,
+                null,
+                ex))
+        };
     }
 
     internal string ResolveModuleSpecifierOrThrow(string specifier, string? referrer)
@@ -1403,6 +1506,19 @@ public sealed partial class JsAgent
             bindings = moduleRuntimeBindings.Peek();
             return true;
         }
+    }
+
+    internal Okojo.Objects.JsDisposableStackObject GetCurrentModuleExplicitResourceStack()
+    {
+        var bindings = GetCurrentModuleRuntimeBindings();
+        if (bindings.ExplicitResourceStack is null)
+        {
+            throw new JsRuntimeException(
+                JsErrorKind.InternalError,
+                "Current module does not have an explicit resource stack");
+        }
+
+        return bindings.ExplicitResourceStack;
     }
 
     internal bool TryGetCurrentModuleResolvedId(out string resolvedId)

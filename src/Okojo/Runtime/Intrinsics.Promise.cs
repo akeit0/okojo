@@ -366,8 +366,7 @@ public partial class Intrinsics
 
     private StaticNamedPropertyLayout CreatePromiseWithResolversResultShape()
     {
-        var promiseAtom = Atoms.InternNoCheck("promise");
-        var shape = Realm.EmptyShape.GetOrAddTransition(promiseAtom, JsShapePropertyFlags.Open, out var promiseInfo);
+        var shape = Realm.EmptyShape.GetOrAddTransition(IdPromise, JsShapePropertyFlags.Open, out var promiseInfo);
         shape = shape.GetOrAddTransition(IdResolve, JsShapePropertyFlags.Open, out var resolveInfo);
         shape = shape.GetOrAddTransition(IdReject, JsShapePropertyFlags.Open, out var rejectInfo);
         Debug.Assert(promiseInfo.Slot == PromiseWithResolversPromiseSlot);

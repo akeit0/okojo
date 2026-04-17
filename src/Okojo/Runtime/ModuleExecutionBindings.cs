@@ -15,4 +15,5 @@ internal sealed class ModuleExecutionBindings(
     public ModuleVariableSlot[] RegularImports { get; } = regularImports;
     public JsValue SetFunctionName { get; } = setFunctionName;
     public JsContext? TopLevelContext { get; set; }
+    public JsDisposableStackObject? ExplicitResourceStack { get; set; }
 }

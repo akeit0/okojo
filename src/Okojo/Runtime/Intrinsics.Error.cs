@@ -1,7 +1,18 @@
+using System.Diagnostics;
+
 namespace Okojo.Runtime;
 
 public partial class Intrinsics
 {
+    private const int SuppressedErrorErrorSlot = 0;
+    private const int SuppressedErrorSuppressedSlot = 1;
+    private const int SuppressedErrorWithMessageMessageSlot = 0;
+    private const int SuppressedErrorWithMessageErrorSlot = 1;
+    private const int SuppressedErrorWithMessageSuppressedSlot = 2;
+
+    private StaticNamedPropertyLayout? suppressedErrorShape;
+    private StaticNamedPropertyLayout? suppressedErrorWithMessageShape;
+
     private JsHostFunction CreateErrorConstructor()
     {
         return CreateNativeErrorConstructor("Error", ErrorPrototype);
@@ -33,6 +44,77 @@ public partial class Intrinsics
 
             return err;
         }, "AggregateError", 2, true);
+    }
+
+    private JsHostFunction CreateSuppressedErrorConstructor()
+    {
+        return new(Realm, (in info) =>
+        {
+            var realm = info.Realm;
+            var args = info.Arguments;
+            var prototype = GetPrototypeFromConstructorOrIntrinsic(info.NewTarget, (JsHostFunction)info.Function,
+                SuppressedErrorPrototype);
+            if (args.Length > 2 && !args[2].IsUndefined)
+            {
+                var message = JsValue.FromString(realm.ToJsStringSlowPath(args[2]));
+                return CreateSuppressedErrorInstance(prototype,
+                    args.Length > 0 ? args[0] : JsValue.Undefined,
+                    args.Length > 1 ? args[1] : JsValue.Undefined,
+                    message);
+            }
+
+            return CreateSuppressedErrorInstance(prototype,
+                args.Length > 0 ? args[0] : JsValue.Undefined,
+                args.Length > 1 ? args[1] : JsValue.Undefined);
+        }, "SuppressedError", 3, true);
+    }
+
+    private JsPlainObject CreateSuppressedErrorInstance(JsObject prototype, in JsValue error, in JsValue suppressed,
+        JsValue? message = null)
+    {
+        if (message is JsValue messageValue)
+        {
+            var shape = suppressedErrorWithMessageShape ??= CreateSuppressedErrorWithMessageShape();
+            var err = new JsPlainObject(shape, false)
+            {
+                Prototype = prototype
+            };
+            err.SetNamedSlotUnchecked(SuppressedErrorWithMessageMessageSlot, messageValue);
+            err.SetNamedSlotUnchecked(SuppressedErrorWithMessageErrorSlot, error);
+            err.SetNamedSlotUnchecked(SuppressedErrorWithMessageSuppressedSlot, suppressed);
+            return err;
+        }
+
+        var baseShape = suppressedErrorShape ??= CreateSuppressedErrorShape();
+        var result = new JsPlainObject(baseShape, false)
+        {
+            Prototype = prototype
+        };
+        result.SetNamedSlotUnchecked(SuppressedErrorErrorSlot, error);
+        result.SetNamedSlotUnchecked(SuppressedErrorSuppressedSlot, suppressed);
+        return result;
+    }
+
+    private StaticNamedPropertyLayout CreateSuppressedErrorShape()
+    {
+        var flags = JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable;
+        var shape = Realm.EmptyShape.GetOrAddTransition(IdErrorProperty, flags, out var errorInfo);
+        shape = shape.GetOrAddTransition(IdSuppressed, flags, out var suppressedInfo);
+        Debug.Assert(errorInfo.Slot == SuppressedErrorErrorSlot);
+        Debug.Assert(suppressedInfo.Slot == SuppressedErrorSuppressedSlot);
+        return shape;
+    }
+
+    private StaticNamedPropertyLayout CreateSuppressedErrorWithMessageShape()
+    {
+        var flags = JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable;
+        var shape = Realm.EmptyShape.GetOrAddTransition(IdMessage, flags, out var messageInfo);
+        shape = shape.GetOrAddTransition(IdErrorProperty, flags, out var errorInfo);
+        shape = shape.GetOrAddTransition(IdSuppressed, flags, out var suppressedInfo);
+        Debug.Assert(messageInfo.Slot == SuppressedErrorWithMessageMessageSlot);
+        Debug.Assert(errorInfo.Slot == SuppressedErrorWithMessageErrorSlot);
+        Debug.Assert(suppressedInfo.Slot == SuppressedErrorWithMessageSuppressedSlot);
+        return shape;
     }
 
     internal JsHostFunction CreateNativeErrorConstructor(string name, JsObject prototype)
@@ -128,6 +210,8 @@ public partial class Intrinsics
             return targetRealm.FunctionPrototype;
         if (ReferenceEquals(intrinsicDefaultPrototype, sourceRealm.AggregateErrorPrototype))
             return targetRealm.AggregateErrorPrototype;
+        if (ReferenceEquals(intrinsicDefaultPrototype, sourceRealm.SuppressedErrorPrototype))
+            return targetRealm.SuppressedErrorPrototype;
         if (ReferenceEquals(intrinsicDefaultPrototype, sourceRealm.GeneratorFunctionPrototype))
             return targetRealm.GeneratorFunctionPrototype;
         if (ReferenceEquals(intrinsicDefaultPrototype, sourceRealm.AsyncFunctionPrototype))
@@ -181,6 +265,10 @@ public partial class Intrinsics
             return targetRealm.BooleanPrototype;
         if (ReferenceEquals(intrinsicDefaultPrototype, sourceRealm.PromisePrototype))
             return targetRealm.PromisePrototype;
+        if (ReferenceEquals(intrinsicDefaultPrototype, sourceRealm.DisposableStackPrototype))
+            return targetRealm.DisposableStackPrototype;
+        if (ReferenceEquals(intrinsicDefaultPrototype, sourceRealm.AsyncDisposableStackPrototype))
+            return targetRealm.AsyncDisposableStackPrototype;
         if (ReferenceEquals(intrinsicDefaultPrototype, sourceRealm.DatePrototype))
             return targetRealm.DatePrototype;
         if (ReferenceEquals(intrinsicDefaultPrototype, sourceRealm.RegExpPrototype))
@@ -297,6 +385,7 @@ public partial class Intrinsics
 
         UriErrorConstructor.InitializePrototypeProperty(UriErrorPrototype);
         AggregateErrorConstructor.InitializePrototypeProperty(AggregateErrorPrototype);
+        SuppressedErrorConstructor.InitializePrototypeProperty(SuppressedErrorPrototype);
 
         Span<PropertyDefinition> typeProtoDefs =
         [
@@ -353,5 +442,13 @@ public partial class Intrinsics
             PropertyDefinition.Mutable(IdMessage, JsValue.FromString(string.Empty))
         ];
         AggregateErrorPrototype.DefineNewPropertiesNoCollision(Realm, aggregateProtoDefs);
+
+        Span<PropertyDefinition> suppressedProtoDefs =
+        [
+            PropertyDefinition.Mutable(IdConstructor, JsValue.FromObject(SuppressedErrorConstructor)),
+            PropertyDefinition.Mutable(IdName, JsValue.FromString("SuppressedError")),
+            PropertyDefinition.Mutable(IdMessage, JsValue.FromString(string.Empty))
+        ];
+        SuppressedErrorPrototype.DefineNewPropertiesNoCollision(Realm, suppressedProtoDefs);
     }
 }

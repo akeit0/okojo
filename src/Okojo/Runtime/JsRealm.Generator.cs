@@ -149,7 +149,18 @@ public sealed partial class JsRealm
     internal JsValue ExecuteGeneratorFromContinuation(JsGeneratorObject generator)
     {
         if (!generator.HasContinuation)
-            throw new InvalidOperationException("Generator continuation is missing.");
+        {
+            if (generator.SuspendId >= 0 && generator.ResumePc > 0)
+            {
+                if (generator.State == GeneratorState.Executing)
+                    generator.State = GeneratorState.SuspendedYield;
+                generator.HasContinuation = true;
+            }
+            else
+            {
+                throw new InvalidOperationException("Generator continuation is missing.");
+            }
+        }
         ThrowIfManagedRunDepthExceeded();
         var callerFp = fp;
         var newFp = StackTop;
