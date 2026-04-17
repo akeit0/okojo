@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text;
 using Okojo.Annotations;
 using Okojo.Compiler;
@@ -309,6 +310,61 @@ public sealed class ManualAsyncHostBindingSample : IHostBindable
                         info.Realm.WrapTask(AwaitEcho(info.Realm.ToTask<string>(info.GetArgument(0)))),
                     functionLength: 1)
             ]);
+    }
+}
+
+public sealed class ManualAsyncEnumerableHostBindingSample : IHostBindable
+{
+    private static readonly HostBinding HostBinding = CreateHostBinding();
+
+    private readonly int[] values;
+
+    public ManualAsyncEnumerableHostBindingSample(params int[] values)
+    {
+        this.values = values;
+    }
+
+    HostBinding IHostBindable.GetHostBinding()
+    {
+        return HostBinding;
+    }
+
+    private Enumerator GetAsyncEnumerator()
+    {
+        return new(values);
+    }
+
+    private static HostBinding CreateHostBinding()
+    {
+        return new(typeof(ManualAsyncEnumerableHostBindingSample), [], [])
+        {
+            AsyncEnumerator = new(
+                static target => ((ManualAsyncEnumerableHostBindingSample)target).GetAsyncEnumerator(),
+                static state => ((Enumerator)state).MoveNextAsync(),
+                static state => ((Enumerator)state).Current,
+                static state => ((Enumerator)state).DisposeAsync())
+        };
+    }
+
+    private sealed class Enumerator(int[] values)
+    {
+        private int index = -1;
+
+        public int Current { get; private set; }
+
+        public ValueTask<bool> MoveNextAsync()
+        {
+            index++;
+            if (index >= values.Length)
+                return ValueTask.FromResult(false);
+            Current = values[index];
+            return ValueTask.FromResult(true);
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            return ValueTask.CompletedTask;
+        }
     }
 }
 
@@ -856,6 +912,172 @@ public class HostInteropTests
     }
 
     [Test]
+    public void ClrHostObjectsSupportPatternIteratorReturnAndPrimitiveConversion()
+    {
+        var realm = CreateClrRealm();
+        var host = new PatternEnumerableHostSample([1, 2, 3]);
+        realm.Global["host"] = realm.WrapHostValue(host);
+
+        var value = realm.Eval("""
+                              (() => {
+                                const iter = host[Symbol.iterator]();
+                                const first = iter.next();
+                                const closed = iter.return("stop");
+                                const after = iter.next();
+                                return [
+                                  typeof host[Symbol.iterator],
+                                  first.value,
+                                  closed.value,
+                                  closed.done,
+                                  after.done
+                                ].join("|");
+                              })()
+                              """);
+
+        Assert.That(value.IsString, Is.True);
+        Assert.That(value.AsString(), Is.EqualTo("function|1|stop|true|true"));
+        Assert.That(host.DisposeCount, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task ClrHostObjectsSupportPatternAsyncEnumerableConversionAndReturnDisposal()
+    {
+        var realm = CreateClrRealm();
+        var host = new PatternAsyncEnumerableHostSample([1, 2, 3]);
+        realm.Global["host"] = realm.WrapHostValue(host);
+
+        var value = await realm.EvalAsync("""
+                                           (async () => {
+                                             const iter = host[Symbol.asyncIterator]();
+                                             const first = await iter.next();
+                                             const closed = await iter.return("done");
+                                             const after = await iter.next();
+                                             const collected = await Array.fromAsync(host);
+                                             return [
+                                               typeof host[Symbol.asyncIterator],
+                                               first.value,
+                                               closed.value,
+                                               closed.done,
+                                               after.done,
+                                               collected.join(",")
+                                             ].join("|");
+                                           })()
+                                           """);
+
+        Assert.That(value.IsString, Is.True);
+        Assert.That(value.AsString(), Is.EqualTo("function|1|done|true|true|1,2,3"));
+        Assert.That(host.DisposeAsyncCount, Is.EqualTo(2));
+    }
+
+    [Test]
+    public async Task ClrHostObjectsForAwaitBreakClosesPatternAsyncEnumerator()
+    {
+        var realm = CreateClrRealm();
+        var host = new PatternAsyncEnumerableHostSample([1, 2, 3]);
+        realm.Global["host"] = realm.WrapHostValue(host);
+
+        var value = await realm.EvalAsync("""
+                                           (async () => {
+                                             const values = [];
+                                             for await (const value of host) {
+                                               values.push(value);
+                                               break;
+                                             }
+                                             return values.join("|");
+                                           })()
+                                           """);
+
+        Assert.That(value.IsString, Is.True);
+        Assert.That(value.AsString(), Is.EqualTo("1"));
+        Assert.That(host.DisposeAsyncCount, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task ClrHostObjectsForAwaitBreakClosesPatternSyncEnumeratorViaAsyncFromSync()
+    {
+        var realm = CreateClrRealm();
+        var host = new PatternEnumerableHostSample([1, 2, 3]);
+        realm.Global["host"] = realm.WrapHostValue(host);
+
+        var value = await realm.EvalAsync("""
+                                           (async () => {
+                                             const values = [];
+                                             for await (const value of host) {
+                                               values.push(value);
+                                               break;
+                                             }
+                                             return values.join("|");
+                                           })()
+                                           """);
+
+        Assert.That(value.IsString, Is.True);
+        Assert.That(value.AsString(), Is.EqualTo("1"));
+        Assert.That(host.DisposeCount, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task ManualHostBindingSupportsAsyncEnumerableConversion()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        realm.Global["host"] = realm.WrapHostValue(new ManualAsyncEnumerableHostBindingSample(4, 5, 6));
+
+        var value = await realm.EvalAsync("""
+                                           (async () => {
+                                             const result = await Array.fromAsync(host);
+                                             return result.join("|");
+                                           })()
+                                           """);
+
+        Assert.That(value.IsString, Is.True);
+        Assert.That(value.AsString(), Is.EqualTo("4|5|6"));
+    }
+
+    [Test]
+    public async Task ClrHostMethodReturningCompilerGeneratedAsyncEnumerable_Disposes_OnForAwaitBreak()
+    {
+        var realm = CreateClrRealm();
+        var host = new CompilerGeneratedAsyncEnumerableHostSample();
+        realm.Global["host"] = realm.WrapHostValue(host);
+
+        var value = await realm.EvalAsync("""
+                                           (async () => {
+                                             const values = [];
+                                             for await (const value of host.SampleAsync()) {
+                                               values.push(value);
+                                               break;
+                                             }
+                                             return values.join("|");
+                                           })()
+                                           """);
+
+        Assert.That(value.IsString, Is.True);
+        Assert.That(value.AsString(), Is.EqualTo("1"));
+        Assert.That(host.DisposeCount, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task ClrHostMethodReturningCompilerGeneratedAsyncEnumerable_Disposes_AfterFullIteration()
+    {
+        var realm = CreateClrRealm();
+        var host = new CompilerGeneratedAsyncEnumerableHostSample();
+        realm.Global["host"] = realm.WrapHostValue(host);
+
+        var value = await realm.EvalAsync("""
+                                           (async () => {
+                                             const values = [];
+                                             for await (const value of host.SampleAsync()) {
+                                               values.push(value);
+                                             }
+                                             return values.join("|");
+                                           })()
+                                           """);
+
+        Assert.That(value.IsString, Is.True);
+        Assert.That(value.AsString(), Is.EqualTo("1|2|3|4|5|6|7|8|9|10"));
+        Assert.That(host.DisposeCount, Is.EqualTo(1));
+    }
+
+    [Test]
     public void ClrHelpersSupportRefOutPlaceholdersAndTypedNull()
     {
         var engine = JsRuntime.Create(options => options
@@ -1299,6 +1521,92 @@ public class HostInteropTests
             {
                 GetterOnlyReadCount++;
                 return 123;
+            }
+        }
+    }
+
+    private sealed class PatternEnumerableHostSample(int[] values)
+    {
+        public int DisposeCount { get; private set; }
+
+        public Enumerator GetEnumerator()
+        {
+            return new(this, values);
+        }
+
+        public sealed class Enumerator(PatternEnumerableHostSample owner, int[] values)
+        {
+            private int index = -1;
+
+            public int Current { get; private set; }
+
+            public bool MoveNext()
+            {
+                index++;
+                if (index >= values.Length)
+                    return false;
+                Current = values[index];
+                return true;
+            }
+
+            public void Dispose()
+            {
+                owner.DisposeCount++;
+            }
+        }
+    }
+
+    private sealed class PatternAsyncEnumerableHostSample(int[] values)
+    {
+        public int DisposeAsyncCount { get; private set; }
+
+        public AsyncEnumerator GetAsyncEnumerator()
+        {
+            return new(this, values);
+        }
+
+        public sealed class AsyncEnumerator(PatternAsyncEnumerableHostSample owner, int[] values)
+        {
+            private int index = -1;
+
+            public int Current { get; private set; }
+
+            public ValueTask<bool> MoveNextAsync()
+            {
+                index++;
+                if (index >= values.Length)
+                    return ValueTask.FromResult(false);
+                Current = values[index];
+                return ValueTask.FromResult(true);
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                owner.DisposeAsyncCount++;
+                return ValueTask.CompletedTask;
+            }
+        }
+    }
+
+    private sealed class CompilerGeneratedAsyncEnumerableHostSample
+    {
+        public int DisposeCount { get; private set; }
+
+        public async IAsyncEnumerable<int> SampleAsync()
+        {
+            using var deferLike = new DisposeTracker(this);
+            foreach (var item in Enumerable.Range(1, 10))
+            {
+                await Task.Delay(1);
+                yield return item;
+            }
+        }
+
+        private sealed class DisposeTracker(CompilerGeneratedAsyncEnumerableHostSample owner) : IDisposable
+        {
+            public void Dispose()
+            {
+                owner.DisposeCount++;
             }
         }
     }

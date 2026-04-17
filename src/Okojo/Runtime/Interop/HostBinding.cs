@@ -39,4 +39,5 @@ public sealed class HostBinding(
     public HostMemberBinding[] StaticMembers { get; } = staticMembers;
     public HostIndexerBinding? Indexer { get; init; }
     public HostEnumeratorBinding? Enumerator { get; init; }
+    public HostAsyncEnumeratorBinding? AsyncEnumerator { get; init; }
 }

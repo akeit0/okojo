@@ -35,6 +35,7 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
     public HostTypeDescriptor CreateHostTypeDescriptor(JsAgent agent, Type clrType, int typeId)
     {
         var binding = HostBindingResolver.TryGetHostBinding(clrType);
+        binding = AugmentAsyncEnumerableBinding(clrType, binding);
         return HostTypeDescriptor.Create(clrType, typeId, binding);
     }
 
@@ -56,6 +57,41 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
             Array.Copy(staticLayout.SlotTemplate, function.Slots, staticLayout.SlotTemplate.Length);
         state.TypeFunctions.Add(type, function);
         return function;
+    }
+
+    private static HostBinding? AugmentAsyncEnumerableBinding(Type clrType, HostBinding? binding)
+    {
+        if (binding?.AsyncEnumerator is not null)
+            return binding;
+
+        var asyncEnumerableInterface = clrType.GetInterfaces()
+            .FirstOrDefault(static x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IAsyncEnumerable<>));
+        if (asyncEnumerableInterface is null)
+            return binding;
+
+        var elementType = asyncEnumerableInterface.GetGenericArguments()[0];
+        var factory = typeof(ClrInteropProvider).GetMethod(nameof(CreateAsyncEnumerableBinding),
+                          BindingFlags.NonPublic | BindingFlags.Static)!
+            .MakeGenericMethod(elementType);
+        var asyncBinding = (HostAsyncEnumeratorBinding)factory.Invoke(null, null)!;
+        if (binding is null)
+            return new HostBinding(clrType, [], []) { AsyncEnumerator = asyncBinding };
+
+        return new HostBinding(binding.ClrType, binding.InstanceMembers, binding.StaticMembers)
+        {
+            Indexer = binding.Indexer,
+            Enumerator = binding.Enumerator,
+            AsyncEnumerator = asyncBinding
+        };
+    }
+
+    private static HostAsyncEnumeratorBinding CreateAsyncEnumerableBinding<T>()
+    {
+        return new(
+            static target => ((IAsyncEnumerable<T>)target).GetAsyncEnumerator(),
+            static state => ((IAsyncEnumerator<T>)state).MoveNextAsync(),
+            static state => ((IAsyncEnumerator<T>)state).Current,
+            static state => ((IAsyncEnumerator<T>)state).DisposeAsync());
     }
 
     public bool TryConvertTaskObjectToJsValue(JsRealm realm, object value, out JsValue jsValue)

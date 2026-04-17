@@ -2,6 +2,8 @@ using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Okojo.Runtime.Interop;
 
@@ -18,7 +20,8 @@ internal sealed class HostTypeDescriptor
         HostNamedMemberDescriptor[] namedMembers,
         HostNamedMemberDescriptor[] staticNamedMembers,
         HostIndexerDescriptor? indexer,
-        HostEnumeratorDescriptor? enumerator)
+        HostEnumeratorDescriptor? enumerator,
+        HostAsyncEnumeratorDescriptor? asyncEnumerator)
     {
         ClrType = clrType;
         TypeId = typeId;
@@ -26,6 +29,7 @@ internal sealed class HostTypeDescriptor
         StaticNamedMembers = staticNamedMembers;
         Indexer = indexer;
         Enumerator = enumerator;
+        AsyncEnumerator = asyncEnumerator;
     }
 
     internal Type ClrType { get; }
@@ -34,7 +38,9 @@ internal sealed class HostTypeDescriptor
     internal HostNamedMemberDescriptor[] StaticNamedMembers { get; }
     internal HostIndexerDescriptor? Indexer { get; }
     internal HostEnumeratorDescriptor? Enumerator { get; }
+    internal HostAsyncEnumeratorDescriptor? AsyncEnumerator { get; }
     internal bool SupportsSyncIteration => Enumerator is not null;
+    internal bool SupportsAsyncIteration => AsyncEnumerator is not null;
 
     internal static HostTypeDescriptor Create(
         [DynamicallyAccessedMembers(
@@ -58,9 +64,12 @@ internal sealed class HostTypeDescriptor
             ? new(manualIndexer.Getter, manualIndexer.Setter, manualIndexer.CollectOwnIndices)
             : CreateIndexer(clrType);
         var enumerator = binding?.Enumerator is { } manualEnumerator
-            ? new(manualEnumerator.GetEnumerator)
+            ? new(manualEnumerator.CreateEnumerator)
             : FindEnumerator(clrType);
-        return new(clrType, typeId, members, staticMembers, indexer, enumerator);
+        var asyncEnumerator = binding?.AsyncEnumerator is { } manualAsyncEnumerator
+            ? new(manualAsyncEnumerator.CreateEnumerator)
+            : FindAsyncEnumerator(clrType);
+        return new(clrType, typeId, members, staticMembers, indexer, enumerator, asyncEnumerator);
     }
 
     internal HostRealmLayoutInfo GetOrCreateRealmLayout(JsRealm realm)
@@ -350,15 +359,236 @@ internal sealed class HostTypeDescriptor
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)]
         Type clrType)
     {
-        var method = clrType.GetMethods(BindingFlags.Instance | BindingFlags.Public)
-            .Where(static x => x.Name == "GetEnumerator" &&
+        foreach (var method in clrType.GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                     .Where(static x => x.Name == "GetEnumerator" &&
+                                        !x.IsStatic &&
+                                        x.GetParameters().Length == 0)
+                     .OrderBy(static x => x.MetadataToken))
+            if (TryCreateEnumeratorDescriptor(method, out var descriptor))
+                return descriptor;
+
+        return null;
+    }
+
+    private static HostAsyncEnumeratorDescriptor? FindAsyncEnumerator(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)]
+        Type clrType)
+    {
+        MethodInfo? cancellationTokenCandidate = null;
+        foreach (var method in clrType.GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                     .Where(static x => x.Name == "GetAsyncEnumerator" && !x.IsStatic)
+                     .OrderBy(static x => x.MetadataToken))
+        {
+            var parameters = method.GetParameters();
+            if (parameters.Length == 0)
+            {
+                if (TryCreateAsyncEnumeratorDescriptor(method, false, out var descriptor))
+                    return descriptor;
+                continue;
+            }
+
+            if (parameters.Length == 1 && parameters[0].ParameterType == typeof(CancellationToken))
+                cancellationTokenCandidate ??= method;
+        }
+
+        return cancellationTokenCandidate is not null &&
+               TryCreateAsyncEnumeratorDescriptor(cancellationTokenCandidate, true, out var asyncDescriptor)
+            ? asyncDescriptor
+            : null;
+    }
+
+    [UnconditionalSuppressMessage("Trimming", "IL2072",
+        Justification = "Reflection-based host iteration intentionally inspects public members on the returned enumerator type.")]
+    private static bool TryCreateEnumeratorDescriptor(MethodInfo method, [NotNullWhen(true)] out HostEnumeratorDescriptor? descriptor)
+    {
+        descriptor = null;
+        if (!TryCreateEnumeratorAdapterFactory(method.ReturnType, out var createAdapter))
+            return false;
+
+        descriptor = new(target =>
+        {
+            var enumerator = method.Invoke(target, null)
+                             ?? throw new InvalidOperationException("GetEnumerator returned null.");
+            return createAdapter(enumerator);
+        });
+        return true;
+    }
+
+    [UnconditionalSuppressMessage("Trimming", "IL2072",
+        Justification = "Reflection-based host async iteration intentionally inspects public members on the returned enumerator type.")]
+    private static bool TryCreateAsyncEnumeratorDescriptor(
+        MethodInfo method,
+        bool passCancellationToken,
+        [NotNullWhen(true)] out HostAsyncEnumeratorDescriptor? descriptor)
+    {
+        descriptor = null;
+        if (!TryCreateAsyncEnumeratorAdapterFactory(method.ReturnType, out var createAdapter))
+            return false;
+
+        descriptor = new(target =>
+        {
+            object?[]? args = passCancellationToken ? [CancellationToken.None] : null;
+            var enumerator = method.Invoke(target, args)
+                             ?? throw new InvalidOperationException("GetAsyncEnumerator returned null.");
+            return createAdapter(enumerator);
+        });
+        return true;
+    }
+
+    private static bool TryCreateEnumeratorAdapterFactory(
+        [DynamicallyAccessedMembers(
+            DynamicallyAccessedMemberTypes.PublicMethods |
+            DynamicallyAccessedMemberTypes.PublicProperties)]
+        Type enumeratorType,
+        [NotNullWhen(true)] out Func<object, HostEnumeratorAdapter>? createAdapter)
+    {
+        if (typeof(IEnumerator).IsAssignableFrom(enumeratorType))
+        {
+            createAdapter = static enumerator => HostEnumeratorAdapter.FromInterface((IEnumerator)enumerator);
+            return true;
+        }
+
+        var moveNext = FindMethod(enumeratorType, "MoveNext", typeof(bool));
+        var current = FindCurrentProperty(enumeratorType);
+        if (moveNext is null || current is null)
+        {
+            createAdapter = null;
+            return false;
+        }
+
+        var dispose = CreateDisposeAction(enumeratorType);
+        createAdapter = enumerator => new HostEnumeratorAdapter(
+            enumerator,
+            state => (bool)moveNext.Invoke(state, null)!,
+            state => current.GetValue(state),
+            dispose);
+        return true;
+    }
+
+    private static bool TryCreateAsyncEnumeratorAdapterFactory(
+        [DynamicallyAccessedMembers(
+            DynamicallyAccessedMemberTypes.PublicMethods |
+            DynamicallyAccessedMemberTypes.PublicProperties)]
+        Type enumeratorType,
+        [NotNullWhen(true)] out Func<object, HostAsyncEnumeratorAdapter>? createAdapter)
+    {
+        var moveNextAsync = CreateMoveNextAsync(enumeratorType);
+        var current = FindCurrentProperty(enumeratorType);
+        if (moveNextAsync is null || current is null)
+        {
+            createAdapter = null;
+            return false;
+        }
+
+        var disposeAsync = CreateDisposeAsync(enumeratorType);
+        createAdapter = enumerator => new HostAsyncEnumeratorAdapter(
+            enumerator,
+            moveNextAsync,
+            state => current.GetValue(state),
+            disposeAsync);
+        return true;
+    }
+
+    private static PropertyInfo? FindCurrentProperty(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties)]
+        Type enumeratorType)
+    {
+        return enumeratorType.GetProperty("Current", BindingFlags.Instance | BindingFlags.Public, null, null,
+            Type.EmptyTypes, null);
+    }
+
+    private static MethodInfo? FindMethod(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)]
+        Type type,
+        string name,
+        Type returnType)
+    {
+        return type.GetMethods(BindingFlags.Instance | BindingFlags.Public)
+            .Where(x => x.Name == name &&
+                        !x.IsStatic &&
+                        x.GetParameters().Length == 0 &&
+                        x.ReturnType == returnType)
+            .OrderBy(x => x.MetadataToken)
+            .FirstOrDefault();
+    }
+
+    private static Action<object>? CreateDisposeAction(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)]
+        Type enumeratorType)
+    {
+        if (typeof(IDisposable).IsAssignableFrom(enumeratorType))
+            return static state => ((IDisposable)state).Dispose();
+
+        var disposeMethod = FindMethod(enumeratorType, "Dispose", typeof(void));
+        return disposeMethod is null
+            ? null
+            : state => { _ = disposeMethod.Invoke(state, null); };
+    }
+
+    private static Func<object, ValueTask<bool>>? CreateMoveNextAsync(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)]
+        Type enumeratorType)
+    {
+        var moveNextAsync = enumeratorType.GetMethods(BindingFlags.Instance | BindingFlags.Public)
+            .Where(static x => x.Name == "MoveNextAsync" &&
                                !x.IsStatic &&
                                x.GetParameters().Length == 0)
             .OrderBy(static x => x.MetadataToken)
             .FirstOrDefault();
-        if (method is null)
+        if (moveNextAsync is null)
             return null;
-        return new(target => (IEnumerator)method.Invoke(target, null)!);
+
+        if (moveNextAsync.ReturnType == typeof(ValueTask<bool>))
+            return state => (ValueTask<bool>)moveNextAsync.Invoke(state, null)!;
+        if (moveNextAsync.ReturnType == typeof(Task<bool>))
+            return state => new ValueTask<bool>((Task<bool>)moveNextAsync.Invoke(state, null)!);
+        if (moveNextAsync.ReturnType == typeof(bool))
+            return state => new ValueTask<bool>((bool)moveNextAsync.Invoke(state, null)!);
+
+        return null;
+    }
+
+    private static Func<object, ValueTask>? CreateDisposeAsync(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)]
+        Type enumeratorType)
+    {
+        if (typeof(IAsyncDisposable).IsAssignableFrom(enumeratorType))
+            return static state => ((IAsyncDisposable)state).DisposeAsync();
+        if (typeof(IDisposable).IsAssignableFrom(enumeratorType))
+            return static state =>
+            {
+                ((IDisposable)state).Dispose();
+                return ValueTask.CompletedTask;
+            };
+
+        var disposeAsyncMethod = enumeratorType.GetMethods(BindingFlags.Instance | BindingFlags.Public)
+            .Where(static x => x.Name == "DisposeAsync" &&
+                               !x.IsStatic &&
+                               x.GetParameters().Length == 0)
+            .OrderBy(static x => x.MetadataToken)
+            .FirstOrDefault();
+        if (disposeAsyncMethod is not null)
+        {
+            if (disposeAsyncMethod.ReturnType == typeof(ValueTask))
+                return state => (ValueTask)disposeAsyncMethod.Invoke(state, null)!;
+            if (disposeAsyncMethod.ReturnType == typeof(Task))
+                return state => new ValueTask((Task)disposeAsyncMethod.Invoke(state, null)!);
+            if (disposeAsyncMethod.ReturnType == typeof(void))
+                return state =>
+                {
+                    _ = disposeAsyncMethod.Invoke(state, null);
+                    return ValueTask.CompletedTask;
+                };
+        }
+
+        var disposeMethod = FindMethod(enumeratorType, "Dispose", typeof(void));
+        return disposeMethod is null
+            ? null
+            : state =>
+            {
+                _ = disposeMethod.Invoke(state, null);
+                return ValueTask.CompletedTask;
+            };
     }
 
     private static JsHostObject RequireHostObject(JsRealm realm, JsValue value, Type receiverType, string memberName)

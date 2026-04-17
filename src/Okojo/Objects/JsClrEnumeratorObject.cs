@@ -1,10 +1,10 @@
-using System.Collections;
+using Okojo.Runtime.Interop;
 
 namespace Okojo.Objects;
 
 internal sealed class JsClrEnumeratorObject : JsObject
 {
-    private readonly IEnumerator enumerator;
+    private readonly HostEnumeratorAdapter enumerator;
     private bool completed;
 
     internal JsClrEnumeratorObject(JsRealm realm, JsHostObject host)
@@ -22,16 +22,26 @@ internal sealed class JsClrEnumeratorObject : JsObject
             return JsValue.FromObject(iterator.Next());
         }, "next", 0);
 
+        var returnFn = new JsHostFunction(realm, static (in info) =>
+        {
+            if (!info.ThisValue.TryGetObject(out var thisObj) || thisObj is not JsClrEnumeratorObject iterator)
+                throw new JsRuntimeException(JsErrorKind.TypeError,
+                    "CLR Enumerator return called on incompatible receiver");
+
+            return JsValue.FromObject(iterator.Return(info.GetArgumentOrDefault(0, JsValue.Undefined)));
+        }, "return", 1);
+
         DefineDataPropertyAtom(realm, IdNext, JsValue.FromObject(nextFn), JsShapePropertyFlags.Open);
+        DefineDataPropertyAtom(realm, IdReturn, JsValue.FromObject(returnFn), JsShapePropertyFlags.Open);
         DefineDataPropertyAtom(realm, IdSymbolIterator, JsValue.FromObject(realm.Intrinsics.IteratorSelfFunction),
             JsShapePropertyFlags.Open);
     }
 
-    private static IEnumerator CreateEnumerator(JsHostObject host)
+    private static HostEnumeratorAdapter CreateEnumerator(JsHostObject host)
     {
         var descriptor = host.Descriptor.Enumerator
                          ?? throw new InvalidOperationException("Host type does not expose GetEnumerator.");
-        return descriptor.GetEnumerator(host.Data);
+        return descriptor.CreateEnumerator(host.Data);
     }
 
     internal JsPlainObject Next()
@@ -41,11 +51,26 @@ internal sealed class JsClrEnumeratorObject : JsObject
 
         if (!enumerator.MoveNext())
         {
-            completed = true;
+            Close();
             return Realm.CreateIteratorResultObject(JsValue.Undefined, true);
         }
 
-        var current = HostValueConverter.ConvertToJsValue(Realm, enumerator.Current);
+        var current = enumerator.GetCurrentAsJsValue(Realm);
         return Realm.CreateIteratorResultObject(current, false);
+    }
+
+    internal JsPlainObject Return(in JsValue value)
+    {
+        Close();
+        return Realm.CreateIteratorResultObject(value, true);
+    }
+
+    private void Close()
+    {
+        if (completed)
+            return;
+
+        completed = true;
+        enumerator.Dispose();
     }
 }
