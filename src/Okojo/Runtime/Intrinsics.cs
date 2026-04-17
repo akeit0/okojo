@@ -102,6 +102,8 @@ public partial class Intrinsics
         UriErrorPrototype = new(realm, false) { Prototype = ErrorPrototype };
         AggregateErrorPrototype = new(realm, false)
             { Prototype = ErrorPrototype };
+        SuppressedErrorPrototype = new(realm, false)
+            { Prototype = ErrorPrototype };
         ErrorConstructor = CreateErrorConstructor();
         TypeErrorConstructor = CreateNativeErrorConstructor("TypeError", TypeErrorPrototype);
         ReferenceErrorConstructor = CreateNativeErrorConstructor("ReferenceError", ReferenceErrorPrototype);
@@ -111,6 +113,8 @@ public partial class Intrinsics
         UriErrorConstructor = CreateNativeErrorConstructor("URIError", UriErrorPrototype);
         AggregateErrorConstructor = CreateAggregateErrorConstructor();
         AggregateErrorConstructor.Prototype = ErrorConstructor;
+        SuppressedErrorConstructor = CreateSuppressedErrorConstructor();
+        SuppressedErrorConstructor.Prototype = ErrorConstructor;
         PromisePrototype = new(Realm, false) { Prototype = ObjectPrototype };
         PromiseConstructor = CreatePromiseConstructor();
         NumberConstructor = CreateNumberConstructor();
@@ -149,6 +153,10 @@ public partial class Intrinsics
 
         SymbolConstructor = CreateSymbolConstructor();
         ProxyConstructor = CreateProxyConstructor();
+        DisposableStackPrototype = new(Realm, false) { Prototype = ObjectPrototype };
+        AsyncDisposableStackPrototype = new(Realm, false) { Prototype = ObjectPrototype };
+        DisposableStackConstructor = CreateDisposableStackConstructor();
+        AsyncDisposableStackConstructor = CreateAsyncDisposableStackConstructor();
         AtomicsObject = CreateAtomicsObject();
         ThrowTypeErrorIntrinsic = new(Realm,
             static (in info) =>
@@ -218,6 +226,7 @@ public partial class Intrinsics
     internal JsHostFunction EvalErrorConstructor { get; }
     internal JsHostFunction UriErrorConstructor { get; }
     internal JsHostFunction AggregateErrorConstructor { get; }
+    internal JsHostFunction SuppressedErrorConstructor { get; }
     internal JsHostFunction NumberConstructor { get; }
     internal JsHostFunction BooleanConstructor { get; }
     internal JsHostFunction StringConstructor { get; }
@@ -240,6 +249,8 @@ public partial class Intrinsics
     internal JsHostFunction PromiseConstructor { get; }
     internal JsHostFunction SymbolConstructor { get; }
     internal JsHostFunction ProxyConstructor { get; }
+    internal JsHostFunction DisposableStackConstructor { get; }
+    internal JsHostFunction AsyncDisposableStackConstructor { get; }
     internal JsPlainObject AtomicsObject { get; }
     internal JsFunction ObjectPrototypeToStringIntrinsic { get; set; } = null!;
     internal JsHostFunction ThrowTypeErrorIntrinsic { get; }
@@ -251,9 +262,12 @@ public partial class Intrinsics
     internal JsPlainObject EvalErrorPrototype { get; }
     internal JsPlainObject UriErrorPrototype { get; }
     internal JsPlainObject AggregateErrorPrototype { get; }
+    internal JsPlainObject SuppressedErrorPrototype { get; }
     internal JsPlainObject PromisePrototype { get; }
     internal JsPlainObject RegExpPrototype { get; }
     internal JsPlainObject DatePrototype { get; }
+    internal JsPlainObject DisposableStackPrototype { get; }
+    internal JsPlainObject AsyncDisposableStackPrototype { get; }
 
     internal JsPlainObject GetTypedArrayPrototype(TypedArrayElementKind kind)
     {

@@ -26,6 +26,7 @@ public partial class Intrinsics
         InstallSymbolConstructorBuiltins();
         InstallPromiseConstructorBuiltins();
         InstallProxyConstructorBuiltins();
+        InstallExplicitResourceManagementBuiltins();
         InstallReflectBuiltins();
         InstallRegExpConstructorBuiltins();
         InstallDateConstructorBuiltins();
@@ -46,6 +47,7 @@ public partial class Intrinsics
         Realm.Global["EvalError"] = EvalErrorConstructor;
         Realm.Global["URIError"] = UriErrorConstructor;
         Realm.Global["AggregateError"] = AggregateErrorConstructor;
+        Realm.Global["SuppressedError"] = SuppressedErrorConstructor;
         Realm.Global["Number"] = NumberConstructor;
         Realm.Global["Boolean"] = BooleanConstructor;
         Realm.Global["String"] = StringConstructor;
@@ -104,6 +106,8 @@ public partial class Intrinsics
         Realm.Global["Symbol"] = SymbolConstructor;
         Realm.Global["Promise"] = PromiseConstructor;
         Realm.Global["Proxy"] = ProxyConstructor;
+        Realm.Global["DisposableStack"] = DisposableStackConstructor;
+        Realm.Global["AsyncDisposableStack"] = AsyncDisposableStackConstructor;
         Realm.Global["Reflect"] = CreateReflectObject();
         Realm.Global["Intl"] = CreateIntlObject();
         Realm.Global["Math"] = CreateMathObject();

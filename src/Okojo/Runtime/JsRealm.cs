@@ -225,6 +225,7 @@ public sealed partial class JsRealm
     internal JsHostFunction EvalErrorConstructor => Intrinsics.EvalErrorConstructor;
     internal JsHostFunction UriErrorConstructor => Intrinsics.UriErrorConstructor;
     internal JsHostFunction AggregateErrorConstructor => Intrinsics.AggregateErrorConstructor;
+    internal JsHostFunction SuppressedErrorConstructor => Intrinsics.SuppressedErrorConstructor;
     internal JsHostFunction NumberConstructor => Intrinsics.NumberConstructor;
     internal JsHostFunction BooleanConstructor => Intrinsics.BooleanConstructor;
     internal JsHostFunction StringConstructor => Intrinsics.StringConstructor;
@@ -247,6 +248,8 @@ public sealed partial class JsRealm
     internal JsHostFunction PromiseConstructor => Intrinsics.PromiseConstructor;
     internal JsHostFunction SymbolConstructor => Intrinsics.SymbolConstructor;
     internal JsHostFunction ProxyConstructor => Intrinsics.ProxyConstructor;
+    internal JsHostFunction DisposableStackConstructor => Intrinsics.DisposableStackConstructor;
+    internal JsHostFunction AsyncDisposableStackConstructor => Intrinsics.AsyncDisposableStackConstructor;
     internal JsPlainObject AtomicsObject => Intrinsics.AtomicsObject;
     internal JsFunction ObjectPrototypeToStringIntrinsic => Intrinsics.ObjectPrototypeToStringIntrinsic;
     internal JsHostFunction ThrowTypeErrorIntrinsic => Intrinsics.ThrowTypeErrorIntrinsic;
@@ -258,9 +261,12 @@ public sealed partial class JsRealm
     internal JsPlainObject EvalErrorPrototype => Intrinsics.EvalErrorPrototype;
     internal JsPlainObject UriErrorPrototype => Intrinsics.UriErrorPrototype;
     internal JsPlainObject AggregateErrorPrototype => Intrinsics.AggregateErrorPrototype;
+    internal JsPlainObject SuppressedErrorPrototype => Intrinsics.SuppressedErrorPrototype;
     internal JsPlainObject PromisePrototype => Intrinsics.PromisePrototype;
     internal JsPlainObject RegExpPrototype => Intrinsics.RegExpPrototype;
     internal JsPlainObject DatePrototype => Intrinsics.DatePrototype;
+    internal JsPlainObject DisposableStackPrototype => Intrinsics.DisposableStackPrototype;
+    internal JsPlainObject AsyncDisposableStackPrototype => Intrinsics.AsyncDisposableStackPrototype;
     internal Symbol SymbolIteratorSymbol { get; }
     internal Symbol SymbolHasInstanceSymbol { get; }
     internal Symbol SymbolToStringTagSymbol { get; }

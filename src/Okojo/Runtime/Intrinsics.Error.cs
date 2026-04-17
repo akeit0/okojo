@@ -35,6 +35,30 @@ public partial class Intrinsics
         }, "AggregateError", 2, true);
     }
 
+    private JsHostFunction CreateSuppressedErrorConstructor()
+    {
+        var atomError = Atoms.InternNoCheck("error");
+        var atomSuppressed = Atoms.InternNoCheck("suppressed");
+        return new(Realm, (in info) =>
+        {
+            var realm = info.Realm;
+            var args = info.Arguments;
+            var err = CreateErrorInstance(in info, SuppressedErrorPrototype);
+            if (args.Length > 2 && !args[2].IsUndefined)
+            {
+                var message = realm.ToJsStringSlowPath(args[2]);
+                err.DefineDataPropertyAtom(realm, IdMessage, JsValue.FromString(message),
+                    JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable);
+            }
+
+            err.DefineDataPropertyAtom(realm, atomError, args.Length > 0 ? args[0] : JsValue.Undefined,
+                JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable);
+            err.DefineDataPropertyAtom(realm, atomSuppressed, args.Length > 1 ? args[1] : JsValue.Undefined,
+                JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable);
+            return err;
+        }, "SuppressedError", 3, true);
+    }
+
     internal JsHostFunction CreateNativeErrorConstructor(string name, JsObject prototype)
     {
         const int atomCause = IdCause;
@@ -128,6 +152,8 @@ public partial class Intrinsics
             return targetRealm.FunctionPrototype;
         if (ReferenceEquals(intrinsicDefaultPrototype, sourceRealm.AggregateErrorPrototype))
             return targetRealm.AggregateErrorPrototype;
+        if (ReferenceEquals(intrinsicDefaultPrototype, sourceRealm.SuppressedErrorPrototype))
+            return targetRealm.SuppressedErrorPrototype;
         if (ReferenceEquals(intrinsicDefaultPrototype, sourceRealm.GeneratorFunctionPrototype))
             return targetRealm.GeneratorFunctionPrototype;
         if (ReferenceEquals(intrinsicDefaultPrototype, sourceRealm.AsyncFunctionPrototype))
@@ -181,6 +207,10 @@ public partial class Intrinsics
             return targetRealm.BooleanPrototype;
         if (ReferenceEquals(intrinsicDefaultPrototype, sourceRealm.PromisePrototype))
             return targetRealm.PromisePrototype;
+        if (ReferenceEquals(intrinsicDefaultPrototype, sourceRealm.DisposableStackPrototype))
+            return targetRealm.DisposableStackPrototype;
+        if (ReferenceEquals(intrinsicDefaultPrototype, sourceRealm.AsyncDisposableStackPrototype))
+            return targetRealm.AsyncDisposableStackPrototype;
         if (ReferenceEquals(intrinsicDefaultPrototype, sourceRealm.DatePrototype))
             return targetRealm.DatePrototype;
         if (ReferenceEquals(intrinsicDefaultPrototype, sourceRealm.RegExpPrototype))
@@ -297,6 +327,7 @@ public partial class Intrinsics
 
         UriErrorConstructor.InitializePrototypeProperty(UriErrorPrototype);
         AggregateErrorConstructor.InitializePrototypeProperty(AggregateErrorPrototype);
+        SuppressedErrorConstructor.InitializePrototypeProperty(SuppressedErrorPrototype);
 
         Span<PropertyDefinition> typeProtoDefs =
         [
@@ -353,5 +384,13 @@ public partial class Intrinsics
             PropertyDefinition.Mutable(IdMessage, JsValue.FromString(string.Empty))
         ];
         AggregateErrorPrototype.DefineNewPropertiesNoCollision(Realm, aggregateProtoDefs);
+
+        Span<PropertyDefinition> suppressedProtoDefs =
+        [
+            PropertyDefinition.Mutable(IdConstructor, JsValue.FromObject(SuppressedErrorConstructor)),
+            PropertyDefinition.Mutable(IdName, JsValue.FromString("SuppressedError")),
+            PropertyDefinition.Mutable(IdMessage, JsValue.FromString(string.Empty))
+        ];
+        SuppressedErrorPrototype.DefineNewPropertiesNoCollision(Realm, suppressedProtoDefs);
     }
 }
