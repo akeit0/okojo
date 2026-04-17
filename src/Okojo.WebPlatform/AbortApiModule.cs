@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using Okojo.Hosting;
 using Okojo.Objects;
 using Okojo.Runtime;
+using Okojo.Runtime.Interop;
 
 namespace Okojo.WebPlatform;
 
@@ -399,7 +400,7 @@ public static class AbortInterop
     }
 }
 
-public sealed class AbortRegistration : IDisposable
+public sealed class AbortRegistration : IDisposable, IJsCancelReasonProvider
 {
     private readonly CancellationTokenSource? cancellationSource;
     private readonly Action<JsValue>? onAbort;
@@ -458,7 +459,7 @@ public sealed class AbortRegistration : IDisposable
         ArgumentNullException.ThrowIfNull(realm);
         ArgumentNullException.ThrowIfNull(task);
         AttachDispose(task);
-        return realm.WrapTask(task, GetCanceledReason);
+        return realm.WrapTask(task, this);
     }
 
     public JsValue WrapTaskOnHostQueue(JsRealm realm, Task task, HostTaskQueueKey completionQueueKey)
@@ -466,7 +467,7 @@ public sealed class AbortRegistration : IDisposable
         ArgumentNullException.ThrowIfNull(realm);
         ArgumentNullException.ThrowIfNull(task);
         AttachDispose(task);
-        return realm.WrapTaskOnHostQueue(task, completionQueueKey, GetCanceledReason);
+        return realm.WrapTaskOnHostQueue(task, completionQueueKey, this);
     }
 
     public JsValue WrapTask<T>(JsRealm realm, Task<T> task)
@@ -474,7 +475,7 @@ public sealed class AbortRegistration : IDisposable
         ArgumentNullException.ThrowIfNull(realm);
         ArgumentNullException.ThrowIfNull(task);
         AttachDispose(task);
-        return realm.WrapTask(task, GetCanceledReason);
+        return realm.WrapTask(task, this);
     }
 
     public JsValue WrapTask(JsRealm realm, ValueTask task, CancellationTokenSource? cancellationSource = null,
@@ -482,7 +483,7 @@ public sealed class AbortRegistration : IDisposable
     {
         ArgumentNullException.ThrowIfNull(realm);
         AttachDispose(disposable, cancellationSource);
-        return realm.WrapTask(task, GetCanceledReason, () => DisposeResources(cancellationSource, disposable));
+        return realm.WrapTask(task, this, () => DisposeResources(cancellationSource, disposable));
     }
 
     public JsValue WrapTask<T>(JsRealm realm, ValueTask<T> task, CancellationTokenSource? cancellationSource = null,
@@ -490,7 +491,7 @@ public sealed class AbortRegistration : IDisposable
     {
         ArgumentNullException.ThrowIfNull(realm);
         AttachDispose(disposable, cancellationSource);
-        return realm.WrapTask(task, GetCanceledReason, () => DisposeResources(cancellationSource, disposable));
+        return realm.WrapTask(task, this, () => DisposeResources(cancellationSource, disposable));
     }
 
     public JsValue WrapTaskOnHostQueue<T>(JsRealm realm, Task<T> task, HostTaskQueueKey completionQueueKey)
@@ -498,12 +499,13 @@ public sealed class AbortRegistration : IDisposable
         ArgumentNullException.ThrowIfNull(realm);
         ArgumentNullException.ThrowIfNull(task);
         AttachDispose(task);
-        return realm.WrapTaskOnHostQueue(task, completionQueueKey, GetCanceledReason);
+        return realm.WrapTaskOnHostQueue(task, completionQueueKey, this);
     }
 
-    private JsValue GetCanceledReason()
+    public bool TryGetCancelReason(out JsValue reason)
     {
-        return IsAborted ? Reason : JsValue.Undefined;
+        reason = Reason;
+        return IsAborted;
     }
 
     private void AttachDispose(Task task)

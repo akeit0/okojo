@@ -166,8 +166,7 @@ public partial class Intrinsics
                 var resources = stack.DetachResources();
                 if (RequiresSingleAsyncDisposeTick(resources))
                     return realm.Intrinsics.CreateSingleAsyncDisposeTickPromise();
-                return realm.WrapPromiseValueTask(realm.Intrinsics.DisposeResourcesAsync(resources),
-                    realm.Intrinsics.GetExplicitResourceManagementPromiseFaultReason);
+                return realm.WrapPromiseValueTask(realm.Intrinsics.DisposeResourcesAsync(resources));
             }
             catch (JsRuntimeException ex)
             {
@@ -260,8 +259,7 @@ public partial class Intrinsics
         {
             if (resources.Count == 0 && priorThrown is null)
                 return JsValue.Undefined;
-            return Realm.WrapPromiseValueTask(DisposeResourcesAsync(resources, priorThrown),
-                GetExplicitResourceManagementPromiseFaultReason);
+            return Realm.WrapPromiseValueTask(DisposeResourcesAsync(resources, priorThrown));
         }
 
         DisposeResources(resources, priorThrown);
@@ -397,7 +395,7 @@ public partial class Intrinsics
             await Realm.ToPumpedValueTask(result);
     }
 
-    private JsValue GetDisposeErrorValue(Exception ex)
+    internal JsValue GetDisposeErrorValue(Exception ex)
     {
         if (ex is PromiseRejectedException promiseRejected)
             return promiseRejected.Reason;
@@ -405,11 +403,6 @@ public partial class Intrinsics
             ? runtimeEx.ThrownValue ?? Realm.CreateErrorObjectFromException(runtimeEx)
             : Realm.CreateErrorObjectFromException(new JsRuntimeException(JsErrorKind.InternalError, ex.Message, null, null,
                 ex));
-    }
-
-    internal JsValue GetExplicitResourceManagementPromiseFaultReason(Exception ex)
-    {
-        return GetDisposeErrorValue(ex);
     }
 
     private JsValue CreateSuppressedErrorValue(in JsValue error, in JsValue suppressed)

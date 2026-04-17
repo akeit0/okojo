@@ -8,6 +8,11 @@ namespace Okojo.Runtime.Interop
     {
         public JsValue Reason { get; } = reason;
     }
+
+    public interface IJsCancelReasonProvider
+    {
+        bool TryGetCancelReason(out JsValue reason);
+    }
 }
 
 namespace Okojo.Runtime
@@ -18,7 +23,7 @@ namespace Okojo.Runtime
         {
             var completion = (PendingTaskPromiseState)state!;
             completion.Realm.CompletePromiseFromTask(completion.Task, completion.Promise,
-                completion.CanceledReasonFactory);
+                completion.CancelReasonProvider);
         };
 
         public JsValue WrapTask(Task task)
@@ -26,10 +31,10 @@ namespace Okojo.Runtime
             return WrapTask(task, false, InternalHostTaskQueueDefaults.Default, null);
         }
 
-        public JsValue WrapTask(Task task, Func<JsValue> canceledReasonFactory)
+        public JsValue WrapTask(Task task, IJsCancelReasonProvider cancelReasonProvider)
         {
-            ArgumentNullException.ThrowIfNull(canceledReasonFactory);
-            return WrapTask(task, false, InternalHostTaskQueueDefaults.Default, canceledReasonFactory);
+            ArgumentNullException.ThrowIfNull(cancelReasonProvider);
+            return WrapTask(task, false, InternalHostTaskQueueDefaults.Default, cancelReasonProvider);
         }
 
         internal JsValue WrapTaskOnHostQueue(Task task, HostTaskQueueKey completionQueueKey)
@@ -38,20 +43,20 @@ namespace Okojo.Runtime
         }
 
         internal JsValue WrapTaskOnHostQueue(Task task, HostTaskQueueKey completionQueueKey,
-            Func<JsValue> canceledReasonFactory)
+            IJsCancelReasonProvider cancelReasonProvider)
         {
-            ArgumentNullException.ThrowIfNull(canceledReasonFactory);
-            return WrapTask(task, true, completionQueueKey, canceledReasonFactory);
+            ArgumentNullException.ThrowIfNull(cancelReasonProvider);
+            return WrapTask(task, true, completionQueueKey, cancelReasonProvider);
         }
 
         private JsValue WrapTask(Task task, bool useHostQueue, HostTaskQueueKey completionQueueKey,
-            Func<JsValue>? canceledReasonFactory)
+            IJsCancelReasonProvider? cancelReasonProvider)
         {
             ArgumentNullException.ThrowIfNull(task);
             var promise = this.CreatePromiseObject();
             if (task.IsCompleted)
             {
-                CompletePromiseFromTask(task, promise, canceledReasonFactory);
+                CompletePromiseFromTask(task, promise, cancelReasonProvider);
                 return JsValue.FromObject(promise);
             }
 
@@ -65,7 +70,7 @@ namespace Okojo.Runtime
                         Promise = pending.Promise,
                         CompletionQueueKey = pending.CompletionQueueKey,
                         UseHostQueue = pending.UseHostQueue,
-                        CanceledReasonFactory = pending.CanceledReasonFactory
+                        CancelReasonProvider = pending.CancelReasonProvider
                     };
                     if (pending.UseHostQueue)
                         pending.Realm.Agent.EnqueueHostTask(pending.CompletionQueueKey, SCompleteTaskPromiseJob,
@@ -80,7 +85,7 @@ namespace Okojo.Runtime
                     Promise = promise,
                     CompletionQueueKey = completionQueueKey,
                     UseHostQueue = useHostQueue,
-                    CanceledReasonFactory = canceledReasonFactory
+                    CancelReasonProvider = cancelReasonProvider
                 },
                 CancellationToken.None,
                 TaskContinuationOptions.ExecuteSynchronously,
@@ -94,10 +99,10 @@ namespace Okojo.Runtime
             return WrapTask(task, false, InternalHostTaskQueueDefaults.Default, null);
         }
 
-        public JsValue WrapTask<T>(Task<T> task, Func<JsValue> canceledReasonFactory)
+        public JsValue WrapTask<T>(Task<T> task, IJsCancelReasonProvider cancelReasonProvider)
         {
-            ArgumentNullException.ThrowIfNull(canceledReasonFactory);
-            return WrapTask(task, false, InternalHostTaskQueueDefaults.Default, canceledReasonFactory);
+            ArgumentNullException.ThrowIfNull(cancelReasonProvider);
+            return WrapTask(task, false, InternalHostTaskQueueDefaults.Default, cancelReasonProvider);
         }
 
         internal JsValue WrapTaskOnHostQueue<T>(Task<T> task, HostTaskQueueKey completionQueueKey)
@@ -106,20 +111,20 @@ namespace Okojo.Runtime
         }
 
         internal JsValue WrapTaskOnHostQueue<T>(Task<T> task, HostTaskQueueKey completionQueueKey,
-            Func<JsValue> canceledReasonFactory)
+            IJsCancelReasonProvider cancelReasonProvider)
         {
-            ArgumentNullException.ThrowIfNull(canceledReasonFactory);
-            return WrapTask(task, true, completionQueueKey, canceledReasonFactory);
+            ArgumentNullException.ThrowIfNull(cancelReasonProvider);
+            return WrapTask(task, true, completionQueueKey, cancelReasonProvider);
         }
 
         private JsValue WrapTask<T>(Task<T> task, bool useHostQueue, HostTaskQueueKey completionQueueKey,
-            Func<JsValue>? canceledReasonFactory)
+            IJsCancelReasonProvider? cancelReasonProvider)
         {
             ArgumentNullException.ThrowIfNull(task);
             var promise = this.CreatePromiseObject();
             if (task.IsCompleted)
             {
-                CompletePromiseFromTask(task, promise, canceledReasonFactory);
+                CompletePromiseFromTask(task, promise, cancelReasonProvider);
                 return JsValue.FromObject(promise);
             }
 
@@ -133,7 +138,7 @@ namespace Okojo.Runtime
                         Promise = pending.Promise,
                         CompletionQueueKey = pending.CompletionQueueKey,
                         UseHostQueue = pending.UseHostQueue,
-                        CanceledReasonFactory = pending.CanceledReasonFactory
+                        CancelReasonProvider = pending.CancelReasonProvider
                     };
                     if (pending.UseHostQueue)
                         pending.Realm.Agent.EnqueueHostTask(pending.CompletionQueueKey,
@@ -148,7 +153,7 @@ namespace Okojo.Runtime
                     Promise = promise,
                     CompletionQueueKey = completionQueueKey,
                     UseHostQueue = useHostQueue,
-                    CanceledReasonFactory = canceledReasonFactory
+                    CancelReasonProvider = cancelReasonProvider
                 },
                 CancellationToken.None,
                 TaskContinuationOptions.ExecuteSynchronously,
@@ -164,10 +169,9 @@ namespace Okojo.Runtime
             return WrapValueTask(task, false, InternalHostTaskQueueDefaults.Default, null, null);
         }
 
-        internal JsValue WrapPromiseValueTask(ValueTask task, Func<Exception, JsValue> faultReasonFactory,
-            Func<JsValue>? canceledReasonFactory = null, Action? cleanupAction = null)
+        internal JsValue WrapPromiseValueTask(ValueTask task,
+            IJsCancelReasonProvider? cancelReasonProvider = null, Action? cleanupAction = null)
         {
-            ArgumentNullException.ThrowIfNull(faultReasonFactory);
             if (task.IsCompletedSuccessfully)
             {
                 task.GetAwaiter().GetResult();
@@ -175,8 +179,8 @@ namespace Okojo.Runtime
                 return this.PromiseResolveValue(JsValue.Undefined);
             }
 
-            return WrapValueTask(task, false, InternalHostTaskQueueDefaults.Default, canceledReasonFactory,
-                cleanupAction, faultReasonFactory);
+            return WrapValueTask(task, false, InternalHostTaskQueueDefaults.Default, cancelReasonProvider,
+                cleanupAction, useDisposeErrorValue: true);
         }
 
         public JsValue WrapTask<T>(ValueTask<T> task)
@@ -481,37 +485,39 @@ namespace Okojo.Runtime
             this.PromiseThenNoCapability(promise, JsValue.FromObject(resolve), JsValue.FromObject(reject));
         }
 
-        internal JsValue WrapTask(ValueTask task, Func<JsValue> canceledReasonFactory,
+        internal JsValue WrapTask(ValueTask task, IJsCancelReasonProvider cancelReasonProvider,
             Action? cleanupAction = null)
         {
-            ArgumentNullException.ThrowIfNull(canceledReasonFactory);
-            return WrapValueTask(task, false, InternalHostTaskQueueDefaults.Default, canceledReasonFactory,
+            ArgumentNullException.ThrowIfNull(cancelReasonProvider);
+            return WrapValueTask(task, false, InternalHostTaskQueueDefaults.Default, cancelReasonProvider,
                 cleanupAction);
         }
 
-        internal JsValue WrapTask<T>(ValueTask<T> task, Func<JsValue> canceledReasonFactory,
+        internal JsValue WrapTask<T>(ValueTask<T> task, IJsCancelReasonProvider cancelReasonProvider,
             Action? cleanupAction = null)
         {
-            ArgumentNullException.ThrowIfNull(canceledReasonFactory);
-            return WrapValueTask(task, false, InternalHostTaskQueueDefaults.Default, canceledReasonFactory,
+            ArgumentNullException.ThrowIfNull(cancelReasonProvider);
+            return WrapValueTask(task, false, InternalHostTaskQueueDefaults.Default, cancelReasonProvider,
                 cleanupAction);
         }
 
         private JsValue WrapValueTask(ValueTask task, bool useHostQueue, HostTaskQueueKey completionQueueKey,
-            Func<JsValue>? canceledReasonFactory, Action? cleanupAction)
+            IJsCancelReasonProvider? cancelReasonProvider, Action? cleanupAction)
         {
-            return WrapValueTask(task, useHostQueue, completionQueueKey, canceledReasonFactory, cleanupAction, null);
+            return WrapValueTask(task, useHostQueue, completionQueueKey, cancelReasonProvider, cleanupAction,
+                useDisposeErrorValue: false);
         }
 
         private JsValue WrapValueTask(ValueTask task, bool useHostQueue, HostTaskQueueKey completionQueueKey,
-            Func<JsValue>? canceledReasonFactory, Action? cleanupAction,
-            Func<Exception, JsValue>? faultReasonFactory)
+            IJsCancelReasonProvider? cancelReasonProvider, Action? cleanupAction,
+            bool useDisposeErrorValue)
         {
             var promise = this.CreatePromiseObject();
             var awaiter = task.GetAwaiter();
             if (awaiter.IsCompleted)
             {
-                CompletePromiseFromValueTask(awaiter, promise, canceledReasonFactory, cleanupAction, faultReasonFactory);
+                CompletePromiseFromValueTask(awaiter, promise, cancelReasonProvider, cleanupAction,
+                    useDisposeErrorValue);
                 return JsValue.FromObject(promise);
             }
 
@@ -521,9 +527,9 @@ namespace Okojo.Runtime
                 Promise = promise,
                 CompletionQueueKey = completionQueueKey,
                 UseHostQueue = useHostQueue,
-                CanceledReasonFactory = canceledReasonFactory,
+                CancelReasonProvider = cancelReasonProvider,
                 CleanupAction = cleanupAction,
-                FaultReasonFactory = faultReasonFactory,
+                UseDisposeErrorValue = useDisposeErrorValue,
                 Awaiter = awaiter
             };
             awaiter.OnCompleted(state.OnCompleted);
@@ -531,13 +537,13 @@ namespace Okojo.Runtime
         }
 
         private JsValue WrapValueTask<T>(ValueTask<T> task, bool useHostQueue, HostTaskQueueKey completionQueueKey,
-            Func<JsValue>? canceledReasonFactory, Action? cleanupAction)
+            IJsCancelReasonProvider? cancelReasonProvider, Action? cleanupAction)
         {
             var promise = this.CreatePromiseObject();
             var awaiter = task.GetAwaiter();
             if (awaiter.IsCompleted)
             {
-                CompletePromiseFromValueTask(awaiter, promise, canceledReasonFactory, cleanupAction);
+                CompletePromiseFromValueTask(awaiter, promise, cancelReasonProvider, cleanupAction);
                 return JsValue.FromObject(promise);
             }
 
@@ -547,7 +553,7 @@ namespace Okojo.Runtime
                 Promise = promise,
                 CompletionQueueKey = completionQueueKey,
                 UseHostQueue = useHostQueue,
-                CanceledReasonFactory = canceledReasonFactory,
+                CancelReasonProvider = cancelReasonProvider,
                 CleanupAction = cleanupAction,
                 Awaiter = awaiter
             };
@@ -592,8 +598,8 @@ namespace Okojo.Runtime
         }
 
         private void CompletePromiseFromValueTask(ValueTaskAwaiter awaiter, JsPromiseObject promise,
-            Func<JsValue>? canceledReasonFactory, Action? cleanupAction,
-            Func<Exception, JsValue>? faultReasonFactory)
+            IJsCancelReasonProvider? cancelReasonProvider, Action? cleanupAction,
+            bool useDisposeErrorValue)
         {
             try
             {
@@ -602,8 +608,8 @@ namespace Okojo.Runtime
             }
             catch (Exception ex)
             {
-                if (!TryCompleteCanceledPromise(ex, promise, canceledReasonFactory))
-                    this.RejectPromise(promise, faultReasonFactory is null ? GetTaskFaultReason(ex) : faultReasonFactory(ex));
+                if (!TryCompleteCanceledPromise(ex, promise, cancelReasonProvider))
+                    this.RejectPromise(promise, GetValueTaskFaultReason(ex, useDisposeErrorValue));
             }
             finally
             {
@@ -612,7 +618,7 @@ namespace Okojo.Runtime
         }
 
         private void CompletePromiseFromValueTask<T>(ValueTaskAwaiter<T> awaiter, JsPromiseObject promise,
-            Func<JsValue>? canceledReasonFactory, Action? cleanupAction)
+            IJsCancelReasonProvider? cancelReasonProvider, Action? cleanupAction)
         {
             try
             {
@@ -621,7 +627,7 @@ namespace Okojo.Runtime
             }
             catch (Exception ex)
             {
-                if (!TryCompleteCanceledPromise(ex, promise, canceledReasonFactory))
+                if (!TryCompleteCanceledPromise(ex, promise, cancelReasonProvider))
                     this.RejectPromise(promise, GetTaskFaultReason(ex));
             }
             finally
@@ -632,21 +638,28 @@ namespace Okojo.Runtime
 
         private void CompletePromiseFromValueTask(PendingValueTaskPromiseState state)
         {
-            CompletePromiseFromValueTask(state.Awaiter, state.Promise, state.CanceledReasonFactory, null,
-                state.FaultReasonFactory);
+            CompletePromiseFromValueTask(state.Awaiter, state.Promise, state.CancelReasonProvider, null,
+                state.UseDisposeErrorValue);
+        }
+
+        private JsValue GetValueTaskFaultReason(Exception ex, bool useDisposeErrorValue)
+        {
+            return useDisposeErrorValue
+                ? Intrinsics.GetDisposeErrorValue(ex)
+                : GetTaskFaultReason(ex);
         }
 
         private void CompletePromiseFromValueTask<T>(PendingValueTaskResultPromiseState<T> state)
         {
-            CompletePromiseFromValueTask(state.Awaiter, state.Promise, state.CanceledReasonFactory, null);
+            CompletePromiseFromValueTask(state.Awaiter, state.Promise, state.CancelReasonProvider, null);
         }
 
         private bool TryCompleteCanceledPromise(Exception ex, JsPromiseObject promise,
-            Func<JsValue>? canceledReasonFactory)
+            IJsCancelReasonProvider? cancelReasonProvider)
         {
             if (ex is OperationCanceledException)
             {
-                if (TryGetCanceledReason(canceledReasonFactory, out var canceledReason))
+                if (TryGetCanceledReason(cancelReasonProvider, out var canceledReason))
                 {
                     this.RejectPromise(promise, canceledReason);
                     return true;
@@ -704,11 +717,11 @@ namespace Okojo.Runtime
                 .ConfigureAwait(false);
         }
 
-        private void CompletePromiseFromTask(Task task, JsPromiseObject promise, Func<JsValue>? canceledReasonFactory)
+        private void CompletePromiseFromTask(Task task, JsPromiseObject promise, IJsCancelReasonProvider? cancelReasonProvider)
         {
             if (task.IsCanceled)
             {
-                if (TryGetCanceledReason(canceledReasonFactory, out var canceledReason))
+                if (TryGetCanceledReason(cancelReasonProvider, out var canceledReason))
                 {
                     this.RejectPromise(promise, canceledReason);
                     return;
@@ -728,11 +741,11 @@ namespace Okojo.Runtime
         }
 
         private void CompletePromiseFromTask<T>(Task<T> task, JsPromiseObject promise,
-            Func<JsValue>? canceledReasonFactory)
+            IJsCancelReasonProvider? cancelReasonProvider)
         {
             if (task.IsCanceled)
             {
-                if (TryGetCanceledReason(canceledReasonFactory, out var canceledReason))
+                if (TryGetCanceledReason(cancelReasonProvider, out var canceledReason))
                 {
                     this.RejectPromise(promise, canceledReason);
                     return;
@@ -751,14 +764,12 @@ namespace Okojo.Runtime
             this.ResolvePromiseWithAssimilation(promise, WrapHostValue(task.Result));
         }
 
-        private bool TryGetCanceledReason(Func<JsValue>? canceledReasonFactory, out JsValue canceledReason)
+        private static bool TryGetCanceledReason(IJsCancelReasonProvider? cancelReasonProvider, out JsValue canceledReason)
         {
-            if (canceledReasonFactory is not null)
-            {
-                canceledReason = canceledReasonFactory();
-                if (!canceledReason.IsUndefined)
-                    return true;
-            }
+            if (cancelReasonProvider is not null &&
+                cancelReasonProvider.TryGetCancelReason(out canceledReason) &&
+                !canceledReason.IsUndefined)
+                return true;
 
             canceledReason = JsValue.Undefined;
             return false;
@@ -804,7 +815,7 @@ namespace Okojo.Runtime
 
         private sealed class PendingTaskPromiseState
         {
-            public Func<JsValue>? CanceledReasonFactory;
+            public IJsCancelReasonProvider? CancelReasonProvider;
             public HostTaskQueueKey CompletionQueueKey;
             public required JsPromiseObject Promise;
             public required JsRealm Realm;
@@ -814,7 +825,7 @@ namespace Okojo.Runtime
 
         private sealed class PendingTaskResultPromiseState<T>
         {
-            public Func<JsValue>? CanceledReasonFactory;
+            public IJsCancelReasonProvider? CancelReasonProvider;
             public HostTaskQueueKey CompletionQueueKey;
             public required JsPromiseObject Promise;
             public required JsRealm Realm;
@@ -825,12 +836,12 @@ namespace Okojo.Runtime
         private sealed class PendingValueTaskPromiseState
         {
             public required ValueTaskAwaiter Awaiter;
-            public Func<JsValue>? CanceledReasonFactory;
+            public IJsCancelReasonProvider? CancelReasonProvider;
             public Action? CleanupAction;
             public HostTaskQueueKey CompletionQueueKey;
-            public Func<Exception, JsValue>? FaultReasonFactory;
             public required JsPromiseObject Promise;
             public required JsRealm Realm;
+            public bool UseDisposeErrorValue;
             public bool UseHostQueue;
 
             public void OnCompleted()
@@ -842,7 +853,7 @@ namespace Okojo.Runtime
         private sealed class PendingValueTaskResultPromiseState<T>
         {
             public required ValueTaskAwaiter<T> Awaiter;
-            public Func<JsValue>? CanceledReasonFactory;
+            public IJsCancelReasonProvider? CancelReasonProvider;
             public Action? CleanupAction;
             public HostTaskQueueKey CompletionQueueKey;
             public required JsPromiseObject Promise;
@@ -861,7 +872,7 @@ namespace Okojo.Runtime
             {
                 var completion = (PendingTaskResultPromiseState<T>)state!;
                 completion.Realm.CompletePromiseFromTask(completion.Task, completion.Promise,
-                    completion.CanceledReasonFactory);
+                    completion.CancelReasonProvider);
             };
         }
     }
