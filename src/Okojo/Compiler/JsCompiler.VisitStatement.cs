@@ -236,7 +236,7 @@ public sealed partial class JsCompiler
             case JsLabeledStatement labeledStmt:
                 EmitLabeledStatement(labeledStmt);
                 break;
-            case JsVariableDeclarationStatement varStmt when varStmt.Kind.IsUsingLike() && !HasActiveExplicitResourceScope:
+            case JsVariableDeclarationStatement varStmt when varStmt.Kind.IsUsingLike() && !HasAmbientExplicitResourceScope:
                 EmitExplicitResourceScope(() => EmitVariableDeclarationStatement(varStmt, resultUsed),
                     varStmt.Kind == JsVariableDeclarationKind.AwaitUsing);
                 completionHandledInternally = true;
@@ -245,7 +245,7 @@ public sealed partial class JsCompiler
                 EmitVariableDeclarationStatement(varStmt, resultUsed);
                 break;
             case JsEmptyObjectBindingDeclarationStatement emptyObjectBindingStmt
-                when emptyObjectBindingStmt.Kind.IsUsingLike() && !HasActiveExplicitResourceScope:
+                when emptyObjectBindingStmt.Kind.IsUsingLike() && !HasAmbientExplicitResourceScope:
                 EmitExplicitResourceScope(() => EmitEmptyObjectBindingDeclarationStatement(emptyObjectBindingStmt),
                     emptyObjectBindingStmt.Kind == JsVariableDeclarationKind.AwaitUsing);
                 completionHandledInternally = true;

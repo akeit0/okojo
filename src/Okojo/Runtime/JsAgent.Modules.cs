@@ -396,8 +396,10 @@ public sealed partial class JsAgent
                 {
                     var wrapped = WrapModuleExecutionException(targetResolvedId, ex);
                     FinalizeModuleExecution(targetNode, targetResolvedId, targetRealm,
-                        wrapped.ThrownValue ?? targetRealm.CreateErrorObjectFromException(wrapped),
-                        hasAbruptCompletion: true, wrapped);
+                        new(
+                            ModuleExecutionCompletionKind.Throw,
+                            wrapped.ThrownValue ?? targetRealm.CreateErrorObjectFromException(wrapped),
+                            wrapped));
                     if (shouldWait)
                     {
                         if (wrapped == ex) throw;
@@ -417,8 +419,8 @@ public sealed partial class JsAgent
                     return;
                 }
 
-                FinalizeModuleExecution(targetNode, targetResolvedId, targetRealm, JsValue.Undefined,
-                    hasAbruptCompletion: false, null);
+                FinalizeModuleExecution(targetNode, targetResolvedId, targetRealm,
+                    new(ModuleExecutionCompletionKind.Normal, JsValue.Undefined, null));
                 if (shouldWait)
                     WaitForPendingTopLevelAwait(targetNode, targetResolvedId, targetRealm);
             }
@@ -433,15 +435,15 @@ public sealed partial class JsAgent
         {
             var onFulfilled = new JsHostFunction(targetRealm, (in info) =>
             {
-                FinalizeModuleExecution(targetNode, targetResolvedId, info.Realm, JsValue.Undefined,
-                    hasAbruptCompletion: false, null);
+                FinalizeModuleExecution(targetNode, targetResolvedId, info.Realm,
+                    new(ModuleExecutionCompletionKind.Normal, JsValue.Undefined, null));
                 return JsValue.Undefined;
             }, string.Empty, 0);
             var onRejected = new JsHostFunction(targetRealm, (in info) =>
             {
                 var reason = info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0];
-                FinalizeModuleExecution(targetNode, targetResolvedId, info.Realm, reason, hasAbruptCompletion: true,
-                    null);
+                FinalizeModuleExecution(targetNode, targetResolvedId, info.Realm,
+                    new(ModuleExecutionCompletionKind.Throw, reason, null));
                 return JsValue.Undefined;
             }, string.Empty, 1);
             _ = targetRealm.PromiseThen(
@@ -451,13 +453,13 @@ public sealed partial class JsAgent
         }
 
         void FinalizeModuleExecution(ModuleRecordNode targetNode, string targetResolvedId, JsRealm targetRealm,
-            in JsValue completionValue, bool hasAbruptCompletion, JsRuntimeException? abruptFailure)
+            ModuleExecutionCompletion completion)
         {
-            var stack = targetNode.ExecutionBindings?.ExplicitResourceStack;
-            if (stack is null || stack.IsDisposed)
+            var explicitResourceStack = targetNode.ExecutionBindings?.ExplicitResourceStack;
+            if (explicitResourceStack is null || explicitResourceStack.IsDisposed)
             {
-                if (hasAbruptCompletion)
-                    FailModuleEvaluation(targetNode, targetResolvedId, targetRealm, completionValue, abruptFailure);
+                if (completion.IsAbrupt)
+                    FailModuleEvaluation(targetNode, targetResolvedId, targetRealm, completion.Value, completion.Failure);
                 else
                     CompleteModuleEvaluation(targetNode, targetRealm);
                 return;
@@ -467,9 +469,9 @@ public sealed partial class JsAgent
             try
             {
                 cleanupResult = targetRealm.Intrinsics.DisposeCompilerDisposableStack(
-                    stack,
-                    hasAbruptCompletion ? 2 : 0,
-                    completionValue);
+                    explicitResourceStack,
+                    (int)completion.Kind,
+                    completion.Value);
             }
             catch (Exception ex)
             {
@@ -483,25 +485,23 @@ public sealed partial class JsAgent
             if (cleanupResult.TryGetObject(out var cleanupObj) && cleanupObj is JsPromiseObject cleanupPromise)
             {
                 EnsureAsyncEvaluationState(targetNode, targetRealm);
-                AttachModuleCleanupPromise(targetNode, targetResolvedId, targetRealm, cleanupPromise,
-                    completionValue, hasAbruptCompletion, abruptFailure);
+                AttachModuleCleanupPromise(targetNode, targetResolvedId, targetRealm, cleanupPromise, completion);
                 return;
             }
 
-            if (hasAbruptCompletion)
-                FailModuleEvaluation(targetNode, targetResolvedId, targetRealm, completionValue, abruptFailure);
+            if (completion.IsAbrupt)
+                FailModuleEvaluation(targetNode, targetResolvedId, targetRealm, completion.Value, completion.Failure);
             else
                 CompleteModuleEvaluation(targetNode, targetRealm);
         }
 
         void AttachModuleCleanupPromise(ModuleRecordNode targetNode, string targetResolvedId, JsRealm targetRealm,
-            JsPromiseObject cleanupPromise, JsValue completionValue, bool hasAbruptCompletion,
-            JsRuntimeException? abruptFailure)
+            JsPromiseObject cleanupPromise, ModuleExecutionCompletion completion)
         {
             var onFulfilled = new JsHostFunction(targetRealm, (in info) =>
             {
-                if (hasAbruptCompletion)
-                    FailModuleEvaluation(targetNode, targetResolvedId, info.Realm, completionValue, abruptFailure);
+                if (completion.IsAbrupt)
+                    FailModuleEvaluation(targetNode, targetResolvedId, info.Realm, completion.Value, completion.Failure);
                 else
                     CompleteModuleEvaluation(targetNode, info.Realm);
                 return JsValue.Undefined;
@@ -526,8 +526,10 @@ public sealed partial class JsAgent
 
             var bindings = targetNode.ExecutionBindings!;
             if (bindings.ExplicitResourceStack is null)
-                bindings.ExplicitResourceStack =
-                    targetRealm.Intrinsics.CreateCompilerDisposableStack(executionPlan.HasTopLevelAwaitUsingLike);
+            {
+                bindings.ExplicitResourceStack = targetRealm.Intrinsics.CreateCompilerDisposableStack(
+                    executionPlan.HasTopLevelAwaitUsingLike);
+            }
         }
 
         void CompleteModuleEvaluation(ModuleRecordNode targetNode, JsRealm targetRealm)

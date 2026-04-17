@@ -10,6 +10,8 @@ public sealed partial class JsCompiler
     private readonly Stack<ExplicitResourceScope> activeExplicitResourceScopes = new();
 
     private bool HasActiveExplicitResourceScope => activeExplicitResourceScopes.Count != 0;
+    private bool HasAmbientExplicitResourceScope =>
+        HasActiveExplicitResourceScope || hasActiveModuleTopLevelExplicitResourceScope;
 
     private void EmitExplicitResourceScope(Action emitBody, bool isAsyncScope, Action<int>? emitEnter = null)
     {
