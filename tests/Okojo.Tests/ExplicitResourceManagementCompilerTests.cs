@@ -1,5 +1,6 @@
 using Okojo.Objects;
 using Okojo.Runtime;
+using Okojo.Runtime.Interop;
 
 namespace Okojo.Tests;
 
@@ -98,6 +99,35 @@ public class ExplicitResourceManagementCompilerTests
         Assert.That(first.AsString(), Is.EqualTo("body"));
         Assert.That(second.AsString(), Is.EqualTo("dispose-start"));
         Assert.That(third.AsString(), Is.EqualTo("dispose-end"));
+    }
+
+    [Test]
+    public async Task AwaitUsing_AsyncDispose_Throw_After_Await_Preserves_Error_Type()
+    {
+        using var runtime = JsRuntime.Create();
+        var realm = runtime.DefaultRealm;
+        var ex = Assert.ThrowsAsync<PromiseRejectedException>(async () => await realm.EvaluateAsync("""
+            const marker = {};
+            globalThis.__ermMarker = marker;
+            async function run() {
+              await using resource = {
+                async [Symbol.asyncDispose]() {
+                  await 0;
+                  throw { marker, message: "dispose" };
+                }
+              };
+            }
+            await run();
+            """));
+
+        Assert.That(ex, Is.Not.Null);
+        var reason = ex!.Reason;
+        Assert.That(reason.TryGetObject(out var reasonObj), Is.True);
+        Assert.That(reasonObj, Is.Not.Null);
+        Assert.That(reasonObj!.TryGetProperty("marker", out var markerValue), Is.True);
+        Assert.That(markerValue, Is.EqualTo(realm.Global["__ermMarker"]));
+        Assert.That(reasonObj.TryGetProperty("message", out var messageValue), Is.True);
+        Assert.That(messageValue.AsString(), Is.EqualTo("dispose"));
     }
 
     [Test]

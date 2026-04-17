@@ -209,8 +209,8 @@ public sealed partial class JsCompiler
                 }
             }
 
-            if (BlockNeedsExplicitResourceScope(executeStatements))
-                EmitExplicitResourceScope(EmitModuleExecutionOps, BlockNeedsAsyncExplicitResourceScope(executeStatements));
+            if (executionPlan.HasTopLevelUsingLike)
+                EmitModuleTopLevelExplicitResourceScope(EmitModuleExecutionOps, executionPlan.HasTopLevelAwaitUsingLike);
             else
                 EmitModuleExecutionOps();
         }

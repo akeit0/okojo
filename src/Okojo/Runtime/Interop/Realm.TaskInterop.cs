@@ -4,7 +4,7 @@ using Okojo.Parsing;
 
 namespace Okojo.Runtime.Interop
 {
-    public sealed class PromiseRejectedException(JsValue reason) : Exception($"JavaScript promise rejected: {reason}")
+    public sealed class PromiseRejectedException(JsValue reason) : Exception("JavaScript promise rejected.")
     {
         public JsValue Reason { get; } = reason;
     }
@@ -164,6 +164,21 @@ namespace Okojo.Runtime
             return WrapValueTask(task, false, InternalHostTaskQueueDefaults.Default, null, null);
         }
 
+        internal JsValue WrapPromiseValueTask(ValueTask task, Func<Exception, JsValue> faultReasonFactory,
+            Func<JsValue>? canceledReasonFactory = null, Action? cleanupAction = null)
+        {
+            ArgumentNullException.ThrowIfNull(faultReasonFactory);
+            if (task.IsCompletedSuccessfully)
+            {
+                task.GetAwaiter().GetResult();
+                cleanupAction?.Invoke();
+                return this.PromiseResolveValue(JsValue.Undefined);
+            }
+
+            return WrapValueTask(task, false, InternalHostTaskQueueDefaults.Default, canceledReasonFactory,
+                cleanupAction, faultReasonFactory);
+        }
+
         public JsValue WrapTask<T>(ValueTask<T> task)
         {
             if (task.IsCompletedSuccessfully)
@@ -281,32 +296,47 @@ namespace Okojo.Runtime
                 return ValueTask.FromResult(promise.Result);
             if (promise.State == JsPromiseObject.PromiseState.Rejected)
                 return ValueTask.FromException<JsValue>(new PromiseRejectedException(promise.Result));
-
-            var source = new PumpedPromiseValueTaskSource<JsValue>(this, cancellationToken);
-            AttachPromiseValueTaskSource(promise, source);
-            return new(source, source.Version);
+            return AwaitPumpedPromiseAsync(promise, cancellationToken);
         }
 
-        public ValueTask<T> ToPumpedValueTask<T>(JsValue value, CancellationToken cancellationToken = default)
+        public async ValueTask<T> ToPumpedValueTask<T>(JsValue value, CancellationToken cancellationToken = default)
         {
             if (!value.TryGetObject(out var obj) || obj is not JsPromiseObject promise)
             {
                 var converted = (T)HostValueConverter.ConvertFromJsValue(this, value, typeof(T))!;
-                return ValueTask.FromResult(converted);
+                return converted;
             }
 
             if (promise.State == JsPromiseObject.PromiseState.Fulfilled)
             {
                 var converted = (T)HostValueConverter.ConvertFromJsValue(this, promise.Result, typeof(T))!;
-                return ValueTask.FromResult(converted);
+                return converted;
             }
 
             if (promise.State == JsPromiseObject.PromiseState.Rejected)
-                return ValueTask.FromException<T>(new PromiseRejectedException(promise.Result));
+                throw new PromiseRejectedException(promise.Result);
 
-            var source = new PumpedPromiseValueTaskSource<T>(this, cancellationToken);
-            AttachPromiseValueTaskSource(promise, source);
-            return new(source, source.Version);
+            var settled = await AwaitPumpedPromiseAsync(promise, cancellationToken).ConfigureAwait(false);
+            return (T)HostValueConverter.ConvertFromJsValue(this, settled, typeof(T))!;
+        }
+
+        private async ValueTask<JsValue> AwaitPumpedPromiseAsync(
+            JsPromiseObject promise,
+            CancellationToken cancellationToken)
+        {
+            while (promise.IsPending)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                PumpJobs();
+                if (!promise.IsPending)
+                    break;
+                await Task.Yield();
+            }
+
+            if (promise.IsRejected)
+                throw new PromiseRejectedException(promise.SettledResult);
+
+            return promise.SettledResult;
         }
 
         public ValueTask<JsValue> CallAsync(JsFunction function, JsValue thisValue, params ReadOnlySpan<JsValue> args)
@@ -470,11 +500,18 @@ namespace Okojo.Runtime
         private JsValue WrapValueTask(ValueTask task, bool useHostQueue, HostTaskQueueKey completionQueueKey,
             Func<JsValue>? canceledReasonFactory, Action? cleanupAction)
         {
+            return WrapValueTask(task, useHostQueue, completionQueueKey, canceledReasonFactory, cleanupAction, null);
+        }
+
+        private JsValue WrapValueTask(ValueTask task, bool useHostQueue, HostTaskQueueKey completionQueueKey,
+            Func<JsValue>? canceledReasonFactory, Action? cleanupAction,
+            Func<Exception, JsValue>? faultReasonFactory)
+        {
             var promise = this.CreatePromiseObject();
             var awaiter = task.GetAwaiter();
             if (awaiter.IsCompleted)
             {
-                CompletePromiseFromValueTask(awaiter, promise, canceledReasonFactory, cleanupAction);
+                CompletePromiseFromValueTask(awaiter, promise, canceledReasonFactory, cleanupAction, faultReasonFactory);
                 return JsValue.FromObject(promise);
             }
 
@@ -486,6 +523,7 @@ namespace Okojo.Runtime
                 UseHostQueue = useHostQueue,
                 CanceledReasonFactory = canceledReasonFactory,
                 CleanupAction = cleanupAction,
+                FaultReasonFactory = faultReasonFactory,
                 Awaiter = awaiter
             };
             awaiter.OnCompleted(state.OnCompleted);
@@ -554,7 +592,8 @@ namespace Okojo.Runtime
         }
 
         private void CompletePromiseFromValueTask(ValueTaskAwaiter awaiter, JsPromiseObject promise,
-            Func<JsValue>? canceledReasonFactory, Action? cleanupAction)
+            Func<JsValue>? canceledReasonFactory, Action? cleanupAction,
+            Func<Exception, JsValue>? faultReasonFactory)
         {
             try
             {
@@ -564,7 +603,7 @@ namespace Okojo.Runtime
             catch (Exception ex)
             {
                 if (!TryCompleteCanceledPromise(ex, promise, canceledReasonFactory))
-                    this.RejectPromise(promise, GetTaskFaultReason(ex));
+                    this.RejectPromise(promise, faultReasonFactory is null ? GetTaskFaultReason(ex) : faultReasonFactory(ex));
             }
             finally
             {
@@ -593,7 +632,8 @@ namespace Okojo.Runtime
 
         private void CompletePromiseFromValueTask(PendingValueTaskPromiseState state)
         {
-            CompletePromiseFromValueTask(state.Awaiter, state.Promise, state.CanceledReasonFactory, null);
+            CompletePromiseFromValueTask(state.Awaiter, state.Promise, state.CanceledReasonFactory, null,
+                state.FaultReasonFactory);
         }
 
         private void CompletePromiseFromValueTask<T>(PendingValueTaskResultPromiseState<T> state)
@@ -788,6 +828,7 @@ namespace Okojo.Runtime
             public Func<JsValue>? CanceledReasonFactory;
             public Action? CleanupAction;
             public HostTaskQueueKey CompletionQueueKey;
+            public Func<Exception, JsValue>? FaultReasonFactory;
             public required JsPromiseObject Promise;
             public required JsRealm Realm;
             public bool UseHostQueue;

@@ -61,6 +61,23 @@ public sealed partial class JsCompiler
             });
     }
 
+    private void EmitModuleTopLevelExplicitResourceScope(Action emitBody, bool isAsyncScope)
+    {
+        var previousActive = hasActiveModuleTopLevelExplicitResourceScope;
+        var previousAsync = moduleTopLevelExplicitResourceScopeIsAsync;
+        hasActiveModuleTopLevelExplicitResourceScope = true;
+        moduleTopLevelExplicitResourceScopeIsAsync = isAsyncScope;
+        try
+        {
+            emitBody();
+        }
+        finally
+        {
+            hasActiveModuleTopLevelExplicitResourceScope = previousActive;
+            moduleTopLevelExplicitResourceScopeIsAsync = previousAsync;
+        }
+    }
+
     private bool BlockNeedsExplicitResourceScope(IReadOnlyList<JsStatement> statements)
     {
         for (var i = 0; i < statements.Count; i++)
@@ -94,7 +111,23 @@ public sealed partial class JsCompiler
     private void EmitRegisterExplicitResource(JsVariableDeclarationKind kind, int valueRegister)
     {
         if (activeExplicitResourceScopes.Count == 0)
-            throw new InvalidOperationException("using declaration requires an active explicit resource scope.");
+        {
+            if (!hasActiveModuleTopLevelExplicitResourceScope)
+                throw new InvalidOperationException("using declaration requires an active explicit resource scope.");
+            if (kind == JsVariableDeclarationKind.AwaitUsing && !moduleTopLevelExplicitResourceScopeIsAsync)
+                throw new InvalidOperationException("await using declaration requires an async explicit resource scope.");
+
+            var moduleArgStart = AllocateTemporaryRegisterBlock(1);
+            EmitLdaRegister(valueRegister);
+            EmitStarRegister(moduleArgStart);
+            EmitCallRuntime(
+                kind == JsVariableDeclarationKind.AwaitUsing
+                    ? RuntimeId.AddCurrentModuleAsyncDisposableResource
+                    : RuntimeId.AddCurrentModuleDisposableResource,
+                moduleArgStart,
+                1);
+            return;
+        }
 
         var scope = activeExplicitResourceScopes.Peek();
         EmitLdaRegister(scope.StackRegister);

@@ -166,7 +166,8 @@ public partial class Intrinsics
                 var resources = stack.DetachResources();
                 if (RequiresSingleAsyncDisposeTick(resources))
                     return realm.Intrinsics.CreateSingleAsyncDisposeTickPromise();
-                return realm.WrapTask(realm.Intrinsics.DisposeResourcesAsync(resources));
+                return realm.WrapPromiseValueTask(realm.Intrinsics.DisposeResourcesAsync(resources),
+                    realm.Intrinsics.GetExplicitResourceManagementPromiseFaultReason);
             }
             catch (JsRuntimeException ex)
             {
@@ -259,7 +260,8 @@ public partial class Intrinsics
         {
             if (resources.Count == 0 && priorThrown is null)
                 return JsValue.Undefined;
-            return Realm.WrapTask(DisposeResourcesAsync(resources, priorThrown));
+            return Realm.WrapPromiseValueTask(DisposeResourcesAsync(resources, priorThrown),
+                GetExplicitResourceManagementPromiseFaultReason);
         }
 
         DisposeResources(resources, priorThrown);
@@ -405,6 +407,11 @@ public partial class Intrinsics
                 ex));
     }
 
+    internal JsValue GetExplicitResourceManagementPromiseFaultReason(Exception ex)
+    {
+        return GetDisposeErrorValue(ex);
+    }
+
     private JsValue CreateSuppressedErrorValue(in JsValue error, in JsValue suppressed)
     {
         return CreateSuppressedErrorInstance(SuppressedErrorPrototype, error, suppressed);
@@ -489,6 +496,24 @@ public partial class Intrinsics
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
+    internal static void HandleRuntimeAddCurrentModuleDisposableResource(
+        JsRealm realm, JsScript script, int opcodePc, ref JsValue registers, int fp, int argRegStart,
+        int argCount, ref JsValue acc)
+    {
+        HandleRuntimeAddCurrentModuleCompilerDisposableResource(realm, ref registers, argRegStart, argCount,
+            DisposableResourceHint.SyncDispose, ref acc);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    internal static void HandleRuntimeAddCurrentModuleAsyncDisposableResource(
+        JsRealm realm, JsScript script, int opcodePc, ref JsValue registers, int fp, int argRegStart,
+        int argCount, ref JsValue acc)
+    {
+        HandleRuntimeAddCurrentModuleCompilerDisposableResource(realm, ref registers, argRegStart, argCount,
+            DisposableResourceHint.AsyncDispose, ref acc);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
     internal static void HandleRuntimeDisposeDisposableResourceStack(
         JsRealm realm, JsScript script, int opcodePc, ref JsValue registers, int fp, int argRegStart,
         int argCount, ref JsValue acc)
@@ -552,5 +577,27 @@ public partial class Intrinsics
             stack,
             completionKind,
             Unsafe.Add(ref registers, argRegStart + 2));
+    }
+
+    private static void HandleRuntimeAddCurrentModuleCompilerDisposableResource(
+        JsRealm realm,
+        ref JsValue registers,
+        int argRegStart,
+        int argCount,
+        DisposableResourceHint hint,
+        ref JsValue acc)
+    {
+        if (argCount != 1)
+            throw new JsRuntimeException(JsErrorKind.TypeError, "AddCurrentModuleDisposableResource requires one argument");
+
+        var stack = realm.Agent.GetCurrentModuleExplicitResourceStack();
+        if (hint == DisposableResourceHint.AsyncDispose && !stack.IsAsync)
+        {
+            throw new JsRuntimeException(JsErrorKind.InternalError,
+                "Current module explicit resource stack is not async");
+        }
+
+        realm.Intrinsics.AddCompilerDisposableResource(stack, Unsafe.Add(ref registers, argRegStart), hint);
+        acc = JsValue.Undefined;
     }
 }

@@ -189,5 +189,7 @@ internal enum RuntimeId : byte
     AddDisposableResource,
     AddAsyncDisposableResource,
     DisposeDisposableResourceStack,
-    DisposeAsyncDisposableResourceStack
+    DisposeAsyncDisposableResourceStack,
+    AddCurrentModuleDisposableResource,
+    AddCurrentModuleAsyncDisposableResource
 }

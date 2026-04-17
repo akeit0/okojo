@@ -1,5 +1,6 @@
 using Okojo.Objects;
 using Okojo.Runtime;
+using Okojo.Runtime.Interop;
 
 namespace Okojo.Tests;
 
@@ -161,6 +162,44 @@ public class ExplicitResourceManagementBuiltinsTests
             """);
 
         Assert.That(result, Is.True);
+    }
+
+    [Test]
+    public async Task AsyncDisposableStack_DisposeAsync_Preserves_NonError_Thrown_Value()
+    {
+        using var runtime = JsRuntime.Create();
+        var realm = runtime.DefaultRealm;
+        _ = realm.Evaluate("""
+            const marker = {};
+            globalThis.__ermMarker = marker;
+            const stack = new AsyncDisposableStack();
+            stack.use({
+              async [Symbol.asyncDispose]() {
+                await 0;
+                throw { marker, message: "dispose" };
+              }
+            });
+            globalThis.__ermDisposeAsyncPromise = stack.disposeAsync();
+            """);
+
+        PromiseRejectedException? ex = null;
+        try
+        {
+            _ = await realm.ToPumpedValueTask(realm.Global["__ermDisposeAsyncPromise"]);
+        }
+        catch (PromiseRejectedException caught)
+        {
+            ex = caught;
+        }
+
+        Assert.That(ex, Is.Not.Null);
+        var reason = ex.Reason;
+        Assert.That(reason.TryGetObject(out var reasonObj), Is.True);
+        Assert.That(reasonObj, Is.Not.Null);
+        Assert.That(reasonObj!.TryGetProperty("marker", out var markerValue), Is.True);
+        Assert.That(markerValue, Is.EqualTo(realm.Global["__ermMarker"]));
+        Assert.That(reasonObj.TryGetProperty("message", out var messageValue), Is.True);
+        Assert.That(messageValue.AsString(), Is.EqualTo("dispose"));
     }
 
     [Test]

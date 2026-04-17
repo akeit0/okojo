@@ -88,7 +88,9 @@ public sealed partial class JsRealm
         Intrinsics.HandleRuntimeAddDisposableResource, // AddDisposableResource = 69
         Intrinsics.HandleRuntimeAddAsyncDisposableResource, // AddAsyncDisposableResource = 70
         Intrinsics.HandleRuntimeDisposeDisposableResourceStack, // DisposeDisposableResourceStack = 71
-        Intrinsics.HandleRuntimeDisposeAsyncDisposableResourceStack // DisposeAsyncDisposableResourceStack = 72
+        Intrinsics.HandleRuntimeDisposeAsyncDisposableResourceStack, // DisposeAsyncDisposableResourceStack = 72
+        Intrinsics.HandleRuntimeAddCurrentModuleDisposableResource, // AddCurrentModuleDisposableResource = 73
+        Intrinsics.HandleRuntimeAddCurrentModuleAsyncDisposableResource // AddCurrentModuleAsyncDisposableResource = 74
     ];
 
     private static readonly IntrinsicHandler?[] SIntrinsicHandlers =

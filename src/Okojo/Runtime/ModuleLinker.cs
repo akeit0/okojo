@@ -126,10 +126,24 @@ internal sealed class ModuleLinker(Func<IModuleSourceLoader> loaderProvider)
         var exportNamespaceFromBindings = new List<ExportNamespaceFromBinding>();
         var exportStarFromSpecifiers = new List<string>();
         var operations = new List<ModuleExecutionOp>(moduleProgram.Statements.Count);
+        var hasTopLevelUsingLike = false;
+        var hasTopLevelAwaitUsingLike = false;
 
         for (var i = 0; i < moduleProgram.Statements.Count; i++)
         {
             var statement = moduleProgram.Statements[i];
+            if (statement is JsVariableDeclarationStatement topLevelDecl && topLevelDecl.Kind.IsUsingLike())
+            {
+                hasTopLevelUsingLike = true;
+                hasTopLevelAwaitUsingLike |= topLevelDecl.Kind == JsVariableDeclarationKind.AwaitUsing;
+            }
+            else if (statement is JsEmptyObjectBindingDeclarationStatement topLevelEmptyDecl &&
+                     topLevelEmptyDecl.Kind.IsUsingLike())
+            {
+                hasTopLevelUsingLike = true;
+                hasTopLevelAwaitUsingLike |= topLevelEmptyDecl.Kind == JsVariableDeclarationKind.AwaitUsing;
+            }
+
             switch (statement)
             {
                 case JsImportDeclaration importDecl:
@@ -260,7 +274,9 @@ internal sealed class ModuleLinker(Func<IModuleSourceLoader> loaderProvider)
                 operations,
                 exportLocalByName,
                 preinitializedLocalExportNames,
-                moduleProgram.HasTopLevelAwait),
+                moduleProgram.HasTopLevelAwait,
+                hasTopLevelUsingLike,
+                hasTopLevelAwaitUsingLike),
             requestedDependencies,
             imports,
             exportFromBindings,

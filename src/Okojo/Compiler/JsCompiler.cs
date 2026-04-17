@@ -79,9 +79,11 @@ public sealed partial class JsCompiler : IDisposable
     private int generatorResumeValueTempRegister = -1;
     private int generatorSwitchInstructionPc = -1;
     private bool hasEmittedDeferredInstanceInitializers;
+    private bool hasActiveModuleTopLevelExplicitResourceScope;
     private JsIdentifierTable? identifierTable;
     private int lexicalThisContextDepth = -1;
     private int lexicalThisContextSlot = -1;
+    private bool moduleTopLevelExplicitResourceScopeIsAsync;
     private int nextGeneratorSuspendId;
     private int nextSyntheticSymbolOrdinal = 1;
     private IReadOnlyList<InstanceFieldInitializerPlan>? pendingInstanceFieldInitializers;
