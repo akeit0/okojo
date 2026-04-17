@@ -101,7 +101,27 @@ public enum JsVariableDeclarationKind
 {
     Var,
     Let,
-    Const
+    Const,
+    Using,
+    AwaitUsing
+}
+
+public static class JsVariableDeclarationKindExtensions
+{
+    public static bool IsLexical(this JsVariableDeclarationKind kind)
+    {
+        return kind is not JsVariableDeclarationKind.Var;
+    }
+
+    public static bool IsConstLike(this JsVariableDeclarationKind kind)
+    {
+        return kind is JsVariableDeclarationKind.Const or JsVariableDeclarationKind.Using or JsVariableDeclarationKind.AwaitUsing;
+    }
+
+    public static bool IsUsingLike(this JsVariableDeclarationKind kind)
+    {
+        return kind is JsVariableDeclarationKind.Using or JsVariableDeclarationKind.AwaitUsing;
+    }
 }
 
 public sealed class JsVariableDeclarator(string name, JsExpression? initializer, int nameId = -1) : JsNode

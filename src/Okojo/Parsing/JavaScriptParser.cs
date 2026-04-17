@@ -144,6 +144,9 @@ internal sealed partial class JsParser
             statements.Add(statement);
         }
 
+        if (!isModule)
+            ValidateNoTopLevelUsingDeclarations(statements);
+
         return At(new JsProgram(statements, strictMode, lexicalNames.ToArray(), sawTopLevelAwait, source, sourcePath,
             lexer.IdentifierTable), start);
     }
@@ -162,10 +165,8 @@ internal sealed partial class JsParser
     {
         using var depthCounter = AddDepth();
         var start = current.Position;
-        if (current.Kind == JsTokenKind.Identifier &&
-            CurrentSourceTextEquals("using") &&
-            Peek().Kind == JsTokenKind.Identifier)
-            return At(ParseUsingDeclarationStatement(), start);
+        if (TryGetUsingDeclarationStatementKind(out var usingKind))
+            return At(ParseUsingDeclarationStatement(usingKind), start);
 
         if (current.Kind == JsTokenKind.At)
         {
@@ -218,26 +219,101 @@ internal sealed partial class JsParser
         }, start);
     }
 
-    private JsVariableDeclarationStatement ParseUsingDeclarationStatement()
+    private JsVariableDeclarationStatement ParseUsingDeclarationStatement(
+        JsVariableDeclarationKind kind,
+        bool requireSemicolon = true,
+        bool allowMissingInitializer = false)
     {
         var start = current.Position;
-        // Treat `using` declaration as lexical declaration for parser compatibility.
-        // Full explicit-resource-management semantics are handled separately.
-        Next(); // consume `using` identifier token
+        if (kind == JsVariableDeclarationKind.AwaitUsing)
+        {
+            Expect(current.Kind);
+            if (current.HasLineTerminatorBefore ||
+                current.Kind != JsTokenKind.Identifier ||
+                !CurrentSourceTextEquals("using"))
+                throw Error("Expected using declaration", current.Position);
+        }
+
+        Expect(JsTokenKind.Identifier); // using
 
         var declarators = new List<JsVariableDeclarator>();
         do
         {
-            var identifier = ParseCheckedIdentifierName(Expect(JsTokenKind.Identifier));
+            var identifier = ParseCheckedIdentifierName(ParseBindingIdentifierToken());
             JsExpression? initializer = null;
             if (Match(JsTokenKind.Assign)) initializer = ParseAssignment(true);
+            else if (!allowMissingInitializer)
+                throw Error($"{GetDeclarationKeywordText(kind)} declaration requires initializer", identifier.Position);
 
             declarators.Add(At(new JsVariableDeclarator(identifier.Name, initializer, identifier.NameId),
                 identifier.Position));
         } while (Match(JsTokenKind.Comma));
 
-        ConsumeOptionalSemicolon();
-        return At(new JsVariableDeclarationStatement(JsVariableDeclarationKind.Let, declarators), start);
+        if (requireSemicolon)
+            ConsumeOptionalSemicolon();
+        return At(new JsVariableDeclarationStatement(kind, declarators), start);
+    }
+
+    private bool TryGetUsingDeclarationStatementKind(out JsVariableDeclarationKind kind)
+    {
+        if (current.Kind == JsTokenKind.Identifier &&
+            CurrentSourceTextEquals("using"))
+        {
+            var next = Peek();
+            if (!next.HasLineTerminatorBefore && IsUsingBindingStartToken(next))
+            {
+                kind = JsVariableDeclarationKind.Using;
+                return true;
+            }
+        }
+
+        if (IsAwaitKeywordInCurrentScope())
+        {
+            var snapshot = CaptureSnapshot();
+            Next();
+            var isAwaitUsing =
+                !current.HasLineTerminatorBefore &&
+                current.Kind == JsTokenKind.Identifier &&
+                CurrentSourceTextEquals("using") &&
+                !Peek().HasLineTerminatorBefore &&
+                IsUsingBindingStartToken(Peek());
+            RestoreSnapshot(snapshot);
+            if (isAwaitUsing)
+            {
+                kind = JsVariableDeclarationKind.AwaitUsing;
+                return true;
+            }
+        }
+
+        kind = default;
+        return false;
+    }
+
+    private static bool IsUsingBindingStartToken(JsToken token)
+    {
+        return token.Kind is JsTokenKind.Identifier or JsTokenKind.Of;
+    }
+
+    private void ValidateNoTopLevelUsingDeclarations(IReadOnlyList<JsStatement> statements)
+    {
+        for (var i = 0; i < statements.Count; i++)
+        {
+            if (statements[i] is JsVariableDeclarationStatement decl && decl.Kind.IsUsingLike())
+                throw Error($"{GetDeclarationKeywordText(decl.Kind)} declarations are not allowed at the top level of scripts", decl.Position);
+        }
+    }
+
+    private static string GetDeclarationKeywordText(JsVariableDeclarationKind kind)
+    {
+        return kind switch
+        {
+            JsVariableDeclarationKind.Using => "using",
+            JsVariableDeclarationKind.AwaitUsing => "await using",
+            JsVariableDeclarationKind.Const => "const",
+            JsVariableDeclarationKind.Let => "let",
+            JsVariableDeclarationKind.Var => "var",
+            _ => throw new ArgumentOutOfRangeException(nameof(kind))
+        };
     }
 
     private JsEmptyStatement ParseEmptyStatement()
@@ -305,14 +381,8 @@ internal sealed partial class JsParser
         Next();
 
         var declarators = new List<JsVariableDeclarator>();
-        var lexicalDeclaratorIds =
-            kind is JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const
-                ? new HashSet<int>()
-                : null;
-        var lexicalDeclaratorNames =
-            kind is JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const
-                ? new HashSet<string>(StringComparer.Ordinal)
-                : null;
+        var lexicalDeclaratorIds = kind.IsLexical() ? new HashSet<int>() : null;
+        var lexicalDeclaratorNames = kind.IsLexical() ? new HashSet<string>(StringComparer.Ordinal) : null;
         do
         {
             var nameTok =
@@ -328,7 +398,7 @@ internal sealed partial class JsParser
                 // so comma separates declarators instead of becoming sequence inside one initializer.
                 initializer = ParseAssignment(allowInInitializer);
 
-            if (kind == JsVariableDeclarationKind.Const && initializer is null && !allowConstWithoutInitializer)
+            if (kind.IsConstLike() && initializer is null && !allowConstWithoutInitializer)
                 throw Error("const declaration requires initializer", nameTok.Position);
 
             declarators.Add(At(new JsVariableDeclarator(identifier.Name, initializer, identifier.NameId),
@@ -397,8 +467,7 @@ internal sealed partial class JsParser
             return;
         }
 
-        if (statement is not JsVariableDeclarationStatement decl ||
-            decl.Kind is not (JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const))
+        if (statement is not JsVariableDeclarationStatement decl || !decl.Kind.IsLexical())
             return;
 
         for (var i = 0; i < decl.Declarators.Count; i++)
@@ -815,6 +884,11 @@ internal sealed partial class JsParser
                 init = ParseVariableDeclarationStatement(false, true,
                     false);
             }
+            else if (TryGetUsingDeclarationStatementKind(out var usingKind))
+            {
+                initIsVarDecl = true;
+                init = ParseUsingDeclarationStatement(usingKind, requireSemicolon: false, allowMissingInitializer: true);
+            }
             else if (current.Kind == JsTokenKind.LeftBrace)
             {
                 if (!TryParseForInOfAssignmentHeadPattern(true, out var pattern))
@@ -842,6 +916,11 @@ internal sealed partial class JsParser
             if (initIsVarDecl &&
                 init is JsVariableDeclarationStatement { Declarators.Count: not 1 })
                 throw Error("for-in/of variable declaration must contain a single declarator", current.Position);
+
+            if (init is JsVariableDeclarationStatement leftDecl &&
+                leftDecl.Kind.IsUsingLike() &&
+                current.Kind == JsTokenKind.In)
+                throw Error("using declarations are not allowed in for-in", current.Position);
 
             var isOf = current.Kind == JsTokenKind.Of;
             if (isAwait && !isOf)
@@ -995,7 +1074,7 @@ internal sealed partial class JsParser
     {
         var statements = new List<JsStatement>();
         var declaredNames = new HashSet<string>(StringComparer.Ordinal);
-        var declarationKind = kind == JsVariableDeclarationKind.Const ? JsVariableDeclarationKind.Let : kind;
+        var declarationKind = kind.IsConstLike() ? JsVariableDeclarationKind.Let : kind;
         CollectArrayPatternBindingDeclarations(pattern, declaredNames, declarationKind, statements);
         statements.Add(new JsExpressionStatement(
             new JsAssignmentExpression(JsAssignmentOperator.Assign, pattern,
@@ -1010,7 +1089,7 @@ internal sealed partial class JsParser
     {
         var statements = new List<JsStatement>();
         var declaredNames = new HashSet<string>(StringComparer.Ordinal);
-        var declarationKind = kind == JsVariableDeclarationKind.Const ? JsVariableDeclarationKind.Let : kind;
+        var declarationKind = kind.IsConstLike() ? JsVariableDeclarationKind.Let : kind;
         CollectObjectPatternBindingDeclarations(pattern, declaredNames, declarationKind, statements);
         statements.Add(new JsExpressionStatement(
             new JsAssignmentExpression(JsAssignmentOperator.Assign, pattern,

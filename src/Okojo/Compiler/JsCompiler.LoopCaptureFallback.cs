@@ -9,7 +9,7 @@ public sealed partial class JsCompiler
         if (!statement.BodyMayCreateNestedFunction)
             return;
         if (statement.Init is not JsVariableDeclarationStatement initDeclaration ||
-            initDeclaration.Kind is not (JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const))
+            !initDeclaration.Kind.IsLexical())
             return;
 
         foreach (var declarator in initDeclaration.Declarators)
@@ -26,7 +26,7 @@ public sealed partial class JsCompiler
         if (!statement.BodyMayCreateNestedFunction)
             return;
         if (statement.Left is not JsVariableDeclarationStatement leftDeclaration ||
-            leftDeclaration.Kind is not (JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const))
+            !leftDeclaration.Kind.IsLexical())
             return;
 
         foreach (var boundIdentifier in GetForInOfHeadBoundIdentifiers(statement))

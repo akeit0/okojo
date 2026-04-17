@@ -9,7 +9,7 @@ public sealed partial class JsCompiler
         if (currentContextSlotById.Count == 0)
             return null;
         if (stmt.Left is not JsVariableDeclarationStatement declStmt ||
-            declStmt.Kind is not (JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const))
+            !declStmt.Kind.IsLexical())
             return null;
 
         var slots = Vm.RentCompileHashSet<int>(4);

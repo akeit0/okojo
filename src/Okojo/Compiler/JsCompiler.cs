@@ -1670,7 +1670,7 @@ public sealed partial class JsCompiler : IDisposable
     {
         if (currentContextSlotById.Count == 0)
             return false;
-        if (initDecl.Kind is not (JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const))
+        if (!initDecl.Kind.IsLexical())
             return false;
 
         foreach (var decl in initDecl.Declarators)
@@ -4106,7 +4106,7 @@ public sealed partial class JsCompiler : IDisposable
         if (currentContextSlotById.Count == 0)
             return false;
         if (stmt.Left is not JsVariableDeclarationStatement declStmt ||
-            declStmt.Kind is not (JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const))
+            !declStmt.Kind.IsLexical())
             return false;
 
         foreach (var boundName in GetForInOfHeadBoundIdentifiers(stmt))
@@ -4623,7 +4623,7 @@ public sealed partial class JsCompiler : IDisposable
                         varStmt.Kind is not JsVariableDeclarationKind.Var)
                         break;
                     if (insideNestedBlock &&
-                        varStmt.Kind is JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const)
+                        varStmt.Kind.IsLexical())
                         // Nested-block lexicals are declared via block alias prepass to preserve shadowing.
                         break;
 
@@ -4645,9 +4645,9 @@ public sealed partial class JsCompiler : IDisposable
                             GetOrCreateLocal(resolved.SymbolId);
                         else
                             GetOrCreateLocal(decl.Name);
-                        if (varStmt.Kind is JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const)
+                        if (varStmt.Kind.IsLexical())
                         {
-                            MarkLexicalBinding(decl.Name, varStmt.Kind is JsVariableDeclarationKind.Const);
+                            MarkLexicalBinding(decl.Name, varStmt.Kind.IsConstLike());
                             if (UsesPersistentGlobalLexicalBindingsMode() && !insideNestedBlock &&
                                 !topLevelLexicalDeclarationPositionByName.ContainsKey(decl.Name))
                                 topLevelLexicalDeclarationPositionByName[decl.Name] = decl.Position;
@@ -4675,7 +4675,7 @@ public sealed partial class JsCompiler : IDisposable
                 case JsForStatement forStmt:
                     if (forStmt.Init is JsVariableDeclarationStatement initDecl)
                     {
-                        if (initDecl.Kind is JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const)
+                        if (initDecl.Kind.IsLexical())
                             PredeclareForHeadLexicals(forStmt);
                         else
                             PredeclareLocals([initDecl], insideNestedBlock);
@@ -4686,7 +4686,7 @@ public sealed partial class JsCompiler : IDisposable
                 case JsForInOfStatement forInOfStmt:
                     if (forInOfStmt.Left is JsVariableDeclarationStatement leftDecl)
                     {
-                        if (leftDecl.Kind is JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const)
+                        if (leftDecl.Kind.IsLexical())
                             PredeclareForInOfHeadLexicals(forInOfStmt);
                         else if (leftDecl.BindingPattern is not null)
                             PredeclareVarPatternBindings(leftDecl.BindingPattern);
@@ -4995,7 +4995,7 @@ public sealed partial class JsCompiler : IDisposable
         resolvedBinding = default;
 
         if (stmt is not JsVariableDeclarationStatement declStmt) return false;
-        if (declStmt.Kind is not (JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const)) return false;
+        if (!declStmt.Kind.IsLexical()) return false;
         if (declStmt.Declarators.Count != 1) return false;
 
         var decl = declStmt.Declarators[0];
@@ -5015,7 +5015,7 @@ public sealed partial class JsCompiler : IDisposable
     {
         resolvedBinding = default;
 
-        if (declStmt.Kind is not (JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const)) return false;
+        if (!declStmt.Kind.IsLexical()) return false;
         if (declStmt.Declarators.Count != 1) return false;
 
         var decl = declStmt.Declarators[0];
@@ -5112,16 +5112,16 @@ public sealed partial class JsCompiler : IDisposable
         foreach (var stmt in block.Statements)
             if (stmt is JsVariableDeclarationStatement declStmt)
             {
-                if (declStmt.Kind is not (JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const))
+                if (!declStmt.Kind.IsLexical())
                     continue;
 
                 foreach (var decl in declStmt.Declarators)
                 {
                     var internalName = $"{decl.Name}#b{blockLexicalUniqueId++}";
                     var internalSymbolId = GetOrCreateSymbolId(internalName);
-                    MarkLexicalBinding(internalSymbolId, declStmt.Kind is JsVariableDeclarationKind.Const);
+                    MarkLexicalBinding(internalSymbolId, declStmt.Kind.IsConstLike());
                     bindings.Add(new(decl.Name, decl.NameId, internalName, internalSymbolId,
-                        declStmt.Kind is JsVariableDeclarationKind.Const));
+                        declStmt.Kind.IsConstLike()));
                 }
             }
             else if (stmt is JsFunctionDeclaration functionDecl)
@@ -5144,7 +5144,7 @@ public sealed partial class JsCompiler : IDisposable
         if (forHeadLexicalsByPosition.ContainsKey(forStmt.Position))
             return;
         if (forStmt.Init is not JsVariableDeclarationStatement declStmt ||
-            declStmt.Kind is not (JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const))
+            !declStmt.Kind.IsLexical())
             return;
 
         var bindings = Vm.RentCompileList<BlockLexicalBinding>(Math.Max(1, declStmt.Declarators.Count));
@@ -5152,7 +5152,7 @@ public sealed partial class JsCompiler : IDisposable
         {
             var internalName = $"{decl.Name}#f{blockLexicalUniqueId++}";
             var internalSymbolId = GetOrCreateSymbolId(internalName);
-            var isConst = declStmt.Kind is JsVariableDeclarationKind.Const;
+            var isConst = declStmt.Kind.IsConstLike();
             MarkLexicalBinding(internalSymbolId, isConst);
             bindings.Add(new(decl.Name, decl.NameId, internalName, internalSymbolId, isConst));
         }
@@ -5168,7 +5168,7 @@ public sealed partial class JsCompiler : IDisposable
         if (forInOfHeadLexicalsByPosition.ContainsKey(forInOfStmt.Position))
             return;
         if (forInOfStmt.Left is not JsVariableDeclarationStatement declStmt ||
-            declStmt.Kind is not (JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const))
+            !declStmt.Kind.IsLexical())
             return;
 
         var boundIdentifiers = GetForInOfHeadBoundIdentifiers(forInOfStmt);
@@ -5177,7 +5177,7 @@ public sealed partial class JsCompiler : IDisposable
         {
             var internalName = $"{boundIdentifier.Name}#i{blockLexicalUniqueId++}";
             var internalSymbolId = GetOrCreateSymbolId(internalName);
-            var isConst = declStmt.Kind is JsVariableDeclarationKind.Const;
+            var isConst = declStmt.Kind.IsConstLike();
             MarkLexicalBinding(internalSymbolId, isConst);
             bindings.Add(new(boundIdentifier.Name, boundIdentifier.NameId, internalName, internalSymbolId, isConst));
         }
@@ -5192,7 +5192,7 @@ public sealed partial class JsCompiler : IDisposable
         {
             var internalName = $"{boundIdentifier.Name}#t{blockLexicalUniqueId++}";
             var internalSymbolId = GetOrCreateSymbolId(internalName);
-            var isConst = declStmt.Kind is JsVariableDeclarationKind.Const;
+            var isConst = declStmt.Kind.IsConstLike();
             MarkLexicalBinding(internalSymbolId, isConst);
             tdzBindings.Add(new(boundIdentifier.Name, boundIdentifier.NameId, internalName, internalSymbolId, isConst));
         }
@@ -5215,7 +5215,7 @@ public sealed partial class JsCompiler : IDisposable
             foreach (var c in switchStmt.Cases)
             foreach (var stmt in c.Consequent)
                 if (stmt is JsVariableDeclarationStatement declStmt &&
-                    declStmt.Kind is JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const)
+                    declStmt.Kind.IsLexical())
                 {
                     foreach (var decl in declStmt.Declarators)
                     {
@@ -5225,10 +5225,10 @@ public sealed partial class JsCompiler : IDisposable
 
                         var internalName = $"{decl.Name}#s{blockLexicalUniqueId++}";
                         var internalSymbolId = GetOrCreateSymbolId(internalName);
-                        MarkLexicalBinding(internalSymbolId, declStmt.Kind is JsVariableDeclarationKind.Const);
+                        MarkLexicalBinding(internalSymbolId, declStmt.Kind.IsConstLike());
                         MarkSwitchLexicalInternal(internalSymbolId);
                         bindings.Add(new(decl.Name, decl.NameId, internalName, internalSymbolId,
-                            declStmt.Kind is JsVariableDeclarationKind.Const));
+                            declStmt.Kind.IsConstLike()));
                     }
                 }
                 else if (stmt is JsClassDeclaration classDecl)
