@@ -1,5 +1,6 @@
 using Okojo.Bytecode;
 using Okojo.Parsing;
+using Okojo.Runtime;
 
 namespace Okojo.Compiler;
 
@@ -2073,13 +2074,9 @@ public sealed partial class JsCompiler : IDisposable
         var endLabel = builder.CreateLabel();
         var returnLabel = builder.CreateLabel();
         var throwLabel = builder.CreateLabel();
-        var notReturnLabel = builder.CreateLabel();
-        var notThrowLabel = builder.CreateLabel();
 
         var completionKindReg = AllocateSyntheticLocal($"$finally.kind.{finallyTempUniqueId}");
         var completionValueReg = AllocateSyntheticLocal($"$finally.value.{finallyTempUniqueId}");
-        var kindCompareReg = AllocateSyntheticLocal($"$finally.kindcmp.{finallyTempUniqueId}");
-        var routeCompareReg = AllocateSyntheticLocal($"$finally.routecmp.{finallyTempUniqueId}");
         var routeMap = new FinallyJumpRouteMap();
         finallyTempUniqueId++;
 
@@ -2145,75 +2142,81 @@ public sealed partial class JsCompiler : IDisposable
             ReleaseTemporaryRegister(finalizerCompletionReg);
         }
 
-        EmitLda(1);
-        EmitStarRegister(kindCompareReg);
-        EmitLdaRegister(completionKindReg);
-        EmitTestEqualStrictRegister(kindCompareReg);
-        EmitJumpIfToBooleanFalse(notReturnLabel);
-        EmitJump(returnLabel);
-
-        builder.BindLabel(notReturnLabel);
-        EmitLda(2);
-        EmitStarRegister(kindCompareReg);
-        EmitLdaRegister(completionKindReg);
-        EmitTestEqualStrictRegister(kindCompareReg);
-        EmitJumpIfToBooleanFalse(notThrowLabel);
-        EmitJump(throwLabel);
-        builder.BindLabel(notThrowLabel);
-
-        BytecodeBuilder.Label breakLabel = default;
-        BytecodeBuilder.Label continueLabel = default;
-        if (routeMap.HasBreakRoutes)
+        var kindCompareReg = AllocateTemporaryRegister();
+        var routeCompareReg = -1;
+        try
         {
-            var notBreakLabel = builder.CreateLabel();
-            breakLabel = builder.CreateLabel();
-            EmitLda(3);
-            EmitStarRegister(kindCompareReg);
-            EmitLdaRegister(completionKindReg);
-            EmitTestEqualStrictRegister(kindCompareReg);
-            EmitJumpIfToBooleanFalse(notBreakLabel);
-            EmitJump(breakLabel);
-            builder.BindLabel(notBreakLabel);
-        }
+            void EmitCompletionKindJump(int kind, BytecodeBuilder.Label target, BytecodeBuilder.Label fallthrough)
+            {
+                EmitLda(kind);
+                EmitStarRegister(kindCompareReg);
+                EmitLdaRegister(completionKindReg);
+                EmitTestEqualStrictRegister(kindCompareReg);
+                EmitJumpIfToBooleanFalse(fallthrough);
+                EmitJump(target);
+            }
 
-        if (routeMap.HasContinueRoutes)
-        {
-            var notContinueLabel = builder.CreateLabel();
-            continueLabel = builder.CreateLabel();
-            EmitLda(4);
-            EmitStarRegister(kindCompareReg);
-            EmitLdaRegister(completionKindReg);
-            EmitTestEqualStrictRegister(kindCompareReg);
-            EmitJumpIfToBooleanFalse(notContinueLabel);
-            EmitJump(continueLabel);
-            builder.BindLabel(notContinueLabel);
-        }
+            var notReturnLabel = builder.CreateLabel();
+            EmitCompletionKindJump(1, returnLabel, notReturnLabel);
+            builder.BindLabel(notReturnLabel);
 
-        EmitLoadRegisterOrUndefinedIfHole(completionValueReg);
-        EmitJump(endLabel);
+            var notThrowLabel = builder.CreateLabel();
+            EmitCompletionKindJump(2, throwLabel, notThrowLabel);
+            builder.BindLabel(notThrowLabel);
 
-        builder.BindLabel(returnLabel);
-        EmitLdaRegister(completionValueReg);
-        EmitReturnConsideringFinallyFlow();
+            BytecodeBuilder.Label breakLabel = default;
+            BytecodeBuilder.Label continueLabel = default;
+            if (routeMap.HasBreakRoutes)
+            {
+                var notBreakLabel = builder.CreateLabel();
+                breakLabel = builder.CreateLabel();
+                EmitCompletionKindJump(3, breakLabel, notBreakLabel);
+                builder.BindLabel(notBreakLabel);
+            }
 
-        builder.BindLabel(throwLabel);
-        EmitLdaRegister(completionValueReg);
-        EmitThrowConsideringFinallyFlow();
+            if (routeMap.HasContinueRoutes)
+            {
+                var notContinueLabel = builder.CreateLabel();
+                continueLabel = builder.CreateLabel();
+                EmitCompletionKindJump(4, continueLabel, notContinueLabel);
+                builder.BindLabel(notContinueLabel);
+            }
 
-        if (breakLabel.IsInitialized)
-        {
-            var noBreakRouteMatchedLabel = builder.CreateLabel();
-            builder.BindLabel(breakLabel);
-            EmitFinallyRouteDispatch(routeMap, false, completionValueReg, routeCompareReg,
-                noBreakRouteMatchedLabel);
-            builder.BindLabel(noBreakRouteMatchedLabel);
+            EmitLoadRegisterOrUndefinedIfHole(completionValueReg);
             EmitJump(endLabel);
-        }
 
-        if (continueLabel.IsInitialized)
+            builder.BindLabel(returnLabel);
+            EmitLdaRegister(completionValueReg);
+            EmitReturnConsideringFinallyFlow();
+
+            builder.BindLabel(throwLabel);
+            EmitLdaRegister(completionValueReg);
+            EmitThrowConsideringFinallyFlow();
+
+            if (breakLabel.IsInitialized || continueLabel.IsInitialized)
+                routeCompareReg = AllocateTemporaryRegister();
+
+            if (breakLabel.IsInitialized)
+            {
+                var noBreakRouteMatchedLabel = builder.CreateLabel();
+                builder.BindLabel(breakLabel);
+                EmitFinallyRouteDispatch(routeMap, false, completionValueReg, routeCompareReg,
+                    noBreakRouteMatchedLabel);
+                builder.BindLabel(noBreakRouteMatchedLabel);
+                EmitJump(endLabel);
+            }
+
+            if (continueLabel.IsInitialized)
+            {
+                builder.BindLabel(continueLabel);
+                EmitFinallyRouteDispatch(routeMap, true, completionValueReg, routeCompareReg, endLabel);
+            }
+        }
+        finally
         {
-            builder.BindLabel(continueLabel);
-            EmitFinallyRouteDispatch(routeMap, true, completionValueReg, routeCompareReg, endLabel);
+            if (routeCompareReg >= 0)
+                ReleaseTemporaryRegister(routeCompareReg);
+            ReleaseTemporaryRegister(kindCompareReg);
         }
 
         builder.BindLabel(endLabel);
@@ -4223,9 +4226,9 @@ public sealed partial class JsCompiler : IDisposable
         var iterReg = AllocateTemporaryRegister();
         EmitStarRegister(iterReg);
 
-        var nextNameIdx = builder.AddAtomizedStringConstant("next");
-        var doneNameIdx = builder.AddAtomizedStringConstant("done");
-        var valueNameIdx = builder.AddAtomizedStringConstant("value");
+        var nextNameIdx = builder.AddAtomizedStringConstant(AtomTable.IdNext);
+        var doneNameIdx = builder.AddAtomizedStringConstant(AtomTable.IdDone);
+        var valueNameIdx = builder.AddAtomizedStringConstant(AtomTable.IdValue);
         EmitLdaNamedPropertyByIndex(iterReg, nextNameIdx, builder.AllocateFeedbackSlot());
         var nextMethodReg = AllocateTemporaryRegister();
         EmitStarRegister(nextMethodReg);
@@ -4374,7 +4377,7 @@ public sealed partial class JsCompiler : IDisposable
                 var deleteKeyReg = deleteTargetReg + 1;
                 try
                 {
-                    var globalThisNameIdx = builder.AddAtomizedStringConstant("globalThis");
+                    var globalThisNameIdx = builder.AddAtomizedStringConstant(AtomTable.IdGlobalThis);
                     EmitLdaGlobalByIndex(globalThisNameIdx,
                         builder.GetOrAllocateGlobalBindingFeedbackSlot("globalThis"));
                     EmitStarRegister(deleteTargetReg);

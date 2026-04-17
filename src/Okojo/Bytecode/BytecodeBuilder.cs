@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Okojo.Runtime;
 
 namespace Okojo.Bytecode;
 
@@ -318,6 +319,21 @@ public sealed class BytecodeBuilder : IDisposable
                 $"Atomized string constant cannot be a canonical array index: '{value}'.");
 
         var atom = realm.Atoms.InternNoCheck(value);
+        for (var i = 0; i < atomizedStringConstants.Count; i++)
+            if (atomizedStringConstants[i] == atom)
+                return i;
+
+        atomizedStringConstants.Add(atom);
+        return atomizedStringConstants.Count - 1;
+    }
+
+    public int AddAtomizedStringConstant(int atom)
+    {
+        var text = realm.Atoms.AtomToString(atom);
+        if (TryGetArrayIndexFromCanonicalString(text, out _))
+            throw new InvalidOperationException(
+                $"Atomized string constant cannot be a canonical array index: '{text}'.");
+
         for (var i = 0; i < atomizedStringConstants.Count; i++)
             if (atomizedStringConstants[i] == atom)
                 return i;

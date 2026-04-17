@@ -1,5 +1,6 @@
 using Okojo.Bytecode;
 using Okojo.Parsing;
+using Okojo.Runtime;
 
 namespace Okojo.Compiler;
 
@@ -99,9 +100,9 @@ public sealed partial class JsCompiler
         var sentReg = AllocateTemporaryRegister();
         EmitStarRegister(sentReg);
 
-        var nextNameIdx = builder.AddAtomizedStringConstant("next");
-        var doneNameIdx = builder.AddAtomizedStringConstant("done");
-        var valueNameIdx = builder.AddAtomizedStringConstant("value");
+        var nextNameIdx = builder.AddAtomizedStringConstant(AtomTable.IdNext);
+        var doneNameIdx = builder.AddAtomizedStringConstant(AtomTable.IdDone);
+        var valueNameIdx = builder.AddAtomizedStringConstant(AtomTable.IdValue);
 
         var nextFnReg = AllocateTemporaryRegister();
         var argReg = AllocateTemporaryRegister();
@@ -169,10 +170,10 @@ public sealed partial class JsCompiler
         var iterableReg = AllocateTemporaryRegister();
         EmitStarRegister(iterableReg);
 
-        var nextNameIdx = builder.AddAtomizedStringConstant("next");
-        var returnNameIdx = builder.AddAtomizedStringConstant("return");
-        var doneNameIdx = builder.AddAtomizedStringConstant("done");
-        var valueNameIdx = builder.AddAtomizedStringConstant("value");
+        var nextNameIdx = builder.AddAtomizedStringConstant(AtomTable.IdNext);
+        var returnNameIdx = builder.AddAtomizedStringConstant(AtomTable.IdReturn);
+        var doneNameIdx = builder.AddAtomizedStringConstant(AtomTable.IdDone);
+        var valueNameIdx = builder.AddAtomizedStringConstant(AtomTable.IdValue);
 
         var iteratorMethodReg = AllocateTemporaryRegister();
         var iterReg = AllocateTemporaryRegister();
@@ -428,9 +429,9 @@ public sealed partial class JsCompiler
         var iterableReg = AllocateTemporaryRegister();
         EmitStarRegister(iterableReg);
 
-        var nextNameIdx = builder.AddAtomizedStringConstant("next");
-        var doneNameIdx = builder.AddAtomizedStringConstant("done");
-        var valueNameIdx = builder.AddAtomizedStringConstant("value");
+        var nextNameIdx = builder.AddAtomizedStringConstant(AtomTable.IdNext);
+        var doneNameIdx = builder.AddAtomizedStringConstant(AtomTable.IdDone);
+        var valueNameIdx = builder.AddAtomizedStringConstant(AtomTable.IdValue);
 
         var iteratorMethodReg = AllocateTemporaryRegister();
         var iterReg = AllocateTemporaryRegister();
