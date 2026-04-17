@@ -1078,6 +1078,31 @@ public class HostInteropTests
     }
 
     [Test]
+    public async Task ClrHostObjectsExposeDisposeAndAsyncDisposeSymbols()
+    {
+        var realm = CreateClrRealm();
+        var host = new DisposableHostSample();
+        realm.Global["host"] = realm.WrapHostValue(host);
+
+        var value = await realm.EvalAsync("""
+                                           (async () => {
+                                             host[Symbol.dispose]();
+                                             await host[Symbol.asyncDispose]();
+                                             return [
+                                               typeof Symbol.asyncDispose,
+                                               typeof host[Symbol.dispose],
+                                               typeof host[Symbol.asyncDispose]
+                                             ].join("|");
+                                           })()
+                                           """);
+
+        Assert.That(value.IsString, Is.True);
+        Assert.That(value.AsString(), Is.EqualTo("symbol|function|function"));
+        Assert.That(host.DisposeCount, Is.EqualTo(1));
+        Assert.That(host.AsyncDisposeCount, Is.EqualTo(1));
+    }
+
+    [Test]
     public void ClrHelpersSupportRefOutPlaceholdersAndTypedNull()
     {
         var engine = JsRuntime.Create(options => options
@@ -1608,6 +1633,23 @@ public class HostInteropTests
             {
                 owner.DisposeCount++;
             }
+        }
+    }
+
+    private sealed class DisposableHostSample : IDisposable, IAsyncDisposable
+    {
+        public int DisposeCount { get; private set; }
+        public int AsyncDisposeCount { get; private set; }
+
+        public void Dispose()
+        {
+            DisposeCount++;
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            AsyncDisposeCount++;
+            return ValueTask.CompletedTask;
         }
     }
 }

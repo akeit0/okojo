@@ -39,9 +39,9 @@ internal sealed class JsClrAsyncEnumeratorObject : JsObject
 
     private static HostAsyncEnumeratorAdapter CreateEnumerator(JsHostObject host)
     {
-        var descriptor = host.Descriptor.AsyncEnumerator
-                         ?? throw new InvalidOperationException("Host type does not expose GetAsyncEnumerator.");
-        return descriptor.CreateEnumerator(host.Data);
+        var createEnumerator = host.Descriptor.AsyncEnumerator
+                          ?? throw new InvalidOperationException("Host type does not expose GetAsyncEnumerator.");
+        return createEnumerator(host.Data);
     }
 
     private JsValue Next()

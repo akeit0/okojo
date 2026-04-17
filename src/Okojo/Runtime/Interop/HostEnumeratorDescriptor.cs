@@ -2,16 +2,6 @@ using System.Collections;
 
 namespace Okojo.Runtime.Interop;
 
-internal sealed class HostEnumeratorDescriptor
-{
-    internal HostEnumeratorDescriptor(Func<object, HostEnumeratorAdapter> createEnumerator)
-    {
-        CreateEnumerator = createEnumerator;
-    }
-
-    internal Func<object, HostEnumeratorAdapter> CreateEnumerator { get; }
-}
-
 internal sealed class HostEnumeratorAdapter(
     object enumerator,
     Func<object, bool> moveNext,

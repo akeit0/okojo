@@ -538,6 +538,25 @@ public partial class Intrinsics
             return JsValue.Undefined;
         }, "[Symbol.dispose]", 0);
 
+        var asyncDisposeFn = new JsHostFunction(Realm, (in info) =>
+        {
+            var realm = info.Realm;
+            var thisValue = info.ThisValue;
+            if (!thisValue.TryGetObject(out var iteratorObj))
+                throw new JsRuntimeException(JsErrorKind.TypeError,
+                    "AsyncIterator.prototype[Symbol.asyncDispose] called on incompatible receiver");
+
+            if (iteratorObj.TryGetPropertyAtom(realm, IdReturn, out var returnValue, out _) &&
+                !returnValue.IsUndefined && !returnValue.IsNull)
+            {
+                var result = CallIteratorHelperMethod(realm, returnValue, iteratorObj,
+                    "AsyncIterator return must be callable");
+                return realm.PromiseResolveValue(result);
+            }
+
+            return realm.PromiseResolveValue(JsValue.Undefined);
+        }, "[Symbol.asyncDispose]", 0);
+
         var fromFn = new JsHostFunction(Realm, (in info) =>
         {
             var realm = info.Realm;
@@ -655,7 +674,8 @@ public partial class Intrinsics
 
         Span<PropertyDefinition> asyncIteratorProtoDefs =
         [
-            PropertyDefinition.Mutable(IdSymbolAsyncIterator, JsValue.FromObject(asyncIteratorSelfFn))
+            PropertyDefinition.Mutable(IdSymbolAsyncIterator, JsValue.FromObject(asyncIteratorSelfFn)),
+            PropertyDefinition.Mutable(IdSymbolAsyncDispose, JsValue.FromObject(asyncDisposeFn))
         ];
         AsyncIteratorPrototype.DefineNewPropertiesNoCollision(Realm, asyncIteratorProtoDefs);
     }

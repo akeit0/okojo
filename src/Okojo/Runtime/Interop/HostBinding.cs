@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-
 namespace Okojo.Runtime.Interop;
 
 public sealed class HostBinding(
@@ -40,4 +39,6 @@ public sealed class HostBinding(
     public HostIndexerBinding? Indexer { get; init; }
     public HostEnumeratorBinding? Enumerator { get; init; }
     public HostAsyncEnumeratorBinding? AsyncEnumerator { get; init; }
+    public Action<object>? Dispose { get; init; }
+    public Func<object, ValueTask>? AsyncDispose { get; init; }
 }

@@ -537,6 +537,7 @@ public partial class Intrinsics
         var match = JsValue.FromSymbol(Realm.SymbolMatchSymbol);
         var unscopables = JsValue.FromSymbol(Realm.SymbolUnscopablesSymbol);
         var dispose = JsValue.FromSymbol(Realm.SymbolDisposeSymbol);
+        var asyncDispose = JsValue.FromSymbol(Realm.SymbolAsyncDisposeSymbol);
         var replace = JsValue.FromSymbol(Realm.SymbolReplaceSymbol);
         var matchAll = JsValue.FromSymbol(Realm.SymbolMatchAllSymbol);
         var split = JsValue.FromSymbol(Realm.SymbolSplitSymbol);
@@ -547,6 +548,7 @@ public partial class Intrinsics
         const int atomSpecies = IdSpecies;
         const int atomUnscopables = IdUnscopables;
         const int atomDispose = IdDispose;
+        const int atomAsyncDispose = IdAsyncDispose;
         const int atomMatch = IdMatch;
         const int atomReplace = IdReplace;
         const int atomMatchAll = IdMatchAll;
@@ -566,6 +568,7 @@ public partial class Intrinsics
             PropertyDefinition.Const(atomMatch, match),
             PropertyDefinition.Const(atomUnscopables, unscopables),
             PropertyDefinition.Const(atomDispose, dispose),
+            PropertyDefinition.Const(atomAsyncDispose, asyncDispose),
             PropertyDefinition.Const(atomReplace, replace),
             PropertyDefinition.Const(atomMatchAll, matchAll),
             PropertyDefinition.Const(atomSplit, split),

@@ -130,6 +130,9 @@ public sealed partial class JsRealm
         SymbolDisposeSymbol = Atoms.TryGetSymbolByAtom(IdSymbolDispose, out var symbolDispose)
             ? symbolDispose
             : new(IdSymbolDispose, "Symbol.dispose", true);
+        SymbolAsyncDisposeSymbol = Atoms.TryGetSymbolByAtom(IdSymbolAsyncDispose, out var symbolAsyncDispose)
+            ? symbolAsyncDispose
+            : new(IdSymbolAsyncDispose, "Symbol.asyncDispose", true);
         SymbolReplaceSymbol = Atoms.TryGetSymbolByAtom(IdSymbolReplace, out var symbolReplace)
             ? symbolReplace
             : new(IdSymbolReplace, "Symbol.replace", true);
@@ -268,6 +271,7 @@ public sealed partial class JsRealm
     internal Symbol SymbolMatchSymbol { get; }
     internal Symbol SymbolUnscopablesSymbol { get; }
     internal Symbol SymbolDisposeSymbol { get; }
+    internal Symbol SymbolAsyncDisposeSymbol { get; }
     internal Symbol SymbolReplaceSymbol { get; }
     internal Symbol SymbolMatchAllSymbol { get; }
     internal Symbol SymbolSplitSymbol { get; }
