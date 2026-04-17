@@ -726,6 +726,8 @@ namespace Okojo.Runtime
 
         private JsValue GetTaskFaultReason(Exception ex)
         {
+            if (ex is PromiseRejectedException promiseRejected)
+                return promiseRejected.Reason;
             if (ex is JsRuntimeException okojoEx)
                 return okojoEx.ThrownValue ?? CreateErrorObjectFromException(okojoEx);
             return CreateHostExceptionValue(ex);

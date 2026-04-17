@@ -54,7 +54,7 @@ public partial class Intrinsics
             var value = info.GetArgumentOrDefault(0, JsValue.Undefined);
             if (!value.IsNull && !value.IsUndefined)
             {
-                var method = GetDisposeMethod(realm, value, allowAsyncFallback: false);
+                var method = GetDisposeMethod(realm, value, allowAsyncFallback: false, out _);
                 if (method.IsUndefined)
                     throw new JsRuntimeException(JsErrorKind.TypeError,
                         "DisposableStack.prototype.use value does not define Symbol.dispose");
@@ -125,11 +125,11 @@ public partial class Intrinsics
                 return value;
             }
 
-            var method = GetDisposeMethod(realm, value, allowAsyncFallback: true);
+            var method = GetDisposeMethod(realm, value, allowAsyncFallback: true, out var hint);
             if (method.IsUndefined)
                 throw new JsRuntimeException(JsErrorKind.TypeError,
                     "AsyncDisposableStack.prototype.use value does not define Symbol.asyncDispose or Symbol.dispose");
-            stack.AddResource(new(value, DisposableResourceHint.AsyncDispose, method));
+            stack.AddResource(new(value, hint, method));
             return value;
         }, "use", 1);
 
@@ -234,7 +234,7 @@ public partial class Intrinsics
             return;
         }
 
-        var method = GetDisposeMethod(Realm, value, hint == DisposableResourceHint.AsyncDispose);
+        var method = GetDisposeMethod(Realm, value, hint == DisposableResourceHint.AsyncDispose, out var resolvedHint);
         if (method.IsUndefined)
         {
             throw new JsRuntimeException(JsErrorKind.TypeError,
@@ -243,7 +243,7 @@ public partial class Intrinsics
                     : "using value does not define Symbol.dispose");
         }
 
-        stack.AddResource(new(value, hint, method));
+        stack.AddResource(new(value, resolvedHint, method));
     }
 
     internal JsValue DisposeCompilerDisposableStack(JsDisposableStackObject stack, int completionKind,
@@ -285,8 +285,10 @@ public partial class Intrinsics
         return fn;
     }
 
-    private static JsValue GetDisposeMethod(JsRealm realm, in JsValue value, bool allowAsyncFallback)
+    private static JsValue GetDisposeMethod(JsRealm realm, in JsValue value, bool allowAsyncFallback,
+        out DisposableResourceHint hint)
     {
+        hint = DisposableResourceHint.SyncDispose;
         if (!value.TryGetObject(out var obj))
             throw new JsRuntimeException(JsErrorKind.TypeError, "Disposable resource must be an object");
 
@@ -294,7 +296,10 @@ public partial class Intrinsics
         {
             var asyncMethod = GetDisposeMethodCore(realm, obj, IdSymbolAsyncDispose);
             if (!asyncMethod.IsUndefined)
+            {
+                hint = DisposableResourceHint.AsyncDispose;
                 return asyncMethod;
+            }
         }
 
         return GetDisposeMethodCore(realm, obj, IdSymbolDispose);

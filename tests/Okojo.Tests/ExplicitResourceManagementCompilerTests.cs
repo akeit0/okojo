@@ -74,16 +74,20 @@ public class ExplicitResourceManagementCompilerTests
     {
         using var runtime = JsRuntime.Create();
         var realm = runtime.DefaultRealm;
-        var result = await realm.EvaluateInAsyncFunctionScope<JsValue>("""
+        var result = await realm.EvaluateAsync("""
             const order = [];
-            await using resource = {
-              [Symbol.asyncDispose]() {
-                order.push("dispose-start");
-                return Promise.resolve().then(() => order.push("dispose-end"));
-              }
-            };
-            order.push("body");
-            return order;
+            async function run() {
+              await using resource = {
+                async [Symbol.asyncDispose]() {
+                  order.push("dispose-start");
+                  await 0;
+                  order.push("dispose-end");
+                }
+              };
+              order.push("body");
+            }
+            await run();
+            order;
             """);
 
         var array = result.AsObject() as JsArray;

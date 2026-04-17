@@ -141,6 +141,29 @@ public class ExplicitResourceManagementBuiltinsTests
     }
 
     [Test]
+    public async Task AsyncDisposableStack_Sync_Fallback_Does_Not_Await_Returned_Promise()
+    {
+        using var runtime = JsRuntime.Create();
+        var realm = runtime.DefaultRealm;
+        var result = await realm.EvaluateInAsyncFunctionScope<bool>("""
+            const neverResolves = Promise.withResolvers().promise;
+            const stack = new AsyncDisposableStack();
+            stack.use({
+              [Symbol.dispose]() {
+                return neverResolves;
+              }
+            });
+            const raced = await Promise.race([
+              stack.disposeAsync().then(() => "disposed"),
+              Promise.resolve().then(() => "tick")
+            ]);
+            return raced === "disposed";
+            """);
+
+        Assert.That(result, Is.True);
+    }
+
+    [Test]
     public void DisposableStack_Adopt_Passes_Value_As_Argument()
     {
         using var runtime = JsRuntime.Create();
