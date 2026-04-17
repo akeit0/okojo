@@ -18,7 +18,7 @@ public sealed class NodeRuntime : IDisposable
 
     private readonly NodeCommonJsResolver commonJsResolver;
     private readonly NodeModuleFormatResolver moduleFormatResolver;
-    private readonly NodeModuleSourceLoader moduleLoader;
+    private readonly NodeConfiguredModuleSourceLoader moduleLoader;
     private readonly JsPlainObject requireCacheObject;
     private readonly NodeTerminalOptions terminalOptions;
     private readonly WebRuntimeApiModule webRuntimeApiModule;
@@ -28,8 +28,8 @@ public sealed class NodeRuntime : IDisposable
     {
         Runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
         this.terminalOptions = terminalOptions?.Clone() ?? new NodeTerminalOptions();
-        moduleLoader = Runtime.ModuleSourceLoader as NodeModuleSourceLoader
-                       ?? throw new InvalidOperationException("OkojoNodeRuntime requires NodeModuleSourceLoader.");
+        moduleLoader = Runtime.ModuleSourceLoader as NodeConfiguredModuleSourceLoader
+                       ?? throw new InvalidOperationException("OkojoNodeRuntime requires NodeConfiguredModuleSourceLoader.");
         commonJsResolver = new(
             moduleLoader.ResolveSpecifier,
             moduleLoader.LoadRawSource);

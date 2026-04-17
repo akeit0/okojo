@@ -40,6 +40,7 @@ public sealed class JsRuntimeOptions
     public IReadOnlyList<Assembly> ClrAssemblies => Core.ClrAssemblies;
     public IReadOnlyList<IRealmApiModule> RealmApiModules => Core.RealmApiModules;
     internal IClrAccessProvider? ClrAccessProvider => Core.ClrAccessProvider;
+    internal int ClrAssembliesVersion => Core.ClrAssembliesVersion;
 
     internal JsRuntimeOptions EnableClrAccess(IClrAccessProvider? provider = null)
     {
@@ -157,8 +158,13 @@ public sealed class JsRuntimeOptions
 
     public JsRuntimeOptions AddClrAssembly(params Assembly[] assemblies)
     {
-        Core.AddClrAssembly(assemblies);
+        Core.AddClrAssembliesCore(assemblies);
         return this;
+    }
+
+    internal bool AddClrAssembliesCore(params Assembly[] assemblies)
+    {
+        return Core.AddClrAssembliesCore(assemblies);
     }
 
     internal JsRuntimeOptions Clone()

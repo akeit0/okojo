@@ -13,6 +13,7 @@ namespace Okojo.Node;
 /// </summary>
 public sealed class NodeRuntimeBuilder
 {
+    private readonly List<Func<IModuleSourceLoader, IModuleSourceLoader>> moduleLoaderWrappers = [];
     private readonly JsRuntimeBuilder runtimeBuilder = JsRuntime.CreateBuilder();
     private readonly NodeTerminalOptions terminalOptions = new();
     private bool installNodeGlobals = true;
@@ -33,6 +34,13 @@ public sealed class NodeRuntimeBuilder
     {
         ArgumentNullException.ThrowIfNull(moduleLoader);
         runtimeBuilder.UseModuleSourceLoader(moduleLoader);
+        return this;
+    }
+
+    public NodeRuntimeBuilder WrapModuleSourceLoader(Func<IModuleSourceLoader, IModuleSourceLoader> wrap)
+    {
+        ArgumentNullException.ThrowIfNull(wrap);
+        moduleLoaderWrappers.Add(wrap);
         return this;
     }
 
@@ -93,7 +101,11 @@ public sealed class NodeRuntimeBuilder
         if (options.Core.RegExpEngine is null)
             options.Core.UseRegExpEngine(RegExpEngine.Default);
         var baseLoader = options.ModuleSourceLoader ?? new FileModuleSourceLoader();
-        options.Host.UseModuleSourceLoader(new NodeModuleSourceLoader(baseLoader, options.Host.SourceMapRegistry));
+        var nodeLoader = new NodeModuleSourceLoader(baseLoader, options.Host.SourceMapRegistry);
+        IModuleSourceLoader topLevelLoader = nodeLoader;
+        for (var i = 0; i < moduleLoaderWrappers.Count; i++)
+            topLevelLoader = moduleLoaderWrappers[i](topLevelLoader);
+        options.Host.UseModuleSourceLoader(new NodeConfiguredModuleSourceLoader(nodeLoader, topLevelLoader));
         return new(JsRuntime.Create(options), terminalOptions.Clone(), installNodeGlobals);
     }
 }

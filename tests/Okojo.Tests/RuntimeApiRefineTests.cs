@@ -56,6 +56,20 @@ public class RuntimeApiRefineTests
     }
 
     [Test]
+    public void Realm_AddClrAssembly_And_TryGetClrValue_Enable_RuntimeClrLoads()
+    {
+        using var engine = JsRuntime.CreateBuilder()
+            .UseCore(core => core.AllowClrAccess())
+            .Build();
+
+        engine.MainRealm.AddClrAssembly(typeof(Uri).Assembly);
+
+        Assert.That(engine.MainRealm.TryGetClrValue("System.Uri", out var value), Is.True);
+        Assert.That(value.TryGetObject(out var obj), Is.True);
+        Assert.That(obj, Is.Not.Null);
+    }
+
+    [Test]
     public void Builder_UseAgent_And_UseRealm_ComposesAgentAndRealmConfiguration()
     {
         using var engine = JsRuntime.CreateBuilder()

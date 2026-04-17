@@ -18,11 +18,8 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\src\Okojo\Okojo.csproj"/>
+        <ProjectReference Include="..\..\src\Okojo.Reflection\Okojo.Reflection.csproj"/>
         <ProjectReference Include="..\..\src\Okojo.DotNet.Modules\Okojo.DotNet.Modules.csproj"/>
-        <ProjectReference Include="..\..\src\Okojo.Hosting\Okojo.Hosting.csproj"/>
-        <ProjectReference Include="..\..\src\Okojo.Node\Okojo.Node.csproj"/>
-        <ProjectReference Include="..\..\src\Okojo.Node.Cli\Okojo.Node.Cli.csproj" ReferenceOutputAssembly="false"/>
-        <ProjectReference Include="..\..\src\Okojo.WebAssembly.Wasmtime\Okojo.WebAssembly.Wasmtime.csproj"/>
     </ItemGroup>
 
     <ItemGroup>

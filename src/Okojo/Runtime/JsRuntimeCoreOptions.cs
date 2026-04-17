@@ -11,12 +11,14 @@ public sealed class JsRuntimeCoreOptions
 {
     private readonly List<Assembly> clrAssemblies = new();
     private readonly List<IRealmApiModule> realmApiModules = new();
+    private int clrAssembliesVersion;
 
     public bool ClrAccessEnabled { get; private set; }
     public IRegExpEngine? RegExpEngine { get; private set; } = RegExp.RegExpEngine.Default;
     public IReadOnlyList<Assembly> ClrAssemblies => clrAssemblies;
     public IReadOnlyList<IRealmApiModule> RealmApiModules => realmApiModules;
     internal IClrAccessProvider? ClrAccessProvider { get; private set; }
+    internal int ClrAssembliesVersion => clrAssembliesVersion;
 
     internal JsRuntimeCoreOptions EnableClrAccess(IClrAccessProvider? provider = null)
     {
@@ -62,15 +64,27 @@ public sealed class JsRuntimeCoreOptions
 
     public JsRuntimeCoreOptions AddClrAssembly(params Assembly[] assemblies)
     {
+        AddClrAssembliesCore(assemblies);
+        return this;
+    }
+
+    internal bool AddClrAssembliesCore(params Assembly[] assemblies)
+    {
         ArgumentNullException.ThrowIfNull(assemblies);
+        var changed = false;
         for (var i = 0; i < assemblies.Length; i++)
         {
             var assembly = assemblies[i] ?? throw new ArgumentNullException(nameof(assemblies));
             if (!clrAssemblies.Contains(assembly))
+            {
                 clrAssemblies.Add(assembly);
+                changed = true;
+            }
         }
 
-        return this;
+        if (changed)
+            clrAssembliesVersion++;
+        return changed;
     }
 
     internal JsRuntimeCoreOptions Clone()
@@ -79,7 +93,8 @@ public sealed class JsRuntimeCoreOptions
         {
             ClrAccessEnabled = ClrAccessEnabled,
             RegExpEngine = RegExpEngine,
-            ClrAccessProvider = ClrAccessProvider
+            ClrAccessProvider = ClrAccessProvider,
+            clrAssembliesVersion = clrAssembliesVersion
         };
         clone.clrAssemblies.AddRange(clrAssemblies);
         clone.realmApiModules.AddRange(realmApiModules);
