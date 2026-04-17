@@ -321,10 +321,7 @@ namespace Okojo.Runtime
 
         public ValueTask<JsValue> EvalAsync(string script, CancellationToken cancellationToken = default)
         {
-            var program = JavaScriptParser.ParseScript(script);
-            var scriptFunc = JsCompiler.Compile(this, program);
-            Execute(scriptFunc);
-            return ToPumpedValueTask<JsValue>(Accumulator, cancellationToken);
+            return EvaluateAsync(script, cancellationToken);
         }
 
         internal static bool TryConvertTaskObjectToJsValue(JsRealm realm, object value, out JsValue jsValue)

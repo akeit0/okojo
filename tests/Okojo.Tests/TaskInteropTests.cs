@@ -46,6 +46,24 @@ public class TaskInteropTests
     }
 
     [Test]
+    public async Task EvaluateAsync_Accepts_TopLevelAwait()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = await runtime.MainRealm.EvaluateAsync("await Promise.resolve(8)");
+
+        Assert.That(result.Int32Value, Is.EqualTo(8));
+    }
+
+    [Test]
+    public async Task Runtime_EvaluateAsync_Accepts_TopLevelAwait()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = await runtime.EvaluateAsync("await Promise.resolve(5)");
+
+        Assert.That(result.Int32Value, Is.EqualTo(5));
+    }
+
+    [Test]
     public void ToValueTask_Uses_Fault_Object_For_Rejected_Promise()
     {
         using var runtime = JsRuntime.Create();

@@ -105,39 +105,37 @@ public class ExplicitResourceManagementBuiltinsTests
         using var runtime = JsRuntime.Create();
         var realm = runtime.DefaultRealm;
 
-        var result = await realm.ToPumpedValueTask<bool>(realm.Evaluate("""
-            (async () => {
-              class MyAsyncDisposableStack extends AsyncDisposableStack {}
-              const order = [];
-              const stack1 = new MyAsyncDisposableStack();
-              stack1.use({
-                get [Symbol.asyncDispose]() {
-                  order.push("Symbol.asyncDispose");
-                  return undefined;
-                },
-                get [Symbol.dispose]() {
-                  order.push("Symbol.dispose");
-                  return () => {
-                    order.push("disposed");
-                  };
-                }
-              });
-              const promise = stack1.disposeAsync();
-              await promise;
+        var result = await realm.EvaluateInAsyncFunctionScope<bool>("""
+            class MyAsyncDisposableStack extends AsyncDisposableStack {}
+            const order = [];
+            const stack1 = new MyAsyncDisposableStack();
+            stack1.use({
+              get [Symbol.asyncDispose]() {
+                order.push("Symbol.asyncDispose");
+                return undefined;
+              },
+              get [Symbol.dispose]() {
+                order.push("Symbol.dispose");
+                return () => {
+                  order.push("disposed");
+                };
+              }
+            });
+            const promise = stack1.disposeAsync();
+            await promise;
 
-              const stack2 = new MyAsyncDisposableStack();
-              stack2.defer(async () => order.push("moved"));
-              const moved = stack2.move();
-              await moved.disposeAsync();
+            const stack2 = new MyAsyncDisposableStack();
+            stack2.defer(async () => order.push("moved"));
+            const moved = stack2.move();
+            await moved.disposeAsync();
 
-              return Object.getPrototypeOf(promise) === Promise.prototype &&
-                stack1.disposed === true &&
-                moved.disposed === true &&
-                moved instanceof AsyncDisposableStack &&
-                !(moved instanceof MyAsyncDisposableStack) &&
-                order.join(",") === "Symbol.asyncDispose,Symbol.dispose,disposed,moved";
-            })();
-            """));
+            return Object.getPrototypeOf(promise) === Promise.prototype &&
+              stack1.disposed === true &&
+              moved.disposed === true &&
+              moved instanceof AsyncDisposableStack &&
+              !(moved instanceof MyAsyncDisposableStack) &&
+              order.join(",") === "Symbol.asyncDispose,Symbol.dispose,disposed,moved";
+            """);
 
         Assert.That(result, Is.True);
     }

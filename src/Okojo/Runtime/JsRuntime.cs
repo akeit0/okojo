@@ -176,6 +176,17 @@ public sealed class JsRuntime : IDisposable
         return Evaluate(source, pumpJobsAfterRun);
     }
 
+    public ValueTask<JsValue> EvaluateAsync(string source, CancellationToken cancellationToken = default)
+    {
+        ThrowIfDisposed();
+        return MainRealm.EvaluateAsync(source, cancellationToken);
+    }
+
+    public ValueTask<JsValue> EvalAsync(string source, CancellationToken cancellationToken = default)
+    {
+        return EvaluateAsync(source, cancellationToken);
+    }
+
     public JsRealm CreateRealm(Action<JsRealmOptions>? configure = null)
     {
         ThrowIfDisposed();
