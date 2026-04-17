@@ -458,6 +458,7 @@ public sealed class AtomTable
     public const int IdWithResolvers = 450; // "withResolvers"
     public const int IdGroups = 451; // "groups"
     public const int IdIndex = 452; // "index"
+    public const int IdAsyncDispose = 453; // "asyncDispose"
 
 
     // Symbol-keyed property atoms are negative to avoid collisions with string atoms.
@@ -475,6 +476,7 @@ public sealed class AtomTable
     public const int IdSymbolMatchAll = -12;
     public const int IdSymbolSplit = -13;
     public const int IdSymbolSearch = -14;
+    public const int IdSymbolAsyncDispose = -15;
 
     private static readonly string[] PredefinedAtoms =
     {
@@ -930,7 +932,8 @@ public sealed class AtomTable
         "allSettled",
         "withResolvers",
         "groups",
-        "index"
+        "index",
+        "asyncDispose"
     };
 
     private static readonly string[] PredefinedSymbolAtoms =
@@ -948,7 +951,8 @@ public sealed class AtomTable
         "Symbol.replace",
         "Symbol.matchAll",
         "Symbol.split",
-        "Symbol.search"
+        "Symbol.search",
+        "Symbol.asyncDispose"
     ];
 
     private readonly Dictionary<string, int> atomByString = new(StringComparer.Ordinal);

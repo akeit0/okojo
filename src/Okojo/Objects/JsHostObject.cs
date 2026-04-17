@@ -20,8 +20,6 @@ public interface ILazyHostMethodProvider
 public sealed class JsHostObject : JsObject, ILazyHostMethodProvider
 {
     private readonly HostRealmLayoutInfo layoutInfo;
-    private JsValue hostIteratorMethod = JsValue.TheHole;
-    private JsValue hostAsyncIteratorMethod = JsValue.TheHole;
 
     internal JsHostObject(JsRealm realm, object data, HostTypeDescriptor descriptor)
         : this(realm, data, descriptor, descriptor.GetOrCreateRealmLayout(realm))
@@ -47,6 +45,43 @@ public sealed class JsHostObject : JsObject, ILazyHostMethodProvider
     public object Data { get; }
     internal HostTypeDescriptor Descriptor { get; }
 
+    internal static JsValue InvokeHostIteratorMethod(scoped in CallInfo info)
+    {
+        if (!info.ThisValue.TryGetObject(out var thisObj) || thisObj is not JsHostObject host)
+            throw new JsRuntimeException(JsErrorKind.TypeError,
+                "[Symbol.iterator] called on incompatible receiver");
+
+        return JsValue.FromObject(new JsClrEnumeratorObject(info.Realm, host));
+    }
+
+    internal static JsValue InvokeHostAsyncIteratorMethod(scoped in CallInfo info)
+    {
+        if (!info.ThisValue.TryGetObject(out var thisObj) || thisObj is not JsHostObject host)
+            throw new JsRuntimeException(JsErrorKind.TypeError,
+                "[Symbol.asyncIterator] called on incompatible receiver");
+
+        return JsValue.FromObject(new JsClrAsyncEnumeratorObject(info.Realm, host));
+    }
+
+    internal static JsValue InvokeHostDisposeMethod(scoped in CallInfo info)
+    {
+        if (!info.ThisValue.TryGetObject(out var thisObj) || thisObj is not JsHostObject host)
+            throw new JsRuntimeException(JsErrorKind.TypeError,
+                "[Symbol.dispose] called on incompatible receiver");
+
+        host.Descriptor.Dispose!(host.Data);
+        return JsValue.Undefined;
+    }
+
+    internal static JsValue InvokeHostAsyncDisposeMethod(scoped in CallInfo info)
+    {
+        if (!info.ThisValue.TryGetObject(out var thisObj) || thisObj is not JsHostObject host)
+            throw new JsRuntimeException(JsErrorKind.TypeError,
+                "[Symbol.asyncDispose] called on incompatible receiver");
+
+        return info.Realm.WrapTask(DisposeAsync(host));
+    }
+
     public bool TryGetOrCreateLazyHostMethod(JsRealm realm, int atom, out JsValue method)
     {
         if (layoutInfo.TryGetOrCreateMethodValue(realm, atom, out method)) return true;
@@ -64,15 +99,8 @@ public sealed class JsHostObject : JsObject, ILazyHostMethodProvider
             return true;
         }
 
-        if (atom == IdSymbolIterator && Descriptor.SupportsSyncIteration)
+        if (layoutInfo.TryGetOrCreateSpecialMethodValue(realm, atom, out value))
         {
-            value = GetOrCreateHostIteratorMethod(realm);
-            return true;
-        }
-
-        if (atom == IdSymbolAsyncIterator && Descriptor.SupportsAsyncIteration)
-        {
-            value = GetOrCreateHostAsyncIteratorMethod(realm);
             return true;
         }
 
@@ -92,21 +120,17 @@ public sealed class JsHostObject : JsObject, ILazyHostMethodProvider
             return true;
         }
 
-        if (atom == IdSymbolIterator && Descriptor.SupportsSyncIteration)
+        if (layoutInfo.HasSpecialMethod(atom))
         {
-            descriptor = needDescriptor
-                ? PropertyDescriptor.Const(GetOrCreateHostIteratorMethod(realm), false, false,
-                    true)
-                : default;
-            return true;
-        }
-
-        if (atom == IdSymbolAsyncIterator && Descriptor.SupportsAsyncIteration)
-        {
-            descriptor = needDescriptor
-                ? PropertyDescriptor.Const(GetOrCreateHostAsyncIteratorMethod(realm), false, false,
-                    true)
-                : default;
+            if (needDescriptor)
+            {
+                _ = layoutInfo.TryGetOrCreateSpecialMethodValue(realm, atom, out var methodValue);
+                descriptor = PropertyDescriptor.Const(methodValue, false, false, true);
+            }
+            else
+            {
+                descriptor = default;
+            }
             return true;
         }
 
@@ -135,10 +159,7 @@ public sealed class JsHostObject : JsObject, ILazyHostMethodProvider
         base.CollectOwnNamedPropertyAtoms(realm, atomsOut, enumerableOnly);
         if (!enumerableOnly)
         {
-            if (Descriptor.SupportsSyncIteration)
-                atomsOut.Add(IdSymbolIterator);
-            if (Descriptor.SupportsAsyncIteration)
-                atomsOut.Add(IdSymbolAsyncIterator);
+            layoutInfo.CollectOwnSpecialMethodAtoms(atomsOut);
             atomsOut.Add(IdSymbolToStringTag);
         }
     }
@@ -229,39 +250,8 @@ public sealed class JsHostObject : JsObject, ILazyHostMethodProvider
         return value;
     }
 
-    private JsValue GetOrCreateHostIteratorMethod(JsRealm realm)
+    private static async ValueTask DisposeAsync(JsHostObject host)
     {
-        if (!hostIteratorMethod.IsTheHole)
-            return hostIteratorMethod;
-
-        var function = new JsHostFunction(realm, static (in info) =>
-        {
-            if (!info.ThisValue.TryGetObject(out var thisObj) || thisObj is not JsHostObject host)
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "[Symbol.iterator] called on incompatible receiver");
-
-            return JsValue.FromObject(new JsClrEnumeratorObject(info.Realm, host));
-        }, "[Symbol.iterator]", 0);
-
-        hostIteratorMethod = JsValue.FromObject(function);
-        return hostIteratorMethod;
-    }
-
-    private JsValue GetOrCreateHostAsyncIteratorMethod(JsRealm realm)
-    {
-        if (!hostAsyncIteratorMethod.IsTheHole)
-            return hostAsyncIteratorMethod;
-
-        var function = new JsHostFunction(realm, static (in info) =>
-        {
-            if (!info.ThisValue.TryGetObject(out var thisObj) || thisObj is not JsHostObject host)
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "[Symbol.asyncIterator] called on incompatible receiver");
-
-            return JsValue.FromObject(new JsClrAsyncEnumeratorObject(info.Realm, host));
-        }, "[Symbol.asyncIterator]", 0);
-
-        hostAsyncIteratorMethod = JsValue.FromObject(function);
-        return hostAsyncIteratorMethod;
+        await host.Descriptor.AsyncDispose!(host.Data);
     }
 }

@@ -2,16 +2,6 @@ using System.Threading.Tasks;
 
 namespace Okojo.Runtime.Interop;
 
-internal sealed class HostAsyncEnumeratorDescriptor
-{
-    internal HostAsyncEnumeratorDescriptor(Func<object, HostAsyncEnumeratorAdapter> createEnumerator)
-    {
-        CreateEnumerator = createEnumerator;
-    }
-
-    internal Func<object, HostAsyncEnumeratorAdapter> CreateEnumerator { get; }
-}
-
 internal sealed class HostAsyncEnumeratorAdapter(
     object enumerator,
     Func<object, ValueTask<bool>> moveNextAsync,

@@ -36,6 +36,7 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
     {
         var binding = HostBindingResolver.TryGetHostBinding(clrType);
         binding = AugmentAsyncEnumerableBinding(clrType, binding);
+        binding = AugmentDisposeBindings(clrType, binding);
         return HostTypeDescriptor.Create(clrType, typeId, binding);
     }
 
@@ -73,15 +74,49 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
         var factory = typeof(ClrInteropProvider).GetMethod(nameof(CreateAsyncEnumerableBinding),
                           BindingFlags.NonPublic | BindingFlags.Static)!
             .MakeGenericMethod(elementType);
-        var asyncBinding = (HostAsyncEnumeratorBinding)factory.Invoke(null, null)!;
+        var asyncEnumerableBinding = (HostAsyncEnumeratorBinding)factory.Invoke(null, null)!;
         if (binding is null)
-            return new HostBinding(clrType, [], []) { AsyncEnumerator = asyncBinding };
+            return new HostBinding(clrType, [], []) { AsyncEnumerator = asyncEnumerableBinding };
 
         return new HostBinding(binding.ClrType, binding.InstanceMembers, binding.StaticMembers)
         {
             Indexer = binding.Indexer,
             Enumerator = binding.Enumerator,
-            AsyncEnumerator = asyncBinding
+            AsyncEnumerator = asyncEnumerableBinding,
+            Dispose = binding.Dispose,
+            AsyncDispose = binding.AsyncDispose
+        };
+    }
+
+    private static HostBinding? AugmentDisposeBindings(Type clrType, HostBinding? binding)
+    {
+        var disposeBinding = binding?.Dispose;
+        var asyncDisposeBinding = binding?.AsyncDispose;
+        if (disposeBinding is null && typeof(IDisposable).IsAssignableFrom(clrType))
+            disposeBinding = static target => ((IDisposable)target).Dispose();
+        if (asyncDisposeBinding is null && typeof(IAsyncDisposable).IsAssignableFrom(clrType))
+            asyncDisposeBinding = static target => ((IAsyncDisposable)target).DisposeAsync();
+
+        if (ReferenceEquals(disposeBinding, binding?.Dispose) &&
+            ReferenceEquals(asyncDisposeBinding, binding?.AsyncDispose))
+            return binding;
+
+        if (binding is null)
+        {
+            return new HostBinding(clrType, [], [])
+            {
+                Dispose = disposeBinding,
+                AsyncDispose = asyncDisposeBinding
+            };
+        }
+
+        return new HostBinding(binding.ClrType, binding.InstanceMembers, binding.StaticMembers)
+        {
+            Indexer = binding.Indexer,
+            Enumerator = binding.Enumerator,
+            AsyncEnumerator = binding.AsyncEnumerator,
+            Dispose = disposeBinding,
+            AsyncDispose = asyncDisposeBinding
         };
     }
 

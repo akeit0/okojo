@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Okojo.Objects;
 
 namespace Okojo.Runtime.Interop;
 
@@ -20,8 +21,10 @@ internal sealed class HostTypeDescriptor
         HostNamedMemberDescriptor[] namedMembers,
         HostNamedMemberDescriptor[] staticNamedMembers,
         HostIndexerDescriptor? indexer,
-        HostEnumeratorDescriptor? enumerator,
-        HostAsyncEnumeratorDescriptor? asyncEnumerator)
+        Func<object, HostEnumeratorAdapter>? enumerator,
+        Func<object, HostAsyncEnumeratorAdapter>? asyncEnumerator,
+        Action<object>? dispose,
+        Func<object, ValueTask>? asyncDispose)
     {
         ClrType = clrType;
         TypeId = typeId;
@@ -30,6 +33,8 @@ internal sealed class HostTypeDescriptor
         Indexer = indexer;
         Enumerator = enumerator;
         AsyncEnumerator = asyncEnumerator;
+        Dispose = dispose;
+        AsyncDispose = asyncDispose;
     }
 
     internal Type ClrType { get; }
@@ -37,10 +42,14 @@ internal sealed class HostTypeDescriptor
     internal HostNamedMemberDescriptor[] NamedMembers { get; }
     internal HostNamedMemberDescriptor[] StaticNamedMembers { get; }
     internal HostIndexerDescriptor? Indexer { get; }
-    internal HostEnumeratorDescriptor? Enumerator { get; }
-    internal HostAsyncEnumeratorDescriptor? AsyncEnumerator { get; }
+    internal Func<object, HostEnumeratorAdapter>? Enumerator { get; }
+    internal Func<object, HostAsyncEnumeratorAdapter>? AsyncEnumerator { get; }
+    internal Action<object>? Dispose { get; }
+    internal Func<object, ValueTask>? AsyncDispose { get; }
     internal bool SupportsSyncIteration => Enumerator is not null;
     internal bool SupportsAsyncIteration => AsyncEnumerator is not null;
+    internal bool SupportsDispose => Dispose is not null;
+    internal bool SupportsAsyncDispose => AsyncDispose is not null;
 
     internal static HostTypeDescriptor Create(
         [DynamicallyAccessedMembers(
@@ -64,12 +73,15 @@ internal sealed class HostTypeDescriptor
             ? new(manualIndexer.Getter, manualIndexer.Setter, manualIndexer.CollectOwnIndices)
             : CreateIndexer(clrType);
         var enumerator = binding?.Enumerator is { } manualEnumerator
-            ? new(manualEnumerator.CreateEnumerator)
+            ? manualEnumerator.CreateEnumerator
             : FindEnumerator(clrType);
         var asyncEnumerator = binding?.AsyncEnumerator is { } manualAsyncEnumerator
-            ? new(manualAsyncEnumerator.CreateEnumerator)
+            ? manualAsyncEnumerator.CreateEnumerator
             : FindAsyncEnumerator(clrType);
-        return new(clrType, typeId, members, staticMembers, indexer, enumerator, asyncEnumerator);
+        var dispose = binding?.Dispose;
+        var asyncDispose = binding?.AsyncDispose;
+        return new(clrType, typeId, members, staticMembers, indexer, enumerator, asyncEnumerator, dispose,
+            asyncDispose);
     }
 
     internal HostRealmLayoutInfo GetOrCreateRealmLayout(JsRealm realm)
@@ -91,13 +103,13 @@ internal sealed class HostTypeDescriptor
             if (layouts.TryGetValue(realm, out var info))
                 return info;
 
-            info = CreateRealmLayout(realm, isStatic ? StaticNamedMembers : NamedMembers);
+            info = CreateRealmLayout(realm, isStatic ? StaticNamedMembers : NamedMembers, isStatic);
             layouts.Add(realm, info);
             return info;
         }
     }
 
-    private static HostRealmLayoutInfo CreateRealmLayout(JsRealm realm, HostNamedMemberDescriptor[] members)
+    private HostRealmLayoutInfo CreateRealmLayout(JsRealm realm, HostNamedMemberDescriptor[] members, bool isStatic)
     {
         var slotInfoByAtom = new Dictionary<int, SlotInfo>(members.Length);
         var lazyMethodsByAtom = new Dictionary<int, (HostNamedMemberDescriptor Member, int Slot)>();
@@ -149,7 +161,22 @@ internal sealed class HostTypeDescriptor
         }
 
         return new(layout, slotTemplate,
-            lazyMethodsByAtom.Count == 0 ? null : lazyMethodsByAtom);
+            lazyMethodsByAtom.Count == 0 ? null : lazyMethodsByAtom,
+            isStatic ? (byte)0 : GetSpecialMethodMask());
+    }
+
+    private byte GetSpecialMethodMask()
+    {
+        byte mask = 0;
+        if (SupportsSyncIteration)
+            mask |= 1 << 0;
+        if (SupportsAsyncIteration)
+            mask |= 1 << 1;
+        if (SupportsDispose)
+            mask |= 1 << 2;
+        if (SupportsAsyncDispose)
+            mask |= 1 << 3;
+        return mask;
     }
 
     private static HostNamedMemberDescriptor[] CreateNamedMembers(
@@ -355,7 +382,7 @@ internal sealed class HostTypeDescriptor
         return null;
     }
 
-    private static HostEnumeratorDescriptor? FindEnumerator(
+    private static Func<object, HostEnumeratorAdapter>? FindEnumerator(
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)]
         Type clrType)
     {
@@ -364,13 +391,13 @@ internal sealed class HostTypeDescriptor
                                         !x.IsStatic &&
                                         x.GetParameters().Length == 0)
                      .OrderBy(static x => x.MetadataToken))
-            if (TryCreateEnumeratorDescriptor(method, out var descriptor))
-                return descriptor;
+            if (TryCreateEnumeratorDescriptor(method, out var createEnumerator))
+                return createEnumerator;
 
         return null;
     }
 
-    private static HostAsyncEnumeratorDescriptor? FindAsyncEnumerator(
+    private static Func<object, HostAsyncEnumeratorAdapter>? FindAsyncEnumerator(
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)]
         Type clrType)
     {
@@ -382,8 +409,8 @@ internal sealed class HostTypeDescriptor
             var parameters = method.GetParameters();
             if (parameters.Length == 0)
             {
-                if (TryCreateAsyncEnumeratorDescriptor(method, false, out var descriptor))
-                    return descriptor;
+                if (TryCreateAsyncEnumeratorDescriptor(method, false, out var createEnumerator))
+                    return createEnumerator;
                 continue;
             }
 
@@ -392,25 +419,25 @@ internal sealed class HostTypeDescriptor
         }
 
         return cancellationTokenCandidate is not null &&
-               TryCreateAsyncEnumeratorDescriptor(cancellationTokenCandidate, true, out var asyncDescriptor)
-            ? asyncDescriptor
+               TryCreateAsyncEnumeratorDescriptor(cancellationTokenCandidate, true, out var createAsyncEnumerator)
+            ? createAsyncEnumerator
             : null;
     }
 
     [UnconditionalSuppressMessage("Trimming", "IL2072",
         Justification = "Reflection-based host iteration intentionally inspects public members on the returned enumerator type.")]
-    private static bool TryCreateEnumeratorDescriptor(MethodInfo method, [NotNullWhen(true)] out HostEnumeratorDescriptor? descriptor)
+    private static bool TryCreateEnumeratorDescriptor(MethodInfo method, [NotNullWhen(true)] out Func<object, HostEnumeratorAdapter>? createEnumerator)
     {
-        descriptor = null;
+        createEnumerator = null;
         if (!TryCreateEnumeratorAdapterFactory(method.ReturnType, out var createAdapter))
             return false;
 
-        descriptor = new(target =>
+        createEnumerator = target =>
         {
             var enumerator = method.Invoke(target, null)
                              ?? throw new InvalidOperationException("GetEnumerator returned null.");
             return createAdapter(enumerator);
-        });
+        };
         return true;
     }
 
@@ -419,19 +446,19 @@ internal sealed class HostTypeDescriptor
     private static bool TryCreateAsyncEnumeratorDescriptor(
         MethodInfo method,
         bool passCancellationToken,
-        [NotNullWhen(true)] out HostAsyncEnumeratorDescriptor? descriptor)
+        [NotNullWhen(true)] out Func<object, HostAsyncEnumeratorAdapter>? createEnumerator)
     {
-        descriptor = null;
+        createEnumerator = null;
         if (!TryCreateAsyncEnumeratorAdapterFactory(method.ReturnType, out var createAdapter))
             return false;
 
-        descriptor = new(target =>
+        createEnumerator = target =>
         {
             object?[]? args = passCancellationToken ? [CancellationToken.None] : null;
             var enumerator = method.Invoke(target, args)
                              ?? throw new InvalidOperationException("GetAsyncEnumerator returned null.");
             return createAdapter(enumerator);
-        });
+        };
         return true;
     }
 
