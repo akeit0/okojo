@@ -82,7 +82,13 @@ public sealed partial class JsRealm
         HandleRuntimeSetFunctionMethodEnvironment, // SetFunctionMethodEnvironment = 63
         HandleRuntimeHasPrivateField, // HasPrivateField = 64
         HandleIntrinsicClassGetPrototypeAndSetConstructor, // ClassGetPrototypeAndSetConstructor = 65
-        HandleIntrinsicGeneratorHasActiveDelegateIterator // GeneratorHasActiveDelegateIterator = 66
+        HandleIntrinsicGeneratorHasActiveDelegateIterator, // GeneratorHasActiveDelegateIterator = 66
+        Intrinsics.HandleRuntimeCreateDisposableResourceStack, // CreateDisposableResourceStack = 67
+        Intrinsics.HandleRuntimeCreateAsyncDisposableResourceStack, // CreateAsyncDisposableResourceStack = 68
+        Intrinsics.HandleRuntimeAddDisposableResource, // AddDisposableResource = 69
+        Intrinsics.HandleRuntimeAddAsyncDisposableResource, // AddAsyncDisposableResource = 70
+        Intrinsics.HandleRuntimeDisposeDisposableResourceStack, // DisposeDisposableResourceStack = 71
+        Intrinsics.HandleRuntimeDisposeAsyncDisposableResourceStack // DisposeAsyncDisposableResourceStack = 72
     ];
 
     private static readonly IntrinsicHandler?[] SIntrinsicHandlers =

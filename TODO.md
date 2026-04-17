@@ -21,6 +21,7 @@
 ### Active supporting work
 
 - [ ] continue module/runtime simplification without reintroducing wrapper-heavy paths
+- [ ] explicit-resource-management: the current compiler/runtime seam for top-level-module `await using` is still awkward; give module async cleanup a dedicated lowering path instead of leaning on normal async-function suspension flow
 - [ ] keep shape/dictionary rollout aligned with hot-path simplicity
 - [ ] keep the non-legacy, non-staging Test262 passing baseline stable during API/compiler/runtime work
 - [ ] extend locals-by-name snapshots with outer-scope/context-chain value lookup helpers for paused debugger inspection

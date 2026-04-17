@@ -786,16 +786,24 @@ public sealed partial class JsCompiler : IDisposable
             JsStatement? lastReachableStatement = null;
             try
             {
-                foreach (var statement in statementList)
+                void EmitBodyStatementList()
                 {
-                    lastReachableStatement = statement;
-                    VisitStatement(statement, bodyStatementResultsUsed);
-                    if (StatementAlwaysReturns(statement) || StatementNeverCompletesNormally(statement))
+                    foreach (var statement in statementList)
                     {
-                        alwaysReturns = true;
-                        break;
+                        lastReachableStatement = statement;
+                        VisitStatement(statement, bodyStatementResultsUsed);
+                        if (StatementAlwaysReturns(statement) || StatementNeverCompletesNormally(statement))
+                        {
+                            alwaysReturns = true;
+                            break;
+                        }
                     }
                 }
+
+                if (BlockNeedsExplicitResourceScope(statementList))
+                    EmitExplicitResourceScope(EmitBodyStatementList, BlockNeedsAsyncExplicitResourceScope(statementList));
+                else
+                    EmitBodyStatementList();
             }
             finally
             {
@@ -2057,8 +2065,170 @@ public sealed partial class JsCompiler : IDisposable
         builder.BindLabel(endLabel);
     }
 
+    private void EmitFinallyFlowScope(Action emitTryBody, Action<int, int> emitFinalizerBody)
+    {
+        var catchLabel = builder.CreateLabel();
+        var finallyFromTryLabel = builder.CreateLabel();
+        var finallyEntryLabel = builder.CreateLabel();
+        var endLabel = builder.CreateLabel();
+        var returnLabel = builder.CreateLabel();
+        var throwLabel = builder.CreateLabel();
+        var notReturnLabel = builder.CreateLabel();
+        var notThrowLabel = builder.CreateLabel();
+
+        var completionKindReg = AllocateSyntheticLocal($"$finally.kind.{finallyTempUniqueId}");
+        var completionValueReg = AllocateSyntheticLocal($"$finally.value.{finallyTempUniqueId}");
+        var kindCompareReg = AllocateSyntheticLocal($"$finally.kindcmp.{finallyTempUniqueId}");
+        var routeCompareReg = AllocateSyntheticLocal($"$finally.routecmp.{finallyTempUniqueId}");
+        var routeMap = new FinallyJumpRouteMap();
+        finallyTempUniqueId++;
+
+        EmitLdaZero();
+        EmitStarRegister(completionKindReg);
+        EmitLdaTheHole();
+        EmitStarRegister(completionValueReg);
+
+        builder.EmitJump(JsOpCode.PushTry, catchLabel);
+        activeFinallyFlow.Push(new(completionKindReg, completionValueReg, finallyFromTryLabel, true, routeMap));
+        try
+        {
+            activeAbruptEmptyNormalizations.Push(true);
+            try
+            {
+                emitTryBody();
+            }
+            finally
+            {
+                activeAbruptEmptyNormalizations.Pop();
+            }
+
+            EmitStarRegister(completionValueReg);
+        }
+        finally
+        {
+            activeFinallyFlow.Pop();
+        }
+
+        EmitRaw(JsOpCode.PopTry);
+        EmitJump(finallyEntryLabel);
+
+        builder.BindLabel(finallyFromTryLabel);
+        EmitRaw(JsOpCode.PopTry);
+        EmitJump(finallyEntryLabel);
+
+        builder.BindLabel(catchLabel);
+        EmitStarRegister(completionValueReg);
+        EmitLda(2);
+        EmitStarRegister(completionKindReg);
+        EmitJump(finallyEntryLabel);
+
+        builder.BindLabel(finallyEntryLabel);
+        var finalizerCompletionReg = AllocateTemporaryRegister();
+        EmitLdaTheHole();
+        EmitStarRegister(finalizerCompletionReg);
+        PushStatementCompletionState(finalizerCompletionReg, false);
+        try
+        {
+            activeAbruptEmptyNormalizations.Push(true);
+            try
+            {
+                emitFinalizerBody(completionKindReg, completionValueReg);
+            }
+            finally
+            {
+                activeAbruptEmptyNormalizations.Pop();
+            }
+        }
+        finally
+        {
+            PopStatementCompletionState();
+            ReleaseTemporaryRegister(finalizerCompletionReg);
+        }
+
+        EmitLda(1);
+        EmitStarRegister(kindCompareReg);
+        EmitLdaRegister(completionKindReg);
+        EmitTestEqualStrictRegister(kindCompareReg);
+        EmitJumpIfToBooleanFalse(notReturnLabel);
+        EmitJump(returnLabel);
+
+        builder.BindLabel(notReturnLabel);
+        EmitLda(2);
+        EmitStarRegister(kindCompareReg);
+        EmitLdaRegister(completionKindReg);
+        EmitTestEqualStrictRegister(kindCompareReg);
+        EmitJumpIfToBooleanFalse(notThrowLabel);
+        EmitJump(throwLabel);
+        builder.BindLabel(notThrowLabel);
+
+        BytecodeBuilder.Label breakLabel = default;
+        BytecodeBuilder.Label continueLabel = default;
+        if (routeMap.HasBreakRoutes)
+        {
+            var notBreakLabel = builder.CreateLabel();
+            breakLabel = builder.CreateLabel();
+            EmitLda(3);
+            EmitStarRegister(kindCompareReg);
+            EmitLdaRegister(completionKindReg);
+            EmitTestEqualStrictRegister(kindCompareReg);
+            EmitJumpIfToBooleanFalse(notBreakLabel);
+            EmitJump(breakLabel);
+            builder.BindLabel(notBreakLabel);
+        }
+
+        if (routeMap.HasContinueRoutes)
+        {
+            var notContinueLabel = builder.CreateLabel();
+            continueLabel = builder.CreateLabel();
+            EmitLda(4);
+            EmitStarRegister(kindCompareReg);
+            EmitLdaRegister(completionKindReg);
+            EmitTestEqualStrictRegister(kindCompareReg);
+            EmitJumpIfToBooleanFalse(notContinueLabel);
+            EmitJump(continueLabel);
+            builder.BindLabel(notContinueLabel);
+        }
+
+        EmitLoadRegisterOrUndefinedIfHole(completionValueReg);
+        EmitJump(endLabel);
+
+        builder.BindLabel(returnLabel);
+        EmitLdaRegister(completionValueReg);
+        EmitReturnConsideringFinallyFlow();
+
+        builder.BindLabel(throwLabel);
+        EmitLdaRegister(completionValueReg);
+        EmitThrowConsideringFinallyFlow();
+
+        if (breakLabel.IsInitialized)
+        {
+            var noBreakRouteMatchedLabel = builder.CreateLabel();
+            builder.BindLabel(breakLabel);
+            EmitFinallyRouteDispatch(routeMap, false, completionValueReg, routeCompareReg,
+                noBreakRouteMatchedLabel);
+            builder.BindLabel(noBreakRouteMatchedLabel);
+            EmitJump(endLabel);
+        }
+
+        if (continueLabel.IsInitialized)
+        {
+            builder.BindLabel(continueLabel);
+            EmitFinallyRouteDispatch(routeMap, true, completionValueReg, routeCompareReg, endLabel);
+        }
+
+        builder.BindLabel(endLabel);
+    }
+
     private void EmitTryFinallyWithOptionalCatch(JsTryStatement tryStmt)
     {
+        if (tryStmt.Handler is null)
+        {
+            EmitFinallyFlowScope(
+                () => VisitStatement(tryStmt.Block),
+                (_, _) => VisitStatement(tryStmt.Finalizer!));
+            return;
+        }
+
         var catchLabel = builder.CreateLabel();
         var finallyFromTryLabel = builder.CreateLabel();
         var finallyFromCatchLabel = builder.CreateLabel();
@@ -3974,6 +4144,8 @@ public sealed partial class JsCompiler : IDisposable
         var indexReg = AllocateTemporaryRegister();
         EmitLdaZero();
         EmitStarRegister(indexReg);
+        var usingLikeLeft = TryGetUsingLikeForInOfLeft(stmt, out var usingLikeDeclaration);
+        var iterationValueReg = usingLikeLeft ? AllocateTemporaryRegister() : -1;
 
         var loopLabel = builder.CreateLabel();
         var continueLabel = builder.CreateLabel();
@@ -3988,6 +4160,11 @@ public sealed partial class JsCompiler : IDisposable
 
         EmitLdaRegister(indexReg);
         EmitLdaKeyedProperty(iterableReg);
+        if (usingLikeLeft)
+        {
+            EmitStarRegister(iterationValueReg);
+            EmitLdaRegister(iterationValueReg);
+        }
         EmitForIterationAssignLeft(stmt.Left, true);
 
         loopTargets.Push(new(loopBreakLabel, continueLabel));
@@ -3996,7 +4173,17 @@ public sealed partial class JsCompiler : IDisposable
             PushLabeledTargets(labels, loopBreakLabel, continueLabel, true);
         try
         {
-            VisitLoopBodyWithCompletion(stmt.Body, completionReg);
+            if (usingLikeLeft)
+            {
+                EmitExplicitResourceScope(
+                    () => VisitLoopBodyWithCompletion(stmt.Body, completionReg),
+                    usingLikeDeclaration.Kind == JsVariableDeclarationKind.AwaitUsing,
+                    _ => EmitRegisterExplicitResource(usingLikeDeclaration.Kind, iterationValueReg));
+            }
+            else
+            {
+                VisitLoopBodyWithCompletion(stmt.Body, completionReg);
+            }
         }
         finally
         {
@@ -4080,7 +4267,17 @@ public sealed partial class JsCompiler : IDisposable
             PushLabeledTargets(labels, loopBreakLabel, continueLabel, true);
         try
         {
-            VisitLoopBodyWithCompletion(stmt.Body, completionReg);
+            if (TryGetUsingLikeForInOfLeft(stmt, out var usingLikeDeclaration))
+            {
+                EmitExplicitResourceScope(
+                    () => VisitLoopBodyWithCompletion(stmt.Body, completionReg),
+                    usingLikeDeclaration.Kind == JsVariableDeclarationKind.AwaitUsing,
+                    _ => EmitRegisterExplicitResource(usingLikeDeclaration.Kind, stepValueReg));
+            }
+            else
+            {
+                VisitLoopBodyWithCompletion(stmt.Body, completionReg);
+            }
         }
         finally
         {

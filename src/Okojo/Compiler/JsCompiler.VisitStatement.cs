@@ -27,6 +27,9 @@ public sealed partial class JsCompiler
                 throw new NotSupportedException("Binding declaration pattern is not supported.");
         }
 
+        if (declaration.Kind.IsUsingLike())
+            EmitRegisterExplicitResource(declaration.Kind, valueReg);
+
         ReleaseTemporaryRegister(valueReg);
         if (emitCompletionValue)
             EmitLdaTheHole();
@@ -47,8 +50,10 @@ public sealed partial class JsCompiler
             var targetName = hasResolvedDeclBinding ? resolvedDeclBinding.Name : decl.Name;
             if (decl.Initializer != null)
             {
+                var isUsingLike = varStmt.Kind.IsUsingLike();
                 var useInitializationStore = varStmt.Kind is not JsVariableDeclarationKind.Var;
-                if (hasResolvedDeclBinding &&
+                if (!isUsingLike &&
+                    hasResolvedDeclBinding &&
                     TryEmitDirectLocalToLocalMoveForInitializer(targetName, decl.Initializer,
                         useInitializationStore, decl.Name))
                 {
@@ -57,7 +62,8 @@ public sealed partial class JsCompiler
                     continue;
                 }
 
-                if (hasResolvedDeclBinding &&
+                if (!isUsingLike &&
+                    hasResolvedDeclBinding &&
                     TryEmitLiteralInitializerDirectToLocal(varStmt.Kind, targetName, decl.Initializer))
                 {
                     if (ShouldTrackKnownInitializedLexical(resolvedDeclBinding.SymbolId))
@@ -66,9 +72,21 @@ public sealed partial class JsCompiler
                 }
 
                 VisitExpressionWithInferredName(decl.Initializer, decl.Name);
+                var valueReg = -1;
+                if (isUsingLike)
+                {
+                    valueReg = AllocateTemporaryRegister();
+                    EmitStarRegister(valueReg);
+                    EmitLdaRegister(valueReg);
+                }
                 StoreIdentifier(targetName, useInitializationStore, decl.Name);
                 if (hasResolvedDeclBinding && ShouldTrackKnownInitializedLexical(resolvedDeclBinding.SymbolId))
                     MarkKnownInitializedLexical(resolvedDeclBinding.SymbolId);
+                if (isUsingLike)
+                {
+                    EmitRegisterExplicitResource(varStmt.Kind, valueReg);
+                    ReleaseTemporaryRegister(valueReg);
+                }
             }
             else if (varStmt.Kind is JsVariableDeclarationKind.Let && hasResolvedDeclBinding &&
                      IsLexicalLocalBinding(resolvedDeclBinding.SymbolId))
@@ -106,54 +124,18 @@ public sealed partial class JsCompiler
         {
             case JsExpressionStatement exprStmt: VisitExpression(exprStmt.Expression); break;
             case JsBlockStatement blockStmt:
-            {
-                var reuseParentBlockCompletion =
-                    hasStructuredCompletion &&
-                    StatementListNeedsStructuredCompletionTracking(blockStmt.Statements) &&
-                    !StatementListNeedsCompletionIsolationFromParent(blockStmt.Statements);
-                completionHandledInternally = reuseParentBlockCompletion;
-                var trackBlockCompletion =
-                    !reuseParentBlockCompletion &&
-                    StatementListNeedsStructuredCompletionTracking(blockStmt.Statements);
-                var blockCompletionReg = -1;
-                if (trackBlockCompletion)
+                if (BlockNeedsExplicitResourceScope(blockStmt.Statements))
                 {
-                    blockCompletionReg = AllocateTemporaryRegister();
-                    EmitLdaTheHole();
-                    EmitStarRegister(blockCompletionReg);
-                    PushStatementCompletionState(blockCompletionReg, false);
+                    EmitExplicitResourceScope(
+                        () => EmitBlockStatementCore(blockStmt, resultUsed),
+                        BlockNeedsAsyncExplicitResourceScope(blockStmt.Statements));
+                    completionHandledInternally = true;
                 }
-
-                PushBlockLexicalAliases(blockStmt);
-                try
+                else
                 {
-                    foreach (var s in blockStmt.Statements)
-                        if (s is JsFunctionDeclaration decl)
-                            HoistFunction(decl);
-
-                    foreach (var s in blockStmt.Statements)
-                    {
-                        VisitStatement(s, resultUsed);
-                        if (StatementAlwaysReturns(s))
-                            break;
-                    }
+                    EmitBlockStatementCore(blockStmt, resultUsed);
+                    completionHandledInternally = true;
                 }
-                finally
-                {
-                    PopBlockLexicalAliases(blockStmt);
-                    if (trackBlockCompletion) PopStatementCompletionState();
-                }
-
-                if (trackBlockCompletion)
-                {
-                    EmitLdaRegister(blockCompletionReg);
-                    ReleaseTemporaryRegister(blockCompletionReg);
-                }
-                else if (resultUsed && !StatementListLeavesDirectCompletionValue(blockStmt.Statements))
-                {
-                    EmitLdaTheHole();
-                }
-            }
                 break;
             case JsFunctionDeclaration _:
                 builder.ClearPendingSourceOffset();
@@ -237,6 +219,11 @@ public sealed partial class JsCompiler
             case JsDoWhileStatement doWhileStmt:
                 EmitDoWhileStatement(doWhileStmt);
                 break;
+            case JsForStatement forStmt when forStmt.Init is JsVariableDeclarationStatement initDecl && initDecl.Kind.IsUsingLike():
+                EmitExplicitResourceScope(() => EmitForStatement(forStmt),
+                    initDecl.Kind == JsVariableDeclarationKind.AwaitUsing);
+                completionHandledInternally = true;
+                break;
             case JsForStatement forStmt:
                 EmitForStatement(forStmt);
                 break;
@@ -249,18 +236,22 @@ public sealed partial class JsCompiler
             case JsLabeledStatement labeledStmt:
                 EmitLabeledStatement(labeledStmt);
                 break;
+            case JsVariableDeclarationStatement varStmt when varStmt.Kind.IsUsingLike() && !HasActiveExplicitResourceScope:
+                EmitExplicitResourceScope(() => EmitVariableDeclarationStatement(varStmt, resultUsed),
+                    varStmt.Kind == JsVariableDeclarationKind.AwaitUsing);
+                completionHandledInternally = true;
+                break;
             case JsVariableDeclarationStatement varStmt:
                 EmitVariableDeclarationStatement(varStmt, resultUsed);
                 break;
+            case JsEmptyObjectBindingDeclarationStatement emptyObjectBindingStmt
+                when emptyObjectBindingStmt.Kind.IsUsingLike() && !HasActiveExplicitResourceScope:
+                EmitExplicitResourceScope(() => EmitEmptyObjectBindingDeclarationStatement(emptyObjectBindingStmt),
+                    emptyObjectBindingStmt.Kind == JsVariableDeclarationKind.AwaitUsing);
+                completionHandledInternally = true;
+                break;
             case JsEmptyObjectBindingDeclarationStatement emptyObjectBindingStmt:
-            {
-                VisitExpression(emptyObjectBindingStmt.Initializer);
-                var valueReg = AllocateTemporaryRegister();
-                EmitStarRegister(valueReg);
-                EmitCallRuntime(RuntimeId.RequireObjectCoercible, valueReg, 1);
-                builder.ReleaseTemporaryRegister(valueReg);
-                EmitLdaTheHole();
-            }
+                EmitEmptyObjectBindingDeclarationStatement(emptyObjectBindingStmt);
                 break;
             case JsReturnStatement returnStmt:
                 if (returnStmt.Argument != null)
@@ -381,6 +372,69 @@ public sealed partial class JsCompiler
                     EmitStoreCompletionValueIfNotHole(switchCompletionReg);
             }
         }
+    }
+
+    private void EmitBlockStatementCore(JsBlockStatement blockStmt, bool resultUsed)
+    {
+        var hasStructuredCompletion = activeStatementCompletionStates.Count != 0;
+        var reuseParentBlockCompletion =
+            hasStructuredCompletion &&
+            StatementListNeedsStructuredCompletionTracking(blockStmt.Statements) &&
+            !StatementListNeedsCompletionIsolationFromParent(blockStmt.Statements);
+        var trackBlockCompletion =
+            !reuseParentBlockCompletion &&
+            StatementListNeedsStructuredCompletionTracking(blockStmt.Statements);
+        var blockCompletionReg = -1;
+        if (trackBlockCompletion)
+        {
+            blockCompletionReg = AllocateTemporaryRegister();
+            EmitLdaTheHole();
+            EmitStarRegister(blockCompletionReg);
+            PushStatementCompletionState(blockCompletionReg, false);
+        }
+
+        PushBlockLexicalAliases(blockStmt);
+        try
+        {
+            foreach (var s in blockStmt.Statements)
+                if (s is JsFunctionDeclaration decl)
+                    HoistFunction(decl);
+
+            foreach (var s in blockStmt.Statements)
+            {
+                VisitStatement(s, resultUsed);
+                if (StatementAlwaysReturns(s))
+                    break;
+            }
+        }
+        finally
+        {
+            PopBlockLexicalAliases(blockStmt);
+            if (trackBlockCompletion)
+                PopStatementCompletionState();
+        }
+
+        if (trackBlockCompletion)
+        {
+            EmitLdaRegister(blockCompletionReg);
+            ReleaseTemporaryRegister(blockCompletionReg);
+        }
+        else if (resultUsed && !StatementListLeavesDirectCompletionValue(blockStmt.Statements))
+        {
+            EmitLdaTheHole();
+        }
+    }
+
+    private void EmitEmptyObjectBindingDeclarationStatement(JsEmptyObjectBindingDeclarationStatement statement)
+    {
+        VisitExpression(statement.Initializer);
+        var valueReg = AllocateTemporaryRegister();
+        EmitStarRegister(valueReg);
+        EmitCallRuntime(RuntimeId.RequireObjectCoercible, valueReg, 1);
+        if (statement.Kind.IsUsingLike())
+            EmitRegisterExplicitResource(statement.Kind, valueReg);
+        builder.ReleaseTemporaryRegister(valueReg);
+        EmitLdaTheHole();
     }
 
     private static bool ContainsShortCircuitingControlFlow(JsExpression expr)

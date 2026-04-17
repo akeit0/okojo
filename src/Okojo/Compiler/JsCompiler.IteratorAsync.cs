@@ -253,7 +253,17 @@ public sealed partial class JsCompiler
                 PushLabeledTargets(labels, doneLabel, continueLabel, true);
             try
             {
-                VisitStatement(stmt.Body);
+                if (TryGetUsingLikeForInOfLeft(stmt, out var usingLikeDeclaration))
+                {
+                    EmitExplicitResourceScope(
+                        () => VisitStatement(stmt.Body),
+                        usingLikeDeclaration.Kind == JsVariableDeclarationKind.AwaitUsing,
+                        _ => EmitRegisterExplicitResource(usingLikeDeclaration.Kind, valueReg));
+                }
+                else
+                {
+                    VisitStatement(stmt.Body);
+                }
             }
             finally
             {
@@ -456,7 +466,17 @@ public sealed partial class JsCompiler
         builder.EmitJump(JsOpCode.PushTry, catchLabel);
         EmitLdaRegister(valueReg);
         EmitForIterationAssignLeft(stmt.Left, true);
-        VisitStatement(stmt.Body);
+        if (TryGetUsingLikeForInOfLeft(stmt, out var usingLikeDeclaration))
+        {
+            EmitExplicitResourceScope(
+                () => VisitStatement(stmt.Body),
+                usingLikeDeclaration.Kind == JsVariableDeclarationKind.AwaitUsing,
+                _ => EmitRegisterExplicitResource(usingLikeDeclaration.Kind, valueReg));
+        }
+        else
+        {
+            VisitStatement(stmt.Body);
+        }
         EmitRaw(JsOpCode.PopTry);
         EmitJump(continueLabel);
 

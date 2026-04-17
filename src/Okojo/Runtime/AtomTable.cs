@@ -459,6 +459,15 @@ public sealed class AtomTable
     public const int IdGroups = 451; // "groups"
     public const int IdIndex = 452; // "index"
     public const int IdAsyncDispose = 453; // "asyncDispose"
+    public const int IdAdopt = 454; // "adopt"
+    public const int IdDefer = 455; // "defer"
+    public const int IdDisposed = 456; // "disposed"
+    public const int IdErrorProperty = 457; // "error"
+    public const int IdMove = 458; // "move"
+    public const int IdPromise = 459; // "promise"
+    public const int IdSuppressed = 460; // "suppressed"
+    public const int IdUse = 461; // "use"
+    public const int IdDisposeAsync = 462; // "disposeAsync"
 
 
     // Symbol-keyed property atoms are negative to avoid collisions with string atoms.
@@ -933,7 +942,16 @@ public sealed class AtomTable
         "withResolvers",
         "groups",
         "index",
-        "asyncDispose"
+        "asyncDispose",
+        "adopt",
+        "defer",
+        "disposed",
+        "error",
+        "move",
+        "promise",
+        "suppressed",
+        "use",
+        "disposeAsync"
     };
 
     private static readonly string[] PredefinedSymbolAtoms =

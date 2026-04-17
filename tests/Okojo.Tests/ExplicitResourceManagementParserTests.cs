@@ -26,6 +26,19 @@ public class ExplicitResourceManagementParserTests
         Assert.That(decl, Is.Not.Null);
         Assert.That(decl!.Kind, Is.EqualTo(JsVariableDeclarationKind.AwaitUsing));
         Assert.That(decl.Declarators[0].Name, Is.EqualTo("value"));
+        Assert.That(program.HasTopLevelAwait, Is.True);
+    }
+
+    [Test]
+    public void ParseModule_ForOf_Head_AwaitUsing_SetsTopLevelAwait()
+    {
+        var program = JavaScriptParser.ParseModule("""
+                                                   for (await using value of items) {
+                                                   }
+                                                   """);
+
+        Assert.That(program.HasTopLevelAwait, Is.True);
+        Assert.That(program.Statements[0], Is.TypeOf<JsForInOfStatement>());
     }
 
     [Test]
@@ -71,16 +84,10 @@ public class ExplicitResourceManagementParserTests
     }
 
     [Test]
-    public void ParseScript_Parses_ForOf_Using_Declaration_With_Of_Binding()
+    public void ParseScript_Allows_ForOf_Using_Of_Ambiguity_As_Expression()
     {
-        var program = JavaScriptParser.ParseScript("for (using of of []) { }");
-
-        var forOf = program.Statements[0] as JsForInOfStatement;
-        Assert.That(forOf, Is.Not.Null);
-        Assert.That(forOf!.Left, Is.TypeOf<JsVariableDeclarationStatement>());
-        var decl = (JsVariableDeclarationStatement)forOf.Left;
-        Assert.That(decl.Kind, Is.EqualTo(JsVariableDeclarationKind.Using));
-        Assert.That(decl.Declarators[0].Name, Is.EqualTo("of"));
+        Assert.That(() => JavaScriptParser.ParseScript("for (using of of [0, 1, 2]) { }"),
+            Throws.Nothing);
     }
 
     [Test]

@@ -181,5 +181,13 @@ internal enum RuntimeId : byte
     ClassGetPrototypeAndSetConstructor,
 
     // Generator delegation helpers.
-    GeneratorHasActiveDelegateIterator
+    GeneratorHasActiveDelegateIterator,
+
+    // Explicit resource management helpers.
+    CreateDisposableResourceStack,
+    CreateAsyncDisposableResourceStack,
+    AddDisposableResource,
+    AddAsyncDisposableResource,
+    DisposeDisposableResourceStack,
+    DisposeAsyncDisposableResourceStack
 }

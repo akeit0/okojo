@@ -97,6 +97,29 @@ public class ExplicitResourceManagementCompilerTests
     }
 
     [Test]
+    public async Task AwaitUsing_Unevaluated_Path_Does_Not_Insert_Await_Boundary()
+    {
+        using var runtime = JsRuntime.Create();
+        var realm = runtime.DefaultRealm;
+
+        _ = realm.Evaluate("""
+            globalThis.isRunningInSameMicrotask = true;
+            globalThis.wasRunningInSameMicrotask = false;
+            globalThis.pending = (async function f() {
+              outer: {
+                if (true) break outer;
+                await using _ = null;
+              }
+              globalThis.wasRunningInSameMicrotask = globalThis.isRunningInSameMicrotask;
+            })();
+            globalThis.isRunningInSameMicrotask = false;
+            """);
+
+        await realm.ToPumpedValueTask(realm.Global["pending"]);
+        Assert.That(realm.Global["wasRunningInSameMicrotask"].IsTrue, Is.True);
+    }
+
+    [Test]
     public void Using_ForOf_Head_Disposes_Previous_Iteration_Before_Advancing()
     {
         using var runtime = JsRuntime.Create();

@@ -139,4 +139,91 @@ public class ExplicitResourceManagementBuiltinsTests
 
         Assert.That(result, Is.True);
     }
+
+    [Test]
+    public void DisposableStack_Adopt_Passes_Value_As_Argument()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Evaluate("""
+            const stack = new DisposableStack();
+            const resource = {};
+            let callArg = "unset";
+            stack.adopt(resource, function(value) {
+              callArg = value;
+            });
+            stack.dispose();
+            callArg === resource;
+            """);
+
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
+    public async Task AsyncDisposableStack_DisposeAsync_Rejects_Incompatible_Receiver_As_Promise()
+    {
+        using var runtime = JsRuntime.Create();
+        var realm = runtime.DefaultRealm;
+
+        _ = realm.Evaluate("""
+            globalThis.__disposeAsyncRejected = false;
+            globalThis.__disposeAsyncPromise =
+              AsyncDisposableStack.prototype.disposeAsync.call({})
+                .then(
+                  () => false,
+                  error => {
+                    globalThis.__disposeAsyncRejected = error instanceof TypeError;
+                    return true;
+                  });
+            """);
+
+        await realm.ToPumpedValueTask(realm.Global["__disposeAsyncPromise"]);
+        Assert.That(realm.Global["__disposeAsyncRejected"].IsTrue, Is.True);
+    }
+
+    [Test]
+    public async Task AsyncDisposableStack_DisposeAsync_Awaits_Null_Resource()
+    {
+        using var runtime = JsRuntime.Create();
+        var realm = runtime.DefaultRealm;
+        var result = await realm.EvaluateInAsyncFunctionScope<bool>("""
+            const stack = new AsyncDisposableStack();
+            const sequence = [];
+            stack.use(null);
+            await Promise.all([
+              Promise.resolve().then(() => 0).then(() => sequence.push("job 1")),
+              stack.disposeAsync().then(() => sequence.push("dispose")),
+              Promise.resolve().then(() => 0).then(() => sequence.push("job 2"))
+            ]);
+            return sequence.join(",") === "job 1,dispose,job 2";
+            """);
+
+        Assert.That(result, Is.True);
+    }
+
+    [Test]
+    public async Task AsyncIteratorPrototype_AsyncDispose_Rejects_When_Return_Throws()
+    {
+        using var runtime = JsRuntime.Create();
+        var realm = runtime.DefaultRealm;
+
+        _ = realm.Evaluate("""
+            async function* generator() {}
+            const AsyncIteratorPrototype = Object.getPrototypeOf(Object.getPrototypeOf(generator.prototype));
+            globalThis.__asyncDisposeRejected = false;
+            globalThis.__asyncDisposePromise =
+              AsyncIteratorPrototype[Symbol.asyncDispose].call({
+                return() {
+                  throw new TypeError("boom");
+                }
+              }).then(
+                () => false,
+                error => {
+                  globalThis.__asyncDisposeRejected = error instanceof TypeError && error.message === "boom";
+                  return true;
+                });
+            """);
+
+        await realm.ToPumpedValueTask(realm.Global["__asyncDisposePromise"]);
+        Assert.That(realm.Global["__asyncDisposeRejected"].IsTrue, Is.True);
+    }
 }

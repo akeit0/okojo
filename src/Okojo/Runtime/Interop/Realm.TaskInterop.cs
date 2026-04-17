@@ -272,17 +272,17 @@ namespace Okojo.Runtime
             return new(source, source.Version);
         }
 
-        public ValueTask ToPumpedValueTask(JsValue value, CancellationToken cancellationToken = default)
+        public ValueTask<JsValue> ToPumpedValueTask(JsValue value, CancellationToken cancellationToken = default)
         {
             if (!value.TryGetObject(out var obj) || obj is not JsPromiseObject promise)
-                return ValueTask.CompletedTask;
+                return ValueTask.FromResult(value);
 
             if (promise.State == JsPromiseObject.PromiseState.Fulfilled)
-                return ValueTask.CompletedTask;
+                return ValueTask.FromResult(promise.Result);
             if (promise.State == JsPromiseObject.PromiseState.Rejected)
-                return ValueTask.FromException(new PromiseRejectedException(promise.Result));
+                return ValueTask.FromException<JsValue>(new PromiseRejectedException(promise.Result));
 
-            var source = new PumpedPromiseValueTaskSource(this, cancellationToken);
+            var source = new PumpedPromiseValueTaskSource<JsValue>(this, cancellationToken);
             AttachPromiseValueTaskSource(promise, source);
             return new(source, source.Version);
         }
@@ -396,14 +396,6 @@ namespace Okojo.Runtime
                 static (_, _, state) => ((PromiseValueTaskSource)state).TrySetResult(),
                 static (reason, state) =>
                     ((PromiseValueTaskSource)state).TrySetException(new PromiseRejectedException(reason)));
-        }
-
-        private void AttachPromiseValueTaskSource(JsPromiseObject promise, PumpedPromiseValueTaskSource source)
-        {
-            AttachPromiseValueTaskSourceCore(promise, source,
-                static (_, _, state) => ((PumpedPromiseValueTaskSource)state).TrySetResult(),
-                static (reason, state) =>
-                    ((PumpedPromiseValueTaskSource)state).TrySetException(new PromiseRejectedException(reason)));
         }
 
         private void AttachPromiseValueTaskSource<T>(JsPromiseObject promise, PromiseValueTaskSource<T> source)

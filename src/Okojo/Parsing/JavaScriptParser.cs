@@ -227,6 +227,9 @@ internal sealed partial class JsParser
         var start = current.Position;
         if (kind == JsVariableDeclarationKind.AwaitUsing)
         {
+            if (allowTopLevelAwait && asyncFunctionLevel == 0)
+                sawTopLevelAwait = true;
+
             Expect(current.Kind);
             if (current.HasLineTerminatorBefore ||
                 current.Kind != JsTokenKind.Identifier ||
@@ -886,8 +889,28 @@ internal sealed partial class JsParser
             }
             else if (TryGetUsingDeclarationStatementKind(out var usingKind))
             {
-                initIsVarDecl = true;
-                init = ParseUsingDeclarationStatement(usingKind, requireSemicolon: false, allowMissingInitializer: true);
+                var shouldTreatUsingAsExpression = false;
+                if (current.Kind == JsTokenKind.Identifier &&
+                    CurrentSourceTextEquals("using") &&
+                    Peek().Kind == JsTokenKind.Of &&
+                    !Peek().HasLineTerminatorBefore)
+                {
+                    var snapshot = CaptureSnapshot();
+                    Next();
+                    Next();
+                    shouldTreatUsingAsExpression = current.Kind is not JsTokenKind.Assign;
+                    RestoreSnapshot(snapshot);
+                }
+
+                if (shouldTreatUsingAsExpression)
+                {
+                    init = ParseExpression(false);
+                }
+                else
+                {
+                    initIsVarDecl = true;
+                    init = ParseUsingDeclarationStatement(usingKind, requireSemicolon: false, allowMissingInitializer: true);
+                }
             }
             else if (current.Kind == JsTokenKind.LeftBrace)
             {
