@@ -4,12 +4,11 @@
     <OkojoPackageVersion_Okojo_SourceGenerator>0.1.0-preview.1</OkojoPackageVersion_Okojo_SourceGenerator>
     <OkojoPackageVersion_Okojo_DocGenerator_Annotations>0.1.0-preview.1</OkojoPackageVersion_Okojo_DocGenerator_Annotations>
     <OkojoPackageVersion_Okojo_DocGenerator_Cli>0.1.0-preview.1</OkojoPackageVersion_Okojo_DocGenerator_Cli>
-    <OkojoPackageVersion_Okojo>0.1.1-preview.1</OkojoPackageVersion_Okojo>
+    <OkojoPackageVersion_Okojo>0.1.2-preview.1</OkojoPackageVersion_Okojo>
     <OkojoPackageVersion_Okojo_Hosting>0.1.0-preview.1</OkojoPackageVersion_Okojo_Hosting>
-    <OkojoPackageVersion_Okojo_Diagnostics>0.1.0-preview.1</OkojoPackageVersion_Okojo_Diagnostics>
-    <OkojoPackageVersion_Okojo_DotNet_Modules>0.1.0-preview.1</OkojoPackageVersion_Okojo_DotNet_Modules>
-    <OkojoPackageVersion_Okojo_Reflection>0.1.0-preview.1</OkojoPackageVersion_Okojo_Reflection>
-    <OkojoPackageVersion_Okojo_WebPlatform>0.1.0-preview.1</OkojoPackageVersion_Okojo_WebPlatform>
+    <OkojoPackageVersion_Okojo_Diagnostics>0.1.2-preview.1</OkojoPackageVersion_Okojo_Diagnostics>
+    <OkojoPackageVersion_Okojo_Reflection>0.1.2-preview.1</OkojoPackageVersion_Okojo_Reflection>
+    <OkojoPackageVersion_Okojo_WebPlatform>0.1.2-preview.1</OkojoPackageVersion_Okojo_WebPlatform>
     <OkojoPackageVersion_Okojo_WebAssembly>0.1.0-preview.1</OkojoPackageVersion_Okojo_WebAssembly>
     <OkojoPackageVersion_Okojo_WebAssembly_Wasmtime>0.1.0-preview.1</OkojoPackageVersion_Okojo_WebAssembly_Wasmtime>
   </PropertyGroup>
