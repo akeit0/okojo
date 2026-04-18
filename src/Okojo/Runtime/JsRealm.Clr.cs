@@ -1,3 +1,5 @@
+using System.Reflection;
+
 namespace Okojo.Runtime;
 
 public sealed partial class JsRealm
@@ -6,6 +8,19 @@ public sealed partial class JsRealm
     {
         EnsureClrAccessEnabled();
         return GetClrAccessProvider().GetClrNamespace(this, namespacePath);
+    }
+
+    public void AddClrAssembly(params Assembly[] assemblies)
+    {
+        EnsureClrAccessEnabled();
+        Engine.Options.AddClrAssembliesCore(assemblies);
+    }
+
+    public bool TryGetClrValue(string path, out JsValue value)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        EnsureClrAccessEnabled();
+        return GetClrAccessProvider().TryResolveClrPathExactly(this, path, out value);
     }
 
     internal JsValue ResolveClrPath(string path)

@@ -618,7 +618,7 @@ public sealed partial class JsAgent : IDisposable
                 return cachedSource;
         }
 
-        var source = Engine.ModuleSourceLoader.LoadSource(resolvedId);
+        var source = Engine.ModuleSourceLoader.LoadModule(resolvedId).GetRequiredSourceText();
         lock (moduleCacheGate)
         {
             moduleSourceCache.TryAdd(resolvedId, source);

@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>14</LangVersion>
+        <IsPackable>true</IsPackable>
+        <AssemblyName>Okojo.DotNet.Modules</AssemblyName>
+        <RootNamespace>Okojo.DotNet.Modules</RootNamespace>
+        <PackageId>Okojo.DotNet.Modules</PackageId>
+        <PackageVersion>$(OkojoPackageVersion_Okojo_DotNet_Modules)</PackageVersion>
+        <Description>.NET ecosystem module-resolution and cache primitives for Okojo embedders.</Description>
+        <PackageTags>javascript;ecmascript;dotnet;nuget;interop;modules;reflection</PackageTags>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Okojo\Okojo.csproj"/>
+        <ProjectReference Include="..\Okojo.Reflection\Okojo.Reflection.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="README.md" Pack="true" PackagePath="\"/>
+    </ItemGroup>
+</Project>

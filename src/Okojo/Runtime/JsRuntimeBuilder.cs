@@ -43,6 +43,12 @@ public sealed class JsRuntimeBuilder
         return this;
     }
 
+    public JsRuntimeBuilder DecorateModuleSourceLoader(Func<IModuleSourceLoader, IModuleSourceLoader> decorator)
+    {
+        options.Host.DecorateModuleSourceLoader(decorator);
+        return this;
+    }
+
     public JsRuntimeBuilder UseWorkerScriptSourceLoader(IWorkerScriptSourceLoader workerScriptLoader)
     {
         options.Host.UseWorkerScriptSourceLoader(workerScriptLoader);

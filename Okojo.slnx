@@ -1,6 +1,7 @@
 <Solution>
     <Project Path="benchmarks/Okojo.Benchmarks/Okojo.Benchmarks.csproj"/>
     <Project Path="sandbox/ConsoleApp1/ConsoleApp1.csproj"/>
+    <Project Path="sandbox/OkojoDotNetModulesSandbox/OkojoDotNetModulesSandbox.csproj"/>
     <Project Path="sandbox/OkojoRepl/OkojoRepl.csproj"/>
     <Project Path="sandbox\OkojoInkProbe\OkojoInkProbe.csproj"/>
     <Project Path="examples\OkojoArtSandbox\OkojoArtSandbox.csproj"/>
@@ -13,6 +14,7 @@
     <Project Path="tools/Test262Runner/Test262Runner.csproj"/>
     <Project Path="tools/V8BytecodeTool/V8BytecodeTool.csproj"/>
     <Project Path="src/Okojo/Okojo.csproj"/>
+    <Project Path="src/Okojo.DotNet.Modules/Okojo.DotNet.Modules.csproj"/>
     <Project Path="src/Okojo.Reflection/Okojo.Reflection.csproj"/>
     <Project Path="src/Okojo.Diagnostics/Okojo.Diagnostics.csproj"/>
     <Project Path="src/Okojo.Hosting/Okojo.Hosting.csproj"/>
@@ -26,6 +28,7 @@
     <Project Path="src/Okojo.WebAssembly/Okojo.WebAssembly.csproj"/>
     <Project Path="src/Okojo.WebAssembly.Wasmtime/Okojo.WebAssembly.Wasmtime.csproj"/>
     <Project Path="tests/Okojo.Tests/Okojo.Tests.csproj"/>
+    <Project Path="tests/Okojo.DotNet.Modules.Tests/Okojo.DotNet.Modules.Tests.csproj"/>
     <Project Path="tests/Okojo.Node.Tests/Okojo.Node.Tests.csproj"/>
     <Project Path="tests/Okojo.Repl.Tests/Okojo.Repl.Tests.csproj"/>
     <Project Path="tests\Okojo.Compiler.Tests\Okojo.Compiler.Tests.csproj"/>

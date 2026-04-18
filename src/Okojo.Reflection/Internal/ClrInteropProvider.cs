@@ -42,7 +42,7 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
 
     public JsHostFunction GetClrTypeFunction(JsRealm realm, Type type, HostBinding? binding = null)
     {
-        var state = SStates.GetOrCreateValue(realm);
+        var state = GetState(realm);
         if (state.TypeFunctions.TryGetValue(type, out var existing))
             return existing;
 
@@ -248,7 +248,7 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
     public JsObject GetClrNamespace(JsRealm realm, string? namespacePath = null)
     {
         if (string.IsNullOrEmpty(namespacePath))
-            return SStates.GetOrCreateValue(realm).RootNamespaceObject ??= new JsClrNamespaceObject(realm, null);
+            return GetState(realm).RootNamespaceObject ??= new JsClrNamespaceObject(realm, null);
 
         var value = ResolveClrPath(realm, namespacePath);
         if (value.TryGetObject(out var obj) && obj is JsObject okojoObject)
@@ -259,7 +259,7 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
 
     public JsValue ResolveClrPath(JsRealm realm, string path)
     {
-        var state = SStates.GetOrCreateValue(realm);
+        var state = GetState(realm);
         if (state.PathCache.TryGetValue(path, out var cached))
             return cached;
 
@@ -269,6 +269,19 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
             : JsValue.FromObject(new JsClrNamespaceObject(realm, path));
         state.PathCache.Add(path, result);
         return result;
+    }
+
+    private static RealmClrState GetState(JsRealm realm)
+    {
+        var state = SStates.GetOrCreateValue(realm);
+        var version = realm.Engine.Options.ClrAssembliesVersion;
+        if (state.ClrAssembliesVersion != version)
+        {
+            state.PathCache.Clear();
+            state.ClrAssembliesVersion = version;
+        }
+
+        return state;
     }
 
     public bool TryResolveClrPathExactly(JsRealm realm, string path, out JsValue value)
@@ -618,6 +631,7 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
         public readonly Dictionary<string, JsValue> PathCache = new(StringComparer.Ordinal);
         public readonly Dictionary<Type, JsHostFunction> TypeFunctions = new();
         public JsObject? RootNamespaceObject;
+        public int ClrAssembliesVersion;
     }
 
     private sealed class OkojoClrTypeFunctionData(Type clrType, HostRealmLayoutInfo layoutInfo) : IClrTypeFunctionData

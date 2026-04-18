@@ -93,7 +93,8 @@ public sealed class NodeRuntimeBuilder
         if (options.Core.RegExpEngine is null)
             options.Core.UseRegExpEngine(RegExpEngine.Default);
         var baseLoader = options.ModuleSourceLoader ?? new FileModuleSourceLoader();
-        options.Host.UseModuleSourceLoader(new NodeModuleSourceLoader(baseLoader, options.Host.SourceMapRegistry));
-        return new(JsRuntime.Create(options), terminalOptions.Clone(), installNodeGlobals);
+        var nodeLoader = new NodeModuleSourceLoader(baseLoader, options.Host.SourceMapRegistry);
+        options.Host.UseModuleSourceLoader(nodeLoader);
+        return new(JsRuntime.Create(options), nodeLoader, terminalOptions.Clone(), installNodeGlobals);
     }
 }

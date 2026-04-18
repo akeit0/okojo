@@ -24,17 +24,20 @@ public sealed class NodeRuntime : IDisposable
     private readonly WebRuntimeApiModule webRuntimeApiModule;
     private bool disposed;
 
-    public NodeRuntime(JsRuntime runtime, NodeTerminalOptions? terminalOptions = null, bool installNodeGlobals = true)
+    internal NodeRuntime(
+        JsRuntime runtime,
+        NodeModuleSourceLoader moduleLoader,
+        NodeTerminalOptions? terminalOptions = null,
+        bool installNodeGlobals = true)
     {
         Runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
+        this.moduleLoader = moduleLoader ?? throw new ArgumentNullException(nameof(moduleLoader));
         this.terminalOptions = terminalOptions?.Clone() ?? new NodeTerminalOptions();
-        moduleLoader = Runtime.ModuleSourceLoader as NodeModuleSourceLoader
-                       ?? throw new InvalidOperationException("OkojoNodeRuntime requires NodeModuleSourceLoader.");
         commonJsResolver = new(
-            moduleLoader.ResolveSpecifier,
-            moduleLoader.LoadRawSource);
+            this.moduleLoader.ResolveSpecifier,
+            this.moduleLoader.LoadRawSource);
         BuiltIns = new(this, this.terminalOptions);
-        moduleFormatResolver = new(moduleLoader.LoadRawSource);
+        moduleFormatResolver = new(this.moduleLoader.LoadRawSource);
         requireCacheObject = new(MainRealm);
         webRuntimeApiModule = CreateWebRuntimeApiModule(Runtime.Options.LowLevelHost.HostTaskScheduler);
         if (installNodeGlobals)
