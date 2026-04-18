@@ -1,11 +1,9 @@
 using System.Runtime.CompilerServices;
 using Okojo.DotNet.Modules;
 using Okojo.Node;
-using Okojo.Objects;
 
 var appRoot = Path.Combine(GetBaseDirectory(), "app");
 var entryPath = Path.Combine(appRoot, "main.mjs");
-var support = new DotNetModuleImportSupport();
 
 Console.WriteLine("OkojoDotNetModulesSandbox");
 // Console.WriteLine($"appRoot: {appRoot}");
@@ -13,8 +11,7 @@ Console.WriteLine("OkojoDotNetModulesSandbox");
 Console.WriteLine();
 
 using var runtime = NodeRuntime.CreateBuilder()
-    .ConfigureRuntime(support.ConfigureRuntime)
-    .WrapModuleSourceLoader(support.WrapModuleSourceLoader)
+    .ConfigureRuntime(builder => builder.UseDotNetModuleImports())
     .Build();
 runtime.RunMainModule(entryPath);
 

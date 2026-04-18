@@ -16,7 +16,6 @@ public class NodeDotNetModuleTests
             Directory.CreateDirectory(Path.GetDirectoryName(packageDllPath)!);
             File.Copy(typeof(Uri).Assembly.Location, packageDllPath);
 
-            var support = new DotNetModuleImportSupport(options => options.GlobalPackagesRoot = tempRoot);
             using var runtime = NodeRuntime.CreateBuilder()
                 .UseModuleSourceLoader(new InMemoryModuleLoader(new(StringComparer.Ordinal)
                 {
@@ -25,8 +24,7 @@ public class NodeDotNetModuleTests
                                         export default new clr.System.Uri("https://example.com/node").Host;
                                         """
                 }))
-                .ConfigureRuntime(support.ConfigureRuntime)
-                .WrapModuleSourceLoader(support.WrapModuleSourceLoader)
+                .ConfigureRuntime(builder => builder.UseDotNetModuleImports(options => options.GlobalPackagesRoot = tempRoot))
                 .Build();
 
             var result = runtime.RunMainModule("/app/main.mjs");

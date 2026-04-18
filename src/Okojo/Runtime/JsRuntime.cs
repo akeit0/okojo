@@ -31,7 +31,8 @@ public sealed class JsRuntime : IDisposable
             Options.Host.UseWorkerScriptSourceLoader(workerScriptLoader);
 
         TimeProvider = Options.TimeProvider ?? TimeProvider.System;
-        ModuleSourceLoader = Options.ModuleSourceLoader ?? new FileModuleSourceLoader();
+        var baseModuleSourceLoader = Options.ModuleSourceLoader ?? new FileModuleSourceLoader();
+        ModuleSourceLoader = Options.Host.ApplyModuleSourceLoaderDecorators(baseModuleSourceLoader);
         WorkerScriptSourceLoader = Options.WorkerScriptSourceLoader ??
                                    new WorkerScriptSourceLoaderFromModuleSourceLoader(ModuleSourceLoader);
         SourceMapRegistry = Options.Host.SourceMapRegistry;

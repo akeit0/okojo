@@ -18,23 +18,26 @@ public sealed class NodeRuntime : IDisposable
 
     private readonly NodeCommonJsResolver commonJsResolver;
     private readonly NodeModuleFormatResolver moduleFormatResolver;
-    private readonly NodeConfiguredModuleSourceLoader moduleLoader;
+    private readonly NodeModuleSourceLoader moduleLoader;
     private readonly JsPlainObject requireCacheObject;
     private readonly NodeTerminalOptions terminalOptions;
     private readonly WebRuntimeApiModule webRuntimeApiModule;
     private bool disposed;
 
-    public NodeRuntime(JsRuntime runtime, NodeTerminalOptions? terminalOptions = null, bool installNodeGlobals = true)
+    internal NodeRuntime(
+        JsRuntime runtime,
+        NodeModuleSourceLoader moduleLoader,
+        NodeTerminalOptions? terminalOptions = null,
+        bool installNodeGlobals = true)
     {
         Runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
+        this.moduleLoader = moduleLoader ?? throw new ArgumentNullException(nameof(moduleLoader));
         this.terminalOptions = terminalOptions?.Clone() ?? new NodeTerminalOptions();
-        moduleLoader = Runtime.ModuleSourceLoader as NodeConfiguredModuleSourceLoader
-                       ?? throw new InvalidOperationException("OkojoNodeRuntime requires NodeConfiguredModuleSourceLoader.");
         commonJsResolver = new(
-            moduleLoader.ResolveSpecifier,
-            moduleLoader.LoadRawSource);
+            this.moduleLoader.ResolveSpecifier,
+            this.moduleLoader.LoadRawSource);
         BuiltIns = new(this, this.terminalOptions);
-        moduleFormatResolver = new(moduleLoader.LoadRawSource);
+        moduleFormatResolver = new(this.moduleLoader.LoadRawSource);
         requireCacheObject = new(MainRealm);
         webRuntimeApiModule = CreateWebRuntimeApiModule(Runtime.Options.LowLevelHost.HostTaskScheduler);
         if (installNodeGlobals)

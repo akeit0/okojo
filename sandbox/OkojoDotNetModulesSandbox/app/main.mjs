@@ -1,13 +1,15 @@
 import "nuget:Newtonsoft.Json@13.0.3";
+import process from "node:process";
+console.log(`Hello from ${process.version}!`);
 const Newtonsoft = clr.Newtonsoft;
 const JsonConvert = Newtonsoft.Json.JsonConvert;
 const JToken = Newtonsoft.Json.Linq.JToken;
-
+const TokenType = Newtonsoft.Json.Linq.JTokenType;
 const payload = JToken.Parse(`{
     "demo":"node-nuget-import",
     "engine":"okojo",
     "items":[1,2,3]
     }`);
-console.log(payload.get_Item("demo").Value);
-const text = JsonConvert.SerializeObject(payload);
-console.log(text);
+for (const item of payload) {
+    console.log(item.ToString());
+}
