@@ -16,7 +16,7 @@ public partial class ExecutionCheckTests
             agent.EnableDebuggerStatementHook();
         }));
         var realm = runtime.DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function outer() {
                 let captured = 1;
                 function inner() {
@@ -79,7 +79,7 @@ public partial class ExecutionCheckTests
             agent.EnableDebuggerStatementHook();
         }));
         var realm = runtime.DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function outer() {
                 let x = 1;
                 {
@@ -121,7 +121,7 @@ public partial class ExecutionCheckTests
             agent.EnableDebuggerStatementHook();
         }));
         var realm = runtime.DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function outer() {
                 let captured = 1;
                 function inner() {

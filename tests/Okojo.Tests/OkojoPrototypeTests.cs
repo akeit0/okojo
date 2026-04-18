@@ -10,7 +10,7 @@ public class OkojoPrototypeTests
     public void TestBoxedPrototypeValueOfAndToString()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function t() {
                 let n = Object(1).valueOf();
                 let b = Object(true).valueOf();
@@ -39,7 +39,7 @@ public class OkojoPrototypeTests
     public void TestFunctionPrototypeToString()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function t() {
                 return (function x(){}).toString();
             }
@@ -56,7 +56,7 @@ public class OkojoPrototypeTests
     public void TestPrimitiveNumberMemberCallToString()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("(1).toString();"));
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("(1).toString();"));
 
         realm.Execute(script);
 
@@ -68,7 +68,7 @@ public class OkojoPrototypeTests
     public void TestObjectNumberBoxedAddition()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("Object(1) + 2;"));
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("Object(1) + 2;"));
 
         realm.Execute(script);
 

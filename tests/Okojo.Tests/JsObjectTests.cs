@@ -12,7 +12,7 @@ public class JsObjectTests
     public void TestIntrinsicPrototypeObjectKinds()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function t() {
                 let np = Object.getPrototypeOf(Object(1));
                 let bp = Object.getPrototypeOf(Object(true));
@@ -176,7 +176,7 @@ public class JsObjectTests
             JsShapePropertyFlags.Enumerable | JsShapePropertyFlags.Configurable | JsShapePropertyFlags.HasGetter);
         realm.Global["o"] = JsValue.FromObject(o);
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("o.x;"));
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("o.x;"));
         realm.Execute(script);
 
         Assert.That(realm.Accumulator.IsInt32, Is.True);
@@ -209,7 +209,7 @@ public class JsObjectTests
             JsShapePropertyFlags.Enumerable | JsShapePropertyFlags.Configurable | JsShapePropertyFlags.HasSetter);
         realm.Global["o"] = JsValue.FromObject(o);
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("o.x = 9;"));
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("o.x = 9;"));
         realm.Execute(script);
 
         Assert.That(realm.Accumulator.IsInt32, Is.True);
@@ -235,7 +235,7 @@ public class JsObjectTests
                                                    }
                                                    t() + t();
                                                    """);
-        var script = new JsCompiler(realm).Compile(program);
+        var script = JsCompiler.Compile(realm, program);
 
         realm.Execute(script);
 
@@ -261,7 +261,7 @@ public class JsObjectTests
         })), JsShapePropertyFlags.Open);
         realm.Global["o"] = JsValue.FromObject(o);
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("o.m();"));
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("o.m();"));
         realm.Execute(script);
 
         Assert.That(realm.Accumulator.IsInt32, Is.True);
@@ -272,7 +272,7 @@ public class JsObjectTests
     public void TestCallPropertyBindsThisForBytecodeFunction()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function t() {
                 let o = {
                     x: 3,
@@ -293,7 +293,7 @@ public class JsObjectTests
     public void TestArrayLiteralCreatesOkojoArray()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("[];"));
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("[];"));
 
         realm.Execute(script);
 
@@ -305,7 +305,7 @@ public class JsObjectTests
     public void TestArrayLiteralIndexedReadAndLength()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function t() {
                 let a = [1, 2, 3];
                 return a[1] + a.length;
@@ -323,7 +323,7 @@ public class JsObjectTests
     public void TestArraySparseFallbackPreservesElementsAndLength()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function t() {
                 let a = [];
                 a[0] = 1;
@@ -343,7 +343,7 @@ public class JsObjectTests
     public void TestObjectPrototypeHasOwnProperty()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function t() {
                 let o = { x: 1 };
                 return o.hasOwnProperty("x");
@@ -361,7 +361,7 @@ public class JsObjectTests
     public void TestObjectPrototypeToString()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function t() {
                 let o = {};
                 return o.toString();
@@ -379,7 +379,7 @@ public class JsObjectTests
     public void TestObjectPrototypeValueOfIdentity()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function t() {
                 let o = {};
                 return o.valueOf() === o;
@@ -397,7 +397,7 @@ public class JsObjectTests
     public void TestObjectCreateAndGetPrototypeOf()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function t() {
                 let p = {};
                 let o = Object.create(p);
@@ -416,7 +416,7 @@ public class JsObjectTests
     public void TestObjectSetPrototypeOf()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function t() {
                 let p = { x: 3 };
                 let o = {};
@@ -436,7 +436,7 @@ public class JsObjectTests
     public void TestObjectGetOwnPropertyDescriptorData()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function t() {
                 let o = { x: 5 };
                 let d = Object.getOwnPropertyDescriptor(o, "x");
@@ -461,7 +461,7 @@ public class JsObjectTests
     public void TestObjectConstructorBoxesNumberBooleanString()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function t() {
                 let a = Object(1).toString();
                 let b = Object(true).toString();
@@ -484,7 +484,7 @@ public class JsObjectTests
     public void TestObjectGetPrototypeOfBoxesPrimitive()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function t() {
                 return Object.getPrototypeOf(1) === Object.getPrototypeOf(Object(1));
             }
@@ -501,7 +501,7 @@ public class JsObjectTests
     public void TestObjectGetOwnPropertyDescriptorOnStringPrimitive()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function t() {
                 let d = Object.getOwnPropertyDescriptor("ab", "0");
                 if (d === undefined) return "missing";

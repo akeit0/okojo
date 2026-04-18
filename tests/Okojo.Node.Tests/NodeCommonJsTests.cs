@@ -40,6 +40,53 @@ public class NodeCommonJsTests
     }
 
     [Test]
+    public void RunMainModule_CommonJsTopLevelThis_Uses_ModuleScope_And_Var_Does_Not_Leak()
+    {
+        using var runtime = NodeRuntime.CreateBuilder()
+            .UseModuleSourceLoader(new InMemoryModuleLoader(new(StringComparer.Ordinal)
+            {
+                ["/app/main.js"] = """
+                                   var x = "OK";
+                                   module.exports = [
+                                     this === globalThis,
+                                     this === exports,
+                                     typeof globalThis.x,
+                                     (0, eval)("typeof x")
+                                   ].join("|");
+                                   """
+            }))
+            .Build();
+
+        var result = runtime.RunMainModule("/app/main.js").AsString().Split('|');
+
+        Assert.That(result[0], Is.EqualTo("false"));
+        Assert.That(result[1], Is.EqualTo("true"));
+        Assert.That(result[2], Is.EqualTo("undefined"));
+        Assert.That(result[3], Is.EqualTo("undefined"));
+    }
+
+    [Test]
+    public void ConsoleLog_Uses_InspectStyle_For_PlainObjects()
+    {
+        var stdout = new StringWriter();
+        using var runtime = NodeRuntime.CreateBuilder()
+            .ConfigureTerminal(options => { options.Stdout = stdout; })
+            .UseModuleSourceLoader(new InMemoryModuleLoader(new(StringComparer.Ordinal)
+            {
+                ["/app/main.js"] = """
+                                   console.log({ a: 1, b: true });
+                                   module.exports = "ok";
+                                   """
+            }))
+            .Build();
+
+        var result = runtime.RunMainModule("/app/main.js");
+
+        Assert.That(result.AsString(), Is.EqualTo("ok"));
+        Assert.That(stdout.ToString().Trim(), Is.EqualTo("{ a: 1, b: true }"));
+    }
+
+    [Test]
     public void Require_CommonJs_Module_Still_Works_When_Argument_Register_Goes_Wide()
     {
         var source = new StringBuilder();

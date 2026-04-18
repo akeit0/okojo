@@ -10,7 +10,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_Query_Methods_Use_Array_Semantics()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const a = [1, , 3, 1];
             const mapped = a.map(x => x * 2);
             const filtered = a.filter(x => x !== undefined);
@@ -42,7 +42,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_Mutating_Methods_Work_And_Preserve_Holes()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const a = [1, 2];
             const pushLen = a.push(3);
             const popped = a.pop();
@@ -92,7 +92,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_Sort_Does_Not_Throw_When_Shrinking_Length_Removes_Trailing_Indices()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const array = [undefined, 'c', , 'b', undefined, , 'a', 'd'];
 
             Object.defineProperty(array, '2', {
@@ -126,7 +126,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_Repros_For_Undefined_Results_And_ToString_Fallback_Work()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var obj = {};
             obj.shift = Array.prototype.shift;
             obj.pop = Array.prototype.pop;
@@ -163,7 +163,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_CopyWithin_Uses_Length_When_End_Is_Undefined()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const a = [0, 1, 2, 3];
             const b = [0, 1, 2, 3];
             a.copyWithin(0, 1, undefined);
@@ -179,7 +179,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_CopyWithin_Throws_From_Target_Coercion()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let called = false;
             let threw = false;
             try {
@@ -198,7 +198,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_Every_Reads_Length_Before_Callback_TypeError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var obj = { 0: 11, 1: 12 };
             var accessed = false;
 
@@ -230,7 +230,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_Every_On_Arguments_Does_Not_Grow_From_Indexed_Write()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function callbackfn1(val, idx, obj) { return val > 10; }
             function callbackfn2(val, idx, obj) { return val > 11; }
 
@@ -251,7 +251,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_Every_On_String_Object_Uses_ParseInt_Global()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function callbackfn1(val, idx, obj) { return parseInt(val, 10) > 1; }
             function callbackfn2(val, idx, obj) { return parseInt(val, 10) > 2; }
 
@@ -297,7 +297,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_Every_Treats_EvalError_Object_As_Truthy()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var accessed = false;
             function callbackfn(val, idx, obj) {
               accessed = true;
@@ -315,7 +315,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_ForEach_Works_On_Generic_ArrayLike_Object()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var result = false;
 
             function callbackfn(val, idx, obj) {
@@ -337,7 +337,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_Filter_Works_On_Generic_ArrayLike_With_Named_Index_Properties()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function callbackfn(val, idx, obj) {
               return '[object JSON]' === Object.prototype.toString.call(JSON);
             }
@@ -357,7 +357,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_FindLast_Uses_MaxSafeInteger_LengthOfArrayLike()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var tooBigLength = Number.MAX_VALUE;
             var maxExpectedIndex = 9007199254740990;
             var arrayLike = { length: tooBigLength };
@@ -379,7 +379,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_Fill_Works_On_Near_MaxSafeInteger_ArrayLike()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var value = {};
             var startIndex = Number.MAX_SAFE_INTEGER - 3;
             var arrayLike = { length: Number.MAX_SAFE_INTEGER };
@@ -399,7 +399,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_Fill_Works_On_Resizable_Buffer_Backed_TypedArray()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const rab = new ArrayBuffer(4, { maxByteLength: 8 });
             const fixedLength = new Uint8Array(rab, 0, 4);
             Array.prototype.fill.call(fixedLength, 1);
@@ -419,7 +419,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_Fill_Returns_Boxed_Boolean_And_Treats_Undefined_End_As_Length()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const a = [0, 0];
             const b = [0, 0];
 
@@ -455,7 +455,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_FlatMap_Flattens_Exactly_One_Level()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const result = [1, 2, 3].flatMap(function(ele) {
               return [[ele * 2]];
             });
@@ -477,7 +477,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_Pop_Uses_LengthOfArrayLike_For_Large_Generic_Objects()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var a = {};
             a.pop = Array.prototype.pop;
             a.length = Number.POSITIVE_INFINITY;
@@ -506,7 +506,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_IndexOf_Checks_Length_Before_FromIndex_And_Uses_Has_Before_Get()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var threw = false;
             var fromIndex = {
               valueOf: function() {
@@ -547,7 +547,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_IndexOf_ProxyPrototype_Has_Does_Not_Intern_Canonical_Index_String()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var array = [1, null, 3];
 
             Object.setPrototypeOf(array, new Proxy(Array.prototype, {
@@ -575,7 +575,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_IndexOf_AllowProxyTraps_Has_Only_Path_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function allowProxyTraps(overrides) {
               function throwTest262Error(msg) {
                 return function () { throw new Error(msg); };
@@ -624,7 +624,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_Join_Snapshots_Length_Before_Separator_Coercion()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const rab = new ArrayBuffer(4, { maxByteLength: 8 });
             const lengthTracking = new Uint8Array(rab);
             let evil = {
@@ -645,7 +645,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_Fill_Works_On_Initial_Resizable_Buffer_Ctor_Set()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function subClass(type) {
               try {
                 return new Function('return class My' + type + ' extends ' + type + ' {}')();
@@ -797,7 +797,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_CopyWithin_Returns_Object_Wrapper_For_Boolean_Primitive()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             Array.prototype.copyWithin.call(true) instanceof Boolean &&
             Array.prototype.copyWithin.call(false) instanceof Boolean;
             """));
@@ -810,7 +810,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_CopyWithin_Boolean_Primitive_Exact_Test262_Snippet()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var a = Array.prototype.copyWithin.call(true) instanceof Boolean;
             var b = Array.prototype.copyWithin.call(false) instanceof Boolean;
             a && b;
@@ -824,7 +824,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_CopyWithin_Handles_Length_Near_MaxSafeInteger()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var startIndex = Number.MAX_SAFE_INTEGER - 3;
             var arrayLike = {
               0: 0,
@@ -851,7 +851,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_CopyWithin_Length_Near_MaxSafeInteger_Exact_Test262_Snippet()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var startIndex = Number.MAX_SAFE_INTEGER - 3;
             var arrayLike = {
               0: 0,
@@ -878,7 +878,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_CopyWithin_Throws_From_Proxy_Has_Start()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var o = { 0: 42, length: 1 };
             var p = new Proxy(o, {
               has: function() { throw 123; }
@@ -902,7 +902,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_CopyWithin_Throws_From_Proxy_Delete_Target()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var o = { 42: true, length: 43 };
             var p = new Proxy(o, {
               deleteProperty: function(t, prop) {
@@ -928,7 +928,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_Copy_Producing_Methods_Return_New_Arrays()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const nested = [1, [2, [3]]];
             const flat = nested.flat(2);
             const flatMapped = [1, 2].flatMap(x => [x, x * 10]);
@@ -960,7 +960,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_Generic_Receivers_And_Stringification_Work()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const shiftTarget = { length: 2, 0: "a", 1: "b" };
             const popTarget = { length: 1, 0: "x" };
             const fillTarget = { length: 3, 0: "a", 2: "c" };
@@ -993,7 +993,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayConstructor_Prototype_Property_Has_Const_Descriptor()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const desc = Object.getOwnPropertyDescriptor(Array, "prototype");
             desc.value === Array.prototype &&
             desc.writable === false &&
@@ -1009,7 +1009,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_At_Uses_Live_TypedArray_Length_For_Resizable_Buffers()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             class MyUint8Array extends Uint8Array {}
             class MyFloat32Array extends Float32Array {}
             class MyBigInt64Array extends BigInt64Array {}
@@ -1078,7 +1078,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_Unscopables_And_Boxed_Returns_Work()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const unscopables = Array.prototype[Symbol.unscopables];
             const desc = Object.getOwnPropertyDescriptor(Array.prototype, Symbol.unscopables);
 
@@ -1101,7 +1101,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_Slice_LastIndexOf_And_ToLocaleString_Handle_Edge_Cases()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             "use strict";
             const sliced = [0, 1, 2, 3, 4].slice(3, undefined);
 
@@ -1140,7 +1140,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_ToLocaleString_Uses_Primitive_Element_Method_And_Snapshots_Length()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             "use strict";
             const separator = ["", ""].toLocaleString();
 
@@ -1166,7 +1166,7 @@ public class ArrayPrototypeMethodsTests
         ArrayPrototype_ToLocaleString_Invokes_Element_Method_With_No_Arguments_And_Supports_ForOf_Object_Destructuring_Repro()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const unique = { toString() { return "<sentinel object>"; } };
             const testCases = [
               { label: "no arguments", args: [] },
@@ -1204,7 +1204,7 @@ public class ArrayPrototypeMethodsTests
     public void StringPrototype_Slice_Works_For_Negative_Start()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             "ABCDE".slice(-2) === "DE" &&
             "ABCDE".slice(1, undefined) === "BCDE";
             """));
@@ -1217,7 +1217,7 @@ public class ArrayPrototypeMethodsTests
     public void StringPrototype_StartsWith_Works_For_Default_And_Position()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             "Float64Array".startsWith("Float") &&
             "Float64Array".startsWith("64", 5) &&
             "Float64Array".startsWith("Float", -1) &&
@@ -1232,7 +1232,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_Sort_Accessor_Delete_Capture_Repro_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const array = [undefined, 'c', , 'b', undefined, , 'a', 'd'];
 
             Object.defineProperty(array, '2', {
@@ -1270,7 +1270,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_ToReversed_And_ToSorted_Do_Not_Preserve_Holes_And_Reject_Oversized_Length()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var reversedInput = [0, , 2, , 4];
             Array.prototype[3] = 3;
             var reversed = reversedInput.toReversed();
@@ -1305,7 +1305,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_ToSpliced_ToString_And_Unshift_Repros_Work()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             delete Object.prototype.toString;
             const fallback = Array.prototype.toString.call({ join: null });
 
@@ -1362,7 +1362,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_With_Does_Not_Preserve_Holes_And_Range_Checks_Raw_Relative_Index()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var arr = [0, , 2, , 4];
             Array.prototype[3] = 3;
             var result = arr.with(2, 6);
@@ -1391,7 +1391,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_With_Does_Not_Get_Replaced_Index()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var arr = [0, 1, 2, 3];
             Object.defineProperty(arr, "2", {
               get() {
@@ -1411,7 +1411,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_With_Throws_RangeError_Before_Reading_Elements_When_Length_Exceeds_Array_Limit()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var arrayLike = {
               get 0() { throw new Error("Get 0"); },
               get 4294967295() { throw new Error("Get 4294967295"); },
@@ -1437,7 +1437,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_Reverse_Uses_Has_Before_Get_For_Large_Proxy_ArrayLikes()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function StopReverse() {}
             var arrayLike = {
               0: "zero",
@@ -1492,7 +1492,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_Sort_CompareFn_Leaves_Undefined_Last_And_Propagates_Throws()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var myComparefn = function(x, y) {
               if (x === undefined) return -1;
               if (y === undefined) return 1;
@@ -1520,7 +1520,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_Sort_Defaults_Are_Stable_And_Generic()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var obj = {
               valueOf: function() { return 1; },
               toString: function() { return -2; }
@@ -1572,7 +1572,7 @@ public class ArrayPrototypeMethodsTests
     public void ArrayPrototype_Filter_Defines_Fresh_Result_Elements_Despite_Inherited_Indexed_Accessors()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             Object.defineProperty(Array.prototype, "0", {
               get: function() { return 5; },
               configurable: true
@@ -1599,7 +1599,7 @@ public class ArrayPrototypeMethodsTests
     public void ObjectLiteral_Numeric_Data_Properties_Define_Own_Elements_Despite_Inherited_Accessors()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             Object.defineProperty(Object.prototype, "0", {
               get: function() { return false; },
               configurable: true

@@ -10,7 +10,7 @@ public class ArrayBufferFeatureTests
     public void ArrayBuffer_Global_Constructor_Is_Installed_And_Has_NodeLike_Global_Descriptor()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const d = Object.getOwnPropertyDescriptor(globalThis, "ArrayBuffer");
             typeof ArrayBuffer === "function" &&
             d.writable === true &&
@@ -26,7 +26,7 @@ public class ArrayBufferFeatureTests
     public void ArrayBuffer_Called_Without_New_Throws_TypeError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let ok = false;
             try { ArrayBuffer(8); } catch (e) { ok = e && e.name === "TypeError"; }
             ok;
@@ -40,7 +40,7 @@ public class ArrayBufferFeatureTests
     public void ArrayBuffer_Constructs_With_ByteLength_And_Brand()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const ab = new ArrayBuffer(8);
             Object.getPrototypeOf(ab) === ArrayBuffer.prototype &&
             ab.byteLength === 8 &&
@@ -70,7 +70,7 @@ public class ArrayBufferFeatureTests
     public void ArrayBuffer_IsView_Distinguishes_TypedArray_From_Buffer()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             ArrayBuffer.isView(new Uint8Array(2)) === true &&
             ArrayBuffer.isView(new ArrayBuffer(2)) === false;
             """));
@@ -83,7 +83,7 @@ public class ArrayBufferFeatureTests
     public void ArrayBuffer_Can_Be_Constructed_Resizable_And_Resized()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const rab = new ArrayBuffer(3, { maxByteLength: 5 });
             const ta = new Uint8Array(rab);
             ta[0] = 1;
@@ -104,7 +104,7 @@ public class ArrayBufferFeatureTests
     public void ArrayBuffer_Resizable_And_MaxByteLength_Accessors_Are_Exposed()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const fixed = new ArrayBuffer(3);
             const resizable = new ArrayBuffer(3, { maxByteLength: 5 });
             fixed.resizable === false &&
@@ -121,7 +121,7 @@ public class ArrayBufferFeatureTests
     public void ArrayBuffer_Constructor_Uses_NewTarget_Prototype()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             class MyArrayBuffer extends ArrayBuffer {}
             const derived = new MyArrayBuffer(4);
             const viaReflect = Reflect.construct(ArrayBuffer, [8], Object);
@@ -137,7 +137,7 @@ public class ArrayBufferFeatureTests
     public void ArrayBuffer_Detached_Species_Slice_And_Transfer_Are_Exposed()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             class MyArrayBuffer extends ArrayBuffer {}
             const source = new MyArrayBuffer(4);
             new Uint8Array(source).set([1, 2, 3, 4]);
@@ -168,7 +168,7 @@ public class ArrayBufferFeatureTests
     public void ArrayBuffer_Transfer_Preserves_Resizable_Source_Shape()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const source = new ArrayBuffer(4, { maxByteLength: 8 });
             new Uint8Array(source).set([9, 8, 7, 6]);
             const moved = source.transfer();
@@ -188,7 +188,7 @@ public class ArrayBufferFeatureTests
     public void ArrayBuffer_MaxByteLength_RangeError_Happens_Before_NewTarget_Prototype_Lookup()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function Test262Error() {}
             let getterCalled = false;
             let newTarget = Object.defineProperty(function(){}.bind(null), "prototype", {
@@ -215,7 +215,7 @@ public class ArrayBufferFeatureTests
     public void ArrayBuffer_DataAllocation_Happens_After_NewTarget_Prototype_Lookup()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function DummyError() {}
 
             var newTarget = function() {}.bind(null);
@@ -275,7 +275,7 @@ public class ArrayBufferFeatureTests
     public void ArrayBuffer_TransferToImmutable_Returns_ArrayBuffer_With_Normal_Methods()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const ab = (new ArrayBuffer(4)).transferToImmutable();
             typeof ab === "object" &&
             Object.getPrototypeOf(ab) === ArrayBuffer.prototype &&

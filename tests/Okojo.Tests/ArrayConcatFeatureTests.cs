@@ -10,7 +10,7 @@ public class ArrayConcatFeatureTests
     public void ArrayPrototype_Concat_Spreads_Arrays_And_Preserves_Holes()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const a = [0];
             const b = [1, , 3];
             const c = a.concat(b, [4, 5]);
@@ -34,7 +34,7 @@ public class ArrayConcatFeatureTests
     public void ArrayPrototype_Concat_Is_Generic_For_NonArray_Receivers()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const result = Array.prototype.concat.call(true, 1, 2);
             result.length === 3 &&
             result[0] instanceof Boolean &&
@@ -50,7 +50,7 @@ public class ArrayConcatFeatureTests
     public void ArrayPrototype_Concat_Does_Not_Spread_TypedArrays_By_Default()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const ta = new Uint8Array([1, 2]);
             const result = [].concat(ta, ta);
 
@@ -67,7 +67,7 @@ public class ArrayConcatFeatureTests
     public void ArrayPrototype_Concat_Uses_SymbolIsConcatSpreadable_When_Present()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const obj = { length: 3, 0: "a", 2: "c" };
             obj[Symbol.isConcatSpreadable] = true;
             const result = [].concat(obj);
@@ -94,7 +94,7 @@ public class ArrayConcatFeatureTests
     public void ArrayPrototype_Concat_Treats_Explicit_Undefined_Spreadable_As_Array_Fallback()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const item = [];
             item[Symbol.isConcatSpreadable] = undefined;
             const result = [].concat(item);
@@ -110,7 +110,7 @@ public class ArrayConcatFeatureTests
     public void ArrayPrototype_Concat_Treats_Array_Proxies_As_Spreadable()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const arrayProxy = new Proxy([], {});
             const arrayProxyProxy = new Proxy(arrayProxy, {});
 
@@ -126,7 +126,7 @@ public class ArrayConcatFeatureTests
     public void ArrayPrototype_Concat_Spreads_Sloppy_Arguments_With_Duplicate_Parameters()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var args = (function(a, a, a) {
               return arguments;
             })(1, 2, 3);
@@ -154,7 +154,7 @@ public class ArrayConcatFeatureTests
     public void ArrayPrototype_Concat_Throws_When_Spreadable_Length_Exceeds_MaxSafeInteger_Result()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let threwA = false;
             let threwB = false;
 
@@ -192,7 +192,7 @@ public class ArrayConcatFeatureTests
     public void ArrayPrototype_Concat_Defines_Own_Result_Elements_Despite_Readonly_ArrayPrototype_Index()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             Object.defineProperty(Array.prototype, "0", {
               value: 100,
               writable: false,
@@ -222,7 +222,7 @@ public class ArrayConcatFeatureTests
     public void ObjectKeys_Result_Array_Ignores_Readonly_ArrayPrototype_Index_During_Concat_Descriptor_Checks()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             Object.defineProperty(Array.prototype, "0", {
               value: 100,
               writable: false,

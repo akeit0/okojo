@@ -12,7 +12,7 @@ public class FetchInteropTests
     public void FetchIsUndefinedWithoutWebModule()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("typeof fetch;"));
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("typeof fetch;"));
 
         realm.Execute(script);
 

@@ -136,10 +136,11 @@ public sealed class NodeRuntime : IDisposable
 
         try
         {
+            var exports = GetModuleExports(record.ModuleObject);
             _ = MainRealm.Call(
                 record.WrapperFunction!,
-                JsValue.Undefined,
-                JsValue.FromObject(GetModuleExports(record.ModuleObject).AsObject()),
+                exports,
+                JsValue.FromObject(exports.AsObject()),
                 JsValue.FromObject(record.RequireFunction!),
                 JsValue.FromObject(record.ModuleObject),
                 JsValue.FromString(resolvedId),

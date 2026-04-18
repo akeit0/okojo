@@ -10,7 +10,7 @@ public class DestructuringRegressionTests
     public void ConstStatement_ArrayPatternEmpty_DoesNotIterate()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var iterations = 0;
             var iter = function*() {
               iterations += 1;
@@ -29,7 +29,7 @@ public class DestructuringRegressionTests
     public void ConstStatement_ArrayPatternElementObjectDefault_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const [{ x, y, z } = { x: 44, y: 55, z: 66 }] = [];
             x * 10000 + y * 100 + z;
             """));
@@ -42,7 +42,7 @@ public class DestructuringRegressionTests
     public void ConstStatement_ArrayPatternRestArrayElision_ConsumesIterator()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var first = 0;
             var second = 0;
             function* g() {
@@ -64,7 +64,7 @@ public class DestructuringRegressionTests
     public void ForStatement_HeadLetArrayDestructuring_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var value;
             for ( let[x] = [23]; ; ) {
               value = x;
@@ -81,7 +81,7 @@ public class DestructuringRegressionTests
     public void ForInStatement_HeadLetArrayDestructuring_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var obj = Object.create(null);
             var value;
             obj.key = 1;
@@ -99,7 +99,7 @@ public class DestructuringRegressionTests
     public void ForOfStatement_HeadLetArrayDestructuring_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var value;
             for ( let[x] of [[34]] ) {
               value = x;
@@ -115,7 +115,7 @@ public class DestructuringRegressionTests
     public void ForOfStatement_AssignmentHead_ArrayElement_ObjectLiteralMemberTarget_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var setValue = 0;
 
             for ([{
@@ -139,7 +139,7 @@ public class DestructuringRegressionTests
     public void ForOfStatement_AssignmentHead_ArrayRest_ComputedMemberAbrupt_ClosesIterator()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var nextCount = 0;
             var returnCount = 0;
             var iterable = {};
@@ -180,7 +180,7 @@ public class DestructuringRegressionTests
     public void ForOfStatement_AssignmentHead_ArrayElement_Respects_LetTdz()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var counter = 0;
             var threw = false;
 
@@ -205,7 +205,7 @@ public class DestructuringRegressionTests
     public void ForOfStatement_AssignmentHead_ObjectShorthandDefaults_With_Sloppy_Eval_And_Arguments_Work()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var eval, arguments;
             var counter = 0;
 
@@ -224,7 +224,7 @@ public class DestructuringRegressionTests
     public void AssignmentExpression_ObjectShorthandDefaults_With_Sloppy_Eval_And_Arguments_Work()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var eval, arguments;
             var vals = {};
             var result = ({ eval = 3, arguments = 4 } = vals);
@@ -239,7 +239,7 @@ public class DestructuringRegressionTests
     public void AssignmentExpression_ObjectPattern_DuplicateKeys_DoNot_Use_ObjectLiteral_StrictChecks()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             "use strict";
             var xGen, gen;
             var vals = {};
@@ -255,7 +255,7 @@ public class DestructuringRegressionTests
     public void ForOfStatement_AssignmentHead_ArrayRest_YieldingMemberTarget_ClosesIteratorOnGeneratorReturn()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var nextCount = 0;
             var returnCount = 0;
             var iterable = {};
@@ -293,7 +293,7 @@ public class DestructuringRegressionTests
     public void ForOfStatement_AssignmentHead_TrailingArrayRest_YieldingMemberTarget_DoesNotConsumeRestEarly()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var nextCount = 0;
             var returnCount = 0;
             var iterable = {};
@@ -332,7 +332,7 @@ public class DestructuringRegressionTests
     public void ForOfStatement_AssignmentHead_ArrayElement_YieldingMemberTarget_PropagatesIteratorCloseError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var returnCount = 0;
             var iterable = {};
             var iterator = {
@@ -372,7 +372,7 @@ public class DestructuringRegressionTests
     public void ForStatement_VarEmptyObjectPattern_ThrowsBeforeTestEvaluation()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var ok = false;
             try {
               for (var {} = null; missing < 1; ) {
@@ -391,7 +391,7 @@ public class DestructuringRegressionTests
     public void ForStatement_VarObjectPatternDefaultThrow_ThrowsBeforeTestEvaluation()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function thrower() {
               throw new Error("boom");
             }
@@ -414,7 +414,7 @@ public class DestructuringRegressionTests
     public void AssignmentDestructuring_DefaultThrow_Preserves_Original_Throw_And_Touches_Return_Getter()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function MyError() {}
             function thrower() {
               throw new MyError();
@@ -449,7 +449,7 @@ public class DestructuringRegressionTests
     public void ObjectAssignmentDestructuring_KeyedMemberTarget_Preserves_Evaluation_Order()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var log = [];
 
             function source() {
@@ -503,7 +503,7 @@ public class DestructuringRegressionTests
     public void ArrayAssignmentDestructuring_KeyedMemberTarget_Preserves_Evaluation_Order()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var log = [];
 
             function source() {
@@ -562,7 +562,7 @@ public class DestructuringRegressionTests
     public void ArrayAssignmentDestructuring_TargetThrow_Preserves_Original_Throw_When_IteratorReturn_Getter_Throws()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function MyError() {}
             var target = {
               set a(v) {
@@ -598,7 +598,7 @@ public class DestructuringRegressionTests
     public void ArrayAssignmentDestructuring_DefaultThrow_Preserves_Original_Throw_When_IteratorReturn_Is_Not_Callable()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function MyError() {}
             function thrower() { throw new MyError(); }
 
@@ -627,7 +627,7 @@ public class DestructuringRegressionTests
     public void ArrayAssignmentDestructuring_DefaultThrow_Preserves_Original_Throw_For_All_NonCallable_Return_Values()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function MyError() {}
             function thrower() { throw new MyError(); }
 
@@ -663,7 +663,7 @@ public class DestructuringRegressionTests
     public void ArrayAssignmentDestructuring_DefaultThrow_WithNonCallableReturn_Preserves_Host_ThrownValue()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var iterable = {
               [Symbol.iterator]() { return this; },
               next() { return { done: false }; },
@@ -685,7 +685,7 @@ public class DestructuringRegressionTests
     public void ArrayAssignmentDestructuring_MinimalReleaseProbe_NextPropertyStillCallable()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var iterable = {
               [Symbol.iterator]() { return this; },
               next() { return { done: true, value: 1 }; },
@@ -705,7 +705,7 @@ public class DestructuringRegressionTests
     public void SloppyIteratorMethod_Returns_Original_Object_Receiver()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var iterable = {
               [Symbol.iterator]() { return this; },
               next() { return { done: true, value: 1 }; }
@@ -722,7 +722,7 @@ public class DestructuringRegressionTests
     public void EmptyObjectBindingDeclaration_RequireObjectCoercible_Allows_BigInt()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let {} = 0n;
             Object.setPrototypeOf(0n, null) === 0n;
             """));

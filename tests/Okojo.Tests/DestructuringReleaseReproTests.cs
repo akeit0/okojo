@@ -10,7 +10,7 @@ public class DestructuringReleaseReproTests
     public void ObjectLiteral_ComputedThenNamedThenNamed_DoesNot_Reuse_Wrong_NamedStoreCache()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var o = {
               [Symbol.iterator]() { return this; },
               next() { return { done: true, value: 1 }; },
@@ -28,7 +28,7 @@ public class DestructuringReleaseReproTests
     public void ArrayAssignmentDestructuring_Minimal_IteratorNext_Should_Be_Callable()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var x;
             ([x] = {
               [Symbol.iterator]() { return this; },
@@ -46,7 +46,7 @@ public class DestructuringReleaseReproTests
     public void ArrayAssignmentDestructuring_Minimal_DefaultThrow_Should_Preserve_Thrown_Primitive()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var x;
             ([x = (() => { throw 7; })()] = {
               [Symbol.iterator]() { return this; },

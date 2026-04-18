@@ -10,7 +10,7 @@ public class DataViewFeatureTests
     public void DataView_Global_Constructor_Is_Installed_And_IsView_Sees_It()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const d = Object.getOwnPropertyDescriptor(globalThis, "DataView");
             const view = new DataView(new ArrayBuffer(4));
 
@@ -31,7 +31,7 @@ public class DataViewFeatureTests
     public void DataView_Accessors_And_GetSet_Methods_Use_Requested_Endianness()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const buffer = new ArrayBuffer(16);
             const view = new DataView(buffer, 4, 8);
             view.setUint16(0, 0x1234, true);
@@ -56,7 +56,7 @@ public class DataViewFeatureTests
     public void DataView_Supports_BigInt_Accessors_And_RangeErrors()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const view = new DataView(new ArrayBuffer(8));
             view.setBigUint64(0, 18446744073709551615n, true);
 
@@ -75,7 +75,7 @@ public class DataViewFeatureTests
     public void DataView_Get_Throws_TypeError_For_Detached_Buffer_Before_Range_Check()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const buffer = new ArrayBuffer(8);
             const view = new DataView(buffer, 0);
             buffer.transfer();
@@ -93,7 +93,7 @@ public class DataViewFeatureTests
     public void DataView_Set_Converts_Value_Before_Final_Detached_Check()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const buffer = new ArrayBuffer(8);
             const view = new DataView(buffer, 0);
             const poisoned = { valueOf() { throw new Error("poison"); } };
@@ -112,7 +112,7 @@ public class DataViewFeatureTests
     public void DataView_Set_Converts_Value_Before_Final_Range_Check()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const view = new DataView(new ArrayBuffer(8), 0);
             const poisoned = { valueOf() { throw new Error("poison"); } };
 
@@ -129,7 +129,7 @@ public class DataViewFeatureTests
     public void DataView_Methods_Throw_TypeError_When_Fixed_View_Becomes_Out_Of_Bounds()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const buffer = new ArrayBuffer(24, { maxByteLength: 32 });
             const view = new DataView(buffer, 0, 16);
 
@@ -148,7 +148,7 @@ public class DataViewFeatureTests
     public void DataView_Constructor_Length_And_Auto_Length_Tracking_Follow_Resizable_Buffer()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const buffer = new ArrayBuffer(4, { maxByteLength: 5 });
             const view = new DataView(buffer, 1);
             buffer.resize(5);
@@ -166,7 +166,7 @@ public class DataViewFeatureTests
     public void DataView_Getters_Throw_For_Detached_And_Out_Of_Bounds_Views()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const detachedBuffer = new ArrayBuffer(8);
             const detachedView = new DataView(detachedBuffer, 1, 2);
             detachedBuffer.transfer();
@@ -199,7 +199,7 @@ public class DataViewFeatureTests
     public void DataView_Validates_ByteOffset_Before_NewTarget_Prototype_Access()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const newTarget = Object.defineProperty(function() {}.bind(), "prototype", {
               get() { throw new Error("prototype accessed"); }
             });

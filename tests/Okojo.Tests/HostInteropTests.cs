@@ -398,7 +398,7 @@ public class HostInteropTests
         var host = new HostCounter();
         realm.Global["host"] = realm.WrapHostValue(host);
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             host.Name = "sum";
             let first = host.AddAndDescribe(3);
             let keys = Object.keys(host).join(",");
@@ -422,7 +422,7 @@ public class HostInteropTests
         var host = new HostCounter();
         realm.Global["host"] = JsValue.FromObject(realm.WrapHostObject(host));
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             host[1] = "bb";
             [host[0], host[1], Reflect.ownKeys(host).slice(0, 3).join(",")].join("|");
             """));
@@ -439,7 +439,7 @@ public class HostInteropTests
         var realm = CreateClrRealm();
         realm.Global["host"] = realm.WrapHostValue(new HostCounter());
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const nameDesc = Object.getOwnPropertyDescriptor(host, "Name");
             const countDesc = Object.getOwnPropertyDescriptor(host, "Count");
             const methodDesc = Object.getOwnPropertyDescriptor(host, "AddAndDescribe");
@@ -462,7 +462,7 @@ public class HostInteropTests
         var realm = CreateClrRealm();
         realm.Global["host"] = realm.WrapHostValue(new StringBuilder(100));
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             [
               Object.prototype.toString.call(host),
               host[Symbol.toStringTag]
@@ -483,7 +483,7 @@ public class HostInteropTests
         var host = new HostAccessorEdges();
         realm.Global["host"] = realm.WrapHostValue(host);
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const value = host.SetterOnly;
             [value === undefined, host.SetterOnlyWriteCount, host.LastSetterOnlyValue].join("|");
             """));
@@ -503,7 +503,7 @@ public class HostInteropTests
         var host = new HostAccessorEdges();
         realm.Global["host"] = realm.WrapHostValue(host);
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             host.GetterOnly = 9;
             [host.GetterOnlyReadCount, host.GetterOnly].join("|");
             """));
@@ -550,7 +550,7 @@ public class HostInteropTests
         Assert.That(sampleTypeValue.TryGetObject(out var sampleTypeObject), Is.True);
         Assert.That(sampleTypeObject, Is.TypeOf<JsHostFunction>());
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const value = new clr.Okojo.Tests.ClrNamespaceSample();
             value.Ping();
             """));
@@ -569,7 +569,7 @@ public class HostInteropTests
             .AddClrAssembly(typeof(ClrNamespaceSample).Assembly));
         var realm = engine.DefaultRealm;
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             [
               Object.prototype.toString.call(clr.System),
               Object.prototype.toString.call(clr.Okojo.Tests.ClrNamespaceSample)
@@ -593,7 +593,7 @@ public class HostInteropTests
             .AddClrAssembly(typeof(ClrNamespaceSample).Assembly));
         var realm = engine.DefaultRealm;
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const type = clr.Okojo.Tests.ClrNamespaceSample;
             const labelDesc = Object.getOwnPropertyDescriptor(type, "Label");
             const methodDesc = Object.getOwnPropertyDescriptor(type, "DescribeStatic");
@@ -622,7 +622,7 @@ public class HostInteropTests
             .AddClrAssembly(typeof(ClrStaticNamespaceSample).Assembly));
         var realm = engine.DefaultRealm;
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const type = clr.Okojo.Tests.ClrStaticNamespaceSample;
             let constructTypeError = false;
             try {
@@ -653,7 +653,7 @@ public class HostInteropTests
             .AddClrAssembly(typeof(ClrStaticNamespaceSample).Assembly));
         var realm = engine.DefaultRealm;
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const type = clr.Okojo.Tests.ClrStaticNamespaceSample;
             [type.Echo(7), type.Echo("hi"), type.Echo({ ok: 1 }).startsWith("object:"), typeof type.Echo].join("|");
             """));
@@ -673,7 +673,7 @@ public class HostInteropTests
         var realm = engine.DefaultRealm;
         realm.Global["sample"] = realm.WrapHostValue(new ClrNamespaceSample());
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             [sample.Echo(3), sample.Echo("ok"), sample.Echo({ ok: 1 }).startsWith("object:"), typeof sample.Echo].join("|");
             """));
 
@@ -691,7 +691,7 @@ public class HostInteropTests
             .AddClrAssembly(typeof(ClrStaticNamespaceSample).Assembly));
         var realm = engine.DefaultRealm;
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const type = clr.Okojo.Tests.ClrStaticNamespaceSample;
             [type.JoinValues(), type.JoinValues(7), type.JoinValues(1, 2, 3)].join("|");
             """));
@@ -712,7 +712,7 @@ public class HostInteropTests
             .AddClrAssembly(typeof(string).Assembly));
         var realm = engine.DefaultRealm;
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const ListOfString = clr.System.Collections.Generic.List$1(clr.System.String);
             const list = new ListOfString();
             list.Add("a");
@@ -744,7 +744,7 @@ public class HostInteropTests
             .AddClrAssembly(typeof(Console).Assembly));
         var realm = engine.DefaultRealm;
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const type = clr.System.Console;
             const desc = Object.getOwnPropertyDescriptor(type, "WriteLine");
             [typeof type.WriteLine, typeof desc.value].join("|");
@@ -765,7 +765,7 @@ public class HostInteropTests
             .AddClrAssembly(typeof(string).Assembly));
         var realm = engine.DefaultRealm;
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const ListOfString = clr.System.Collections.Generic.List(clr.System.String);
             const list = new ListOfString();
             list.Add("x");
@@ -794,7 +794,7 @@ public class HostInteropTests
             .AddClrAssembly(typeof(string).Assembly));
         var realm = engine.DefaultRealm;
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const Pair = clr.System.Collections.Generic.KeyValuePair$2(
               clr.System.String,
               clr.System.String
@@ -825,7 +825,7 @@ public class HostInteropTests
             .AddClrAssembly(typeof(string).Assembly));
         var realm = engine.DefaultRealm;
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const ListOfString = clr.System.Collections.Generic.List$1(clr.System.String);
             const list = new ListOfString();
             list.Add("a");
@@ -855,7 +855,7 @@ public class HostInteropTests
             .AddClrAssembly(typeof(string).Assembly));
         var realm = engine.DefaultRealm;
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const clrUsings = $using(clr.System, clr.System.Collections.Generic);
             clrUsings.Add(clr.System.Linq.Enumerable);
 
@@ -890,7 +890,7 @@ public class HostInteropTests
             .AddClrAssembly(typeof(string).Assembly));
         var realm = engine.DefaultRealm;
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const $usings = $using(clr.System, clr.System.Collections.Generic);
             const Dict = $usings.Dictionary$2($usings.String, $usings.String);
             const dict = new Dict();
@@ -1111,7 +1111,7 @@ public class HostInteropTests
             .AddClrAssembly(typeof(int).Assembly));
         var realm = engine.DefaultRealm;
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const sample = clr.Okojo.Tests.ClrRefOutSample;
             const n = $place(clr.System.Int32, 4);
             const s = $place(clr.System.String);
@@ -1139,7 +1139,7 @@ public class HostInteropTests
             .AddClrAssembly(typeof(int).Assembly));
         var realm = engine.DefaultRealm;
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const sample = clr.Okojo.Tests.ClrStaticNamespaceSample;
             [
               sample.Echo(7),
@@ -1163,7 +1163,7 @@ public class HostInteropTests
             .AddClrAssembly(typeof(int).Assembly));
         var realm = engine.DefaultRealm;
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const ListOfInt = clr.System.Collections.Generic.List(clr.System.Int32);
             const list = new ListOfInt();
             [
@@ -1186,7 +1186,7 @@ public class HostInteropTests
             .AddClrAssembly(typeof(StringBuilder).Assembly));
         var realm = engine.DefaultRealm;
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let ok = false;
             try {
               new clr.Okojo.Tests.ClrNamespaceSample();
@@ -1205,7 +1205,7 @@ public class HostInteropTests
     public void ClrGlobalIsUndefinedWhenClrAccessDisabled()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("typeof clr;"));
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("typeof clr;"));
 
         realm.Execute(script);
 
@@ -1256,7 +1256,7 @@ public class HostInteropTests
         var realm = JsRuntime.Create().DefaultRealm;
         realm.Global["ManualHostBindingSample"] = JsValue.FromObject(ManualHostBindingSample.ToJsType(realm));
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const type = ManualHostBindingSample;
             const sample = new type();
             sample.X = 1.5;
@@ -1282,7 +1282,7 @@ public class HostInteropTests
         realm.Global["sample"] = JsValue.FromObject(ManualHostBindingSample.ToJsObject(realm, sample));
         realm.Global["ManualHostBindingSample"] = JsValue.FromObject(ManualHostBindingSample.ToJsType(realm));
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             sample === ManualHostBindingSample.Bounce(sample);
             """));
 
@@ -1314,7 +1314,7 @@ public class HostInteropTests
         var realm = JsRuntime.Create().DefaultRealm;
         realm.Global["GeneratedHostBindingSample"] = JsValue.FromObject(GeneratedHostBindingSample.ToJsType(realm));
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const type = GeneratedHostBindingSample;
             const sample = new type();
             sample.X = 2.5;
@@ -1337,7 +1337,7 @@ public class HostInteropTests
         var realm = JsRuntime.Create().DefaultRealm;
         realm.Global["GeneratedHostBindingSample"] = JsValue.FromObject(GeneratedHostBindingSample.ToJsType(realm));
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             [
               GeneratedHostBindingSample.SumNumbers(1, 2, 3, 4),
               GeneratedHostBindingSample.DescribeJsValues(1, "x", true),
@@ -1378,7 +1378,7 @@ public class HostInteropTests
         realm.Global["ManualHostBindingSample"] = JsValue.FromObject(ManualHostBindingSample.ToJsType(realm));
         realm.Global["GeneratedHostBindingSample"] = JsValue.FromObject(GeneratedHostBindingSample.ToJsType(realm));
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const a = new ManualHostBindingSample();
             const b = new GeneratedHostBindingSample();
             a.X = 3.5;

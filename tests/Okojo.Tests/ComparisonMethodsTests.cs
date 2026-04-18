@@ -67,7 +67,7 @@ public class ComparisonMethodsTests
     public void RelationalLessThan_ObjectValueOf_IsUsed()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             ({ valueOf: function() { return 0; }, toString: function() { throw "bad"; } } < 1) === true;
             """));
         realm.Execute(script);

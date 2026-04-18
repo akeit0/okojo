@@ -11,7 +11,7 @@ public class ArrayFromAsyncTests
     public void ArrayFromAsync_Treats_Number_As_ArrayLike()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             Number.prototype.length = 2;
             Number.prototype[0] = 1;
             Number.prototype[1] = 2;
@@ -32,7 +32,7 @@ public class ArrayFromAsyncTests
     public void ArrayFromAsync_SyncIterable_Observes_Array_Mutation_After_First_Element()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             globalThis.ok = false;
             const items = [1, 2, 3];
             const promise = Array.fromAsync(items);
@@ -58,7 +58,7 @@ public class ArrayFromAsyncTests
     public void ArrayFromAsync_AsyncIterable_Does_Not_Await_Input_Values()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             globalThis.ok = false;
             const prom = Promise.resolve({});
             const input = {
@@ -89,7 +89,7 @@ public class ArrayFromAsyncTests
     public void ArrayFromAsync_AsyncIterable_Rejects_When_Iteration_Fails()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             globalThis.ok = false;
 
             async function* generateInput () {
@@ -116,7 +116,7 @@ public class ArrayFromAsyncTests
             return args.Length == 0 ? JsValue.FromInt32(1) : args[0];
         }, "$DONE", 1));
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function asyncTest(testFunc) {
               try {
                 testFunc().then(
@@ -150,7 +150,7 @@ public class ArrayFromAsyncTests
     public void ArrayFromAsync_ArrayLike_Promise_Observes_Length_ToPrimitive()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function formatPropertyName(propertyKey, objectName = "") {
               switch (typeof propertyKey) {
                 case "string":
@@ -232,7 +232,7 @@ public class ArrayFromAsyncTests
     public void ArrayFromAsync_Uses_Zero_Args_For_Iterable_Constructor_And_Length_For_ArrayLike()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             globalThis.ok = false;
             const constructorCalls = [];
             function MyArray(...args) {
@@ -261,7 +261,7 @@ public class ArrayFromAsyncTests
     public void ArrayFromAsync_Custom_Constructor_Uses_DefineProperty_Then_Length_Set_Order()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function formatPropertyName(propertyKey, objectName = "") {
               switch (typeof propertyKey) {
                 case "string":
@@ -302,7 +302,7 @@ public class ArrayFromAsyncTests
     public void ArrayFromAsync_Closes_Sync_Iterator_When_Defining_Element_Fails()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             globalThis.closed = false;
             globalThis.rejected = false;
 
@@ -340,7 +340,7 @@ public class ArrayFromAsyncTests
     public void ArrayFromAsync_Closes_Async_Iterator_When_Defining_Element_Fails()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             globalThis.closed = false;
             globalThis.rejected = false;
 

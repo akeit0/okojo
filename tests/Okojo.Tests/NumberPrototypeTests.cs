@@ -11,7 +11,7 @@ public sealed class NumberPrototypeTests
     public void NumberPrototype_Has_Formatting_Methods()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             Number.prototype.hasOwnProperty("toFixed") &&
             Number.prototype.hasOwnProperty("toExponential") &&
             Number.prototype.hasOwnProperty("toPrecision");
@@ -25,7 +25,7 @@ public sealed class NumberPrototypeTests
     public void NumberPrototype_Formatting_Methods_Are_Not_Constructors()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let ok = 0;
             try { new Number.prototype.toFixed(); } catch (e) { if (e && e.name === "TypeError") ok++; }
             try { new Number.prototype.toExponential(); } catch (e) { if (e && e.name === "TypeError") ok++; }
@@ -41,7 +41,7 @@ public sealed class NumberPrototypeTests
     public void NumberPrototype_Formatting_Methods_Produce_Basic_Results()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             [
               (10).toString(16),
               (123.456).toExponential(2),
@@ -61,7 +61,7 @@ public sealed class NumberPrototypeTests
     public void NumberPrototype_Formatting_Methods_Handle_NumberPrototype_Test262_Repros()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             [
               (25).toExponential(0),
               (0.0001).toExponential(16),
@@ -81,7 +81,7 @@ public sealed class NumberPrototypeTests
     public void NumberPrototype_ToPrecision_Coerces_Precision_Before_NaN_Check()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let calls = 0;
             const p = { valueOf() { calls++; return Infinity; } };
             [NaN.toPrecision(p), calls].join("|");
@@ -95,7 +95,7 @@ public sealed class NumberPrototypeTests
     public void NumberPrototype_Formatting_Methods_Handle_NaN_And_Infinity()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             Number.NaN.toExponential() === "NaN" &&
             Number.POSITIVE_INFINITY.toExponential() === "Infinity";
             """));
@@ -108,7 +108,7 @@ public sealed class NumberPrototypeTests
     public void NumberPrototype_Formatting_Methods_Validate_Ranges()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let ok = 0;
             try { (1).toExponential(-1); } catch (e) { if (e && e.name === "RangeError") ok++; }
             try { (1).toExponential(101); } catch (e) { if (e && e.name === "RangeError") ok++; }

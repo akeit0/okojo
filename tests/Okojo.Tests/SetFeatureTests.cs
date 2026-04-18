@@ -10,7 +10,7 @@ public class SetFeatureTests
     public void Set_Global_Constructor_And_Species_Are_Installed()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const d = Object.getOwnPropertyDescriptor(globalThis, "Set");
             const sd = Object.getOwnPropertyDescriptor(Set, Symbol.species);
             typeof Set === "function" &&
@@ -31,7 +31,7 @@ public class SetFeatureTests
     public void Set_Call_Without_New_Throws_TypeError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let ok = false;
             try { Set(); } catch (e) { ok = e && e.name === "TypeError"; }
             ok;
@@ -45,7 +45,7 @@ public class SetFeatureTests
     public void Set_Constructs_And_Uses_SameValueZero()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const s = new Set([1, 2, 2, NaN, -0, 0]);
             Object.getPrototypeOf(s) === Set.prototype &&
             s.size === 4 &&
@@ -63,7 +63,7 @@ public class SetFeatureTests
     public void Set_Add_Delete_Clear_And_Has_Basic_Semantics()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const s = new Set([1, 2]);
             const addResult = s.add(3);
             const hasAfterAdd = s.has(3);
@@ -85,7 +85,7 @@ public class SetFeatureTests
     public void Set_Iterator_Methods_Alias_Values_And_Preserve_Order()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const s = new Set([3, 1, 2]);
             const v = s.values();
             const k = s.keys();
@@ -111,7 +111,7 @@ public class SetFeatureTests
     public void Set_ForOf_Preserves_Undefined_Distinct_From_Null()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const s = new Set();
             const obj = {};
             s.add(0);
@@ -138,7 +138,7 @@ public class SetFeatureTests
     public void Set_ForEach_Uses_Value_Value_Set_Callback_Shape()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const s = new Set(["a", "b"]);
             let log = "";
             s.forEach(function (value, key, set) {
@@ -155,7 +155,7 @@ public class SetFeatureTests
     public void Set_Operation_Methods_Return_Correct_Results()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const a = new Set([1, 2, 3]);
             const b = new Set([2, 4]);
             const diff = a.difference(b);
@@ -177,7 +177,7 @@ public class SetFeatureTests
     public void Set_Relation_Methods_Work()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const a = new Set([1, 2]);
             const b = new Set([1, 2, 3]);
             const c = new Set([4, 5]);
@@ -195,7 +195,7 @@ public class SetFeatureTests
     public void Set_Constructor_Calls_Instance_Add_For_Each_Iterable_Value()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const setAdd = Set.prototype.add;
             let counter = 0;
             Set.prototype.add = function(value) {

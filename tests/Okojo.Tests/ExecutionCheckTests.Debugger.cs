@@ -12,7 +12,7 @@ public partial class ExecutionCheckTests
         var debugger = new RecordingDebugger();
         var runtime = JsRuntime.Create(builder => builder.UseAgent(agent => { agent.DebuggerSession = debugger; }));
         var realm = runtime.DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             debugger;
             """));
 
@@ -27,7 +27,7 @@ public partial class ExecutionCheckTests
         var debugger = new RecordingDebugger();
         var runtime = JsRuntime.Create(builder => builder.UseAgent(agent => { agent.DebuggerSession = debugger; }));
         var realm = runtime.DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function inner() {
                 debugger;
             }
@@ -54,7 +54,7 @@ public partial class ExecutionCheckTests
             agent.EnableDebuggerStatementHook();
         }));
         var realm = runtime.DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function inner() {
                 debugger;
             }
@@ -87,7 +87,7 @@ public partial class ExecutionCheckTests
                                                    }
                                                    inner();
                                                    """, "debug-stop.js");
-        var script = new JsCompiler(realm).Compile(program);
+        var script = JsCompiler.Compile(realm, program);
 
         realm.Execute(script);
 
@@ -124,7 +124,7 @@ public partial class ExecutionCheckTests
                                                    }
                                                    outer();
                                                    """, "debug-stop-stack.js");
-        var script = new JsCompiler(realm).Compile(program);
+        var script = JsCompiler.Compile(realm, program);
 
         realm.Execute(script);
 
@@ -151,7 +151,7 @@ public partial class ExecutionCheckTests
             agent.EnableResumeGeneratorHook();
         }));
         var realm = runtime.DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function* gen() {
                 yield 1;
                 return 2;

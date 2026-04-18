@@ -16,7 +16,7 @@ public partial class ExecutionCheckTests
             agent.SetCheckInterval(1);
         }));
         var realm = runtime.DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let total = 0;
             total = total + 1;
             """, "paused-periodic.js"));
@@ -52,7 +52,7 @@ public partial class ExecutionCheckTests
                                                    }
                                                    globalThis.out = add(1, 2);
                                                    """, "paused-debugger.js");
-        var script = new JsCompiler(realm).Compile(program);
+        var script = JsCompiler.Compile(realm, program);
         using var breakpoint = runtime.MainAgent.AddBreakpoint("paused-debugger.js", 3);
 
         realm.Execute(script);
@@ -84,7 +84,7 @@ public partial class ExecutionCheckTests
         }));
         var realm = runtime.DefaultRealm;
         debugger.Realm = realm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function add(a, b) {
                 return a + b;
             }

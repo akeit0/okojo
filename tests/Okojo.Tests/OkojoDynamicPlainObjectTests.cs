@@ -11,7 +11,7 @@ public class OkojoDynamicPlainObjectTests
     public void JsonParse_Uses_DictionaryStart_PlainObject()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             JSON.parse('{"a":1,"b":2}');
             """));
 
@@ -32,7 +32,7 @@ public class OkojoDynamicPlainObjectTests
     public void AppendOnly_PlainObject_Growth_Stays_On_FastShape_Path()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const obj = {};
             obj.a = 1;
             obj.b = 2;
@@ -51,7 +51,7 @@ public class OkojoDynamicPlainObjectTests
     public void JsonParse_ObjectKeys_And_DescriptorSemantics_Remain_Ordinary()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const obj = JSON.parse('{"b":2,"a":1}');
             const keys = Object.keys(obj).join(',');
             const desc = Object.getOwnPropertyDescriptor(obj, "a");
@@ -72,7 +72,7 @@ public class OkojoDynamicPlainObjectTests
     public void JsonParse_GetOwnPropertyNames_And_Entries_Preserve_Order()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const obj = JSON.parse('{"2":"two","1":"one","b":2,"a":1}');
             const names = Object.getOwnPropertyNames(obj).join(',');
             const entries = Object.entries(obj);
@@ -93,7 +93,7 @@ public class OkojoDynamicPlainObjectTests
     public void JsonParse_Mixed_Index_And_Named_Properties_Keep_Dynamic_Named_Slots_Dense()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             JSON.parse('{"2":"two","1":"one","b":2,"a":1}');
             """));
 
@@ -111,7 +111,7 @@ public class OkojoDynamicPlainObjectTests
     public void JsonStringify_Uses_Ordinary_Named_Property_Enumeration_For_DictionaryStart_Object()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const obj = JSON.parse('{"2":"two","1":"one","b":2,"a":1}');
             JSON.stringify(obj) === '{"1":"one","2":"two","b":2,"a":1}';
             """));
@@ -125,7 +125,7 @@ public class OkojoDynamicPlainObjectTests
     public void JsonStringify_Escapes_Strings_And_Property_Names()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const obj = { "a\"b": "line\n\t\\x" };
             JSON.stringify(obj) === '{"a\\"b":"line\\n\\t\\\\x"}';
             """));
@@ -139,7 +139,7 @@ public class OkojoDynamicPlainObjectTests
     public void JsonParse_Delete_Then_Redefine_Preserves_Ordinary_Order()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const obj = JSON.parse('{"a":1,"b":2,"c":3}');
             delete obj.b;
             Object.defineProperty(obj, "b", { value: 9, writable: true, enumerable: true, configurable: true });
@@ -155,7 +155,7 @@ public class OkojoDynamicPlainObjectTests
     public void JsonParse_Duplicate_Named_Keys_Keep_First_Order_And_Last_Value()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const obj = JSON.parse('{"a":1,"b":2,"a":3}');
             Object.keys(obj).join(',') === "a,b" && obj.a === 3 && obj.b === 2;
             """));
@@ -169,7 +169,7 @@ public class OkojoDynamicPlainObjectTests
     public void JsonParse_Dense_Arrays_Remain_Ordinary_And_Keep_Values()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const value = JSON.parse('{"items":[1,2,{"x":[3,4]}]}');
             Array.isArray(value.items) &&
             value.items.length === 3 &&
@@ -190,7 +190,7 @@ public class OkojoDynamicPlainObjectTests
     public void DictionaryStartPlainObject_Supports_Accessor_Definition()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const obj = JSON.parse('{"a":1}');
             let seen = 0;
             Object.defineProperty(obj, "x", {
@@ -216,7 +216,7 @@ public class OkojoDynamicPlainObjectTests
     public void DictionaryStartPlainObject_Seal_And_Freeze_Remain_Ordinary()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const sealedObj = JSON.parse('{"a":1}');
             Object.seal(sealedObj);
             const sealedOk =
@@ -243,7 +243,7 @@ public class OkojoDynamicPlainObjectTests
     public void DictionaryStartPlainObject_DefineProperties_Descriptors_Values_And_HasOwn_Work()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const obj = JSON.parse('{"b":2,"a":1}');
             Object.defineProperties(obj, {
               c: { value: 3, enumerable: true, writable: true, configurable: true },
@@ -289,7 +289,7 @@ public class OkojoDynamicPlainObjectTests
     public void FastPlainObject_DeleteChurn_Promotes_To_DictionaryMode()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const obj = { a: 1, b: 2, c: 3 };
             delete obj.b;
             obj.b = 4;
@@ -309,7 +309,7 @@ public class OkojoDynamicPlainObjectTests
     public void FastPlainObject_RedefineChurn_Promotes_To_DictionaryMode_Without_Breaking_Order_Or_Descriptors()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const obj = { a: 1, b: 2 };
             Object.defineProperty(obj, "a", { get: function () { return 7; }, enumerable: true, configurable: true });
             Object.defineProperty(obj, "a", { value: 9, writable: true, enumerable: true, configurable: true });
@@ -327,7 +327,7 @@ public class OkojoDynamicPlainObjectTests
     public void FunctionObject_DeleteChurn_Promotes_To_DictionaryMode()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function f() {}
             f.a = 1;
             f.b = 2;
@@ -349,7 +349,7 @@ public class OkojoDynamicPlainObjectTests
     public void FunctionObject_RedefineChurn_Promotes_To_DictionaryMode_Without_Breaking_Order_Or_Descriptors()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function f() {}
             f.a = 1;
             f.b = 2;

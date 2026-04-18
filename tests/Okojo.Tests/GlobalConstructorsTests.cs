@@ -844,7 +844,7 @@ public class GlobalConstructorsTests
     public void JsonStringify_Raw_BigInt_Throws_But_Replacer_Can_Convert_It()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let primitive = false;
             try { JSON.stringify(0n); } catch (e) { primitive = e.name === "TypeError"; }
             let boxed = false;
@@ -871,7 +871,7 @@ public class GlobalConstructorsTests
     public void JsonStringify_BigInt_Uses_ToJson_Before_Throwing()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             BigInt.prototype.toJSON = function () { return this.toString(); };
             JSON.stringify(0n) === '"0"';
             """));
@@ -884,7 +884,7 @@ public class GlobalConstructorsTests
     public void JsonStringify_BigInt_ToJson_Is_Called_With_Primitive_Receiver()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             Object.defineProperty(BigInt.prototype, "toJSON", {
               get() {
                 "use strict";

@@ -11,7 +11,7 @@ public class SharedArrayBufferAtomicsFeatureTests
     public void SharedArrayBuffer_And_Atomics_Globals_Are_Installed()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const sabDesc = Object.getOwnPropertyDescriptor(globalThis, "SharedArrayBuffer");
             const atomicsDesc = Object.getOwnPropertyDescriptor(globalThis, "Atomics");
             typeof SharedArrayBuffer === "function" &&
@@ -33,7 +33,7 @@ public class SharedArrayBufferAtomicsFeatureTests
     public void SharedArrayBuffer_Constructs_Grows_And_Slices()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const sab = new SharedArrayBuffer(4, { maxByteLength: 8 });
             const view = new Uint8Array(sab);
             view.set([1, 2, 3, 4]);
@@ -60,7 +60,7 @@ public class SharedArrayBufferAtomicsFeatureTests
     public void Atomics_ReadModifyWrite_Works_For_Int32_And_BigInt64()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const i32 = new Int32Array(new SharedArrayBuffer(8));
             const i64 = new BigInt64Array(new SharedArrayBuffer(16));
 
@@ -95,7 +95,7 @@ public class SharedArrayBufferAtomicsFeatureTests
     public void Atomics_Wait_And_WaitAsync_Immediate_Paths_Work()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const i32 = new Int32Array(new SharedArrayBuffer(4));
             Atomics.store(i32, 0, 1);
 
@@ -120,7 +120,7 @@ public class SharedArrayBufferAtomicsFeatureTests
     public void Atomics_Operates_On_NonShared_Integer_TypedArrays_Except_WaitNotify()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const view = new Int32Array(new ArrayBuffer(4));
             const old = Atomics.add(view, 0, 1);
             const loaded = Atomics.load(view, 0);
