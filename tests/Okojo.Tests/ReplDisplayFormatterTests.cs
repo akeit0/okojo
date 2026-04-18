@@ -46,8 +46,8 @@ public class ReplDisplayFormatterTests
         static string EvalDisplay(string source, int? indentSize = 4)
         {
             var realm = JsRuntime.Create().DefaultRealm;
-            var compiler = new JsCompiler(realm);
-            realm.Execute(compiler.Compile(JavaScriptParser.ParseScript(source)));
+            var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript(source));
+            realm.Execute(script);
             return new ReplFormatter(realm, indentSize).Format(realm.Accumulator);
         }
     }

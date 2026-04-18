@@ -8,6 +8,7 @@
         <AssemblyName>Okojo.DotNet.Modules</AssemblyName>
         <RootNamespace>Okojo.DotNet.Modules</RootNamespace>
         <PackageId>Okojo.DotNet.Modules</PackageId>
+        <IsAotCompatible>false</IsAotCompatible>
         <PackageVersion>$(OkojoPackageVersion_Okojo_DotNet_Modules)</PackageVersion>
         <Description>.NET ecosystem module-resolution and cache primitives for Okojo embedders.</Description>
         <PackageTags>javascript;ecmascript;dotnet;nuget;interop;modules;reflection</PackageTags>

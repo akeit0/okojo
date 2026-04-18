@@ -10,8 +10,7 @@ public class ErrorConstructorTests
     public void ErrorConstructor_CreatesObjectWithNameAndMessage()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let e = Error("boom");
                                                                    e.name + ":" + e.message;
                                                                    """));
@@ -25,8 +24,7 @@ public class ErrorConstructorTests
     public void NotCallable_ThrowsJsRuntimeExceptionTypeError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let x = 1;
                                                                    x();
                                                                    """));
@@ -40,8 +38,7 @@ public class ErrorConstructorTests
     public void TypeError_CaughtObject_HasNormalizedNameAndMessage()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let out = "";
                                                                    try {
                                                                        let x = 1;
@@ -61,8 +58,7 @@ public class ErrorConstructorTests
     public void ReferenceError_CaughtObject_HasNormalizedNameAndMessage()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let out = "";
                                                                    try {
                                                                        noSuchGlobal;
@@ -82,8 +78,7 @@ public class ErrorConstructorTests
     public void ReferenceError_CaughtObject_HasReferenceErrorConstructor()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let ok = false;
                                                                    try {
                                                                        noSuchGlobal;
@@ -101,8 +96,7 @@ public class ErrorConstructorTests
     public void CaughtTypeError_IsInstanceOfTypeError_AndError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let out = 0;
                                                                    try {
                                                                        let x = 1;
@@ -123,8 +117,7 @@ public class ErrorConstructorTests
     public void InstanceOf_WithNonCallableRhs_ThrowsTypeError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let o = {};
                                                                    o instanceof 1;
                                                                    """));
@@ -138,8 +131,7 @@ public class ErrorConstructorTests
     public void TypeErrorConstructor_CreatesTypeErrorPrototypeInstance()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let e = TypeError("boom");
                                                                    if (e instanceof TypeError) {
                                                                        if (e instanceof Error) 1;
@@ -156,8 +148,7 @@ public class ErrorConstructorTests
     public void InstanceOf_UsesSymbolHasInstance_WhenPresent()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const C = function() {};
                                                                    Object.defineProperty(C, Symbol.hasInstance, {
                                                                      value: function (v) { return v === 42; }
@@ -174,8 +165,7 @@ public class ErrorConstructorTests
     public void InstanceOf_SymbolHasInstanceNonCallable_ThrowsTypeError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const C = function() {};
                                                                    Object.defineProperty(C, Symbol.hasInstance, { value: 1 });
                                                                    42 instanceof C;
@@ -190,8 +180,7 @@ public class ErrorConstructorTests
     public void SyntaxErrorConstructor_IsInstalledAndConstructable()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const e = SyntaxError("bad");
                                                                    (typeof SyntaxError === "function") &&
                                                                    (e instanceof SyntaxError) &&
@@ -208,8 +197,7 @@ public class ErrorConstructorTests
     public void URIErrorConstructor_IsInstalled_WithExpectedPrototypeSurface()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const ctorDesc = Object.getOwnPropertyDescriptor(URIError, "prototype");
                                                                    const proto = URIError.prototype;
                                                                    const ctorProp = Object.getOwnPropertyDescriptor(proto, "constructor");
@@ -243,8 +231,7 @@ public class ErrorConstructorTests
     public void NativeErrorInstances_InheritName_AndOnlyOwnMessageWhenProvided()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const empty = new TypeError();
                                                                    const withMessage = new TypeError("boom");
                                                                    [
@@ -266,8 +253,7 @@ public class ErrorConstructorTests
     public void Error_Subclass_Construction_Uses_Subclass_Prototype()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    class ReturnCalledError extends Error {}
                                                                    const e = new ReturnCalledError("boom");
                                                                    [
@@ -286,8 +272,7 @@ public class ErrorConstructorTests
     public void ErrorPrototypeToString_HasNonEnumerableWritableConfigurableDescriptor()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const desc = Object.getOwnPropertyDescriptor(Error.prototype, "toString");
                                                                    [
                                                                      typeof Error.prototype.toString === "function",
@@ -305,8 +290,7 @@ public class ErrorConstructorTests
     public void ErrorPrototypeToString_Throws_On_NonObject_Receivers()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const values = [undefined, null, 1, true, "string", Symbol("x")];
                                                                    values.every((value) => {
                                                                      try {

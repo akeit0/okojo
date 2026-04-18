@@ -11,8 +11,7 @@ public class AggregateErrorTests
     public void AggregateError_Basic_Surface_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const e = new AggregateError([1, 2], "msg", { cause: 42 });
                                                                    [
                                                                      e instanceof AggregateError,
@@ -37,8 +36,7 @@ public class AggregateErrorTests
     public void AggregateError_Call_Without_New_Uses_AggregateError_Prototype()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const e = AggregateError([], "");
                                                                    (Object.getPrototypeOf(e) === AggregateError.prototype) &&
                                                                    (e instanceof AggregateError) &&
@@ -57,8 +55,7 @@ public class AggregateErrorTests
     {
         var engine = JsRuntime.Create();
         var realm = engine.DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const other = globalThis.__createRealmForTest__();
                                                                    const NewTarget = new other.Function();
                                                                    NewTarget.prototype = undefined;
@@ -82,8 +79,7 @@ public class AggregateErrorTests
     public void AggregateError_Processes_Message_Before_Errors_Iteration()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let sequence = [];
                                                                    const message = {
                                                                      toString() {
@@ -115,8 +111,7 @@ public class AggregateErrorTests
     public void AggregateError_Without_Errors_Throws_TypeError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    new AggregateError();
                                                                    """));
 

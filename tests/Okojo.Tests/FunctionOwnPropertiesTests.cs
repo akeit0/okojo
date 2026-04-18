@@ -10,8 +10,7 @@ public class FunctionOwnPropertiesTests
     public void Function_OwnProperties_LengthNamePrototype_AndPrototypeConstructor()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function f(x){ return x; }
                                                                    const names = Object.getOwnPropertyNames(f);
                                                                    (names.length === 3) &&
@@ -31,8 +30,7 @@ public class FunctionOwnPropertiesTests
     public void Function_OwnPropertyDescriptors_Have_Expected_Flags()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function sample(alpha, beta) {}
                                                                    var lengthDesc = Object.getOwnPropertyDescriptor(sample, "length");
                                                                    var nameDesc = Object.getOwnPropertyDescriptor(sample, "name");
@@ -62,8 +60,7 @@ public class FunctionOwnPropertiesTests
     public void ArrowFunction_OwnProperties_HasNoPrototype()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var a = (x) => x;
                                                                    const names = Object.getOwnPropertyNames(a);
                                                                    (names.length === 2) &&
@@ -82,8 +79,7 @@ public class FunctionOwnPropertiesTests
     public void Function_Prototype_Can_Be_Replaced_Before_First_Read()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function F() {}
                                                                    var replacement = { marker: 1 };
                                                                    Object.defineProperty(F, "prototype", {
@@ -111,8 +107,7 @@ public class FunctionOwnPropertiesTests
     public void Function_Length_UsesExpectedArgumentCount_WithRestAndDefaults()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function af(...a) {}
                                                                    function bf(a, ...b) {}
                                                                    function cf(a, b = 1, c) {}
@@ -128,8 +123,7 @@ public class FunctionOwnPropertiesTests
     public void BuiltIn_Function_Name_And_Length_Can_Be_Reconfigured_When_Installed_As_Real_Properties()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var nameDesc = Object.getOwnPropertyDescriptor(Proxy, "name");
                                                                    var lengthDesc = Object.getOwnPropertyDescriptor(Proxy, "length");
                                                                    var deletedName = delete Proxy.name;
@@ -160,8 +154,7 @@ public class FunctionOwnPropertiesTests
     public void BuiltIn_Constructors_Have_NonWritable_Prototype_When_Initialized()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var dataViewDesc = Object.getOwnPropertyDescriptor(DataView, "prototype");
                                                                    var errorDesc = Object.getOwnPropertyDescriptor(Error, "prototype");
                                                                    var asyncFunction = async function foo() {}.constructor;
@@ -186,8 +179,7 @@ public class FunctionOwnPropertiesTests
     public void Class_Prototype_Constructor_Points_To_Class_For_Derived_Builtins()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    class MyArray extends Uint8Array {}
                                                                    const sample = new MyArray(1);
                                                                    sample.constructor === MyArray &&
@@ -203,8 +195,7 @@ public class FunctionOwnPropertiesTests
     public void FunctionPrototype_Restricted_Accessors_Share_Realm_ThrowTypeError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var throwTypeError = Object.getOwnPropertyDescriptor((function() {
                                                                      "use strict";
                                                                      return arguments;

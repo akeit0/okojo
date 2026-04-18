@@ -10,8 +10,7 @@ public class Test262AsyncFunctionRegressionsTests
     public void HarnessStyle_FunctionPrototypeCallBind_AndArrayHelpers_Work()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var __join = Function.prototype.call.bind(Array.prototype.join);
                                                                    var __push = Function.prototype.call.bind(Array.prototype.push);
                                                                    var __propertyIsEnumerable = Function.prototype.call.bind(Object.prototype.propertyIsEnumerable);
@@ -30,8 +29,7 @@ public class Test262AsyncFunctionRegressionsTests
     public void AsyncFunction_DefaultParameterThrow_RejectsPromise()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = 0;
                                                                    var y = null;
                                                                    async function foo(x = y()) {}
@@ -47,8 +45,7 @@ public class Test262AsyncFunctionRegressionsTests
     public void Arguments_Object_IsMapped_ForNonStrictSimpleParameters()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function f(a) {
                                                                      arguments[0] = 2;
                                                                      var first = a === 2;
@@ -67,8 +64,7 @@ public class Test262AsyncFunctionRegressionsTests
     public void Arguments_Object_IsUnmapped_ForNonSimpleParameters()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function f(a = 10) {
                                                                      arguments[0] = 2;
                                                                      var first = a === 1;

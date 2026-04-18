@@ -98,8 +98,7 @@ public class RegisterRecycleSnapshotTests
         foreach (var item in ScopeCases)
         {
             var realm = JsRuntime.Create().DefaultRealm;
-            var compiler = new JsCompiler(realm);
-            var script = compiler.Compile(JavaScriptParser.ParseScript(item.Source));
+            var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript(item.Source));
 
             Assert.That(
                 script.RegisterCount,
@@ -112,8 +111,7 @@ public class RegisterRecycleSnapshotTests
     public void SiblingBlockLexicals_FunctionRegisterCount_ReusesRegisters()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function t() {
                                                                      {
                                                                        let x0 = 0, x1 = 1, x2 = 2, x3 = 3, x4 = 4, x5 = 5, x6 = 6, x7 = 7, x8 = 8, x9 = 9;

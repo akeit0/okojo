@@ -10,8 +10,7 @@ public class FunctionCodeTests
     public void StrictAccessorGetter_Receives_Primitive_ThisValue()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    'use strict';
                                                                    Object.defineProperty(Object.prototype, "x", { get: function () { return this; } });
                                                                    (5).x === 5 && typeof (5).x === "number";
@@ -25,8 +24,7 @@ public class FunctionCodeTests
     public void StrictBlockFunctionDeclaration_DoesNotLeak_OutsideBlock()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var err1, err2;
                                                                    (function() {
                                                                      'use strict';
@@ -46,8 +44,7 @@ public class FunctionCodeTests
     public void SloppyObjectMethod_DetachedCall_UsesGlobalThis()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var global = (function() { return this; }());
                                                                    var thisValue = null;
                                                                    var method = {
@@ -67,8 +64,7 @@ public class FunctionCodeTests
     public void SloppyObjectGeneratorMethod_DetachedCall_UsesGlobalThis()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var global = (function() { return this; }());
                                                                    var thisValue = null;
                                                                    var method = {
@@ -88,8 +84,7 @@ public class FunctionCodeTests
     public void BlockFunctionDeclaration_IsInitializedWithinStrictBlock()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function f5(one) {
                                                                      'use strict';
                                                                      var x = one + 1;

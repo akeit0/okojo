@@ -10,8 +10,7 @@ public class TryCatchTests
     public void CatchWithoutBinding_IsAccepted_AndExecutesBody()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let x = 0;
                                                                    try {
                                                                        throw 7;
@@ -30,8 +29,7 @@ public class TryCatchTests
     public void CatchWithoutBinding_WithFinally_IsAccepted()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let x = 0;
                                                                    try {
                                                                        throw 1;
@@ -52,8 +50,7 @@ public class TryCatchTests
     public void CatchObjectPattern_BindsRenamedProperty()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var ranCatch = false;
                                                                    try {
                                                                      throw { x: 23 };
@@ -72,8 +69,7 @@ public class TryCatchTests
     public void CatchArrayPattern_RestBinding_CopiesThrownArray()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var values = [1, 2, 3];
                                                                    var result = false;
                                                                    try {
@@ -93,8 +89,7 @@ public class TryCatchTests
     public void CatchEmptyObjectPattern_RequiresObjectCoercible()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    try {
                                                                      throw null;
                                                                    } catch ({}) {
@@ -110,8 +105,7 @@ public class TryCatchTests
     public void CatchArrayPattern_Elision_AdvancesIterator()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var first = 0;
                                                                    var second = 0;
                                                                    function* g() {
@@ -139,8 +133,7 @@ public class TryCatchTests
     public void CatchArrayPattern_RestEmptyArray_ConsumesIterator()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var iterations = 0;
                                                                    var iter = function*() {
                                                                      iterations += 1;
@@ -165,8 +158,7 @@ public class TryCatchTests
     public void ThrowStatement_IsCaught_WithValue()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let x = 0;
                                                                    try {
                                                                        throw 7;
@@ -185,8 +177,7 @@ public class TryCatchTests
     public void TypeError_FromNotCallable_IsCaught()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let x = 0;
                                                                    try {
                                                                        let a = 1;
@@ -206,8 +197,7 @@ public class TryCatchTests
     public void Throw_InCalledFunction_IsCaught_ByCallerTry()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function f() { throw 9; }
                                                                    let x = 0;
                                                                    try {
@@ -227,8 +217,7 @@ public class TryCatchTests
     public void TryFinally_RunsFinally_OnNormalPath()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let x = 0;
                                                                    try {
                                                                        x = 1;
@@ -247,8 +236,7 @@ public class TryCatchTests
     public void TryFinally_Rethrows_AfterFinally()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let x = 0;
                                                                    try {
                                                                        try {
@@ -271,8 +259,7 @@ public class TryCatchTests
     public void TryCatchFinally_RunsFinally_AfterCatch()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let x = 0;
                                                                    try {
                                                                        throw 1;
@@ -293,8 +280,7 @@ public class TryCatchTests
     public void CatchBinding_DoesNotLeak_ToOuterScope()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let e = 1;
                                                                    try {
                                                                        throw 9;
@@ -313,8 +299,7 @@ public class TryCatchTests
     public void CatchBinding_IsNotVisible_InFinally()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let x = 1;
                                                                    let y = 0;
                                                                    try {
@@ -336,8 +321,7 @@ public class TryCatchTests
     public void CatchBinding_CanBeCaptured_ByNestedFunction()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let f = null;
                                                                    try {
                                                                        throw 7;
@@ -356,8 +340,7 @@ public class TryCatchTests
     public void TryFinally_ReturnInTry_RunsFinally_ThenReturns()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let x = 0;
                                                                    function f() {
                                                                        try {
@@ -379,8 +362,7 @@ public class TryCatchTests
     public void TryFinally_ReturnInFinally_OverridesTryReturn()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function f() {
                                                                        try {
                                                                            return 1;
@@ -400,8 +382,7 @@ public class TryCatchTests
     public void TryCatchFinally_RuntimeThrowInCatch_StillRunsFinally()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let x = 0;
                                                                    try {
                                                                        try {
@@ -426,8 +407,7 @@ public class TryCatchTests
     public void NestedTryFinally_OuterFinallyRunsOnInnerReturn()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let x = 0;
                                                                    function f() {
                                                                        try {
@@ -453,8 +433,7 @@ public class TryCatchTests
     public void BreakInsideTryFinally_RunsFinally()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let x = 0;
                                                                    while (true) {
                                                                        try {
@@ -475,8 +454,7 @@ public class TryCatchTests
     public void ContinueInsideTryFinally_RunsFinallyEachIteration()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let x = 0;
                                                                    for (let i = 0; i < 4; i++) {
                                                                        try {

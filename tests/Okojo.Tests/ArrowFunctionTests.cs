@@ -10,8 +10,7 @@ public class ArrowFunctionTests
     public void ArrowFunction_ExpressionBody_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let f = (x) => x + x;
                                                                    f(3);
                                                                    """));
@@ -24,8 +23,7 @@ public class ArrowFunctionTests
     public void ArrowFunction_LexicalThis_IsCapturedAtCreation()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function make() {
                                                                        let o = { x: 7 };
                                                                        o.m = function () {
@@ -45,8 +43,7 @@ public class ArrowFunctionTests
     public void ArrowFunction_LexicalThis_IsNotOverriddenByApply()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function F() {
                                                                      this.af = _ => this;
                                                                    }
@@ -66,8 +63,7 @@ public class ArrowFunctionTests
     public void ArrowFunction_IsNotConstructor()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let f = () => 1;
                                                                    new f();
                                                                    """));
@@ -80,8 +76,7 @@ public class ArrowFunctionTests
     public void ArrowFunction_LexicalNewTarget_IsCaptured()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var functionInvocationCount = 0;
                                                                    var newInvocationCount = 0;
                                                                    function F() {
@@ -103,8 +98,7 @@ public class ArrowFunctionTests
     public void ArrowFunction_ReturnedClosure_Preserves_LexicalNewTarget()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function F() {
                                                                      this.af = _ => {
                                                                        if (new.target) {
@@ -125,8 +119,7 @@ public class ArrowFunctionTests
     public void ArrowFunction_LexicalSuperProperty_FromDerivedConstructor_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var count = 0;
                                                                    class A {
                                                                      constructor() {
@@ -154,8 +147,7 @@ public class ArrowFunctionTests
     public void ArrowFunction_LexicalSuperCall_FromDerivedConstructor_ThrowsReferenceError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var count = 0;
                                                                    class A {
                                                                      constructor() {
@@ -186,8 +178,7 @@ public class ArrowFunctionTests
     public void ArrowFunction_LexicalSuperCall_FromImmediatelyInvokedArrow_CallsOnce()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var count = 0;
 
                                                                    class A {

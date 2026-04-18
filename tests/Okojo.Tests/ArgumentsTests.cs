@@ -10,8 +10,7 @@ public class ArgumentsTests
     public void Arguments_IsMapped_ForNonStrictSimpleParameters()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function f(a) {
                                                                      arguments[0] = 2;
                                                                      var first = a === 2;
@@ -30,8 +29,7 @@ public class ArgumentsTests
     public void Arguments_IsUnmapped_ForNonSimpleParameters()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function f(a = 10) {
                                                                      arguments[0] = 2;
                                                                      var first = a === 1;
@@ -50,8 +48,7 @@ public class ArgumentsTests
     public void Arguments_AtTopLevel_ThrowsReferenceError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    try { arguments; false; }
                                                                    catch (e) { e instanceof ReferenceError; }
                                                                    """));
@@ -64,8 +61,7 @@ public class ArgumentsTests
     public void Arguments_Object_Remains_Visible_In_Parameter_Initializer_When_Body_Shadows_Arguments()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var args;
                                                                    var f = function (x = args = arguments) {
                                                                      let arguments;
@@ -82,8 +78,7 @@ public class ArgumentsTests
     public void Arguments_Object_Remains_Visible_In_Parameter_Initializer_When_Function_Body_Declares_Arguments()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var fnArgs;
                                                                    function f(x = fnArgs = arguments) {
                                                                      function arguments() {}
@@ -108,8 +103,7 @@ public class ArgumentsTests
     public void Arguments_Remains_Available_In_Function_With_Destructuring_Declaration_Initializer()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function outer() {
                                                                      const wrapped = function () {
                                                                        const { value } = ({ value: arguments.length });
@@ -129,8 +123,7 @@ public class ArgumentsTests
     public void Arguments_DeleteThenDefineProperties_RecreatesElementWithDescriptor()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var arg;
                                                                    (function(a, b, c) { arg = arguments; }(0, 1, 2));
                                                                    delete arg[0];
@@ -154,8 +147,7 @@ public class ArgumentsTests
     public void Arguments_DefineProperty_DataDescriptor_SyncsThenCanUnmap()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    (function(a, b, c) {
                                                                      Object.defineProperty(arguments, "0", {
                                                                        value: 20,
@@ -177,8 +169,7 @@ public class ArgumentsTests
     public void Arguments_Length_Is_Ordinary_Writable_Own_Data_Property()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    (function() {
                                                                      arguments.length = "something different";
                                                                      var d = Object.getOwnPropertyDescriptor(arguments, "length");
@@ -198,8 +189,7 @@ public class ArgumentsTests
     public void Arguments_NonConfigurable_Mapped_Index_Stays_Synced_With_Parameter()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    (function(a) {
                                                                      Object.defineProperty(arguments, "0", { configurable: false });
                                                                      a = 2;
@@ -220,8 +210,7 @@ public class ArgumentsTests
     public void Arguments_Mapped_Index_Survives_Failed_Redefine_Both_Direct_And_Arrow_Callback_Paths()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var direct = (function(a) {
                                                                      Object.defineProperty(arguments, "0", { configurable: false });
                                                                      try { Object.defineProperty(arguments, "0", { configurable: true }); } catch (e) {}
@@ -254,8 +243,7 @@ public class ArgumentsTests
     public void Strict_And_Unmapped_Arguments_Callee_Use_Realm_ThrowTypeError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function strictFn() {
                                                                      "use strict";
                                                                      return Object.getOwnPropertyDescriptor(arguments, "callee");
@@ -288,8 +276,7 @@ public class ArgumentsTests
     public void Arguments_DefineProperty_Failure_Does_Not_Corrupt_Mapped_Or_Accessor_Indices()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    (function(a) {
                                                                      Object.defineProperty(arguments, "0", { configurable: false });
                                                                      try {
@@ -332,8 +319,7 @@ public class ArgumentsTests
     public void Arguments_Remain_Mapped_When_Later_Strict_Arrow_Uses_Arguments()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    (function(a) {
                                                                      Object.defineProperty(arguments, "0", { configurable: false });
                                                                      try {
@@ -360,8 +346,7 @@ public class ArgumentsTests
     public void Arguments_ObjectFreeze_MakesIsFrozenTrue()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var argObj = (function() { return arguments; }(1,2,3));
                                                                    Object.freeze(argObj);
                                                                    Object.isFrozen(argObj);
@@ -375,8 +360,7 @@ public class ArgumentsTests
     public void Arguments_IsIterable_ForSpread()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    (function() {
                                                                      var arr = [...arguments];
                                                                      var desc = Object.getOwnPropertyDescriptor(arguments, Symbol.iterator);
@@ -398,8 +382,7 @@ public class ArgumentsTests
     public void Arguments_HasSymbolIterator_OwnProperty()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    (function() {
                                                                      var d = Object.getOwnPropertyDescriptor(arguments, Symbol.iterator);
                                                                      return typeof arguments[Symbol.iterator] === "function" &&
@@ -418,8 +401,7 @@ public class ArgumentsTests
     public void Arguments_Spread_UsesCurrentFunctionBinding_InsideNestedNonArrowFunctions()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    (function() {
                                                                      return function() {
                                                                        var obj = {
@@ -443,8 +425,7 @@ public class ArgumentsTests
     public void SloppyVarArguments_Initializer_OverridesArgumentsBinding()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const answer = "Answer to Life, the Universe, and Everything";
                                                                    function f() {
                                                                      var arguments = answer;
@@ -461,8 +442,7 @@ public class ArgumentsTests
     public void SloppyVarArguments_BeforeAssignment_StillExposesArgumentsObject()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function f() {
                                                                      return typeof arguments;
                                                                      var arguments = 1;

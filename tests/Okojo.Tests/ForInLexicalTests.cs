@@ -10,8 +10,7 @@ public class ForInLexicalTests
     public void ForIn_LetCapture_UsesFreshBindingPerIteration()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function fn(x) {
                                                                      let a = [];
                                                                      for (let p in x) {
@@ -35,8 +34,7 @@ public class ForInLexicalTests
     public void VarLetIdentifier_InSloppyMode_ParsesAndEvaluatesInObjectShorthand()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var let = 1;
                                                                    var object = {let};
                                                                    object.let === 1;

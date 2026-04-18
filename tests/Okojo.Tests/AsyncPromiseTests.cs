@@ -11,8 +11,7 @@ public class AsyncPromiseTests
     public void AsyncFunction_ReturnsPromise_AndThenHandlerRuns()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    async function f() {
                                                                        return 41;
                                                                    }
@@ -33,8 +32,7 @@ public class AsyncPromiseTests
     public void AsyncFunction_Throw_RejectsPromise_AndCatchHandlerRuns()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    async function f() {
                                                                        throw 7;
                                                                    }
@@ -52,8 +50,7 @@ public class AsyncPromiseTests
     public void PromiseResolve_Thenable_Assimilates()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = 0;
                                                                    const thenable = {
                                                                        then: function (resolve, reject) { resolve(21); }
@@ -82,8 +79,7 @@ public class AsyncPromiseTests
             JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.Open);
         realm.Global["t"] = JsValue.FromObject(thenable);
 
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = 0;
                                                                    Promise.resolve(t).catch(function (e) { globalThis.out = e; });
                                                                    0;
@@ -98,8 +94,7 @@ public class AsyncPromiseTests
     public void PromiseResolve_Thenable_MultipleResolveReject_UsesFirstCallOnly()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = 0;
                                                                    const thenable = {
                                                                        then: function (resolve, reject) {
@@ -121,8 +116,7 @@ public class AsyncPromiseTests
     public void PromiseResolve_Thenable_NestedChain_AssimilatesToFinalValue()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = 0;
                                                                    const t1 = { then: function (resolve, reject) { resolve({ then: function (r2, rj2) { r2(5); } }); } };
                                                                    Promise.resolve(t1).then(function (v) { globalThis.out = v + 1; });
@@ -141,8 +135,7 @@ public class AsyncPromiseTests
         var observed = JsValue.Undefined;
         realm.UnhandledRejection += value => observed = value;
 
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    Promise.reject(3);
                                                                    0;
                                                                    """));
@@ -159,8 +152,7 @@ public class AsyncPromiseTests
         var unhandled = false;
         realm.UnhandledRejection += _ => unhandled = true;
 
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    Promise.reject(3).catch(function (e) { return e; });
                                                                    0;
                                                                    """));
@@ -174,8 +166,7 @@ public class AsyncPromiseTests
     public void PromiseCatch_IsGenericOverThenables()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = 0;
                                                                    var thenable = {
                                                                        then: function (onFulfilled, onRejected) {
@@ -197,8 +188,7 @@ public class AsyncPromiseTests
     public void PromiseFinally_IsInstalledAsNonEnumerableMethod()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var desc = Object.getOwnPropertyDescriptor(Promise.prototype, "finally");
                                                                    globalThis.out = [typeof Promise.prototype.finally, desc.writable, desc.enumerable, desc.configurable].join(",");
                                                                    0;
@@ -213,8 +203,7 @@ public class AsyncPromiseTests
     public void PromiseResolve_QueuesForeignThenableInvocation()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = "";
                                                                    var thenable = {
                                                                        then: function (resolve) {
@@ -238,8 +227,7 @@ public class AsyncPromiseTests
     public void PromiseTry_ForwardsArguments()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = "";
                                                                    Promise.try(function () {
                                                                        globalThis.out = Array.prototype.join.call(arguments, ",");
@@ -256,8 +244,7 @@ public class AsyncPromiseTests
     public void PromiseRace_ResolvesFromFirstSettledInput()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = "";
                                                                    var p1 = Promise.resolve(1);
                                                                    var p2 = new Promise(function () {});
@@ -275,8 +262,7 @@ public class AsyncPromiseTests
     public void PromiseAll_PrimitiveInputs_RemainAsync()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = "";
                                                                    Promise.all([1]).then(function (values) { globalThis.out += values[0]; });
                                                                    Promise.resolve().then(function () { globalThis.out += "a"; }).then(function () { globalThis.out += "b"; });
@@ -292,8 +278,7 @@ public class AsyncPromiseTests
     public void PromiseAll_UsesOverriddenResolveWhenPresent()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.calls = 0;
                                                                    var originalResolve = Promise.resolve;
                                                                    Promise.resolve = function (value) {
@@ -313,8 +298,7 @@ public class AsyncPromiseTests
     public void PromiseThen_UsesOverriddenThenOnReturnedPromise()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = 0;
                                                                    var value = {};
                                                                    var reject;
@@ -336,8 +320,7 @@ public class AsyncPromiseTests
     public void PromiseCatch_CoercesPrimitiveReceiver()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = 0;
                                                                    Boolean.prototype.then = function () { globalThis.out += 1; };
                                                                    Promise.prototype.catch.call(true);
@@ -353,8 +336,7 @@ public class AsyncPromiseTests
     public void PromiseWithResolvers_UsesReceiverConstructor()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    class SubPromise extends Promise {}
                                                                    var instance = Promise.withResolvers.call(SubPromise);
                                                                    globalThis.out = instance.promise instanceof SubPromise && instance.promise.constructor === SubPromise ? 1 : 0;
@@ -370,8 +352,7 @@ public class AsyncPromiseTests
     public void PromiseAny_IteratorValueAbrupt_PreservesThrownValue_AndDoesNotClose()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.same = 0;
                                                                    globalThis.callCount = 0;
                                                                    globalThis.returnCount = 0;
@@ -416,8 +397,7 @@ public class AsyncPromiseTests
     public void PromiseAny_PoisonedIteratorGetter_PreservesThrownValue()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.same = 0;
                                                                    var error = { tag: 1 };
                                                                    var iterable = [];
@@ -442,8 +422,7 @@ public class AsyncPromiseTests
     public void PromiseAny_Test262StyleError_PreservesIdentity_AndPrototype()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.same = 0;
                                                                    globalThis.instance = 0;
                                                                    globalThis.callCount = 0;
@@ -495,8 +474,7 @@ public class AsyncPromiseTests
     public void PromiseAny_Test262StyleIteratorGetterThrow_PreservesPrototype()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.instance = 0;
                                                                    globalThis.proto = 0;
                                                                    function Test262Error(message) {
@@ -527,8 +505,7 @@ public class AsyncPromiseTests
     public void MultipleHoistedFunctions_PreserveConstructorPrototype()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.instance = 0;
                                                                    globalThis.proto = 0;
                                                                    function Test262Error(message) {

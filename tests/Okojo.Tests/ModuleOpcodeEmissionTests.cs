@@ -186,8 +186,7 @@ public class ModuleOpcodeEmissionTests
 
         using var engine = JsRuntime.CreateBuilder().Build();
         var realm = engine.MainRealm;
-        using var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(parsed);
+        var script = JsCompiler.Compile(realm, parsed);
         var scriptDisasm = Disassembler.Dump(script, new()
         {
             UnitKind = "script",

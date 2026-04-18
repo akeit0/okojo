@@ -48,8 +48,7 @@ public class ObjectLiteralTests
     public void ObjectLiteral_ComputedMethodKey_ToString_SideEffectCount_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var counter = 0;
                                                                    var key = {
                                                                      toString: function() {
@@ -71,8 +70,7 @@ public class ObjectLiteralTests
     public void ObjectLiteral_ComputedMethodKey_ToString_DefinesCallableProperty_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var key = {
                                                                      toString: function() {
                                                                        return 'b';
@@ -92,8 +90,7 @@ public class ObjectLiteralTests
     public void ObjectLiteral_ComputedMethodKey_ToString_OwnPropertyNamesOrder_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var key = {
                                                                      toString: function() {
                                                                        return 'b';
@@ -116,8 +113,7 @@ public class ObjectLiteralTests
     public void ObjectLiteral_ComputedGetterKey_ToString_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var key = {
                                                                      toString: function() {
                                                                        return 'b';
@@ -138,8 +134,7 @@ public class ObjectLiteralTests
     public void ObjectLiteral_ComputedSetterKey_ToString_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var out = 0;
                                                                    var key = {
                                                                      toString: function() {
@@ -162,8 +157,7 @@ public class ObjectLiteralTests
     public void ObjectLiteral_ComputedMethodKey_ToString_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var counter = 0;
                                                                    var key1 = {
                                                                      toString: function() {
@@ -317,8 +311,7 @@ public class ObjectLiteralTests
     public void ObjectLiteral_Generator_Method_Parameter_Initializer_Can_Use_Super_Property_Access()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var obj = {
                                                                      *foo(a = super.toString) {
                                                                        return a;
@@ -337,8 +330,7 @@ public class ObjectLiteralTests
     public void ObjectLiteral_Async_Method_Parameter_Initializer_Can_Use_Super_Property_Access()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.done = false;
                                                                    globalThis.out = "";
 

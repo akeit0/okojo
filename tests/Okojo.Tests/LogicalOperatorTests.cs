@@ -10,8 +10,7 @@ public class LogicalOperatorTests
     public void LogicalAnd_ReturnsLeftWhenFalsy()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    0 && 5;
                                                                    """));
 
@@ -24,8 +23,7 @@ public class LogicalOperatorTests
     public void LogicalAnd_ReturnsRightWhenLeftTruthy()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    1 && 5;
                                                                    """));
 
@@ -38,8 +36,7 @@ public class LogicalOperatorTests
     public void LogicalOr_ReturnsLeftWhenTruthy()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    7 || 9;
                                                                    """));
 
@@ -52,8 +49,7 @@ public class LogicalOperatorTests
     public void LogicalOr_ReturnsRightWhenLeftFalsy()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    0 || 9;
                                                                    """));
 
@@ -66,8 +62,7 @@ public class LogicalOperatorTests
     public void LogicalAnd_ShortCircuitsRightSide()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let c = 0;
                                                                    function bump() { c = c + 1; return 1; }
                                                                    0 && bump();
@@ -83,8 +78,7 @@ public class LogicalOperatorTests
     public void LogicalAnd_PreservesNegativeZero_WhenLeftIsMinusZero()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    (1 / (-0 && -1)) === Number.NEGATIVE_INFINITY;
                                                                    """));
 
@@ -97,8 +91,7 @@ public class LogicalOperatorTests
     public void LogicalOr_ShortCircuitsRightSide()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let c = 0;
                                                                    function bump() { c = c + 1; return 1; }
                                                                    1 || bump();

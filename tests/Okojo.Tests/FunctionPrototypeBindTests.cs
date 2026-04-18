@@ -10,8 +10,7 @@ public class FunctionPrototypeBindTests
     public void FunctionPrototypeBind_BindsThisAndLeadingArguments()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function add(a, b) { return this.base + a + b; }
                                                                    var bound = add.bind({ base: 10 }, 2);
                                                                    bound(3) === 15;
@@ -25,8 +24,7 @@ public class FunctionPrototypeBindTests
     public void FunctionPrototypeBind_ResultHasNoOwnPrototypeProperty()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function F() {}
                                                                    var bound = F.bind(null);
                                                                    ("prototype" in bound) === false &&
@@ -41,8 +39,7 @@ public class FunctionPrototypeBindTests
     public void FunctionPrototypeBind_Construct_ForwardsToTargetConstructorSemantics()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function F(a, b) {
                                                                      this.sum = a + b;
                                                                      this.nt = new.target;
@@ -63,8 +60,7 @@ public class FunctionPrototypeBindTests
     public void FunctionPrototypeBind_UsesObservableNameProperty()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var target = Object.defineProperty(function() {}, "name", { value: "target" });
                                                                    var bound = target.bind(null);
                                                                    var desc = Object.getOwnPropertyDescriptor(bound, "name");
@@ -83,8 +79,7 @@ public class FunctionPrototypeBindTests
     public void FunctionPrototypeBind_NonStringNameFallsBackToEmptyString()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var target = Object.defineProperty(function() {}, "name", { value: 23 });
                                                                    target.bind(null).name === "bound ";
                                                                    """));

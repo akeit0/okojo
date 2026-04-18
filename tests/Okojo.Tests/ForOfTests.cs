@@ -12,8 +12,7 @@ public class ForOfTests
     public void ForOf_Array_BasicSum()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let s = 0;
                                                                    for (let x of [1, 2, 3]) {
                                                                        s = s + x;
@@ -30,8 +29,7 @@ public class ForOfTests
     public void ArrayLiteral_IntegerElements_Preserve_Int32_Tag()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let a = [1, 2, 3];
                                                                    a[0];
                                                                    """));
@@ -46,8 +44,7 @@ public class ForOfTests
     public void ForOf_Array_BreakAndContinue()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let s = 0;
                                                                    for (let x of [1, 2, 3, 4]) {
                                                                        if (x == 2) continue;
@@ -66,8 +63,7 @@ public class ForOfTests
     public void ForOf_CustomIterable_UsesIteratorFallback()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const iter = {
                                                                        i: 0,
                                                                        next: function () {
@@ -94,8 +90,7 @@ public class ForOfTests
     public void ForOf_Object_Destructuring_Allows_Fresh_Const_Bindings_Across_Loops()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const values = [
                                                                      { label: "a", args: [] },
                                                                      { label: "b", args: [1] }
@@ -123,8 +118,7 @@ public class ForOfTests
     public void ForOf_Array_Holes_And_Undefined_Yield_Undefined()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var array = [0, 'a', true, false, null, , undefined, NaN];
                                                                    const seen = [];
                                                                    for (var value of array) {
@@ -144,8 +138,7 @@ public class ForOfTests
     public void ForOf_Compiler_EmitsFastPathAndIteratorStepRuntimeCalls()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function t(a) {
                                                                        let s = 0;
                                                                        for (let x of a) s = s + 1;
@@ -181,8 +174,7 @@ public class ForOfTests
     public void ForOf_LetCapture_UsesFreshBindingPerIteration()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let f = [undefined, undefined, undefined];
                                                                    for (let x of [1, 2, 3]) {
                                                                      f[x - 1] = function() { return x; };
@@ -199,8 +191,7 @@ public class ForOfTests
     public void ForOf_ConstCapture_UsesFreshBindingPerIteration()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let f = [undefined, undefined, undefined];
                                                                    for (const x of [1, 2, 3]) {
                                                                      f[x - 1] = function() { return x; };
@@ -217,8 +208,7 @@ public class ForOfTests
     public void ForOf_Let_DirectRead_And_Capture_Share_Current_Iteration_Binding()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let s = 0;
                                                                    let f = [undefined, undefined, undefined];
                                                                    for (let x of [1, 2, 3]) {
@@ -237,8 +227,7 @@ public class ForOfTests
     public void ForOf_Destructured_Capture_Prefers_Current_Loop_Binding()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const testCases = [
                                                                      { label: "x", args: [], expectedArgs: [undefined, undefined] },
                                                                    ];
@@ -267,8 +256,7 @@ public class ForOfTests
     public void ForOf_LetBodyClosure_Boundary_UsesFreshBindingPerIteration()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let first, second;
                                                                    for (let x of ['first', 'second']) {
                                                                      if (!first)
@@ -288,8 +276,7 @@ public class ForOfTests
     public void ForOf_LetBodyClosure_ShadowingOuterBinding_UsesFreshBindingPerIteration()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let x = 'outside';
                                                                    let first, second;
                                                                    for (let x of ['first', 'second']) {
@@ -310,8 +297,7 @@ public class ForOfTests
     public void ForOf_Continue_From_Catch_Does_Not_Close_Iterator_Early()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function* values() {
                                                                      yield 1;
                                                                      yield 1;
@@ -339,8 +325,7 @@ public class ForOfTests
     public void ForOf_Continue_From_Finally_Does_Not_Close_Iterator_Early()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function* values() {
                                                                      yield 1;
                                                                      yield 1;
@@ -369,8 +354,7 @@ public class ForOfTests
     public void ForOf_Throw_Closes_Iterator_Before_Outer_Catch()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let startedCount = 0;
                                                                    let returnCount = 0;
                                                                    let iterationCount = 0;
@@ -409,8 +393,7 @@ public class ForOfTests
     public void ForOf_GeneratorRange_SumsExpectedValue()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function* range(start, end) {
                                                                        for (let i = start; i < end; i++) {
                                                                            yield i;
@@ -439,8 +422,7 @@ public class ForOfTests
     public void ForOf_GeneratorInstance_Exposes_SymbolIterator()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function* range(start, end) {
                                                                        for (let i = start; i < end; i++) {
                                                                            yield i;
@@ -458,8 +440,7 @@ public class ForOfTests
     public void ForOf_ConstArrayDestructuring_Head_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const arrays = [["a", "first"], ["b", "second"]];
                                                                    let s = "";
                                                                    for (const [arg, description] of arrays) {
@@ -477,8 +458,7 @@ public class ForOfTests
     public void ForOf_ConstNestedArrayDestructuring_Head_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const values = [[["a", "g"], "abc", "z"], [["b", "gy"], "def", "q"]];
                                                                    let s = "";
                                                                    for (const [[reStr, flags], thisValue, replaceValue] of values) {
@@ -496,8 +476,7 @@ public class ForOfTests
     public void ForOf_ConstObjectDestructuring_Head_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const values = [{ label: "first", args: 1 }, { label: "second", args: 2 }];
                                                                    let s = "";
                                                                    for (const { label, args } of values) {
@@ -515,8 +494,7 @@ public class ForOfTests
     public void ForOf_LetObjectDestructuring_Head_With_Default_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const values = [{ era: "ce" }, { era: "bce", aliases: ["bc"] }];
                                                                    let s = "";
                                                                    for (let { era, aliases = [] } of values) {
@@ -534,8 +512,7 @@ public class ForOfTests
     public void ForOf_MemberExpression_Head_Assigns_To_Property()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let target = {};
                                                                    let count = 0;
                                                                    for (target.value of [23]) {
@@ -553,8 +530,7 @@ public class ForOfTests
     public void ForOf_ConstArrayDestructuring_Head_Capture_UsesFreshBindingPerIteration()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let f = [];
                                                                    for (const [name] of [['green'], ['bgWhiteBright']]) {
                                                                      f.push(function() { return name; });
@@ -571,8 +547,7 @@ public class ForOfTests
     public void ForOf_ConstArrayDestructuring_MultipleHeadCaptures_UseFreshBindingsPerIteration()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let f = [];
                                                                    for (const [name, style] of [['green', '<g>'], ['bgWhiteBright', '<b>']]) {
                                                                      f.push(function() { return name + '|' + style; });
@@ -589,8 +564,7 @@ public class ForOfTests
     public void ForOf_ConstArrayDestructuring_GetterMethodCapture_UsesFreshBindingsPerIteration()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const styles = Object.create(null);
                                                                    for (const [name, style] of [['green', '<g>'], ['bgWhiteBright', '<b>']]) {
                                                                      styles[name] = {
@@ -614,8 +588,7 @@ public class ForOfTests
     public void ForOf_ConstArrayDestructuring_PrototypeGetterCapture_UsesFreshBindingsPerIteration()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const styles = Object.create(null);
                                                                    for (const [name, style] of [['green', '<g>'], ['bgWhiteBright', '<b>']]) {
                                                                      styles[name] = {
@@ -646,8 +619,7 @@ public class ForOfTests
     public void ForOf_MemberExpression_Head_Allows_Async_Identifier_Object()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var async = { x: 0 };
                                                                    for (async.x of [1]) ;
                                                                    async.x === 1;
@@ -662,8 +634,7 @@ public class ForOfTests
     public void ForOf_IteratorFallback_Closes_On_Break()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var returnCount = 0;
                                                                    var iterable = {};
                                                                    iterable[Symbol.iterator] = function() {
@@ -687,8 +658,7 @@ public class ForOfTests
     public void ForOf_IteratorFallback_Closes_On_NonLocal_Continue()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var returnCount = 0;
                                                                    var iterable = {};
                                                                    iterable[Symbol.iterator] = function() {
@@ -714,8 +684,7 @@ public class ForOfTests
     public void ForOf_IteratorFallback_Closes_On_Return()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var returnCount = 0;
                                                                    var iterable = {};
                                                                    iterable[Symbol.iterator] = function() {
@@ -742,8 +711,7 @@ public class ForOfTests
     public void ForOf_IteratorFallback_Closes_On_Throw()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var returnCount = 0;
                                                                    var iterable = {};
                                                                    iterable[Symbol.iterator] = function() {
@@ -770,8 +738,7 @@ public class ForOfTests
     public void ForOf_IteratorFallback_Closes_When_Member_Head_Assignment_Throws()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var callCount = 0;
                                                                    var iterable = {};
                                                                    var x = {
@@ -801,8 +768,7 @@ public class ForOfTests
     public void ForOf_IteratorFallback_Closes_When_Destructuring_Head_Assignment_Throws()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var callCount = 0;
                                                                    var iterable = {};
                                                                    var x = {
@@ -832,8 +798,7 @@ public class ForOfTests
     public void ForOf_Array_FastPath_Observes_Length_Growth()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var array = [0];
                                                                    var count = 0;
                                                                    for (var x of array) {
@@ -854,8 +819,7 @@ public class ForOfTests
     public void ForOf_Array_FastPath_Observes_Length_Shrink()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var array = [0, 1];
                                                                    var count = 0;
                                                                    for (var x of array) {
@@ -874,8 +838,7 @@ public class ForOfTests
     public void ForOf_IteratorFallback_Caches_Next_Method_Per_Iterator()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var iterable = {};
                                                                    var iterator = {};
                                                                    var iterationCount = 0;
@@ -912,8 +875,7 @@ public class ForOfTests
     public void ForOf_StringIterator_Preserves_Unpaired_Surrogates()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var string = 'a\ud801b\ud801';
                                                                    var values = [];
                                                                    for (var value of string) {

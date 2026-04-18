@@ -11,8 +11,7 @@ public class ExecuteFunctionTests
     public void Execute_BytecodeFunction_WithNestedCalls_CompletesWithoutEarlyExit()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function functionCall() {
                                                                        let identity = function (x) {
                                                                            return x;

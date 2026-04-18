@@ -10,8 +10,7 @@ public partial class FunctionParameterBindingTests
     public void DuplicateParameters_LastOccurrenceWins()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function f1(x, x) { return x; }
                                                                    function f2(x, x, x) { return x * x * x; }
                                                                    function f3(x, x) { return 'a' + x; }
@@ -26,8 +25,7 @@ public partial class FunctionParameterBindingTests
     public void DuplicateParameters_MissingLastOccurrence_BecomesUndefined()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function f1(x, a, b, x) { return x; }
                                                                    f1(1, 2) === undefined;
                                                                    """));
@@ -40,8 +38,7 @@ public partial class FunctionParameterBindingTests
     public void DuplicateParameters_ArgumentsObject_MapsOnlyLastOccurrence()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function f(x, x) {
                                                                      var before = [x, arguments[0], arguments[1]].join('|');
                                                                      arguments[0] = 5;

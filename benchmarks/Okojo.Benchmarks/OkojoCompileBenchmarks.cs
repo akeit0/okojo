@@ -36,8 +36,7 @@ public class OkojoCompileBenchmarks
     [Benchmark]
     public int Okojo_Compile_Preparsed()
     {
-        using var compiler = new JsCompiler(sharedRealm);
-        var script = compiler.Compile(program);
+        var script = JsCompiler.Compile(sharedRealm, program);
         return script.Bytecode.Length;
     }
 
@@ -45,8 +44,7 @@ public class OkojoCompileBenchmarks
     public int Okojo_Parse_And_Compile()
     {
         var program = JavaScriptParser.ParseScript(source);
-        using var compiler = new JsCompiler(sharedRealm);
-        var script = compiler.Compile(program);
+        var script = JsCompiler.Compile(sharedRealm, program);
         return script.Bytecode.Length;
     }
 }

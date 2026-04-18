@@ -118,7 +118,7 @@ public sealed partial class JsCompiler : IDisposable
     {
     }
 
-    public JsCompiler(JsRealm realm, JsCompilerContext compileContext)
+    internal JsCompiler(JsRealm realm, JsCompilerContext compileContext)
         : this(
             realm,
             null,
@@ -138,7 +138,7 @@ public sealed partial class JsCompiler : IDisposable
     {
     }
 
-    public JsCompiler(JsRealm realm, JsCompilerContext compileContext, JsBytecodeFunctionKind topLevelFunctionKind)
+    internal JsCompiler(JsRealm realm, JsCompilerContext compileContext, JsBytecodeFunctionKind topLevelFunctionKind)
         : this(
             realm,
             null,
@@ -470,21 +470,6 @@ public sealed partial class JsCompiler : IDisposable
             isClassConstructor,
             isDerivedConstructor,
             emitImplicitSuperForwardAll);
-    }
-
-    public JsBytecodeFunction CompileFunction(JsFunctionExpression functionExpression, string? name = null)
-    {
-        var parameterPlan = FunctionParameterPlan.FromFunction(functionExpression);
-        return CompileFunctionObject(
-            name ?? functionExpression.Name,
-            parameterPlan,
-            functionExpression.Body,
-            CreateFunctionShape(
-                functionExpression.IsGenerator,
-                functionExpression.IsAsync,
-                functionExpression.IsArrow),
-            true,
-            sourceStartPosition: functionExpression.Position);
     }
 
     private void HoistFunction(JsFunctionDeclaration f)

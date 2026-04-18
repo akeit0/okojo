@@ -10,8 +10,7 @@ public class TypeofTests
     public void Typeof_UndeclaredIdentifier_ReturnsUndefinedString()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    typeof doesNotExist;
                                                                    """));
 
@@ -23,8 +22,7 @@ public class TypeofTests
     public void Typeof_GlobalFunction_IsFunction()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function f() {}
                                                                    typeof f;
                                                                    """));

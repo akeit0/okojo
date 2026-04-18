@@ -10,8 +10,7 @@ public class ConstLetShadowingTests
     public void ForConstHead_DoesNotOverwriteOuterConstBindings()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const x = "outer_x";
                                                                    const y = "outer_y";
                                                                    var i = 0;

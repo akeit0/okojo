@@ -14,8 +14,7 @@ public class AssignmentTests
     public void CompoundNamedMemberAssignment_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let o = { x: 1 };
                                                                    o.x += 3;
                                                                    o.x === 4;
@@ -29,8 +28,7 @@ public class AssignmentTests
     public void CompoundKeyedMemberAssignment_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let o = { 0: 1 };
                                                                    o[0] += 2;
                                                                    o[0] === 3;
@@ -44,8 +42,7 @@ public class AssignmentTests
     public void ComputedMemberAssignment_Evaluates_RightHandSide_Before_ToPropertyKey()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function DummyError() {}
                                                                    var check1 = false;
                                                                    var check2 = false;
@@ -76,8 +73,7 @@ public class AssignmentTests
     public void ComputedMemberAssignment_Stores_RightHandSide_Value()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var key = "x";
                                                                    var obj = {};
                                                                    obj[key] = "value";
@@ -92,8 +88,7 @@ public class AssignmentTests
     public void ComputedMemberAssignment_ToSetter_Passes_RightHandSide_Value()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var key = "x";
                                                                    var received = "unset";
                                                                    var obj = {
@@ -111,8 +106,7 @@ public class AssignmentTests
     public void Var_Reassignment_And_Redeclaration_Can_Store_Undefined()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var x = 1;
                                                                    x = undefined;
                                                                    var y = 2;
@@ -129,8 +123,7 @@ public class AssignmentTests
     public void Assignment_ToPrimitiveBase_Property_Uses_Boxed_Prototype_Set()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var numberCount = 0;
                                                                    var stringCount = 0;
                                                                    var booleanCount = 0;
@@ -164,8 +157,7 @@ public class AssignmentTests
     public void Strict_Assignment_ToPrimitiveBase_Property_Uses_Boxed_Prototype_Set_Before_Throwing()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    "use strict";
                                                                    var count = 0;
                                                                    var spy = new Proxy({}, { set: function() { count += 1; return true; } });
@@ -182,8 +174,7 @@ public class AssignmentTests
     public void Delete_NonReference_Still_Evaluates_Operand()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var called = false;
                                                                    function mark() {
                                                                      called = true;
@@ -201,8 +192,7 @@ public class AssignmentTests
     public void ExponentiationAssignment_Identifier_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let value = 3;
                                                                    let result = (value **= 2);
                                                                    result === 9 && value === 9;
@@ -216,8 +206,7 @@ public class AssignmentTests
     public void ExponentiationAssignment_PrivateField_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    class C {
                                                                      #x = 3;
                                                                      run() {
@@ -236,8 +225,7 @@ public class AssignmentTests
     public void ParenthesizedIdentifierAssignment_DoesNot_Infer_Anonymous_Function_Name()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var fn;
                                                                    (fn) = function() {};
                                                                    Object.getOwnPropertyDescriptor(fn, "name").value === "";
@@ -251,8 +239,7 @@ public class AssignmentTests
     public void CompoundNamedMemberAssignment_SharesFeedbackSlot_ForLoadAndStore()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function t() {
                                                                        let o = { x: 1 };
                                                                        o.x += 3;
@@ -278,8 +265,7 @@ public class AssignmentTests
     public void CompoundKeyedMemberAssignment_UsesKeyedOpsWithoutNamedIc()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function t() {
                                                                        let o = { 0: 1 };
                                                                        o[0] += 2;
@@ -316,8 +302,7 @@ public class AssignmentTests
         source.AppendLine("t();");
 
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript(source.ToString()));
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript(source.ToString()));
 
         realm.Execute(script);
         Assert.That(realm.Accumulator.IsTrue, Is.True);
@@ -327,8 +312,7 @@ public class AssignmentTests
     public void UpdateNamedMember_Postfix_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let o = { x: 1 };
                                                                    let old = o.x++;
                                                                    old === 1 && o.x === 2;
@@ -342,8 +326,7 @@ public class AssignmentTests
     public void UpdateNamedMember_Prefix_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let o = { x: 1 };
                                                                    let now = ++o.x;
                                                                    now === 2 && o.x === 2;
@@ -357,8 +340,7 @@ public class AssignmentTests
     public void UpdateKeyedMember_Postfix_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let o = { 0: 1 };
                                                                    let old = o[0]++;
                                                                    old === 1 && o[0] === 2;
@@ -372,8 +354,7 @@ public class AssignmentTests
     public void UpdateNamedMember_SharesFeedbackSlot_ForLoadAndStore()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function t() {
                                                                        let o = { x: 1 };
                                                                        return o.x++;
@@ -398,8 +379,7 @@ public class AssignmentTests
     public void LogicalAssignment_Identifier_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let a = 0;
                                                                    let r1 = (a &&= 5);
                                                                    let b = 0;
@@ -416,8 +396,7 @@ public class AssignmentTests
     public void LogicalAssignment_NamedMember_ShortCircuit_DoesNotEvaluateRhs()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let access = 0;
                                                                    let rhs = 0;
                                                                    function rv() { rhs += 1; return 5; }
@@ -438,8 +417,7 @@ public class AssignmentTests
     public void LogicalAssignment_ComputedMember_EvaluatesKeyOnce()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let keyCount = 0;
                                                                    function k() { keyCount += 1; return "x"; }
                                                                    let o = { x: 1 };
@@ -455,8 +433,7 @@ public class AssignmentTests
     public void NullishAssignment_Identifier_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let a = null;
                                                                    let r1 = (a ??= 5);
                                                                    let b;
@@ -476,8 +453,7 @@ public class AssignmentTests
     public void NullishAssignment_ComputedMember_EvaluatesKeyOnce()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let keyCount = 0;
                                                                    function k() { keyCount += 1; return "x"; }
                                                                    let o = { x: null };
@@ -493,8 +469,7 @@ public class AssignmentTests
     public void CompoundAssignment_GlobalDeleteDuringGet_StrictPutValueThrowsReferenceError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var count = 0;
                                                                    Object.defineProperty(this, "x", {
                                                                      configurable: true,
@@ -527,8 +502,7 @@ public class AssignmentTests
     public void NullishCoalescing_Binary_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    (null ?? 3) === 3 &&
                                                                    (undefined ?? 4) === 4 &&
                                                                    (0 ?? 5) === 0 &&
@@ -543,8 +517,7 @@ public class AssignmentTests
     public void CompoundBitwiseXor_BoxedNumberAndBoolean_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var x;
                                                                    x = new Number(1); x ^= 1; if (x !== 0) throw new Error("n^n");
                                                                    x = 1; x ^= new Number(1); if (x !== 0) throw new Error("n^N");
@@ -561,8 +534,7 @@ public class AssignmentTests
     public void UnaryBitwiseNot_BoxedNumber_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    ~new Number(3) === -4;
                                                                    """));
 
@@ -574,8 +546,7 @@ public class AssignmentTests
     public void UnaryBitwiseNot_Literal_Uses_JavaScript_ToInt32_Semantics()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    ~2147483648 === ~-2147483648 &&
                                                                    ~2147483649 === ~-2147483647 &&
                                                                    ~4294967296 === ~0;
@@ -589,8 +560,7 @@ public class AssignmentTests
     public void NotEquals_ObjectToPrimitive_StringCases_Work()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    ({valueOf: function() {return {}}, toString: function() {return "+1"}} != "1") === true &&
                                                                    ({valueOf: function() {return {}}, toString: function() {return "+1"}} != "+1") === false;
                                                                    """));
@@ -603,8 +573,7 @@ public class AssignmentTests
     public void ObjectLiteral_ValueOf_ToString_UsePredefinedAtoms()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    ({ valueOf: function(){ return 1; }, toString: function(){ return "x"; }});
                                                                    """));
 
@@ -618,8 +587,7 @@ public class AssignmentTests
     public void NotEquals_ObjectToPrimitive_ValueOfThrow_IsCatchable()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var out;
                                                                    try {
                                                                      ({valueOf: function() { throw "error"; }, toString: function() { return 1; }} != 1);
@@ -638,8 +606,7 @@ public class AssignmentTests
     public void PostfixIncrement_Object_UsesToPrimitiveNumber()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var object = { valueOf: function() { return 1; }, toString: function() { throw "bad"; } };
                                                                    var y = object++;
                                                                    (y === 1) && (object === 2);
@@ -653,8 +620,7 @@ public class AssignmentTests
     public void PostfixIncrement_ComputedMember_NullBase_ThrowsBeforeKeyEvaluation()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var threwTypeError = false;
                                                                    try {
                                                                      var baseObj = null;
@@ -674,8 +640,7 @@ public class AssignmentTests
     public void PostfixIncrement_ComputedMember_NullBase_EvaluatesPropertyExpressionBeforeTypeError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var gotDummy = false;
                                                                    function DummyError() {}
                                                                    try {
@@ -696,8 +661,7 @@ public class AssignmentTests
     public void ComputedMemberAssignment_NullBase_EvaluatesRhsBeforeToPropertyKey()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function DummyError() {}
                                                                    var threwDummy = false;
                                                                    try {
@@ -719,8 +683,7 @@ public class AssignmentTests
     public void LogicalOrAssignment_ComputedMember_NullBase_ThrowsTypeErrorBeforeToPropertyKey()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var threwTypeError = false;
                                                                    try {
                                                                      var baseObj = null;
@@ -741,8 +704,7 @@ public class AssignmentTests
     public void CompoundAssignment_ComputedMember_NullBase_ThrowsTypeErrorBeforeToPropertyKey()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var threwTypeError = false;
                                                                    try {
                                                                      var baseObj = null;
@@ -763,8 +725,7 @@ public class AssignmentTests
     public void PostfixDecrement_ComputedMember_NullBase_ThrowsTypeErrorBeforeToPropertyKey()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var threwTypeError = false;
                                                                    try {
                                                                      var baseObj = null;
@@ -784,8 +745,7 @@ public class AssignmentTests
     public void CompoundAssignment_ComputedMember_CallsToPropertyKeyOnce()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var propKeyEvaluated = false;
                                                                    var baseObj = {};
                                                                    var prop = {
@@ -808,8 +768,7 @@ public class AssignmentTests
     public void LogicalOrAssignment_ComputedMember_CallsToPropertyKeyOnce()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var propKeyEvaluated = false;
                                                                    var obj = {};
                                                                    var prop = {
@@ -832,8 +791,7 @@ public class AssignmentTests
     public void PostfixDecrement_ComputedMember_CallsToPropertyKeyOnce()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var propKeyEvaluated = false;
                                                                    var obj = { 1: 1 };
                                                                    var prop = {

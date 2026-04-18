@@ -11,8 +11,7 @@ public class StackTraceTests
     public void UncaughtRuntimeException_CapturesFunctionFramesInOrder()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function inner() {
                                                                        let x = 1;
                                                                        x();
@@ -34,8 +33,7 @@ public class StackTraceTests
     public void CaughtRuntimeErrorObject_ExposesStackProperty()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function inner() {
                                                                        let x = 1;
                                                                        x();
@@ -65,8 +63,7 @@ public class StackTraceTests
     public void CaughtRuntimeErrorObject_StackContainsSourceLineAndColumn()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function inner() {
                                                                        let x = 1;
                                                                        x();
@@ -89,8 +86,7 @@ public class StackTraceTests
     public void UncaughtThrownErrorObject_Message_UsesErrorSummary_NotEmbeddedStack()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function inner() {
                                                                        throw new TypeError("boom");
                                                                    }
@@ -110,8 +106,7 @@ public class StackTraceTests
     public void RecursiveRuntimeException_CondensesRepeatedFrames()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function recur(n) {
                                                                        if (n === 0) {
                                                                            let x = 1;
@@ -142,8 +137,7 @@ public class StackTraceTests
             return innerRealm.Call(fn, JsValue.Undefined, args[1]);
         }, "bounce", 2));
 
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function recur(n) {
                                                                        if (n === 0) return 0;
                                                                        return bounce(recur, n - 1);
@@ -162,8 +156,7 @@ public class StackTraceTests
     public void StrictTailRecursiveCalls_ReusesVmFrame()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var callCount = 0;
                                                                    (function f(n) {
                                                                        "use strict";

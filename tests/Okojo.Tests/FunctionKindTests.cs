@@ -11,8 +11,7 @@ public class FunctionKindTests
     public void GeneratorDeclaration_IsTaggedAsGeneratorKind()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function* G() {}
                                                                    """));
 
@@ -24,8 +23,7 @@ public class FunctionKindTests
     public void NormalDeclaration_IsTaggedAsNormalKind()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function F() {}
                                                                    """));
 
@@ -37,8 +35,7 @@ public class FunctionKindTests
     public void GeneratorExpression_IsTaggedAsGeneratorKind()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let x = function* H() {};
                                                                    """));
 

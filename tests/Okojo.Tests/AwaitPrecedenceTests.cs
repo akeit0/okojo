@@ -10,8 +10,7 @@ public class AwaitPrecedenceTests
     public void Await_Operand_IsUnaryExpression()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.value = 0;
                                                                    async function foo() {
                                                                      let x = 2;
@@ -30,8 +29,7 @@ public class AwaitPrecedenceTests
     public void Await_Binds_Tighter_Than_ConditionalOperators()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.x = "initial value";
                                                                    var shouldNotBeAwaited = {
                                                                      then: function(onFulfilled) {

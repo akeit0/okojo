@@ -10,8 +10,7 @@ public class ArrayPrototypeForEachTests
     public void ArrayPrototype_ForEach_InvokesCallback()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var sum = 0;
                                                                    [1, 2, 3].forEach(function (v) { sum += v; });
                                                                    sum === 6;
@@ -25,8 +24,7 @@ public class ArrayPrototypeForEachTests
     public void ArrayPrototype_ForEach_ArrowThis_IgnoresThisArg()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var calls = 0;
                                                                    var usurper = {};
                                                                    [1].forEach(v => {

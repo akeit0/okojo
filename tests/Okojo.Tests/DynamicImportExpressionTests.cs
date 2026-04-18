@@ -10,8 +10,7 @@ public class DynamicImportExpressionTests
     public void DynamicImport_NestedBracelessIf_Parses_And_Executes()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.ok = false;
                                                                    if (true)
                                                                      import(import(import("./empty_FIXTURE.js")));
@@ -27,8 +26,7 @@ public class DynamicImportExpressionTests
     public void DynamicImport_CoercesSpecifier_And_ReturnsPromise()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.hit = 0;
                                                                    var specifier = {
                                                                      toString: function () {
@@ -51,8 +49,7 @@ public class DynamicImportExpressionTests
     public void DynamicImport_Allows_TrailingComma_After_First_Argument()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.promise = import("./empty_FIXTURE.js",);
                                                                    0;
                                                                    """));
@@ -67,8 +64,7 @@ public class DynamicImportExpressionTests
     public void DynamicImport_Evaluates_Optional_Second_Argument_Expression()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.hit = 0;
                                                                    globalThis.promise = import("./empty_FIXTURE.js", { with: (globalThis.hit++, "json") });
                                                                    0;
@@ -85,8 +81,7 @@ public class DynamicImportExpressionTests
     public void DynamicImport_Rejects_When_With_Getter_Throws()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.hit = 0;
                                                                    globalThis.caught = undefined;
                                                                    var thrown = new Error("boom");
@@ -117,8 +112,7 @@ public class DynamicImportExpressionTests
     public void DynamicImport_Enumerates_With_Enumerable_String_Keys_And_Rejects_NonString_Values()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.log = [];
                                                                    globalThis.caught = undefined;
                                                                    var options = {
@@ -155,8 +149,7 @@ public class DynamicImportExpressionTests
     public void DynamicImport_Uses_Legacy_Assert_Bag_For_Validation()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.hit = 0;
                                                                    globalThis.caught = undefined;
                                                                    var options = {
@@ -201,8 +194,7 @@ public class DynamicImportExpressionTests
                                                """
         });
         var realm = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build().MainRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = "pending";
                                                                    var sym = Symbol('test262');
                                                                    const exported = ['local1', 'renamed', 'indirect'];
@@ -327,8 +319,7 @@ public class DynamicImportExpressionTests
                                                """
         });
         var realm = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build().MainRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = "pending";
                                                                    var sym = Symbol('test262');
                                                                    const exported = ['local1', 'renamed', 'indirect'];
@@ -451,8 +442,7 @@ public class DynamicImportExpressionTests
             ["/mods/dynamic-name-method.js"] = """export default class { static name() { return 'name method'; } }"""
         });
         var realm = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build().MainRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = "pending";
                                                                    import("/mods/dynamic-name-method.js").then(function (ns) {
                                                                        try {
@@ -481,8 +471,7 @@ public class DynamicImportExpressionTests
             ["/mods/data.json"] = textSource
         });
         var realm = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build().MainRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = "pending";
                                                                    import("/mods/data.json", { with: { type: "text" } }).then(function (ns) {
                                                                        globalThis.out = typeof ns.default + ":" + ns.default;
@@ -513,8 +502,7 @@ public class DynamicImportExpressionTests
                                  """
         });
         var realm = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build().MainRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.done = "pending";
                                                                    globalThis.log = [];
                                                                    let continueExecution;
@@ -553,8 +541,7 @@ public class DynamicImportExpressionTests
             ["/mods/boom.js"] = """throw new TypeError("boom");"""
         });
         var realm = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build().MainRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.done = "pending";
                                                                    import("/mods/boom.js").catch(function (error) {
                                                                      globalThis.done = error && error.name + ":" + error.message;
@@ -583,8 +570,7 @@ public class DynamicImportExpressionTests
             ["/mods/not-json.js"] = """export default 1;"""
         });
         var realm = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build().MainRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.done = "pending";
                                                                    import("/mods/not-json.js", { with: { type: "json" } }).then(
                                                                      function () { globalThis.done = "fulfilled"; },
@@ -608,8 +594,7 @@ public class DynamicImportExpressionTests
             ["/mods/value.json"] = """{"ok":true}"""
         });
         var realm = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build().MainRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.done = "pending";
                                                                    import("/mods/value.json", { with: { type: "css" } }).then(
                                                                      function () { globalThis.done = "fulfilled"; },
@@ -634,8 +619,7 @@ public class DynamicImportExpressionTests
             ["/tests/module.js"] = """export default 1;"""
         });
         var realm = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build().MainRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.done = "pending";
                                                                    function f() {
                                                                      import("./module.js").then(function (ns) {
@@ -666,8 +650,7 @@ public class DynamicImportExpressionTests
             ["/tests/module.js"] = """export const value = 1;"""
         });
         var realm = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build().MainRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.done = "pending";
                                                                    async function f() {
                                                                      const ns = await import("./module.js");
@@ -697,8 +680,7 @@ public class DynamicImportExpressionTests
             ["/mods/boom.js"] = """throw new URIError("bad");"""
         });
         var realm = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build().MainRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.done = "pending";
                                                                    async function * f() {
                                                                      return await import("/mods/boom.js");
@@ -751,8 +733,7 @@ public class DynamicImportExpressionTests
                              """
         });
         var realm = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build().MainRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.done = "pending";
                                                                    globalThis.logs = [];
                                                                    (async function () {
@@ -806,8 +787,7 @@ public class DynamicImportExpressionTests
                              """
         });
         var realm = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build().MainRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.done = "pending";
                                                                    globalThis.logs = [];
                                                                    (async function () {
@@ -868,8 +848,7 @@ public class DynamicImportExpressionTests
                              """
         });
         var realm = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build().MainRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.done = "pending";
                                                                    (async function () {
                                                                      const setup = await import("/mods/setup.js");
