@@ -10,7 +10,7 @@ public class ArrayLiteralSpreadTests
     public void ArrayLiteral_Spread_Appends_Iterable_Values_In_Order()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var values = ["a", "b"];
             var out = [0, ...values, 3];
             out.length === 4 &&
@@ -28,7 +28,7 @@ public class ArrayLiteralSpreadTests
     public void ArrayLiteral_Spread_Throws_For_NonIterable()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var ok = false;
             try {
               [...123];
@@ -46,7 +46,7 @@ public class ArrayLiteralSpreadTests
     public void ArrayLiteral_And_ObjectSpread_Proxy_Repro_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var VALUE_LITERAL = "VALUE_LITERAL";
             var VALUE_GET = "VALUE_GET";
             var dontEnumSymbol = Symbol("dont_enum_symbol");
@@ -86,7 +86,7 @@ public class ArrayLiteralSpreadTests
     public void ArrayLiteral_Defines_Own_Elements_Despite_Readonly_ArrayPrototype_Index()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             Object.defineProperty(Array.prototype, "0", {
               value: 100,
               writable: false,
@@ -111,7 +111,7 @@ public class ArrayLiteralSpreadTests
     public void ArrayLiteral_Spread_Defines_Own_Elements_Despite_Readonly_ArrayPrototype_Index()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             Object.defineProperty(Array.prototype, "0", {
               value: 100,
               writable: false,

@@ -10,7 +10,7 @@ public class TaggedTemplateTests
     public void TaggedTemplate_CachesTemplateObjectBySiteInFunction()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function tag(templateObject) {
               previousObject = templateObject;
             }
@@ -40,7 +40,7 @@ public class TaggedTemplateTests
     public void TemplateLiteral_Untagged_Concatenates()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var a = 2;
             `x${a}y`;
             """));
@@ -54,7 +54,7 @@ public class TaggedTemplateTests
     public void TaggedTemplate_PrecedesNewInvocation()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function Constructor(x) { arg = x; }
             var tag = function(x) {
               templateObject = x;
@@ -82,7 +82,7 @@ public class TaggedTemplateTests
     public void TaggedTemplate_CookedAndRaw_CharacterEscapeSequence()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var called = 0;
             var ok = false;
             (function(s) {
@@ -100,7 +100,7 @@ public class TaggedTemplateTests
     public void TaggedTemplate_InvalidEscape_ProducesUndefinedCooked()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var ok = true;
             (function(s) {
               ok = ok && s[0] === undefined && s.raw[0] === "\\1";
@@ -121,7 +121,7 @@ public class TaggedTemplateTests
         var realm = JsRuntime.Create().DefaultRealm;
         var source =
             "var ok = true; (function(cs){ ok = ok && cs[0] === \"\" && cs.raw[0] === \"\\\\\\n\\\\\\n\\\\\\n\"; })`\\\n\\\n\\\n`; ok;";
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript(source));
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript(source));
 
         realm.Execute(script);
         Assert.That(realm.Accumulator.IsTrue, Is.True);
@@ -131,7 +131,7 @@ public class TaggedTemplateTests
     public void TaggedTemplate_LineTerminatorSequence_NormalizesCrAndCrLfToLf()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript(
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript(
             "(function(s){ return s[0] === \"\\n\\n\\n\" && s.raw[0] === \"\\n\\n\\n\"; })`\n\r\r\n`;"));
 
         realm.Execute(script);
@@ -142,7 +142,7 @@ public class TaggedTemplateTests
     public void TaggedTemplate_TemplateObject_Has_Own_NonEnumerable_Length_Properties()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var templateObject;
             (function(s) { templateObject = s; })`${1}`;
             Object.prototype.hasOwnProperty.call(templateObject, "length") &&

@@ -11,7 +11,7 @@ public class BigIntFeatureTests
     public void BigInt_Literals_Parse_And_Evaluate()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             typeof 1n === "bigint" &&
             1n === BigInt(1) &&
             0b101n === 5n &&
@@ -28,7 +28,7 @@ public class BigIntFeatureTests
     public void BigInt_Constructor_And_Static_Methods_Follow_Node_Behavior()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let ctorTypeError = false;
             try { new BigInt(1); } catch (e) { ctorTypeError = e.name === "TypeError"; }
 
@@ -56,7 +56,7 @@ public class BigIntFeatureTests
     public void BigInt_Has_Construct_Internal_Slot_But_New_Still_Throws()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function isConstructor(value) {
               try {
                 Reflect.construct(function() {}, [], value);
@@ -80,7 +80,7 @@ public class BigIntFeatureTests
     public void BigInt_Constructor_Uses_SymbolToPrimitive_Once_With_Number_Hint()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let calls = 0;
             const value = {
               [Symbol.toPrimitive](hint) {
@@ -100,7 +100,7 @@ public class BigIntFeatureTests
     public void BigInt_Signed_NonDecimal_Strings_Throw_SyntaxError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let negHex = false;
             try { BigInt("-0x1"); } catch (e) { negHex = e.name === "SyntaxError"; }
             let negOct = false;
@@ -119,7 +119,7 @@ public class BigIntFeatureTests
     public void BigInt_Empty_Or_Whitespace_String_Yields_Zero()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             BigInt("") === 0n && BigInt(" ") === 0n;
             """));
 
@@ -140,7 +140,7 @@ public class BigIntFeatureTests
     public void BigInt_AsIntN_ToIndex_Truncates_Negative_Fractions_To_Zero()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             BigInt.asIntN(-0.9, 1n) === 0n && BigInt.asIntN(0.9, 1n) === 0n;
             """));
 
@@ -153,7 +153,7 @@ public class BigIntFeatureTests
     public void BigInt_AsIntN_ToIndex_Throws_For_Negative_Integer_TooLarge_And_BigInt_Bits()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let negative = false;
             try { BigInt.asIntN(-1, 0n); } catch (e) { negative = e.name === "RangeError"; }
             let tooLarge = false;
@@ -174,7 +174,7 @@ public class BigIntFeatureTests
     public void BigInt_AsUintN_ToIndex_Throws_For_Symbol_Input()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let primitiveSymbol = false;
             try { BigInt.asUintN(Symbol("1"), 0n); } catch (e) { primitiveSymbol = e.name === "TypeError"; }
             let boxedSymbol = false;
@@ -191,7 +191,7 @@ public class BigIntFeatureTests
     public void BigInt_Prototype_Methods_Use_ThisBigIntValue()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let badThis = false;
             try { BigInt.prototype.toString.call(1); } catch (e) { badThis = e.name === "TypeError"; }
 
@@ -211,7 +211,7 @@ public class BigIntFeatureTests
     public void BigInt_Prototype_ToString_Length_Is_Zero()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var desc = Object.getOwnPropertyDescriptor(BigInt.prototype.toString, "length");
             desc.value === 0 &&
             desc.writable === false &&
@@ -254,7 +254,7 @@ public class BigIntFeatureTests
     public void BigInt_Binary_Arithmetic_And_Unary_Negate_Work()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const sum = 10n + 3n;
             const diff = 10n - 3n;
             const prod = 10n * 3n;
@@ -288,7 +288,7 @@ public class BigIntFeatureTests
     public void BigInt_Shift_And_BitwiseNot_Work_For_BigIntOperands()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             (1n << 2n) === 4n &&
             (8n >> 2n) === 2n &&
             (~1n) === -2n;
@@ -311,7 +311,7 @@ public class BigIntFeatureTests
     public void BigInt_Update_Expressions_Use_BigInt_Semantics()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var b = 1000n;
             var old = b++;
             var afterPrefix = ++b;
@@ -327,7 +327,7 @@ public class BigIntFeatureTests
     public void BigInt_Bytecode_Literal_Executes_To_BigInt_Value()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        realm.Execute(new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("1n;")));
+        realm.Execute(JsCompiler.Compile(realm, JavaScriptParser.ParseScript("1n;")));
         Assert.That(realm.Accumulator.IsBigInt, Is.True);
         Assert.That(realm.Accumulator.AsBigInt().Value, Is.EqualTo(new BigInteger(1)));
     }

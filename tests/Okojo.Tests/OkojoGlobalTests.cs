@@ -13,7 +13,7 @@ public class OkojoGlobalTests
     public void TestGlobalThisExistsAndIsSelf()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function t() {
                 return globalThis === globalThis.globalThis;
             }
@@ -30,7 +30,7 @@ public class OkojoGlobalTests
     public void TestGlobalBindingRoundtripThroughGlobalThis()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function t() {
                 x = 7;
                 return globalThis.x;
@@ -49,7 +49,7 @@ public class OkojoGlobalTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         realm.Global["x"] = JsValue.FromInt32(11);
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("x;"));
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("x;"));
 
         realm.Execute(script);
 
@@ -58,10 +58,46 @@ public class OkojoGlobalTests
     }
 
     [Test]
+    public void ScriptGlobalVar_Creates_NonConfigurable_Global_Property()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
+            delete globalThis.scriptVar;
+            var scriptVar = 7;
+            var d = Object.getOwnPropertyDescriptor(globalThis, "scriptVar");
+            d.value === 7 &&
+              d.writable === true &&
+              d.enumerable === true &&
+              d.configurable === false;
+            """));
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.IsTrue, Is.True);
+    }
+
+    [Test]
+    public void ScriptGlobalVar_Delete_ReturnsFalse_And_Binding_Remains()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
+            var scriptVar = 9;
+            delete scriptVar === false &&
+              delete globalThis.scriptVar === false &&
+              scriptVar === 9 &&
+              globalThis.scriptVar === 9;
+            """));
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.IsTrue, Is.True);
+    }
+
+    [Test]
     public void GlobalUriEncodeFunctions_ArePresent_OnGlobalObject()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             typeof encodeURI === "function" &&
             typeof encodeURIComponent === "function" &&
             Object.prototype.hasOwnProperty.call(globalThis, "encodeURI") &&
@@ -77,7 +113,7 @@ public class OkojoGlobalTests
     public void GlobalUriEncodeFunctions_PreserveReservedCharacters_And_Reject_LoneSurrogates()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var reservedOk =
               encodeURI(";/?:@&=+$,#") === ";/?:@&=+$,#" &&
               encodeURIComponent(";/?:@&=+$,#") === "%3B%2F%3F%3A%40%26%3D%2B%24%2C%23";
@@ -97,7 +133,7 @@ public class OkojoGlobalTests
     public void GlobalUriDecodeFunctions_ArePresent_OnGlobalObject()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             typeof decodeURI === "function" &&
             typeof decodeURIComponent === "function" &&
             Object.prototype.hasOwnProperty.call(globalThis, "decodeURI") &&
@@ -113,7 +149,7 @@ public class OkojoGlobalTests
     public void GlobalUriDecodeFunctions_PreserveReservedCharacters_And_Reject_MalformedUtf8()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var decodedOk =
               decodeURI("%3B%2F%3F%3A%40%26%3D%2B%24%2C%23") === "%3B%2F%3F%3A%40%26%3D%2B%24%2C%23" &&
               decodeURIComponent("%3B%2F%3F%3A%40%26%3D%2B%24%2C%23") === ";/?:@&=+$,#";
@@ -133,7 +169,7 @@ public class OkojoGlobalTests
     public void TestTopLevelThisIsGlobalObjectInSloppyScript()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             this === globalThis;
             """));
 
@@ -147,7 +183,7 @@ public class OkojoGlobalTests
     public void GlobalStore_Sloppy_UnresolvableIdentifier_CreatesGlobal()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             x = 7;
             globalThis.x === 7;
             """));
@@ -162,7 +198,7 @@ public class OkojoGlobalTests
     public void GlobalStore_Strict_UnresolvableIdentifier_ThrowsReferenceError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             "use strict";
             x = 7;
             """));
@@ -176,7 +212,7 @@ public class OkojoGlobalTests
     public void GlobalStore_Sloppy_ReadOnlyGlobal_IsIgnored()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             Object.defineProperty(globalThis, "x", { value: 1, writable: false, configurable: true });
             x = 2;
             globalThis.x === 1;
@@ -192,7 +228,7 @@ public class OkojoGlobalTests
     public void GlobalStore_Strict_ReadOnlyGlobal_ThrowsTypeError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             Object.defineProperty(globalThis, "x", { value: 1, writable: false, configurable: true });
             (function () {
               "use strict";
@@ -209,7 +245,7 @@ public class OkojoGlobalTests
     public void GlobalStore_ForInBareIdentifier_EmitsStaGlobal()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             for (x in { a: 1 }) { }
             """));
 
@@ -222,7 +258,7 @@ public class OkojoGlobalTests
     public void GlobalVarDeclaration_ForReadOnlyBuiltinName_Is_Benign()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var NaN;
             typeof NaN === "number" && Number.isNaN(NaN);
             """));
@@ -236,7 +272,7 @@ public class OkojoGlobalTests
     public void GlobalStore_IcHit_Misses_After_Delete_And_Redefine_As_Accessor()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var seen = [];
             x = 1;
             function f(v) { x = v; return x; }
@@ -259,7 +295,7 @@ public class OkojoGlobalTests
     public void GlobalStore_IcHit_Misses_After_Delete_And_Recreates_Data_Global()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             x = 1;
             function store(v) { x = v; return 0; }
             store(2);
@@ -277,7 +313,7 @@ public class OkojoGlobalTests
     public void TypeofGlobal_IcHit_Misses_After_Delete()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             x = 1;
             function t() { return typeof x; }
             t();
@@ -314,7 +350,7 @@ public class OkojoGlobalTests
     public void GlobalStore_ForInVarDeclaration_UsesGlobalInitForDeclarationAndGlobalStoreForIteration()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             for (var x in { a: 1 }) { }
             """));
 
@@ -327,7 +363,7 @@ public class OkojoGlobalTests
     public void ForInVarDeclaration_BreakAfterTrackedBody_UsesTrimmedGenericLoopBytecode()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function f() {
                 for (var x in { a: 1 }) {
                     console.log(x);
@@ -351,7 +387,7 @@ public class OkojoGlobalTests
     public void ForInVarDeclaration_FunctionBodyWithoutObservableCompletion_DoesNotEmitHoleChecks()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function f() {
                 for (var x in { a: 1 }) {
                     console.log(x);
@@ -374,7 +410,7 @@ public class OkojoGlobalTests
     public void ForLoop_CommonBody_DoesNotEmitZeroOffsetBreakJump()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function f() {
                 for (let i = 0; i < 10; i++) {
                     console.log(x);
@@ -393,7 +429,7 @@ public class OkojoGlobalTests
     public void ForIn_BareIdentifier_Strict_ThrowsReferenceError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             "use strict";
             for (z in { a: 1 }) { }
             """));
@@ -407,7 +443,7 @@ public class OkojoGlobalTests
     public void ForIn_BareIdentifier_Sloppy_CreatesGlobal()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             for (z in { a: 1 }) { }
             z === "a";
             """));
@@ -421,7 +457,7 @@ public class OkojoGlobalTests
     public void VarInsideDoWhile_HoistsToTopLevelScope()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             do var x; while (false);
             x === undefined;
             """));
@@ -435,7 +471,7 @@ public class OkojoGlobalTests
     public void GlobalVarDeclaration_IsEnumerable_Before_SourceDeclaration_Executes()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var enumed = false;
             for (var p in this) {
               if (p === "__declared__var")

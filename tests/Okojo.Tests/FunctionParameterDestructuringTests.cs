@@ -11,7 +11,7 @@ public class FunctionParameterDestructuringTests
     public void Function_ObjectPattern_Property_Default_Binds_Local()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             (function({ y = 33 }) {
               return y;
             })({});
@@ -25,7 +25,7 @@ public class FunctionParameterDestructuringTests
     public void Function_ArrayPattern_Element_Binds_Local()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             (function([x]) {
               return x;
             })([42]);
@@ -39,7 +39,7 @@ public class FunctionParameterDestructuringTests
     public void Function_ObjectPattern_Default_Can_Capture_Bound_Name_At_Compile_Time()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             (function() {
               return function({ alpha = 33, beta = function betaDefault() { return alpha; } } = {}) {
                 return beta();
@@ -55,7 +55,7 @@ public class FunctionParameterDestructuringTests
     public void Function_ParameterPattern_Defaults_Assign_Context_Slots_For_Captured_Bindings_At_Compile_Time()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function makeDestructuringHeavy() {
               return function run(
                 [
@@ -82,7 +82,7 @@ public class FunctionParameterDestructuringTests
     public void Function_ObjectPattern_NestedObjectValue_Binds_Local()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             (function({ outer: { inner } }) {
               return inner;
             })({ outer: { inner: 7 } });
@@ -96,7 +96,7 @@ public class FunctionParameterDestructuringTests
     public void Function_ObjectPattern_Rest_Binds_Remaining_Enumerable_Own_Properties()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             (function({ keep, ...rest }) {
               return rest.a + ":" + rest.b + ":" + ("keep" in rest);
             })({ keep: 1, a: 2, b: 3 });
@@ -110,7 +110,7 @@ public class FunctionParameterDestructuringTests
     public void Function_ObjectPattern_Default_AnonymousFunction_Gets_Bound_Name()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             (function({ cover = function () {} }) {
               return cover.name;
             })({});
@@ -124,7 +124,7 @@ public class FunctionParameterDestructuringTests
     public void Function_ObjectPattern_WholeParameter_Default_Is_Applied_Before_Destructuring()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             (function({ x } = { x: 23 }) {
               return x;
             })();
@@ -138,7 +138,7 @@ public class FunctionParameterDestructuringTests
     public void Function_ArrayPattern_Rest_Binds_Remaining_Values()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             (function([...x] = [1, 2, 3]) {
               return x.length + ":" + x[0] + ":" + x[2];
             })();
@@ -152,7 +152,7 @@ public class FunctionParameterDestructuringTests
     public void Function_ArrayPattern_Rest_Binds_Local_In_Strict_Mode()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             "use strict";
             (function([...x] = [1, 2, 3]) {
               return x[1];
@@ -167,7 +167,7 @@ public class FunctionParameterDestructuringTests
     public void Function_ArrayPattern_Default_AnonymousFunction_Gets_Bound_Name()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             (function([fn = function () {}, xFn = function x() {}] = []) {
               return fn.name + ":" + xFn.name;
             })();
@@ -181,7 +181,7 @@ public class FunctionParameterDestructuringTests
     public void Function_ArrayPattern_Nested_Object_Default_Binds_Local()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             (function([{ x, y, z } = { x: 44, y: 55, z: 66 }]) {
               return x + y + z;
             })([{ x: 11, y: 22, z: 33 }]);
@@ -195,7 +195,7 @@ public class FunctionParameterDestructuringTests
     public void Function_ArrayPattern_Rest_ObjectPattern_Binds_Array_Indices_And_Length()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let length = "outer";
             (function([...{ 0: v, 1: w, 2: x, 3: y, length: z }]) {
               return v + ":" + w + ":" + x + ":" + String(y) + ":" + z + ":" + length;
@@ -210,7 +210,7 @@ public class FunctionParameterDestructuringTests
     public void Function_ArrayPattern_Default_AnonymousClass_Gets_Bound_Name()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             (function([cls = class {}, xCls = class X {}, xCls2 = class { static name() {} }] = []) {
               return cls.name + ":" + xCls.name + ":" + (xCls2.name === "xCls2");
             })();
@@ -224,7 +224,7 @@ public class FunctionParameterDestructuringTests
     public void Function_ArrayPattern_Rest_Exact_Strict_Shaped_FunctionExpression_Binds_Local()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             "use strict";
             var callCount = 0;
             var compareArray = function(actual, expected) {
@@ -264,7 +264,7 @@ public class FunctionParameterDestructuringTests
         }, "compareArray", 2)));
         realm.Global["assert"] = JsValue.FromObject(assertObject);
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             "use strict";
             var callCount = 0;
             var f;

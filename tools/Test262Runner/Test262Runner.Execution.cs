@@ -455,7 +455,7 @@ internal static partial class Program
 
                     var harnessCompileStart = Stopwatch.GetTimestamp();
                     Intrinsics.PrepareGlobalScriptDeclarationInstantiation(vm, harnessProgram);
-                    var harnessScript = new JsCompiler(vm).Compile(harnessProgram);
+                    var harnessScript = JsCompiler.Compile(vm, harnessProgram);
                     var harnessCompileEnd = Stopwatch.GetTimestamp();
                     timings.AddCompile(harnessCompileStart, harnessCompileEnd);
 
@@ -479,7 +479,7 @@ internal static partial class Program
 
                 var compileStart = Stopwatch.GetTimestamp();
                 Intrinsics.PrepareGlobalScriptDeclarationInstantiation(vm, program);
-                var script = new JsCompiler(vm).Compile(program);
+                var script = JsCompiler.Compile(vm, program);
                 var compileEnd = Stopwatch.GetTimestamp();
                 timings.AddCompile(compileStart, compileEnd);
 

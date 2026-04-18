@@ -95,11 +95,11 @@ public class OkojoGlobalBindingBenchmarks
 
         if (!string.IsNullOrEmpty(preludeSource))
         {
-            var preludeScript = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript(preludeSource));
+            var preludeScript = JsCompiler.Compile(realm, JavaScriptParser.ParseScript(preludeSource));
             realm.Execute(preludeScript);
         }
 
-        var bodyScript = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript(bodySource));
+        var bodyScript = JsCompiler.Compile(realm, JavaScriptParser.ParseScript(bodySource));
         return (realm, bodyScript);
     }
 }

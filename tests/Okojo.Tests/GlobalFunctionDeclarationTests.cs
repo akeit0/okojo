@@ -120,7 +120,7 @@ public class GlobalFunctionDeclarationTests
         var realm = JsRuntime.Create().DefaultRealm;
         InstallTest262EvalScript(realm);
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             $262.evalScript(
               'function f() { return 1; }' +
               'function f() { return 2; }' +
@@ -139,7 +139,7 @@ public class GlobalFunctionDeclarationTests
         var realm = JsRuntime.Create().DefaultRealm;
         InstallTest262EvalScript(realm);
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             Object.preventExtensions(this);
             $262.evalScript('let test262let = 1;');
             test262let = 2;
@@ -171,7 +171,7 @@ public class GlobalFunctionDeclarationTests
         var realm = JsRuntime.Create().DefaultRealm;
         InstallTest262EvalScript(realm);
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             $262.evalScript('function brandNew() {}');
             Object.defineProperty(this, 'existingConfigurable', { configurable: true, value: 0 });
             Object.defineProperty(this, 'nonConfigurable', {
@@ -208,7 +208,7 @@ public class GlobalFunctionDeclarationTests
     public void GlobalFunctionDeclaration_NonConfigurableProperty_CannotBeRedefinedByDefineProperty()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function data1() {}
             try {
               Object.defineProperty(this, "data1", { configurable: false, value: 0, writable: true, enumerable: false });
@@ -226,7 +226,7 @@ public class GlobalFunctionDeclarationTests
     public void GlobalVar_DoesNotOverrideHoistedFunctionBeforeAssignment()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var result = typeof __decl === "function";
             var __decl = 1;
             function __decl(){ return 1; }
@@ -241,7 +241,7 @@ public class GlobalFunctionDeclarationTests
     public void FunctionScopeVar_DoesNotOverrideHoistedFunctionBeforeAssignment()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             (function () {
               return typeof __decl === "function";
               var __decl = 1;

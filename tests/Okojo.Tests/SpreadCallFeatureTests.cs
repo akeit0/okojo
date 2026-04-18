@@ -10,7 +10,7 @@ public class SpreadCallFeatureTests
     public void Member_Call_With_Spread_Preserves_Receiver_And_Arguments()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const target = {
               base: 10,
               add(a, b, c) {
@@ -30,7 +30,7 @@ public class SpreadCallFeatureTests
     public void Call_With_Spread_On_ArrayLike_Helper_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const helper = (ta, ...rest) => {
               Array.prototype.copyWithin.call(ta, ...rest);
               return ta.join(",");
@@ -47,7 +47,7 @@ public class SpreadCallFeatureTests
     public void New_With_Spread_Passes_Expanded_Arguments()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             class Box {
               constructor(a, b, c) {
                 this.total = a + b + c;
@@ -66,7 +66,7 @@ public class SpreadCallFeatureTests
     public void Super_Call_With_Spread_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             class Base {
               constructor(a, b) {
                 this.sum = a + b;
@@ -90,7 +90,7 @@ public class SpreadCallFeatureTests
     public void Nested_Subclass_Super_Call_With_Spread_Captures_Outer_Parameter()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const helper = {
               run(construct, constructArgs) {
                 class Derived extends construct {
@@ -124,7 +124,7 @@ public class SpreadCallFeatureTests
     public void Spread_Call_Throws_For_NonIterable()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let threw = false;
             try {
               (function() {})(...123);

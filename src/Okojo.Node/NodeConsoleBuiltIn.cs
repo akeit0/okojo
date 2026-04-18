@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using System.Text;
+using Okojo.Diagnostics;
 using Okojo.Objects;
 using Okojo.Runtime;
 
@@ -261,7 +262,7 @@ internal sealed class NodeConsoleBuiltIn(NodeRuntime runtime, NodeTtyBuiltIn tty
 
     private static string ToConsoleString(JsRealm realm, in JsValue value)
     {
-        return value.IsString ? value.AsString() : realm.ToJsStringSlowPath(value);
+        return value.IsString ? value.AsString() : new ReplFormatter(realm).Format(value);
     }
 
     private sealed class ConsoleInstanceState(JsObject stdout, JsObject stderr, bool ignoreErrors)

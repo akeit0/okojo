@@ -18,7 +18,7 @@ public class TypedArrayFeatureTests
     public void Uint8Array_Global_Constructor_Is_Installed_And_Has_NodeLike_Global_Descriptor()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const d = Object.getOwnPropertyDescriptor(globalThis, "Uint8Array");
             typeof Uint8Array === "function" &&
             d.writable === true &&
@@ -34,7 +34,7 @@ public class TypedArrayFeatureTests
     public void Uint8Array_Called_Without_New_Throws_TypeError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let ok = false;
             try { Uint8Array(4); } catch (e) { ok = e && e.name === "TypeError"; }
             ok;
@@ -48,7 +48,7 @@ public class TypedArrayFeatureTests
     public void Uint8Array_Constructs_With_TypedArray_Prototype_Chain_And_Brand()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const ta = new Uint8Array(4);
             Object.getPrototypeOf(ta) === Uint8Array.prototype &&
             Object.getPrototypeOf(Uint8Array.prototype) !== Object.prototype &&
@@ -67,7 +67,7 @@ public class TypedArrayFeatureTests
     public void Uint8Array_Indexed_Read_Write_Uses_Uint8_Coercion()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const ta = new Uint8Array(3);
             ta[0] = 257;
             ta[1] = -1;
@@ -104,7 +104,7 @@ public class TypedArrayFeatureTests
     public void Uint8Array_Can_View_ArrayBuffer_With_ByteOffset_And_Length()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const buffer = new ArrayBuffer(4);
             const view = new Uint8Array(buffer, 1, 2);
             view[0] = 255;
@@ -145,7 +145,7 @@ public class TypedArrayFeatureTests
     public void Uint8Array_Can_Copy_From_TypedArray_And_ArrayLike_Object()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const source = new Uint8Array([1, 257, -1]);
             const copy = new Uint8Array(source);
             const arrayLike = new Uint8Array({ length: 2, 0: 7, 1: 9 });
@@ -168,7 +168,7 @@ public class TypedArrayFeatureTests
     public void Uint8Array_Can_Construct_From_Iterable_And_Empty_Object()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const fromSet = new Uint8Array(new Set([4, 5]));
             const empty = new Uint8Array({});
 
@@ -186,7 +186,7 @@ public class TypedArrayFeatureTests
     public void Uint8Array_From_And_Of_Use_Uint8_Conversion()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const from = Uint8Array.from([1, 257, -1], x => x);
             const ofResult = Uint8Array.of(1, 257, -1);
 
@@ -219,7 +219,7 @@ public class TypedArrayFeatureTests
     public void Uint8Array_Iterator_Methods_Alias_Values_And_Preserve_Index_Order()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const ta = new Uint8Array([7, 8]);
             const values = ta.values();
             const keys = ta.keys();
@@ -247,7 +247,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_Symbol_Keyed_Properties_Do_Not_Overwrite_Indexed_Elements()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const ta = new Uint8Array([7, 8]);
             const s = Symbol("1");
             ta[s] = 43;
@@ -264,7 +264,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_Reverse_Preserves_Symbol_Keyed_Properties()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const ta = new Uint8Array([7, 8]);
             const s = Symbol("1");
             ta[s] = 1;
@@ -280,7 +280,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_From_Propagates_Source_Access_Errors_Before_Abstract_Construction()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const marker = {};
             const TA = Object.getPrototypeOf(Int8Array);
             const source = {};
@@ -307,7 +307,7 @@ public class TypedArrayFeatureTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         InstallTest262DetachBufferHarness(realm);
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let offsetTypeError = false;
             let lengthTypeError = false;
 
@@ -334,7 +334,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_Constructor_Prefers_Iterator_For_Array_Input()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const values = [0, {
               valueOf() {
                 values.length = 0;
@@ -354,7 +354,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_Constructor_Throws_For_OutOfBounds_Resizable_TypedArray_Source()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const rab = new ArrayBuffer(8, { maxByteLength: 16 });
             const source = new Int16Array(rab, 0, 4);
             rab.resize(4);
@@ -375,7 +375,7 @@ public class TypedArrayFeatureTests
     public void Uint8Array_Iterator_Has_TypedArrayIterator_Brand_And_Falls_Back_To_Iterator()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const it = new Uint8Array([1]).values();
             const proto = Object.getPrototypeOf(it);
 
@@ -392,7 +392,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_ReflectSet_Valid_Index_With_Altered_Receiver_Uses_Receiver_Own_Descriptor_Rules()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var valueOfCalls = 0;
             var value = {
               valueOf: function() {
@@ -442,7 +442,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_ReflectSet_Valid_Index_With_TypedArray_Receiver_Writes_Receiver_Not_Target()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var target = new Uint8Array([0]);
             var receiver = new Uint8Array([1]);
             var sameLengthOk = Reflect.set(target, 0, new Number(2.3), receiver);
@@ -467,7 +467,7 @@ public class TypedArrayFeatureTests
     public void Uint8Array_At_Uses_Relative_Indexing_And_Rejects_Incompatible_Receiver()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const ta = new Uint8Array([5, 6, 7]);
             let typeError = false;
             try { Uint8Array.prototype.at.call({ length: 1, 0: 9 }, 0); } catch (e) { typeError = e && e.name === "TypeError"; }
@@ -488,7 +488,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_Prototype_ToString_Is_The_ArrayPrototype_ToString_Function()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const TypedArray = Object.getPrototypeOf(Int8Array);
             TypedArray.prototype.toString === Array.prototype.toString;
             """));
@@ -501,7 +501,7 @@ public class TypedArrayFeatureTests
     public void Uint8Array_Subarray_Returns_Shared_View_With_Relative_Indexing()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const source = new Uint8Array([1, 2, 3, 4]);
             const view = source.subarray(1, -1);
             view[0] = 99;
@@ -525,7 +525,7 @@ public class TypedArrayFeatureTests
     public void Uint8Array_Set_Copies_ArrayLike_And_Handles_Overlap_And_RangeErrors()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const a = new Uint8Array([1, 2, 3, 4]);
             const returned = a.set({ length: 2, 0: 7, 1: 6 }, 1.9);
 
@@ -554,7 +554,7 @@ public class TypedArrayFeatureTests
     public void Uint8Array_Readonly_Methods_Use_TypedArray_Element_Semantics()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const ta = new Uint8Array([1, 2, 1]);
             const withNaN = new Uint8Array([0, 1]);
 
@@ -577,7 +577,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_ToLocaleString_Calls_Element_ToLocaleString()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let calls = [];
             Number.prototype.toLocaleString = function() {
               calls.push(Number(this));
@@ -599,7 +599,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_Subarray_LengthTracking_View_Omits_Length_Argument()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const rab = new ArrayBuffer(4, { maxByteLength: 8 });
             const ta = new Int8Array(rab, 0);
             const sub = ta.subarray(0);
@@ -615,7 +615,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_ToReversed_And_ToSorted_Create_SameType_Copies_And_Ignore_Species()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const ta = new Float64Array([4, 2, 1, 3]);
             Object.defineProperty(ta, "constructor", {
               get() { throw new Error("should not read constructor"); }
@@ -645,7 +645,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_With_Creates_SameType_Copy_And_Coerces_Value_Before_Copying()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const ta = new Float64Array([0, 1, 2]);
             Object.defineProperty(ta, "constructor", {
               get() { throw new Error("should not read constructor"); }
@@ -678,7 +678,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_With_Validates_Index_After_Value_Coercion_Against_Current_View_State()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const rab = new ArrayBuffer(2, { maxByteLength: 5 });
             const ta = new Int8Array(rab);
             ta[0] = 11;
@@ -720,7 +720,7 @@ public class TypedArrayFeatureTests
     public void Uint8Array_SetFromBase64_Writes_Into_Target_And_Reports_Read_And_Written()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const target = new Uint8Array([255, 255, 255, 255, 255]);
             const result = target.setFromBase64("Zm9vYmFy");
 
@@ -741,7 +741,7 @@ public class TypedArrayFeatureTests
     public void Uint8Array_SetFromBase64_Writes_Valid_Chunks_Before_SyntaxError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const target = new Uint8Array([255, 255, 255, 255, 255]);
             let syntaxError = false;
             try {
@@ -766,7 +766,7 @@ public class TypedArrayFeatureTests
     public void Uint8Array_SetFromHex_Writes_Into_Target_And_Stops_When_Full()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const target = new Uint8Array([255, 255]);
             const result = target.setFromHex("aabbcc");
 
@@ -792,7 +792,7 @@ public class TypedArrayFeatureTests
             buffer.Detach();
             return JsValue.Undefined;
         }, "detachBuffer", 1);
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const sample = new Uint8Array([199, 239]);
             let getterCalls = 0;
             const target = new Uint8Array([255]);
@@ -835,7 +835,7 @@ public class TypedArrayFeatureTests
             buffer.Detach();
             return JsValue.Undefined;
         }, "detachBuffer", 1);
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const sample = new Uint8Array([0xab, 0xcd]);
             const detached = new Uint8Array(2);
             detachBuffer(detached.buffer);
@@ -857,7 +857,7 @@ public class TypedArrayFeatureTests
     public void Uint8Array_SetFromBase64_StopBeforePartial_Allows_Partial_Padded_Tail()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const target = new Uint8Array([255, 255, 255, 255]);
             const result = target.setFromBase64("ZXhhZg=", { lastChunkHandling: "stop-before-partial" });
 
@@ -877,7 +877,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_Fill_Throws_When_Buffer_Becomes_OutOfBounds_During_Coercion()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const rab = new ArrayBuffer(16, { maxByteLength: 16 });
             const ta = new Int32Array(rab, 0, 4);
             let threw = false;
@@ -902,7 +902,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_CopyWithin_Uses_PreCoercion_Length_For_LengthTracking_Grow()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const rab = new ArrayBuffer(4, { maxByteLength: 8 });
             const ta = new Uint8Array(rab);
             ta[0] = 0;
@@ -938,7 +938,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_CopyWithin_Truncates_To_Current_Length_After_LengthTracking_Shrink()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const rab = new ArrayBuffer(4, { maxByteLength: 8 });
             const ta = new Uint8Array(rab);
             ta[0] = 0;
@@ -967,7 +967,7 @@ public class TypedArrayFeatureTests
     public void String_Function_Converts_Symbol_Without_Throwing()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             typeof String(Symbol.iterator) === "string" &&
             String(Symbol.iterator).indexOf("Symbol.iterator") >= 0;
             """));
@@ -989,7 +989,7 @@ public class TypedArrayFeatureTests
             return JsValue.Undefined;
         }, "detachBuffer", 1);
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const ta = new Float64Array(2);
             const iter = ta.keys();
             const first = iter.next();
@@ -1025,7 +1025,7 @@ public class TypedArrayFeatureTests
             return JsValue.Undefined;
         }, "detachBuffer", 1);
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const ta = new Float64Array(2);
             let count = 0;
             let typeError = false;
@@ -1050,7 +1050,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_At_Uses_PreCoercion_Length_But_PostCoercion_View_State()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const rab = new ArrayBuffer(4, { maxByteLength: 8 });
             const fixedLength = new Uint8Array(rab, 0, 4);
             const lengthTracking = new Uint8Array(rab);
@@ -1071,7 +1071,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_At_Throws_When_Fixed_View_Is_Already_Out_Of_Bounds()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const rab = new ArrayBuffer(32, { maxByteLength: 40 });
             const fixed = new Float64Array(rab, 8, 2);
             let typeError = false;
@@ -1095,7 +1095,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_CopyWithin_Uses_View_ByteOffset_And_Preserves_Raw_Bytes()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const base = new Uint8Array([0, 1, 2, 3]).buffer;
             const ta = new Uint8Array(base, 1);
             ta.copyWithin(2, 0);
@@ -1120,7 +1120,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_CopyWithin_Rechecks_OutOfBounds_After_Argument_Coercion()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const fixedRab = new ArrayBuffer(4, { maxByteLength: 8 });
             const fixed = new Uint8Array(fixedRab, 0, 4);
             let fixedTypeError = false;
@@ -1148,7 +1148,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_CopyWithin_Treats_Undefined_End_As_Length_And_Uses_ArrayIterator_Prototype()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const ta = new Float64Array([0, 1, 2, 3]);
             ta.copyWithin(0, 1, undefined);
 
@@ -1167,7 +1167,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_Every_Passes_Value_Index_And_Receiver_And_Reads_Undefined_After_Shrink()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const ta = new Float64Array([42, 43, 44]);
             const seen = [];
             const thisArg = { marker: 1 };
@@ -1200,7 +1200,7 @@ public class TypedArrayFeatureTests
     public void Reflect_Set_On_TypedArray_Same_Receiver_Uses_Buffer_Write_Semantics()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const sample = new Float64Array([42, 43, 44]);
             let ok = true;
 
@@ -1226,7 +1226,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_Fill_Converts_Once_Uses_Initial_Length_And_Writes_Typed_Values()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const ints = new Uint8Array(2);
             let n = 1;
             ints.fill({ valueOf() { return n++; } });
@@ -1259,7 +1259,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_Filter_Uses_Internal_Length_Callback_Args_And_Produces_Typed_Result()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const sample = new Float64Array([42, 43, 44]);
             const seen = [];
             const thisArg = { marker: 1 };
@@ -1297,7 +1297,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_Find_And_FindIndex_Use_Internal_Length_And_Live_Element_Reads()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const sample = new Float64Array([1, 2, 3]);
             const TypedArray = Object.getPrototypeOf(Int8Array);
             let lengthGets = 0;
@@ -1338,7 +1338,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_FindLast_Uses_Internal_Length_And_Live_Element_Reads()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const sample = new Float64Array([1, 2, 3]);
             const TypedArray = Object.getPrototypeOf(Int8Array);
             let lengthGets = 0;
@@ -1379,7 +1379,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_FindLastIndex_Uses_Internal_Length_And_Live_Element_Reads()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const sample = new Float64Array([1, 2, 3]);
             const TypedArray = Object.getPrototypeOf(Int8Array);
             let lengthGets = 0;
@@ -1420,7 +1420,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_ForEach_Uses_Internal_Length_Callback_Args_And_Continues_After_Detach()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const sample = new Float64Array([42, 43, 44]);
             const TypedArray = Object.getPrototypeOf(Int8Array);
             let lengthGets = 0;
@@ -1464,7 +1464,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_Includes_Uses_Initial_Length_For_FromIndex_And_Live_Element_Reads()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const rab = new ArrayBuffer(32, { maxByteLength: 64 });
             const fixed = new Float64Array(rab, 0, 4);
             fixed[0] = 0;
@@ -1495,7 +1495,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_IndexOf_And_Join_Use_Initial_Length_When_Buffer_Changes_During_Coercion()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const rab = new ArrayBuffer(32, { maxByteLength: 64 });
             const tracking = new Float64Array(rab);
             tracking[0] = 1;
@@ -1526,7 +1526,7 @@ public class TypedArrayFeatureTests
     public void JsNumberFormatting_Matches_NumberPrototype_ToString_For_Large_Float64_Elements()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const sample = new Float64Array([9007199254740992, 1e20, 1e-6, 1e-7]);
             String(sample[0]) === sample[0].toString() &&
             sample.join(",") === [
@@ -1545,7 +1545,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_Join_Throws_For_Symbol_Separator()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let threw = false;
             try {
               new Uint8Array().join(Symbol(""));
@@ -1563,7 +1563,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_Map_Uses_Internal_Length_Callback_Args_And_Creates_Typed_Result_Upfront()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const sample = new Float64Array([42, 43, 44]);
             const TypedArray = Object.getPrototypeOf(Int8Array);
             let lengthGets = 0;
@@ -1608,7 +1608,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_Reduce_And_ReduceRight_Use_Internal_Length_And_Live_Element_Reads()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const sample = new Float64Array([42, 43, 44]);
             const TypedArray = Object.getPrototypeOf(Int8Array);
             let lengthGets = 0;
@@ -1655,7 +1655,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_Reverse_Exists_Is_Not_Generic_And_Uses_Internal_Length()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const TypedArray = Object.getPrototypeOf(Int8Array);
             let lengthGets = 0;
             let typeError = false;
@@ -1703,7 +1703,7 @@ public class TypedArrayFeatureTests
             return JsValue.Undefined;
         }, "detachBuffer", 1);
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const sample = new Float64Array(5);
             const calls = [];
             const obj = { length: 3 };
@@ -1817,7 +1817,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_Slice_Uses_Internal_Length_And_Live_Reads_After_Argument_Coercion()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const TypedArray = Object.getPrototypeOf(Int8Array);
             let lengthGets = 0;
 
@@ -1858,7 +1858,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_Some_Uses_Internal_Length_Callback_Args_And_Live_Element_Reads()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const sample = new Float64Array([42, 43, 44]);
             const TypedArray = Object.getPrototypeOf(Int8Array);
             let lengthGets = 0;
@@ -1906,7 +1906,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_CanonicalNumericIndexString_Does_Not_Fall_Back_To_Ordinary_Get_Has_Or_Delete()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const TypedArray = Object.getPrototypeOf(Int8Array);
             TypedArray.prototype["-0"] = "blocked";
             TypedArray.prototype["-1"] = "blocked";
@@ -1938,7 +1938,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_DefineProperty_Uses_IntegerIndexed_Exotic_Rules_For_Canonical_Numeric_Keys()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const ta = new Float64Array([42, 43]);
 
             const setOk = Reflect.defineProperty(ta, "0", {
@@ -1979,7 +1979,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_DefineProperty_On_Valid_Index_Returns_True_When_Value_Coercion_Detaches_Buffer()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const ta = new Float64Array([17]);
             const desc = {
               value: {
@@ -2003,7 +2003,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_ReflectHas_Uses_HasProperty_Semantics_For_NonNumeric_Keys()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var proxy = new Proxy(Object.getPrototypeOf(Int8Array).prototype, {
               has: function() { throw new Error("has trap"); }
             });
@@ -2031,7 +2031,7 @@ public class TypedArrayFeatureTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         InstallTest262DetachBufferHarness(realm);
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var sample = new Float64Array([42]);
             $262.detachArrayBuffer(sample.buffer);
 
@@ -2053,7 +2053,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_PrototypeChain_Assignment_To_Proxy_Receiver_Uses_DefineProperty_Trap()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var value = { valueOf() { throw new Error("should not coerce"); } };
             var target = new Float64Array([0]);
             var proxyTrapCalls = 0;
@@ -2080,7 +2080,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_PrototypeChain_Assignment_Invalid_Index_Does_Not_Hit_Prototype_Setter()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             Object.defineProperty(Float64Array.prototype, 1, {
               get() { throw new Error("getter"); },
               set(_v) { throw new Error("setter"); },
@@ -2109,7 +2109,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_Receiver_In_Prototype_Chain_Coerces_Value_Once_For_OutOfBounds_Set()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let receiver = new Int32Array(10);
             let obj = Object.create(receiver);
             let valueOfCalled = 0;
@@ -2127,7 +2127,7 @@ public class TypedArrayFeatureTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         InstallTest262DetachBufferHarness(realm);
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let ta = new Float64Array(1);
             let result = Reflect.set(ta, 0, {
               valueOf() {
@@ -2147,7 +2147,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_PrototypeChain_StringReceiver_ValidIndex_Creates_Visible_Own_Property()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var value = { tag: "v" };
             var target = new Float64Array([0]);
             var receiver = Object.setPrototypeOf(new String(""), target);
@@ -2170,7 +2170,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_Property_Assignment_To_Canonical_Numeric_String_Does_Not_Create_Ordinary_Properties()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const ta = new Int32Array(2);
             ta["1.1"] = 42;
             ta["-1"] = 99;
@@ -2191,7 +2191,7 @@ public class TypedArrayFeatureTests
     public void TypedArray_ReflectSet_With_Plain_Object_Accessor_Receiver_Does_Not_Overwrite_Receiver()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var receiver = {
               get 0() { return 1; },
               set 0(_v) { throw new Error("receiver setter should be unreachable!"); },
@@ -2215,7 +2215,7 @@ public class TypedArrayFeatureTests
     public void Debug_TypedArray_ReflectSet_With_Plain_Object_Accessor_Receiver_State()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var receiver = {
               get 0() { return 1; },
               set 0(_v) { throw new Error("receiver setter should be unreachable!"); },
@@ -2241,7 +2241,7 @@ public class TypedArrayFeatureTests
     public void Debug_ObjectLiteral_Getter_On_Numeric_Key_Is_Preserved()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var receiver = { get 0() { return 1; } };
             var desc = Object.getOwnPropertyDescriptor(receiver, "0");
             String(!!desc.get) + "|" + String(!!desc.set) + "|" + String(receiver[0]);
@@ -2293,7 +2293,7 @@ public class TypedArrayFeatureTests
     public void Debug_TypedArray_ReflectSet_ValueOf_Case_Breakdown_For_Float64Array()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var valueOfCalls = 0;
             var value = {
               valueOf: function() {

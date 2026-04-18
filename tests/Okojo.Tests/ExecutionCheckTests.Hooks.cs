@@ -18,7 +18,7 @@ public partial class ExecutionCheckTests
             agent.EnableReturnHook();
         }));
         var realm = runtime.DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function add(a, b) {
                 return a + b;
             }
@@ -69,7 +69,7 @@ public partial class ExecutionCheckTests
             agent.DisableReturnHook();
         }));
         var realm = runtime.DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function add(a, b) {
                 return a + b;
             }
@@ -100,7 +100,7 @@ public partial class ExecutionCheckTests
         }));
         debugger.Agent = runtime.MainAgent;
         var realm = runtime.DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function add(a, b) {
                 return a + b;
             }

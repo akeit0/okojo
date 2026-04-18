@@ -17,7 +17,7 @@ public partial class ExecutionCheckTests
             agent.AddConstraint(constraint);
         }));
         var realm = runtime.DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let total = 0;
             total = total + 1;
             """));
@@ -35,7 +35,7 @@ public partial class ExecutionCheckTests
             agent.SetMaxInstructions(1);
         }));
         var realm = runtime.DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let total = 0;
             total = total + 1;
             total = total + 1;
@@ -61,7 +61,7 @@ public partial class ExecutionCheckTests
                 agent.SetExecutionTimeout(TimeSpan.FromMilliseconds(1));
             }));
         var realm = runtime.DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let total = 0;
             total = total + 1;
             total = total + 1;
@@ -86,7 +86,7 @@ public partial class ExecutionCheckTests
             .UseAgent(agent => agent.SetCheckInterval(1)));
         var agent = runtime.MainAgent;
         var realm = runtime.DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let total = 0;
             total = total + 1;
             total = total + 1;
@@ -107,7 +107,7 @@ public partial class ExecutionCheckTests
         var runtime = JsRuntime.Create(builder => builder.UseAgent(agent => agent.SetCheckInterval(1)));
         var agent = runtime.MainAgent;
         var realm = runtime.DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let total = 0;
             total = total + 1;
             total = total + 1;
@@ -136,7 +136,7 @@ public partial class ExecutionCheckTests
             agent.SetCheckInterval(1);
         }));
         var realm = runtime.DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let total = 0;
             total = total + 1;
             """, "periodic-stop.js"));
@@ -161,7 +161,7 @@ public partial class ExecutionCheckTests
             agent.SetExecutionCancellationToken(cancellationSource.Token);
         }));
         var realm = runtime.DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let total = 0;
             total = total + 1;
             total = total + 1;
@@ -182,7 +182,7 @@ public partial class ExecutionCheckTests
         var runtime = JsRuntime.Create(builder => builder.UseAgent(agent => agent.SetCheckInterval(1)));
         var agent = runtime.MainAgent;
         var realm = runtime.DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let total = 0;
             total = total + 1;
             total = total + 1;

@@ -39,7 +39,7 @@ public class WebAssemblyFeatureTests
         var buffer = JsArrayBufferObject.CreateExternal(realm, backing);
         realm.GlobalObject["ext"] = buffer;
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const view = new Uint8Array(ext);
             view[1] = 99;
             view[0] === 1 && view[1] === 99 && ext.byteLength === 4;
@@ -64,7 +64,7 @@ public class WebAssemblyFeatureTests
         var buffer = JsArrayBufferObject.CreateExternalShared(realm, backing);
         realm.GlobalObject["shared"] = buffer;
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const view = new Int32Array(shared);
             Atomics.store(view, 0, 7);
             Atomics.add(view, 0, 5) === 7 && Atomics.load(view, 0) === 12;
@@ -98,7 +98,7 @@ public class WebAssemblyFeatureTests
                 () => IntPtr.Zero,
                 new()));
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const valid = WebAssembly.validate(wasmBytes);
             globalThis.ok = false;
             WebAssembly.compile(wasmBytes)
@@ -125,7 +125,7 @@ public class WebAssemblyFeatureTests
             .Build();
 
         var realm = runtime.DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const mem = new WebAssembly.Memory({ initial: 1, maximum: 2 });
             const view = new Uint8Array(mem.buffer);
             view[0] = 17;
@@ -173,7 +173,7 @@ public class WebAssemblyFeatureTests
                 () => IntPtr.Zero,
                 new()));
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             globalThis.argCount = -1;
             globalThis.argSum = -1;
             WebAssembly.instantiate(wasmBytes, {
@@ -224,7 +224,7 @@ public class WebAssemblyFeatureTests
                 () => IntPtr.Zero,
                 new()));
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             globalThis.outerCount = -1;
             globalThis.innerCount = -1;
             globalThis.innerSum = -1;
@@ -284,7 +284,7 @@ public class WebAssemblyFeatureTests
                 () => IntPtr.Zero,
                 new()));
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             globalThis.outerCount = -1;
             globalThis.innerCount = -1;
             globalThis.innerSum = -1;
@@ -397,7 +397,7 @@ public class WebAssemblyFeatureTests
             return JsValue.Undefined;
         }, "hostCapture", 0));
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             globalThis.hostArgCount = -1;
             globalThis.hostArg0 = undefined;
             globalThis.hostArg1 = undefined;

@@ -23,7 +23,7 @@ public partial class ExecutionCheckTests
             "}\n" +
             "globalThis.out = add(1, 2);\n",
             "breakpoint.js");
-        var script = new JsCompiler(realm).Compile(program);
+        var script = JsCompiler.Compile(realm, program);
 
         using var breakpoint = runtime.MainAgent.AddBreakpoint("breakpoint.js", 2);
 
@@ -67,7 +67,7 @@ public partial class ExecutionCheckTests
                                                    }
                                                    globalThis.out = add(1, 2);
                                                    """, "pc-breakpoint.js");
-        var script = new JsCompiler(realm).Compile(program);
+        var script = JsCompiler.Compile(realm, program);
         var addFunction = script.ObjectConstants.OfType<JsBytecodeFunction>()
             .Single(function => function.Name == "add");
 
@@ -98,7 +98,7 @@ public partial class ExecutionCheckTests
                                                    }
                                                    globalThis.out = add(1, 2);
                                                    """, "bind-check.js");
-        var script = new JsCompiler(realm).Compile(program);
+        var script = JsCompiler.Compile(realm, program);
         var addFunction = script.ObjectConstants.OfType<JsBytecodeFunction>()
             .Single(function => function.Name == "add");
         var debugRegistry = runtime.MainAgent.ScriptDebugRegistry;
@@ -124,7 +124,7 @@ public partial class ExecutionCheckTests
                                                    }
                                                    globalThis.out = add(1, 2);
                                                    """, "breakpoint-toggle.js");
-        var script = new JsCompiler(realm).Compile(program);
+        var script = JsCompiler.Compile(realm, program);
 
         using var breakpoint = runtime.MainAgent.AddBreakpoint("breakpoint-toggle.js", 2);
 

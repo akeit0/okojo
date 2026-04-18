@@ -182,10 +182,10 @@ public sealed class ReplFormatter(JsRealm realm, int? indent = null)
 
     private string FormatCollection(List<string> parts, int depth, char open, char close)
     {
-        if (indentSize is not { } size)
-            return $"{open} {string.Join(", ", parts)} {close}";
         if (parts.Count == 0)
             return $"{open}{close}";
+        if (indentSize is not { } size)
+            return $"{open} {string.Join(", ", parts)} {close}";
 
         var sb = new StringBuilder();
         sb.Append(open);

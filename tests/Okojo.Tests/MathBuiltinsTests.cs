@@ -46,7 +46,7 @@ public class MathBuiltinsTests
     public void Math_Numeric_Behavior_Matches_Expected_Results()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const approx = function (a, b, e) { return Math.abs(a - b) <= (e === undefined ? 1e-12 : e); };
             approx(Math.abs(-2), 2) &&
             approx(Math.acos(1), 0) &&
@@ -95,7 +95,7 @@ public class MathBuiltinsTests
     public void Math_SumPrecise_Handles_Empty_Cancellation_And_TypeErrors()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let typeError1 = false;
             try { Math.sumPrecise([1, "2"]); } catch (e) { typeError1 = e.name === "TypeError"; }
             let typeError2 = false;
@@ -116,7 +116,7 @@ public class MathBuiltinsTests
     public void Math_Hypot_Coerces_All_Arguments_Before_Inspecting_Them()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var counter = 0;
             var threw = false;
             try {
@@ -144,7 +144,7 @@ public class MathBuiltinsTests
     public void Math_SumPrecise_Closes_Iterator_On_NonNumber_Value()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var coercions = 0;
             var objectWithValueOf = {
               valueOf: function() {

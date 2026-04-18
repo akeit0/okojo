@@ -49,6 +49,45 @@ public class NodeCliIntegrationTests
     }
 
     [Test]
+    public async Task OkojoNode_FileMain_Uses_CommonJs_ModuleScope_And_InspectStyle_Console()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "okojo-node-cli-scope-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var scriptPath = Path.Combine(directory, "main.js");
+        try
+        {
+            await File.WriteAllTextAsync(scriptPath,
+                """
+                console.log(this === globalThis);
+                console.log(this);
+                var x = "OK";
+                try {
+                  (0, eval)("console.log(x);");
+                } catch (error) {
+                  console.log(error.name + ": " + error.message);
+                }
+                """);
+
+            await using var process = NodeCliProcess.Start(scriptPath);
+
+            await process.WaitForExitAsync(TimeSpan.FromSeconds(10));
+
+            var stdoutLines = process.GetStdout()
+                .Split(["\r\n", "\n"], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            Assert.That(stdoutLines, Has.Length.EqualTo(3));
+            Assert.That(stdoutLines[0], Is.EqualTo("false"));
+            Assert.That(stdoutLines[1], Is.EqualTo("{}"));
+            Assert.That(stdoutLines[2], Is.EqualTo("ReferenceError: x is not defined"));
+            Assert.That(process.GetStderr(), Is.Empty);
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Test]
     public async Task OkojoNode_Repl_Pumps_Timers_While_Waiting_For_Input()
     {
         await using var process = NodeCliProcess.Start();

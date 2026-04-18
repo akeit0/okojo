@@ -10,7 +10,7 @@ public class ArrayLengthTests
     public void Array_Constructor_Allows_Uint32_Max_Length_But_Not_Above()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var okMax = new Array(4294967295).length === 4294967295;
             var threw = false;
             try {
@@ -29,7 +29,7 @@ public class ArrayLengthTests
     public void Array_Length_Assignment_And_DefineProperty_Invalid_Length_Throw_RangeError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var assignThrew = false;
             try {
               [].length = 4294967296;
@@ -55,7 +55,7 @@ public class ArrayLengthTests
     public void Array_Length_Shrink_Deletes_Sparse_High_Index_Without_Linear_Countdown()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var x = [0, 1, 2];
             x[4294967294] = 4294967294;
             x.length = 2;

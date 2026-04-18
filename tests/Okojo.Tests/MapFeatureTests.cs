@@ -10,7 +10,7 @@ public class MapFeatureTests
     public void Map_Global_Constructor_Is_Installed_And_Has_NodeLike_Global_Descriptor()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const d = Object.getOwnPropertyDescriptor(globalThis, "Map");
             typeof Map === "function" &&
             d.writable === true &&
@@ -26,7 +26,7 @@ public class MapFeatureTests
     public void Map_Called_Without_New_Throws_TypeError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let ok = false;
             try { Map(); } catch (e) { ok = e && e.name === "TypeError"; }
             ok;
@@ -40,7 +40,7 @@ public class MapFeatureTests
     public void Map_Constructs_From_Iterable_And_Uses_MapPrototype()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const m = new Map([[1, "a"], [2, "b"]]);
             Object.getPrototypeOf(m) === Map.prototype &&
             Object.getPrototypeOf(Map.prototype) === Object.prototype &&
@@ -57,7 +57,7 @@ public class MapFeatureTests
     public void Map_Uses_SameValueZero_For_Keys()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const m = new Map([[NaN, "n"], [-0, "m"], [0, "z"]]);
             m.get(NaN) === "n" &&
             m.get(-0) === "z" &&
@@ -73,7 +73,7 @@ public class MapFeatureTests
     public void Map_Set_Delete_Clear_And_Has_Basic_Semantics()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const m = new Map([[1, "a"], [1, "b"]]);
             const setResult = m.set(2, "c");
             const hasAfterSet = m.has(2);
@@ -97,7 +97,7 @@ public class MapFeatureTests
     public void MapGroupBy_Calls_Callback_With_Value_And_Index_And_Returns_Map()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const arr = [-0, 0, 1, 2, 3];
             let calls = 0;
 
@@ -124,7 +124,7 @@ public class MapFeatureTests
     public void MapPrototype_SymbolIterator_Aliases_Entries_And_Is_Not_Constructable()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const m = new Map([[1, "a"]]);
             let threw = false;
             try { new m[Symbol.iterator](); } catch (e) { threw = e && e.name === "TypeError"; }
@@ -150,7 +150,7 @@ public class MapFeatureTests
     public void MapPrototype_ForEach_And_GetOrInsert_Methods_Are_Not_Constructable()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             function isConstructor(f) {
               try {
                 Reflect.construct(function(){}, [], f);
@@ -176,7 +176,7 @@ public class MapFeatureTests
     public void MapIterator_ToString_Falls_Back_To_Iterator_Brand_When_Own_Tag_Is_Removed()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const map = new Map([[1, "a"]]);
             const it = map.keys();
             const proto = Object.getPrototypeOf(it);
@@ -194,7 +194,7 @@ public class MapFeatureTests
     public void Map_Constructor_Calls_Instance_Set_For_Each_Iterable_Entry()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const mapSet = Map.prototype.set;
             let counter = 0;
             Map.prototype.set = function(k, v) {
@@ -216,7 +216,7 @@ public class MapFeatureTests
     public void Map_Constructor_Throws_When_Getting_Set_Method_Fails()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             Object.defineProperty(Map.prototype, "set", {
               get: function() { throw new Error("boom"); }
             });

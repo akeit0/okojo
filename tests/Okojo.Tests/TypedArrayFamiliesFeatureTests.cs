@@ -11,7 +11,7 @@ public class TypedArrayFamiliesFeatureTests
     public void TypedArray_Families_Are_Installed_Globally_With_BytesPerElement()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const TypedArray = Object.getPrototypeOf(Int8Array);
             const cases = [
               [Int8Array, "Int8Array", 1],
@@ -54,7 +54,7 @@ public class TypedArrayFamiliesFeatureTests
     public void Hidden_TypedArray_Constructor_Is_Callable_Object_But_Always_Throws_And_Shared_Statics_Are_Inherited()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const TypedArray = Object.getPrototypeOf(Int8Array);
             let callTypeError = false;
             let constructTypeError = false;
@@ -83,7 +83,7 @@ public class TypedArrayFamiliesFeatureTests
     public void Hidden_TypedArray_Prototype_Has_TypedArray_Constructor_Property()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const TypedArray = Object.getPrototypeOf(Int8Array);
             const desc = Object.getOwnPropertyDescriptor(TypedArray.prototype, "constructor");
             TypedArray.prototype.constructor === TypedArray &&
@@ -101,7 +101,7 @@ public class TypedArrayFamiliesFeatureTests
     public void TypedArray_From_Rejects_NonConstructor_This_Value()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const TypedArray = Object.getPrototypeOf(Int8Array);
             const from = TypedArray.from;
             const m = ({ m() {} }).m;
@@ -162,7 +162,7 @@ public class TypedArrayFamiliesFeatureTests
     public void TypedArray_Families_Normalize_Representative_Writes()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const i8 = new Int8Array([257, -129]);
             const u8c = new Uint8ClampedArray([300, -1, 2.5, 1.5, 0.5]);
             const i16 = new Int16Array([65535]);
@@ -195,7 +195,7 @@ public class TypedArrayFamiliesFeatureTests
     public void TypedArray_Buffer_View_Respects_Element_Width_And_BigInt_Family_Split()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const buffer = new ArrayBuffer(8);
             const view = new Int16Array(buffer, 2, 2);
             view[0] = 257;
@@ -225,7 +225,7 @@ public class TypedArrayFamiliesFeatureTests
     public void Contextual_Of_Can_Be_Used_As_Binding_Identifier()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             var of = Object.getPrototypeOf(Int8Array).of;
             typeof of === "function";
             """));
@@ -238,7 +238,7 @@ public class TypedArrayFamiliesFeatureTests
     public void TypedArray_Copy_Does_Not_Consult_ArrayBuffer_Species_When_Source_Buffer_Is_Subclassed()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let throwOnGrossBufferConstruction = false;
 
             class GrossBuffer extends ArrayBuffer {
@@ -271,7 +271,7 @@ public class TypedArrayFamiliesFeatureTests
     public void Uint8Array_FromBase64_Decodes_Alphabet_Options()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let badDefault = false;
             let badExplicit = false;
 
@@ -293,7 +293,7 @@ public class TypedArrayFamiliesFeatureTests
     public void Uint8Array_FromBase64_Ignores_Ascii_Whitespace()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const cases = ["Z g==", "Z\tg==", "Z\x0Ag==", "Z\x0Cg==", "Z\x0Dg=="];
             let ok = true;
             for (const value of cases) {
@@ -311,7 +311,7 @@ public class TypedArrayFamiliesFeatureTests
     public void Uint8Array_FromHex_Decodes_And_Rejects_Illegal_Characters()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const illegal = ['a.a', 'aa^', 'a a', 'a\ta', 'a\x0Aa', 'a\x0Ca', 'a\x0Da', 'a\u00A0a', 'a\u2009a', 'a\u2028a'];
             let ok = Uint8Array.fromHex("c7eff2").join(",") === "199,239,242";
             for (const value of illegal) {
@@ -330,7 +330,7 @@ public class TypedArrayFamiliesFeatureTests
     public void Uint8Array_FromHex_Rejects_NonString_Input_Without_ToString_Coercion()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let calls = 0;
             const value = { toString() { calls++; throw new Error("unreachable"); } };
             let typeError = false;
@@ -346,7 +346,7 @@ public class TypedArrayFamiliesFeatureTests
     public void Uint8Array_FromBase64_Rejects_NonString_Input_And_NonString_Options_Without_ToString()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let sourceToStringCalls = 0;
             const badSource = { toString() { sourceToStringCalls++; throw new Error("unreachable"); } };
             let sourceTypeError = false;
@@ -375,7 +375,7 @@ public class TypedArrayFamiliesFeatureTests
     public void Uint8Array_FromBase64_Handles_LastChunk_Modes()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let strictError = false;
             let invalidError = false;
             let paddedStop = "";
@@ -446,7 +446,7 @@ public class TypedArrayFamiliesFeatureTests
     public void TypedArray_From_Saves_Iterator_Values_Before_Later_Number_Conversion_Mutates_Source_Array()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let values = [0, {
               valueOf() {
                 values.length = 0;
@@ -470,7 +470,7 @@ public class TypedArrayFamiliesFeatureTests
         TypedArray_Of_Ignores_Write_That_Becomes_Out_Of_Bounds_During_Value_Coercion_And_Allows_Later_In_Bounds_Writes()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             let rab = new ArrayBuffer(3, { maxByteLength: 4 });
             let ta = new Int8Array(rab);
 
@@ -514,7 +514,7 @@ public class TypedArrayFamiliesFeatureTests
             return JsValue.Undefined;
         }, "detachBuffer", 1));
 
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const sample = new Float64Array(new ArrayBuffer(128), 8, 1);
             detachBuffer(sample.buffer);
             sample.byteOffset === 0;
@@ -528,7 +528,7 @@ public class TypedArrayFamiliesFeatureTests
     public void TypedArray_ByteOffset_And_ByteLength_Handle_Resizable_OutOfBounds_State()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const rab = new ArrayBuffer(32, { maxByteLength: 40 });
             const fixed = new Float64Array(rab, 8, 2);
             const tracking = new Float64Array(rab, 8);
@@ -549,7 +549,7 @@ public class TypedArrayFamiliesFeatureTests
     public void Resizable_LengthTracking_TypedArray_Allows_NonAligned_Current_Buffer_Length()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const rab = new ArrayBuffer(10, { maxByteLength: 20 });
             const view = new Float64Array(rab);
             view.length === 1 && view.byteLength === 8;
@@ -563,7 +563,7 @@ public class TypedArrayFamiliesFeatureTests
     public void TypedArray_Of_Throws_When_Custom_Constructor_Returns_Too_Small_A_TypedArray()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const TypedArray = Object.getPrototypeOf(Int8Array);
             let typeError = false;
             try {
@@ -582,7 +582,7 @@ public class TypedArrayFamiliesFeatureTests
     public void TypedArray_Of_Smaller_Custom_Result_Throws_A_Real_TypeError_Object()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const TypedArray = Object.getPrototypeOf(Int8Array);
             let ok = false;
             try {
