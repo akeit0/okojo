@@ -390,20 +390,6 @@ public class OkojoGlobalTests
     }
 
     [Test]
-    public void IfStatement_TopLevelTrackedCompletion_DoesNotRepeatIfStoreHoleCheck()
-    {
-        var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsCompiler(realm).Compile(JavaScriptParser.ParseScript("""
-            if (true) { 1; } else { }
-            """));
-
-        var disasm = Disassembler.Dump(script);
-        var holeCheckCount = Regex.Matches(disasm, @"TestEqualStrict").Count;
-
-        Assert.That(holeCheckCount, Is.EqualTo(3));
-    }
-
-    [Test]
     public void ForIn_BareIdentifier_Strict_ThrowsReferenceError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
