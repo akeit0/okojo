@@ -22,8 +22,7 @@ public class WhitespaceParserTests
     public void DoWhileStatement_AllowsSameLineTerminationWithoutExplicitSemicolon()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var x;
                                                                    do break; while (0) x = 42;
                                                                    x;

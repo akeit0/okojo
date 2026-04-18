@@ -12,8 +12,7 @@ public class AsyncAwaitTests
     public void AsyncAwait_Context()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(
+        var script = JsCompiler.Compile(realm, 
             JavaScriptParser.ParseScript(
                 """
                 function awaitBench() {
@@ -41,8 +40,7 @@ public class AsyncAwaitTests
     public void AsyncAwait_NonPromiseValue_Resolves()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = 0;
                                                                    async function f() {
                                                                        return await 41;
@@ -60,8 +58,7 @@ public class AsyncAwaitTests
     public void AsyncAwait_PromiseResolve_Resolves()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = 0;
                                                                    async function f() {
                                                                        return await Promise.resolve(5);
@@ -79,8 +76,7 @@ public class AsyncAwaitTests
     public void AsyncAwait_RejectedPromise_CatchInFunction()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = 0;
                                                                    async function f() {
                                                                        try {
@@ -103,8 +99,7 @@ public class AsyncAwaitTests
     public void AsyncAwait_Thenable_Fulfilled_Resolves()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = 0;
                                                                    async function f() {
                                                                        return await { then: function (resolve, reject) { resolve(33); } };
@@ -122,8 +117,7 @@ public class AsyncAwaitTests
     public void AsyncAwait_Thenable_Rejected_GoesToCatch()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = 0;
                                                                    async function f() {
                                                                        try {
@@ -157,8 +151,7 @@ public class AsyncAwaitTests
             JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.Open);
         realm.Global["t"] = JsValue.FromObject(thenable);
 
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = 0;
                                                                    async function f() {
                                                                        try {
@@ -181,8 +174,7 @@ public class AsyncAwaitTests
     public void AsyncAwait_Thenable_ResolveThenReject_FirstWins()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = 0;
                                                                    async function f() {
                                                                        return await {
@@ -205,8 +197,7 @@ public class AsyncAwaitTests
     public void AsyncAwait_Thenable_ResolveThenThrow_StillResolves()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = 0;
                                                                    async function f() {
                                                                        return await {
@@ -230,8 +221,7 @@ public class AsyncAwaitTests
     {
         var fakeTime = new FakeTimeProvider();
         var realm = JsRuntime.CreateBuilder().UseTimeProvider(fakeTime).UseWebRuntimeGlobals().Build().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = 0;
                                                                    async function f() {
                                                                        const a = await new Promise(function (resolve) { setTimeout(resolve, 10, 1); });
@@ -259,8 +249,7 @@ public class AsyncAwaitTests
     {
         var fakeTime = new FakeTimeProvider();
         var realm = JsRuntime.CreateBuilder().UseTimeProvider(fakeTime).UseWebRuntimeGlobals().Build().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = 0;
                                                                    async function f() {
                                                                        try {
@@ -286,8 +275,7 @@ public class AsyncAwaitTests
     {
         var fakeTime = new FakeTimeProvider();
         var realm = JsRuntime.CreateBuilder().UseTimeProvider(fakeTime).UseWebRuntimeGlobals().Build().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.side = 0;
                                                                    globalThis.out = 0;
                                                                    async function f() {
@@ -315,8 +303,7 @@ public class AsyncAwaitTests
     {
         var fakeTime = new FakeTimeProvider();
         var realm = JsRuntime.CreateBuilder().UseTimeProvider(fakeTime).UseWebRuntimeGlobals().Build().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.side = 0;
                                                                    globalThis.out = 0;
                                                                    async function f() {
@@ -346,8 +333,7 @@ public class AsyncAwaitTests
     {
         var fakeTime = new FakeTimeProvider();
         var realm = JsRuntime.CreateBuilder().UseTimeProvider(fakeTime).UseWebRuntimeGlobals().Build().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = 0;
                                                                    async function f() {
                                                                        try {
@@ -375,8 +361,7 @@ public class AsyncAwaitTests
     {
         var fakeTime = new FakeTimeProvider();
         var realm = JsRuntime.CreateBuilder().UseTimeProvider(fakeTime).UseWebRuntimeGlobals().Build().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = 0;
                                                                    async function f() {
                                                                        try {
@@ -402,8 +387,7 @@ public class AsyncAwaitTests
     {
         var fakeTime = new FakeTimeProvider();
         var realm = JsRuntime.CreateBuilder().UseTimeProvider(fakeTime).UseWebRuntimeGlobals().Build().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.trace = "";
                                                                    globalThis.out = 0;
                                                                    async function f() {
@@ -436,8 +420,7 @@ public class AsyncAwaitTests
     {
         var fakeTime = new FakeTimeProvider();
         var realm = JsRuntime.CreateBuilder().UseTimeProvider(fakeTime).UseWebRuntimeGlobals().Build().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.trace = "";
                                                                    globalThis.out = 0;
                                                                    async function f() {
@@ -470,8 +453,7 @@ public class AsyncAwaitTests
     {
         var fakeTime = new FakeTimeProvider();
         var realm = JsRuntime.CreateBuilder().UseTimeProvider(fakeTime).UseWebRuntimeGlobals().Build().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = 0;
                                                                    globalThis.inner = async function () {
                                                                        return await new Promise(function (resolve) { setTimeout(resolve, 7, 4); });
@@ -499,8 +481,7 @@ public class AsyncAwaitTests
     {
         var fakeTime = new FakeTimeProvider();
         var realm = JsRuntime.CreateBuilder().UseTimeProvider(fakeTime).UseWebRuntimeGlobals().Build().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.trace = "";
                                                                    async function a() {
                                                                        const v = await new Promise(function (resolve) { setTimeout(resolve, 5, 1); });
@@ -532,8 +513,7 @@ public class AsyncAwaitTests
     {
         var fakeTime = new FakeTimeProvider();
         var realm = JsRuntime.CreateBuilder().UseTimeProvider(fakeTime).UseWebRuntimeGlobals().Build().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = 0;
                                                                    async function f() {
                                                                        try {

@@ -58,8 +58,7 @@ public class ToolingTests
     public void Compiler_Peephole_Folds_LdarStar_ToMov()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function t(a) { let b = a; return b; }
                                                                    t(7);
                                                                    """));
@@ -131,8 +130,7 @@ public class ToolingTests
     public void Compiler_Uses_Mov_For_ArrayDestructuring_Source_Copy()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function t(a) { let b; [b] = a; return b; }
                                                                    t([7]);
                                                                    """));
@@ -145,8 +143,7 @@ public class ToolingTests
     public void Compiler_Direct_Local_Call_Reuses_Local_Register()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function t(identity, x) {
                                                                        return identity(x);
                                                                    }
@@ -165,8 +162,7 @@ public class ToolingTests
     public void Compiler_Member_Call_Reuses_Contiguous_Local_Arguments()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function t(obj, x) {
                                                                        return obj.f(x);
                                                                    }
@@ -183,8 +179,7 @@ public class ToolingTests
     public void Compiler_Chained_Require_Declarators_Store_String_Arguments_Before_Call()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function t(require) {
                                                                        var React = require("react"),
                                                                            Scheduler = require("scheduler");
@@ -206,8 +201,7 @@ public class ToolingTests
     public void Compiler_Local_Assignment_Reloads_From_Target_Without_Preserve_Temp()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function t(x) {
                                                                        let s = 0;
                                                                        s = x + 1;
@@ -226,8 +220,7 @@ public class ToolingTests
     public void Compiler_For_Let_Init_Does_Not_Leave_Dead_Empty_Completion_Load()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function t() {
                                                                        for (let i = 0; i < 10000; i = i + 1) {
                                                                        }
@@ -253,8 +246,7 @@ public class ToolingTests
     public void Compiler_Function_Body_Let_Declarations_Do_Not_Leave_Dead_Empty_Completion_Loads()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function t() {
                                                                        let identity = function (x) { return x; };
                                                                        let s = 0;
@@ -328,8 +320,7 @@ public class ToolingTests
     public void Compiler_Uses_LdaSmiWide_And_ExtraWide_For_IntegerLiterals()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function t() {
                                                                        let a = 300;
                                                                        return a + 70000;
@@ -410,8 +401,7 @@ public class ToolingTests
         source.AppendLine("f();");
 
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript(source.ToString()));
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript(source.ToString()));
 
         var f = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(fn => fn.Name == "f");
         Assert.That(f.Script.Bytecode.Contains((byte)JsOpCode.LdaNamedPropertyWide), Is.True);

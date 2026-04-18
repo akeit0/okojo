@@ -10,8 +10,7 @@ public class EvalTests
     public void GlobalEval_IsDefinedFunction()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    typeof eval;
                                                                    """));
 
@@ -24,8 +23,7 @@ public class EvalTests
     public void GlobalEval_AsyncFunctionDeclarationCompletionMatchesTest262Cases()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var a = eval('async function f() {}');
                                                                    var b = eval('1; async function g() {}');
                                                                    a === undefined && b === 1;
@@ -40,8 +38,7 @@ public class EvalTests
     public void GlobalEval_FunctionDeclarationOnly_ReturnsUndefined()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    eval('function h() {}') === undefined;
                                                                    """));
 
@@ -54,8 +51,7 @@ public class EvalTests
     public void GlobalEval_HashbangComment_IsAcceptedAtSourceStart()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var a = eval('#!\n');
                                                                    var b = eval('#!\n1');
                                                                    var c = eval('#!2\n');
@@ -71,8 +67,7 @@ public class EvalTests
     public void GlobalEval_TriviaOnlyCommentSources_ReturnUndefined_WithoutChangingBindings()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    delete globalThis.xx;
                                                                    var a = eval('/*var xx = 1*/');
                                                                    var b = eval('//var xx = 1');
@@ -88,8 +83,7 @@ public class EvalTests
     public void GlobalEval_LineCommentLineTerminator_StillParsesFollowingCode()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var yy = 0;
                                                                    eval("//var \u2028yy = -1") === -1 && yy === -1;
                                                                    """));
@@ -103,8 +97,7 @@ public class EvalTests
     public void IndirectEval_CompileTimeContinueError_IsSyntaxError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let caught;
                                                                    try {
                                                                      (0, eval)("continue;");
@@ -124,8 +117,7 @@ public class EvalTests
     public void StrictIndirectEval_VarDeclaration_DoesNot_Leak_Global_Binding()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    delete globalThis.foo;
                                                                    (0, eval)('"use strict"; var foo = 88;');
                                                                    !('foo' in globalThis);
@@ -140,8 +132,7 @@ public class EvalTests
     public void StrictIndirectEval_FunctionDeclaration_DoesNot_Leak_Caller_Or_Global_Binding()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var typeofInside;
                                                                    delete globalThis.fun;
 
@@ -162,8 +153,7 @@ public class EvalTests
     public void SloppyIndirectEval_VarDeclaration_Creates_Configurable_Global_Binding()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    delete globalThis.x;
                                                                    var initial;
                                                                    (0, eval)('initial = x; var x = 9;');
@@ -184,8 +174,7 @@ public class EvalTests
     public void SloppyIndirectEval_FunctionDeclaration_Updates_Configurable_Global_Binding()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var initial = null;
                                                                    Object.defineProperty(globalThis, 'f', {
                                                                      enumerable: false,
@@ -210,8 +199,7 @@ public class EvalTests
     public void SloppyIndirectEval_FunctionValidation_Is_Atomic()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    delete globalThis.shouldNotBeDefined1;
                                                                    delete globalThis.shouldNotBeDefined2;
                                                                    var caught;
@@ -235,8 +223,7 @@ public class EvalTests
     public void SloppyIndirectEval_VarDeclaration_Colliding_With_Global_Lexical_Throws_SyntaxError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let x;
                                                                    var caught;
                                                                    try {
@@ -256,8 +243,7 @@ public class EvalTests
     public void SloppyIndirectEval_VarDeclaration_On_NonExtensible_Global_Throws_TypeError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    delete globalThis.unlikelyVariableName;
                                                                    var caught;
                                                                    Object.preventExtensions(globalThis);

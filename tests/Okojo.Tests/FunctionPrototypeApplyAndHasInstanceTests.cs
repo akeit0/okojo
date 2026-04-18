@@ -44,8 +44,7 @@ public class FunctionPrototypeApplyAndHasInstanceTests
     public void FunctionPrototypeSymbolHasInstance_HandlesCallableAndNonCallableReceivers()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function F() {}
                                                                    var instance = new F();
                                                                    Function.prototype[Symbol.hasInstance].call(F, instance) === true &&

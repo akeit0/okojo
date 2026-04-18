@@ -10,8 +10,7 @@ public class ForLoopLexicalClosureTests
     public void ForLet_ClosureInsideCondition_CapturesPerIterationValue()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let a = [];
                                                                    for (let i = 0; a.push(function () { return i; }), i < 5; ++i) { }
                                                                    let ok = true;
@@ -29,8 +28,7 @@ public class ForLoopLexicalClosureTests
     public void ForOf_PerIterationContext_Does_Not_Shadow_Outer_Captured_Lexical()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let values;
                                                                    function readValues() { return values.length; }
                                                                    let ok = true;
@@ -49,8 +47,7 @@ public class ForLoopLexicalClosureTests
     public void NestedForLet_Can_Read_Outer_Loop_Head_When_Body_Uses_PerIteration_Closures()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let seen = [];
                                                                    for (let i = 0; i < 2; ++i) {
                                                                      for (let j = i + 1; j < 4; ++j) {
@@ -73,8 +70,7 @@ public class ForLoopLexicalClosureTests
     public void NestedForLet_InnerLoopHead_Initializes_Current_Context_Before_PerIteration_Clone()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let seen = [];
                                                                    for (let i = 0; i < 2; ++i) {
                                                                      for (let j = i + 1; j < 4; ++j) {

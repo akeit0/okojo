@@ -12,8 +12,7 @@ public class TimerTests
     {
         var fakeTime = new FakeTimeProvider();
         var realm = JsRuntime.CreateBuilder().UseTimeProvider(fakeTime).UseWebRuntimeGlobals().Build().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = 0;
                                                                    setTimeout(function () { globalThis.out = 42; }, 100);
                                                                    0;
@@ -36,8 +35,7 @@ public class TimerTests
     {
         var fakeTime = new FakeTimeProvider();
         var realm = JsRuntime.CreateBuilder().UseTimeProvider(fakeTime).UseWebRuntimeGlobals().Build().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = 0;
                                                                    const id = setTimeout(function () { globalThis.out = 99; }, 50);
                                                                    clearTimeout(id);
@@ -56,8 +54,7 @@ public class TimerTests
     {
         var fakeTime = new FakeTimeProvider();
         var realm = JsRuntime.CreateBuilder().UseTimeProvider(fakeTime).UseWebRuntimeGlobals().Build().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = 0;
                                                                    async function sleepValue() {
                                                                        return await new Promise(function (resolve) {
@@ -82,8 +79,7 @@ public class TimerTests
     {
         var fakeTime = new FakeTimeProvider();
         var realm = JsRuntime.CreateBuilder().UseTimeProvider(fakeTime).UseWebRuntimeGlobals().Build().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = "";
                                                                    setTimeout(function (a, b, c) {
                                                                        globalThis.out = String(a) + "|" + String(b) + "|" + String(c);

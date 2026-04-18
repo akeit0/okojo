@@ -12,8 +12,7 @@ public class NewTargetCompilerTests
     public void Compiler_Emits_Construct_For_NewExpression()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function Foo() {}
                                                                    new Foo();
                                                                    """));
@@ -25,15 +24,14 @@ public class NewTargetCompilerTests
     public void FunctionFlag_HasNewTarget_IsTrueOnlyWhenReferenced()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
 
-        var withNewTarget = compiler.Compile(JavaScriptParser.ParseScript("""
+        var withNewTarget = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                           function A() { return new.target ? 1 : 0; }
                                                                           """));
         var a = withNewTarget.ObjectConstants.OfType<JsBytecodeFunction>().Single(f => f.Name == "A");
         Assert.That(a.HasNewTarget, Is.True);
 
-        var withoutNewTarget = compiler.Compile(JavaScriptParser.ParseScript("""
+        var withoutNewTarget = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                              function B() { return 1; }
                                                                              """));
         var b = withoutNewTarget.ObjectConstants.OfType<JsBytecodeFunction>().Single(f => f.Name == "B");
@@ -44,8 +42,7 @@ public class NewTargetCompilerTests
     public void NewTarget_Branches_Differently_For_New_And_Direct_Call()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let fromNew = 0;
                                                                    let fromCall = 0;
                                                                    function Foo() {
@@ -69,8 +66,7 @@ public class NewTargetCompilerTests
     public void New_Constructor_Primitive_Return_Falls_Back_To_Receiver()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function Foo() {
                                                                        this.x = 1;
                                                                        return 7;
@@ -88,8 +84,7 @@ public class NewTargetCompilerTests
     public void Unreachable_New_After_Return_IsNotEmitted_In_Function_Body()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function Foo() {
                                                                        if (!new.target) {
                                                                            return 1;
@@ -107,8 +102,7 @@ public class NewTargetCompilerTests
     public void NewTarget_IfElse_Returns_DoesNotEmit_DeadJumpOrTrailingReturn()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function Foo() {
                                                                        if (!new.target) {
                                                                            return 1;

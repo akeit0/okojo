@@ -128,8 +128,7 @@ static async Task ExecuteAndPrintAsync(
     var program = JavaScriptParser.ParseScript(adjustedSource);
     ValidateReplTopLevelLexicalRedeclaration(program, topLevelLexicalNames);
 
-    var compiler = new JsCompiler(vm, compileContext);
-    var script = compiler.Compile(program);
+    var script = JsCompiler.Compile(vm, program, compileContext);
     vm.Execute(script);
     RegisterTopLevelLexicalDeclarations(program, topLevelLexicalNames, topLevelConstNames);
 

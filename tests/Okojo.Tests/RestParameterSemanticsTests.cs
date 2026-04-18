@@ -10,8 +10,7 @@ public class RestParameterSemanticsTests
     public void RestParameter_DoesNotAliasArguments()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function f(a, ...rest) {
                                                                      arguments[0] = 1;
                                                                      arguments[1] = 2;
@@ -34,8 +33,7 @@ public class RestParameterSemanticsTests
     public void RestParameter_WorksInDerivedConstructor()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function cmp(a, b) {
                                                                      if (a.length !== b.length) return "len:" + String(a.length) + "," + String(b.length);
                                                                      for (var i = 0; i < a.length; ++i) {
@@ -76,8 +74,7 @@ public class RestParameterSemanticsTests
     public void RestParameter_DerivedConstructor_DoesNotInclude_NewTarget_As_Argument()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    class Base {
                                                                      constructor(...a) {
                                                                        this.baseRestLength = a.length;

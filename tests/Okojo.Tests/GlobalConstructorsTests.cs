@@ -10,8 +10,7 @@ public class GlobalConstructorsTests
     public void Global_Array_And_Function_Constructors_AreDefined()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    typeof Array === "function" && typeof Function === "function";
                                                                    """));
 
@@ -23,8 +22,7 @@ public class GlobalConstructorsTests
     public void ObjectConstructor_Has_Own_Length_And_Name_In_Order()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var names = Object.getOwnPropertyNames(Object);
                                                                    Object.prototype.hasOwnProperty.call(Object, "length") &&
                                                                    Object.length === 1 &&
@@ -40,8 +38,7 @@ public class GlobalConstructorsTests
     public void ArrayConstructor_CallAndConstruct_BasicSemantics()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const a = Array(1, 2, 3);
                                                                    const b = new Array(4);
                                                                    (a.length === 3) &&
@@ -59,8 +56,7 @@ public class GlobalConstructorsTests
     public void ArrayFrom_Consumes_MapIterator_And_Preserves_Order()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const map = Map.groupBy([1, 2, 3], function (i) {
                                                                      return i % 2 === 0 ? "even" : "odd";
                                                                    });
@@ -76,8 +72,7 @@ public class GlobalConstructorsTests
     public void ArrayFrom_Supports_Optional_MapFunction()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const values = Array.from("ab", function (ch, index) {
                                                                      return ch + index;
                                                                    });
@@ -92,8 +87,7 @@ public class GlobalConstructorsTests
     public void JsonParse_Reviver_Receives_Source_Context_For_BigInt_RoundTrip()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const tooBigForNumber = BigInt(Number.MAX_SAFE_INTEGER) + 2n;
                                                                    const intToBigInt = (key, val, { source }) =>
                                                                      typeof val === 'number' && val % 1 === 0 ? BigInt(source) : val;
@@ -109,8 +103,7 @@ public class GlobalConstructorsTests
     public void JsonStringify_Replacer_Can_Return_JsonRawJson_For_BigInt()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const tooBigForNumber = BigInt(Number.MAX_SAFE_INTEGER) + 2n;
                                                                    const bigIntToRawJSON = (key, val) =>
                                                                      typeof val === 'bigint' ? JSON.rawJSON(val) : val;
@@ -126,8 +119,7 @@ public class GlobalConstructorsTests
     public void JsonStringify_Functions_Are_Omitted_Like_JavaScript()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    JSON.stringify(function(){}) === undefined &&
                                                                    JSON.stringify([function(){}]) === "[null]" &&
                                                                    JSON.stringify({ key: function(){} }) === "{}";
@@ -141,8 +133,7 @@ public class GlobalConstructorsTests
     public void JsonStringify_Replacer_Wrong_Object_Type_Is_Ignored()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var obj = { key: [1] };
                                                                    var json = '{"key":[1]}';
                                                                    JSON.stringify(obj, {}) === json &&
@@ -158,8 +149,7 @@ public class GlobalConstructorsTests
     public void JsonStringify_NonCallable_ToJson_Does_Not_Alter_Ordinary_Object_Serialization()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    JSON.stringify({toJSON: null}) === '{"toJSON":null}' &&
                                                                    JSON.stringify({toJSON: false}) === '{"toJSON":false}' &&
                                                                    JSON.stringify({toJSON: []}) === '{"toJSON":[]}' &&
@@ -174,8 +164,7 @@ public class GlobalConstructorsTests
     public void ParseInt_Applies_ToInt32_To_Radix()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    parseInt("11", 4294967298) === parseInt("11", 2) &&
                                                                    parseInt("11", 4294967296) === parseInt("11", 10) &&
                                                                    Number.isNaN(parseInt("11", -2147483650)) &&
@@ -190,8 +179,7 @@ public class GlobalConstructorsTests
     public void ParseFloat_Uses_Ascii_Decimal_Scan()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    parseFloat("0.1e1\u0000") === 1 &&
                                                                    parseFloat("0.1e1\u0660") === 1 &&
                                                                    parseFloat("0.1e1\u0669") === 1;
@@ -205,8 +193,7 @@ public class GlobalConstructorsTests
     public void JsonStringify_Space_StringObject_Uses_ToString_And_Gap()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var obj = { a1: { b1: [1, 2] }, a2: 'a2' };
                                                                    var str = new String('xxx');
                                                                    str.toString = function() { return '--'; };
@@ -232,8 +219,7 @@ public class GlobalConstructorsTests
     public void JsonStringify_Handles_Proxy_Array_And_Object_As_Ordinary_Values()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var arrayProxy = new Proxy([], {
                                                                      get: function(_target, key) {
                                                                        if (key === 'length') return 2;
@@ -263,8 +249,7 @@ public class GlobalConstructorsTests
     public void JsonStringify_Handles_Proxy_Of_Proxy_Object()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var objectProxy = new Proxy({}, {
                                                                      getOwnPropertyDescriptor: function() {
                                                                        return { value: 1, writable: true, enumerable: true, configurable: true };
@@ -284,8 +269,7 @@ public class GlobalConstructorsTests
     public void JsonBuiltins_Have_Expected_Descriptors_And_Lengths()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var stringify = Object.getOwnPropertyDescriptor(JSON, 'stringify');
                                                                    var parse = Object.getOwnPropertyDescriptor(JSON, 'parse');
                                                                    var rawJSON = Object.getOwnPropertyDescriptor(JSON, 'rawJSON');
@@ -316,8 +300,7 @@ public class GlobalConstructorsTests
     public void JsonRawJson_Validates_Input_And_Exposes_RawJson_Brand()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function kind(fn) {
                                                                      try { fn(); return 'ok'; } catch (e) { return e.name; }
                                                                    }
@@ -343,8 +326,7 @@ public class GlobalConstructorsTests
     public void JsonStringify_Replacer_Array_Can_Filter_All_Object_Properties()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    JSON.stringify({ a: 1, b: 2 }, []) === '{}' &&
                                                                    JSON.stringify({ undefined: 1 }, [undefined]) === '{}' &&
                                                                    JSON.stringify({ key: 1, undefined: 2 }, [,,,]) === '{}' &&
@@ -359,8 +341,7 @@ public class GlobalConstructorsTests
     public void JsonStringify_Escapes_Lone_Surrogates_But_Preserves_Pairs()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    JSON.stringify("\uD834") === '"\\ud834"' &&
                                                                    JSON.stringify("\uDF06") === '"\\udf06"' &&
                                                                    JSON.stringify("\uD834\uDF06") === '"𝌆"' &&
@@ -375,8 +356,7 @@ public class GlobalConstructorsTests
     public void JsonStringify_Replacer_Array_Uses_Observable_ToString_For_Boxed_Strings()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var str = new String('str');
                                                                    str.toString = function() { return 'toString'; };
                                                                    str.valueOf = function() { throw new Error('should not call valueOf'); };
@@ -392,8 +372,7 @@ public class GlobalConstructorsTests
     public void JsonStringify_Replacer_Function_Sees_Deleted_Property_As_Undefined()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var obj = {
                                                                      get a() {
                                                                        delete this.b;
@@ -418,8 +397,7 @@ public class GlobalConstructorsTests
     public void JsonParse_Invalid_Text_Throws_SyntaxError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function errorName(fn) {
                                                                      try { fn(); return 'ok'; } catch (e) { return e.name; }
                                                                    }
@@ -436,8 +414,7 @@ public class GlobalConstructorsTests
     public void JsonParse_Preserves_Negative_Zero()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    Object.is(JSON.parse('-0'), -0) &&
                                                                    Object.is(JSON.parse(' \n-0'), -0) &&
                                                                    Object.is(JSON.parse('-0  \t'), -0) &&
@@ -452,8 +429,7 @@ public class GlobalConstructorsTests
     public void ObjectGetOwnPropertySymbols_EmptyObject_Returns_Empty_Array()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    Object.getOwnPropertySymbols({}).length === 0;
                                                                    """));
 
@@ -465,8 +441,7 @@ public class GlobalConstructorsTests
     public void ObjectGetOwnPropertySymbols_Returns_Own_Symbol_Keys()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const s = Symbol("x");
                                                                    const o = {};
                                                                    o[s] = 1;
@@ -482,8 +457,7 @@ public class GlobalConstructorsTests
     public void ObjectGroupBy_Groups_By_Callback_Key_And_Returns_NullPrototype_Object()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const sym = Symbol("s");
                                                                    const values = [1, 2, 3, 4];
                                                                    const seen = [];
@@ -515,8 +489,7 @@ public class GlobalConstructorsTests
     public void ObjectGroupBy_String_Uses_Whole_CodePoints()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const grouped = Object.groupBy("🥰💩🙏😈", function (ch) {
                                                                      return ch < "🙏" ? "before" : "after";
                                                                    });
@@ -539,8 +512,7 @@ public class GlobalConstructorsTests
     public void ArrayLiteral_Uses_ArrayPrototype()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    Object.getPrototypeOf([1]) === Array.prototype;
                                                                    """));
 
@@ -552,8 +524,7 @@ public class GlobalConstructorsTests
     public void Array_ToString_AndPlusEmptyString_UseJoinLikeNode()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const a = new Array(2, 4, 8, 16, 32);
                                                                    (a.toString() === "2,4,8,16,32") && ((a + "") === "2,4,8,16,32");
                                                                    """));
@@ -566,8 +537,7 @@ public class GlobalConstructorsTests
     public void FunctionConstructor_CallAndConstruct_ReturnCallable()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const f = Function("x", "return x + 1;");
                                                                    const g = new Function("return 7;");
                                                                    (f(2) === 3) &&
@@ -583,8 +553,7 @@ public class GlobalConstructorsTests
     public void FunctionConstructor_ReturnThis_BindsToGlobalObjectInSloppyMode()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    Function("return this;")() === globalThis;
                                                                    """));
 
@@ -762,8 +731,7 @@ public class GlobalConstructorsTests
     public void Global_Boolean_String_Number_RegExp_Json_Math_AreDefined()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    typeof Boolean === "function" &&
                                                                    typeof String === "function" &&
                                                                    typeof Number === "function" &&
@@ -795,8 +763,7 @@ public class GlobalConstructorsTests
     public void Boolean_String_Number_Constructors_BasicSemantics()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const b = Boolean(0) === false && new Boolean(true).valueOf() === true;
                                                                    const s = String(12) === "12" && new String("x").toString() === "x";
                                                                    const n = Number("3.5") === 3.5 && new Number(4).valueOf() === 4;
@@ -811,8 +778,7 @@ public class GlobalConstructorsTests
     public void Number_Constructor_Converts_BigInt_To_Number()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    Number(0n) === 0 &&
                                                                    Number(2n ** 53n + 3n) === 9007199254740996;
                                                                    """));
@@ -825,8 +791,7 @@ public class GlobalConstructorsTests
     public void RegExp_And_Json_BasicSemantics()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const rx = new RegExp("a+");
                                                                    const ok1 = rx.test("caaad");
                                                                    const m = rx.exec("zzzaaa");
@@ -903,8 +868,7 @@ public class GlobalConstructorsTests
     public void Global_IsNaN_IsDefined_AndCoercesLikeJs()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    typeof isNaN === "function" &&
                                                                    isNaN() === true &&
                                                                    isNaN("123") === false &&
@@ -921,8 +885,7 @@ public class GlobalConstructorsTests
     public void Global_IsFinite_IsDefined_AndCoercesLikeJs()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    typeof isFinite === "function" &&
                                                                    isFinite("0") === true &&
                                                                    isFinite("") === true &&
@@ -939,8 +902,7 @@ public class GlobalConstructorsTests
     public void Number_Static_Predicates_Are_Defined_And_Do_Not_Coerce()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    typeof Number.isFinite === "function" &&
                                                                    typeof Number.isNaN === "function" &&
                                                                    typeof Number.isInteger === "function" &&
@@ -963,8 +925,7 @@ public class GlobalConstructorsTests
     public void JsonStringify_Boxed_Number_Uses_Observable_ToNumber_And_ToString()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var toPrimitiveReplacer = function(_key, value) {
                                                                      if (value === 'str') {
                                                                        var num = new Number(42);
@@ -995,14 +956,13 @@ public class GlobalConstructorsTests
         var engine = JsRuntime.Create();
         var realm = engine.DefaultRealm;
         var otherRealm = realm.Agent.CreateRealm();
-        var compiler = new JsCompiler(realm);
         otherRealm.Eval("""
                         var handle = Proxy.revocable([], {});
                         handle.revoke();
                         handle.proxy;
                         """);
         realm.Global["OtherRevokedProxy"] = otherRealm.Accumulator;
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var ok = false;
                                                                    try {
                                                                      JSON.stringify({}, OtherRevokedProxy);
@@ -1020,8 +980,7 @@ public class GlobalConstructorsTests
     public void ArrayOf_Calls_Constructor_With_Argument_Count()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var len;
                                                                    var hits = 0;
                                                                    function C(length) {
@@ -1046,8 +1005,7 @@ public class GlobalConstructorsTests
     public void ArrayOf_Uses_CreateDataProperty_Not_Set_For_Indices()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function A(_length) {
                                                                      Object.defineProperty(this, "0", {
                                                                        value: 1,
@@ -1073,8 +1031,7 @@ public class GlobalConstructorsTests
     public void Global_NaN_Infinity_Undefined_AreDefined()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    typeof NaN === "number" &&
                                                                    typeof Infinity === "number" &&
                                                                    (undefined === void 0);

@@ -56,8 +56,7 @@ try
     else
     {
         var parsed = JavaScriptParser.ParseScript(source, sourcePath: inputIsFile ? sourcePath : null);
-        using var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(parsed);
+        var script = JsCompiler.Compile(realm, parsed);
 
         if (options.BreakpointLine is int line)
             agent.AddBreakpoint(script, line);

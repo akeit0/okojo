@@ -11,8 +11,7 @@ public class CompilerFeatureSupportTests
     public void DoWhileStatement_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function t() {
                                                                        let i = 0;
                                                                        let s = 0;
@@ -34,8 +33,7 @@ public class CompilerFeatureSupportTests
     public void NestedFunction_Captures_OuterBinding_Inside_DoWhile()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function outer() {
                                                                        var limit = 25;
                                                                        function inner() {
@@ -62,8 +60,7 @@ public class CompilerFeatureSupportTests
     public void SequenceExpression_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let x = 0;
                                                                    (x = 1, x = x + 2, x);
                                                                    """));
@@ -77,8 +74,7 @@ public class CompilerFeatureSupportTests
     public void DebuggerStatement_IsAccepted()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let x = 1;
                                                                    debugger;
                                                                    x + 2;
@@ -93,8 +89,7 @@ public class CompilerFeatureSupportTests
     public void ForStatement_Can_Start_With_AsyncOf_ArrowInitializer()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var i = 0;
                                                                    var counter = 0;
                                                                    for (async of => {}; i < 10; ++i) {
@@ -154,8 +149,7 @@ public class CompilerFeatureSupportTests
     public void ObjectLiteral_Method_DefaultParameter_Uses_Parameter_Binding()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const obj = {
                                                                      annotation(message, options = {}) {
                                                                        return options;
@@ -173,8 +167,7 @@ public class CompilerFeatureSupportTests
     public void ObjectLiteral_Arrow_DefaultParameter_Uses_Parameter_Binding()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const obj = {
                                                                      setCwd: (cwd = "x") => cwd
                                                                    };
@@ -190,8 +183,7 @@ public class CompilerFeatureSupportTests
     public void ForOf_LoopHead_Binding_Captured_By_Nested_Function_Gets_Context_Slot()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function wrapAssembly() {
                                                                      function patch(prototype, name, fn) {
                                                                        return fn;
@@ -218,8 +210,7 @@ public class CompilerFeatureSupportTests
     public void ForOf_LoopHead_Const_Captured_By_Multiple_Closures_Preserves_Per_Iteration_Value()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function wrap() {
                                                                      const fns = {};
                                                                      for (const fnName of ['setWidth', 'setGap']) {
@@ -249,8 +240,7 @@ public class CompilerFeatureSupportTests
     public void ForLoop_LoopHead_Binding_Captured_By_Nested_Function_Gets_Context_Slot()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function wrap() {
                                                                      for (let i = 0; i < 1; i++) {
                                                                        const read = function () {
@@ -272,8 +262,7 @@ public class CompilerFeatureSupportTests
     public void BlockLexical_Captured_By_Nested_Arrow_Gets_Context_Slot()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function help(commands, base$0, parentCommands) {
                                                                      if (commands.length) {
                                                                        const prefix = base$0 ? `${base$0} ` : '';

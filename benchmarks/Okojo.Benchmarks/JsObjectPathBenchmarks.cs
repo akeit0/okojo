@@ -36,8 +36,7 @@ public class JsObjectPathBenchmarks
         jintFunction = (Function)jint.Evaluate(source);
         var program = JavaScriptParser.ParseScript(source);
         jsVm = JsRuntime.CreateBuilder().Build().DefaultRealm;
-        var compiler = new JsCompiler(jsVm);
-        var okojoScript = compiler.Compile(program);
+        var okojoScript = JsCompiler.Compile(jsVm, program);
         jsFunction = new(jsVm, okojoScript);
     }
 

@@ -10,8 +10,7 @@ public class AsyncFunctionExpressionTests
     public void AsyncFunctionExpression_Call_ReturnsPromiseInstance()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var p = async function() { }();
                                                                    p instanceof Promise;
                                                                    """));
@@ -25,8 +24,7 @@ public class AsyncFunctionExpressionTests
     public void AsyncFunctionExpression_WithStaCompatAssert_Passes()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function Test262Error(message) { this.message = message || ""; }
                                                                    function assert(mustBeTrue, message) {
                                                                        if (!mustBeTrue) throw new Test262Error(message || "Expected true");
@@ -45,8 +43,7 @@ public class AsyncFunctionExpressionTests
     public void AsyncArrowExpression_ChainedAwaitExpressionBody_Resolves_Final_Value()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.out = 0;
                                                                    globalThis.done = false;
                                                                    var p = (async () => await 1 + await 2)();

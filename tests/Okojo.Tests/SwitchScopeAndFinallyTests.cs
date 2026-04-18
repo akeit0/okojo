@@ -10,8 +10,7 @@ public class SwitchScopeAndFinallyTests
     public void Switch_LetBinding_DoesNotLeakOutsideSwitch()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    switch (0) {
                                                                      case 0:
                                                                        let x = 1;
@@ -28,8 +27,7 @@ public class SwitchScopeAndFinallyTests
     public void Switch_CaseLexical_TdzAcrossCases()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function f(v) {
                                                                      switch (v) {
                                                                        case 0:
@@ -53,9 +51,8 @@ public class SwitchScopeAndFinallyTests
     public void Switch_DuplicateLetAcrossCases_IsEarlySyntaxError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
         var ex = Assert.Throws<JsParseException>(() =>
-            compiler.Compile(JavaScriptParser.ParseScript("""
+            JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                           switch (0) {
                                                             case 0: let x = 1; break;
                                                             case 1: let x = 2; break;
@@ -69,8 +66,7 @@ public class SwitchScopeAndFinallyTests
     public void Switch_Discriminant_IsEvaluated_Outside_SwitchLexicalEnvironment()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let x = 'outside';
                                                                    let probeExpr;
                                                                    switch (probeExpr = function() { return x; }, null) {
@@ -88,8 +84,7 @@ public class SwitchScopeAndFinallyTests
     public void Switch_CaseTest_Uses_SwitchLexicalEnvironment()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let x = 'outside';
                                                                    let probeSelector;
                                                                    switch (null) {
@@ -107,8 +102,7 @@ public class SwitchScopeAndFinallyTests
     public void Switch_BreakInsideTryFinally_RunsFinally()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let log = 0;
                                                                    switch (1) {
                                                                      case 1:
@@ -131,8 +125,7 @@ public class SwitchScopeAndFinallyTests
     public void Switch_ReturnInsideTryFinally_RunsFinallyThenReturns()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let g = 0;
                                                                    function f() {
                                                                      switch (1) {
@@ -156,8 +149,7 @@ public class SwitchScopeAndFinallyTests
     public void Switch_ThrowInsideTryFinally_RunsFinallyThenThrows()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let g = 0;
                                                                    let caught = 0;
                                                                    function f() {
@@ -186,8 +178,7 @@ public class SwitchScopeAndFinallyTests
     public void ForOf_HeadLexical_TdzCoversRightHandExpression()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let x = 'outside';
                                                                    let probeExpr;
                                                                    for (let x of (probeExpr = function() { return typeof x; }, ['inside'])) {
@@ -205,8 +196,7 @@ public class SwitchScopeAndFinallyTests
     public void ForIn_HeadLexical_TdzCoversRightHandExpression()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let x = 'outside';
                                                                    let probeExpr;
                                                                    for (let x in { key: probeExpr = function() { return typeof x; } }) {
@@ -224,8 +214,7 @@ public class SwitchScopeAndFinallyTests
     public void ForOf_BodyUsesLoopHeadLexicalBinding()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let x = 'outside';
                                                                    let probeDecl, probeBody;
                                                                    for (let [x, _ = probeDecl = function() { return x; }] of [['inside']]) {
@@ -242,8 +231,7 @@ public class SwitchScopeAndFinallyTests
     public void ForIn_BodyUsesLoopHeadLexicalBinding()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let x = 'outside';
                                                                    let probeDecl, probeBody;
                                                                    for (let [x, _ = probeDecl = function() { return x; }] in { i: 1 }) {
@@ -260,8 +248,7 @@ public class SwitchScopeAndFinallyTests
     public void ForOf_RhsClosure_UsesTdzHeadEnvironment_EvenWithDestructuringBodyBindings()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var probeBefore = function() { return x; };
                                                                    let x = 'outside';
                                                                    var probeExpr, probeDecl, probeBody;
@@ -286,8 +273,7 @@ public class SwitchScopeAndFinallyTests
     public void ForIn_RhsClosure_UsesTdzHeadEnvironment_EvenWithDestructuringBodyBindings()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let x = 'outside';
                                                                    var probeDecl, probeExpr, probeBody;
 

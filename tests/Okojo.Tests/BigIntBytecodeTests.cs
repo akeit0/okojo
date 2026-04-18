@@ -14,8 +14,7 @@ public class BigIntBytecodeTests
     public void Compiler_Emits_LdaTypedConst_For_BigInt_Literal()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("1n;"));
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("1n;"));
 
         Assert.That(script.Bytecode.Contains((byte)JsOpCode.LdaTypedConst), Is.True);
         Assert.That(script.ObjectConstants.OfType<JsBigInt>().Any(b => b.Value == 1), Is.True);

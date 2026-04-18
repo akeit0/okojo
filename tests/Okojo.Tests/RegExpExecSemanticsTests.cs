@@ -10,8 +10,7 @@ public class RegExpExecSemanticsTests
     public void RegExpExec_Global_AdvancesAndResetsLastIndex()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var re = /a/g;
                                                                    var a = re.exec("baaa");
                                                                    var li1 = re.lastIndex;
@@ -32,8 +31,7 @@ public class RegExpExecSemanticsTests
     public void RegExpExec_Sticky_RequiresMatchAtLastIndex()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var re = /a/y;
                                                                    re.lastIndex = 1;
                                                                    var ok = re.exec("baaa");
@@ -53,8 +51,7 @@ public class RegExpExecSemanticsTests
     public void RegExpTest_Global_UsesRegExpExecLastIndexSemantics()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var re = /a/g;
                                                                    var t1 = re.test("ba");
                                                                    var li1 = re.lastIndex;
@@ -72,8 +69,7 @@ public class RegExpExecSemanticsTests
     public void RegExpExec_UnicodeSticky_RespectsLastIndexBoundary()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var re = /\u{61}/uy;
                                                                    re.lastIndex = 1;
                                                                    var m1 = re.exec("ba");

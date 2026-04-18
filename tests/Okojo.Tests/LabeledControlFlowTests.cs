@@ -10,8 +10,7 @@ public class LabeledControlFlowTests
     public void LabeledBreak_OnBlock_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let x = 0;
                                                                    done: {
                                                                      x = 1;
@@ -29,8 +28,7 @@ public class LabeledControlFlowTests
     public void LabeledContinue_ToOuterLoop_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let c = 0;
                                                                    outer: for (let i = 0; i < 3; i++) {
                                                                      for (let j = 0; j < 3; j++) {
@@ -49,8 +47,7 @@ public class LabeledControlFlowTests
     public void LabeledBreak_ThroughFinally_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let log = 0;
                                                                    outer: while (true) {
                                                                      try {
@@ -70,8 +67,7 @@ public class LabeledControlFlowTests
     public void LabeledContinue_ThroughFinally_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let c = 0;
                                                                    outer: for (let i = 0; i < 2; i++) {
                                                                      for (let j = 0; j < 2; j++) {
@@ -94,9 +90,8 @@ public class LabeledControlFlowTests
     public void LabeledBreak_UndefinedLabel_ThrowsSyntaxError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
         var ex = Assert.Throws<JsParseException>(() =>
-            compiler.Compile(JavaScriptParser.ParseScript("""
+            JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                           while (true) { break missing; }
                                                           """)));
 
@@ -108,9 +103,8 @@ public class LabeledControlFlowTests
     public void LabeledContinue_NonIterationLabel_ThrowsSyntaxError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
         var ex = Assert.Throws<JsParseException>(() =>
-            compiler.Compile(JavaScriptParser.ParseScript("""
+            JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                           L: { continue L; }
                                                           """)));
 

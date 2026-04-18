@@ -18,8 +18,7 @@ public class DeleteTests
     public void Delete_ArrayIndex_CreatesHole_AndReturnsTrue()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let a = [1, 2, 3];
                                                                    let r = delete a[1];
                                                                    if (!r) 0;
@@ -50,8 +49,7 @@ public class DeleteTests
     public void Delete_Computed_Member_On_Undefined_Throws_TypeError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var baseValue = undefined;
                                                                    delete baseValue[0];
                                                                    """));
@@ -64,8 +62,7 @@ public class DeleteTests
     public void Delete_Nested_Member_Reference_With_Undefined_Base_Throws_TypeError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    delete Object[0][0];
                                                                    """));
 
@@ -77,8 +74,7 @@ public class DeleteTests
     public void Delete_Compiler_Emits_DeleteKeyedProperty_RuntimeCall()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function t(a, i) {
                                                                        return delete a[i];
                                                                    }
@@ -106,8 +102,7 @@ public class DeleteTests
     public void Delete_StrictMemberDelete_Compiler_Emits_Strict_RuntimeCall()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function t(a, i) {
                                                                        "use strict";
                                                                        return delete a[i];
@@ -136,8 +131,7 @@ public class DeleteTests
     public void Delete_StrictMemberDelete_Throws_When_RuntimeDeleteReturnsFalse()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function t() {
                                                                      "use strict";
                                                                      const target = new Proxy({}, {
@@ -162,8 +156,7 @@ public class DeleteTests
     public void Delete_CatchBinding_ReturnsFalse_And_Binding_DoesNotEscapeCatch()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let deleteResult = true;
                                                                    let sawValue = false;
                                                                    let escaped = true;
@@ -190,8 +183,7 @@ public class DeleteTests
     public void Delete_StrictScript_NestedFunctionDeleteTypedArrayIndex_ThrowsTypeError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    "use strict";
                                                                    function run() {
                                                                      return (function () {
@@ -216,8 +208,7 @@ public class DeleteTests
     public void Delete_StrictScript_ArrowDeleteTypedArrayIndex_ThrowsTypeError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    "use strict";
                                                                    const sample = new Uint8Array(1);
                                                                    try {
@@ -237,8 +228,7 @@ public class DeleteTests
     public void Delete_StrictTypedArrayExactStyle_ThrowsForInBoundsAndReturnsTrueForOutOfBounds()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    "use strict";
                                                                    const TypedArray = Object.getPrototypeOf(Int8Array);
                                                                    let proto = TypedArray.prototype;
@@ -274,8 +264,7 @@ public class DeleteTests
     public void Delete_StrictScript_FunctionExpressionCallbackDeleteTypedArrayIndex_ThrowsTypeError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    "use strict";
                                                                    function invoke(f) { return f(); }
                                                                    const sample = new Float64Array(1);
@@ -296,8 +285,7 @@ public class DeleteTests
     public void Delete_StrictScript_HigherOrderTypedArrayCallbackDelete_ThrowsTypeError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    "use strict";
                                                                    function testWithTypedArrayConstructors(f) {
                                                                      function makePassthrough(TA, primitiveOrIterable) { return primitiveOrIterable; }
@@ -323,8 +311,7 @@ public class DeleteTests
     public void Delete_StrictScript_AssertThrowsCallbackDeleteTypedArrayIndex_ThrowsTypeError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    "use strict";
                                                                    var assert = {
                                                                      throws(expectedErrorConstructor, func) {
@@ -363,8 +350,7 @@ public class DeleteTests
         fullSource.Append(testSource);
 
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript(fullSource.ToString()));
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript(fullSource.ToString()));
 
         Assert.DoesNotThrow(() => realm.Execute(script));
     }
@@ -402,8 +388,7 @@ public class DeleteTests
         test262Error.SetProperty("prototype", JsValue.FromObject(test262Proto));
         realm.Global["Test262Error"] = JsValue.FromObject(test262Error);
 
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript(fullSource.ToString()));
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript(fullSource.ToString()));
 
         Assert.DoesNotThrow(() => realm.Execute(script));
     }
@@ -412,9 +397,8 @@ public class DeleteTests
     public void Delete_PrivateIn_ThrowsSyntaxError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
         var ex = Assert.Throws<JsParseException>(() =>
-            compiler.Compile(JavaScriptParser.ParseScript("""
+            JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                           class C {
                                                             m() { delete #x in this; }
                                                           }
@@ -428,8 +412,7 @@ public class DeleteTests
     public void Delete_SuperComputed_UninitializedThis_ThrowsBeforeKeyEvaluation()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    class Base {
                                                                      constructor() { throw new Error("base ctor should not run"); }
                                                                    }
@@ -454,8 +437,7 @@ public class DeleteTests
     public void Delete_SuperComputed_DoesNotToPropertyKey()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var obj = {
                                                                      m() {
                                                                        var key = { toString() { throw new Error("ToPropertyKey performed"); } };

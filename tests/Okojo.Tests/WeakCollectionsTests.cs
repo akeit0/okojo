@@ -11,8 +11,7 @@ public class WeakCollectionsTests
     public void WeakCollection_Global_Surface_Exists()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    [
                                                                      typeof WeakMap,
                                                                      typeof WeakSet,
@@ -32,8 +31,7 @@ public class WeakCollectionsTests
     public void WeakMap_Basic_Object_Key_Methods_Work()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const key = {};
                                                                    const wm = new WeakMap();
                                                                    wm.set(key, 42);
@@ -49,8 +47,7 @@ public class WeakCollectionsTests
     public void WeakSet_Basic_Object_Value_Methods_Work()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const key = {};
                                                                    const ws = new WeakSet();
                                                                    ws.add(key);
@@ -66,8 +63,7 @@ public class WeakCollectionsTests
     public void WeakRef_Deref_Returns_Target()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const target = {};
                                                                    const ref = new WeakRef(target);
                                                                    ref.deref() === target;
@@ -82,8 +78,7 @@ public class WeakCollectionsTests
     public void WeakRef_Uses_NewTarget_Prototype_And_Rejects_Registered_Symbols()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let result = [];
                                                                    const wr = Reflect.construct(WeakRef, [{}], Object);
                                                                    result.push(Object.getPrototypeOf(wr) === Object.prototype);
@@ -101,8 +96,7 @@ public class WeakCollectionsTests
     public void FinalizationRegistry_Global_Minimal_Surface_Exists()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const registry = new FinalizationRegistry(function() {});
                                                                    [
                                                                      typeof FinalizationRegistry,
@@ -120,8 +114,7 @@ public class WeakCollectionsTests
     public void FinalizationRegistry_Register_And_Unregister_Validate_WeaklyHeld_Inputs()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const registry = new FinalizationRegistry(function() {});
                                                                    const target = {};
                                                                    let out = [];
@@ -140,8 +133,7 @@ public class WeakCollectionsTests
     public void FinalizationRegistry_Register_Rejects_Same_Target_And_HeldValue()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const registry = new FinalizationRegistry(function() {});
                                                                    const target = {};
                                                                    let out = [];
@@ -160,8 +152,7 @@ public class WeakCollectionsTests
     public void FinalizationRegistry_Unregister_Removes_Object_And_Symbol_Tokens()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const registry = new FinalizationRegistry(function() {});
                                                                    const t1 = {};
                                                                    const t2 = {};
@@ -188,7 +179,6 @@ public class WeakCollectionsTests
     {
         var engine = JsRuntime.Create();
         var realm = engine.DefaultRealm;
-        var compiler = new JsCompiler(realm);
         var external = new JsPlainObject(realm);
         realm.Global["external"] = JsValue.FromObject(external);
         realm.Global["__isKeptAlive__"] = JsValue.FromObject(new JsHostFunction(realm, static (in info) =>
@@ -200,7 +190,7 @@ public class WeakCollectionsTests
             return innerRealm.Agent.IsKeptAlive(obj) ? JsValue.True : JsValue.False;
         }, "__isKeptAlive__", 1));
 
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const refObj = new WeakRef(external);
                                                                    [
                                                                      __isKeptAlive__(external),
@@ -220,7 +210,6 @@ public class WeakCollectionsTests
     {
         var engine = JsRuntime.Create();
         var realm = engine.DefaultRealm;
-        var compiler = new JsCompiler(realm);
         var external = new JsPlainObject(realm);
         realm.Global["external"] = JsValue.FromObject(external);
         realm.Global["__isKeptAlive__"] = JsValue.FromObject(new JsHostFunction(realm, static (in info) =>
@@ -232,7 +221,7 @@ public class WeakCollectionsTests
             return innerRealm.Agent.IsKeptAlive(obj) ? JsValue.True : JsValue.False;
         }, "__isKeptAlive__", 1));
 
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.__out = [];
                                                                    const refObj = new WeakRef(external);
                                                                    Promise.resolve().then(() => {
@@ -259,8 +248,7 @@ public class WeakCollectionsTests
     public void Symbol_SameValue_Distinguishes_Different_Symbol_Instances()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const a = Symbol("x");
                                                                    const b = Symbol("x");
                                                                    [
@@ -280,8 +268,7 @@ public class WeakCollectionsTests
     {
         var engine = JsRuntime.Create();
         var realm = engine.DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.target = {};
                                                                    globalThis.out = [];
                                                                    globalThis.refObj = new WeakRef(target);
@@ -332,8 +319,7 @@ public class WeakCollectionsTests
         var observed = JsValue.Undefined;
         realm.FinalizationRegistryCleanupError += value => observed = value;
 
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.target = {};
                                                                    globalThis.registry = new FinalizationRegistry(function() {
                                                                      throw new Error("cleanup boom");
@@ -358,8 +344,7 @@ public class WeakCollectionsTests
     {
         var engine = JsRuntime.Create();
         var realm = engine.DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.target = {};
                                                                    globalThis.wm = new WeakMap();
                                                                    globalThis.ws = new WeakSet();
@@ -386,8 +371,7 @@ public class WeakCollectionsTests
     {
         var engine = JsRuntime.Create();
         var realm = engine.DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    globalThis.target = Symbol("wk");
                                                                    globalThis.wm = new WeakMap();
                                                                    globalThis.ws = new WeakSet();
@@ -414,8 +398,7 @@ public class WeakCollectionsTests
     {
         var engine = JsRuntime.Create();
         var realm = engine.DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const other = globalThis.__createRealmForTest__();
                                                                    const MapTarget = new other.Function();
                                                                    MapTarget.prototype = null;
@@ -445,8 +428,7 @@ public class WeakCollectionsTests
     public void WeakCollections_Support_Symbol_Keys_And_Targets()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const sym = Symbol("x");
                                                                    const wm = new WeakMap();
                                                                    wm.set(sym, 7);
@@ -470,8 +452,7 @@ public class WeakCollectionsTests
     public void WeakMap_And_WeakSet_Reject_NonObject_Keys()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let out = "";
                                                                    try { new WeakMap().set(1, 2); } catch (e) { out += e.name; }
                                                                    try { new WeakSet().add(1); } catch (e) { out += "|" + e.name; }

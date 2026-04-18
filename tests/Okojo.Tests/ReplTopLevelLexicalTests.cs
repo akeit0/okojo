@@ -104,7 +104,6 @@ public class ReplTopLevelLexicalTests
 
     private static JsScript Compile(JsRealm realm, JsCompilerContext context, string source)
     {
-        var compiler = new JsCompiler(realm, context);
-        return compiler.Compile(JavaScriptParser.ParseScript(source));
+        return JsCompiler.Compile(realm, JavaScriptParser.ParseScript(source), context);
     }
 }

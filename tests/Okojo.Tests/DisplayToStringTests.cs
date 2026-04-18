@@ -12,8 +12,7 @@ public class DisplayToStringTests
     public void PlainObject_ToString_ShowsEnumerableProperties()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let o = { x: 3 };
                                                                    o;
                                                                    """));
@@ -27,8 +26,7 @@ public class DisplayToStringTests
     public void Function_ToString_ShowsAnonymousFunctionDisplay()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    (() => {});
                                                                    """));
 
@@ -41,8 +39,7 @@ public class DisplayToStringTests
     public void PlainObject_ToString_QuotesNonIdentifierKeys()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    ({ "round#2": 12.34, "1": "one", normal_key: true });
                                                                    """));
 
@@ -55,8 +52,7 @@ public class DisplayToStringTests
     public void PlainObject_ToString_ShowsAccessorKinds()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    ({
                                                                        get x() { return 1; },
                                                                        set y(v) { }
@@ -72,8 +68,7 @@ public class DisplayToStringTests
     public void PlainObject_ToDisplayString_WithIndent_PrintsMultiline()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    ({ a: 1, b: { c: 2 } });
                                                                    """));
 

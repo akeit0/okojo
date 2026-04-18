@@ -26,8 +26,7 @@ public class OkojoPromiseBenchmarks
 
         var program = JavaScriptParser.ParseScript(source);
         jsVm = JsRuntime.CreateBuilder().Build().DefaultRealm;
-        var compiler = new JsCompiler(jsVm);
-        var okojoScript = compiler.Compile(program);
+        var okojoScript = JsCompiler.Compile(jsVm, program);
         jsVm.Execute(okojoScript);
         jsFunction = (JsBytecodeFunction)jsVm.Accumulator.AsObject();
     }

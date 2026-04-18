@@ -10,8 +10,7 @@ public class BinaryOperatorTests
     public void Subtraction_Applies_ToNumeric_Left_Before_Right()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var trace = "";
                                                                    var ok = false;
                                                                    try {
@@ -40,8 +39,7 @@ public class BinaryOperatorTests
     public void RightShift_Applies_ToNumeric_Left_Before_Right()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var trace = "";
                                                                    var ok = false;
                                                                    try {
@@ -70,8 +68,7 @@ public class BinaryOperatorTests
     public void UnsignedRightShift_Returns_UInt32_Result_For_Negative_Int32()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    (-2147483647 >>> 0) === 2147483649;
                                                                    """));
 
@@ -83,8 +80,7 @@ public class BinaryOperatorTests
     public void Arithmetic_Smi_FastPaths_Reject_BigInt_Number_Mixing()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var ok = true;
                                                                    try { 1n - 1; ok = false; } catch (e) { ok = ok && e.constructor === TypeError; }
                                                                    try { 1n * 1; ok = false; } catch (e) { ok = ok && e.constructor === TypeError; }
@@ -101,8 +97,7 @@ public class BinaryOperatorTests
     public void ModSmi_Preserves_NegativeZero()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    Object.is(-1 % 1, -0);
                                                                    """));
 

@@ -34,8 +34,7 @@ public class GlobalFunctionDeclarationTests
     public void GlobalFunctionDeclaration_CreatesOwnProperty_WithNonConfigurableDescriptor()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    Object.prototype.hasOwnProperty.call(this, "brandNew") === true &&
                                                                    Object.getOwnPropertyDescriptor(this, "brandNew").writable === true &&
                                                                    Object.getOwnPropertyDescriptor(this, "brandNew").enumerable === true &&
@@ -51,8 +50,7 @@ public class GlobalFunctionDeclarationTests
     public void GlobalFunctionDeclaration_Strict_CreatesOwnProperty_WithNonConfigurableDescriptor()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    'use strict';
                                                                    Object.prototype.hasOwnProperty.call(this, "brandNew") === true &&
                                                                    Object.getOwnPropertyDescriptor(this, "brandNew").writable === true &&
@@ -69,8 +67,7 @@ public class GlobalFunctionDeclarationTests
     public void GlobalLexicalDeclaration_ShadowsConfigurableGlobalWithoutChangingDescriptor()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let Array;
                                                                    var descriptor = Object.getOwnPropertyDescriptor(this, "Array");
                                                                    descriptor.configurable === true &&
@@ -86,8 +83,7 @@ public class GlobalFunctionDeclarationTests
     public void GlobalVarDeclaration_CreatesOwnProperty_BeforeStatementExecution()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var before = Object.getOwnPropertyDescriptor(this, "x");
                                                                    var x;
                                                                    before.value === undefined &&
@@ -104,8 +100,7 @@ public class GlobalFunctionDeclarationTests
     public void GlobalFunctionDeclaration_DuplicateInEval_LastDeclarationWins()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    eval("function f(){return 1;}function f(){return 2;}function f(){return 3;}");
                                                                    f() === 3;
                                                                    """));

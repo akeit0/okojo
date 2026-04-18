@@ -85,8 +85,7 @@ public class JsObjectTests
     {
         var program = JavaScriptParser.ParseScript("function t(){ return {}; } t();");
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(program);
+        var script = JsCompiler.Compile(realm, program);
 
         realm.Execute(script);
 
@@ -99,8 +98,7 @@ public class JsObjectTests
     {
         var program = JavaScriptParser.ParseScript("function t(){ let o={x:1}; return o.x; } t();");
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(program);
+        var script = JsCompiler.Compile(realm, program);
         var func = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(static f => f.Name == "t");
         var funcScript = func.Script;
 

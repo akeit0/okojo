@@ -10,8 +10,7 @@ public class InOperatorTests
     public void InOperator_NamedOwnProperty_IsTrue()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    "x" in { x: 1 };
                                                                    """));
 
@@ -24,8 +23,7 @@ public class InOperatorTests
     public void InOperator_PrototypeProperty_IsTrue()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    "toString" in {};
                                                                    """));
 
@@ -38,8 +36,7 @@ public class InOperatorTests
     public void InOperator_ArrayIndex_UsesElementSemantics()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    (0 in [1]) ? (1 in [1]) : true;
                                                                    """));
 
@@ -52,8 +49,7 @@ public class InOperatorTests
     public void InOperator_SymbolKey_IsTrueWhenPresent()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const s = Symbol();
                                                                    const o = {};
                                                                    o[s] = 1;
@@ -88,8 +84,7 @@ public class InOperatorTests
     public void InOperator_NonObjectRhs_ThrowsTypeError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    "x" in 1;
                                                                    """));
 

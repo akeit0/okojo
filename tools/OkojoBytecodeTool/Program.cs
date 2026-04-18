@@ -853,8 +853,7 @@ internal static class Program
             var casePath = caseFiles[i];
             var source = File.ReadAllText(casePath, Encoding.UTF8);
             var program = JavaScriptParser.ParseScript(source);
-            var compiler = new JsCompiler(realm);
-            var script = compiler.Compile(program);
+            var script = JsCompiler.Compile(realm, program);
             var functions = CollectOkojoFunctions(script);
             var output = RenderDisassembly(functions, null);
             var outFile = Path.Combine(currentSnapshotDir, Path.GetFileNameWithoutExtension(casePath) + ".disasm.txt");

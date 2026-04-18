@@ -12,8 +12,7 @@ public class GeneratorCompilerTests
     public void Generator_Call_DoesNotExecuteBody_UntilNext()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let ran = 0;
                                                                    function* g() {
                                                                        ran = 1;
@@ -32,8 +31,7 @@ public class GeneratorCompilerTests
     public void Generator_Yield_Resumes_With_Next_Input()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function* g() {
                                                                        const x = yield 1;
                                                                        return x;
@@ -53,8 +51,7 @@ public class GeneratorCompilerTests
     public void Generator_Return_BeforeFirstNext_CompletesImmediately()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function* g() {
                                                                        yield 1;
                                                                        return 2;
@@ -73,8 +70,7 @@ public class GeneratorCompilerTests
     public void Generator_IsNotConstructible()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function* g() {}
                                                                    new g();
                                                                    """));
@@ -87,8 +83,7 @@ public class GeneratorCompilerTests
     public void Generator_Return_OnSuspendedYield_DoesNotRunTrailingCode()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let side = 0;
                                                                    function* g() {
                                                                        yield 1;
@@ -110,8 +105,7 @@ public class GeneratorCompilerTests
     public void Generator_Throw_OnSuspendedYield_ThrowsPassedValue()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function* g() {
                                                                        yield 1;
                                                                        return 2;
@@ -132,8 +126,7 @@ public class GeneratorCompilerTests
     public void Generator_Throw_AfterCompletion_ThrowsPassedValue()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function* g() {
                                                                        return 1;
                                                                    }
@@ -153,8 +146,7 @@ public class GeneratorCompilerTests
     public void YieldDelegate_DelegatesYieldedValues_AndFinalValue()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function* inner() {
                                                                        yield 1;
                                                                        yield 2;
@@ -180,8 +172,7 @@ public class GeneratorCompilerTests
     public void YieldDelegate_PassesNextValueToInnerGenerator()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function* inner() {
                                                                        const x = yield 1;
                                                                        return x;
@@ -204,8 +195,7 @@ public class GeneratorCompilerTests
     public void YieldDelegate_UsesSymbolIteratorProtocol_NotDirectNextOnOperand()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const iterable = {};
                                                                    iterable.next = function () {
                                                                        return { value: 999, done: true };
@@ -233,8 +223,7 @@ public class GeneratorCompilerTests
     public void YieldDelegate_Return_ForwardsToDelegateReturn()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const inner = {
                                                                        next: function () { return { value: 1, done: false }; },
                                                                        return: function (v) { return { value: 42, done: true }; }
@@ -257,8 +246,7 @@ public class GeneratorCompilerTests
     public void YieldDelegate_Throw_ForwardsToDelegateThrow()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    const inner = {
                                                                        next: function () { return { value: 1, done: false }; },
                                                                        throw: function (e) { return { value: e + 1, done: true }; }
@@ -281,8 +269,7 @@ public class GeneratorCompilerTests
     public void GeneratorSuspend_Uses_CurrentLiveRegisterCount_NotFinalScriptCount()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function* g(a) {
                                                                        yield a;
                                                                        let x = (a + 1) + ((a + 2) + (a + 3));
@@ -307,8 +294,7 @@ public class GeneratorCompilerTests
     public void Generator_Emits_SwitchOnGeneratorState_Table_ForSuspendTargets()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function* g() {
                                                                        yield 1;
                                                                        yield 2;
@@ -344,8 +330,7 @@ public class GeneratorCompilerTests
     public void Generator_Return_OnSuspendedYield_RunsFinally_AndKeepsReturnValue()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let side = 0;
                                                                    function* g() {
                                                                        try {
@@ -369,8 +354,7 @@ public class GeneratorCompilerTests
     public void Generator_Throw_OnSuspendedYield_RunsFinally_BeforePropagating()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let side = 0;
                                                                    function* g() {
                                                                        try {
@@ -397,8 +381,7 @@ public class GeneratorCompilerTests
     public void Generator_FinallyReturn_OverridesAbruptReturnAndThrow()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function* g() {
                                                                        try {
                                                                            yield 1;
@@ -424,8 +407,7 @@ public class GeneratorCompilerTests
     public void GeneratorFunctionPrototype_Exposes_GeneratorPrototype_Via_Prototype_Property()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function* g() {}
                                                                    var proto = Object.getPrototypeOf(g);
                                                                    var desc = Object.getOwnPropertyDescriptor(proto, "prototype");
@@ -447,8 +429,7 @@ public class GeneratorCompilerTests
     public void GeneratorFunction_Instance_Prototype_Has_No_Own_Properties()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function* g() {}
                                                                    var ownProperties = Object.getOwnPropertyNames(g.prototype);
                                                                    ownProperties.length;
@@ -464,8 +445,7 @@ public class GeneratorCompilerTests
     public void Subclassed_GeneratorFunction_Instance_Prototype_Is_Plain_Object_Without_Constructor()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var GeneratorFunction = Object.getPrototypeOf(function* () {}).constructor;
                                                                    class GFn extends GeneratorFunction {}
                                                                    var gfn = new GFn(";");
@@ -488,8 +468,7 @@ public class GeneratorCompilerTests
     public void Generator_Throw_Inside_Nested_Try_Catch_Yields_Caught_Value_Before_Finally()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function* g() {
                                                                        try {
                                                                            yield 1;
@@ -525,8 +504,7 @@ public class GeneratorCompilerTests
     public void Generator_Return_Inside_Nested_Try_Catch_Runs_Finally_Without_Corrupting_Handler_State()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function* g() {
                                                                        try {
                                                                            yield 1;
@@ -560,8 +538,7 @@ public class GeneratorCompilerTests
     public void YieldDelegate_Preserves_Inner_IteratorResult_Object_On_Incomplete_Steps()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var results = [{ value: 1 }, { value: 8 }, { value: 34, done: true }];
                                                                    var idx = 0;
                                                                    var iterator = {};
@@ -590,8 +567,7 @@ public class GeneratorCompilerTests
     public void YieldDelegate_Return_Completion_Flows_Through_Finally()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    var iterable = {
                                                                        [Symbol.iterator]: function() {
                                                                            return {
@@ -624,8 +600,7 @@ public class GeneratorCompilerTests
     public void Generator_Yield_Conditional_Consequent_Can_Omit_Rhs()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function* g() {
                                                                        return (yield) ? yield : yield;
                                                                    }
@@ -645,8 +620,7 @@ public class GeneratorCompilerTests
     public void Generator_Yield_Inside_Template_Expression_Uses_Generator_Context()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    let str = '';
                                                                    function* g() {
                                                                        str = `1${ yield }3${ 4 }5`;
@@ -666,8 +640,7 @@ public class GeneratorCompilerTests
     public void Generator_Arguments_Object_Preserves_Extra_Actual_Arguments()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(realm);
-        var script = compiler.Compile(JavaScriptParser.ParseScript("""
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                                    function* g() {
                                                                        yield arguments[0];
                                                                        yield arguments[1];
