@@ -11,7 +11,7 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         var provider = context.SyntaxProvider.ForAttributeWithMetadataName(
-            "Okojo.Annotations.GenerateJsObjectAttribute",
+            AttributeMetadataNames.GenerateJsObjectAttribute,
             static (node, _) => node is ClassDeclarationSyntax,
             static (ctx, _) => (INamedTypeSymbol)ctx.TargetSymbol);
 

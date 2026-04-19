@@ -10,7 +10,7 @@ public sealed class GenerateJsGlobalsGenerator : IIncrementalGenerator
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         var provider = context.SyntaxProvider.ForAttributeWithMetadataName(
-            GlobalGenerationNames.GenerateJsGlobalsAttribute,
+            AttributeMetadataNames.GenerateJsGlobalsAttribute,
             static (node, _) => node is ClassDeclarationSyntax,
             static (ctx, _) => GlobalExportCollector.Collect((INamedTypeSymbol)ctx.TargetSymbol));
 

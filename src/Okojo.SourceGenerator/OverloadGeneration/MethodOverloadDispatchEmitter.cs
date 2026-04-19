@@ -18,6 +18,13 @@ internal static class MethodOverloadDispatchEmitter
         Func<TParameter, bool> hasDefaultValue,
         Func<int, string> getOverloadMethodName)
     {
+        if (overloadSet.Overloads.Count == 1)
+        {
+            EmitSingleOverloadDispatcher(sb, dispatcherMethodName, mismatchMessage, overloadSet.Overloads[0],
+                isStaticDispatcher, getOverloadMethodName);
+            return;
+        }
+
         sb.Append("    private ")
             .Append(isStaticDispatcher ? "static " : string.Empty)
             .Append("global::Okojo.JsValue ")
@@ -46,9 +53,9 @@ internal static class MethodOverloadDispatchEmitter
             EmitBucketCandidateChecks(
                 sb,
                 bucket.Candidates,
-                overloadSet.Overloads,
                 "                ",
-                false);
+                false,
+                getOverloadMethodName);
             sb.AppendLine("                break;");
             sb.AppendLine("            }");
         }
@@ -65,9 +72,9 @@ internal static class MethodOverloadDispatchEmitter
             EmitBucketCandidateChecks(
                 sb,
                 overloadSet.OpenEndedCandidates,
-                overloadSet.Overloads,
                 "                ",
-                true);
+                true,
+                getOverloadMethodName);
         }
 
         sb.AppendLine("                break;");
@@ -91,6 +98,67 @@ internal static class MethodOverloadDispatchEmitter
         sb.AppendLine("    }");
     }
 
+    private static void EmitSingleOverloadDispatcher<TMethod, TParameter>(
+        StringBuilder sb,
+        string dispatcherMethodName,
+        string mismatchMessage,
+        AnalyzedOverload<TMethod, TParameter> overload,
+        bool isStaticDispatcher,
+        Func<int, string> getOverloadMethodName)
+    {
+        sb.Append("    private ")
+            .Append(isStaticDispatcher ? "static " : string.Empty)
+            .Append("global::Okojo.JsValue ")
+            .Append(dispatcherMethodName)
+            .AppendLine("(scoped in global::Okojo.Runtime.CallInfo info)");
+        sb.AppendLine("    {");
+
+        if (overload.ParameterSpecs.Count == 0 && !overload.HasOpenEndedCount)
+        {
+            sb.AppendLine("        if (info.ArgumentCount != 0)");
+            sb.Append("            throw new global::Okojo.Runtime.JsRuntimeException(global::Okojo.Runtime.JsErrorKind.TypeError, \"")
+                .Append(EscapeString(mismatchMessage))
+                .AppendLine("\");");
+            sb.Append("        return ").Append(getOverloadMethodName(overload.Index)).AppendLine("(info);");
+            sb.AppendLine("    }");
+            return;
+        }
+
+        sb.AppendLine("        int __jsArgCount = info.ArgumentCount;");
+        sb.AppendLine("        scoped global::System.ReadOnlySpan<global::Okojo.JsValue> __jsArgs = info.Arguments;");
+        if (overload.HasOpenEndedCount)
+        {
+            sb.Append("        if (__jsArgCount < ")
+                .Append(overload.RequiredCount.ToString(CultureInfo.InvariantCulture))
+                .AppendLine(")");
+            sb.Append("            throw new global::Okojo.Runtime.JsRuntimeException(global::Okojo.Runtime.JsErrorKind.TypeError, \"")
+                .Append(EscapeString(mismatchMessage))
+                .AppendLine("\");");
+        }
+        else
+        {
+            sb.Append("        if (__jsArgCount < ")
+                .Append(overload.RequiredCount.ToString(CultureInfo.InvariantCulture))
+                .Append(" || __jsArgCount > ")
+                .Append(overload.MaxCount.ToString(CultureInfo.InvariantCulture))
+                .AppendLine(")");
+            sb.Append("            throw new global::Okojo.Runtime.JsRuntimeException(global::Okojo.Runtime.JsErrorKind.TypeError, \"")
+                .Append(EscapeString(mismatchMessage))
+                .AppendLine("\");");
+        }
+
+        EmitHoistedArgs(sb, overload.FixedCount, "        ");
+        sb.AppendLine("        int __jsScore = 0;");
+        sb.AppendLine("        bool __jsMatched = true;");
+        EmitOverloadMatcherBody(sb, overload, "        ", true);
+        sb.AppendLine("        if (__jsMatched)");
+        sb.Append("            return ").Append(getOverloadMethodName(overload.Index)).AppendLine("(info);");
+        sb.Append("        throw new global::Okojo.Runtime.JsRuntimeException(global::Okojo.Runtime.JsErrorKind.TypeError, \"")
+            .Append(EscapeString(mismatchMessage))
+            .AppendLine("\");");
+        sb.AppendLine("    }");
+    }
+
     private static void EmitHoistedArgs(StringBuilder sb, int count, string indent)
     {
         for (var i = 0; i < count; i++)
@@ -108,10 +176,16 @@ internal static class MethodOverloadDispatchEmitter
     private static void EmitBucketCandidateChecks<TMethod, TParameter>(
         StringBuilder sb,
         IReadOnlyList<AnalyzedOverload<TMethod, TParameter>> candidates,
-        IReadOnlyList<AnalyzedOverload<TMethod, TParameter>> allOverloads,
         string indent,
-        bool useCountCondition)
+        bool useCountCondition,
+        Func<int, string> getOverloadMethodName)
     {
+        if (candidates.Count == 1)
+        {
+            EmitSingleCandidateCheck(sb, candidates[0], indent, useCountCondition, getOverloadMethodName);
+            return;
+        }
+
         for (var i = 0; i < candidates.Count; i++)
         {
             var overload = candidates[i];
@@ -128,23 +202,46 @@ internal static class MethodOverloadDispatchEmitter
             sb.Append(indent).AppendLine("    int __jsScore = 0;");
             sb.Append(indent).AppendLine("    bool __jsMatched = true;");
             EmitOverloadMatcherBody(sb, overload, indent + "    ", !useCountCondition);
-            var overloadIndex = -1;
-            for (var overloadCursor = 0; overloadCursor < allOverloads.Count; overloadCursor++)
-                if (ReferenceEquals(allOverloads[overloadCursor], overload))
-                {
-                    overloadIndex = overloadCursor;
-                    break;
-                }
-
             sb.Append(indent).AppendLine("    if (__jsMatched && __jsScore < __jsBestScore)");
             sb.Append(indent).AppendLine("    {");
             sb.Append(indent).Append("        __jsBestIndex = ")
-                .Append(overloadIndex.ToString(CultureInfo.InvariantCulture)).AppendLine(";");
+                .Append(overload.Index.ToString(CultureInfo.InvariantCulture)).AppendLine(";");
             sb.Append(indent).AppendLine("        __jsBestScore = __jsScore;");
             sb.Append(indent).AppendLine("    }");
 
             sb.Append(indent).AppendLine("}");
         }
+    }
+
+    private static void EmitSingleCandidateCheck<TMethod, TParameter>(
+        StringBuilder sb,
+        AnalyzedOverload<TMethod, TParameter> overload,
+        string indent,
+        bool useCountCondition,
+        Func<int, string> getOverloadMethodName)
+    {
+        if (useCountCondition)
+        {
+            sb.Append(indent)
+                .Append("if (__jsArgCount < ")
+                .Append(overload.RequiredCount.ToString(CultureInfo.InvariantCulture))
+                .AppendLine(")");
+            sb.Append(indent).AppendLine("    break;");
+        }
+
+        if (overload.ParameterSpecs.Count == 0 && !overload.HasOpenEndedCount)
+        {
+            sb.Append(indent).Append("return ").Append(getOverloadMethodName(overload.Index)).AppendLine("(info);");
+            return;
+        }
+
+        sb.Append(indent).AppendLine("{");
+        sb.Append(indent).AppendLine("    int __jsScore = 0;");
+        sb.Append(indent).AppendLine("    bool __jsMatched = true;");
+        EmitOverloadMatcherBody(sb, overload, indent + "    ", !useCountCondition);
+        sb.Append(indent).AppendLine("    if (__jsMatched)");
+        sb.Append(indent).Append("        return ").Append(getOverloadMethodName(overload.Index)).AppendLine("(info);");
+        sb.Append(indent).AppendLine("}");
     }
 
     private static void EmitOverloadMatcherBody<TMethod, TParameter>(

@@ -6,27 +6,37 @@ internal static class GlobalExportCollector
 {
     public static GlobalTypeModel? Collect(INamedTypeSymbol symbol)
     {
-        var typeAttribute = GetAttribute(symbol, GlobalGenerationNames.GenerateJsGlobalsAttribute);
+        var typeAttribute = JsExportAttributeHelper.GetAttribute(symbol, AttributeMetadataNames.GenerateJsGlobalsAttribute);
         if (typeAttribute is null)
             return null;
 
-        var installerMethodName = GetNamedString(typeAttribute, "InstallerMethodName") ?? "InstallGeneratedGlobals";
+        var installerMethodName =
+            JsExportAttributeHelper.GetNamedString(typeAttribute, "InstallerMethodName") ?? "InstallGeneratedGlobals";
         var propertySourceMethodName =
-            GetNamedString(typeAttribute, "PropertySourceMethodName") ?? "GetGeneratedGlobalProperties";
+            JsExportAttributeHelper.GetNamedString(typeAttribute, "PropertySourceMethodName") ??
+            "GetGeneratedGlobalProperties";
         var functions = new List<GlobalFunctionModel>();
         var properties = new List<GlobalPropertyModel>();
 
         foreach (var member in symbol.GetMembers())
         {
+            if (JsExportAttributeHelper.HasAttribute(member, AttributeMetadataNames.JsIgnoreFromGlobalsAttribute))
+                continue;
+
+            var jsMemberAttribute = JsExportAttributeHelper.GetAttribute(member, AttributeMetadataNames.JsMemberAttribute);
             if (member is IMethodSymbol method)
             {
-                var functionAttribute = GetAttribute(method, GlobalGenerationNames.JsGlobalFunctionAttribute);
-                if (functionAttribute is null || !ShouldEmitMethod(method))
+                var functionAttribute =
+                    JsExportAttributeHelper.GetAttribute(method, AttributeMetadataNames.JsGlobalFunctionAttribute);
+                if ((functionAttribute is null && jsMemberAttribute is null) || !ShouldEmitMethod(method))
                     continue;
 
-                var name = GetConstructorString(functionAttribute, 0) ?? method.Name;
-                var isConstructor = GetNamedBool(functionAttribute, "IsConstructor");
-                var length = GetNamedInt(functionAttribute, "Length") ?? ComputeFunctionLength(method);
+                var name = JsExportAttributeHelper.GetMemberName(method, functionAttribute, jsMemberAttribute);
+                var isConstructor = functionAttribute is not null &&
+                                    JsExportAttributeHelper.GetNamedBool(functionAttribute, "IsConstructor");
+                var length = functionAttribute is not null
+                    ? JsExportAttributeHelper.GetNamedInt(functionAttribute, "Length") ?? ComputeFunctionLength(method)
+                    : ComputeFunctionLength(method);
                 var parameters = method.Parameters
                     .Select(static p => new GlobalParameterModel(
                         p.Name,
@@ -45,37 +55,47 @@ internal static class GlobalExportCollector
 
             if (member is IPropertySymbol property && property.Parameters.Length == 0)
             {
-                var propertyAttribute = GetAttribute(property, GlobalGenerationNames.JsGlobalPropertyAttribute);
-                if (propertyAttribute is null)
+                var propertyAttribute =
+                    JsExportAttributeHelper.GetAttribute(property, AttributeMetadataNames.JsGlobalPropertyAttribute);
+                if (propertyAttribute is null && jsMemberAttribute is null)
                     continue;
 
-                var name = GetConstructorString(propertyAttribute, 0) ?? property.Name;
-                var writable = GetNamedBool(propertyAttribute, "Writable") && property.SetMethod is not null;
+                var name = JsExportAttributeHelper.GetMemberName(property, propertyAttribute, jsMemberAttribute);
+                var writable = GetWritable(propertyAttribute, jsMemberAttribute is not null, property.SetMethod is not null);
                 properties.Add(new(
                     name,
                     property,
                     property.Type,
                     writable,
-                    GetNamedBool(propertyAttribute, "Enumerable", true),
-                    GetNamedBool(propertyAttribute, "Configurable", true)));
+                    propertyAttribute is not null
+                        ? JsExportAttributeHelper.GetNamedBool(propertyAttribute, "Enumerable", true)
+                        : true,
+                    propertyAttribute is not null
+                        ? JsExportAttributeHelper.GetNamedBool(propertyAttribute, "Configurable", true)
+                        : true));
                 continue;
             }
 
             if (member is IFieldSymbol field)
             {
-                var propertyAttribute = GetAttribute(field, GlobalGenerationNames.JsGlobalPropertyAttribute);
-                if (propertyAttribute is null)
+                var propertyAttribute =
+                    JsExportAttributeHelper.GetAttribute(field, AttributeMetadataNames.JsGlobalPropertyAttribute);
+                if (propertyAttribute is null && jsMemberAttribute is null)
                     continue;
 
-                var name = GetConstructorString(propertyAttribute, 0) ?? field.Name;
-                var writable = GetNamedBool(propertyAttribute, "Writable") && !field.IsReadOnly;
+                var name = JsExportAttributeHelper.GetMemberName(field, propertyAttribute, jsMemberAttribute);
+                var writable = GetWritable(propertyAttribute, jsMemberAttribute is not null, !field.IsReadOnly);
                 properties.Add(new(
                     name,
                     field,
                     field.Type,
                     writable,
-                    GetNamedBool(propertyAttribute, "Enumerable", true),
-                    GetNamedBool(propertyAttribute, "Configurable", true)));
+                    propertyAttribute is not null
+                        ? JsExportAttributeHelper.GetNamedBool(propertyAttribute, "Enumerable", true)
+                        : true,
+                    propertyAttribute is not null
+                        ? JsExportAttributeHelper.GetNamedBool(propertyAttribute, "Configurable", true)
+                        : true));
             }
         }
 
@@ -101,31 +121,12 @@ internal static class GlobalExportCollector
         return ParameterTypeSupport.ComputeFunctionLength(method.Parameters, true);
     }
 
-    private static AttributeData? GetAttribute(ISymbol symbol, string metadataName)
+    private static bool GetWritable(AttributeData? propertyAttribute, bool wasAnnotatedWithJsMember, bool canWrite)
     {
-        return symbol.GetAttributes().FirstOrDefault(x => x.AttributeClass?.ToDisplayString() == metadataName);
-    }
+        if (propertyAttribute is not null &&
+            JsExportAttributeHelper.TryGetNamedBool(propertyAttribute, "Writable", out var writable))
+            return writable && canWrite;
 
-    private static string? GetConstructorString(AttributeData attribute, int index)
-    {
-        return attribute.ConstructorArguments.Length > index &&
-               attribute.ConstructorArguments[index].Value is string value
-            ? value
-            : null;
-    }
-
-    private static string? GetNamedString(AttributeData attribute, string name)
-    {
-        return attribute.NamedArguments.FirstOrDefault(x => x.Key == name).Value.Value as string;
-    }
-
-    private static int? GetNamedInt(AttributeData attribute, string name)
-    {
-        return attribute.NamedArguments.FirstOrDefault(x => x.Key == name).Value.Value as int?;
-    }
-
-    private static bool GetNamedBool(AttributeData attribute, string name, bool fallback = false)
-    {
-        return attribute.NamedArguments.FirstOrDefault(x => x.Key == name).Value.Value as bool? ?? fallback;
+        return wasAnnotatedWithJsMember && canWrite;
     }
 }
