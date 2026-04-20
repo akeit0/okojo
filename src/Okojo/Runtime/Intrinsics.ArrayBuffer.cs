@@ -18,7 +18,7 @@ public partial class Intrinsics
             double? requestedMaxByteLength = null;
             if (args.Length > 1 && !args[1].IsUndefined && !args[1].IsNull &&
                 args[1].TryGetObject(out var options))
-                if (options.TryGetProperty("maxByteLength", out var maxValue) && !maxValue.IsUndefined)
+                if (options.TryGetPropertyByAtom(IdMaxByteLength, out var maxValue) && !maxValue.IsUndefined)
                     requestedMaxByteLength = ToRequestedArrayBufferLength(realm, maxValue);
 
             if (requestedMaxByteLength.HasValue && requestedByteLength > requestedMaxByteLength.Value)

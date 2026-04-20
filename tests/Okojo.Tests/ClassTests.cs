@@ -930,35 +930,6 @@ public class ClassTests
     }
 
     [Test]
-    public void StaticAndInstancePrivateMethod_BrandCheck_From_Exact_Test262_Fixture()
-    {
-        var realm = JsRuntime.Create().DefaultRealm;
-        var repoRoot = TestContext.CurrentContext.TestDirectory;
-        while (!File.Exists(Path.Combine(repoRoot, "Okojo.slnx")))
-            repoRoot = Directory.GetParent(repoRoot)!.FullName;
-
-        var sourcePath = Path.Combine(repoRoot, "test262", "test", "language", "expressions", "class", "elements",
-            "static-private-method-and-instance-method-brand-check.js");
-        var source = """
-                     var assert = {
-                       sameValue(actual, expected) {
-                         if (actual !== expected) throw new Error("sameValue");
-                       },
-                       throws(ctor, fn) {
-                         var threw = false;
-                         try { fn(); } catch (e) { threw = e instanceof ctor; }
-                         if (!threw) throw new Error("throws");
-                       }
-                     };
-                     """ + Environment.NewLine + File.ReadAllText(sourcePath);
-        var program = JavaScriptParser.ParseScript(source, sourcePath);
-        var script = JsCompiler.Compile(realm, program);
-
-        realm.Execute(script);
-        Assert.That(realm.Accumulator.IsUndefined, Is.True);
-    }
-
-    [Test]
     public void CrossRealm_PrivateBrandMismatch_Uses_DefiningRealm_TypeError()
     {
         var engine = JsRuntime.Create();
@@ -2797,30 +2768,6 @@ public class ClassTests
 
         realm.Execute(script);
         Assert.That(realm.Accumulator.IsTrue, Is.True);
-    }
-
-    [Test]
-    public void ClassStaticFieldInitializer_Assigns_Anonymous_Function_Names_From_Exact_Test262_Fixture()
-    {
-        var realm = JsRuntime.Create().DefaultRealm;
-        var repoRoot = TestContext.CurrentContext.TestDirectory;
-        while (!File.Exists(Path.Combine(repoRoot, "Okojo.slnx")))
-            repoRoot = Directory.GetParent(repoRoot)!.FullName;
-
-        var sourcePath = Path.Combine(repoRoot, "test262", "test", "language", "expressions", "class", "elements",
-            "static-field-anonymous-function-name.js");
-        var source = """
-                     var assert = {
-                       sameValue(actual, expected) {
-                         if (actual !== expected) throw new Error(String(actual) + " !== " + String(expected));
-                       }
-                     };
-                     """ + Environment.NewLine + File.ReadAllText(sourcePath);
-        var program = JavaScriptParser.ParseScript(source, sourcePath);
-        var script = JsCompiler.Compile(realm, program);
-
-        realm.Execute(script);
-        Assert.That(realm.Accumulator.IsUndefined, Is.True);
     }
 
     [Test]

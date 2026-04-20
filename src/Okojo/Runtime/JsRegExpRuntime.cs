@@ -603,7 +603,7 @@ internal static class JsRegExpRuntime
             var result = Exec(realm, rx, input);
             if (result.IsNull || !result.TryGetObject(out var matchObj))
                 return -1;
-            return matchObj.TryGetProperty("index", out var indexValue) && indexValue.IsNumber
+            return matchObj.TryGetPropertyByAtom(IdIndex, out var indexValue) && indexValue.IsNumber
                 ? (int)indexValue.NumberValue
                 : -1;
         }

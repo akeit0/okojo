@@ -1891,7 +1891,7 @@ public partial class Intrinsics
 
             _ = GetIntlStringOption(realm, options, "localeMatcher", IntlLocaleMatcherValues, "best fit");
             var style = GetIntlStringOption(realm, options, "style", IntlDisplayNamesStyleValues, "long");
-            if (!options.TryGetProperty("type", out var typeValue) || typeValue.IsUndefined)
+            if (!options.TryGetPropertyByAtom(IdType, out var typeValue) || typeValue.IsUndefined)
                 throw new JsRuntimeException(JsErrorKind.TypeError, "Intl.DisplayNames requires a type option");
 
             var type = GetIntlStringOptionValue(realm, typeValue, "type", IntlDisplayNamesTypeValues);
@@ -3503,9 +3503,9 @@ public partial class Intrinsics
         {
             if (!parts.TryGetElement(i, out var entry) || !entry.TryGetObject(out var entryObject))
                 continue;
-            if (!entryObject.TryGetProperty("type", out var typeValue) || !typeValue.IsString)
+            if (!entryObject.TryGetPropertyByAtom(IdType, out var typeValue) || !typeValue.IsString)
                 continue;
-            if (!entryObject.TryGetProperty("value", out var valueValue) || !valueValue.IsString)
+            if (!entryObject.TryGetPropertyByAtom(IdValue, out var valueValue) || !valueValue.IsString)
                 continue;
             result.SetElement(index++,
                 JsValue.FromObject(CreateRangePartObject(result.Realm, typeValue.AsString(), valueValue.AsString(),

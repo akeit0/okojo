@@ -915,9 +915,9 @@ internal sealed class JsDateTimeFormatObject : JsObject
         {
             if (!parts.TryGetElement(i, out var entry) || !entry.TryGetObject(out var entryObject))
                 continue;
-            if (!entryObject.TryGetProperty("type", out var typeValue) || !typeValue.IsString)
+            if (!entryObject.TryGetPropertyByAtom(IdType, out var typeValue) || !typeValue.IsString)
                 continue;
-            if (!entryObject.TryGetProperty("value", out var valueValue) || !valueValue.IsString)
+            if (!entryObject.TryGetPropertyByAtom(IdValue, out var valueValue) || !valueValue.IsString)
                 continue;
             result.SetElement(index++,
                 JsValue.FromObject(CreateRangePartObject(typeValue.AsString(), valueValue.AsString(), source)));

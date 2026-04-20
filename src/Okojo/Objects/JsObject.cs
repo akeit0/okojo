@@ -34,7 +34,7 @@ public class JsObject
     public JsObject? Prototype { get; internal set; }
     internal virtual bool IsExtensible => IsExtensibleFlag;
 
-    internal JsRealm Realm => NamedPropertyLayout.Owner;
+    public JsRealm Realm => NamedPropertyLayout.Owner;
     internal StaticNamedPropertyLayout Shape => StaticNamedPropertyLayout;
     internal JsValue[] Slots => SlotsArray;
     internal bool UsesDynamicNamedProperties => NamedPropertyLayout.IsDynamic;
@@ -128,6 +128,11 @@ public class JsObject
 
         Prototype = proto;
         return true;
+    }
+
+    public bool TryGetPropertyByAtom(int atom, out JsValue value)
+    {
+        return TryGetPropertyAtomWithReceiverValue(Realm, this, atom, out value, out _);
     }
 
     internal bool TryGetPropertyAtom(JsRealm realm, int atom, out JsValue value, out SlotInfo slotInfo)

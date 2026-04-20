@@ -185,7 +185,7 @@ internal struct ProxyCore
 
         hasDescriptor = true;
         enumerable = false;
-        if (descriptorObj.TryGetProperty("enumerable", out var enumerableValue))
+        if (descriptorObj.TryGetPropertyByAtom(IdEnumerable, out var enumerableValue))
             enumerable = DescriptorUtilities.ToBooleanForDescriptor(enumerableValue);
         return true;
     }

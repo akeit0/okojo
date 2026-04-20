@@ -314,8 +314,8 @@ internal sealed partial class JsDurationFormatObject : JsObject
             if (!listParts.TryGetElement(i, out var partValue) || !partValue.TryGetObject(out var partObject))
                 continue;
 
-            partObject.TryGetProperty("type", out var typeValue);
-            partObject.TryGetProperty("value", out var valueValue);
+            partObject.TryGetPropertyByAtom(IdType, out var typeValue);
+            partObject.TryGetPropertyByAtom(IdValue, out var valueValue);
             var type = typeValue.IsString ? typeValue.AsString() : string.Empty;
             var value = valueValue.IsString ? valueValue.AsString() : string.Empty;
             if (string.Equals(type, "element", StringComparison.Ordinal))
@@ -404,8 +404,8 @@ internal sealed partial class JsDurationFormatObject : JsObject
             if (!partsArray.TryGetElement(i, out var partValue) || !partValue.TryGetObject(out var partObject))
                 continue;
 
-            partObject.TryGetProperty("type", out var typeValue);
-            partObject.TryGetProperty("value", out var valueValue);
+            partObject.TryGetPropertyByAtom(IdType, out var typeValue);
+            partObject.TryGetPropertyByAtom(IdValue, out var valueValue);
             var type = typeValue.IsString ? typeValue.AsString() : string.Empty;
             var text = valueValue.IsString ? valueValue.AsString() : string.Empty;
             parts.Add(new(type, text, unit));

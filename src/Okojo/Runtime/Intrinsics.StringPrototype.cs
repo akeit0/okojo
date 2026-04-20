@@ -865,7 +865,7 @@ public partial class Intrinsics
                     if (matchValue.IsNull || !matchValue.TryGetObject(out var matchObj))
                         break;
 
-                    if (!matchObj.TryGetProperty("index", out var matchIndexValue) || !matchIndexValue.IsNumber)
+                    if (!matchObj.TryGetPropertyByAtom(IdIndex, out var matchIndexValue) || !matchIndexValue.IsNumber)
                         break;
 
                     var matchIndex = (int)matchIndexValue.NumberValue;
@@ -1154,7 +1154,7 @@ public partial class Intrinsics
                     if (collatorObject is JsCollatorObject collator)
                         return JsValue.FromInt32(collator.Compare(text.Flatten(), that.Flatten()));
 
-                    if (collatorObject.TryGetProperty("compare", out var compareValue) &&
+                    if (collatorObject.TryGetPropertyByAtom(IdCompare, out var compareValue) &&
                         compareValue.TryGetObject(out var compareObject) &&
                         compareObject is JsFunction compareFn)
                     {
