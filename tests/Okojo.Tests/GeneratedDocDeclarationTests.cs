@@ -61,12 +61,15 @@ public class GeneratedDocDeclarationTests
                 Does.Contain("declare function background(r: number, g: number, b: number, a: number): void;"));
             Assert.That(globalsText, Does.Contain("declare function pick(value: string): string;"));
             Assert.That(globalsText, Does.Contain("declare function pick(value: number): string;"));
-            Assert.That(objectText, Does.Contain("static SumNumbers(...values: number[]): number;"));
-            Assert.That(objectText, Does.Contain("static DescribeJsValues(...values: any[]): string;"));
-            Assert.That(objectText, Does.Contain("static DescribeAny(...values: any[]): string;"));
-            Assert.That(objectText, Does.Contain("static Pick(value: string): string;"));
-            Assert.That(objectText, Does.Contain("static Pick(value: number): string;"));
-            Assert.That(objectText, Does.Contain("static Pick(value: any): string;"));
+            Assert.That(objectText, Does.Contain("x: number;"));
+            Assert.That(objectText, Does.Contain("static sin(a: number): number;"));
+            Assert.That(objectText, Does.Contain("static sumNumbers(...values: number[]): number;"));
+            Assert.That(objectText, Does.Contain("static describeJsValues(...values: any[]): string;"));
+            Assert.That(objectText, Does.Contain("static describeAny(...values: any[]): string;"));
+            Assert.That(objectText, Does.Contain("static pick(value: string): string;"));
+            Assert.That(objectText, Does.Contain("static pick(value: number): string;"));
+            Assert.That(objectText, Does.Contain("static pick(value: any): string;"));
+            Assert.That(objectText, Does.Not.Contain("echo(value: string): string;"));
         }
         finally
         {

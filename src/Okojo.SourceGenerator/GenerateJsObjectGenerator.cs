@@ -11,7 +11,7 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         var provider = context.SyntaxProvider.ForAttributeWithMetadataName(
-            "Okojo.Annotations.GenerateJsObjectAttribute",
+            AttributeMetadataNames.GenerateJsObjectAttribute,
             static (node, _) => node is ClassDeclarationSyntax,
             static (ctx, _) => (INamedTypeSymbol)ctx.TargetSymbol);
 
@@ -106,10 +106,10 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
             switch (member.Symbol)
             {
                 case IFieldSymbol field when !field.IsConst:
-                    EmitField(sb, symbol, field);
+                    EmitField(sb, symbol, member, field);
                     break;
                 case IPropertySymbol property when property.Parameters.Length == 0:
-                    EmitProperty(sb, symbol, property);
+                    EmitProperty(sb, symbol, member, property);
                     break;
             }
 
@@ -117,11 +117,12 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
             EmitMethodBinding(sb, methodGroup, isStaticGroup);
     }
 
-    private static void EmitField(StringBuilder sb, INamedTypeSymbol containingType, IFieldSymbol field)
+    private static void EmitField(StringBuilder sb, INamedTypeSymbol containingType, JsObjectMemberModel member,
+        IFieldSymbol field)
     {
         var fullTypeName = containingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         sb.Append("                new global::Okojo.Runtime.Interop.HostMemberBinding(\"")
-            .Append(field.Name)
+            .Append(member.Name)
             .Append("\", global::Okojo.Runtime.Interop.HostMemberBindingKind.Field, ")
             .Append(field.IsStatic ? "true" : "false");
         sb.Append(", getterBody: static (in global::Okojo.Runtime.CallInfo info) => ");
@@ -131,7 +132,7 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
             sb.Append('.').Append(field.Name);
         });
 
-        if (!field.IsReadOnly)
+        if (member.CanWrite)
         {
             sb.Append(", setterBody: static (in global::Okojo.Runtime.CallInfo info) => { ");
             AppendCallTarget(sb, fullTypeName, field.IsStatic);
@@ -143,14 +144,15 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
         sb.AppendLine("),");
     }
 
-    private static void EmitProperty(StringBuilder sb, INamedTypeSymbol containingType, IPropertySymbol property)
+    private static void EmitProperty(StringBuilder sb, INamedTypeSymbol containingType, JsObjectMemberModel member,
+        IPropertySymbol property)
     {
         var fullTypeName = containingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         sb.Append("                new global::Okojo.Runtime.Interop.HostMemberBinding(\"")
-            .Append(property.Name)
+            .Append(member.Name)
             .Append("\", global::Okojo.Runtime.Interop.HostMemberBindingKind.Property, ")
             .Append(property.IsStatic ? "true" : "false");
-        if (property.GetMethod is not null)
+        if (member.CanRead)
         {
             sb.Append(", getterBody: static (in global::Okojo.Runtime.CallInfo info) => ");
             EmitToJsValue(sb, property.Type, () =>
@@ -160,7 +162,7 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
             });
         }
 
-        if (property.SetMethod is not null)
+        if (member.CanWrite)
         {
             sb.Append(", setterBody: static (in global::Okojo.Runtime.CallInfo info) => { ");
             AppendCallTarget(sb, fullTypeName, property.IsStatic);
@@ -215,10 +217,6 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
             "Host function argument type mismatch.",
             methodGroup,
             true,
-            static x => (IMethodSymbol)x.Symbol,
-            static x => x.Parameters,
-            static x => x.Type,
-            static _ => false,
             overloadIndex => dispatcherName + "__Overload" + overloadIndex);
 
         var fullTypeName = containingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
