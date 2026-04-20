@@ -1,5 +1,6 @@
 using Okojo.Compiler;
 using Okojo.Parsing;
+using Okojo.Bytecode;
 using Okojo.Runtime;
 
 namespace Okojo.Tests;
@@ -63,5 +64,27 @@ public class FunctionPrototypeToStringTests
 
         Assert.That(realm.Accumulator.AsString(), Is.EqualTo(
             "function\r\n// a\r\nf\r\n// b\r\n(\r\n// c\r\nx\r\n// d\r\n,\r\n// e\r\ny\r\n// f\r\n)\r\n// g\r\n{\r\n// h\r\n;\r\n// i\r\n;\r\n// j\r\n}"));
+    }
+
+    [Test]
+    public void JsScript_GetFunctionSourceTextString_CachesMaterializedString()
+    {
+        const string source = "prefix function demo() {} suffix";
+        var script = new JsScript(
+            [],
+            [],
+            [],
+            0,
+            [],
+            FunctionSourceText: new FunctionSourceTextSegment(source, 7, 18));
+
+        var first = script.GetFunctionSourceTextString();
+        var second = script.GetFunctionSourceTextString();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(first, Is.EqualTo("function demo() {}"));
+            Assert.That(ReferenceEquals(first, second), Is.True);
+        });
     }
 }

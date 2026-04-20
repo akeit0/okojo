@@ -655,7 +655,7 @@ public sealed class BytecodeBuilder : IDisposable
             debugPcOffsets,
             debugSourceOffsets,
             sourceText,
-            FunctionSourceText: null,
+            FunctionSourceText: default,
             GeneratorSwitchTargets: generatorSwitchTargets.Count == 0 ? null : generatorSwitchTargets.ToArray(),
             SwitchOnSmiTargets: switchOnSmiTargets.Count == 0 ? null : switchOnSmiTargets.ToArray(),
             PrivateFieldDebugKeys: privateFieldDebugKeys,

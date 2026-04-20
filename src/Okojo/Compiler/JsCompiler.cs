@@ -6840,12 +6840,12 @@ public sealed partial class JsCompiler : IDisposable
             HoistFunction(hoisted[i]);
     }
 
-    private string? TryGetFunctionSourceText(int sourceStartPosition, int sourceEndPosition)
+    private FunctionSourceTextSegment TryGetFunctionSourceText(int sourceStartPosition, int sourceEndPosition)
     {
         var sourceText = CurrentSourceText;
         if (sourceText is null || sourceStartPosition < 0 || sourceEndPosition <= sourceStartPosition ||
             sourceEndPosition > sourceText.Length)
-            return null;
+            return default;
 
         if (sourceText[sourceStartPosition] == '(' &&
             sourceStartPosition + 1 < sourceEndPosition &&
@@ -6864,7 +6864,7 @@ public sealed partial class JsCompiler : IDisposable
                 sourceStartPosition++;
         }
 
-        return sourceText[sourceStartPosition..sourceEndPosition];
+        return new FunctionSourceTextSegment(sourceText, sourceStartPosition, sourceEndPosition - sourceStartPosition);
     }
 
     private bool LooksLikeSourceTextStart(int sourceStartPosition, int sourceEndPosition)

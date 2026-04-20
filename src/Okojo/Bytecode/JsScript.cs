@@ -22,7 +22,7 @@ public sealed record JsScript
         int[]? DebugSourceOffsets = null,
         string? SourceText = null,
         string? SourcePath = null,
-        string? FunctionSourceText = null,
+        FunctionSourceTextSegment FunctionSourceText = default,
         int[]? GeneratorSwitchTargets = null,
         int[]? SwitchOnSmiTargets = null,
         int[]? TopLevelLexicalAtoms = null,
@@ -48,7 +48,7 @@ public sealed record JsScript
         this.DebugPcOffsets = DebugPcOffsets;
         this.DebugSourceOffsets = DebugSourceOffsets;
         SourceCode = SourceText is null && SourcePath is null ? null : new SourceCode(SourceText, SourcePath);
-        this.FunctionSourceText = FunctionSourceText;
+        functionSourceText = FunctionSourceText;
         this.GeneratorSwitchTargets = GeneratorSwitchTargets;
         this.SwitchOnSmiTargets = SwitchOnSmiTargets;
         this.TopLevelLexicalAtoms = TopLevelLexicalAtoms;
@@ -91,7 +91,24 @@ public sealed record JsScript
             : new SourceCode(SourceCode?.Source, value);
     }
 
-    public string? FunctionSourceText { get; init; }
+    private FunctionSourceTextSegment functionSourceText;
+
+    public FunctionSourceTextSegment FunctionSourceText
+    {
+        get => functionSourceText;
+        init => functionSourceText = value;
+    }
+
+    public bool HasFunctionSourceText => !functionSourceText.IsEmpty;
+
+    public string? GetFunctionSourceTextString()
+    {
+        if (functionSourceText.IsEmpty)
+            return null;
+
+        return functionSourceText.ToString();
+    }
+
     public int[]? GeneratorSwitchTargets { get; init; }
     public int[]? SwitchOnSmiTargets { get; init; }
     public int[]? TopLevelLexicalAtoms { get; init; }
