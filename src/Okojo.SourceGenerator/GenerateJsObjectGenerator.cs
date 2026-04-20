@@ -217,10 +217,6 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
             "Host function argument type mismatch.",
             methodGroup,
             true,
-            static x => (IMethodSymbol)x.Symbol,
-            static x => x.Parameters,
-            static x => x.Type,
-            static _ => false,
             overloadIndex => dispatcherName + "__Overload" + overloadIndex);
 
         var fullTypeName = containingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);

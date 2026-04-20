@@ -12,10 +12,6 @@ internal static class MethodOverloadDispatchEmitter
         string mismatchMessage,
         AnalyzedOverloadSet<TMethod, TParameter> overloadSet,
         bool isStaticDispatcher,
-        Func<TMethod, IMethodSymbol> getMethod,
-        Func<TMethod, IReadOnlyList<TParameter>> getParameters,
-        Func<TParameter, ITypeSymbol> getParameterType,
-        Func<TParameter, bool> hasDefaultValue,
         Func<int, string> getOverloadMethodName)
     {
         if (overloadSet.Overloads.Count == 1)
