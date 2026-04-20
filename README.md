@@ -367,6 +367,13 @@ Useful references:
 
 `Okojo.Annotations` and `Okojo.SourceGenerator` are for strongly-typed host APIs that should become JavaScript globals or generated object bindings.
 
+Key export rules:
+
+- `[GenerateJsGlobals]` exports members marked with `[JsMember]`, `[JsGlobalFunction]`, or `[JsGlobalProperty]`
+- `[GenerateJsObject]` exports only members marked with `[JsMember]`
+- `[JsIgnoreFromGlobals]` and `[JsIgnoreFromObject]` opt a shared member out of one surface
+- if you do not specify an explicit JavaScript name, the generated export lowercases the first character (`Width` -> `width`, `SumNumbers` -> `sumNumbers`)
+
 Example shape:
 
 ```csharp
@@ -377,16 +384,17 @@ using Okojo.DocGenerator.Annotations;
 [DocDeclaration("globals")]
 internal sealed partial class SketchGlobals
 {
-    [JsGlobalProperty("width")]
+    [JsMember]
     public int Width => 320;
 
-    [JsGlobalProperty("strokeWidth", Writable = true)]
+    [JsMember]
+    [JsGlobalProperty(Writable = true)]
     public int StrokeWidth { get; set; } = 2;
 
-    [JsGlobalFunction("background")]
+    [JsMember("background")]
     private void Background(byte r, byte g, byte b) { }
 
-    [JsGlobalFunction("sumNumbers")]
+    [JsMember]
     private int SumNumbers(ReadOnlySpan<int> values) => values.ToArray().Sum();
 }
 ```
@@ -408,7 +416,7 @@ Real references:
 
 ## Generated object bindings and doc annotations
 
-`GenerateJsObjectAttribute` is for object-style bindings. `DocDeclarationAttribute` and `DocIgnoreAttribute` control declaration output.
+`GenerateJsObjectAttribute` is for object-style bindings. Members are opt-in via `[JsMember]`. `DocDeclarationAttribute` and `DocIgnoreAttribute` control declaration output.
 
 ```csharp
 using Okojo;
@@ -419,8 +427,10 @@ using Okojo.DocGenerator.Annotations;
 [DocDeclaration("Foo/Bar", "Docs.Shapes")]
 public partial class GeneratedHostBindingSample
 {
+    [JsMember]
     public float X { get; set; }
 
+    [JsMember]
     public static int SumNumbers(ReadOnlySpan<int> values)
     {
         var sum = 0;
@@ -430,8 +440,10 @@ public partial class GeneratedHostBindingSample
     }
 
     [DocIgnore]
+    [JsMember]
     public string Echo(string value) => $"echo:{value}";
 
+    [JsMember]
     public static string DescribeJsValues(ReadOnlySpan<JsValue> values)
     {
         if (values.Length == 0)
@@ -440,6 +452,8 @@ public partial class GeneratedHostBindingSample
     }
 }
 ```
+
+The generated JavaScript names for that sample are `x`, `sumNumbers`, `echo`, and `describeJsValues` unless you override them with `[JsMember("...")]`.
 
 Real references:
 

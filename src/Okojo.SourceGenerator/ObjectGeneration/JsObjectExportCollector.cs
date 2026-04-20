@@ -6,8 +6,10 @@ internal static class JsObjectExportCollector
 {
     public static JsObjectTypeModel? Collect(INamedTypeSymbol symbol)
     {
-        if (!JsExportAttributeHelper.HasAttribute(symbol, AttributeMetadataNames.GenerateJsObjectAttribute))
+        var typeAttribute = JsExportAttributeHelper.GetAttribute(symbol, AttributeMetadataNames.GenerateJsObjectAttribute);
+        if (typeAttribute is null)
             return null;
+        var memberNaming = JsExportAttributeHelper.GetMemberNaming(typeAttribute);
 
         var instanceMembers = new List<JsObjectMemberModel>();
         var staticMembers = new List<JsObjectMemberModel>();
@@ -23,7 +25,7 @@ internal static class JsObjectExportCollector
             if (jsMemberAttribute is null)
                 continue;
 
-            var jsName = JsExportAttributeHelper.GetMemberName(member, jsMemberAttribute);
+            var jsName = JsExportAttributeHelper.GetMemberName(member, memberNaming, jsMemberAttribute);
 
             var model = member switch
             {

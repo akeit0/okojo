@@ -2,6 +2,13 @@ using Microsoft.CodeAnalysis;
 
 namespace Okojo.SourceGenerator;
 
+internal enum JsMemberNamingPolicy
+{
+    LowerCamelCase = 0,
+    PascalCase = 1,
+    AsDeclared = 2
+}
+
 internal static class JsExportAttributeHelper
 {
     public static bool HasAttribute(ISymbol symbol, string metadataName)
@@ -18,7 +25,7 @@ internal static class JsExportAttributeHelper
         return null;
     }
 
-    public static string GetMemberName(ISymbol symbol, params AttributeData?[] attributes)
+    public static string GetMemberName(ISymbol symbol, JsMemberNamingPolicy naming, params AttributeData?[] attributes)
     {
         for (var i = 0; i < attributes.Length; i++)
         {
@@ -31,7 +38,24 @@ internal static class JsExportAttributeHelper
                 return explicitName;
         }
 
-        return ToDefaultMemberName(symbol.Name);
+        return ApplyMemberNaming(symbol.Name, naming);
+    }
+
+    public static JsMemberNamingPolicy GetMemberNaming(AttributeData? attribute)
+    {
+        if (attribute is null)
+            return JsMemberNamingPolicy.LowerCamelCase;
+
+        foreach (var pair in attribute.NamedArguments)
+            if (pair.Key == "MemberNaming" && TryGetEnumValue(pair.Value.Value, out var value))
+                return value switch
+                {
+                    1 => JsMemberNamingPolicy.PascalCase,
+                    2 => JsMemberNamingPolicy.AsDeclared,
+                    _ => JsMemberNamingPolicy.LowerCamelCase
+                };
+
+        return JsMemberNamingPolicy.LowerCamelCase;
     }
 
     public static string? GetConstructorString(AttributeData attribute, int index)
@@ -78,7 +102,22 @@ internal static class JsExportAttributeHelper
         return false;
     }
 
-    public static string ToDefaultMemberName(string name)
+    public static string ApplyMemberNaming(string name, JsMemberNamingPolicy naming)
+    {
+        return naming switch
+        {
+            JsMemberNamingPolicy.PascalCase => ToPascalCase(name),
+            JsMemberNamingPolicy.AsDeclared => name,
+            _ => ToLowerCamelCase(name)
+        };
+    }
+
+    private static string? NormalizeString(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value;
+    }
+
+    private static string ToLowerCamelCase(string name)
     {
         if (name.Length == 0 || !char.IsUpper(name[0]))
             return name;
@@ -88,8 +127,47 @@ internal static class JsExportAttributeHelper
         return char.ToLowerInvariant(name[0]) + name.Substring(1);
     }
 
-    private static string? NormalizeString(string? value)
+    private static string ToPascalCase(string name)
     {
-        return string.IsNullOrWhiteSpace(value) ? null : value;
+        if (name.Length == 0 || !char.IsLower(name[0]))
+            return name;
+        if (name.Length == 1)
+            return char.ToUpperInvariant(name[0]).ToString();
+
+        return char.ToUpperInvariant(name[0]) + name.Substring(1);
+    }
+
+    private static bool TryGetEnumValue(object? value, out int enumValue)
+    {
+        switch (value)
+        {
+            case byte byteValue:
+                enumValue = byteValue;
+                return true;
+            case sbyte sbyteValue:
+                enumValue = sbyteValue;
+                return true;
+            case short shortValue:
+                enumValue = shortValue;
+                return true;
+            case ushort ushortValue:
+                enumValue = ushortValue;
+                return true;
+            case int intValue:
+                enumValue = intValue;
+                return true;
+            case uint uintValue when uintValue <= int.MaxValue:
+                enumValue = (int)uintValue;
+                return true;
+            case long longValue when longValue is >= int.MinValue and <= int.MaxValue:
+                enumValue = (int)longValue;
+                return true;
+            case ulong ulongValue when ulongValue <= int.MaxValue:
+                enumValue = (int)ulongValue;
+                return true;
+        }
+
+        enumValue = default;
+        return false;
     }
 }

@@ -423,6 +423,32 @@ internal sealed partial class SharedJsMemberSurfaceSample
     }
 }
 
+[GenerateJsObject(MemberNaming = JsMemberNaming.PascalCase)]
+internal sealed partial class PascalCaseJsMemberObjectSample
+{
+    [JsMember]
+    private int sampleValue { get; set; }
+
+    [JsMember]
+    private string doThing()
+    {
+        return "pascal";
+    }
+}
+
+[GenerateJsGlobals(MemberNaming = JsMemberNaming.AsDeclared)]
+internal sealed partial class AsDeclaredJsGlobalsSample
+{
+    [JsMember]
+    public int SampleValue => 7;
+
+    [JsMember]
+    private string DoThing()
+    {
+        return "declared";
+    }
+}
+
 public class HostInteropTests
 {
     private static JsRealm CreateClrRealm()
@@ -1544,6 +1570,37 @@ public class HostInteropTests
 
         Assert.That(result.IsString, Is.True);
         Assert.That(result.AsString(), Is.EqualTo("shared|undefined|global|shared|object|undefined|5"));
+    }
+
+    [Test]
+    public void GenerateJsObject_Can_Use_PascalCase_MemberNaming()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var sample = new PascalCaseJsMemberObjectSample();
+        realm.Global["sample"] = JsValue.FromObject(PascalCaseJsMemberObjectSample.ToJsObject(realm, sample));
+
+        var result = realm.Eval("""
+                                sample.SampleValue = 9;
+                                [sample.SampleValue, sample.DoThing()].join("|");
+                                """);
+
+        Assert.That(result.IsString, Is.True);
+        Assert.That(result.AsString(), Is.EqualTo("9|pascal"));
+    }
+
+    [Test]
+    public void GenerateJsGlobals_Can_Use_AsDeclared_MemberNaming()
+    {
+        var sample = new AsDeclaredJsGlobalsSample();
+        using var runtime = JsRuntime.CreateBuilder()
+            .UseGlobals(sample.InstallGeneratedGlobals)
+            .Build();
+        var realm = runtime.MainRealm;
+
+        var result = realm.Eval("[SampleValue, DoThing()].join('|')");
+
+        Assert.That(result.IsString, Is.True);
+        Assert.That(result.AsString(), Is.EqualTo("7|declared"));
     }
 
     [Test]

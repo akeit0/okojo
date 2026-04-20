@@ -15,6 +15,7 @@ internal static class GlobalExportCollector
         var propertySourceMethodName =
             JsExportAttributeHelper.GetNamedString(typeAttribute, "PropertySourceMethodName") ??
             "GetGeneratedGlobalProperties";
+        var memberNaming = JsExportAttributeHelper.GetMemberNaming(typeAttribute);
         var functions = new List<GlobalFunctionModel>();
         var properties = new List<GlobalPropertyModel>();
 
@@ -31,7 +32,7 @@ internal static class GlobalExportCollector
                 if ((functionAttribute is null && jsMemberAttribute is null) || !ShouldEmitMethod(method))
                     continue;
 
-                var name = JsExportAttributeHelper.GetMemberName(method, functionAttribute, jsMemberAttribute);
+                var name = JsExportAttributeHelper.GetMemberName(method, memberNaming, functionAttribute, jsMemberAttribute);
                 var isConstructor = functionAttribute is not null &&
                                     JsExportAttributeHelper.GetNamedBool(functionAttribute, "IsConstructor");
                 var length = functionAttribute is not null
@@ -60,7 +61,7 @@ internal static class GlobalExportCollector
                 if (propertyAttribute is null && jsMemberAttribute is null)
                     continue;
 
-                var name = JsExportAttributeHelper.GetMemberName(property, propertyAttribute, jsMemberAttribute);
+                var name = JsExportAttributeHelper.GetMemberName(property, memberNaming, propertyAttribute, jsMemberAttribute);
                 var writable = GetWritable(propertyAttribute, jsMemberAttribute is not null, property.SetMethod is not null);
                 properties.Add(new(
                     name,
@@ -83,7 +84,7 @@ internal static class GlobalExportCollector
                 if (propertyAttribute is null && jsMemberAttribute is null)
                     continue;
 
-                var name = JsExportAttributeHelper.GetMemberName(field, propertyAttribute, jsMemberAttribute);
+                var name = JsExportAttributeHelper.GetMemberName(field, memberNaming, propertyAttribute, jsMemberAttribute);
                 var writable = GetWritable(propertyAttribute, jsMemberAttribute is not null, !field.IsReadOnly);
                 properties.Add(new(
                     name,
