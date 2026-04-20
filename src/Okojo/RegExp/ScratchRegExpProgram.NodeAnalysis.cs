@@ -90,41 +90,41 @@ internal sealed partial class ScratchRegExpProgram
             case SequenceNode sequence:
                 return TryGetSequenceMinMatchLength(sequence.Terms, 0, out minLength);
             case AlternationNode alternation:
-            {
-                if (alternation.Alternatives.Length == 0)
                 {
-                    minLength = 0;
+                    if (alternation.Alternatives.Length == 0)
+                    {
+                        minLength = 0;
+                        return true;
+                    }
+
+                    var best = int.MaxValue;
+                    for (var i = 0; i < alternation.Alternatives.Length; i++)
+                    {
+                        if (!TryGetNodeMinMatchLength(alternation.Alternatives[i], out var alternativeLength))
+                        {
+                            minLength = default;
+                            return false;
+                        }
+
+                        if (alternativeLength < best)
+                            best = alternativeLength;
+                    }
+
+                    minLength = best;
                     return true;
                 }
-
-                var best = int.MaxValue;
-                for (var i = 0; i < alternation.Alternatives.Length; i++)
+            case QuantifierNode quantifier:
                 {
-                    if (!TryGetNodeMinMatchLength(alternation.Alternatives[i], out var alternativeLength))
+                    if (!TryGetNodeMinMatchLength(quantifier.Child, out var childLength))
                     {
                         minLength = default;
                         return false;
                     }
 
-                    if (alternativeLength < best)
-                        best = alternativeLength;
+                    var total = (long)childLength * quantifier.Min;
+                    minLength = total > int.MaxValue ? int.MaxValue : (int)total;
+                    return true;
                 }
-
-                minLength = best;
-                return true;
-            }
-            case QuantifierNode quantifier:
-            {
-                if (!TryGetNodeMinMatchLength(quantifier.Child, out var childLength))
-                {
-                    minLength = default;
-                    return false;
-                }
-
-                var total = (long)childLength * quantifier.Min;
-                minLength = total > int.MaxValue ? int.MaxValue : (int)total;
-                return true;
-            }
             default:
                 minLength = default;
                 return false;
@@ -161,42 +161,42 @@ internal sealed partial class ScratchRegExpProgram
             case SequenceNode sequence:
                 return TryGetSequenceMaxMatchLength(sequence.Terms, 0, out maxLength);
             case AlternationNode alternation:
-            {
-                if (alternation.Alternatives.Length == 0)
                 {
-                    maxLength = 0;
+                    if (alternation.Alternatives.Length == 0)
+                    {
+                        maxLength = 0;
+                        return true;
+                    }
+
+                    var best = 0;
+                    for (var i = 0; i < alternation.Alternatives.Length; i++)
+                    {
+                        if (!TryGetNodeMaxMatchLength(alternation.Alternatives[i], out var alternativeLength))
+                        {
+                            maxLength = default;
+                            return false;
+                        }
+
+                        if (alternativeLength > best)
+                            best = alternativeLength;
+                    }
+
+                    maxLength = best;
                     return true;
                 }
-
-                var best = 0;
-                for (var i = 0; i < alternation.Alternatives.Length; i++)
+            case QuantifierNode quantifier:
                 {
-                    if (!TryGetNodeMaxMatchLength(alternation.Alternatives[i], out var alternativeLength))
+                    if (quantifier.Max == int.MaxValue ||
+                        !TryGetNodeMaxMatchLength(quantifier.Child, out var childLength))
                     {
                         maxLength = default;
                         return false;
                     }
 
-                    if (alternativeLength > best)
-                        best = alternativeLength;
+                    var total = (long)childLength * quantifier.Max;
+                    maxLength = total > int.MaxValue ? int.MaxValue : (int)total;
+                    return true;
                 }
-
-                maxLength = best;
-                return true;
-            }
-            case QuantifierNode quantifier:
-            {
-                if (quantifier.Max == int.MaxValue ||
-                    !TryGetNodeMaxMatchLength(quantifier.Child, out var childLength))
-                {
-                    maxLength = default;
-                    return false;
-                }
-
-                var total = (long)childLength * quantifier.Max;
-                maxLength = total > int.MaxValue ? int.MaxValue : (int)total;
-                return true;
-            }
             default:
                 maxLength = default;
                 return false;
@@ -314,41 +314,41 @@ internal sealed partial class ScratchRegExpProgram
             case ClassSetNestedExpression nested:
                 return TryGetClassMinMatchLength(nested.Class, out minLength);
             case ClassSetUnionExpression union:
-            {
-                if (union.Terms.Length == 0)
                 {
-                    minLength = 0;
+                    if (union.Terms.Length == 0)
+                    {
+                        minLength = 0;
+                        return true;
+                    }
+
+                    var best = int.MaxValue;
+                    for (var i = 0; i < union.Terms.Length; i++)
+                    {
+                        if (!TryGetClassSetExpressionMinMatchLength(union.Terms[i], out var termMinLength))
+                        {
+                            minLength = default;
+                            return false;
+                        }
+
+                        if (termMinLength < best)
+                            best = termMinLength;
+                    }
+
+                    minLength = best;
                     return true;
                 }
-
-                var best = int.MaxValue;
-                for (var i = 0; i < union.Terms.Length; i++)
+            case ClassSetIntersectionExpression intersection:
                 {
-                    if (!TryGetClassSetExpressionMinMatchLength(union.Terms[i], out var termMinLength))
+                    if (!TryGetClassSetExpressionMinMatchLength(intersection.Left, out var leftMinLength) ||
+                        !TryGetClassSetExpressionMinMatchLength(intersection.Right, out var rightMinLength))
                     {
                         minLength = default;
                         return false;
                     }
 
-                    if (termMinLength < best)
-                        best = termMinLength;
+                    minLength = Math.Min(leftMinLength, rightMinLength);
+                    return true;
                 }
-
-                minLength = best;
-                return true;
-            }
-            case ClassSetIntersectionExpression intersection:
-            {
-                if (!TryGetClassSetExpressionMinMatchLength(intersection.Left, out var leftMinLength) ||
-                    !TryGetClassSetExpressionMinMatchLength(intersection.Right, out var rightMinLength))
-                {
-                    minLength = default;
-                    return false;
-                }
-
-                minLength = Math.Min(leftMinLength, rightMinLength);
-                return true;
-            }
             case ClassSetDifferenceExpression difference:
                 return TryGetClassSetExpressionMinMatchLength(difference.Left, out minLength);
             default:
@@ -366,35 +366,35 @@ internal sealed partial class ScratchRegExpProgram
             case ClassSetNestedExpression nested:
                 return TryGetClassMaxMatchLength(nested.Class, out maxLength);
             case ClassSetUnionExpression union:
-            {
-                var best = 0;
-                for (var i = 0; i < union.Terms.Length; i++)
                 {
-                    if (!TryGetClassSetExpressionMaxMatchLength(union.Terms[i], out var termMaxLength))
+                    var best = 0;
+                    for (var i = 0; i < union.Terms.Length; i++)
+                    {
+                        if (!TryGetClassSetExpressionMaxMatchLength(union.Terms[i], out var termMaxLength))
+                        {
+                            maxLength = default;
+                            return false;
+                        }
+
+                        if (termMaxLength > best)
+                            best = termMaxLength;
+                    }
+
+                    maxLength = best;
+                    return true;
+                }
+            case ClassSetIntersectionExpression intersection:
+                {
+                    if (!TryGetClassSetExpressionMaxMatchLength(intersection.Left, out var leftMaxLength) ||
+                        !TryGetClassSetExpressionMaxMatchLength(intersection.Right, out var rightMaxLength))
                     {
                         maxLength = default;
                         return false;
                     }
 
-                    if (termMaxLength > best)
-                        best = termMaxLength;
+                    maxLength = Math.Min(leftMaxLength, rightMaxLength);
+                    return true;
                 }
-
-                maxLength = best;
-                return true;
-            }
-            case ClassSetIntersectionExpression intersection:
-            {
-                if (!TryGetClassSetExpressionMaxMatchLength(intersection.Left, out var leftMaxLength) ||
-                    !TryGetClassSetExpressionMaxMatchLength(intersection.Right, out var rightMaxLength))
-                {
-                    maxLength = default;
-                    return false;
-                }
-
-                maxLength = Math.Min(leftMaxLength, rightMaxLength);
-                return true;
-            }
             case ClassSetDifferenceExpression difference:
                 return TryGetClassSetExpressionMaxMatchLength(difference.Left, out maxLength);
             default:

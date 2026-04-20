@@ -92,14 +92,14 @@ public partial class Intrinsics
                         literalStart = cursor;
                         continue;
                     case '\'':
-                    {
-                        var tailPos = Math.Min(position + matched.Length, stringLength);
-                        if (tailPos < stringLength)
-                            result.Append(str, tailPos, stringLength - tailPos);
-                        cursor += 2;
-                        literalStart = cursor;
-                        continue;
-                    }
+                        {
+                            var tailPos = Math.Min(position + matched.Length, stringLength);
+                            if (tailPos < stringLength)
+                                result.Append(str, tailPos, stringLength - tailPos);
+                            cursor += 2;
+                            literalStart = cursor;
+                            continue;
+                        }
                 }
 
                 if (next is >= '0' and <= '9')

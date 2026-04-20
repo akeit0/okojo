@@ -1242,10 +1242,10 @@ public sealed partial class JsCompiler : IDisposable
                     classExpr.HasExtends,
                     classExpr.ExtendsExpression,
                     classExpr.NameId)
-                {
-                    Position = classExpr.Position,
-                    EndPosition = classExpr.EndPosition
-                },
+            {
+                Position = classExpr.Position,
+                EndPosition = classExpr.EndPosition
+            },
             _ => expression
         };
     }
@@ -3659,43 +3659,43 @@ public sealed partial class JsCompiler : IDisposable
         switch (unary.Operator)
         {
             case JsUnaryOperator.LogicalNot:
-            {
-                var b = lit.Value switch
                 {
-                    null => false,
-                    bool bb => bb,
-                    double d => d != 0 && !double.IsNaN(d),
-                    JsBigInt bi => !bi.Value.IsZero,
-                    string s => s.Length > 0,
-                    _ => throw new NotImplementedException($"Unary literal fold ! for {lit.Value?.GetType().Name}")
-                };
-                EmitLda(!b);
-                return true;
-            }
+                    var b = lit.Value switch
+                    {
+                        null => false,
+                        bool bb => bb,
+                        double d => d != 0 && !double.IsNaN(d),
+                        JsBigInt bi => !bi.Value.IsZero,
+                        string s => s.Length > 0,
+                        _ => throw new NotImplementedException($"Unary literal fold ! for {lit.Value?.GetType().Name}")
+                    };
+                    EmitLda(!b);
+                    return true;
+                }
             case JsUnaryOperator.BitwiseNot:
-            {
-                if (lit.Value is not double d) return false;
-                var v = ToInt32ForLiteralFold(d);
-                EmitNumberLiteral(~v);
-                return true;
-            }
+                {
+                    if (lit.Value is not double d) return false;
+                    var v = ToInt32ForLiteralFold(d);
+                    EmitNumberLiteral(~v);
+                    return true;
+                }
             case JsUnaryOperator.Plus:
-            {
-                if (lit.Value is not double d) return false;
-                EmitNumberLiteral(d);
-                return true;
-            }
+                {
+                    if (lit.Value is not double d) return false;
+                    EmitNumberLiteral(d);
+                    return true;
+                }
             case JsUnaryOperator.Minus:
-            {
-                if (lit.Value is not double d) return false;
-                EmitNumberLiteral(-d);
-                return true;
-            }
+                {
+                    if (lit.Value is not double d) return false;
+                    EmitNumberLiteral(-d);
+                    return true;
+                }
             case JsUnaryOperator.Void:
-            {
-                EmitLdaUndefined();
-                return true;
-            }
+                {
+                    EmitLdaUndefined();
+                    return true;
+                }
             default:
                 return false;
         }
@@ -4310,25 +4310,25 @@ public sealed partial class JsCompiler : IDisposable
         switch (left)
         {
             case JsVariableDeclarationStatement declStmt:
-            {
-                if (declStmt.BindingPattern is not null)
                 {
-                    EmitStoreOrDestructureAssignmentTarget(
-                        declStmt.BindingPattern,
-                        isLoopInitialization);
-                    break;
-                }
+                    if (declStmt.BindingPattern is not null)
+                    {
+                        EmitStoreOrDestructureAssignmentTarget(
+                            declStmt.BindingPattern,
+                            isLoopInitialization);
+                        break;
+                    }
 
-                if (declStmt.Declarators.Count != 1)
-                    throw new NotSupportedException("iteration declaration must have a single declarator.");
-                var decl = declStmt.Declarators[0];
-                if (decl.Initializer is not null)
-                    throw new NotSupportedException("iteration declaration initializer is not supported.");
-                var useInitializationStore = isLoopInitialization && declStmt.Kind is not JsVariableDeclarationKind.Var;
-                StoreIdentifier(TryResolveLocalBinding(decl.Name, out var resolvedDecl) ? resolvedDecl.Name : decl.Name,
-                    useInitializationStore,
-                    decl.Name);
-            }
+                    if (declStmt.Declarators.Count != 1)
+                        throw new NotSupportedException("iteration declaration must have a single declarator.");
+                    var decl = declStmt.Declarators[0];
+                    if (decl.Initializer is not null)
+                        throw new NotSupportedException("iteration declaration initializer is not supported.");
+                    var useInitializationStore = isLoopInitialization && declStmt.Kind is not JsVariableDeclarationKind.Var;
+                    StoreIdentifier(TryResolveLocalBinding(decl.Name, out var resolvedDecl) ? resolvedDecl.Name : decl.Name,
+                        useInitializationStore,
+                        decl.Name);
+                }
                 break;
             case JsIdentifierExpression id:
                 // Bare identifier in for-in/of/await assignment is a normal PutValue, not declaration initialization.
@@ -5400,37 +5400,37 @@ public sealed partial class JsCompiler : IDisposable
         try
         {
             foreach (var c in switchStmt.Cases)
-            foreach (var stmt in c.Consequent)
-                if (stmt is JsVariableDeclarationStatement declStmt &&
-                    declStmt.Kind.IsLexical())
-                {
-                    foreach (var decl in declStmt.Declarators)
+                foreach (var stmt in c.Consequent)
+                    if (stmt is JsVariableDeclarationStatement declStmt &&
+                        declStmt.Kind.IsLexical())
                     {
-                        if (!seen.Add(decl.Name))
-                            throw new JsParseException($"Identifier '{decl.Name}' has already been declared",
+                        foreach (var decl in declStmt.Declarators)
+                        {
+                            if (!seen.Add(decl.Name))
+                                throw new JsParseException($"Identifier '{decl.Name}' has already been declared",
+                                    stmt.Position, CurrentSourceText);
+
+                            var internalName = $"{decl.Name}#s{blockLexicalUniqueId++}";
+                            var internalSymbolId = GetOrCreateSymbolId(internalName);
+                            MarkLexicalBinding(internalSymbolId, declStmt.Kind.IsConstLike());
+                            MarkSwitchLexicalInternal(internalSymbolId);
+                            bindings.Add(new(decl.Name, decl.NameId, internalName, internalSymbolId,
+                                declStmt.Kind.IsConstLike()));
+                        }
+                    }
+                    else if (stmt is JsClassDeclaration classDecl)
+                    {
+                        if (!seen.Add(classDecl.Name))
+                            throw new JsParseException($"Identifier '{classDecl.Name}' has already been declared",
                                 stmt.Position, CurrentSourceText);
 
-                        var internalName = $"{decl.Name}#s{blockLexicalUniqueId++}";
+                        var internalName = $"{classDecl.Name}#s{blockLexicalUniqueId++}";
                         var internalSymbolId = GetOrCreateSymbolId(internalName);
-                        MarkLexicalBinding(internalSymbolId, declStmt.Kind.IsConstLike());
+                        MarkLexicalBinding(internalSymbolId, false);
                         MarkSwitchLexicalInternal(internalSymbolId);
-                        bindings.Add(new(decl.Name, decl.NameId, internalName, internalSymbolId,
-                            declStmt.Kind.IsConstLike()));
+                        bindings.Add(new(classDecl.Name, classDecl.NameId, internalName, internalSymbolId,
+                            false));
                     }
-                }
-                else if (stmt is JsClassDeclaration classDecl)
-                {
-                    if (!seen.Add(classDecl.Name))
-                        throw new JsParseException($"Identifier '{classDecl.Name}' has already been declared",
-                            stmt.Position, CurrentSourceText);
-
-                    var internalName = $"{classDecl.Name}#s{blockLexicalUniqueId++}";
-                    var internalSymbolId = GetOrCreateSymbolId(internalName);
-                    MarkLexicalBinding(internalSymbolId, false);
-                    MarkSwitchLexicalInternal(internalSymbolId);
-                    bindings.Add(new(classDecl.Name, classDecl.NameId, internalName, internalSymbolId,
-                        false));
-                }
 
             if (bindings.Count > 0)
                 switchLexicalsByPosition[switchStmt.Position] = bindings;
@@ -5958,10 +5958,10 @@ public sealed partial class JsCompiler : IDisposable
             case JsContinueStatement:
                 return true;
             case JsBlockStatement block:
-            {
-                var last = GetLastReachableStatement(block.Statements);
-                return last is not null && StatementNeverCompletesNormally(last);
-            }
+                {
+                    var last = GetLastReachableStatement(block.Statements);
+                    return last is not null && StatementNeverCompletesNormally(last);
+                }
             case JsIfStatement conditional:
                 return conditional.Alternate is not null
                        && StatementNeverCompletesNormally(conditional.Consequent)
@@ -5995,10 +5995,10 @@ public sealed partial class JsCompiler : IDisposable
         switch (statement)
         {
             case JsBlockStatement block:
-            {
-                var last = GetLastReachableStatement(block.Statements);
-                return last is not null && StatementLeavesKnownUndefinedValueInCurrentContext(last);
-            }
+                {
+                    var last = GetLastReachableStatement(block.Statements);
+                    return last is not null && StatementLeavesKnownUndefinedValueInCurrentContext(last);
+                }
             case JsIfStatement conditional:
                 return conditional.Alternate is not null
                        && StatementLeavesKnownUndefinedValueInCurrentContext(conditional.Consequent)
@@ -6177,13 +6177,13 @@ public sealed partial class JsCompiler : IDisposable
             case JsForInOfStatement forInOfStmt:
                 return StatementCanCompleteAbruptEmpty(forInOfStmt.Body);
             case JsSwitchStatement switchStmt:
-            {
-                foreach (var switchCase in switchStmt.Cases)
-                    if (StatementListCanCompleteAbruptEmpty(switchCase.Consequent))
-                        return true;
+                {
+                    foreach (var switchCase in switchStmt.Cases)
+                        if (StatementListCanCompleteAbruptEmpty(switchCase.Consequent))
+                            return true;
 
-                return false;
-            }
+                    return false;
+                }
             case JsTryStatement tryStmt:
                 return StatementListCanCompleteAbruptEmpty(tryStmt.Block.Statements)
                        || (tryStmt.Handler is not null
@@ -6531,18 +6531,18 @@ public sealed partial class JsCompiler : IDisposable
                        (t.Handler is not null ? CountNewTargetInStatement(t.Handler.Body) : 0) +
                        (t.Finalizer is not null ? CountNewTargetInStatement(t.Finalizer) : 0);
             case JsSwitchStatement sw:
-            {
-                var count = CountNewTargetInExpression(sw.Discriminant);
-                foreach (var c in sw.Cases)
                 {
-                    if (c.Test is not null)
-                        count += CountNewTargetInExpression(c.Test);
-                    foreach (var s in c.Consequent)
-                        count += CountNewTargetInStatement(s);
-                }
+                    var count = CountNewTargetInExpression(sw.Discriminant);
+                    foreach (var c in sw.Cases)
+                    {
+                        if (c.Test is not null)
+                            count += CountNewTargetInExpression(c.Test);
+                        foreach (var s in c.Consequent)
+                            count += CountNewTargetInStatement(s);
+                    }
 
-                return count;
-            }
+                    return count;
+                }
             case JsLabeledStatement l:
                 return CountNewTargetInStatement(l.Statement);
             default:

@@ -1396,25 +1396,25 @@ public sealed partial class JsRealm
         {
             case JsBytecodeFunctionKind.Generator:
             case JsBytecodeFunctionKind.AsyncGenerator:
-            {
-                var generator = CreateGeneratorObject(bytecodeTarget, thisValue, args);
-                if (bytecodeTarget.HasEagerGeneratorParameterBinding)
                 {
-                    PreflightGeneratorParameterBinding(generator);
-                    RefreshGeneratorPrototypeAfterParameterBinding(generator);
-                }
+                    var generator = CreateGeneratorObject(bytecodeTarget, thisValue, args);
+                    if (bytecodeTarget.HasEagerGeneratorParameterBinding)
+                    {
+                        PreflightGeneratorParameterBinding(generator);
+                        RefreshGeneratorPrototypeAfterParameterBinding(generator);
+                    }
 
-                if (hasPrependedArgs)
-                    args.Fill(JsValue.Undefined);
-                return generator;
-            }
+                    if (hasPrependedArgs)
+                        args.Fill(JsValue.Undefined);
+                    return generator;
+                }
             case JsBytecodeFunctionKind.Async:
-            {
-                var result = StartAsyncBytecodeFunction(bytecodeTarget, thisValue, args);
-                if (hasPrependedArgs)
-                    args.Fill(JsValue.Undefined);
-                return result;
-            }
+                {
+                    var result = StartAsyncBytecodeFunction(bytecodeTarget, thisValue, args);
+                    if (hasPrependedArgs)
+                        args.Fill(JsValue.Undefined);
+                    return result;
+                }
             default:
                 throw new UnreachableException();
         }

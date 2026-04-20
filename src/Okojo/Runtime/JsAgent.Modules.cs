@@ -1295,42 +1295,42 @@ public sealed partial class JsAgent
         switch (userData)
         {
             case LocalExportSlotGetterCapture local:
-            {
-                if (local.CellIndex > 0)
                 {
-                    identity = ExportBindingIdentity.Named(local.ModuleResolvedId, local.ExportedName);
-                    return true;
-                }
+                    if (local.CellIndex > 0)
+                    {
+                        identity = ExportBindingIdentity.Named(local.ModuleResolvedId, local.ExportedName);
+                        return true;
+                    }
 
-                var importIndex = -local.CellIndex - 1;
-                if ((uint)importIndex >= (uint)local.Bindings.RegularImports.Length)
+                    var importIndex = -local.CellIndex - 1;
+                    if ((uint)importIndex >= (uint)local.Bindings.RegularImports.Length)
+                        return false;
+                    var slot = local.Bindings.RegularImports[importIndex];
+                    if (slot.Kind == ModuleVariableSlotKind.NamespaceImport &&
+                        slot.ResolvedDependencyId is not null)
+                    {
+                        identity = ExportBindingIdentity.Namespace(slot.ResolvedDependencyId, slot.ImportType);
+                        return true;
+                    }
+
+                    if (slot.Kind == ModuleVariableSlotKind.NamedImport &&
+                        slot.ResolvedDependencyId is not null &&
+                        slot.ImportedName is not null)
+                    {
+                        identity = ExportBindingIdentity.Named(slot.ResolvedDependencyId, slot.ImportedName);
+                        return true;
+                    }
+
                     return false;
-                var slot = local.Bindings.RegularImports[importIndex];
-                if (slot.Kind == ModuleVariableSlotKind.NamespaceImport &&
-                    slot.ResolvedDependencyId is not null)
-                {
-                    identity = ExportBindingIdentity.Namespace(slot.ResolvedDependencyId, slot.ImportType);
-                    return true;
                 }
-
-                if (slot.Kind == ModuleVariableSlotKind.NamedImport &&
-                    slot.ResolvedDependencyId is not null &&
-                    slot.ImportedName is not null)
-                {
-                    identity = ExportBindingIdentity.Named(slot.ResolvedDependencyId, slot.ImportedName);
-                    return true;
-                }
-
-                return false;
-            }
             case ExportFromGetterCapture from:
                 return TryResolveExportBindingIdentityCore(realm, from.Dependency, from.ImportedName, visited,
                     out identity);
             case ExportStarGetterCapture star:
-            {
-                var starName = realm.Atoms.AtomToString(star.Atom);
-                return TryResolveExportBindingIdentityCore(realm, star.Dependency, starName, visited, out identity);
-            }
+                {
+                    var starName = realm.Atoms.AtomToString(star.Atom);
+                    return TryResolveExportBindingIdentityCore(realm, star.Dependency, starName, visited, out identity);
+                }
             case NamespaceExportGetterCapture nsCapture:
                 if (nsCapture.NamespaceValue.TryGetObject(out var nsObj))
                 {

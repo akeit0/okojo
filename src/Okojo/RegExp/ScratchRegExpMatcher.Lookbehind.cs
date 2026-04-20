@@ -117,29 +117,29 @@ internal static partial class ScratchRegExpMatcher
                     return true;
                 break;
             case ScratchRegExpProgram.CaptureNode capture:
-            {
-                using var snapshotLease = state.RentClone(out var snapshot);
-                snapshot.Ends[capture.Index] = pos;
-                snapshot.Matched[capture.Index] = true;
-                if (TryMatchLookbehindNode(context, capture.Child, pos, flags, snapshot, out var captureStart,
-                        nestedInQuantifierContext))
                 {
-                    snapshot.Starts[capture.Index] = captureStart;
-                    state.CopyFrom(snapshot);
-                    startIndex = captureStart;
-                    return true;
-                }
+                    using var snapshotLease = state.RentClone(out var snapshot);
+                    snapshot.Ends[capture.Index] = pos;
+                    snapshot.Matched[capture.Index] = true;
+                    if (TryMatchLookbehindNode(context, capture.Child, pos, flags, snapshot, out var captureStart,
+                            nestedInQuantifierContext))
+                    {
+                        snapshot.Starts[capture.Index] = captureStart;
+                        state.CopyFrom(snapshot);
+                        startIndex = captureStart;
+                        return true;
+                    }
 
-                break;
-            }
+                    break;
+                }
             case ScratchRegExpProgram.ScopedModifiersNode scoped:
-            {
-                var scopedFlags = ApplyScopedModifiers(flags, scoped);
-                if (TryMatchLookbehindNode(context, scoped.Child, pos, scopedFlags, state, out startIndex,
-                        nestedInQuantifierContext))
-                    return true;
-                break;
-            }
+                {
+                    var scopedFlags = ApplyScopedModifiers(flags, scoped);
+                    if (TryMatchLookbehindNode(context, scoped.Child, pos, scopedFlags, state, out startIndex,
+                            nestedInQuantifierContext))
+                        return true;
+                    break;
+                }
             case ScratchRegExpProgram.LookaheadNode lookahead:
                 return TryMatchLookaheadInLookbehind(context, lookahead, pos, flags, state, out startIndex,
                     nestedInQuantifierContext);

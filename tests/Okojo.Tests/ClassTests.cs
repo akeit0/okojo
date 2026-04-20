@@ -1698,7 +1698,7 @@ public class ClassTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var ex = Assert.Throws<JsParseException>(() =>
-            JsCompiler.Compile(realm,JavaScriptParser.ParseScript("""
+            JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
                                                           class A { #x = 1; }
                                                           class B extends A {
                                                             run() { return super.#x++; }

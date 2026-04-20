@@ -135,33 +135,33 @@ public sealed class WasmtimeBackend : IWasmBackend
             switch (descriptor.Kind)
             {
                 case WasmExternalKind.Function:
-                {
-                    var fn = instance.GetFunction(descriptor.Name);
-                    if (fn is not null)
-                        exports[descriptor.Name] = new WasmtimeFunctionWrapper(fn, store);
-                    break;
-                }
+                    {
+                        var fn = instance.GetFunction(descriptor.Name);
+                        if (fn is not null)
+                            exports[descriptor.Name] = new WasmtimeFunctionWrapper(fn, store);
+                        break;
+                    }
                 case WasmExternalKind.Memory:
-                {
-                    var memory = instance.GetMemory(descriptor.Name);
-                    if (memory is not null)
-                        exports[descriptor.Name] = new WasmtimeMemoryWrapper(memory, (WasmMemoryType)descriptor.Type);
-                    break;
-                }
+                    {
+                        var memory = instance.GetMemory(descriptor.Name);
+                        if (memory is not null)
+                            exports[descriptor.Name] = new WasmtimeMemoryWrapper(memory, (WasmMemoryType)descriptor.Type);
+                        break;
+                    }
                 case WasmExternalKind.Table:
-                {
-                    var table = instance.GetTable(descriptor.Name);
-                    if (table is not null)
-                        exports[descriptor.Name] = new WasmtimeTableWrapper(table, (WasmTableType)descriptor.Type);
-                    break;
-                }
+                    {
+                        var table = instance.GetTable(descriptor.Name);
+                        if (table is not null)
+                            exports[descriptor.Name] = new WasmtimeTableWrapper(table, (WasmTableType)descriptor.Type);
+                        break;
+                    }
                 case WasmExternalKind.Global:
-                {
-                    var global = instance.GetGlobal(descriptor.Name);
-                    if (global is not null)
-                        exports[descriptor.Name] = new WasmtimeGlobalWrapper(global, (WasmGlobalType)descriptor.Type);
-                    break;
-                }
+                    {
+                        var global = instance.GetGlobal(descriptor.Name);
+                        if (global is not null)
+                            exports[descriptor.Name] = new WasmtimeGlobalWrapper(global, (WasmGlobalType)descriptor.Type);
+                        break;
+                    }
             }
 
         return exports;

@@ -238,29 +238,29 @@ internal static class RegExpIrGenerator
                     state.AddNamedBackReferenceCaptureSet(captureIndexes.ToArray()));
                 return true;
             case ScratchRegExpProgram.LookaheadNode lookahead:
-            {
-                var lookaheadProgram = TryGenerate(lookahead.Child, flags, nodeCaptureIndices, namedCaptureIndexes);
-                if (lookaheadProgram is null)
-                    return false;
+                {
+                    var lookaheadProgram = TryGenerate(lookahead.Child, flags, nodeCaptureIndices, namedCaptureIndexes);
+                    if (lookaheadProgram is null)
+                        return false;
 
-                state.AddInstruction(lookahead.Positive
-                        ? RegExpIrOpcode.AssertLookahead
-                        : RegExpIrOpcode.AssertNotLookahead,
-                    state.AddLookaheadProgram(lookaheadProgram));
-                return true;
-            }
+                    state.AddInstruction(lookahead.Positive
+                            ? RegExpIrOpcode.AssertLookahead
+                            : RegExpIrOpcode.AssertNotLookahead,
+                        state.AddLookaheadProgram(lookaheadProgram));
+                    return true;
+                }
             case ScratchRegExpProgram.LookbehindNode lookbehind:
-            {
-                RegExpIrProgram? lookbehindProgram = null;
-                if (ScratchRegExpProgram.CanUseForwardLookbehindVm(lookbehind.Child) ||
-                    lookbehind.Positive && ScratchRegExpProgram.CanUseCaptureAwareForwardLookbehindVm(lookbehind.Child))
-                    lookbehindProgram = TryGenerate(lookbehind.Child, flags, nodeCaptureIndices, namedCaptureIndexes);
-                state.AddInstruction(lookbehind.Positive
-                        ? RegExpIrOpcode.AssertLookbehind
-                        : RegExpIrOpcode.AssertNotLookbehind,
-                    state.AddLookbehind(lookbehind.Child, flags, lookbehindProgram));
-                return true;
-            }
+                {
+                    RegExpIrProgram? lookbehindProgram = null;
+                    if (ScratchRegExpProgram.CanUseForwardLookbehindVm(lookbehind.Child) ||
+                        lookbehind.Positive && ScratchRegExpProgram.CanUseCaptureAwareForwardLookbehindVm(lookbehind.Child))
+                        lookbehindProgram = TryGenerate(lookbehind.Child, flags, nodeCaptureIndices, namedCaptureIndexes);
+                    state.AddInstruction(lookbehind.Positive
+                            ? RegExpIrOpcode.AssertLookbehind
+                            : RegExpIrOpcode.AssertNotLookbehind,
+                        state.AddLookbehind(lookbehind.Child, flags, lookbehindProgram));
+                    return true;
+                }
             case ScratchRegExpProgram.LiteralNode literal:
                 state.AddInstruction(flags.IgnoreCase
                     ? RegExpIrOpcode.CharIgnoreCase

@@ -190,9 +190,9 @@ internal static class OverloadDispatchAnalysis
         }
 
         for (var i = 0; i < overloads.Count; i++)
-        for (var j = i + 1; j < overloads.Count; j++)
-            if (TryCreateAmbiguityDiagnostic(name, overloads[i], overloads[j], out var diagnostic))
-                diagnostics.Add(diagnostic);
+            for (var j = i + 1; j < overloads.Count; j++)
+                if (TryCreateAmbiguityDiagnostic(name, overloads[i], overloads[j], out var diagnostic))
+                    diagnostics.Add(diagnostic);
 
         return new(name, overloads, exactBuckets, openEnded, diagnostics);
     }

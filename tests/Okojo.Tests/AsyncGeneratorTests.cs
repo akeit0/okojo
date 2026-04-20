@@ -493,7 +493,7 @@ public class AsyncGeneratorTests
                                                      });
                                                    """,
             "test262/test/language/expressions/class/async-gen-method/yield-promise-reject-next-for-await-of-async-iterator.js");
-        var script = JsCompiler.Compile(realm,program);
+        var script = JsCompiler.Compile(realm, program);
 
         realm.Execute(script);
         realm.Agent.PumpJobs();
@@ -563,7 +563,7 @@ public class AsyncGeneratorTests
                                                      });
                                                    """,
             "test262/test/language/statements/class/async-gen-method/yield-promise-reject-next-for-await-of-async-iterator.js");
-        var script = JsCompiler.Compile(realm,program);
+        var script = JsCompiler.Compile(realm, program);
 
         realm.Execute(script);
         var outArray = realm.Global["out"].AsObject() as JsArray;

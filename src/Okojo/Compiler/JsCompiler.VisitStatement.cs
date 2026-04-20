@@ -152,66 +152,66 @@ public sealed partial class JsCompiler
                     EmitLdaTheHole();
                 break;
             case JsIfStatement ifStmt:
-            {
-                if (ifStmt.Alternate is null &&
-                    StatementNeverCompletesNormally(ifStmt.Consequent) &&
-                    !ContainsShortCircuitingControlFlow(ifStmt.Test) &&
-                    (hasStructuredCompletion || hasSwitchCompletion))
                 {
-                    var abruptElseLabel = builder.CreateLabel();
+                    if (ifStmt.Alternate is null &&
+                        StatementNeverCompletesNormally(ifStmt.Consequent) &&
+                        !ContainsShortCircuitingControlFlow(ifStmt.Test) &&
+                        (hasStructuredCompletion || hasSwitchCompletion))
+                    {
+                        var abruptElseLabel = builder.CreateLabel();
+                        VisitExpression(ifStmt.Test);
+                        EmitJumpIfToBooleanFalse(abruptElseLabel);
+                        activeAbruptEmptyNormalizations.Push(true);
+                        VisitStatement(ifStmt.Consequent);
+                        activeAbruptEmptyNormalizations.Pop();
+                        builder.BindLabel(abruptElseLabel);
+                        EmitLdaUndefined();
+                        if (hasStructuredCompletion)
+                        {
+                            EmitStarRegister(statementCompletionReg);
+                            EmitLdaRegister(statementCompletionReg);
+                        }
+                        else
+                        {
+                            EmitStarRegister(switchCompletionReg);
+                            EmitLdaRegister(switchCompletionReg);
+                        }
+
+                        completionHandledInternally = true;
+                        break;
+                    }
+
+                    var elseLabel = builder.CreateLabel();
+                    BytecodeBuilder.Label endLabel = default;
                     VisitExpression(ifStmt.Test);
-                    EmitJumpIfToBooleanFalse(abruptElseLabel);
+                    EmitJumpIfToBooleanFalse(elseLabel);
                     activeAbruptEmptyNormalizations.Push(true);
                     VisitStatement(ifStmt.Consequent);
                     activeAbruptEmptyNormalizations.Pop();
-                    builder.BindLabel(abruptElseLabel);
-                    EmitLdaUndefined();
-                    if (hasStructuredCompletion)
+                    var hasLabel = false;
+                    if (!StatementNeverCompletesNormally(ifStmt.Consequent))
                     {
-                        EmitStarRegister(statementCompletionReg);
-                        EmitLdaRegister(statementCompletionReg);
+                        hasLabel = true;
+                        endLabel = builder.CreateLabel();
+                        EmitJump(endLabel);
+                    }
+
+                    builder.BindLabel(elseLabel);
+                    if (ifStmt.Alternate != null)
+                    {
+                        activeAbruptEmptyNormalizations.Push(true);
+                        VisitStatement(ifStmt.Alternate);
+                        activeAbruptEmptyNormalizations.Pop();
                     }
                     else
                     {
-                        EmitStarRegister(switchCompletionReg);
-                        EmitLdaRegister(switchCompletionReg);
+                        EmitLdaTheHole();
                     }
 
-                    completionHandledInternally = true;
-                    break;
+                    if (hasLabel)
+                        builder.BindLabel(endLabel);
+                    EmitNormalizeAccumulatorHoleToUndefined();
                 }
-
-                var elseLabel = builder.CreateLabel();
-                BytecodeBuilder.Label endLabel = default;
-                VisitExpression(ifStmt.Test);
-                EmitJumpIfToBooleanFalse(elseLabel);
-                activeAbruptEmptyNormalizations.Push(true);
-                VisitStatement(ifStmt.Consequent);
-                activeAbruptEmptyNormalizations.Pop();
-                var hasLabel = false;
-                if (!StatementNeverCompletesNormally(ifStmt.Consequent))
-                {
-                    hasLabel = true;
-                    endLabel = builder.CreateLabel();
-                    EmitJump(endLabel);
-                }
-
-                builder.BindLabel(elseLabel);
-                if (ifStmt.Alternate != null)
-                {
-                    activeAbruptEmptyNormalizations.Push(true);
-                    VisitStatement(ifStmt.Alternate);
-                    activeAbruptEmptyNormalizations.Pop();
-                }
-                else
-                {
-                    EmitLdaTheHole();
-                }
-
-                if (hasLabel)
-                    builder.BindLabel(endLabel);
-                EmitNormalizeAccumulatorHoleToUndefined();
-            }
                 break;
             case JsWhileStatement whileStmt:
                 EmitWhileStatement(whileStmt);
@@ -335,9 +335,9 @@ public sealed partial class JsCompiler
                 EmitContinueConsideringFinallyFlow(continueTarget);
                 break;
             case JsTryStatement tryStmt:
-            {
-                EmitTryStatement(tryStmt);
-            }
+                {
+                    EmitTryStatement(tryStmt);
+                }
                 break;
             case JsDebuggerStatement:
                 EmitDebugger();

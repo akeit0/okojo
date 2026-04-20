@@ -72,22 +72,22 @@ internal sealed partial class JsParser
                 parameters = new[] { id.Name };
                 return true;
             case JsSequenceExpression seq:
-            {
-                var list = new string[seq.Expressions.Count];
-                for (var i = 0; i < seq.Expressions.Count; i++)
                 {
-                    if (seq.Expressions[i] is not JsIdentifierExpression p)
+                    var list = new string[seq.Expressions.Count];
+                    for (var i = 0; i < seq.Expressions.Count; i++)
                     {
-                        parameters = Array.Empty<string>();
-                        return false;
+                        if (seq.Expressions[i] is not JsIdentifierExpression p)
+                        {
+                            parameters = Array.Empty<string>();
+                            return false;
+                        }
+
+                        list[i] = p.Name;
                     }
 
-                    list[i] = p.Name;
+                    parameters = list;
+                    return true;
                 }
-
-                parameters = list;
-                return true;
-            }
             default:
                 parameters = Array.Empty<string>();
                 return false;

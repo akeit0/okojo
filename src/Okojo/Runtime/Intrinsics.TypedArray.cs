@@ -1893,35 +1893,35 @@ public partial class Intrinsics
                     return;
                 throw InvalidBase64Syntax();
             case 2:
-            {
-                if (lastChunkHandling == Base64LastChunkHandling.StopBeforePartial)
-                    return;
-                if (lastChunkHandling == Base64LastChunkHandling.Strict)
-                    throw InvalidBase64Syntax();
+                {
+                    if (lastChunkHandling == Base64LastChunkHandling.StopBeforePartial)
+                        return;
+                    if (lastChunkHandling == Base64LastChunkHandling.Strict)
+                        throw InvalidBase64Syntax();
 
-                var sa = DecodeBase64Sextet(chunk[0], base64Url);
-                var sb = DecodeBase64Sextet(chunk[1], base64Url);
-                if ((sa | sb) < 0)
-                    throw InvalidBase64Syntax();
-                bytes.Add((byte)((sa << 2) | (sb >> 4)));
-                return;
-            }
+                    var sa = DecodeBase64Sextet(chunk[0], base64Url);
+                    var sb = DecodeBase64Sextet(chunk[1], base64Url);
+                    if ((sa | sb) < 0)
+                        throw InvalidBase64Syntax();
+                    bytes.Add((byte)((sa << 2) | (sb >> 4)));
+                    return;
+                }
             case 3:
-            {
-                if (lastChunkHandling == Base64LastChunkHandling.StopBeforePartial)
-                    return;
-                if (lastChunkHandling == Base64LastChunkHandling.Strict)
-                    throw InvalidBase64Syntax();
+                {
+                    if (lastChunkHandling == Base64LastChunkHandling.StopBeforePartial)
+                        return;
+                    if (lastChunkHandling == Base64LastChunkHandling.Strict)
+                        throw InvalidBase64Syntax();
 
-                var sa = DecodeBase64Sextet(chunk[0], base64Url);
-                var sb = DecodeBase64Sextet(chunk[1], base64Url);
-                var sc = DecodeBase64Sextet(chunk[2], base64Url);
-                if ((sa | sb | sc) < 0)
-                    throw InvalidBase64Syntax();
-                bytes.Add((byte)((sa << 2) | (sb >> 4)));
-                bytes.Add((byte)(((sb & 0x0F) << 4) | (sc >> 2)));
-                return;
-            }
+                    var sa = DecodeBase64Sextet(chunk[0], base64Url);
+                    var sb = DecodeBase64Sextet(chunk[1], base64Url);
+                    var sc = DecodeBase64Sextet(chunk[2], base64Url);
+                    if ((sa | sb | sc) < 0)
+                        throw InvalidBase64Syntax();
+                    bytes.Add((byte)((sa << 2) | (sb >> 4)));
+                    bytes.Add((byte)(((sb & 0x0F) << 4) | (sc >> 2)));
+                    return;
+                }
             default:
                 throw InvalidBase64Syntax();
         }

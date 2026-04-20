@@ -359,13 +359,13 @@ public sealed partial class JsCompiler
                 builder.EmitLda(JsOpCode.LdaModuleVariable, unchecked((byte)binding.Slot), (byte)binding.Depth);
                 break;
             case IdentifierReadBindingKind.CapturedContext:
-            {
-                var readPc = builder.CodeLength;
-                EmitLdaContextSlot(0, binding.Slot, binding.Depth);
-                builder.AddTdzReadDebugName(readPc, sourceName);
-                requiresClosureBinding = true;
-                break;
-            }
+                {
+                    var readPc = builder.CodeLength;
+                    EmitLdaContextSlot(0, binding.Slot, binding.Depth);
+                    builder.AddTdzReadDebugName(readPc, sourceName);
+                    requiresClosureBinding = true;
+                    break;
+                }
             case IdentifierReadBindingKind.Arguments:
                 _ = TryEmitArgumentsIdentifierLoad(sourceName);
                 break;
@@ -373,11 +373,11 @@ public sealed partial class JsCompiler
                 EmitLdaUndefined();
                 break;
             case IdentifierReadBindingKind.Global:
-            {
-                var nameIdx = builder.AddAtomizedStringConstant(sourceName);
-                EmitLdaGlobalByIndex(nameIdx, builder.GetOrAllocateGlobalBindingFeedbackSlot(sourceName));
-                break;
-            }
+                {
+                    var nameIdx = builder.AddAtomizedStringConstant(sourceName);
+                    EmitLdaGlobalByIndex(nameIdx, builder.GetOrAllocateGlobalBindingFeedbackSlot(sourceName));
+                    break;
+                }
             default:
                 throw new InvalidOperationException("Unexpected identifier read binding kind.");
         }

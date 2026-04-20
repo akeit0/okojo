@@ -3047,14 +3047,14 @@ internal sealed partial class JsParser
                         break;
                     case JsTokenKind.RightBrace:
                     case JsTokenKind.RightBracket:
-                    {
-                        var expected = stack.Peek();
-                        if (current.Kind != expected)
-                            throw Error("Invalid binding pattern", current.Position);
-                        stack.Pop();
-                        Next();
-                        break;
-                    }
+                        {
+                            var expected = stack.Peek();
+                            if (current.Kind != expected)
+                                throw Error("Invalid binding pattern", current.Position);
+                            stack.Pop();
+                            Next();
+                            break;
+                        }
                     default:
                         Next();
                         break;

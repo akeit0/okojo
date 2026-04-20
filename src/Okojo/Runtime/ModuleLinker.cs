@@ -351,12 +351,12 @@ internal sealed class ModuleLinker(Func<IModuleSourceLoader> loaderProvider)
         switch (declaration)
         {
             case JsVariableDeclarationStatement variable:
-            {
-                var names = new List<string>(variable.Declarators.Count);
-                for (var i = 0; i < variable.Declarators.Count; i++)
-                    names.Add(variable.Declarators[i].Name);
-                return names;
-            }
+                {
+                    var names = new List<string>(variable.Declarators.Count);
+                    for (var i = 0; i < variable.Declarators.Count; i++)
+                        names.Add(variable.Declarators[i].Name);
+                    return names;
+                }
             case JsFunctionDeclaration fn:
                 return [fn.Name];
             case JsClassDeclaration cls:

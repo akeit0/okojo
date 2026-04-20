@@ -134,61 +134,61 @@ public partial class Intrinsics
             case JsonValueKind.String:
                 return element.GetString() ?? string.Empty;
             case JsonValueKind.Array:
-            {
-                var array = realm.CreateArrayObject();
-                var length = element.GetArrayLength();
-                if (length != 0)
                 {
-                    var dense = array.InitializeDenseElementsNoCollision(length);
-                    var idx = 0;
-                    foreach (var item in element.EnumerateArray())
-                        dense[idx++] = ConvertJsonElement(realm, item, buffers);
-                }
-
-                return array;
-            }
-            case JsonValueKind.Object:
-            {
-                var obj = new JsPlainObject(realm, useDictionaryMode: true);
-                var staging = buffers.AcquireObjectStaging();
-                var usedGenericNamedPath = false;
-                try
-                {
-                    foreach (var prop in element.EnumerateObject())
+                    var array = realm.CreateArrayObject();
+                    var length = element.GetArrayLength();
+                    if (length != 0)
                     {
-                        var propValue = ConvertJsonElement(realm, prop.Value, buffers);
-                        if (TryGetArrayIndexFromCanonicalString(prop.Name, out var index))
-                        {
-                            obj.SetElement(index, propValue);
-                            continue;
-                        }
+                        var dense = array.InitializeDenseElementsNoCollision(length);
+                        var idx = 0;
+                        foreach (var item in element.EnumerateArray())
+                            dense[idx++] = ConvertJsonElement(realm, item, buffers);
+                    }
 
-                        var atom = realm.Atoms.InternNoCheck(prop.Name);
-                        if (!usedGenericNamedPath && !staging.ContainsAtom(atom))
+                    return array;
+                }
+            case JsonValueKind.Object:
+                {
+                    var obj = new JsPlainObject(realm, useDictionaryMode: true);
+                    var staging = buffers.AcquireObjectStaging();
+                    var usedGenericNamedPath = false;
+                    try
+                    {
+                        foreach (var prop in element.EnumerateObject())
                         {
-                            staging.Add(atom, propValue);
-                            continue;
+                            var propValue = ConvertJsonElement(realm, prop.Value, buffers);
+                            if (TryGetArrayIndexFromCanonicalString(prop.Name, out var index))
+                            {
+                                obj.SetElement(index, propValue);
+                                continue;
+                            }
+
+                            var atom = realm.Atoms.InternNoCheck(prop.Name);
+                            if (!usedGenericNamedPath && !staging.ContainsAtom(atom))
+                            {
+                                staging.Add(atom, propValue);
+                                continue;
+                            }
+
+                            if (!usedGenericNamedPath && staging.Count != 0)
+                            {
+                                obj.InitializeDynamicOpenDataPropertiesNoCollision(realm, staging.Atoms, staging.Values);
+                                usedGenericNamedPath = true;
+                            }
+
+                            obj.SetPropertyAtom(realm, atom, propValue, out _);
                         }
 
                         if (!usedGenericNamedPath && staging.Count != 0)
-                        {
                             obj.InitializeDynamicOpenDataPropertiesNoCollision(realm, staging.Atoms, staging.Values);
-                            usedGenericNamedPath = true;
-                        }
-
-                        obj.SetPropertyAtom(realm, atom, propValue, out _);
+                    }
+                    finally
+                    {
+                        staging.Release();
                     }
 
-                    if (!usedGenericNamedPath && staging.Count != 0)
-                        obj.InitializeDynamicOpenDataPropertiesNoCollision(realm, staging.Atoms, staging.Values);
+                    return obj;
                 }
-                finally
-                {
-                    staging.Release();
-                }
-
-                return obj;
-            }
             default:
                 return JsValue.Undefined;
         }

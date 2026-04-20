@@ -1655,7 +1655,7 @@ public class HostInteropTests
         private readonly string[] items = ["a", "b", "c"];
         public int Count;
 
-        public string Name { get;set; } = "start";
+        public string Name { get; set; } = "start";
 
         public int Length => items.Length;
 

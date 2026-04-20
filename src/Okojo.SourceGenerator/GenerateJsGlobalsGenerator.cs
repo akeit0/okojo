@@ -27,15 +27,15 @@ public sealed class GenerateJsGlobalsGenerator : IIncrementalGenerator
                 static x => x.HasDefaultValue);
             var hasErrors = false;
             for (var i = 0; i < overloadSets.Count; i++)
-            for (var j = 0; j < overloadSets[i].Diagnostics.Count; j++)
-            {
-                hasErrors = true;
-                var diagnostic = overloadSets[i].Diagnostics[j];
-                spc.ReportDiagnostic(Diagnostic.Create(
-                    SourceGeneratorDiagnostics.AmbiguousGeneratedOverload,
-                    diagnostic.Location,
-                    diagnostic.Message));
-            }
+                for (var j = 0; j < overloadSets[i].Diagnostics.Count; j++)
+                {
+                    hasErrors = true;
+                    var diagnostic = overloadSets[i].Diagnostics[j];
+                    spc.ReportDiagnostic(Diagnostic.Create(
+                        SourceGeneratorDiagnostics.AmbiguousGeneratedOverload,
+                        diagnostic.Location,
+                        diagnostic.Message));
+                }
 
             if (hasErrors)
                 return;

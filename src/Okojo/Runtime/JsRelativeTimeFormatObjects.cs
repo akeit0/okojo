@@ -44,42 +44,42 @@ internal sealed class JsRelativeTimeFormatObject : JsObject
     private static readonly Dictionary<string, Dictionary<string, string>> PolishLongUnits = new(StringComparer.Ordinal)
     {
         ["second"] = new(StringComparer.Ordinal)
-            { ["many"] = "sekund", ["few"] = "sekundy", ["one"] = "sekundę", ["other"] = "sekundy" },
+        { ["many"] = "sekund", ["few"] = "sekundy", ["one"] = "sekundę", ["other"] = "sekundy" },
         ["minute"] = new(StringComparer.Ordinal)
-            { ["many"] = "minut", ["few"] = "minuty", ["one"] = "minutę", ["other"] = "minuty" },
+        { ["many"] = "minut", ["few"] = "minuty", ["one"] = "minutę", ["other"] = "minuty" },
         ["hour"] = new(StringComparer.Ordinal)
-            { ["many"] = "godzin", ["few"] = "godziny", ["one"] = "godzinę", ["other"] = "godziny" },
+        { ["many"] = "godzin", ["few"] = "godziny", ["one"] = "godzinę", ["other"] = "godziny" },
         ["day"] = new(StringComparer.Ordinal)
-            { ["many"] = "dni", ["few"] = "dni", ["one"] = "dzień", ["other"] = "dnia" },
+        { ["many"] = "dni", ["few"] = "dni", ["one"] = "dzień", ["other"] = "dnia" },
         ["week"] = new(StringComparer.Ordinal)
-            { ["many"] = "tygodni", ["few"] = "tygodnie", ["one"] = "tydzień", ["other"] = "tygodnia" },
+        { ["many"] = "tygodni", ["few"] = "tygodnie", ["one"] = "tydzień", ["other"] = "tygodnia" },
         ["month"] = new(StringComparer.Ordinal)
-            { ["many"] = "miesięcy", ["few"] = "miesiące", ["one"] = "miesiąc", ["other"] = "miesiąca" },
+        { ["many"] = "miesięcy", ["few"] = "miesiące", ["one"] = "miesiąc", ["other"] = "miesiąca" },
         ["quarter"] = new(StringComparer.Ordinal)
-            { ["many"] = "kwartałów", ["few"] = "kwartały", ["one"] = "kwartał", ["other"] = "kwartału" },
+        { ["many"] = "kwartałów", ["few"] = "kwartały", ["one"] = "kwartał", ["other"] = "kwartału" },
         ["year"] = new(StringComparer.Ordinal)
-            { ["many"] = "lat", ["few"] = "lata", ["one"] = "rok", ["other"] = "roku" }
+        { ["many"] = "lat", ["few"] = "lata", ["one"] = "rok", ["other"] = "roku" }
     };
 
     private static readonly Dictionary<string, Dictionary<string, string>> PolishShortUnits =
         new(StringComparer.Ordinal)
         {
             ["second"] = new(StringComparer.Ordinal)
-                { ["many"] = "sek.", ["few"] = "sek.", ["one"] = "sek.", ["other"] = "sek." },
+            { ["many"] = "sek.", ["few"] = "sek.", ["one"] = "sek.", ["other"] = "sek." },
             ["minute"] = new(StringComparer.Ordinal)
-                { ["many"] = "min", ["few"] = "min", ["one"] = "min", ["other"] = "min" },
+            { ["many"] = "min", ["few"] = "min", ["one"] = "min", ["other"] = "min" },
             ["hour"] = new(StringComparer.Ordinal)
-                { ["many"] = "godz.", ["few"] = "godz.", ["one"] = "godz.", ["other"] = "godz." },
+            { ["many"] = "godz.", ["few"] = "godz.", ["one"] = "godz.", ["other"] = "godz." },
             ["day"] = new(StringComparer.Ordinal)
-                { ["many"] = "dni", ["few"] = "dni", ["one"] = "dzień", ["other"] = "dnia" },
+            { ["many"] = "dni", ["few"] = "dni", ["one"] = "dzień", ["other"] = "dnia" },
             ["week"] = new(StringComparer.Ordinal)
-                { ["many"] = "tyg.", ["few"] = "tyg.", ["one"] = "tydz.", ["other"] = "tyg." },
+            { ["many"] = "tyg.", ["few"] = "tyg.", ["one"] = "tydz.", ["other"] = "tyg." },
             ["month"] = new(StringComparer.Ordinal)
-                { ["many"] = "mies.", ["few"] = "mies.", ["one"] = "mies.", ["other"] = "mies." },
+            { ["many"] = "mies.", ["few"] = "mies.", ["one"] = "mies.", ["other"] = "mies." },
             ["quarter"] = new(StringComparer.Ordinal)
-                { ["many"] = "kw.", ["few"] = "kw.", ["one"] = "kw.", ["other"] = "kw." },
+            { ["many"] = "kw.", ["few"] = "kw.", ["one"] = "kw.", ["other"] = "kw." },
             ["year"] = new(StringComparer.Ordinal)
-                { ["many"] = "lat", ["few"] = "lata", ["one"] = "rok", ["other"] = "roku" }
+            { ["many"] = "lat", ["few"] = "lata", ["one"] = "rok", ["other"] = "roku" }
         };
 
     private static readonly Dictionary<string, Dictionary<string, string>> PolishNarrowUnits =
@@ -87,19 +87,19 @@ internal sealed class JsRelativeTimeFormatObject : JsObject
         {
             ["second"] = new(StringComparer.Ordinal) { ["many"] = "s", ["few"] = "s", ["one"] = "s", ["other"] = "s" },
             ["minute"] = new(StringComparer.Ordinal)
-                { ["many"] = "min", ["few"] = "min", ["one"] = "min", ["other"] = "min" },
+            { ["many"] = "min", ["few"] = "min", ["one"] = "min", ["other"] = "min" },
             ["hour"] =
                 new(StringComparer.Ordinal) { ["many"] = "g.", ["few"] = "g.", ["one"] = "g.", ["other"] = "g." },
             ["day"] = new(StringComparer.Ordinal)
-                { ["many"] = "dni", ["few"] = "dni", ["one"] = "dzień", ["other"] = "dnia" },
+            { ["many"] = "dni", ["few"] = "dni", ["one"] = "dzień", ["other"] = "dnia" },
             ["week"] = new(StringComparer.Ordinal)
-                { ["many"] = "tyg.", ["few"] = "tyg.", ["one"] = "tydz.", ["other"] = "tyg." },
+            { ["many"] = "tyg.", ["few"] = "tyg.", ["one"] = "tydz.", ["other"] = "tyg." },
             ["month"] = new(StringComparer.Ordinal)
-                { ["many"] = "mies.", ["few"] = "mies.", ["one"] = "mies.", ["other"] = "mies." },
+            { ["many"] = "mies.", ["few"] = "mies.", ["one"] = "mies.", ["other"] = "mies." },
             ["quarter"] = new(StringComparer.Ordinal)
-                { ["many"] = "kw.", ["few"] = "kw.", ["one"] = "kw.", ["other"] = "kw." },
+            { ["many"] = "kw.", ["few"] = "kw.", ["one"] = "kw.", ["other"] = "kw." },
             ["year"] = new(StringComparer.Ordinal)
-                { ["many"] = "lat", ["few"] = "lata", ["one"] = "rok", ["other"] = "roku" }
+            { ["many"] = "lat", ["few"] = "lata", ["one"] = "rok", ["other"] = "roku" }
         };
 
     internal JsRelativeTimeFormatObject(

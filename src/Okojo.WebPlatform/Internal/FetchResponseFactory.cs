@@ -77,21 +77,21 @@ internal static class FetchResponseFactory
             case JsonValueKind.String:
                 return JsValue.FromString(element.GetString() ?? string.Empty);
             case JsonValueKind.Array:
-            {
-                var array = realm.CreateArray();
-                uint index = 0;
-                foreach (var item in element.EnumerateArray())
-                    array.SetElement(index++, ConvertJsonElementToJsValue(realm, item));
-                return JsValue.FromObject(array);
-            }
+                {
+                    var array = realm.CreateArray();
+                    uint index = 0;
+                    foreach (var item in element.EnumerateArray())
+                        array.SetElement(index++, ConvertJsonElementToJsValue(realm, item));
+                    return JsValue.FromObject(array);
+                }
             case JsonValueKind.Object:
-            {
-                var obj = new JsPlainObject(realm);
-                foreach (var property in element.EnumerateObject())
-                    obj.DefineDataProperty(property.Name, ConvertJsonElementToJsValue(realm, property.Value),
-                        JsShapePropertyFlags.Open);
-                return JsValue.FromObject(obj);
-            }
+                {
+                    var obj = new JsPlainObject(realm);
+                    foreach (var property in element.EnumerateObject())
+                        obj.DefineDataProperty(property.Name, ConvertJsonElementToJsValue(realm, property.Value),
+                            JsShapePropertyFlags.Open);
+                    return JsValue.FromObject(obj);
+                }
             default:
                 return JsValue.Undefined;
         }

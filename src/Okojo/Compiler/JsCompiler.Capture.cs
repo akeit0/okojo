@@ -500,11 +500,11 @@ public sealed partial class JsCompiler
                 MarkCapturedNamesReferencedByNestedFunction(emptyObjectBinding.Initializer, allowArgumentsCapture);
                 break;
             case JsFunctionDeclaration functionDeclaration:
-            {
-                var nested = functionDeclaration;
-                MarkDirectCapturesFromNestedFunction(nested.ParameterInitializers, nested.Body,
-                    false);
-            }
+                {
+                    var nested = functionDeclaration;
+                    MarkDirectCapturesFromNestedFunction(nested.ParameterInitializers, nested.Body,
+                        false);
+                }
                 break;
             case JsClassDeclaration classDeclaration:
                 MarkCapturedNamesReferencedByNestedClassExpression(classDeclaration.ClassExpression,
@@ -559,31 +559,31 @@ public sealed partial class JsCompiler
         switch (expr)
         {
             case JsIdentifierExpression id:
-            {
-                var identifier = CompilerIdentifierName.From(id);
-                if (!allowArgumentsCapture && string.Equals(id.Name, "arguments", StringComparison.Ordinal))
-                    break;
-
-                if (allowArgumentsCapture &&
-                    string.Equals(id.Name, "arguments", StringComparison.Ordinal) &&
-                    ShouldUseFunctionArgumentsBinding(id.Name))
                 {
-                    MarkCapturedByChildBinding(SyntheticArgumentsSymbolId);
-                    break;
+                    var identifier = CompilerIdentifierName.From(id);
+                    if (!allowArgumentsCapture && string.Equals(id.Name, "arguments", StringComparison.Ordinal))
+                        break;
+
+                    if (allowArgumentsCapture &&
+                        string.Equals(id.Name, "arguments", StringComparison.Ordinal) &&
+                        ShouldUseFunctionArgumentsBinding(id.Name))
+                    {
+                        MarkCapturedByChildBinding(SyntheticArgumentsSymbolId);
+                        break;
+                    }
+
+                    if (TryGetModuleVariableBinding(id.Name, out _) ||
+                        (identifier.NameId >= 0 &&
+                         !string.Equals(ResolveLocalAlias(identifier), id.Name, StringComparison.Ordinal) &&
+                         TryGetModuleVariableBinding(ResolveLocalAlias(identifier), out _)))
+                        break;
+
+                    if (TryResolveLocalBinding(identifier, out var resolvedBinding) &&
+                        IsCurrentFunctionLocalVisibleForCapture(resolvedBinding.SymbolId))
+                        MarkCapturedByChildBinding(resolvedBinding.SymbolId);
+                    else
+                        MarkAncestorBindingCapturedByNestedFunction(identifier);
                 }
-
-                if (TryGetModuleVariableBinding(id.Name, out _) ||
-                    (identifier.NameId >= 0 &&
-                     !string.Equals(ResolveLocalAlias(identifier), id.Name, StringComparison.Ordinal) &&
-                     TryGetModuleVariableBinding(ResolveLocalAlias(identifier), out _)))
-                    break;
-
-                if (TryResolveLocalBinding(identifier, out var resolvedBinding) &&
-                    IsCurrentFunctionLocalVisibleForCapture(resolvedBinding.SymbolId))
-                    MarkCapturedByChildBinding(resolvedBinding.SymbolId);
-                else
-                    MarkAncestorBindingCapturedByNestedFunction(identifier);
-            }
                 break;
             case JsImportMetaExpression:
                 break;

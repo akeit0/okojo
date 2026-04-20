@@ -144,7 +144,7 @@ public partial class Intrinsics
             var settleState = (PromiseSettledState)resolve.UserData!;
 
             var resolveArgs = new InlineJsValueArray2
-                { Item0 = resolve, Item1 = reject };
+            { Item0 = resolve, Item1 = reject };
             try
             {
                 realm.InvokeFunction(executor, JsValue.Undefined, resolveArgs.AsSpan());
@@ -846,85 +846,85 @@ public partial class Intrinsics
         switch (reaction.Kind)
         {
             case JsPromiseObject.Reaction.ReactionKind.AssimilateToPromise:
-            {
-                var target = reaction.TargetPromise!;
-                if (settledState == JsPromiseObject.PromiseState.Fulfilled)
-                    Realm.ResolvePromiseWithAssimilation(target, settledResult);
-                else
-                    Realm.RejectPromise(target, settledResult);
-                return;
-            }
+                {
+                    var target = reaction.TargetPromise!;
+                    if (settledState == JsPromiseObject.PromiseState.Fulfilled)
+                        Realm.ResolvePromiseWithAssimilation(target, settledResult);
+                    else
+                        Realm.RejectPromise(target, settledResult);
+                    return;
+                }
             case JsPromiseObject.Reaction.ReactionKind.ResumeAsyncDriver:
-            {
-                var generator = reaction.AsyncGenerator!;
-                var mode = settledState == JsPromiseObject.PromiseState.Fulfilled
-                    ? GeneratorResumeMode.Next
-                    : GeneratorResumeMode.Throw;
-                if (generator.IsAsyncGenerator)
-                    Realm.ContinueActiveAsyncGeneratorRequest(generator, mode, settledResult);
-                else
-                    Realm.StartOrResumeAsyncDriver(generator, mode, settledResult);
-                return;
-            }
+                {
+                    var generator = reaction.AsyncGenerator!;
+                    var mode = settledState == JsPromiseObject.PromiseState.Fulfilled
+                        ? GeneratorResumeMode.Next
+                        : GeneratorResumeMode.Throw;
+                    if (generator.IsAsyncGenerator)
+                        Realm.ContinueActiveAsyncGeneratorRequest(generator, mode, settledResult);
+                    else
+                        Realm.StartOrResumeAsyncDriver(generator, mode, settledResult);
+                    return;
+                }
             case JsPromiseObject.Reaction.ReactionKind.InvokeHandlersOnly:
                 ExecuteFireAndForgetHandlerReaction(reaction, settledState, settledResult);
                 return;
             case JsPromiseObject.Reaction.ReactionKind.ResumeAsyncGeneratorReturn:
-            {
-                var generator = reaction.AsyncGeneratorReturnTarget!;
-                var mode = settledState == JsPromiseObject.PromiseState.Fulfilled
-                    ? GeneratorResumeMode.Return
-                    : GeneratorResumeMode.Throw;
-                Realm.ContinueActiveAsyncGeneratorRequest(generator, mode, settledResult);
-                return;
-            }
+                {
+                    var generator = reaction.AsyncGeneratorReturnTarget!;
+                    var mode = settledState == JsPromiseObject.PromiseState.Fulfilled
+                        ? GeneratorResumeMode.Return
+                        : GeneratorResumeMode.Throw;
+                    Realm.ContinueActiveAsyncGeneratorRequest(generator, mode, settledResult);
+                    return;
+                }
             case JsPromiseObject.Reaction.ReactionKind.ResumeAsyncGeneratorYieldDelegate:
-            {
-                var state = reaction.AsyncGeneratorYieldDelegateAwaitState!;
-                Realm.ContinueAsyncGeneratorYieldDelegateAfterAwait(
-                    state.Generator,
-                    state.OriginalMode,
-                    settledState,
-                    settledResult);
-                return;
-            }
-            case JsPromiseObject.Reaction.ReactionKind.CompleteAsyncFromSyncIteratorResult:
-            {
-                var resolution = reaction.AsyncFromSyncIteratorResolution!;
-                if (settledState == JsPromiseObject.PromiseState.Fulfilled)
                 {
-                    Realm.ResolvePromise(resolution.Promise,
-                        JsValue.FromObject(Realm.CreateIteratorResultObject(settledResult, resolution.Done)));
-                }
-                else
-                {
-                    if (!resolution.Done && resolution.CloseOnRejection &&
-                        resolution.IteratorToClose is { } iteratorToClose)
-                        Realm.BestEffortIteratorCloseOnThrow(iteratorToClose);
-                    Realm.RejectPromise(resolution.Promise, settledResult);
-                }
-
-                return;
-            }
-            case JsPromiseObject.Reaction.ReactionKind.AwaitAsyncGeneratorYieldValue:
-            {
-                var resolution = reaction.AsyncGeneratorYieldValueResolution!;
-                if (settledState == JsPromiseObject.PromiseState.Fulfilled)
-                {
-                    Realm.ResolvePromise(resolution.Promise,
-                        JsValue.FromObject(Realm.CreateIteratorResultObject(settledResult, false)));
-                    Realm.FinishAsyncGeneratorRequest(resolution.Generator);
-                }
-                else
-                {
-                    Realm.ContinueActiveAsyncGeneratorRequest(
-                        resolution.Generator,
-                        GeneratorResumeMode.Throw,
+                    var state = reaction.AsyncGeneratorYieldDelegateAwaitState!;
+                    Realm.ContinueAsyncGeneratorYieldDelegateAfterAwait(
+                        state.Generator,
+                        state.OriginalMode,
+                        settledState,
                         settledResult);
+                    return;
                 }
+            case JsPromiseObject.Reaction.ReactionKind.CompleteAsyncFromSyncIteratorResult:
+                {
+                    var resolution = reaction.AsyncFromSyncIteratorResolution!;
+                    if (settledState == JsPromiseObject.PromiseState.Fulfilled)
+                    {
+                        Realm.ResolvePromise(resolution.Promise,
+                            JsValue.FromObject(Realm.CreateIteratorResultObject(settledResult, resolution.Done)));
+                    }
+                    else
+                    {
+                        if (!resolution.Done && resolution.CloseOnRejection &&
+                            resolution.IteratorToClose is { } iteratorToClose)
+                            Realm.BestEffortIteratorCloseOnThrow(iteratorToClose);
+                        Realm.RejectPromise(resolution.Promise, settledResult);
+                    }
 
-                return;
-            }
+                    return;
+                }
+            case JsPromiseObject.Reaction.ReactionKind.AwaitAsyncGeneratorYieldValue:
+                {
+                    var resolution = reaction.AsyncGeneratorYieldValueResolution!;
+                    if (settledState == JsPromiseObject.PromiseState.Fulfilled)
+                    {
+                        Realm.ResolvePromise(resolution.Promise,
+                            JsValue.FromObject(Realm.CreateIteratorResultObject(settledResult, false)));
+                        Realm.FinishAsyncGeneratorRequest(resolution.Generator);
+                    }
+                    else
+                    {
+                        Realm.ContinueActiveAsyncGeneratorRequest(
+                            resolution.Generator,
+                            GeneratorResumeMode.Throw,
+                            settledResult);
+                    }
+
+                    return;
+                }
             default:
                 ExecuteUserHandlerReaction(reaction, settledState, settledResult);
                 return;

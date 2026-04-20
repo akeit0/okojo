@@ -326,25 +326,25 @@ public partial class Intrinsics
         switch (remaining)
         {
             case 2:
-            {
-                var sa = DecodeBase64Sextet(compact[compactIndex], base64Url);
-                var sb = DecodeBase64Sextet(compact[compactIndex + 1], base64Url);
-                if ((sa | sb) < 0)
-                    throw InvalidBase64Syntax();
-                target.SetElement((uint)written, JsValue.FromInt32((sa << 2) | (sb >> 4)));
-                return;
-            }
+                {
+                    var sa = DecodeBase64Sextet(compact[compactIndex], base64Url);
+                    var sb = DecodeBase64Sextet(compact[compactIndex + 1], base64Url);
+                    if ((sa | sb) < 0)
+                        throw InvalidBase64Syntax();
+                    target.SetElement((uint)written, JsValue.FromInt32((sa << 2) | (sb >> 4)));
+                    return;
+                }
             case 3:
-            {
-                var sa = DecodeBase64Sextet(compact[compactIndex], base64Url);
-                var sb = DecodeBase64Sextet(compact[compactIndex + 1], base64Url);
-                var sc = DecodeBase64Sextet(compact[compactIndex + 2], base64Url);
-                if ((sa | sb | sc) < 0)
-                    throw InvalidBase64Syntax();
-                target.SetElement((uint)written, JsValue.FromInt32((sa << 2) | (sb >> 4)));
-                target.SetElement((uint)(written + 1), JsValue.FromInt32(((sb & 0x0F) << 4) | (sc >> 2)));
-                return;
-            }
+                {
+                    var sa = DecodeBase64Sextet(compact[compactIndex], base64Url);
+                    var sb = DecodeBase64Sextet(compact[compactIndex + 1], base64Url);
+                    var sc = DecodeBase64Sextet(compact[compactIndex + 2], base64Url);
+                    if ((sa | sb | sc) < 0)
+                        throw InvalidBase64Syntax();
+                    target.SetElement((uint)written, JsValue.FromInt32((sa << 2) | (sb >> 4)));
+                    target.SetElement((uint)(written + 1), JsValue.FromInt32(((sb & 0x0F) << 4) | (sc >> 2)));
+                    return;
+                }
             default:
                 throw InvalidBase64Syntax();
         }

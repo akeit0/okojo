@@ -402,16 +402,16 @@ internal sealed partial class ScratchRegExpProgram
 
                     return true;
                 case QuantifierNode quantifier:
-                {
-                    if (quantifier.Min == 0 || !TryGetExactLiteral(quantifier.Child, out var literalCodePoints))
-                        return false;
+                    {
+                        if (quantifier.Min == 0 || !TryGetExactLiteral(quantifier.Child, out var literalCodePoints))
+                            return false;
 
-                    for (var repeat = 0; repeat < quantifier.Min && prefix.Length < MaxRequiredLiteralPrefixLength; repeat++)
-                    for (var i = 0; i < literalCodePoints.Length && prefix.Length < MaxRequiredLiteralPrefixLength; i++)
-                        prefix.Add(literalCodePoints[i]);
+                        for (var repeat = 0; repeat < quantifier.Min && prefix.Length < MaxRequiredLiteralPrefixLength; repeat++)
+                            for (var i = 0; i < literalCodePoints.Length && prefix.Length < MaxRequiredLiteralPrefixLength; i++)
+                                prefix.Add(literalCodePoints[i]);
 
-                    return quantifier.Max == quantifier.Min;
-                }
+                        return quantifier.Max == quantifier.Min;
+                    }
                 default:
                     if (!TryGetExactLiteral(node, out var exactLiteral))
                         return false;
@@ -441,40 +441,40 @@ internal sealed partial class ScratchRegExpProgram
                 case ScopedModifiersNode scoped:
                     return TryGetExactLiteral(scoped.Child, out codePoints);
                 case SequenceNode sequence:
-                {
-                    Span<int> initialBuffer = stackalloc int[Math.Min(Math.Max(sequence.Terms.Length, 1), 32)];
-                    using var builder = new PooledArrayBuilder<int>(initialBuffer);
-                    for (var i = 0; i < sequence.Terms.Length; i++)
                     {
-                        if (!TryGetExactLiteral(sequence.Terms[i], out var termLiteral))
+                        Span<int> initialBuffer = stackalloc int[Math.Min(Math.Max(sequence.Terms.Length, 1), 32)];
+                        using var builder = new PooledArrayBuilder<int>(initialBuffer);
+                        for (var i = 0; i < sequence.Terms.Length; i++)
+                        {
+                            if (!TryGetExactLiteral(sequence.Terms[i], out var termLiteral))
+                            {
+                                codePoints = [];
+                                return false;
+                            }
+
+                            for (var j = 0; j < termLiteral.Length; j++)
+                                builder.Add(termLiteral[j]);
+                        }
+
+                        codePoints = builder.ToArray();
+                        return true;
+                    }
+                case QuantifierNode quantifier when quantifier.Min == quantifier.Max:
+                    {
+                        if (!TryGetExactLiteral(quantifier.Child, out var childLiteral))
                         {
                             codePoints = [];
                             return false;
                         }
 
-                        for (var j = 0; j < termLiteral.Length; j++)
-                            builder.Add(termLiteral[j]);
+                        Span<int> initialBuffer = stackalloc int[MaxRequiredLiteralPrefixLength];
+                        using var builder = new PooledArrayBuilder<int>(initialBuffer);
+                        for (var repeat = 0; repeat < quantifier.Min && builder.Length < MaxRequiredLiteralPrefixLength; repeat++)
+                            for (var i = 0; i < childLiteral.Length && builder.Length < MaxRequiredLiteralPrefixLength; i++)
+                                builder.Add(childLiteral[i]);
+                        codePoints = builder.ToArray();
+                        return true;
                     }
-
-                    codePoints = builder.ToArray();
-                    return true;
-                }
-                case QuantifierNode quantifier when quantifier.Min == quantifier.Max:
-                {
-                    if (!TryGetExactLiteral(quantifier.Child, out var childLiteral))
-                    {
-                        codePoints = [];
-                        return false;
-                    }
-
-                    Span<int> initialBuffer = stackalloc int[MaxRequiredLiteralPrefixLength];
-                    using var builder = new PooledArrayBuilder<int>(initialBuffer);
-                    for (var repeat = 0; repeat < quantifier.Min && builder.Length < MaxRequiredLiteralPrefixLength; repeat++)
-                    for (var i = 0; i < childLiteral.Length && builder.Length < MaxRequiredLiteralPrefixLength; i++)
-                        builder.Add(childLiteral[i]);
-                    codePoints = builder.ToArray();
-                    return true;
-                }
                 default:
                     codePoints = [];
                     return false;

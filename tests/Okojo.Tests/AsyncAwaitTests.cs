@@ -12,7 +12,7 @@ public class AsyncAwaitTests
     public void AsyncAwait_Context()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, 
+        var script = JsCompiler.Compile(realm,
             JavaScriptParser.ParseScript(
                 """
                 function awaitBench() {

@@ -132,9 +132,9 @@ public sealed partial class JsRealm
             thisFramePointer = fp;
         }
         else if (callFrame.Function is JsBytecodeFunction
-                 {
-                     IsArrow: true, BoundDerivedSuperCallState: not null
-                 } arrowFunction &&
+        {
+            IsArrow: true, BoundDerivedSuperCallState: not null
+        } arrowFunction &&
                  arrowFunction.BoundDerivedSuperCallState is { } boundDerivedSuperState)
         {
             derivedSuperState = boundDerivedSuperState;

@@ -107,117 +107,117 @@ public sealed partial class JsCompiler
                         switch (element.Kind)
                         {
                             case JsClassElementKind.Field:
-                            {
-                                if (privateFieldBindingBySourceName.ContainsKey(sourcePrivateName) ||
-                                    privateAccessorInitBySourceName.ContainsKey(sourcePrivateName))
-                                    throw new NotSupportedException(
-                                        $"Duplicate private class member '{sourcePrivateName}' is not supported in Okojo Phase 2.");
-
-                                var binding = new PrivateFieldBinding(GetOrAllocatePrivateBrandId(element.IsStatic),
-                                    nextPrivateSlot++);
-                                privateFieldBindingBySourceName[sourcePrivateName] = binding;
-                                if (!element.IsStatic)
                                 {
-                                    var initPlan =
-                                        new PrivateFieldInitPlan(sourcePrivateName, binding, element.FieldInitializer);
-                                    privateFieldInitializers.Add(initPlan);
-                                    instanceFieldInitializers.Add(new(
-                                        InstanceFieldInitializerKind.PrivateField,
-                                        initPlan,
-                                        default));
-                                }
+                                    if (privateFieldBindingBySourceName.ContainsKey(sourcePrivateName) ||
+                                        privateAccessorInitBySourceName.ContainsKey(sourcePrivateName))
+                                        throw new NotSupportedException(
+                                            $"Duplicate private class member '{sourcePrivateName}' is not supported in Okojo Phase 2.");
 
-                                break;
-                            }
+                                    var binding = new PrivateFieldBinding(GetOrAllocatePrivateBrandId(element.IsStatic),
+                                        nextPrivateSlot++);
+                                    privateFieldBindingBySourceName[sourcePrivateName] = binding;
+                                    if (!element.IsStatic)
+                                    {
+                                        var initPlan =
+                                            new PrivateFieldInitPlan(sourcePrivateName, binding, element.FieldInitializer);
+                                        privateFieldInitializers.Add(initPlan);
+                                        instanceFieldInitializers.Add(new(
+                                            InstanceFieldInitializerKind.PrivateField,
+                                            initPlan,
+                                            default));
+                                    }
+
+                                    break;
+                                }
                             case JsClassElementKind.Getter:
                             case JsClassElementKind.Setter:
-                            {
-                                if (privateFieldBindingBySourceName.TryGetValue(sourcePrivateName,
-                                        out var existingBinding) &&
-                                    existingBinding.Kind != PrivateMemberKind.Accessor)
-                                    throw new NotSupportedException(
-                                        $"Private field/accessor name collision '{sourcePrivateName}' is not supported in Okojo Phase 2.");
-
-                                if (!privateFieldBindingBySourceName.TryGetValue(sourcePrivateName,
-                                        out var accessorBinding))
                                 {
-                                    accessorBinding = new(
+                                    if (privateFieldBindingBySourceName.TryGetValue(sourcePrivateName,
+                                            out var existingBinding) &&
+                                        existingBinding.Kind != PrivateMemberKind.Accessor)
+                                        throw new NotSupportedException(
+                                            $"Private field/accessor name collision '{sourcePrivateName}' is not supported in Okojo Phase 2.");
+
+                                    if (!privateFieldBindingBySourceName.TryGetValue(sourcePrivateName,
+                                            out var accessorBinding))
+                                    {
+                                        accessorBinding = new(
+                                            GetOrAllocatePrivateBrandId(element.IsStatic),
+                                            nextPrivateSlot++,
+                                            PrivateMemberKind.Accessor);
+                                        privateFieldBindingBySourceName[sourcePrivateName] = accessorBinding;
+                                        if (element.IsStatic)
+                                            staticPrivateAccessorInitBySourceName[sourcePrivateName] =
+                                                new(
+                                                    sourcePrivateName, accessorBinding, null, null);
+                                        else
+                                            privateAccessorInitBySourceName[sourcePrivateName] = new(
+                                                sourcePrivateName, accessorBinding, null, null);
+                                    }
+                                    else if (accessorBinding.Kind != PrivateMemberKind.Accessor)
+                                    {
+                                        throw new NotSupportedException(
+                                            $"Private field/accessor name collision '{sourcePrivateName}' is not supported in Okojo Phase 2.");
+                                    }
+
+                                    var accessorMap = element.IsStatic
+                                        ? staticPrivateAccessorInitBySourceName
+                                        : privateAccessorInitBySourceName;
+                                    if (!accessorMap.TryGetValue(sourcePrivateName, out var initPlan))
+                                        initPlan = new(sourcePrivateName, accessorBinding, null,
+                                            null);
+
+                                    if (element.Value is null)
+                                        throw new InvalidOperationException("Private accessor function is missing.");
+
+                                    if (element.Kind == JsClassElementKind.Getter)
+                                    {
+                                        if (initPlan.Getter is not null)
+                                            throw new NotSupportedException(
+                                                $"Duplicate private getter '{sourcePrivateName}' is not supported in Okojo Phase 2.");
+                                        initPlan = initPlan with { Getter = element.Value };
+                                    }
+                                    else
+                                    {
+                                        if (initPlan.Setter is not null)
+                                            throw new NotSupportedException(
+                                                $"Duplicate private setter '{sourcePrivateName}' is not supported in Okojo Phase 2.");
+                                        initPlan = initPlan with { Setter = element.Value };
+                                    }
+
+                                    accessorMap[sourcePrivateName] = initPlan;
+                                    break;
+                                }
+                            case JsClassElementKind.Method:
+                                {
+                                    if (privateFieldBindingBySourceName.ContainsKey(sourcePrivateName) ||
+                                        privateAccessorInitBySourceName.ContainsKey(sourcePrivateName) ||
+                                        staticPrivateAccessorInitBySourceName.ContainsKey(sourcePrivateName))
+                                        throw new NotSupportedException(
+                                            $"Duplicate private class member '{sourcePrivateName}' is not supported in Okojo Phase 2.");
+
+                                    if (element.Value is null)
+                                        throw new InvalidOperationException("Private method function is missing.");
+
+                                    var methodBinding = new PrivateFieldBinding(
                                         GetOrAllocatePrivateBrandId(element.IsStatic),
                                         nextPrivateSlot++,
-                                        PrivateMemberKind.Accessor);
-                                    privateFieldBindingBySourceName[sourcePrivateName] = accessorBinding;
+                                        PrivateMemberKind.Method);
+                                    privateFieldBindingBySourceName[sourcePrivateName] = methodBinding;
+
                                     if (element.IsStatic)
-                                        staticPrivateAccessorInitBySourceName[sourcePrivateName] =
-                                            new(
-                                                sourcePrivateName, accessorBinding, null, null);
+                                    {
+                                        // Static private methods initialize on ctor in class-definition lowering pass.
+                                    }
                                     else
-                                        privateAccessorInitBySourceName[sourcePrivateName] = new(
-                                            sourcePrivateName, accessorBinding, null, null);
+                                    {
+                                        privateMethodInitializers.Add(new(sourcePrivateName,
+                                            methodBinding,
+                                            element.Value));
+                                    }
+
+                                    break;
                                 }
-                                else if (accessorBinding.Kind != PrivateMemberKind.Accessor)
-                                {
-                                    throw new NotSupportedException(
-                                        $"Private field/accessor name collision '{sourcePrivateName}' is not supported in Okojo Phase 2.");
-                                }
-
-                                var accessorMap = element.IsStatic
-                                    ? staticPrivateAccessorInitBySourceName
-                                    : privateAccessorInitBySourceName;
-                                if (!accessorMap.TryGetValue(sourcePrivateName, out var initPlan))
-                                    initPlan = new(sourcePrivateName, accessorBinding, null,
-                                        null);
-
-                                if (element.Value is null)
-                                    throw new InvalidOperationException("Private accessor function is missing.");
-
-                                if (element.Kind == JsClassElementKind.Getter)
-                                {
-                                    if (initPlan.Getter is not null)
-                                        throw new NotSupportedException(
-                                            $"Duplicate private getter '{sourcePrivateName}' is not supported in Okojo Phase 2.");
-                                    initPlan = initPlan with { Getter = element.Value };
-                                }
-                                else
-                                {
-                                    if (initPlan.Setter is not null)
-                                        throw new NotSupportedException(
-                                            $"Duplicate private setter '{sourcePrivateName}' is not supported in Okojo Phase 2.");
-                                    initPlan = initPlan with { Setter = element.Value };
-                                }
-
-                                accessorMap[sourcePrivateName] = initPlan;
-                                break;
-                            }
-                            case JsClassElementKind.Method:
-                            {
-                                if (privateFieldBindingBySourceName.ContainsKey(sourcePrivateName) ||
-                                    privateAccessorInitBySourceName.ContainsKey(sourcePrivateName) ||
-                                    staticPrivateAccessorInitBySourceName.ContainsKey(sourcePrivateName))
-                                    throw new NotSupportedException(
-                                        $"Duplicate private class member '{sourcePrivateName}' is not supported in Okojo Phase 2.");
-
-                                if (element.Value is null)
-                                    throw new InvalidOperationException("Private method function is missing.");
-
-                                var methodBinding = new PrivateFieldBinding(
-                                    GetOrAllocatePrivateBrandId(element.IsStatic),
-                                    nextPrivateSlot++,
-                                    PrivateMemberKind.Method);
-                                privateFieldBindingBySourceName[sourcePrivateName] = methodBinding;
-
-                                if (element.IsStatic)
-                                {
-                                    // Static private methods initialize on ctor in class-definition lowering pass.
-                                }
-                                else
-                                {
-                                    privateMethodInitializers.Add(new(sourcePrivateName,
-                                        methodBinding,
-                                        element.Value));
-                                }
-
-                                break;
-                            }
                             default:
                                 throw new NotSupportedException(
                                     $"Private class element kind '{element.Kind}' is not supported in Okojo Phase 2.");
@@ -588,79 +588,79 @@ public sealed partial class JsCompiler
                                 switch (element.Kind)
                                 {
                                     case JsClassElementKind.Field:
-                                    {
-                                        if (element.IsStatic)
-                                            EmitStaticPrivateFieldInitializerOnTarget(
-                                                ctorReg,
-                                                privateBinding,
-                                                element.FieldInitializer,
-                                                element.Position,
-                                                element.Position,
-                                                visiblePrivateBindings,
-                                                classLexicalIdentifier,
-                                                key,
-                                                staticMemberInheritedPrivateBrandIds,
-                                                ctorReg,
-                                                visiblePrivateBrandMappings);
-                                        else
-                                            EmitPrivateFieldInitializerOnTarget(ctorReg, privateBinding,
-                                                element.FieldInitializer,
-                                                key);
-                                        break;
-                                    }
+                                        {
+                                            if (element.IsStatic)
+                                                EmitStaticPrivateFieldInitializerOnTarget(
+                                                    ctorReg,
+                                                    privateBinding,
+                                                    element.FieldInitializer,
+                                                    element.Position,
+                                                    element.Position,
+                                                    visiblePrivateBindings,
+                                                    classLexicalIdentifier,
+                                                    key,
+                                                    staticMemberInheritedPrivateBrandIds,
+                                                    ctorReg,
+                                                    visiblePrivateBrandMappings);
+                                            else
+                                                EmitPrivateFieldInitializerOnTarget(ctorReg, privateBinding,
+                                                    element.FieldInitializer,
+                                                    key);
+                                            break;
+                                        }
                                     case JsClassElementKind.Getter:
                                     case JsClassElementKind.Setter:
-                                    {
-                                        var elementFunction = element.Value!;
-                                        var accessorFn = CompileClassElementFunction(
-                                            element.Kind == JsClassElementKind.Getter ? $"get {key}" : $"set {key}",
-                                            elementFunction,
-                                            visiblePrivateBindings,
-                                            classLexicalIdentifier);
-
-                                        var keyHasBothAccessorKinds =
-                                            staticPrivateAccessorMaskByKey.TryGetValue(key, out var mask) &&
-                                            mask == 3;
-                                        if (!keyHasBothAccessorKinds)
                                         {
-                                            EmitPrivateAccessorInitializerOnTarget(
-                                                ctorReg,
-                                                privateBinding,
-                                                element.Kind == JsClassElementKind.Getter ? accessorFn : null,
-                                                element.Kind == JsClassElementKind.Setter ? accessorFn : null,
-                                                staticMemberInheritedPrivateBrandIds,
-                                                ctorReg,
+                                            var elementFunction = element.Value!;
+                                            var accessorFn = CompileClassElementFunction(
+                                                element.Kind == JsClassElementKind.Getter ? $"get {key}" : $"set {key}",
+                                                elementFunction,
+                                                visiblePrivateBindings,
+                                                classLexicalIdentifier);
+
+                                            var keyHasBothAccessorKinds =
+                                                staticPrivateAccessorMaskByKey.TryGetValue(key, out var mask) &&
+                                                mask == 3;
+                                            if (!keyHasBothAccessorKinds)
+                                            {
+                                                EmitPrivateAccessorInitializerOnTarget(
+                                                    ctorReg,
+                                                    privateBinding,
+                                                    element.Kind == JsClassElementKind.Getter ? accessorFn : null,
+                                                    element.Kind == JsClassElementKind.Setter ? accessorFn : null,
+                                                    staticMemberInheritedPrivateBrandIds,
+                                                    ctorReg,
+                                                    visiblePrivateBrandMappings);
+                                                break;
+                                            }
+
+                                            if (!staticPrivateAccessorStateByKey.TryGetValue(key, out var state))
+                                            {
+                                                state = new();
+                                                staticPrivateAccessorStateByKey[key] = state;
+                                            }
+
+                                            if (element.Kind == JsClassElementKind.Getter)
+                                                state.Getter = accessorFn;
+                                            else
+                                                state.Setter = accessorFn;
+
+                                            if (state.Getter is not null && state.Setter is not null)
+                                                EmitPrivateAccessorInitializerOnTarget(ctorReg, privateBinding,
+                                                    state.Getter,
+                                                    state.Setter, staticMemberInheritedPrivateBrandIds,
+                                                    ctorReg,
+                                                    visiblePrivateBrandMappings);
+                                            break;
+                                        }
+                                    case JsClassElementKind.Method:
+                                        {
+                                            EmitPrivateMethodInitializerOnTarget(ctorReg, key, privateBinding,
+                                                element.Value!,
+                                                staticMemberInheritedPrivateBrandIds, ctorReg,
                                                 visiblePrivateBrandMappings);
                                             break;
                                         }
-
-                                        if (!staticPrivateAccessorStateByKey.TryGetValue(key, out var state))
-                                        {
-                                            state = new();
-                                            staticPrivateAccessorStateByKey[key] = state;
-                                        }
-
-                                        if (element.Kind == JsClassElementKind.Getter)
-                                            state.Getter = accessorFn;
-                                        else
-                                            state.Setter = accessorFn;
-
-                                        if (state.Getter is not null && state.Setter is not null)
-                                            EmitPrivateAccessorInitializerOnTarget(ctorReg, privateBinding,
-                                                state.Getter,
-                                                state.Setter, staticMemberInheritedPrivateBrandIds,
-                                                ctorReg,
-                                                visiblePrivateBrandMappings);
-                                        break;
-                                    }
-                                    case JsClassElementKind.Method:
-                                    {
-                                        EmitPrivateMethodInitializerOnTarget(ctorReg, key, privateBinding,
-                                            element.Value!,
-                                            staticMemberInheritedPrivateBrandIds, ctorReg,
-                                            visiblePrivateBrandMappings);
-                                        break;
-                                    }
                                     default:
                                         throw new NotSupportedException(
                                             $"Private class element kind '{element.Kind}' is not supported in Okojo Phase 2.");
@@ -673,110 +673,110 @@ public sealed partial class JsCompiler
                             switch (element.Kind)
                             {
                                 case JsClassElementKind.Method:
-                                {
-                                    var elementFunction = element.Value!;
-                                    var methodObj = CompileClassElementFunction(key, elementFunction,
-                                        visiblePrivateBindings,
-                                        classLexicalIdentifier);
-                                    EmitDefineClassMethod(targetReg, ctorReg, element, methodObj,
-                                        hasComputedKeyPlan ? computedKeyPlan.KeyRegister : -1,
-                                        element.IsStatic
-                                            ? staticMemberPrivateBrandSourceReg
-                                            : instanceMemberPrivateBrandSourceReg,
-                                        element.IsStatic
-                                            ? staticMemberInheritedPrivateBrandIds
-                                            : instanceMemberInheritedPrivateBrandIds,
-                                        ctorReg,
-                                        visiblePrivateBrandMappings);
-                                    break;
-                                }
+                                    {
+                                        var elementFunction = element.Value!;
+                                        var methodObj = CompileClassElementFunction(key, elementFunction,
+                                            visiblePrivateBindings,
+                                            classLexicalIdentifier);
+                                        EmitDefineClassMethod(targetReg, ctorReg, element, methodObj,
+                                            hasComputedKeyPlan ? computedKeyPlan.KeyRegister : -1,
+                                            element.IsStatic
+                                                ? staticMemberPrivateBrandSourceReg
+                                                : instanceMemberPrivateBrandSourceReg,
+                                            element.IsStatic
+                                                ? staticMemberInheritedPrivateBrandIds
+                                                : instanceMemberInheritedPrivateBrandIds,
+                                            ctorReg,
+                                            visiblePrivateBrandMappings);
+                                        break;
+                                    }
                                 case JsClassElementKind.Getter:
                                 case JsClassElementKind.Setter:
-                                {
-                                    var elementFunction = element.Value!;
-                                    var accessorFunctionName =
-                                        element.Kind == JsClassElementKind.Getter ? $"get {key}" : $"set {key}";
-                                    var accessorFn = CompileClassElementFunction(accessorFunctionName, elementFunction,
-                                        visiblePrivateBindings,
-                                        classLexicalIdentifier);
-                                    if (element.IsComputedKey)
                                     {
-                                        EmitDefineClassAccessor(targetReg, ctorReg, element,
-                                            element.Kind == JsClassElementKind.Getter ? accessorFn : null,
-                                            element.Kind == JsClassElementKind.Setter ? accessorFn : null,
-                                            hasComputedKeyPlan ? computedKeyPlan.KeyRegister : -1,
-                                            element.IsStatic
-                                                ? staticMemberPrivateBrandSourceReg
-                                                : instanceMemberPrivateBrandSourceReg,
-                                            element.IsStatic
-                                                ? staticMemberInheritedPrivateBrandIds
-                                                : instanceMemberInheritedPrivateBrandIds,
-                                            ctorReg,
-                                            visiblePrivateBrandMappings);
+                                        var elementFunction = element.Value!;
+                                        var accessorFunctionName =
+                                            element.Kind == JsClassElementKind.Getter ? $"get {key}" : $"set {key}";
+                                        var accessorFn = CompileClassElementFunction(accessorFunctionName, elementFunction,
+                                            visiblePrivateBindings,
+                                            classLexicalIdentifier);
+                                        if (element.IsComputedKey)
+                                        {
+                                            EmitDefineClassAccessor(targetReg, ctorReg, element,
+                                                element.Kind == JsClassElementKind.Getter ? accessorFn : null,
+                                                element.Kind == JsClassElementKind.Setter ? accessorFn : null,
+                                                hasComputedKeyPlan ? computedKeyPlan.KeyRegister : -1,
+                                                element.IsStatic
+                                                    ? staticMemberPrivateBrandSourceReg
+                                                    : instanceMemberPrivateBrandSourceReg,
+                                                element.IsStatic
+                                                    ? staticMemberInheritedPrivateBrandIds
+                                                    : instanceMemberInheritedPrivateBrandIds,
+                                                ctorReg,
+                                                visiblePrivateBrandMappings);
+                                            break;
+                                        }
+
+                                        var accessorMaskKey = MakeClassAccessorMaskKey(key, element.IsStatic);
+                                        var keyHasBothAccessorKinds =
+                                            accessorMaskByKey.TryGetValue(accessorMaskKey, out var accessorMask) &&
+                                            accessorMask == 3;
+                                        if (!keyHasBothAccessorKinds)
+                                        {
+                                            EmitDefineClassAccessor(targetReg, ctorReg, element,
+                                                element.Kind == JsClassElementKind.Getter ? accessorFn : null,
+                                                element.Kind == JsClassElementKind.Setter ? accessorFn : null,
+                                                hasComputedKeyPlan ? computedKeyPlan.KeyRegister : -1,
+                                                element.IsStatic
+                                                    ? staticMemberPrivateBrandSourceReg
+                                                    : instanceMemberPrivateBrandSourceReg,
+                                                element.IsStatic
+                                                    ? staticMemberInheritedPrivateBrandIds
+                                                    : instanceMemberInheritedPrivateBrandIds,
+                                                ctorReg,
+                                                visiblePrivateBrandMappings);
+                                            break;
+                                        }
+
+                                        if (!pairedAccessorStateByKey.TryGetValue(accessorMaskKey, out var state))
+                                        {
+                                            state = new();
+                                            pairedAccessorStateByKey[accessorMaskKey] = state;
+                                        }
+
+                                        if (element.Kind == JsClassElementKind.Getter)
+                                            state.Getter = accessorFn;
+                                        else
+                                            state.Setter = accessorFn;
+
+                                        if (state.Getter is not null && state.Setter is not null)
+                                            EmitDefineClassAccessor(targetReg, ctorReg, element, state.Getter, state.Setter,
+                                                hasComputedKeyPlan ? computedKeyPlan.KeyRegister : -1,
+                                                element.IsStatic
+                                                    ? staticMemberPrivateBrandSourceReg
+                                                    : instanceMemberPrivateBrandSourceReg,
+                                                element.IsStatic
+                                                    ? staticMemberInheritedPrivateBrandIds
+                                                    : instanceMemberInheritedPrivateBrandIds,
+                                                ctorReg,
+                                                visiblePrivateBrandMappings);
                                         break;
                                     }
-
-                                    var accessorMaskKey = MakeClassAccessorMaskKey(key, element.IsStatic);
-                                    var keyHasBothAccessorKinds =
-                                        accessorMaskByKey.TryGetValue(accessorMaskKey, out var accessorMask) &&
-                                        accessorMask == 3;
-                                    if (!keyHasBothAccessorKinds)
-                                    {
-                                        EmitDefineClassAccessor(targetReg, ctorReg, element,
-                                            element.Kind == JsClassElementKind.Getter ? accessorFn : null,
-                                            element.Kind == JsClassElementKind.Setter ? accessorFn : null,
-                                            hasComputedKeyPlan ? computedKeyPlan.KeyRegister : -1,
-                                            element.IsStatic
-                                                ? staticMemberPrivateBrandSourceReg
-                                                : instanceMemberPrivateBrandSourceReg,
-                                            element.IsStatic
-                                                ? staticMemberInheritedPrivateBrandIds
-                                                : instanceMemberInheritedPrivateBrandIds,
-                                            ctorReg,
-                                            visiblePrivateBrandMappings);
-                                        break;
-                                    }
-
-                                    if (!pairedAccessorStateByKey.TryGetValue(accessorMaskKey, out var state))
-                                    {
-                                        state = new();
-                                        pairedAccessorStateByKey[accessorMaskKey] = state;
-                                    }
-
-                                    if (element.Kind == JsClassElementKind.Getter)
-                                        state.Getter = accessorFn;
-                                    else
-                                        state.Setter = accessorFn;
-
-                                    if (state.Getter is not null && state.Setter is not null)
-                                        EmitDefineClassAccessor(targetReg, ctorReg, element, state.Getter, state.Setter,
-                                            hasComputedKeyPlan ? computedKeyPlan.KeyRegister : -1,
-                                            element.IsStatic
-                                                ? staticMemberPrivateBrandSourceReg
-                                                : instanceMemberPrivateBrandSourceReg,
-                                            element.IsStatic
-                                                ? staticMemberInheritedPrivateBrandIds
-                                                : instanceMemberInheritedPrivateBrandIds,
-                                            ctorReg,
-                                            visiblePrivateBrandMappings);
-                                    break;
-                                }
                                 case JsClassElementKind.Field:
-                                {
-                                    if (!element.IsStatic)
+                                    {
+                                        if (!element.IsStatic)
+                                            break;
+                                        EmitStaticClassFieldInitializer(
+                                            ctorReg,
+                                            element,
+                                            visiblePrivateBindings,
+                                            classLexicalIdentifier,
+                                            key,
+                                            hasComputedKeyPlan ? computedKeyPlan.KeyRegister : -1,
+                                            staticMemberInheritedPrivateBrandIds,
+                                            ctorReg,
+                                            visiblePrivateBrandMappings);
                                         break;
-                                    EmitStaticClassFieldInitializer(
-                                        ctorReg,
-                                        element,
-                                        visiblePrivateBindings,
-                                        classLexicalIdentifier,
-                                        key,
-                                        hasComputedKeyPlan ? computedKeyPlan.KeyRegister : -1,
-                                        staticMemberInheritedPrivateBrandIds,
-                                        ctorReg,
-                                        visiblePrivateBrandMappings);
-                                    break;
-                                }
+                                    }
                                 default:
                                     throw new NotSupportedException(
                                         $"Class element kind '{element.Kind}' is not supported in Okojo Phase 2.");

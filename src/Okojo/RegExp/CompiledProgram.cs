@@ -82,21 +82,21 @@ internal sealed class CompiledProgram
         switch (node)
         {
             case ScratchRegExpProgram.LookaheadNode lookahead:
-            {
-                var key = new LookaheadAssertionKey(lookahead.Child, flags);
-                if (!programs.ContainsKey(key))
                 {
-                    var irProgram = RegExpIrGenerator.TryGenerate(lookahead.Child, flags, nodeCaptureIndices,
-                        namedCaptureIndexes);
-                    var bytecodeProgram = RegExpCodeGenerator.TryGenerate(irProgram)
-                        ?? throw new InvalidOperationException(" lookahead assertion compilation failed.");
-                    programs.Add(key, bytecodeProgram);
-                }
+                    var key = new LookaheadAssertionKey(lookahead.Child, flags);
+                    if (!programs.ContainsKey(key))
+                    {
+                        var irProgram = RegExpIrGenerator.TryGenerate(lookahead.Child, flags, nodeCaptureIndices,
+                            namedCaptureIndexes);
+                        var bytecodeProgram = RegExpCodeGenerator.TryGenerate(irProgram)
+                            ?? throw new InvalidOperationException(" lookahead assertion compilation failed.");
+                        programs.Add(key, bytecodeProgram);
+                    }
 
-                CollectLookaheadAssertionPrograms(lookahead.Child, flags, nodeCaptureIndices, namedCaptureIndexes,
-                    programs);
-                break;
-            }
+                    CollectLookaheadAssertionPrograms(lookahead.Child, flags, nodeCaptureIndices, namedCaptureIndexes,
+                        programs);
+                    break;
+                }
             case ScratchRegExpProgram.CaptureNode capture:
                 CollectLookaheadAssertionPrograms(capture.Child, flags, nodeCaptureIndices, namedCaptureIndexes,
                     programs);

@@ -605,7 +605,7 @@ public partial class Intrinsics
         }
 
         return sb.ToString();
-        fail: ;
+    fail:;
         throw UriMalformed(realm);
     }
 

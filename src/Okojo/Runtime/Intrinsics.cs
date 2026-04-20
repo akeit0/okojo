@@ -35,11 +35,11 @@ public partial class Intrinsics
         };
         realm.BootstrapFunctionPrototype = FunctionPrototype;
         GeneratorFunctionPrototype = new(Realm, false)
-            { Prototype = FunctionPrototype };
+        { Prototype = FunctionPrototype };
         AsyncFunctionPrototype = new(Realm, false)
-            { Prototype = FunctionPrototype };
+        { Prototype = FunctionPrototype };
         AsyncGeneratorFunctionPrototype = new(Realm, false)
-            { Prototype = FunctionPrototype };
+        { Prototype = FunctionPrototype };
         ArrayPrototype = new(Realm);
         NumberPrototype = new(Realm, 0, ObjectPrototype);
         BooleanPrototype = new(Realm, false, ObjectPrototype);
@@ -47,41 +47,41 @@ public partial class Intrinsics
         BigIntPrototype = new(Realm, false) { Prototype = ObjectPrototype };
         SymbolPrototype = new(Realm, false) { Prototype = ObjectPrototype };
         ArrayBufferPrototype = new(Realm, false)
-            { Prototype = ObjectPrototype };
+        { Prototype = ObjectPrototype };
         SharedArrayBufferPrototype = new(Realm, false)
-            { Prototype = ObjectPrototype };
+        { Prototype = ObjectPrototype };
         TypedArrayPrototype = new(Realm, false) { Prototype = ObjectPrototype };
         TypedArrayPrototypes = new JsPlainObject[12];
         for (var i = 0; i < TypedArrayPrototypes.Length; i++)
             TypedArrayPrototypes[i] = new(Realm, false)
-                { Prototype = TypedArrayPrototype };
+            { Prototype = TypedArrayPrototype };
         DataViewPrototype = new(Realm, false) { Prototype = ObjectPrototype };
         IteratorPrototype = new(Realm, false) { Prototype = ObjectPrototype };
         StringIteratorPrototype = new(Realm, false)
-            { Prototype = IteratorPrototype };
+        { Prototype = IteratorPrototype };
         RegExpStringIteratorPrototype = new(Realm, false)
-            { Prototype = IteratorPrototype };
+        { Prototype = IteratorPrototype };
         ArrayIteratorPrototype = new(Realm, false)
-            { Prototype = IteratorPrototype };
+        { Prototype = IteratorPrototype };
         TypedArrayIteratorPrototype = new(Realm, false)
-            { Prototype = IteratorPrototype };
+        { Prototype = IteratorPrototype };
         IteratorWrapPrototype = new(Realm, false)
-            { Prototype = IteratorPrototype };
+        { Prototype = IteratorPrototype };
         AsyncIteratorPrototype = new(Realm, false)
-            { Prototype = ObjectPrototype };
+        { Prototype = ObjectPrototype };
         MapPrototype = new(Realm, false) { Prototype = ObjectPrototype };
         MapIteratorPrototype = new(Realm, false)
-            { Prototype = IteratorPrototype };
+        { Prototype = IteratorPrototype };
         SetPrototype = new(Realm, false) { Prototype = ObjectPrototype };
         SetIteratorPrototype = new(Realm, false)
-            { Prototype = IteratorPrototype };
+        { Prototype = IteratorPrototype };
         WeakMapPrototype = new(Realm, false) { Prototype = ObjectPrototype };
         WeakSetPrototype = new(Realm, false) { Prototype = ObjectPrototype };
         WeakRefPrototype = new(Realm, false) { Prototype = ObjectPrototype };
         FinalizationRegistryPrototype = new(Realm, false)
-            { Prototype = ObjectPrototype };
+        { Prototype = ObjectPrototype };
         AsyncGeneratorObjectPrototype = new(Realm, false)
-            { Prototype = AsyncIteratorPrototype };
+        { Prototype = AsyncIteratorPrototype };
 
         ObjectConstructor = CreateObjectConstructor();
         ArrayConstructor = CreateArrayConstructor();
@@ -95,15 +95,15 @@ public partial class Intrinsics
         ErrorPrototype = new(realm, false) { Prototype = ObjectPrototype };
         TypeErrorPrototype = new(realm, false) { Prototype = ErrorPrototype };
         ReferenceErrorPrototype = new(realm, false)
-            { Prototype = ErrorPrototype };
+        { Prototype = ErrorPrototype };
         RangeErrorPrototype = new(realm, false) { Prototype = ErrorPrototype };
         SyntaxErrorPrototype = new(realm, false) { Prototype = ErrorPrototype };
         EvalErrorPrototype = new(realm, false) { Prototype = ErrorPrototype };
         UriErrorPrototype = new(realm, false) { Prototype = ErrorPrototype };
         AggregateErrorPrototype = new(realm, false)
-            { Prototype = ErrorPrototype };
+        { Prototype = ErrorPrototype };
         SuppressedErrorPrototype = new(realm, false)
-            { Prototype = ErrorPrototype };
+        { Prototype = ErrorPrototype };
         ErrorConstructor = CreateErrorConstructor();
         TypeErrorConstructor = CreateNativeErrorConstructor("TypeError", TypeErrorPrototype);
         ReferenceErrorConstructor = CreateNativeErrorConstructor("ReferenceError", ReferenceErrorPrototype);

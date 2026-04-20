@@ -545,9 +545,9 @@ public sealed partial class JsCompiler
                 return StatementHasExplicitAbruptForAwaitControl(labeledStatement.Statement);
             case JsSwitchStatement switchStatement:
                 foreach (var @case in switchStatement.Cases)
-                foreach (var consequent in @case.Consequent)
-                    if (StatementHasExplicitAbruptForAwaitControl(consequent))
-                        return true;
+                    foreach (var consequent in @case.Consequent)
+                        if (StatementHasExplicitAbruptForAwaitControl(consequent))
+                            return true;
 
                 return false;
             case JsTryStatement tryStatement:
