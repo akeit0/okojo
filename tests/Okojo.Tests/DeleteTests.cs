@@ -335,65 +335,6 @@ public class DeleteTests
     }
 
     [Test]
-    public void Delete_Test262_CombinedStrictTypedArrayDeleteCase_Passes_Locally()
-    {
-        var repoRoot = GetRepoRoot();
-        var assertSource = File.ReadAllText(Path.Combine(repoRoot, "test262", "harness", "assert.js"));
-        var typedArraySource = File.ReadAllText(Path.Combine(repoRoot, "test262", "harness", "testTypedArray.js"));
-        var testSource = File.ReadAllText(Path.Combine(repoRoot, "test262", "test", "built-ins",
-            "TypedArrayConstructors", "internals", "Delete", "key-is-out-of-bounds-strict.js"));
-
-        var fullSource = new StringBuilder();
-        fullSource.AppendLine("'use strict';");
-        fullSource.AppendLine(assertSource);
-        fullSource.AppendLine(typedArraySource);
-        fullSource.Append(testSource);
-
-        var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript(fullSource.ToString()));
-
-        Assert.DoesNotThrow(() => realm.Execute(script));
-    }
-
-    [Test]
-    public void Delete_Test262_CombinedStrictTypedArrayDeleteCase_Passes_With_RunnerLikeHarnessGlobals()
-    {
-        var repoRoot = GetRepoRoot();
-        var assertSource = File.ReadAllText(Path.Combine(repoRoot, "test262", "harness", "assert.js"));
-        var typedArraySource = File.ReadAllText(Path.Combine(repoRoot, "test262", "harness", "testTypedArray.js"));
-        var testSource = File.ReadAllText(Path.Combine(repoRoot, "test262", "test", "built-ins",
-            "TypedArrayConstructors", "internals", "Delete", "key-is-out-of-bounds-strict.js"));
-
-        var fullSource = new StringBuilder();
-        fullSource.AppendLine("'use strict';");
-        fullSource.AppendLine(assertSource);
-        fullSource.AppendLine(typedArraySource);
-        fullSource.Append(testSource);
-
-        var realm = JsRuntime.Create().DefaultRealm;
-        var test262Error = new JsHostFunction(realm, (in info) =>
-        {
-            var innerVm = info.Realm;
-            var args = info.Arguments;
-            var callee = info.Function;
-            var err = new JsPlainObject(innerVm);
-            var msg = args.Length > 0 ? args[0].ToString() : string.Empty;
-            err.SetProperty("name", JsValue.FromString("Test262Error"));
-            err.SetProperty("message", JsValue.FromString(msg));
-            err.SetProperty("constructor", JsValue.FromObject(callee));
-            return JsValue.FromObject(err);
-        }, "Test262Error", 1);
-        var test262Proto = new JsPlainObject(realm);
-        test262Proto.SetProperty("constructor", JsValue.FromObject(test262Error));
-        test262Error.SetProperty("prototype", JsValue.FromObject(test262Proto));
-        realm.Global["Test262Error"] = JsValue.FromObject(test262Error);
-
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript(fullSource.ToString()));
-
-        Assert.DoesNotThrow(() => realm.Execute(script));
-    }
-
-    [Test]
     public void Delete_PrivateIn_ThrowsSyntaxError()
     {
         var realm = JsRuntime.Create().DefaultRealm;
