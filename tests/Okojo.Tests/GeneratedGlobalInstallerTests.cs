@@ -10,42 +10,43 @@ internal sealed partial class GeneratedGlobalInstallerSample
 {
     public int WidthValue { get; set; } = 320;
 
-    [JsGlobalProperty("width")] public int Width => WidthValue;
+    [JsMember] public int Width => WidthValue;
 
-    [JsGlobalProperty("strokeWidth", Writable = true)]
+    [JsMember]
+    [JsGlobalProperty(Writable = true)]
     public int StrokeWidth { get; set; } = 2;
 
     public string LastBackground { get; private set; } = string.Empty;
 
     /// <summary>Sets the background color from a named color string.</summary>
-    [JsGlobalFunction("background")]
+    [JsMember("background")]
     private void Background(string color)
     {
         LastBackground = $"named:{color}";
     }
 
     /// <summary>Sets the background color from a grayscale value.</summary>
-    [JsGlobalFunction("background")]
+    [JsMember("background")]
     private void Background(byte gray)
     {
         LastBackground = $"gray:{gray}";
     }
 
     /// <summary>Sets the background color from RGB values.</summary>
-    [JsGlobalFunction("background")]
+    [JsMember("background")]
     private void Background(byte r, byte g, byte b)
     {
         LastBackground = $"{r},{g},{b},255";
     }
 
     /// <summary>Sets the background color from RGBA values.</summary>
-    [JsGlobalFunction("background")]
+    [JsMember("background")]
     private void Background(byte r, byte g, byte b, byte a)
     {
         LastBackground = $"{r},{g},{b},{a}";
     }
 
-    [JsGlobalFunction("sumNumbers")]
+    [JsMember]
     private int SumNumbers(ReadOnlySpan<int> values)
     {
         var sum = 0;
@@ -54,7 +55,7 @@ internal sealed partial class GeneratedGlobalInstallerSample
         return sum;
     }
 
-    [JsGlobalFunction("describeAny")]
+    [JsMember]
     private string DescribeAny(ReadOnlySpan<object> values)
     {
         if (values.Length == 0)
@@ -66,13 +67,13 @@ internal sealed partial class GeneratedGlobalInstallerSample
         return string.Join("|", parts);
     }
 
-    [JsGlobalFunction("pick")]
+    [JsMember]
     private string Pick(string value)
     {
         return $"string:{value}";
     }
 
-    [JsGlobalFunction("pick")]
+    [JsMember]
     private string Pick(int value)
     {
         return $"number:{value}";
