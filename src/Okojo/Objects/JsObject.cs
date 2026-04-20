@@ -34,7 +34,7 @@ public class JsObject
     public JsObject? Prototype { get; internal set; }
     internal virtual bool IsExtensible => IsExtensibleFlag;
 
-    internal JsRealm Realm => NamedPropertyLayout.Owner;
+    public JsRealm Realm => NamedPropertyLayout.Owner;
     internal StaticNamedPropertyLayout Shape => StaticNamedPropertyLayout;
     internal JsValue[] Slots => SlotsArray;
     internal bool UsesDynamicNamedProperties => NamedPropertyLayout.IsDynamic;
