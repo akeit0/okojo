@@ -130,6 +130,11 @@ public class JsObject
         return true;
     }
 
+    public bool TryGetPropertyByAtom(int atom, out JsValue value)
+    {
+        return TryGetPropertyAtomWithReceiverValue(Realm, this, atom, out value, out _);
+    }
+
     internal bool TryGetPropertyAtom(JsRealm realm, int atom, out JsValue value, out SlotInfo slotInfo)
     {
         return TryGetPropertyAtomWithReceiverValue(realm, this, atom, out value, out slotInfo);
