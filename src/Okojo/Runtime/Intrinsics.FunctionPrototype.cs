@@ -20,8 +20,8 @@ public partial class Intrinsics
                     if (fn is JsBytecodeFunction { IsArrow: true })
                         return "function () { [native code] }";
                     if (fn is JsBytecodeFunction bytecodeFn &&
-                        !string.IsNullOrEmpty(bytecodeFn.Script.FunctionSourceText))
-                        return bytecodeFn.Script.FunctionSourceText!;
+                        bytecodeFn.Script.HasFunctionSourceText)
+                        return bytecodeFn.Script.GetFunctionSourceTextString()!;
                     return "function () { [native code] }";
                 }
 

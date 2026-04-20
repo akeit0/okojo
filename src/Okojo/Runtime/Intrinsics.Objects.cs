@@ -364,7 +364,7 @@ public partial class Intrinsics
 
         if (result.TryGetObject(out var resultObj) && resultObj is JsBytecodeFunction fn)
         {
-            fn.Script = fn.Script with { FunctionSourceText = sourceText };
+            fn.Script = fn.Script with { FunctionSourceText = FunctionSourceTextSegment.FromWholeString(sourceText) };
             fn.Prototype = GetPrototypeFromConstructorOrIntrinsic(newTarget, callee, data.IntrinsicPrototype);
             return result;
         }
