@@ -1626,6 +1626,30 @@ public class HostInteropTests
         });
     }
 
+    [Test]
+    public void JsValue_TryRead_Uses_Direct_Typed_Paths()
+    {
+        using var runtime = JsRuntime.Create(options => options.AllowClrAccess());
+        var realm = runtime.DefaultRealm;
+        var host = new ManualHostBindingSample { X = 7 };
+        var hostObject = realm.WrapHostObject(host);
+        var hostValue = JsValue.FromObject(hostObject);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(JsValue.FromInt32(12).TryRead<int>(out var intValue) && intValue == 12, Is.True);
+            Assert.That(new JsValue(12.5d).TryRead<double>(out var doubleValue) && doubleValue == 12.5d, Is.True);
+            Assert.That(JsValue.FromString("ok").TryRead<string>(out var stringValue) && stringValue == "ok", Is.True);
+            Assert.That(JsValue.True.TryRead<bool>(out var boolValue) && boolValue, Is.True);
+            Assert.That(hostValue.TryRead<JsObject>(out var objectValue) && ReferenceEquals(objectValue, hostObject), Is.True);
+            Assert.That(hostValue.TryRead<ManualHostBindingSample>(out var hostData) && ReferenceEquals(hostData, host),
+                Is.True);
+            Assert.That(JsValue.Null.TryRead<string?>(out var nullableString) && nullableString is null, Is.True);
+            Assert.That(JsValue.Null.TryRead<int?>(out var nullableInt) && nullableInt is null, Is.True);
+            Assert.That(JsValue.FromInt32(12).TryRead<string>(out _), Is.False);
+        });
+    }
+
     private sealed class HostCounter
     {
         private readonly string[] items = ["a", "b", "c"];

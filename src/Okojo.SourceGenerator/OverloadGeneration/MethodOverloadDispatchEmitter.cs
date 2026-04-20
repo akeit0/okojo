@@ -143,15 +143,7 @@ internal static class MethodOverloadDispatchEmitter
                 .AppendLine("\");");
         }
 
-        EmitHoistedArgs(sb, overload.FixedCount, "        ");
-        sb.AppendLine("        int __jsScore = 0;");
-        sb.AppendLine("        bool __jsMatched = true;");
-        EmitOverloadMatcherBody(sb, overload, "        ", true);
-        sb.AppendLine("        if (__jsMatched)");
-        sb.Append("            return ").Append(getOverloadMethodName(overload.Index)).AppendLine("(info);");
-        sb.Append("        throw new global::Okojo.Runtime.JsRuntimeException(global::Okojo.Runtime.JsErrorKind.TypeError, \"")
-            .Append(EscapeString(mismatchMessage))
-            .AppendLine("\");");
+        sb.Append("        return ").Append(getOverloadMethodName(overload.Index)).AppendLine("(info);");
         sb.AppendLine("    }");
     }
 
