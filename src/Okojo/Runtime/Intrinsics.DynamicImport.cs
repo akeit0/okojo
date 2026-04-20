@@ -102,7 +102,7 @@ public partial class Intrinsics
             return false;
         }
 
-        if (!optionsObj.TryGetProperty("with", out var attributesValue))
+        if (!optionsObj.TryGetPropertyByAtom(IdWith, out var attributesValue))
             attributesValue = JsValue.Undefined;
         if (attributesValue.IsUndefined && !optionsObj.TryGetProperty("assert", out attributesValue))
             attributesValue = JsValue.Undefined;

@@ -86,7 +86,7 @@ public partial class Intrinsics
             var realm = info.Realm;
             var thisValue = info.ThisValue;
             var obj = ThisArrayLikeObject(realm, thisValue, "Array.prototype.toString");
-            if (obj.TryGetProperty("join", out var joinValue) &&
+            if (obj.TryGetPropertyByAtom(IdJoin, out var joinValue) &&
                 joinValue.TryGetObject(out var joinObj) &&
                 joinObj is JsFunction joinFn)
                 return realm.InvokeFunction(joinFn, thisValue, ReadOnlySpan<JsValue>.Empty);
@@ -1055,7 +1055,7 @@ public partial class Intrinsics
     internal static string InvokeElementToLocaleString(JsRealm realm, in JsValue element, ReadOnlySpan<JsValue> args)
     {
         if (!realm.TryToObject(element, out var elemObj) ||
-            !elemObj.TryGetProperty("toLocaleString", out var localeFnValue) ||
+            !elemObj.TryGetPropertyByAtom(IdToLocaleString, out var localeFnValue) ||
             !localeFnValue.TryGetObject(out var localeFnObj) ||
             localeFnObj is not JsFunction localeFn)
             throw new JsRuntimeException(JsErrorKind.TypeError,
@@ -1500,7 +1500,7 @@ public partial class Intrinsics
         if (obj is JsArray array)
             return array.Length;
 
-        if (!obj.TryGetProperty("length", out var lengthValue))
+        if (!obj.TryGetPropertyByAtom(IdLength, out var lengthValue))
             return 0;
 
         var lengthNum = realm.ToNumberSlowPath(lengthValue);

@@ -809,7 +809,7 @@ public partial class Intrinsics
                 throw new JsRuntimeException(JsErrorKind.TypeError,
                     "RegExp.prototype[Symbol.search] called on incompatible receiver");
 
-            if (!resultObj.TryGetProperty("index", out var indexValue) || !indexValue.IsNumber)
+            if (!resultObj.TryGetPropertyByAtom(IdIndex, out var indexValue) || !indexValue.IsNumber)
                 return JsValue.FromInt32(-1);
             return JsValue.FromInt32((int)indexValue.NumberValue);
         }, "[Symbol.search]", 1);
@@ -1097,7 +1097,7 @@ public partial class Intrinsics
                     throw new JsRuntimeException(JsErrorKind.TypeError,
                         "RegExp split result must be an object or null");
 
-                if (matchObj.TryGetProperty("length", out var lengthValue))
+                if (matchObj.TryGetPropertyByAtom(IdLength, out var lengthValue))
                 {
                     var numberOfCaptures = (int)ToLength(lengthValue, realm);
                     for (var i = 1; i < numberOfCaptures; i++)

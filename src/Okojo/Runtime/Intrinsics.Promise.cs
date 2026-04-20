@@ -481,7 +481,7 @@ public partial class Intrinsics
 
     private JsFunction GetPromiseResolveFunction(JsFunction ctor)
     {
-        if (!ctor.TryGetProperty("resolve", out var resolveValue) ||
+        if (!ctor.TryGetPropertyByAtom(IdResolve, out var resolveValue) ||
             !resolveValue.TryGetObject(out var resolveObj) ||
             resolveObj is not JsFunction resolveFn)
             throw new JsRuntimeException(JsErrorKind.TypeError, "Promise resolve is not callable");
