@@ -260,6 +260,11 @@ public class JsObject
         return SetPropertyAtomWithReceiver(realm, this, atom, value, out slotInfo);
     }
 
+    public bool TrySetPropertyByAtom(JsRealm realm, int atom, JsValue value)
+    {
+        return SetPropertyAtomWithReceiver(realm, this, atom, value, out _);
+    }
+
     internal virtual bool SetElementWithReceiver(JsRealm realm, JsObject receiver, uint index, JsValue value)
     {
         return SetElementCore(realm, receiver, index, value);
