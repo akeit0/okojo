@@ -1882,7 +1882,7 @@ public sealed partial class JsRealm
         return array;
     }
 
-    internal JsArray CreateArrayObject(ReadOnlySpan<JsValue> denseElements)
+    public JsArray CreateArrayObject(ReadOnlySpan<JsValue> denseElements)
     {
         var array = CreateArrayObject();
         var dense = array.InitializeDenseElementsNoCollision(denseElements.Length);

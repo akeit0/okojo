@@ -21,6 +21,10 @@ public sealed class JsArray : JsObject
         Prototype = realm.Intrinsics is null ? realm.ObjectPrototype : realm.ArrayPrototype;
     }
 
+    public ReadOnlySpan<JsValue> AsReadOnlySpan() => Dense is not null ? Dense.AsSpan(0, (int)Length) : [];
+
+    public Span<JsValue> AsSpan() => Dense is not null ? Dense.AsSpan(0, (int)Length) : [];
+
     public uint Length { get; private set; }
 
     internal void SetLength(uint length)
@@ -271,6 +275,23 @@ public sealed class JsArray : JsObject
         base.CollectOwnNamedPropertyAtoms(realm, atomsOut, enumerableOnly);
     }
 
+    public bool TryEnsureDenseCapacity(uint index)
+    {
+        if (Dense is null || !IsExtensible || IndexedProperties is not null) return false;
+        if (index < (uint)Dense.Length) return true;
+
+        var needed = (int)index + 1;
+        var capacity = Dense.Length == 0 ? DenseInitialCapacity : Dense.Length;
+        while (capacity < needed)
+            capacity <<= 1;
+
+        var oldLength = Dense.Length;
+        Array.Resize(ref Dense, capacity);
+        for (var i = oldLength; i < Dense.Length; i++)
+            Dense[i] = JsValue.TheHole;
+        return true;
+    }
+
     internal bool TryDefineLengthDescriptor(
         bool hasValue,
         in JsValue value,
@@ -323,7 +344,7 @@ public sealed class JsArray : JsObject
 
     private void EnsureDenseCapacity(uint index)
     {
-        if (Dense is null) return;
+        if (Dense is null || !IsExtensible) return;
         if (index < (uint)Dense.Length) return;
 
         var needed = (int)index + 1;
