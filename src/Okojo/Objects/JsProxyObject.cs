@@ -11,7 +11,7 @@ internal sealed class JsProxyObject : JsObject, IProxyObject
         Prototype = target.Prototype;
     }
 
-    internal override bool IsExtensible => EnsureTarget().IsExtensible;
+    public override bool IsExtensible => EnsureTarget().IsExtensible;
     JsObject IProxyObject.ProxyOwner => this;
     ref ProxyCore IProxyObject.Core => ref core;
 

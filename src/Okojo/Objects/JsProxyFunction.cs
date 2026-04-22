@@ -15,7 +15,7 @@ internal sealed class JsProxyFunction : JsFunction, IProxyObject
 
     private JsObject? ProxyHandler => core.CurrentHandler;
 
-    internal override bool IsExtensible => EnsureTarget().IsExtensible;
+    public override bool IsExtensible => EnsureTarget().IsExtensible;
     JsObject IProxyObject.ProxyOwner => this;
     ref ProxyCore IProxyObject.Core => ref core;
 
