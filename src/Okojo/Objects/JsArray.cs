@@ -23,7 +23,7 @@ public sealed class JsArray : JsObject
 
     public ReadOnlySpan<JsValue> AsReadOnlySpan() => Dense is not null ? Dense.AsSpan(0, (int)Length) : [];
 
-    public Span<JsValue> AsSpan() => Dense is not null ? Dense.AsSpan(0, (int)Length) : [];
+    public Span<JsValue> AsSpan() => Dense is not null && IsExtensibleFlag ? Dense.AsSpan(0, (int)Length) : [];
 
     public uint Length { get; private set; }
 
