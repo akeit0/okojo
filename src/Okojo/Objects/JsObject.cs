@@ -32,7 +32,7 @@ public class JsObject
     }
 
     public JsObject? Prototype { get; internal set; }
-    internal virtual bool IsExtensible => IsExtensibleFlag;
+    public virtual bool IsExtensible => IsExtensibleFlag;
 
     public JsRealm Realm => NamedPropertyLayout.Owner;
     internal StaticNamedPropertyLayout Shape => StaticNamedPropertyLayout;
