@@ -178,7 +178,7 @@ public sealed class StaticNamedPropertyLayout : NamedPropertyLayout
         return next;
     }
 
-    internal StaticNamedPropertyLayout GetOrAddTransition(int atom, JsShapePropertyFlags flags,
+    public StaticNamedPropertyLayout GetOrAddTransition(int atom, JsShapePropertyFlags flags,
         out SlotInfo slotInfo)
     {
         if (TryGetSlotInfo(atom, out slotInfo))

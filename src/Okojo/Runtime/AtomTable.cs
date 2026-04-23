@@ -5,6 +5,7 @@ namespace Okojo.Runtime;
 
 public sealed class AtomTable
 {
+    public const int InvalidAtom = int.MinValue;
     public const int IdEmpty = 0;
     public const int IdConstructor = 1;
     public const int IdLength = 2;

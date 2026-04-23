@@ -166,7 +166,7 @@ public sealed partial class JsRealm
 
     public GlobalBindingsView Global { get; }
     public JsGlobalObject GlobalObject { get; }
-    internal StaticNamedPropertyLayout EmptyShape { get; }
+    public StaticNamedPropertyLayout EmptyShape { get; }
     internal StaticNamedPropertyLayout FunctionPrototypeObjectShape { get; }
     internal StaticNamedPropertyLayout FunctionPrototypeObjectShapeNoConstructor { get; }
     internal StaticNamedPropertyLayout RegExpOwnShape { get; }
