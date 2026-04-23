@@ -15,7 +15,7 @@ public sealed class JsUserDataObject : JsObject
             Prototype = shape.Owner.ObjectPrototype;
     }
 
-    public object? UserData { get; set; }
+    public object? UserData;
 }
 
 public sealed class JsUserDataObject<T> : JsObject
@@ -33,5 +33,5 @@ public sealed class JsUserDataObject<T> : JsObject
             Prototype = shape.Owner.ObjectPrototype;
     }
 
-    public T? UserData { get; set; }
+    public T? UserData;
 }
