@@ -4,7 +4,7 @@ namespace Okojo.Runtime;
 
 internal sealed class DynamicNamedPropertyLayout : NamedPropertyLayout
 {
-    private const int TombstoneAtom = int.MinValue;
+    private const int TombstoneAtom = AtomTable.InvalidAtom;
     private const int LinearEntryLimit = 15;
 
     private byte[] control = Array.Empty<byte>();

@@ -559,7 +559,7 @@ public class JsObject
         return SlotsArray[slot];
     }
 
-    internal void SetNamedSlotUnchecked(int slot, JsValue value)
+    public void SetNamedSlotUnchecked(int slot, JsValue value)
     {
         SlotsArray[slot] = value;
     }
