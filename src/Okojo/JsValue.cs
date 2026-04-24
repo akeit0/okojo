@@ -91,6 +91,11 @@ public readonly struct JsValue : IEquatable<JsValue>
         return new(Tag.JsTagInt, (uint)value);
     }
 
+    public static JsValue FromFloat64(double value)
+    {
+        return new(value);
+    }
+
     public static JsValue FromString(string value)
     {
         return new(Tag.JsTagString, 0, value);
