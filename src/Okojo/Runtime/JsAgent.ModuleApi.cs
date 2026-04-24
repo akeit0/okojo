@@ -44,6 +44,14 @@ public sealed partial class JsAgent
 
     public sealed class JsAgentModuleApi
     {
+        [Flags]
+        public enum ModuleInvalidationScope : byte
+        {
+            Self = 0,
+            Importers = 1 << 0,
+            Dependencies = 1 << 1
+        }
+
         public enum ModuleStateKind
         {
             Uninitialized = 0,
@@ -106,6 +114,11 @@ public sealed partial class JsAgent
             return agent.InvalidateModuleByResolvedId(resolvedId);
         }
 
+        public ModuleInvalidationResult Invalidate(string resolvedId, ModuleInvalidationScope scope)
+        {
+            return agent.InvalidateModuleByResolvedId(resolvedId, scope);
+        }
+
         public void Clear()
         {
             agent.ClearModuleCaches();
@@ -136,5 +149,11 @@ public sealed partial class JsAgent
             string Message,
             string ExceptionType,
             string? InnerExceptionType);
+
+        public readonly record struct ModuleInvalidationResult(
+            string RootResolvedId,
+            ModuleInvalidationScope Scope,
+            int RemovedCount,
+            IReadOnlyList<string> ResolvedIds);
     }
 }

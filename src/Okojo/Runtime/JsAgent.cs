@@ -655,6 +655,42 @@ public sealed partial class JsAgent : IDisposable
         }
     }
 
+    internal JsAgentModuleApi.ModuleInvalidationResult InvalidateModuleByResolvedId(
+        string resolvedId,
+        JsAgentModuleApi.ModuleInvalidationScope scope)
+    {
+        lock (moduleCacheGate)
+        {
+            var invalidatedIds = new HashSet<string>(StringComparer.Ordinal)
+            {
+                resolvedId
+            };
+            if ((scope & JsAgentModuleApi.ModuleInvalidationScope.Importers) != 0)
+                ModuleGraph.CollectImporterClosure(resolvedId, invalidatedIds);
+            if ((scope & JsAgentModuleApi.ModuleInvalidationScope.Dependencies) != 0)
+                ModuleGraph.CollectDependencyClosure(resolvedId, invalidatedIds);
+
+            var removedCount = 0;
+            foreach (var invalidatedId in invalidatedIds)
+            {
+                if (moduleSourceCache.Remove(invalidatedId))
+                    removedCount++;
+                if (ModuleGraph.Remove(invalidatedId))
+                    removedCount++;
+                if (jsonModuleNamespaceCache.Remove(invalidatedId))
+                    removedCount++;
+                if (textModuleNamespaceCache.Remove(invalidatedId))
+                    removedCount++;
+            }
+
+            return new JsAgentModuleApi.ModuleInvalidationResult(
+                resolvedId,
+                scope,
+                removedCount,
+                invalidatedIds.Count == 0 ? [] : invalidatedIds.OrderBy(static value => value, StringComparer.Ordinal).ToArray());
+        }
+    }
+
     internal bool TryGetCachedModuleNamespaceByResolvedId(string resolvedId, out JsValue namespaceValue)
     {
         lock (moduleCacheGate)

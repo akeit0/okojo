@@ -72,8 +72,6 @@ internal sealed partial class JsParser
     private readonly string? locationSource;
     private readonly ParserDepthState parseDepthState;
 
-    private readonly HashSet<int> nameCrashIdSet = new();
-    private readonly HashSet<string> nameCrashTextSet = new(StringComparer.Ordinal);
     private readonly string source;
     private readonly string? sourcePath;
     private bool allowSuperCall;
@@ -2885,8 +2883,8 @@ internal sealed partial class JsParser
         var parameterPatterns = new List<JsExpression?>(4);
         var parameterPositions = new List<int>(4);
         var parameterBindingKinds = new List<JsFormalParameterBindingKind>(4);
-        var nameCrashIdCheckSet = strictMode ? nameCrashIdSet : null;
-        var nameCrashTextCheckSet = strictMode ? nameCrashTextSet : null;
+        HashSet<int>? nameCrashIdCheckSet = strictMode ? new() : null;
+        HashSet<string>? nameCrashTextCheckSet = strictMode ? new(StringComparer.Ordinal) : null;
         IdentifierDuplicateTracker duplicateTracker = default;
         var functionLength = 0;
         var seenDefault = false;

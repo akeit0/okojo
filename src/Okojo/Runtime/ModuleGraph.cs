@@ -68,6 +68,65 @@ internal sealed class ModuleGraph(JsAgent agent)
         return deps;
     }
 
+    public void CollectDependencyClosure(string resolvedId, ISet<string> targets)
+    {
+        if (!nodes.TryGetValue(resolvedId, out var root))
+            return;
+
+        var stack = new Stack<ModuleRecordNode>();
+        stack.Push(root);
+        while (stack.Count > 0)
+        {
+            var current = stack.Pop();
+            var dependencies = GetDependencies(current);
+            for (var index = 0; index < dependencies.Count; index++)
+            {
+                var dependency = dependencies[index];
+                if (!targets.Add(dependency.ResolvedId))
+                    continue;
+
+                stack.Push(dependency);
+            }
+        }
+    }
+
+    public void CollectImporterClosure(string resolvedId, ISet<string> targets)
+    {
+        if (!nodes.TryGetValue(resolvedId, out var root))
+            return;
+
+        var stack = new Stack<ModuleRecordNode>();
+        stack.Push(root);
+        while (stack.Count > 0)
+        {
+            var current = stack.Pop();
+            foreach (var importer in EnumerateImporters(current.ResolvedId))
+            {
+                if (!targets.Add(importer.ResolvedId))
+                    continue;
+
+                stack.Push(importer);
+            }
+        }
+    }
+
+    private IEnumerable<ModuleRecordNode> EnumerateImporters(string resolvedId)
+    {
+        foreach (var node in nodes.Values)
+        {
+            if (node.ResolvedId == resolvedId)
+                continue;
+
+            var dependencies = GetDependencies(node);
+            for (var index = 0; index < dependencies.Count; index++)
+                if (dependencies[index].ResolvedId == resolvedId)
+                {
+                    yield return node;
+                    break;
+                }
+        }
+    }
+
     private static bool HasTextImportType(IReadOnlyList<JsImportAttribute> attributes)
     {
         for (var i = 0; i < attributes.Count; i++)

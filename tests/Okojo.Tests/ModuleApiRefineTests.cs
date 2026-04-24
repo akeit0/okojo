@@ -119,6 +119,38 @@ public class ModuleApiRefineTests
     }
 
     [Test]
+    public void Modules_Invalidate_WithImportersScope_RemovesImporterClosure_AndForcesReload()
+    {
+        var loader = new CountingModuleLoader(new(StringComparer.Ordinal)
+        {
+            ["/mods/c.js"] = "export const value = 1;",
+            ["/mods/b.js"] = "import { value } from './c.js'; export const middle = value + 1;",
+            ["/mods/a.js"] = "import { middle } from './b.js'; export const top = middle + 1;"
+        });
+        var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
+        var modules = engine.MainAgent.Modules;
+
+        _ = modules.Evaluate("/mods/a.js");
+        Assert.That(loader.LoadCount("/mods/a.js"), Is.EqualTo(1));
+        Assert.That(loader.LoadCount("/mods/b.js"), Is.EqualTo(1));
+        Assert.That(loader.LoadCount("/mods/c.js"), Is.EqualTo(1));
+
+        var result = modules.Invalidate(
+            "/mods/c.js",
+            JsAgent.JsAgentModuleApi.ModuleInvalidationScope.Importers);
+
+        Assert.That(result.ResolvedIds, Is.EqualTo(new[] { "/mods/a.js", "/mods/b.js", "/mods/c.js" }));
+        Assert.That(modules.GetState("/mods/a.js").Exists, Is.False);
+        Assert.That(modules.GetState("/mods/b.js").Exists, Is.False);
+        Assert.That(modules.GetState("/mods/c.js").Exists, Is.False);
+
+        _ = modules.Evaluate("/mods/a.js");
+        Assert.That(loader.LoadCount("/mods/a.js"), Is.EqualTo(2));
+        Assert.That(loader.LoadCount("/mods/b.js"), Is.EqualTo(2));
+        Assert.That(loader.LoadCount("/mods/c.js"), Is.EqualTo(2));
+    }
+
+    [Test]
     public void Modules_Clear_RemovesAllCachedModules_AndForcesReload()
     {
         var loader = new CountingModuleLoader(new(StringComparer.Ordinal)
