@@ -5,7 +5,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Okojo.Objects;
-
+using System.Runtime.CompilerServices;
 namespace Okojo.Runtime.Interop;
 
 internal sealed class HostTypeDescriptor
@@ -207,55 +207,58 @@ internal sealed class HostTypeDescriptor
                 members.Add(boundMember.Name, HostNamedMemberDescriptor.CreateGenerated(boundMember, clrType));
             }
 
-        var memberFlags = BindingFlags.Public | (isStatic ? BindingFlags.Static : BindingFlags.Instance);
-
-        var namedDataMembers = clrType.GetMembers(memberFlags)
-            .Where(static x => x is FieldInfo or PropertyInfo)
-            .OrderBy(static x => x.MetadataToken);
-
-        foreach (var member in namedDataMembers)
-            switch (member)
-            {
-                case FieldInfo field when !members.ContainsKey(field.Name):
-                    members.Add(field.Name, HostNamedMemberDescriptor.CreateField(field));
-                    break;
-                case PropertyInfo property when property.GetIndexParameters().Length == 0 &&
-                                                IsStaticProperty(property) == isStatic &&
-                                                (property.CanRead || property.SetMethod is not null) &&
-                                                !members.ContainsKey(property.Name):
-                    members.Add(property.Name, HostNamedMemberDescriptor.CreateProperty(property));
-                    break;
-            }
-
-        var methods = clrType.GetMethods(memberFlags)
-            .Where(static x => x.DeclaringType != typeof(object) && ShouldExposeMethod(x))
-            .GroupBy(static x => x.Name, StringComparer.Ordinal)
-            .OrderBy(static x => x.Key, StringComparer.Ordinal);
-
-        foreach (var group in methods)
+        if (binding == null && RuntimeFeature.IsDynamicCodeCompiled)
         {
-            if (members.ContainsKey(group.Key))
-                continue;
+            var memberFlags = BindingFlags.Public | (isStatic ? BindingFlags.Static : BindingFlags.Instance);
 
-            var overloads = group.OrderBy(static x => x.MetadataToken).ToArray();
-            if (overloads.Length != 0)
-                members.Add(group.Key, HostNamedMemberDescriptor.CreateMethod(group.Key, overloads));
+            var namedDataMembers = clrType.GetMembers(memberFlags)
+                .Where(static x => x is FieldInfo or PropertyInfo)
+                .OrderBy(static x => x.MetadataToken);
 
-            var genericGroups = overloads
-                .Where(static x => x.IsGenericMethodDefinition)
-                .GroupBy(static x => x.GetGenericArguments().Length)
-                .OrderBy(static x => x.Key);
+            foreach (var member in namedDataMembers)
+                switch (member)
+                {
+                    case FieldInfo field when !members.ContainsKey(field.Name):
+                        members.Add(field.Name, HostNamedMemberDescriptor.CreateField(field));
+                        break;
+                    case PropertyInfo property when property.GetIndexParameters().Length == 0 &&
+                                                    IsStaticProperty(property) == isStatic &&
+                                                    (property.CanRead || property.SetMethod is not null) &&
+                                                    !members.ContainsKey(property.Name):
+                        members.Add(property.Name, HostNamedMemberDescriptor.CreateProperty(property));
+                        break;
+                }
 
-            foreach (var genericGroup in genericGroups)
+            var methods = clrType.GetMethods(memberFlags)
+                .Where(static x => x.DeclaringType != typeof(object) && ShouldExposeMethod(x))
+                .GroupBy(static x => x.Name, StringComparer.Ordinal)
+                .OrderBy(static x => x.Key, StringComparer.Ordinal);
+
+            foreach (var group in methods)
             {
-                var suffixedName = $"{group.Key}${genericGroup.Key}";
-                if (members.ContainsKey(suffixedName))
+                if (members.ContainsKey(group.Key))
                     continue;
 
-                members.Add(suffixedName,
-                    HostNamedMemberDescriptor.CreateMethod(suffixedName,
-                        genericGroup.OrderBy(static x => x.MetadataToken).ToArray(),
-                        genericGroup.Key));
+                var overloads = group.OrderBy(static x => x.MetadataToken).ToArray();
+                if (overloads.Length != 0)
+                    members.Add(group.Key, HostNamedMemberDescriptor.CreateMethod(group.Key, overloads));
+
+                var genericGroups = overloads
+                    .Where(static x => x.IsGenericMethodDefinition)
+                    .GroupBy(static x => x.GetGenericArguments().Length)
+                    .OrderBy(static x => x.Key);
+
+                foreach (var genericGroup in genericGroups)
+                {
+                    var suffixedName = $"{group.Key}${genericGroup.Key}";
+                    if (members.ContainsKey(suffixedName))
+                        continue;
+
+                    members.Add(suffixedName,
+                        HostNamedMemberDescriptor.CreateMethod(suffixedName,
+                            genericGroup.OrderBy(static x => x.MetadataToken).ToArray(),
+                            genericGroup.Key));
+                }
             }
         }
 
@@ -281,6 +284,8 @@ internal sealed class HostTypeDescriptor
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties)]
         Type clrType)
     {
+        if (!RuntimeFeature.IsDynamicCodeCompiled)
+            return null;
         if (clrType.IsArray)
         {
             var elementType = clrType.GetElementType() ?? typeof(object);
@@ -386,6 +391,8 @@ internal sealed class HostTypeDescriptor
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)]
         Type clrType)
     {
+        if (!RuntimeFeature.IsDynamicCodeCompiled)
+            return null;
         foreach (var method in clrType.GetMethods(BindingFlags.Instance | BindingFlags.Public)
                      .Where(static x => x.Name == "GetEnumerator" &&
                                         !x.IsStatic &&
