@@ -659,7 +659,7 @@ public readonly struct JsValue : IEquatable<JsValue>
 
     public bool Equals(JsValue other)
     {
-        return U == other.U && ReferenceEquals(Obj, other.Obj);
+        return SameValue(this, other);
     }
 
     public override bool Equals(object? obj)
