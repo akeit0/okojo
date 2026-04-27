@@ -669,7 +669,17 @@ public readonly struct JsValue : IEquatable<JsValue>
 
     public override int GetHashCode()
     {
-        return HashCode.Combine(U, Obj);
+        if (IsFloat64)
+        {
+            var number = FastFloat64Value;
+            if (double.IsNaN(number))
+                return double.NaN.GetHashCode();
+            if (number == 0d)
+                return double.IsNegativeInfinity(1d / number) ? double.NegativeInfinity.GetHashCode() : 0;
+            return number.GetHashCode();
+        }
+
+        return HashCode.Combine(U, Obj?.GetHashCode() ?? 0);
     }
 
     public static bool SameValue(in JsValue a, in JsValue b)
