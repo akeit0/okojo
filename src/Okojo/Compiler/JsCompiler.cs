@@ -4061,7 +4061,7 @@ public sealed partial class JsCompiler : IDisposable
 
             var enumerableReg = AllocateTemporaryRegister();
             EmitStarRegister(enumerableReg);
-            EmitRaw(JsOpCode.ForInEnumerate, (byte)enumerableReg);
+            EmitForInEnumerate(enumerableReg);
             var iteratorReg = AllocateTemporaryRegister();
             EmitStarRegister(iteratorReg);
 
@@ -4074,7 +4074,7 @@ public sealed partial class JsCompiler : IDisposable
                 var doneLabel = builder.CreateLabel();
                 builder.BindLabel(loopLabel);
 
-                EmitRaw(JsOpCode.ForInNext, (byte)iteratorReg);
+                EmitForInNext(iteratorReg);
                 builder.EmitJump(JsOpCode.JumpIfUndefined, doneLabel);
                 EmitForIterationAssignLeft(stmt.Left, true);
 
@@ -4098,7 +4098,7 @@ public sealed partial class JsCompiler : IDisposable
                 EmitStoreLoopCompletionValueIfNeeded(completionReg);
                 if (needsPerIterationContext)
                     EmitRotatePerIterationContext();
-                EmitRaw(JsOpCode.ForInStep, (byte)iteratorReg);
+                EmitForInStep(iteratorReg);
                 EmitJump(loopLabel);
                 builder.BindLabel(loopBreakLabel);
                 EmitStoreLoopCompletionValueIfNeeded(completionReg);
@@ -4341,6 +4341,39 @@ public sealed partial class JsCompiler : IDisposable
             default:
                 throw new NotSupportedException("iteration left side currently supports identifier/declaration only.");
         }
+    }
+
+    private void EmitForInEnumerate(int enumerableReg)
+    {
+        if (enumerableReg <= byte.MaxValue)
+        {
+            EmitRaw(JsOpCode.ForInEnumerate, (byte)enumerableReg);
+            return;
+        }
+
+        EmitCallRuntime(RuntimeId.ForInEnumerate, enumerableReg, 1);
+    }
+
+    private void EmitForInNext(int iteratorReg)
+    {
+        if (iteratorReg <= byte.MaxValue)
+        {
+            EmitRaw(JsOpCode.ForInNext, (byte)iteratorReg);
+            return;
+        }
+
+        EmitCallRuntime(RuntimeId.ForInNext, iteratorReg, 1);
+    }
+
+    private void EmitForInStep(int iteratorReg)
+    {
+        if (iteratorReg <= byte.MaxValue)
+        {
+            EmitRaw(JsOpCode.ForInStep, (byte)iteratorReg);
+            return;
+        }
+
+        EmitCallRuntime(RuntimeId.ForInStep, iteratorReg, 1);
     }
 
     private void EmitDeleteExpression(JsExpression argument)

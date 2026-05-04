@@ -507,7 +507,13 @@ public sealed partial class JsRealm
     {
         var isJsRuntimeException = e is JsRuntimeException;
         ex = e as JsRuntimeException ?? WrapUnexpectedRuntimeException(e);
-        var currentFunc = Unsafe.As<JsBytecodeFunction>(Unsafe.As<JsValue, CallFrame>(ref Stack[fp]).Function);
+        var currentFrame = Unsafe.As<JsValue, CallFrame>(ref Stack[fp]);
+        if (currentFrame.Function is not JsBytecodeFunction currentFunc)
+        {
+            CaptureExceptionStackIfMissing(ex, Stack, fp, currentFrame.CallerPc);
+            return false;
+        }
+
         var opcodePcOffset = GetPcOffset(ref currentFunc.Script.Bytecode[0], ref pc);
         CaptureExceptionStackIfMissing(ex, Stack, fp, opcodePcOffset);
         ResolveLazyRuntimeExceptionMessage(ex, currentFunc.Script, opcodePcOffset);

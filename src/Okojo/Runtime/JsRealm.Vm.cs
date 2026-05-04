@@ -90,7 +90,10 @@ public sealed partial class JsRealm
         Intrinsics.HandleRuntimeDisposeDisposableResourceStack, // DisposeDisposableResourceStack = 71
         Intrinsics.HandleRuntimeDisposeAsyncDisposableResourceStack, // DisposeAsyncDisposableResourceStack = 72
         Intrinsics.HandleRuntimeAddCurrentModuleDisposableResource, // AddCurrentModuleDisposableResource = 73
-        Intrinsics.HandleRuntimeAddCurrentModuleAsyncDisposableResource // AddCurrentModuleAsyncDisposableResource = 74
+        Intrinsics.HandleRuntimeAddCurrentModuleAsyncDisposableResource, // AddCurrentModuleAsyncDisposableResource = 74
+        HandleRuntimeForInEnumerate, // ForInEnumerate = 75
+        HandleRuntimeForInNext, // ForInNext = 76
+        HandleRuntimeForInStep // ForInStep = 77
     ];
 
     private static readonly IntrinsicHandler?[] SIntrinsicHandlers =
@@ -4519,6 +4522,26 @@ public sealed partial class JsRealm
         if (argCount != 1)
             ThrowTypeError("FORIN_STEP_KEY_ARGC", "ForInStepKey requires one argument");
         acc = realm.ForInStepKey(Unsafe.Add(ref registers, argRegStart));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void HandleRuntimeForInNext(
+        JsRealm realm, JsScript script, int opcodePc, ref JsValue registers, int fp, int argRegStart,
+        int argCount, ref JsValue acc)
+    {
+        if (argCount != 1)
+            ThrowTypeError("FORIN_NEXT_ARGC", "ForInNext requires one argument");
+        acc = realm.ForInNext(Unsafe.Add(ref registers, argRegStart));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void HandleRuntimeForInStep(
+        JsRealm realm, JsScript script, int opcodePc, ref JsValue registers, int fp, int argRegStart,
+        int argCount, ref JsValue acc)
+    {
+        if (argCount != 1)
+            ThrowTypeError("FORIN_STEP_ARGC", "ForInStep requires one argument");
+        realm.ForInStep(Unsafe.Add(ref registers, argRegStart));
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]

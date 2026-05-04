@@ -93,4 +93,24 @@ public class TimerTests
 
         Assert.That(realm.Global["out"].AsString(), Is.EqualTo("A|2|true"));
     }
+
+    [Test]
+    public void SetTimeout_Callback_Runtime_Error_Escapes_As_JsRuntimeException()
+    {
+        var fakeTime = new FakeTimeProvider();
+        var realm = JsRuntime.CreateBuilder().UseTimeProvider(fakeTime).UseWebRuntimeGlobals().Build().DefaultRealm;
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
+                                                                            setTimeout(function () {
+                                                                                var value = null;
+                                                                                value.missing();
+                                                                            }, 10);
+                                                                            0;
+                                                                            """));
+
+        realm.Execute(script);
+        fakeTime.Advance(TimeSpan.FromMilliseconds(10));
+
+        var exception = Assert.Throws<JsRuntimeException>(() => realm.PumpJobs());
+        Assert.That(exception!.Message, Does.Contain("Cannot read properties of null or undefined"));
+    }
 }

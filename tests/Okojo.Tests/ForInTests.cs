@@ -3,6 +3,7 @@ using Okojo.Compiler;
 using Okojo.Objects;
 using Okojo.Parsing;
 using Okojo.Runtime;
+using System.Text;
 
 namespace Okojo.Tests;
 
@@ -176,5 +177,30 @@ public class ForInTests
         realm.Execute(script);
 
         Assert.That(realm.Accumulator.IsTrue, Is.True);
+    }
+
+    [Test]
+    public void ForIn_With_High_Register_Index_Uses_Scaled_Runtime_Helper()
+    {
+        var locals = new StringBuilder();
+        for (var i = 0; i < 270; i++)
+            locals.Append("var r").Append(i).Append('=').Append(i).Append(';');
+
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript($$"""
+                                                                              function test(obj) {
+                                                                                {{locals}}
+                                                                                var out = "";
+                                                                                for (var key in obj) {
+                                                                                  if (obj.hasOwnProperty(key)) out += key;
+                                                                                }
+                                                                                return out;
+                                                                              }
+                                                                              test({ a: 1, b: 2 });
+                                                                              """));
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("ab"));
     }
 }

@@ -57,6 +57,27 @@ public class CompilerFeatureSupportTests
     }
 
     [Test]
+    public void NestedFunction_DestructuredParameterDefault_Captures_OuterBinding()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
+                                                                            var Gg = function (value) {
+                                                                                this.value = value;
+                                                                            };
+                                                                            function outer() {
+                                                                                function zq({ R: f = new Gg(42) }) {
+                                                                                    return f.value;
+                                                                                }
+                                                                                return zq({});
+                                                                            }
+                                                                            outer();
+                                                                            """));
+
+        realm.Execute(script);
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(42));
+    }
+
+    [Test]
     public void SequenceExpression_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;

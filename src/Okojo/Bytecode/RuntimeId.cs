@@ -191,5 +191,10 @@ internal enum RuntimeId : byte
     DisposeDisposableResourceStack,
     DisposeAsyncDisposableResourceStack,
     AddCurrentModuleDisposableResource,
-    AddCurrentModuleAsyncDisposableResource
+    AddCurrentModuleAsyncDisposableResource,
+
+    // Register-scaled for-in helpers used when dedicated one-byte for-in bytecodes cannot address the iterator register.
+    ForInEnumerate,
+    ForInNext,
+    ForInStep
 }
