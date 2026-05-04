@@ -47,7 +47,17 @@ internal sealed partial class JsParser
 
     private ParsedIdentifierName ExpectCheckedIdentifierName(bool isParamDeclaration = false)
     {
-        return ParseCheckedIdentifierName(Expect(JsTokenKind.Identifier), isParamDeclaration);
+        if (!IsBindingIdentifierToken(current.Kind))
+            throw Error($"Expected Identifier but found {current.Kind}", current.Position);
+
+        var token = current;
+        Next();
+        return ParseCheckedIdentifierName(token, isParamDeclaration);
+    }
+
+    private static bool IsBindingIdentifierToken(JsTokenKind kind)
+    {
+        return kind is JsTokenKind.Identifier or JsTokenKind.Of;
     }
 
     private string ConsumeIdentifierText()

@@ -1188,7 +1188,10 @@ internal sealed partial class ScratchRegExpProgram
                 var left = ParseClassAtom();
                 if (negated && IsStringClassItem(left))
                     throw new ArgumentException("Invalid regular expression pattern");
-                if (Peek('-') && pos + 1 < pattern.Length && pattern[pos + 1] != ']')
+                if (left.Kind == ClassItemKind.Literal &&
+                    Peek('-') &&
+                    pos + 1 < pattern.Length &&
+                    pattern[pos + 1] != ']')
                 {
                     pos++;
                     var right = ParseClassAtom();
@@ -1327,6 +1330,7 @@ internal sealed partial class ScratchRegExpProgram
                     'r' => new(ClassItemKind.Literal, '\r'),
                     't' => new(ClassItemKind.Literal, '\t'),
                     'v' => new(ClassItemKind.Literal, '\v'),
+                    '0' when pos >= pattern.Length || !char.IsAsciiDigit(pattern[pos]) => new(ClassItemKind.Literal, 0),
                     'q' when flags.UnicodeSets && Peek('{') => ParseClassStringDisjunction(),
                     'd' => new(ClassItemKind.Digit),
                     'D' => new(ClassItemKind.NotDigit),

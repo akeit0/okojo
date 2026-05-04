@@ -384,14 +384,45 @@ internal sealed partial class JsParser
         var declarators = new List<JsVariableDeclarator>();
         var lexicalDeclaratorIds = kind.IsLexical() ? new HashSet<int>() : null;
         var lexicalDeclaratorNames = kind.IsLexical() ? new HashSet<string>(StringComparer.Ordinal) : null;
+        void AddDeclarator(JsVariableDeclarator declarator, int position)
+        {
+            if (!TryAddIdentifierKey(lexicalDeclaratorIds, lexicalDeclaratorNames, declarator.NameId, declarator.Name))
+                throw Error($"Unexpected identifier '{declarator.Name}'", position);
+            declarators.Add(At(declarator, position));
+        }
+
         do
         {
+            if (current.Kind is JsTokenKind.LeftBrace or JsTokenKind.LeftBracket)
+            {
+                var patternStart = current.Position;
+                JsExpression pattern = current.Kind == JsTokenKind.LeftBrace
+                    ? ParseObjectBindingPattern()
+                    : ParseArrayPatternExpression();
+                Expect(JsTokenKind.Assign);
+                var patternInitializer = ParseAssignment(allowInInitializer);
+                var syntheticName = $"$varpat_{level}_{patternStart}";
+                AddDeclarator(CreateVariableDeclarator(syntheticName, patternInitializer), patternStart);
+                var patternDeclarators = new List<JsVariableDeclarator>();
+                if (!TryBuildSimpleBindingPatternDeclarators(
+                        CreateIdentifierExpression(syntheticName),
+                        pattern,
+                        kind,
+                        patternDeclarators))
+                {
+                    throw Error("Unsupported binding pattern in variable declaration list", patternStart);
+                }
+
+                foreach (var declarator in patternDeclarators)
+                    AddDeclarator(declarator, declarator.Position);
+
+                continue;
+            }
+
             var nameTok =
                 ParseBindingIdentifierToken(
                     kind == JsVariableDeclarationKind.Var && !strictMode);
             var identifier = ParseCheckedIdentifierName(nameTok);
-            if (!TryAddIdentifierKey(lexicalDeclaratorIds, lexicalDeclaratorNames, identifier.NameId, identifier.Name))
-                throw Error($"Unexpected identifier '{identifier.Name}'", nameTok.Position);
 
             JsExpression? initializer = null;
             if (Match(JsTokenKind.Assign))
@@ -402,8 +433,8 @@ internal sealed partial class JsParser
             if (kind.IsConstLike() && initializer is null && !allowConstWithoutInitializer)
                 throw Error("const declaration requires initializer", nameTok.Position);
 
-            declarators.Add(At(new JsVariableDeclarator(identifier.Name, initializer, identifier.NameId),
-                nameTok.Position));
+            AddDeclarator(new JsVariableDeclarator(identifier.Name, initializer, identifier.NameId),
+                nameTok.Position);
         } while (Match(JsTokenKind.Comma));
 
         if (requireSemicolon) ConsumeOptionalSemicolon();
@@ -440,8 +471,7 @@ internal sealed partial class JsParser
 
     private JsToken ParseBindingIdentifierToken(bool allowKeywordLetToken = false)
     {
-        if (current.Kind == JsTokenKind.Identifier ||
-            current.Kind == JsTokenKind.Of ||
+        if (IsBindingIdentifierToken(current.Kind) ||
             (allowKeywordLetToken && current.Kind == JsTokenKind.Let))
         {
             var tok = current;
@@ -765,7 +795,7 @@ internal sealed partial class JsParser
         Expect(JsTokenKind.Function);
         var isGenerator = Match(JsTokenKind.Star);
 
-        var identifier = ParseCheckedIdentifierName(Expect(JsTokenKind.Identifier));
+        var identifier = ExpectCheckedIdentifierName();
         Expect(JsTokenKind.LeftParen);
         var generatorLevelBeforeParams = generatorFunctionLevel;
         if (!isGenerator) generatorFunctionLevel = 0;
@@ -1252,6 +1282,46 @@ internal sealed partial class JsParser
                         return false;
                     break;
             }
+        }
+
+        return true;
+    }
+
+    private bool TryBuildSimpleBindingPatternDeclarators(
+        JsExpression source,
+        JsExpression pattern,
+        JsVariableDeclarationKind kind,
+        List<JsVariableDeclarator> declarators)
+    {
+        var statements = new List<JsStatement>();
+        var ok = pattern switch
+        {
+            JsObjectExpression objectPattern => TryBuildSimpleObjectBindingDeclaratorsFromSource(
+                source,
+                objectPattern,
+                declarators,
+                kind,
+                statements),
+            JsArrayExpression arrayPattern => TryBuildSimpleArrayBindingDeclarationsFromSource(
+                source,
+                arrayPattern,
+                kind,
+                statements),
+            _ => false
+        };
+        if (!ok)
+            return false;
+
+        foreach (var statement in statements)
+        {
+            if (statement is not JsVariableDeclarationStatement { Declarators.Count: 1 } declaration ||
+                declaration.BindingPattern is not null ||
+                declaration.BindingInitializer is not null)
+            {
+                return false;
+            }
+
+            declarators.Add(declaration.Declarators[0]);
         }
 
         return true;

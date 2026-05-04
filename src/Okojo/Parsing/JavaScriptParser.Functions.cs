@@ -18,7 +18,7 @@ internal sealed partial class JsParser
 
         string? name = null;
         var nameId = -1;
-        if (current.Kind == JsTokenKind.Identifier)
+        if (IsBindingIdentifierToken(current.Kind))
         {
             var identifier = ParseCheckedIdentifierName(current);
             name = identifier.Name;

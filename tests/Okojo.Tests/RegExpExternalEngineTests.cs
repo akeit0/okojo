@@ -1044,6 +1044,19 @@ public class RegExpExternalEngineTests
     }
 
     [Test]
+    public void ExternalRegExpEngine_TreatsHyphenAfterClassEscapeAsLiteral()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+
+        Assert.That(realm.Eval("""
+                               /^[a-z$_][\w-$]*$/i.test("a-b$") &&
+                               /[\w-$]/.test("-") &&
+                               /[\w-$]/.test("$") &&
+                               /[^\0-\x1f\x7f-\uFFFF\w-]/.test("!");
+                               """).IsTrue, Is.True);
+    }
+
+    [Test]
     public void RegExpReplace_ThrowsForNullGroupsAndExec_ResetsLargeLastIndex()
     {
         var realm = JsRuntime.Create().DefaultRealm;
