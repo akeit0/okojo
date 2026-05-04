@@ -20,4 +20,15 @@ public sealed class BrowserCompatibilityParserTests
             }
             """), Throws.Nothing);
     }
+
+    [Test]
+    public void ParseScript_Allows_Object_Binding_Declarator_Before_Comma()
+    {
+        Assert.That(() => JavaScriptParser.ParseScript("""
+            function Qo(a,b,c,d,e){
+              var {J:f,I:g}=ek(247,()=>Oo(a,b,c,d,e)),h=g===!0,k=Yd(d.style.width),p=Yd(d.style.height);
+              return h ? f : k + p;
+            }
+            """), Throws.Nothing);
+    }
 }

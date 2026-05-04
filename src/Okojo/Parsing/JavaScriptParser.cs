@@ -190,14 +190,10 @@ internal sealed partial class JsParser
         {
             JsTokenKind.Semicolon => ParseEmptyStatement(),
             JsTokenKind.LeftBrace => ParseBlockStatement(false),
-            JsTokenKind.Var or JsTokenKind.Const => Peek().Kind is JsTokenKind.LeftBrace or JsTokenKind.LeftBracket
-                ? ParseBindingDeclarationStatement(true)
-                : ParseVariableDeclarationStatement(true),
+            JsTokenKind.Var or JsTokenKind.Const => ParseVariableDeclarationStatement(true),
             JsTokenKind.Let => ShouldParseLetDeclarationStatement()
-                ? Peek().Kind is JsTokenKind.LeftBrace or JsTokenKind.LeftBracket
-                    ? Peek().Kind == JsTokenKind.LeftBrace && Peek().HasLineTerminatorBefore
-                        ? ParseExpressionStatement()
-                        : ParseBindingDeclarationStatement(true)
+                ? Peek().Kind == JsTokenKind.LeftBrace && Peek().HasLineTerminatorBefore
+                    ? ParseExpressionStatement()
                     : ParseVariableDeclarationStatement(true)
                 : ParseExpressionStatement(),
             JsTokenKind.If => ParseIfStatement(),
@@ -686,15 +682,7 @@ internal sealed partial class JsParser
 
         if (current.Kind is JsTokenKind.Var or JsTokenKind.Let or JsTokenKind.Const)
         {
-            var decl = current.Kind switch
-            {
-                JsTokenKind.Var or JsTokenKind.Const when Peek().Kind is JsTokenKind.LeftBrace
-                        or JsTokenKind.LeftBracket
-                    => ParseBindingDeclarationStatement(true),
-                JsTokenKind.Let when Peek().Kind is JsTokenKind.LeftBrace or JsTokenKind.LeftBracket
-                    => ParseBindingDeclarationStatement(true),
-                _ => ParseVariableDeclarationStatement(true)
-            };
+            var decl = ParseVariableDeclarationStatement(true);
             return At(new JsExportDeclarationStatement(decl), start);
         }
 
