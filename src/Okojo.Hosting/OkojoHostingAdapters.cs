@@ -22,9 +22,13 @@ internal sealed class HostingMessageSerializerAdapter(IHostingMessageSerializer 
 
 internal sealed class HostingJsWorkerHostAdapter(IHostingJsWorkerHost inner) : IWorkerHost
 {
-    public WorkerHostBinding CreateWorker(JsRealm ownerRealm, string? moduleEntry, string? ownerReferrer)
+    public WorkerHostBinding CreateWorker(
+        JsRealm ownerRealm,
+        string? scriptEntry,
+        string? ownerReferrer,
+        WorkerScriptType scriptType)
     {
-        var hostedWorker = inner.CreateWorker(ownerRealm, moduleEntry, ownerReferrer);
+        var hostedWorker = inner.CreateWorker(ownerRealm, scriptEntry, ownerReferrer, scriptType);
         return new()
         {
             Agent = hostedWorker.Agent,

@@ -216,7 +216,20 @@ public sealed class JsRuntime : IDisposable
     public string LoadWorkerScript(string path, string? referrer = null)
     {
         ThrowIfDisposed();
-        return WorkerScriptSourceLoader.LoadScript(path, referrer);
+        var resolved = ResolveWorkerScript(path, referrer);
+        return LoadResolvedWorkerScript(resolved);
+    }
+
+    public string ResolveWorkerScript(string path, string? referrer = null)
+    {
+        ThrowIfDisposed();
+        return WorkerScriptSourceLoader.ResolveScript(path, referrer);
+    }
+
+    public string LoadResolvedWorkerScript(string resolvedPath)
+    {
+        ThrowIfDisposed();
+        return WorkerScriptSourceLoader.LoadScript(resolvedPath);
     }
 
     private void ThrowIfDisposed()
@@ -243,10 +256,14 @@ public sealed class JsRuntime : IDisposable
     private sealed class WorkerScriptSourceLoaderFromModuleSourceLoader(IModuleSourceLoader moduleLoader)
         : IWorkerScriptSourceLoader
     {
+        public string ResolveScript(string path, string? referrer = null)
+        {
+            return moduleLoader.ResolveSpecifier(path, referrer);
+        }
+
         public string LoadScript(string path, string? referrer = null)
         {
-            var resolved = moduleLoader.ResolveSpecifier(path, referrer);
-            return moduleLoader.LoadSource(resolved);
+            return moduleLoader.LoadSource(path);
         }
     }
 }

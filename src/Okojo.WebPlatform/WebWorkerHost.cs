@@ -13,14 +13,19 @@ public sealed class WebWorkerHost : IHostingJsWorkerHost
         this.options = options;
     }
 
-    public WorkerRuntime CreateWorker(JsRealm ownerRealm, string? moduleEntry, string? ownerReferrer)
+    public WorkerRuntime CreateWorker(
+        JsRealm ownerRealm,
+        string? scriptEntry,
+        string? ownerReferrer,
+        WorkerScriptType scriptType)
     {
         ArgumentNullException.ThrowIfNull(ownerRealm);
 
         return WorkerRuntimeFactory.CreateWorkerRuntime(ownerRealm, hostedWorker =>
         {
-            hostedWorker.ModuleEntry = moduleEntry;
-            hostedWorker.ModuleReferrer = ownerReferrer;
+            hostedWorker.ScriptEntry = scriptEntry;
+            hostedWorker.ScriptReferrer = ownerReferrer;
+            hostedWorker.ScriptType = scriptType;
             hostedWorker.StartBackgroundHost = options.StartBackgroundHost;
         });
     }

@@ -4,12 +4,17 @@ namespace Okojo.Hosting;
 
 public sealed class WorkerRuntimeHost(Action<WorkerRuntimeOptions>? configure = null) : IHostingJsWorkerHost
 {
-    public WorkerRuntime CreateWorker(JsRealm ownerRealm, string? moduleEntry, string? ownerReferrer)
+    public WorkerRuntime CreateWorker(
+        JsRealm ownerRealm,
+        string? scriptEntry,
+        string? ownerReferrer,
+        WorkerScriptType scriptType)
     {
         return WorkerRuntimeFactory.CreateWorkerRuntime(ownerRealm, options =>
         {
-            options.ModuleEntry = moduleEntry;
-            options.ModuleReferrer = ownerReferrer;
+            options.ScriptEntry = scriptEntry;
+            options.ScriptReferrer = ownerReferrer;
+            options.ScriptType = scriptType;
             configure?.Invoke(options);
         });
     }

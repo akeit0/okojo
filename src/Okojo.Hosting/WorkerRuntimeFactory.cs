@@ -35,8 +35,19 @@ public static class WorkerRuntimeFactory
         var realm = agent.MainRealm;
         var threadHost = options.StartBackgroundHost ? new JsAgentThreadHost(agent) : null;
 
-        if (!string.IsNullOrEmpty(options.ModuleEntry))
-            _ = agent.EvaluateModule(realm, options.ModuleEntry, options.ModuleReferrer);
+        if (!string.IsNullOrEmpty(options.ScriptEntry))
+        {
+            if (options.ScriptType == WorkerScriptType.Module)
+            {
+                _ = agent.EvaluateModule(realm, options.ScriptEntry, options.ScriptReferrer);
+            }
+            else
+            {
+                var resolved = engine.ResolveWorkerScript(options.ScriptEntry, options.ScriptReferrer);
+                var source = engine.LoadResolvedWorkerScript(resolved);
+                realm.ExecuteWorkerScript(source, resolved);
+            }
+        }
 
         var hostedWorker = new WorkerRuntime(engine, agent, threadHost);
         if (options.StartBackgroundHost)

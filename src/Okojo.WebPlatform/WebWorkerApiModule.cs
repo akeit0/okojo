@@ -32,8 +32,8 @@ public sealed class WebWorkerApiModule : IRealmApiModule
             if (args.Length == 0 || !args[0].IsString)
                 throw new JsRuntimeException(JsErrorKind.TypeError, "Worker script URL must be a string");
 
-            ValidateWorkerOptions(realm, args.Length > 1 ? args[1] : JsValue.Undefined);
-            var workerHandle = realm.CreateWorkerHandleObject(args[0].AsString());
+            var scriptType = GetWorkerScriptType(args.Length > 1 ? args[1] : JsValue.Undefined);
+            var workerHandle = realm.CreateWorkerHandleObject(args[0].AsString(), scriptType);
             return JsValue.FromObject(ctorData.WorkerApi.CreateWorkerObject(realm, workerHandle));
         }, "Worker", 1, true);
         ctor.UserData = new WorkerCtorData { WorkerApi = workerApi };
@@ -44,24 +44,26 @@ public sealed class WebWorkerApiModule : IRealmApiModule
         realm.Global["Worker"] = JsValue.FromObject(ctor);
     }
 
-    private static void ValidateWorkerOptions(JsRealm realm, in JsValue optionsValue)
+    private static WorkerScriptType GetWorkerScriptType(in JsValue optionsValue)
     {
         if (optionsValue.IsUndefined || optionsValue.IsNull)
-            return;
+            return WorkerScriptType.Classic;
 
         if (!optionsValue.TryGetObject(out var options))
             throw new JsRuntimeException(JsErrorKind.TypeError, "Worker options must be an object");
 
         if (!options.TryGetProperty("type", out var typeValue) || typeValue.IsUndefined || typeValue.IsNull)
-            return;
+            return WorkerScriptType.Classic;
 
         var typeText = typeValue.IsString ? typeValue.AsString() : typeValue.ToString();
+        if (string.Equals(typeText, "classic", StringComparison.Ordinal))
+            return WorkerScriptType.Classic;
         if (string.Equals(typeText, "module", StringComparison.Ordinal))
-            return;
+            return WorkerScriptType.Module;
 
         throw new JsRuntimeException(JsErrorKind.TypeError,
-            "Only module workers are currently supported",
-            "WEB_WORKER_TYPE_UNSUPPORTED");
+            "Worker type must be \"classic\" or \"module\"",
+            "WEB_WORKER_TYPE_INVALID");
     }
 
     private sealed class WorkerCtorData

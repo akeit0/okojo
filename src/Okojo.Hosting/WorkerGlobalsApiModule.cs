@@ -33,7 +33,7 @@ public sealed class WorkerGlobalsApiModule : IRealmApiModule
                 moduleEntry = args[0].AsString();
             }
 
-            return realm.CreateWorkerHandleObject(moduleEntry);
+            return realm.CreateWorkerHandleObject(moduleEntry, WorkerScriptType.Module);
         }, "createWorker", 1));
     }
 }

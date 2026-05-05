@@ -160,7 +160,7 @@ public class ModulePublicApiTests
 
         Assert.That(text, Is.EqualTo("worker-source"));
         Assert.That(workerLoader.LastPath, Is.EqualTo("./worker.js"));
-        Assert.That(workerLoader.LastReferrer, Is.EqualTo("/mods/owner.js"));
+        Assert.That(workerLoader.LastResolveReferrer, Is.EqualTo("/mods/owner.js"));
     }
 
     [Test]
@@ -229,6 +229,14 @@ public class ModulePublicApiTests
     {
         public string? LastPath { get; private set; }
         public string? LastReferrer { get; private set; }
+        public string? LastResolveReferrer { get; private set; }
+
+        public string ResolveScript(string path, string? referrer = null)
+        {
+            LastPath = path;
+            LastResolveReferrer = referrer;
+            return path;
+        }
 
         public string LoadScript(string path, string? referrer = null)
         {

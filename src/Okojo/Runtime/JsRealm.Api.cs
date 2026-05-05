@@ -69,7 +69,22 @@ public sealed partial class JsRealm
 
     public string LoadWorkerScript(string path, string? referrer = null)
     {
-        return Engine.LoadWorkerScript(path, referrer ?? GetCurrentModuleResolvedIdOrNull());
+        return Engine.LoadWorkerScript(path,
+            referrer ?? GetCurrentWorkerScriptResolvedIdOrNull() ?? GetCurrentModuleResolvedIdOrNull());
+    }
+
+    internal JsValue ExecuteWorkerScript(string source, string resolvedId)
+    {
+        var previous = currentWorkerScriptResolvedId;
+        currentWorkerScriptResolvedId = resolvedId;
+        try
+        {
+            return Evaluate(source);
+        }
+        finally
+        {
+            currentWorkerScriptResolvedId = previous;
+        }
     }
 
     public JsRealm CreateRealm(Action<JsRealmOptions>? configure = null)

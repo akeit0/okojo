@@ -7,6 +7,7 @@ public sealed partial class JsRealm
     private const int MessageEventDataSlot = 0;
     private readonly Dictionary<int, JsPlainObject> workerHandlesByAgentId = new();
     private StaticNamedPropertyLayout? messageEventShape;
+    private string? currentWorkerScriptResolvedId;
     private bool workerMessageDispatchHookInstalled;
     private bool workerMessagingGlobalsInstalled;
 
@@ -31,6 +32,7 @@ public sealed partial class JsRealm
         Global["onmessageerror"] = JsValue.Undefined;
 
         if (includePostMessage)
+        {
             // Worker-side postMessage: sends to parent/main agent.
             Global["postMessage"] = JsValue.FromObject(new JsHostFunction(this, static (in info) =>
             {
@@ -47,6 +49,28 @@ public sealed partial class JsRealm
                 realm.Agent.PostMessage(target, payload, realm.Engine.Options.HostServices.WorkerMessageQueueKey);
                 return JsValue.Undefined;
             }, "postMessage", 1));
+
+            Global["importScripts"] = JsValue.FromObject(new JsHostFunction(this, static (in info) =>
+            {
+                var realm = info.Realm;
+                foreach (var arg in info.Arguments)
+                {
+                    var specifier = arg.IsString ? arg.AsString() : arg.ToString();
+                    var referrer = realm.GetCurrentWorkerScriptResolvedIdOrNull()
+                                   ?? realm.GetCurrentModuleResolvedIdOrNull();
+                    var resolved = realm.Engine.ResolveWorkerScript(specifier, referrer);
+                    var source = realm.Engine.LoadResolvedWorkerScript(resolved);
+                    realm.ExecuteWorkerScript(source, resolved);
+                }
+
+                return JsValue.Undefined;
+            }, "importScripts", 1));
+        }
+    }
+
+    internal string? GetCurrentWorkerScriptResolvedIdOrNull()
+    {
+        return currentWorkerScriptResolvedId;
     }
 
     private void DispatchMessageEvent(JsAgent sender, object? payload)
@@ -178,12 +202,13 @@ public sealed partial class JsRealm
         }
     }
 
-    internal JsPlainObject CreateWorkerHandleObject(string? moduleEntry)
+    internal JsPlainObject CreateWorkerHandleObject(string? scriptEntry, WorkerScriptType scriptType)
     {
         var workerBinding = Engine.Options.HostServices.WorkerHost.CreateWorker(
             this,
-            moduleEntry,
-            GetCurrentModuleResolvedIdOrNull());
+            scriptEntry,
+            GetCurrentWorkerScriptResolvedIdOrNull() ?? GetCurrentModuleResolvedIdOrNull(),
+            scriptType);
         var handle = WorkerHandleFactory.CreateHandle(this, workerBinding,
             new(
                 IdOnmessage,
