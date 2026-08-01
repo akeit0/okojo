@@ -5,4 +5,5 @@ public sealed class GenerateJsGlobalsAttribute : Attribute
 {
     public string InstallerMethodName { get; set; } = "InstallGeneratedGlobals";
     public string PropertySourceMethodName { get; set; } = "GetGeneratedGlobalProperties";
+    public JsMemberNaming MemberNaming { get; set; } = JsMemberNaming.LowerCamelCase;
 }

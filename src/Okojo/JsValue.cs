@@ -178,6 +178,363 @@ public readonly struct JsValue : IEquatable<JsValue>
         return false;
     }
 
+    public bool TryRead<T>(out T value)
+    {
+        if (typeof(T) == typeof(JsValue))
+        {
+            value = Unsafe.As<JsValue, T>(ref Unsafe.AsRef(in this));
+            return true;
+        }
+
+        if (typeof(T) == typeof(string))
+        {
+            if (IsNull)
+            {
+                string? nullString = null;
+                value = Unsafe.As<string?, T>(ref nullString)!;
+                return true;
+            }
+
+            if (IsString)
+            {
+                var stringValue = AsString();
+                value = Unsafe.As<string, T>(ref stringValue);
+                return true;
+            }
+
+            value = default!;
+            return false;
+        }
+
+        if (typeof(T) == typeof(bool))
+        {
+            if (IsBool)
+            {
+                var boolValue = IsTrue;
+                value = Unsafe.As<bool, T>(ref boolValue);
+                return true;
+            }
+
+            value = default!;
+            return false;
+        }
+
+        var hasNumber = TryGetNumberValue(this, out var number);
+        if (typeof(T) == typeof(int))
+        {
+            if (!hasNumber)
+            {
+                value = default!;
+                return false;
+            }
+
+            return TryReadInt32(number, out value);
+        }
+        if (typeof(T) == typeof(uint))
+        {
+            if (!hasNumber)
+            {
+                value = default!;
+                return false;
+            }
+
+            return TryReadUInt32(number, out value);
+        }
+        if (typeof(T) == typeof(long))
+        {
+            if (!hasNumber)
+            {
+                value = default!;
+                return false;
+            }
+
+            return TryReadInt64(number, out value);
+        }
+        if (typeof(T) == typeof(ulong))
+        {
+            if (!hasNumber)
+            {
+                value = default!;
+                return false;
+            }
+
+            return TryReadUInt64(number, out value);
+        }
+        if (typeof(T) == typeof(short))
+        {
+            if (!hasNumber)
+            {
+                value = default!;
+                return false;
+            }
+
+            return TryReadInt16(number, out value);
+        }
+        if (typeof(T) == typeof(ushort))
+        {
+            if (!hasNumber)
+            {
+                value = default!;
+                return false;
+            }
+
+            return TryReadUInt16(number, out value);
+        }
+        if (typeof(T) == typeof(byte))
+        {
+            if (!hasNumber)
+            {
+                value = default!;
+                return false;
+            }
+
+            return TryReadByte(number, out value);
+        }
+        if (typeof(T) == typeof(sbyte))
+        {
+            if (!hasNumber)
+            {
+                value = default!;
+                return false;
+            }
+
+            return TryReadSByte(number, out value);
+        }
+        if (typeof(T) == typeof(float))
+        {
+            if (!hasNumber)
+            {
+                value = default!;
+                return false;
+            }
+
+            return TryReadSingle(number, out value);
+        }
+        if (typeof(T) == typeof(double))
+        {
+            if (!hasNumber)
+            {
+                value = default!;
+                return false;
+            }
+
+            return TryReadDouble(number, out value);
+        }
+        if (typeof(T) == typeof(decimal))
+        {
+            if (!hasNumber)
+            {
+                value = default!;
+                return false;
+            }
+
+            return TryReadDecimal(number, out value);
+        }
+
+        if (typeof(T) == typeof(object))
+        {
+            object? boxed = IsUndefined || IsNull
+                ? null
+                : IsString
+                    ? AsString()
+                    : IsBool
+                        ? IsTrue
+                        : IsInt32
+                            ? Int32Value
+                            : IsNumber
+                                ? NumberValue
+                                : TryGetObject(out var boxedObject)
+                                    ? boxedObject is Objects.JsHostObject host ? host.Data : boxedObject
+                                    : this;
+            value = Unsafe.As<object?, T>(ref boxed)!;
+            return true;
+        }
+
+        if (typeof(T) == typeof(Objects.JsObject))
+        {
+            if (TryGetObject(out var obj))
+            {
+                value = Unsafe.As<Objects.JsObject, T>(ref obj);
+                return true;
+            }
+
+            value = default!;
+            return false;
+        }
+
+        if (TryGetObject(out var hostObj))
+        {
+            if (hostObj is Objects.JsHostObject host && host.Data is T hostData)
+            {
+                value = hostData;
+                return true;
+            }
+
+            if (hostObj is T direct)
+            {
+                value = direct;
+                return true;
+            }
+        }
+
+        if (IsNullOrUndefined && Nullable.GetUnderlyingType(typeof(T)) is not null)
+        {
+            value = default!;
+            return true;
+        }
+
+        value = default!;
+        return false;
+    }
+
+    private static bool TryReadInt32<T>(double number, out T value)
+    {
+        try
+        {
+            var typedValue = checked((int)number);
+            value = Unsafe.As<int, T>(ref typedValue);
+            return true;
+        }
+        catch (OverflowException)
+        {
+            value = default!;
+            return false;
+        }
+    }
+
+    private static bool TryReadUInt32<T>(double number, out T value)
+    {
+        try
+        {
+            var typedValue = checked((uint)number);
+            value = Unsafe.As<uint, T>(ref typedValue);
+            return true;
+        }
+        catch (OverflowException)
+        {
+            value = default!;
+            return false;
+        }
+    }
+
+    private static bool TryReadInt64<T>(double number, out T value)
+    {
+        try
+        {
+            var typedValue = checked((long)number);
+            value = Unsafe.As<long, T>(ref typedValue);
+            return true;
+        }
+        catch (OverflowException)
+        {
+            value = default!;
+            return false;
+        }
+    }
+
+    private static bool TryReadUInt64<T>(double number, out T value)
+    {
+        try
+        {
+            var typedValue = checked((ulong)number);
+            value = Unsafe.As<ulong, T>(ref typedValue);
+            return true;
+        }
+        catch (OverflowException)
+        {
+            value = default!;
+            return false;
+        }
+    }
+
+    private static bool TryReadInt16<T>(double number, out T value)
+    {
+        try
+        {
+            var typedValue = checked((short)number);
+            value = Unsafe.As<short, T>(ref typedValue);
+            return true;
+        }
+        catch (OverflowException)
+        {
+            value = default!;
+            return false;
+        }
+    }
+
+    private static bool TryReadUInt16<T>(double number, out T value)
+    {
+        try
+        {
+            var typedValue = checked((ushort)number);
+            value = Unsafe.As<ushort, T>(ref typedValue);
+            return true;
+        }
+        catch (OverflowException)
+        {
+            value = default!;
+            return false;
+        }
+    }
+
+    private static bool TryReadByte<T>(double number, out T value)
+    {
+        try
+        {
+            var typedValue = checked((byte)number);
+            value = Unsafe.As<byte, T>(ref typedValue);
+            return true;
+        }
+        catch (OverflowException)
+        {
+            value = default!;
+            return false;
+        }
+    }
+
+    private static bool TryReadSByte<T>(double number, out T value)
+    {
+        try
+        {
+            var typedValue = checked((sbyte)number);
+            value = Unsafe.As<sbyte, T>(ref typedValue);
+            return true;
+        }
+        catch (OverflowException)
+        {
+            value = default!;
+            return false;
+        }
+    }
+
+    private static bool TryReadSingle<T>(double number, out T value)
+    {
+        var typedValue = (float)number;
+        value = Unsafe.As<float, T>(ref typedValue);
+        return true;
+    }
+
+    private static bool TryReadDouble<T>(double number, out T value)
+    {
+        value = Unsafe.As<double, T>(ref number);
+        return true;
+    }
+
+    private static bool TryReadDecimal<T>(double number, out T value)
+    {
+        try
+        {
+            var typedValue = Convert.ToDecimal(number, CultureInfo.InvariantCulture);
+            value = Unsafe.As<decimal, T>(ref typedValue);
+            return true;
+        }
+        catch (OverflowException)
+        {
+            value = default!;
+            return false;
+        }
+    }
+
     public JsValue(double d)
     {
         if (double.IsNaN(d))

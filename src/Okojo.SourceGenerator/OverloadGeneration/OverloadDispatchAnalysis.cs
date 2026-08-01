@@ -36,6 +36,7 @@ internal sealed class OverloadParameterSpec(
 }
 
 internal sealed class AnalyzedOverload<TMethod, TParameter>(
+    int index,
     TMethod method,
     IMethodSymbol symbol,
     IReadOnlyList<TParameter> parameters,
@@ -43,6 +44,7 @@ internal sealed class AnalyzedOverload<TMethod, TParameter>(
     int requiredCount,
     int maxCount)
 {
+    public int Index { get; } = index;
     public TMethod Method { get; } = method;
     public IMethodSymbol Symbol { get; } = symbol;
     public IReadOnlyList<TParameter> Parameters { get; } = parameters;
@@ -167,7 +169,7 @@ internal static class OverloadDispatchAnalysis
             var requiredCount = ParameterTypeSupport.ComputeFunctionLength(symbol.Parameters, true);
             var maxCount = hasTrailingSpan ? int.MaxValue : parameters.Count;
             var overload =
-                new AnalyzedOverload<TMethod, TParameter>(method, symbol, parameters, specs, requiredCount, maxCount);
+                new AnalyzedOverload<TMethod, TParameter>(i, method, symbol, parameters, specs, requiredCount, maxCount);
             overloads.Add(overload);
             if (overload.HasOpenEndedCount)
                 openEnded.Add(overload);

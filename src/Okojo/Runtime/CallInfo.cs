@@ -133,80 +133,12 @@ public readonly ref struct CallInfo
     {
         try
         {
-            if (typeof(T) == typeof(JsValue)) return Unsafe.As<JsValue, T>(ref Unsafe.AsRef(in value));
+            if (value.TryRead<T>(out var directValue))
+                return directValue;
             if (typeof(T) == typeof(bool))
             {
                 var boolValue = value.ToBoolean();
                 return Unsafe.As<bool, T>(ref boolValue);
-            }
-
-            if (value.IsNumber)
-            {
-                var numberValue = value.NumberValue;
-                if (typeof(T).IsPrimitive)
-                {
-                    if (typeof(T) == typeof(double)) return Unsafe.As<double, T>(ref numberValue);
-
-                    if (typeof(T) == typeof(float))
-                    {
-                        var floatValue = (float)numberValue;
-                        return Unsafe.As<float, T>(ref floatValue);
-                    }
-
-                    if (typeof(T) == typeof(int))
-                    {
-                        var intValue = (int)numberValue;
-                        return Unsafe.As<int, T>(ref intValue);
-                    }
-
-                    if (typeof(T) == typeof(long))
-                    {
-                        var longValue = (long)numberValue;
-                        return Unsafe.As<long, T>(ref longValue);
-                    }
-
-                    if (typeof(T) == typeof(short))
-                    {
-                        var shortValue = (short)numberValue;
-                        return Unsafe.As<short, T>(ref shortValue);
-                    }
-
-                    if (typeof(T) == typeof(byte))
-                    {
-                        var byteValue = (byte)numberValue;
-                        return Unsafe.As<byte, T>(ref byteValue);
-                    }
-
-                    if (typeof(T) == typeof(uint))
-                    {
-                        var uintValue = (uint)numberValue;
-                        return Unsafe.As<uint, T>(ref uintValue);
-                    }
-
-                    if (typeof(T) == typeof(ulong))
-                    {
-                        var ulongValue = (ulong)numberValue;
-                        return Unsafe.As<ulong, T>(ref ulongValue);
-                    }
-
-                    if (typeof(T) == typeof(ushort))
-                    {
-                        var ushortValue = (ushort)numberValue;
-                        return Unsafe.As<ushort, T>(ref ushortValue);
-                    }
-
-                    if (typeof(T) == typeof(sbyte))
-                    {
-                        var sbyteValue = (sbyte)numberValue;
-                        return Unsafe.As<sbyte, T>(ref sbyteValue);
-                    }
-                }
-            }
-
-            if (value.IsString && typeof(T) == typeof(string))
-            {
-                var stringValue = value.AsString();
-                return Unsafe.As<string, T>(ref stringValue);
             }
 
             return HostValueConverter.ConvertFromJsValue<T>(Realm, value);

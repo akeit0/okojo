@@ -8,6 +8,7 @@ internal partial class GeneratedObjectSample
     public string Name { get; set; } = string.Empty;
     public int Age { get; set; }
 
+    [JsMember]
     public bool DoSomething()
     {
         return true;

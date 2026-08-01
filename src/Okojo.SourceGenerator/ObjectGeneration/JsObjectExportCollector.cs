@@ -6,23 +6,31 @@ internal static class JsObjectExportCollector
 {
     public static JsObjectTypeModel? Collect(INamedTypeSymbol symbol)
     {
-        if (!HasGenerateJsObjectAttribute(symbol))
+        var typeAttribute = JsExportAttributeHelper.GetAttribute(symbol, AttributeMetadataNames.GenerateJsObjectAttribute);
+        if (typeAttribute is null)
             return null;
+        var memberNaming = JsExportAttributeHelper.GetMemberNaming(typeAttribute);
 
         var instanceMembers = new List<JsObjectMemberModel>();
         var staticMembers = new List<JsObjectMemberModel>();
 
         foreach (var member in symbol.GetMembers())
         {
-            if (member.DeclaredAccessibility != Accessibility.Public)
-                continue;
             if (IsGeneratedSourceMember(member))
                 continue;
+            if (JsExportAttributeHelper.HasAttribute(member, AttributeMetadataNames.JsIgnoreFromObjectAttribute))
+                continue;
+
+            var jsMemberAttribute = JsExportAttributeHelper.GetAttribute(member, AttributeMetadataNames.JsMemberAttribute);
+            if (jsMemberAttribute is null)
+                continue;
+
+            var jsName = JsExportAttributeHelper.GetMemberName(member, memberNaming, jsMemberAttribute);
 
             var model = member switch
             {
                 IFieldSymbol field when !field.IsConst => new(
-                    field.Name,
+                    jsName,
                     JsObjectMemberKind.Field,
                     field.IsStatic,
                     field,
@@ -30,7 +38,7 @@ internal static class JsObjectExportCollector
                     true,
                     !field.IsReadOnly),
                 IPropertySymbol property when property.Parameters.Length == 0 => new(
-                    property.Name,
+                    jsName,
                     JsObjectMemberKind.Property,
                     property.IsStatic,
                     property,
@@ -38,7 +46,7 @@ internal static class JsObjectExportCollector
                     property.GetMethod is not null,
                     property.SetMethod is not null),
                 IMethodSymbol method when ShouldEmitMethod(method) => new JsObjectMemberModel(
-                    method.Name,
+                    jsName,
                     JsObjectMemberKind.Method,
                     method.IsStatic,
                     method,
@@ -75,15 +83,6 @@ internal static class JsObjectExportCollector
                 return false;
 
         return true;
-    }
-
-    private static bool HasGenerateJsObjectAttribute(INamedTypeSymbol symbol)
-    {
-        foreach (var attribute in symbol.GetAttributes())
-            if (attribute.AttributeClass?.ToDisplayString() == "Okojo.Annotations.GenerateJsObjectAttribute")
-                return true;
-
-        return false;
     }
 
     private static bool IsGeneratedSourceMember(ISymbol member)

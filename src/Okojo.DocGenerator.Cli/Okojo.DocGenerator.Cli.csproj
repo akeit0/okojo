@@ -30,9 +30,11 @@
     </ItemGroup>
 
     <ItemGroup>
+        <Compile Include="..\Okojo.SourceGenerator\AttributeMetadataNames.cs" Link="Shared\AttributeMetadataNames.cs"/>
         <Compile Include="..\Okojo.SourceGenerator\GlobalGeneration\GlobalGenerationNames.cs" Link="Shared\GlobalGenerationNames.cs"/>
         <Compile Include="..\Okojo.SourceGenerator\GlobalGeneration\GlobalExportModels.cs" Link="Shared\GlobalExportModels.cs"/>
         <Compile Include="..\Okojo.SourceGenerator\GlobalGeneration\GlobalExportCollector.cs" Link="Shared\GlobalExportCollector.cs"/>
+        <Compile Include="..\Okojo.SourceGenerator\JsExportAttributeHelper.cs" Link="Shared\JsExportAttributeHelper.cs"/>
         <Compile Include="..\Okojo.SourceGenerator\ObjectGeneration\JsObjectExportModels.cs" Link="Shared\JsObjectExportModels.cs"/>
         <Compile Include="..\Okojo.SourceGenerator\ObjectGeneration\JsObjectExportCollector.cs" Link="Shared\JsObjectExportCollector.cs"/>
         <Compile Include="..\Okojo.SourceGenerator\ParameterGeneration\ParameterTypeSupport.cs" Link="Shared\ParameterTypeSupport.cs"/>

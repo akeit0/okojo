@@ -168,10 +168,6 @@ internal static class CSharpGlobalInstallerEmitter
             "Host function argument type mismatch.",
             functionGroup,
             false,
-            static x => x.Symbol,
-            static x => x.Parameters,
-            static x => x.Type,
-            static x => x.HasDefaultValue,
             overloadIndex => dispatcherName + "__Overload" + overloadIndex.ToString(CultureInfo.InvariantCulture));
 
         for (var i = 0; i < functionGroup.Overloads.Count; i++)

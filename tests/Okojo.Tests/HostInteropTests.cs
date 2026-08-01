@@ -199,19 +199,23 @@ public sealed class ManualHostBindingSample : IHostBindable
 [DocDeclaration("Foo\\Bar", "Docs.Shapes")]
 public partial class GeneratedHostBindingSample
 {
+    [JsMember]
     public float X { get; set; }
 
+    [JsMember]
     public static float Sin(float a)
     {
         return MathF.Sin(a);
     }
 
     [DocIgnore]
+    [JsMember]
     public string Echo(string value)
     {
         return $"echo:{value}";
     }
 
+    [JsMember]
     public static int SumNumbers(ReadOnlySpan<int> values)
     {
         var sum = 0;
@@ -220,6 +224,7 @@ public partial class GeneratedHostBindingSample
         return sum;
     }
 
+    [JsMember]
     public static string DescribeJsValues(ReadOnlySpan<JsValue> values)
     {
         if (values.Length == 0)
@@ -231,6 +236,7 @@ public partial class GeneratedHostBindingSample
         return string.Join("|", parts);
     }
 
+    [JsMember]
     public static string DescribeAny(ReadOnlySpan<object> values)
     {
         if (values.Length == 0)
@@ -242,16 +248,19 @@ public partial class GeneratedHostBindingSample
         return string.Join("|", parts);
     }
 
+    [JsMember]
     public static string Pick(string value)
     {
         return $"string:{value}";
     }
 
+    [JsMember]
     public static string Pick(int value)
     {
         return $"number:{value}";
     }
 
+    [JsMember]
     public static string Pick(object value)
     {
         return $"object:{value}";
@@ -372,15 +381,71 @@ public sealed class ManualAsyncEnumerableHostBindingSample : IHostBindable
 [DocDeclaration("Foo\\Bar", "Docs.Shapes")]
 public partial class GeneratedAsyncHostBindingSample
 {
+    [JsMember]
     public static async Task<string> EchoAsync(string value)
     {
         await Task.Yield();
         return $"generated:{value}";
     }
 
+    [JsMember]
     public static async Task<string> AwaitEcho(Task<string> value)
     {
         return "generated-await:" + await value;
+    }
+}
+
+[GenerateJsObject]
+[GenerateJsGlobals]
+internal sealed partial class SharedJsMemberSurfaceSample
+{
+    [JsMember]
+    public int SharedValue { get; set; }
+
+    [JsMember]
+    public static string SharedAction()
+    {
+        return "shared";
+    }
+
+    [JsMember]
+    [JsIgnoreFromGlobals]
+    public static string ObjectOnly()
+    {
+        return "object";
+    }
+
+    [JsMember]
+    [JsIgnoreFromObject]
+    public static string GlobalOnly()
+    {
+        return "global";
+    }
+}
+
+[GenerateJsObject(MemberNaming = JsMemberNaming.PascalCase)]
+internal sealed partial class PascalCaseJsMemberObjectSample
+{
+    [JsMember]
+    private int sampleValue { get; set; }
+
+    [JsMember]
+    private string doThing()
+    {
+        return "pascal";
+    }
+}
+
+[GenerateJsGlobals(MemberNaming = JsMemberNaming.AsDeclared)]
+internal sealed partial class AsDeclaredJsGlobalsSample
+{
+    [JsMember]
+    public int SampleValue => 7;
+
+    [JsMember]
+    private string DoThing()
+    {
+        return "declared";
     }
 }
 
@@ -1317,11 +1382,11 @@ public class HostInteropTests
         var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             const type = GeneratedHostBindingSample;
             const sample = new type();
-            sample.X = 2.5;
+            sample.x = 2.5;
             [
-              sample.X,
-              sample.Echo("ok"),
-              type.Sin(0)
+              sample.x,
+              sample.echo("ok"),
+              type.sin(0)
             ].join("|");
             """));
 
@@ -1339,12 +1404,12 @@ public class HostInteropTests
 
         var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
             [
-              GeneratedHostBindingSample.SumNumbers(1, 2, 3, 4),
-              GeneratedHostBindingSample.DescribeJsValues(1, "x", true),
-              GeneratedHostBindingSample.DescribeAny(1, "x", true),
-              GeneratedHostBindingSample.Pick("x"),
-              GeneratedHostBindingSample.Pick(7),
-              GeneratedHostBindingSample.Pick(true)
+              GeneratedHostBindingSample.sumNumbers(1, 2, 3, 4),
+              GeneratedHostBindingSample.describeJsValues(1, "x", true),
+              GeneratedHostBindingSample.describeAny(1, "x", true),
+              GeneratedHostBindingSample.pick("x"),
+              GeneratedHostBindingSample.pick(7),
+              GeneratedHostBindingSample.pick(true)
             ].join("|");
             """));
 
@@ -1382,12 +1447,12 @@ public class HostInteropTests
             const a = new ManualHostBindingSample();
             const b = new GeneratedHostBindingSample();
             a.X = 3.5;
-            b.X = 4.5;
+            b.x = 4.5;
             [
               a.X,
               ManualHostBindingSample.Sin(0),
-              b.X,
-              GeneratedHostBindingSample.Sin(0)
+              b.x,
+              GeneratedHostBindingSample.sin(0)
             ].join("|");
             """));
 
@@ -1449,8 +1514,8 @@ public class HostInteropTests
         var value = await realm.EvalAsync("""
                                           (async () => {
                                             return [
-                                              await GeneratedAsyncHostBindingSample.EchoAsync("ok"),
-                                              await GeneratedAsyncHostBindingSample.AwaitEcho(Promise.resolve("x"))
+                                              await GeneratedAsyncHostBindingSample.echoAsync("ok"),
+                                              await GeneratedAsyncHostBindingSample.awaitEcho(Promise.resolve("x"))
                                             ].join("|");
                                           })()
                                           """);
@@ -1467,7 +1532,7 @@ public class HostInteropTests
             JsValue.FromObject(GeneratedAsyncHostBindingSample.ToJsType(realm));
         realm.Eval("""
                    async function runCallAsync() {
-                     return await GeneratedAsyncHostBindingSample.EchoAsync("call");
+                     return await GeneratedAsyncHostBindingSample.echoAsync("call");
                    }
                    """);
 
@@ -1476,6 +1541,66 @@ public class HostInteropTests
 
         Assert.That(value.IsString, Is.True);
         Assert.That(value.AsString(), Is.EqualTo("generated:call"));
+    }
+
+    [Test]
+    public void JsMember_Can_Be_Shared_And_Opted_Out_Per_Surface()
+    {
+        var sample = new SharedJsMemberSurfaceSample();
+        using var runtime = JsRuntime.CreateBuilder()
+            .UseGlobals(sample.InstallGeneratedGlobals)
+            .Build();
+        var realm = runtime.MainRealm;
+        realm.Global["SharedJsMemberSurfaceSample"] = JsValue.FromObject(SharedJsMemberSurfaceSample.ToJsType(realm));
+
+        var result = realm.Eval("""
+                                const type = SharedJsMemberSurfaceSample;
+                                const instance = new type();
+                                instance.sharedValue = 5;
+                                [
+                                  sharedAction(),
+                                  typeof objectOnly,
+                                  globalOnly(),
+                                  type.sharedAction(),
+                                  type.objectOnly(),
+                                  typeof type.globalOnly,
+                                  instance.sharedValue
+                                ].join("|");
+                                """);
+
+        Assert.That(result.IsString, Is.True);
+        Assert.That(result.AsString(), Is.EqualTo("shared|undefined|global|shared|object|undefined|5"));
+    }
+
+    [Test]
+    public void GenerateJsObject_Can_Use_PascalCase_MemberNaming()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var sample = new PascalCaseJsMemberObjectSample();
+        realm.Global["sample"] = JsValue.FromObject(PascalCaseJsMemberObjectSample.ToJsObject(realm, sample));
+
+        var result = realm.Eval("""
+                                sample.SampleValue = 9;
+                                [sample.SampleValue, sample.DoThing()].join("|");
+                                """);
+
+        Assert.That(result.IsString, Is.True);
+        Assert.That(result.AsString(), Is.EqualTo("9|pascal"));
+    }
+
+    [Test]
+    public void GenerateJsGlobals_Can_Use_AsDeclared_MemberNaming()
+    {
+        var sample = new AsDeclaredJsGlobalsSample();
+        using var runtime = JsRuntime.CreateBuilder()
+            .UseGlobals(sample.InstallGeneratedGlobals)
+            .Build();
+        var realm = runtime.MainRealm;
+
+        var result = realm.Eval("[SampleValue, DoThing()].join('|')");
+
+        Assert.That(result.IsString, Is.True);
+        Assert.That(result.AsString(), Is.EqualTo("7|declared"));
     }
 
     [Test]
@@ -1498,6 +1623,30 @@ public class HostInteropTests
             Assert.That(HostValueConverter.ConvertFromJsValue<JsObject>(realm, hostValue), Is.SameAs(hostObject));
             Assert.That(HostValueConverter.ConvertFromJsValue<ManualHostBindingSample>(realm, hostValue),
                 Is.SameAs(host));
+        });
+    }
+
+    [Test]
+    public void JsValue_TryRead_Uses_Direct_Typed_Paths()
+    {
+        using var runtime = JsRuntime.Create(options => options.AllowClrAccess());
+        var realm = runtime.DefaultRealm;
+        var host = new ManualHostBindingSample { X = 7 };
+        var hostObject = realm.WrapHostObject(host);
+        var hostValue = JsValue.FromObject(hostObject);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(JsValue.FromInt32(12).TryRead<int>(out var intValue) && intValue == 12, Is.True);
+            Assert.That(new JsValue(12.5d).TryRead<double>(out var doubleValue) && doubleValue == 12.5d, Is.True);
+            Assert.That(JsValue.FromString("ok").TryRead<string>(out var stringValue) && stringValue == "ok", Is.True);
+            Assert.That(JsValue.True.TryRead<bool>(out var boolValue) && boolValue, Is.True);
+            Assert.That(hostValue.TryRead<JsObject>(out var objectValue) && ReferenceEquals(objectValue, hostObject), Is.True);
+            Assert.That(hostValue.TryRead<ManualHostBindingSample>(out var hostData) && ReferenceEquals(hostData, host),
+                Is.True);
+            Assert.That(JsValue.Null.TryRead<string?>(out var nullableString) && nullableString is null, Is.True);
+            Assert.That(JsValue.Null.TryRead<int?>(out var nullableInt) && nullableInt is null, Is.True);
+            Assert.That(JsValue.FromInt32(12).TryRead<string>(out _), Is.False);
         });
     }
 

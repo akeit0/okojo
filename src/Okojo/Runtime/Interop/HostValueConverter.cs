@@ -203,27 +203,27 @@ internal static class HostValueConverter
         }
 
         if (typeof(T) == typeof(int))
-            return TryGetNumericScore(value, typeof(int), out score);
+            return TryGetInt32NumericScore(value, out score);
         if (typeof(T) == typeof(uint))
-            return TryGetNumericScore(value, typeof(uint), out score);
+            return TryGetUInt32NumericScore(value, out score);
         if (typeof(T) == typeof(long))
-            return TryGetNumericScore(value, typeof(long), out score);
+            return TryGetInt64NumericScore(value, out score);
         if (typeof(T) == typeof(ulong))
-            return TryGetNumericScore(value, typeof(ulong), out score);
+            return TryGetUInt64NumericScore(value, out score);
         if (typeof(T) == typeof(short))
-            return TryGetNumericScore(value, typeof(short), out score);
+            return TryGetInt16NumericScore(value, out score);
         if (typeof(T) == typeof(ushort))
-            return TryGetNumericScore(value, typeof(ushort), out score);
+            return TryGetUInt16NumericScore(value, out score);
         if (typeof(T) == typeof(byte))
-            return TryGetNumericScore(value, typeof(byte), out score);
+            return TryGetByteNumericScore(value, out score);
         if (typeof(T) == typeof(sbyte))
-            return TryGetNumericScore(value, typeof(sbyte), out score);
+            return TryGetSByteNumericScore(value, out score);
         if (typeof(T) == typeof(float))
-            return TryGetNumericScore(value, typeof(float), out score);
+            return TryGetSingleNumericScore(value, out score);
         if (typeof(T) == typeof(double))
-            return TryGetNumericScore(value, typeof(double), out score);
+            return TryGetDoubleNumericScore(value, out score);
         if (typeof(T) == typeof(decimal))
-            return TryGetNumericScore(value, typeof(decimal), out score);
+            return TryGetDecimalNumericScore(value, out score);
 
         if (typeof(T) == typeof(object))
         {
@@ -713,93 +713,30 @@ internal static class HostValueConverter
 
     private static bool TryGetNumericScore(in JsValue value, Type targetType, out int score)
     {
+        if (targetType == typeof(int))
+            return TryGetInt32NumericScore(value, out score);
+        if (targetType == typeof(uint))
+            return TryGetUInt32NumericScore(value, out score);
+        if (targetType == typeof(long))
+            return TryGetInt64NumericScore(value, out score);
+        if (targetType == typeof(ulong))
+            return TryGetUInt64NumericScore(value, out score);
+        if (targetType == typeof(short))
+            return TryGetInt16NumericScore(value, out score);
+        if (targetType == typeof(ushort))
+            return TryGetUInt16NumericScore(value, out score);
+        if (targetType == typeof(byte))
+            return TryGetByteNumericScore(value, out score);
+        if (targetType == typeof(sbyte))
+            return TryGetSByteNumericScore(value, out score);
+        if (targetType == typeof(float))
+            return TryGetSingleNumericScore(value, out score);
+        if (targetType == typeof(double))
+            return TryGetDoubleNumericScore(value, out score);
+        if (targetType == typeof(decimal))
+            return TryGetDecimalNumericScore(value, out score);
+
         score = 0;
-        if (!JsValue.TryGetNumberValue(value, out var number))
-            return false;
-
-        try
-        {
-            if (targetType == typeof(int))
-            {
-                _ = checked((int)number);
-                score = value.IsInt32 ? 0 : 1;
-                return true;
-            }
-
-            if (targetType == typeof(uint))
-            {
-                _ = checked((uint)number);
-                score = value.IsInt32 && value.Int32Value >= 0 ? 0 : 1;
-                return true;
-            }
-
-            if (targetType == typeof(long))
-            {
-                _ = checked((long)number);
-                score = value.IsInt32 ? 0 : 1;
-                return true;
-            }
-
-            if (targetType == typeof(ulong))
-            {
-                _ = checked((ulong)number);
-                score = value.IsInt32 && value.Int32Value >= 0 ? 0 : 1;
-                return true;
-            }
-
-            if (targetType == typeof(short))
-            {
-                _ = checked((short)number);
-                score = value.IsInt32 ? 1 : 2;
-                return true;
-            }
-
-            if (targetType == typeof(ushort))
-            {
-                _ = checked((ushort)number);
-                score = value.IsInt32 && value.Int32Value >= 0 ? 1 : 2;
-                return true;
-            }
-
-            if (targetType == typeof(byte))
-            {
-                _ = checked((byte)number);
-                score = value.IsInt32 && value.Int32Value >= 0 ? 1 : 2;
-                return true;
-            }
-
-            if (targetType == typeof(sbyte))
-            {
-                _ = checked((sbyte)number);
-                score = value.IsInt32 ? 1 : 2;
-                return true;
-            }
-
-            if (targetType == typeof(float))
-            {
-                _ = (float)number;
-                score = 1;
-                return true;
-            }
-
-            if (targetType == typeof(double))
-            {
-                score = 0;
-                return true;
-            }
-
-            if (targetType == typeof(decimal))
-            {
-                _ = Convert.ToDecimal(number, CultureInfo.InvariantCulture);
-                score = 1;
-                return true;
-            }
-        }
-        catch (OverflowException)
-        {
-            return false;
-        }
-
         return false;
     }
 
@@ -904,6 +841,197 @@ internal static class HostValueConverter
 
         result = null;
         return false;
+    }
+
+    private static bool TryGetInt32NumericScore(in JsValue value, out int score)
+    {
+        score = 0;
+        if (!TryGetNumber(value, out var number))
+            return false;
+
+        try
+        {
+            _ = checked((int)number);
+            score = value.IsInt32 ? 0 : 1;
+            return true;
+        }
+        catch (OverflowException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryGetUInt32NumericScore(in JsValue value, out int score)
+    {
+        score = 0;
+        if (!TryGetNumber(value, out var number))
+            return false;
+
+        try
+        {
+            _ = checked((uint)number);
+            score = IsNonNegativeInt32(value) ? 0 : 1;
+            return true;
+        }
+        catch (OverflowException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryGetInt64NumericScore(in JsValue value, out int score)
+    {
+        score = 0;
+        if (!TryGetNumber(value, out var number))
+            return false;
+
+        try
+        {
+            _ = checked((long)number);
+            score = value.IsInt32 ? 0 : 1;
+            return true;
+        }
+        catch (OverflowException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryGetUInt64NumericScore(in JsValue value, out int score)
+    {
+        score = 0;
+        if (!TryGetNumber(value, out var number))
+            return false;
+
+        try
+        {
+            _ = checked((ulong)number);
+            score = IsNonNegativeInt32(value) ? 0 : 1;
+            return true;
+        }
+        catch (OverflowException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryGetInt16NumericScore(in JsValue value, out int score)
+    {
+        score = 0;
+        if (!TryGetNumber(value, out var number))
+            return false;
+
+        try
+        {
+            _ = checked((short)number);
+            score = value.IsInt32 ? 1 : 2;
+            return true;
+        }
+        catch (OverflowException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryGetUInt16NumericScore(in JsValue value, out int score)
+    {
+        score = 0;
+        if (!TryGetNumber(value, out var number))
+            return false;
+
+        try
+        {
+            _ = checked((ushort)number);
+            score = IsNonNegativeInt32(value) ? 1 : 2;
+            return true;
+        }
+        catch (OverflowException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryGetByteNumericScore(in JsValue value, out int score)
+    {
+        score = 0;
+        if (!TryGetNumber(value, out var number))
+            return false;
+
+        try
+        {
+            _ = checked((byte)number);
+            score = IsNonNegativeInt32(value) ? 1 : 2;
+            return true;
+        }
+        catch (OverflowException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryGetSByteNumericScore(in JsValue value, out int score)
+    {
+        score = 0;
+        if (!TryGetNumber(value, out var number))
+            return false;
+
+        try
+        {
+            _ = checked((sbyte)number);
+            score = value.IsInt32 ? 1 : 2;
+            return true;
+        }
+        catch (OverflowException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryGetSingleNumericScore(in JsValue value, out int score)
+    {
+        score = 0;
+        if (!TryGetNumber(value, out var number))
+            return false;
+
+        _ = (float)number;
+        score = 1;
+        return true;
+    }
+
+    private static bool TryGetDoubleNumericScore(in JsValue value, out int score)
+    {
+        score = 0;
+        return TryGetNumber(value, out _);
+    }
+
+    private static bool TryGetDecimalNumericScore(in JsValue value, out int score)
+    {
+        score = 0;
+        if (!TryGetNumber(value, out var number))
+            return false;
+
+        try
+        {
+            _ = Convert.ToDecimal(number, CultureInfo.InvariantCulture);
+            score = 1;
+            return true;
+        }
+        catch (OverflowException)
+        {
+            return false;
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool TryGetNumber(in JsValue value, out double number)
+    {
+        return JsValue.TryGetNumberValue(value, out number);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsNonNegativeInt32(in JsValue value)
+    {
+        return value.IsInt32 && value.Int32Value >= 0;
     }
 
     private static bool AllowsNull(Type type)
