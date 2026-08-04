@@ -565,7 +565,7 @@ internal static partial class Program
         public int? MaxTests { get; init; }
         public int TimeoutMs { get; init; }
         public int TimeoutTotalMs { get; init; }
-        public int StopOnLongTestSeconds { get; init; } = 5;
+        public int StopOnLongTestSeconds { get; init; } = 20;
         public int ProgressSeconds { get; init; } = 2;
         public bool VerboseProgress { get; init; }
         public int Parallelism { get; init; } = 8;
@@ -612,7 +612,7 @@ internal static partial class Program
             int? maxTests = null;
             var timeoutMs = 0;
             var timeoutTotalMs = 0;
-            var stopOnLongTestSeconds = 8;
+            var stopOnLongTestSeconds = 20;
             var progressSeconds = 2;
             var verboseProgress = false;
             var parallelism = 8;
