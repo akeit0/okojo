@@ -27,6 +27,7 @@
     <Project Path="src/Okojo.WebPlatform/Okojo.WebPlatform.csproj"/>
     <Project Path="src/Okojo.WebAssembly/Okojo.WebAssembly.csproj"/>
     <Project Path="src/Okojo.WebAssembly.Wasmtime/Okojo.WebAssembly.Wasmtime.csproj"/>
+    <Project Path="src/Okojo.RegExp.EcmaRegex/Okojo.RegExp.EcmaRegex.csproj"/>
     <Project Path="tests/Okojo.Tests/Okojo.Tests.csproj"/>
     <Project Path="tests/Okojo.DotNet.Modules.Tests/Okojo.DotNet.Modules.Tests.csproj"/>
     <Project Path="tests/Okojo.Node.Tests/Okojo.Node.Tests.csproj"/>

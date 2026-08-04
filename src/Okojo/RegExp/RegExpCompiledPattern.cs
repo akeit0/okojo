@@ -7,5 +7,9 @@ public sealed record RegExpCompiledPattern(
     string[] NamedGroupNames,
     RegExpRuntimeFlags ParsedFlags)
 {
-    internal object? EngineState { get; init; }
+    /// <summary>
+    ///     Engine-private compiled state attached by the <see cref="IRegExpEngine"/>
+    ///     implementation that produced this pattern. Not part of the stable API surface.
+    /// </summary>
+    public object? EngineState { get; init; }
 }

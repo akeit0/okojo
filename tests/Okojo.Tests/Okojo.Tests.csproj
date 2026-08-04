@@ -28,6 +28,7 @@
         <ProjectReference Include="..\..\src\Okojo.WebAssembly.Wasmtime\Okojo.WebAssembly.Wasmtime.csproj"/>
         <ProjectReference Include="..\..\src\Okojo.DocGenerator.Annotations\Okojo.DocGenerator.Annotations.csproj"/>
         <ProjectReference Include="..\..\src\Okojo.Annotations\Okojo.Annotations.csproj"/>
+        <ProjectReference Include="..\..\src\Okojo.RegExp.EcmaRegex\Okojo.RegExp.EcmaRegex.csproj"/>
 
         <ProjectReference Include="..\..\src\Okojo.SourceGenerator\Okojo.SourceGenerator.csproj"
                           OutputItemType="Analyzer"
