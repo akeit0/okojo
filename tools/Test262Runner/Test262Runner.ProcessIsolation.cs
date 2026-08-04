@@ -379,6 +379,7 @@ internal static partial class Program
             {
                 Test262RegExpEngineMode.BuiltIn => "built-in",
                 Test262RegExpEngineMode.Experimental => "experimental",
+                Test262RegExpEngineMode.EcmaRegex => "ecmaregex",
                 _ => "current"
             });
         }

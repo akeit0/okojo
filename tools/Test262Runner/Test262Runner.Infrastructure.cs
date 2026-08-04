@@ -544,6 +544,7 @@ internal static partial class Program
     {
         Current,
         Experimental,
+        EcmaRegex,
         BuiltIn
     }
 
@@ -814,10 +815,11 @@ internal static partial class Program
             {
                 "current" => Test262RegExpEngineMode.Current,
                 "experimental" => Test262RegExpEngineMode.Experimental,
+                "ecmaregex" => Test262RegExpEngineMode.EcmaRegex,
                 "built-in" => Test262RegExpEngineMode.BuiltIn,
                 "builtin" => Test262RegExpEngineMode.BuiltIn,
                 _ => throw new ArgumentException(
-                    $"Unknown RegExp engine '{value}'. Expected built-in, current, or experimental.")
+                    $"Unknown RegExp engine '{value}'. Expected built-in, current, experimental, or ecmaregex.")
             };
         }
 
@@ -863,7 +865,7 @@ internal static partial class Program
             Console.WriteLine("  --rebuild-cache             Rebuild metadata cache before run");
             Console.WriteLine("  --skip-passed               Skip tests recorded as passed in the local pass cache");
             Console.WriteLine(
-                "  --regexp-engine <mode>      Select RegExp path: built-in, current, or experimental");
+                "  --regexp-engine <mode>      Select RegExp path: built-in, current, experimental, or ecmaregex");
             Console.WriteLine(
                 "  --no-external-regexp        Use the built-in RegExp path instead of the external engine");
             Console.WriteLine(

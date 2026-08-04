@@ -15,6 +15,7 @@
         <ProjectReference Include="..\..\src\Okojo.Hosting\Okojo.Hosting.csproj"/>
         <ProjectReference Include="..\..\src\Okojo.Diagnostics\Okojo.Diagnostics.csproj"/>
         <ProjectReference Include="..\..\src\Okojo.WebPlatform\Okojo.WebPlatform.csproj"/>
+        <ProjectReference Include="..\..\src\Okojo.RegExp.EcmaRegex\Okojo.RegExp.EcmaRegex.csproj"/>
     </ItemGroup>
 
 </Project>

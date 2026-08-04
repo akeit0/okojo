@@ -19,6 +19,7 @@ internal static partial class Program
         {
             Test262RegExpEngineMode.BuiltIn => null,
             Test262RegExpEngineMode.Current => RegExpEngine.Default,
+            Test262RegExpEngineMode.EcmaRegex => EcmaRegExpEngine.Default,
             // Test262RegExpEngineMode.Experimental => ExperimentalRegExpEngine.Default,
             _ => throw new ArgumentOutOfRangeException(nameof(options))
         };
