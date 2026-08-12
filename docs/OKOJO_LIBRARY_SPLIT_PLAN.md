@@ -342,17 +342,18 @@ JsAgent (engine part)
 
 ## Migration Phases
 
-1. **Extract `Okojo.Text.Unicode` + `Okojo.Numerics`** (pure, no reverse deps).
-   - Move generated tables + utilities; keep an `InternalsVisibleTo` so the engine still compiles while call sites migrate.
-2. **Vendor `EcmaRegex` as `Okojo.Text.RegularExpressions`**, re-pointing its Unicode data at `Okojo.Text.Unicode`.
-   - Keep the Scratch engine temporarily behind a compile switch; validate test262 parity, then delete Scratch.
+1. ✅ **Extract `Okojo.Text.Unicode` + `Okojo.Numerics`** (pure, no reverse deps).
+   - Done: `Okojo.Numerics` (NumberFormatting, NumberPrecisionFormatting, SumPrecise, PooledList) and `Okojo.Text.Unicode` (Utf16, UnicodeCaseFolding + generated data, generator tooling).
+2. ✅ **Vendor `EcmaRegex` as `Okojo.Text.RegularExpressions`**, re-pointing its Unicode data at `Okojo.Text.Unicode`.
+   - Done: submodule vendored, namespace `Okojo.Text.RegularExpressions`, engine rewired to the library as the single regex engine. Scratch engine, `IRegExpEngine` seam, `.NET Regex` bridge, `Okojo.RegExp.EcmaRegex` adapter, and `--regexp-engine` variants deleted. Full test262 (non-staging, non-annexB) passes with zero regex regressions.
 3. **Extract `Okojo.Globalization`** cores from the `Js*Objects` + `Intrinsics.Intl.cs` pure cluster + `Runtime/Intl` data.
    - Engine `Js*Object` wrappers become thin delegates.
 4. **Split `Okojo` into `Okojo.JavaScript` (engine) and `Okojo.JavaScript.Runtime` (runtime)**.
    - Move host/embedding/interop files out; keep engine dependency-free of host concepts.
 5. **Fix the job queue model** in the engine (ScriptJobs/PromiseJobs/`HostEnqueueJob`), move host task sources to the runtime + `Okojo.Hosting`.
    - Regression-targeted by `AgentJobQueueTests`, `TimerTests`, `WorkerAgentTests`, `WebWorkerTests`, `AsyncPromiseTests`.
-6. **Delete dead paths**: Scratch engine, `IRegExpEngine`, `.NET Regex` bridge, `Okojo.RegExp.EcmaRegex`, `--regexp-engine` variants.
+6. ✅ **Delete dead paths**: Scratch engine, `IRegExpEngine`, `.NET Regex` bridge, `Okojo.RegExp.EcmaRegex`, `--regexp-engine` variants.
+   - Done as part of the regex consolidation in phase 2.
 7. **Rename engine namespaces** to `Okojo.JavaScript.*` (mechanical, after behavior is green).
 8. **Update planning docs** (`OKOJO_BROWSER_COMPATIBILITY_PLAN.md`, `OKOJO_CONCRETE_ARCHITECTURE.md`, `OKOJO_API_POLICY.md`, `OKOJO_CORE_API_REFINEMENT_PLAN.md`) to the new layer names.
 
@@ -366,7 +367,7 @@ JsAgent (engine part)
 
 ## Risks
 
-- **Behavior parity during the regex consolidation** — mitigate by running test262 regex coverage against both engines side by side before deleting Scratch.
+- ✅ **Behavior parity during the regex consolidation** — resolved: full test262 (non-staging, non-annexB) passes after Scratch deletion; only intentional message-text differences were adjusted in tests.
 - **Intl core extraction churn** — the `Js*Objects` are large and mix pure logic with part-object creation; extract cores in per-Intl-feature slices with existing `Intl*Tests` as the gate.
 - **Job queue regression** — the current drain order is relied on by host profiles; migrate `Okojo.Hosting` loop implementations to the new seam before removing old agent queues.
 - **Compiler split history** — the compiler cannot leave the engine assembly until bytecode/VM types share an assembly; the engine assembly is the natural home for both, so `Okojo.JavaScript` keeps parser+compiler+VM together (per `OKOJO_COMPILER_ASSEMBLY_SPLIT.md`, the lower shared layer becomes `Okojo.JavaScript` itself).

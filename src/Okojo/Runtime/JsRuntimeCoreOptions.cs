@@ -1,5 +1,4 @@
 using System.Reflection;
-using Okojo.RegExp;
 
 namespace Okojo.Runtime;
 
@@ -14,7 +13,6 @@ public sealed class JsRuntimeCoreOptions
     private int clrAssembliesVersion;
 
     public bool ClrAccessEnabled { get; private set; }
-    public IRegExpEngine? RegExpEngine { get; private set; } = RegExp.RegExpEngine.Default;
     public IReadOnlyList<Assembly> ClrAssemblies => clrAssemblies;
     public IReadOnlyList<IRealmApiModule> RealmApiModules => realmApiModules;
     internal IClrAccessProvider? ClrAccessProvider { get; private set; }
@@ -55,13 +53,6 @@ public sealed class JsRuntimeCoreOptions
         return UseRealmSetup(realm => realm.InstallGlobals(configure));
     }
 
-    public JsRuntimeCoreOptions UseRegExpEngine(IRegExpEngine engine)
-    {
-        ArgumentNullException.ThrowIfNull(engine);
-        RegExpEngine = engine;
-        return this;
-    }
-
     public JsRuntimeCoreOptions AddClrAssembly(params Assembly[] assemblies)
     {
         AddClrAssembliesCore(assemblies);
@@ -92,7 +83,6 @@ public sealed class JsRuntimeCoreOptions
         var clone = new JsRuntimeCoreOptions
         {
             ClrAccessEnabled = ClrAccessEnabled,
-            RegExpEngine = RegExpEngine,
             ClrAccessProvider = ClrAccessProvider,
             clrAssembliesVersion = clrAssembliesVersion
         };

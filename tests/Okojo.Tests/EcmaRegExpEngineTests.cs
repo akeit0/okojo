@@ -6,12 +6,12 @@ namespace Okojo.Tests;
 public class EcmaRegExpEngineTests
 {
     private static JsRuntime CreateRuntime() =>
-        JsRuntime.Create(builder => builder.UseRegExpEngine(EcmaRegExpEngine.Default));
+        JsRuntime.Create();
 
     [Test]
     public void CompilesAndExecutesBasicPattern()
     {
-        var engine = EcmaRegExpEngine.Default;
+        var engine = RegExpEngine.Default;
         var compiled = engine.Compile(@"(a)(b)?", "g");
 
         var match = engine.Exec(compiled, "zabz", 1);
@@ -33,7 +33,7 @@ public class EcmaRegExpEngineTests
     [Test]
     public void CanonicalizesFlags()
     {
-        var engine = EcmaRegExpEngine.Default;
+        var engine = RegExpEngine.Default;
         var compiled = engine.Compile("a", "gimsyud");
         Assert.That(compiled.Flags, Is.EqualTo("dgimsuy"));
 
@@ -46,7 +46,7 @@ public class EcmaRegExpEngineTests
     [Test]
     public void RejectsInvalidPatternsAsArgumentException()
     {
-        var engine = EcmaRegExpEngine.Default;
+        var engine = RegExpEngine.Default;
 
         Assert.That(() => engine.Compile(@"(?I:a)", ""), Throws.InstanceOf<ArgumentException>());
         Assert.That(() => engine.Compile("\\", ""), Throws.InstanceOf<ArgumentException>());
@@ -57,7 +57,7 @@ public class EcmaRegExpEngineTests
     [Test]
     public void HonorsUnicodeCaseFoldEdges()
     {
-        var engine = EcmaRegExpEngine.Default;
+        var engine = RegExpEngine.Default;
 
         var compiled = engine.Compile(@"[\u0390]", "ui");
         var match = engine.Exec(compiled, "\u1fd3", 0);
@@ -70,7 +70,7 @@ public class EcmaRegExpEngineTests
     [Test]
     public void CombinesEscapedSurrogatePairsInUnicodeMode()
     {
-        var engine = EcmaRegExpEngine.Default;
+        var engine = RegExpEngine.Default;
 
         Assert.That(engine.Exec(engine.Compile(@"\ud834\udf06", "u"), "𝌆", 0), Is.Not.Null);
         Assert.That(engine.Exec(engine.Compile(@"[\ud834\udf06]", "u"), "𝌆", 0), Is.Not.Null);
@@ -79,7 +79,7 @@ public class EcmaRegExpEngineTests
     [Test]
     public void MatchesLookaheadBackreferenceRegression()
     {
-        var engine = EcmaRegExpEngine.Default;
+        var engine = RegExpEngine.Default;
         var match = engine.Exec(engine.Compile(@"(.*?)a(?!(a+)b\2c)\2(.*)", ""), "baaabaac", 0);
 
         Assert.That(match, Is.Not.Null);
@@ -93,7 +93,7 @@ public class EcmaRegExpEngineTests
     [Test]
     public void SupportsDuplicateNamedGroupsAcrossAlternatives()
     {
-        var engine = EcmaRegExpEngine.Default;
+        var engine = RegExpEngine.Default;
         var match = engine.Exec(engine.Compile(@"(?<x>a)|(?<x>b)", ""), "bab", 0);
 
         Assert.That(match, Is.Not.Null);
@@ -153,7 +153,7 @@ public class EcmaRegExpEngineTests
     [Test]
     public void SupportsUnicodePropertyFrontier()
     {
-        var engine = EcmaRegExpEngine.Default;
+        var engine = RegExpEngine.Default;
 
         Assert.That(engine.Exec(engine.Compile(@"\p{AHex}+", "u"), "A9f", 0), Is.Not.Null);
         Assert.That(engine.Exec(engine.Compile(@"\p{Assigned}+", "u"), "\uDFFF", 0), Is.Not.Null);
@@ -164,7 +164,7 @@ public class EcmaRegExpEngineTests
     [Test]
     public void SupportsScopedModifiers()
     {
-        var engine = EcmaRegExpEngine.Default;
+        var engine = RegExpEngine.Default;
 
         Assert.That(engine.Exec(engine.Compile(@"(?i:\x61)b", ""), "Ab", 0), Is.Not.Null);
         Assert.That(engine.Exec(engine.Compile(@"(?i:\P{Lu})", "u"), "A", 0), Is.Not.Null);
@@ -173,7 +173,7 @@ public class EcmaRegExpEngineTests
     [Test]
     public void SupportsControlLetterEscapesAndEmptyMatches()
     {
-        var engine = EcmaRegExpEngine.Default;
+        var engine = RegExpEngine.Default;
 
         Assert.That(engine.Exec(engine.Compile(@"\cA", ""), "\u0001", 0), Is.Not.Null);
         Assert.That(engine.Exec(engine.Compile(@"a*", "g"), "", 0)!.Length, Is.EqualTo(0));
@@ -182,7 +182,7 @@ public class EcmaRegExpEngineTests
     [Test]
     public void SupportsStickyAndZeroWidthBoundary()
     {
-        var engine = EcmaRegExpEngine.Default;
+        var engine = RegExpEngine.Default;
 
         var compiled = engine.Compile(@"\bfoo", "");
         var match = engine.Exec(compiled, " foo", 0);

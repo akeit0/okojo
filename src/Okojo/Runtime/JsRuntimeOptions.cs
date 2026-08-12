@@ -36,7 +36,6 @@ public sealed class JsRuntimeOptions
         DefaultSharedWaiterControllerFactory.Shared;
 
     public bool ClrAccessEnabled => Core.ClrAccessEnabled;
-    public IRegExpEngine? RegExpEngine => Core.RegExpEngine;
     public IReadOnlyList<Assembly> ClrAssemblies => Core.ClrAssemblies;
     public IReadOnlyList<IRealmApiModule> RealmApiModules => Core.RealmApiModules;
     internal IClrAccessProvider? ClrAccessProvider => Core.ClrAccessProvider;
@@ -69,12 +68,6 @@ public sealed class JsRuntimeOptions
     public JsRuntimeOptions UseGlobals(Action<JsGlobalInstaller> configure)
     {
         Core.UseGlobals(configure);
-        return this;
-    }
-
-    public JsRuntimeOptions UseRegExpEngine(IRegExpEngine engine)
-    {
-        Core.UseRegExpEngine(engine);
         return this;
     }
 

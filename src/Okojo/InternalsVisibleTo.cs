@@ -7,7 +7,6 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("Okojo.Hosting")]
 [assembly: InternalsVisibleTo("Okojo.Reflection")]
 [assembly: InternalsVisibleTo("Okojo.Node")]
-[assembly: InternalsVisibleTo("Okojo.RegExp")]
 [assembly: InternalsVisibleTo("Okojo.Diagnostics")]
 [assembly: InternalsVisibleTo("OkojoBytecodeTool")]
 [assembly: InternalsVisibleTo("Okojo.DebugServer.Core")]

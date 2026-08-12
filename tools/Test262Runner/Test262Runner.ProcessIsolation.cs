@@ -372,18 +372,6 @@ internal static partial class Program
         if (options.UseRealTimers)
             startInfo.ArgumentList.Add("--real-timers");
 
-        if (options.RegExpEngineMode != Test262RegExpEngineMode.Current)
-        {
-            startInfo.ArgumentList.Add("--regexp-engine");
-            startInfo.ArgumentList.Add(options.RegExpEngineMode switch
-            {
-                Test262RegExpEngineMode.BuiltIn => "built-in",
-                Test262RegExpEngineMode.Experimental => "experimental",
-                Test262RegExpEngineMode.EcmaRegex => "ecmaregex",
-                _ => "current"
-            });
-        }
-
         return startInfo;
     }
 

@@ -1,8 +1,8 @@
 namespace Okojo.RegExp;
 
-public readonly record struct RegExpMatchRange(int Start, int End);
+internal readonly record struct RegExpMatchRange(int Start, int End);
 
-public sealed record RegExpMatchResult(
+internal sealed record RegExpMatchResult(
     int Index,
     int Length,
     string?[] Groups,

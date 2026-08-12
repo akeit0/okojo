@@ -16,15 +16,11 @@ internal sealed class JsRegExpObject : JsObject
         bool multiline,
         bool sticky,
         bool unicode,
-        bool dotAll,
-        IRegExpEngine? engine = null)
+        bool dotAll)
         : base(realm)
     {
         Prototype = realm.RegExpPrototype;
-        Engine = engine ?? realm.Engine.Options.RegExpEngine;
-        CompiledPattern = Engine is not null
-            ? CompileWithEngine(Engine, pattern, flags)
-            : JsRegExpRuntime.CompilePattern(pattern, flags);
+        CompiledPattern = CompilePattern(pattern, flags);
         Pattern = pattern;
         Flags = CompiledPattern.Flags;
         Global = CompiledPattern.ParsedFlags.Global;
@@ -45,7 +41,6 @@ internal sealed class JsRegExpObject : JsObject
         SetNamedSlotUnchecked(JsRealm.RegExpOwnDotAllSlot, dotAll ? JsValue.True : JsValue.False);
     }
 
-    internal IRegExpEngine? Engine { get; }
     internal RegExpCompiledPattern CompiledPattern { get; }
     internal string Pattern { get; }
     internal string Flags { get; }
@@ -58,8 +53,19 @@ internal sealed class JsRegExpObject : JsObject
     internal string ExecutionPattern => CompiledPattern.ExecutionPattern;
     internal string[] NamedGroupNames => CompiledPattern.NamedGroupNames;
 
-    private static bool IsHiddenRegExpOwnAtom(int atom)
+    private static RegExpCompiledPattern CompilePattern(string pattern, string flags)
     {
+        try
+        {
+            return RegExpEngine.Default.Compile(pattern, flags);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new JsRuntimeException(JsErrorKind.SyntaxError, ex.Message, "REGEXP_INVALID_PATTERN");
+        }
+    }
+
+    private static bool IsHiddenRegExpOwnAtom(int atom)    {
         return atom is IdSource or IdFlags or IdGlobal or IdIgnoreCase or
             IdMultiline or IdSticky or IdUnicode or IdDotAll;
     }
@@ -77,18 +83,6 @@ internal sealed class JsRegExpObject : JsObject
 
         descriptor = default;
         return false;
-    }
-
-    private static RegExpCompiledPattern CompileWithEngine(IRegExpEngine engine, string pattern, string flags)
-    {
-        try
-        {
-            return engine.Compile(pattern, flags);
-        }
-        catch (ArgumentException ex)
-        {
-            throw new JsRuntimeException(JsErrorKind.SyntaxError, ex.Message, "REGEXP_INVALID_PATTERN");
-        }
     }
 
     internal override bool TryGetPropertyAtomWithReceiverValue(JsRealm realm, in JsValue receiverValue, int atom,

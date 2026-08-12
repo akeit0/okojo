@@ -61,7 +61,7 @@ public class RegExpExternalEngineTests
     {
         var engine = RegExpEngine.Default;
 
-        Assert.That(() => engine.Compile(@"(?I:a)", ""), Throws.ArgumentException);
+        Assert.That(() => engine.Compile(@"(?I:a)", ""), Throws.InstanceOf<ArgumentException>());
     }
 
     [Test]
@@ -442,13 +442,13 @@ public class RegExpExternalEngineTests
         var realm = JsRuntime.Create().DefaultRealm;
 
         Assert.That(realm.Eval("""
-                               try {
-                                 new RegExp("[d-G\\a]").exec("a");
-                                 false;
-                               } catch (e) {
-                                 e instanceof SyntaxError && e.message.includes("Range out of order in character class");
-                               }
-                               """).IsTrue, Is.True);
+                                try {
+                                  new RegExp("[d-G\\a]").exec("a");
+                                  false;
+                                } catch (e) {
+                                  e instanceof SyntaxError && e.message.includes("Character-class range is out of order");
+                                }
+                                """).IsTrue, Is.True);
     }
 
     [Test]
@@ -457,13 +457,13 @@ public class RegExpExternalEngineTests
         var realm = JsRuntime.Create().DefaultRealm;
 
         Assert.That(realm.Eval("""
-                               try {
-                                 new RegExp("[d-G\\a]7").exec("a");
-                                 false;
-                               } catch (e) {
-                                 e instanceof SyntaxError && e.message.includes("Range out of order in character class");
-                               }
-                               """).IsTrue, Is.True);
+                                try {
+                                  new RegExp("[d-G\\a]7").exec("a");
+                                  false;
+                                } catch (e) {
+                                  e instanceof SyntaxError && e.message.includes("Character-class range is out of order");
+                                }
+                                """).IsTrue, Is.True);
     }
 
     [Test]

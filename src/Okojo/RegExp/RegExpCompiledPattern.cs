@@ -1,6 +1,6 @@
 namespace Okojo.RegExp;
 
-public sealed record RegExpCompiledPattern(
+internal sealed record RegExpCompiledPattern(
     string Pattern,
     string Flags,
     string ExecutionPattern,
@@ -8,8 +8,8 @@ public sealed record RegExpCompiledPattern(
     RegExpRuntimeFlags ParsedFlags)
 {
     /// <summary>
-    ///     Engine-private compiled state attached by the <see cref="IRegExpEngine"/>
+    ///     Engine-private compiled state attached by the <see cref="RegExpEngine"/>
     ///     implementation that produced this pattern. Not part of the stable API surface.
     /// </summary>
-    public object? EngineState { get; init; }
+    internal object? EngineState { get; init; }
 }

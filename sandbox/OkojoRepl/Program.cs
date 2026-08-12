@@ -6,7 +6,6 @@ using Okojo.Diagnostics;
 using Okojo.Objects;
 using Okojo.Parsing;
 using Okojo.Reflection;
-using Okojo.RegExp;
 using Okojo.Runtime;
 using OkojoRepl;
 using PrettyPrompt;
@@ -21,7 +20,7 @@ var vm = JsRuntime.Create(options =>
     options.AllowClrAccess()
         .AddClrAssembly(typeof(Console).Assembly)
         .AddClrAssembly(typeof(int).Assembly)
-        .AddClrAssembly(typeof(Enumerable).Assembly).UseRegExpEngine(RegExpEngine.Default);
+        .AddClrAssembly(typeof(Enumerable).Assembly);
 }).DefaultRealm;
 InstallConsole(vm);
 

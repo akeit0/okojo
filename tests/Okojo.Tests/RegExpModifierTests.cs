@@ -1,4 +1,5 @@
 using Okojo.Objects;
+using Okojo.RegExp;
 using Okojo.Runtime;
 
 namespace Okojo.Tests;
@@ -10,9 +11,9 @@ public class RegExpModifierTests
     {
         Assert.Multiple(() =>
         {
-            Assert.That(() => JsRegExpRuntime.CompilePattern("(?m:es$)", ""), Throws.Nothing);
-            Assert.That(() => JsRegExpRuntime.CompilePattern("(?-s:^.$)", "s"), Throws.Nothing);
-            Assert.That(() => JsRegExpRuntime.CompilePattern("(?m:^(?-i:a)$)", "i"), Throws.Nothing);
+            Assert.That(() => RegExpEngine.Default.Compile("(?m:es$)", ""), Throws.Nothing);
+            Assert.That(() => RegExpEngine.Default.Compile("(?-s:^.$)", "s"), Throws.Nothing);
+            Assert.That(() => RegExpEngine.Default.Compile("(?m:^(?-i:a)$)", "i"), Throws.Nothing);
         });
     }
 

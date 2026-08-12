@@ -834,8 +834,7 @@ public partial class Intrinsics
                                 separatorRegex.Multiline,
                                 separatorRegex.Sticky,
                                 separatorRegex.Unicode,
-                                separatorRegex.DotAll,
-                                separatorRegex.Engine),
+                                separatorRegex.DotAll),
                             flatText).IsNull)
                     {
                         FreshArrayOperations.DefineElement(result, 0, JsValue.FromString(string.Empty));
@@ -854,8 +853,7 @@ public partial class Intrinsics
                     separatorRegex.Multiline,
                     separatorRegex.Sticky,
                     separatorRegex.Unicode,
-                    separatorRegex.DotAll,
-                    separatorRegex.Engine);
+                    separatorRegex.DotAll);
 
                 uint resultIndex = 0;
                 var splitStart = 0;

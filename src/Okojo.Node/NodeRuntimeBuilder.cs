@@ -1,6 +1,5 @@
 using System.ComponentModel;
 using Okojo.Hosting;
-using Okojo.RegExp;
 using Okojo.Runtime;
 using Okojo.WebAssembly;
 
@@ -90,8 +89,6 @@ public sealed class NodeRuntimeBuilder
     public NodeRuntime Build()
     {
         var options = runtimeBuilder.BuildOptions();
-        if (options.Core.RegExpEngine is null)
-            options.Core.UseRegExpEngine(RegExpEngine.Default);
         var baseLoader = options.ModuleSourceLoader ?? new FileModuleSourceLoader();
         var nodeLoader = new NodeModuleSourceLoader(baseLoader, options.Host.SourceMapRegistry);
         options.Host.UseModuleSourceLoader(nodeLoader);

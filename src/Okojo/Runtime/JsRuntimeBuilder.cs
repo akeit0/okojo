@@ -80,12 +80,6 @@ public sealed class JsRuntimeBuilder
         return UseGlobals(globals => globals.Value(name, valueFactory));
     }
 
-    public JsRuntimeBuilder UseRegExpEngine(IRegExpEngine engine)
-    {
-        options.Core.UseRegExpEngine(engine);
-        return this;
-    }
-
     public JsRuntimeBuilder AddClrAssembly(params Assembly[] assemblies)
     {
         options.Core.AddClrAssembly(assemblies);

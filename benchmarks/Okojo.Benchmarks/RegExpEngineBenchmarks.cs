@@ -2,7 +2,6 @@ using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Order;
 using Okojo.Objects;
 using Okojo.RegExp;
-//using Okojo.RegExp.Experimental;// keep for future use
 using Okojo.Runtime;
 
 namespace Okojo.Benchmarks;
@@ -38,8 +37,7 @@ public class RegExpEngineBenchmarks
             ["global-empty"] = new("global-empty", @"a*", "g", string.Empty)
         };
 
-    private readonly IRegExpEngine currentEngine = RegExpEngine.Default;
-    //private readonly IRegExpEngine experimentalEngine = ExperimentalRegExpEngine.Default;
+    private readonly RegExpEngine currentEngine = RegExpEngine.Default;
     private RegExpScenario scenario = null!;
     private RegExpCompiledPattern currentCompiled = null!;
     private RegExpCompiledPattern experimentalCompiled = null!;
@@ -63,7 +61,6 @@ public class RegExpEngineBenchmarks
         //experimentalCompiled = experimentalEngine.Compile(scenario.Pattern, scenario.Flags);
 
         currentRuntime = JsRuntime.CreateBuilder()
-            .UseRegExpEngine(RegExpEngine.Default)
             .Build();
         //experimentalRuntime = JsRuntime.CreateBuilder()
         // .UseRegExpEngine(ExperimentalRegExpEngine.Default)
@@ -143,13 +140,13 @@ public class RegExpEngineBenchmarks
         return (JsBytecodeFunction)realm.Accumulator.AsObject();
     }
 
-    private static int CompileAndExec(IRegExpEngine engine, RegExpScenario scenario)
+    private static int CompileAndExec(RegExpEngine engine, RegExpScenario scenario)
     {
         var compiled = engine.Compile(scenario.Pattern, scenario.Flags);
         return ExecCompiled(engine, compiled, scenario);
     }
 
-    private static int ExecCompiled(IRegExpEngine engine, RegExpCompiledPattern compiled, RegExpScenario scenario)
+    private static int ExecCompiled(RegExpEngine engine, RegExpCompiledPattern compiled, RegExpScenario scenario)
     {
         var match = engine.Exec(compiled, scenario.Input, scenario.StartIndex);
         return match?.Length ?? -1;

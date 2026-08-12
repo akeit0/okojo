@@ -1,6 +1,6 @@
 namespace Okojo.RegExp;
 
-public readonly record struct RegExpRuntimeFlags(
+internal readonly record struct RegExpRuntimeFlags(
     bool Global,
     bool IgnoreCase,
     bool Multiline,
