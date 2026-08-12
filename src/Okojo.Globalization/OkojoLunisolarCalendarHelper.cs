@@ -1,8 +1,8 @@
 using System.Globalization;
 
-namespace Okojo.Runtime.Intl;
+namespace Okojo.Globalization;
 
-internal static class OkojoLunisolarCalendarHelper
+public static class OkojoLunisolarCalendarHelper
 {
     private static ChineseLunisolarCalendar? chineseCalendar;
     private static KoreanLunisolarCalendar? koreanCalendar;

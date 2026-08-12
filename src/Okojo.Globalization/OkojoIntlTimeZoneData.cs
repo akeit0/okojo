@@ -1,6 +1,6 @@
-namespace Okojo.Runtime.Intl;
+namespace Okojo.Globalization;
 
-internal static class OkojoIntlTimeZoneData
+public static class OkojoIntlTimeZoneData
 {
     private static readonly Dictionary<string, string> CanonicalTimeZones = new(StringComparer.OrdinalIgnoreCase)
     {

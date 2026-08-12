@@ -1,9 +1,9 @@
 using System.Globalization;
 using System.Text;
 
-namespace Okojo.Runtime.Intl;
+namespace Okojo.Globalization;
 
-internal static class OkojoIntlNumberingSystemData
+public static class OkojoIntlNumberingSystemData
 {
     private static readonly Dictionary<string, string> Digits = new(StringComparer.OrdinalIgnoreCase)
     {

@@ -1,10 +1,10 @@
-namespace Okojo.Runtime.Intl;
+namespace Okojo.Globalization;
 
 /// <summary>
 ///     Implements CLDR Add Likely Subtags and Remove Likely Subtags algorithms.
 ///     https://www.unicode.org/reports/tr35/#Likely_Subtags
 /// </summary>
-internal static class LikelySubtags
+public static class LikelySubtags
 {
     /// <summary>
     ///     Add Likely Subtags algorithm - maximizes a locale by adding likely script and region.

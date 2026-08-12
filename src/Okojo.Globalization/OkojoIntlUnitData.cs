@@ -1,8 +1,8 @@
 using System.Collections.Frozen;
 
-namespace Okojo.Runtime.Intl;
+namespace Okojo.Globalization;
 
-internal static class OkojoIntlUnitData
+public static class OkojoIntlUnitData
 {
     private static readonly FrozenSet<string> RelativeTimeFormatUnits = new[]
     {

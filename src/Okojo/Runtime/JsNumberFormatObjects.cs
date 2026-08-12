@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Numerics;
 using System.Text;
-using Okojo.Runtime.Intl;
+using Okojo.Globalization;
 
 namespace Okojo.Runtime;
 

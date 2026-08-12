@@ -17,6 +17,7 @@
     <Project Path="src/Okojo.Numerics/Okojo.Numerics.csproj"/>
     <Project Path="src/Okojo.Text.Unicode/Okojo.Text.Unicode.csproj"/>
     <Project Path="src/Okojo.Text.RegularExpressions/Okojo.Text.RegularExpressions.csproj"/>
+    <Project Path="src/Okojo.Globalization/Okojo.Globalization.csproj"/>
     <Project Path="src/Okojo.DotNet.Modules/Okojo.DotNet.Modules.csproj"/>
     <Project Path="src/Okojo.Reflection/Okojo.Reflection.csproj"/>
     <Project Path="src/Okojo.Diagnostics/Okojo.Diagnostics.csproj"/>

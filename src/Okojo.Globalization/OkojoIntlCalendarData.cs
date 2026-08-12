@@ -1,9 +1,9 @@
 using System.Collections.Frozen;
 using System.Globalization;
 
-namespace Okojo.Runtime.Intl;
+namespace Okojo.Globalization;
 
-internal static class OkojoIntlCalendarData
+public static class OkojoIntlCalendarData
 {
     private static readonly Lock Gate = new();
     private static FrozenSet<string>? supportedCalendars;

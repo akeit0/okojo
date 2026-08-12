@@ -17,11 +17,7 @@
         <ProjectReference Include="..\Okojo.Numerics\Okojo.Numerics.csproj"/>
         <ProjectReference Include="..\Okojo.Text.Unicode\Okojo.Text.Unicode.csproj"/>
         <ProjectReference Include="..\Okojo.Text.RegularExpressions\Okojo.Text.RegularExpressions.csproj"/>
-    </ItemGroup>
-    <ItemGroup>
-        <EmbeddedResource Include="Runtime\Intl\Data\CalendarData.txt"/>
-        <EmbeddedResource Include="Runtime\Intl\Data\LocaleData.txt"/>
-        <EmbeddedResource Include="Runtime\Intl\Data\LikelySubtags.txt"/>
+        <ProjectReference Include="..\Okojo.Globalization\Okojo.Globalization.csproj"/>
     </ItemGroup>
     <ItemGroup>
         <None Include="README.md" Pack="true" PackagePath="\"/>

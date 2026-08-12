@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using System.Numerics;
 using System.Text.RegularExpressions;
-using Okojo.Runtime.Intl;
+using Okojo.Globalization;
 
 namespace Okojo.Runtime;
 

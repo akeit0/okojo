@@ -1,5 +1,5 @@
 using System.Globalization;
-using Okojo.Runtime.Intl;
+using Okojo.Globalization;
 
 namespace Okojo.Runtime;
 

@@ -1,6 +1,6 @@
-namespace Okojo.Runtime.Intl;
+namespace Okojo.Globalization;
 
-internal static class OkojoIntlLocaleData
+public static class OkojoIntlLocaleData
 {
     private static readonly Lock Gate = new();
     private static Dictionary<string, string>? tagMappings;
@@ -220,7 +220,7 @@ internal static class OkojoIntlLocaleData
         typeDict[oldValue] = value;
     }
 
-    internal readonly record struct ComplexLanguageMapping(string Language, string? Script, string? Region);
+    public readonly record struct ComplexLanguageMapping(string Language, string? Script, string? Region);
 
-    internal readonly record struct VariantMapping(string Type, string Replacement, string? Prefix = null);
+    public readonly record struct VariantMapping(string Type, string Replacement, string? Prefix = null);
 }

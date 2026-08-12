@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>14</LangVersion>
+        <IsPackable>true</IsPackable>
+        <PackageId>Okojo.Globalization</PackageId>
+        <PackageVersion>$(OkojoPackageVersion_Okojo_Globalization)</PackageVersion>
+        <Description>Engine-independent ECMAScript-compatible globalization for .NET: locale data, likely subtags, collation, number/date-time formatting, plural rules, and Intl cores.</Description>
+        <PackageTags>javascript;ecmascript;intl;globalization;locale;dotnet</PackageTags>
+    </PropertyGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\Okojo.Text.Unicode\Okojo.Text.Unicode.csproj"/>
+        <ProjectReference Include="..\Okojo.Numerics\Okojo.Numerics.csproj"/>
+    </ItemGroup>
+    <ItemGroup>
+        <EmbeddedResource Include="Data\CalendarData.txt"/>
+        <EmbeddedResource Include="Data\LocaleData.txt"/>
+        <EmbeddedResource Include="Data\LikelySubtags.txt"/>
+    </ItemGroup>
+    <ItemGroup>
+        <InternalsVisibleTo Include="Okojo"/>
+        <InternalsVisibleTo Include="Okojo.Tests"/>
+    </ItemGroup>
+</Project>
