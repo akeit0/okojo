@@ -13,6 +13,6 @@
 
     <ItemGroup>
         <ProjectReference Include="..\Okojo\Okojo.csproj"/>
-        <ProjectReference Include="..\..\EcmaRegex\src\EcmaRegex\EcmaRegex.csproj"/>
+        <ProjectReference Include="..\Okojo.Text.RegularExpressions\Okojo.Text.RegularExpressions.csproj"/>
     </ItemGroup>
 </Project>

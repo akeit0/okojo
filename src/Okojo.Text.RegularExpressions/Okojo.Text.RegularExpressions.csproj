@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>14</LangVersion>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <IsPackable>true</IsPackable>
+        <PackageId>Okojo.Text.RegularExpressions</PackageId>
+        <PackageVersion>$(OkojoPackageVersion_Okojo_Text_RegularExpressions)</PackageVersion>
+        <Description>Engine-independent ECMAScript-compatible regular expressions for .NET (Okojo.Text.RegularExpressions).</Description>
+        <PackageTags>javascript;ecmascript;regexp;dotnet</PackageTags>
+    </PropertyGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\Okojo.Text.Unicode\Okojo.Text.Unicode.csproj"/>
+    </ItemGroup>
+</Project>

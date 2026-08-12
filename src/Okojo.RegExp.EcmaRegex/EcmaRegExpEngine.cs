@@ -1,5 +1,7 @@
-using EcmaRegex;
-using EcmaRegExp = EcmaRegex.EcmaRegex;
+using EcmaRegExp = Okojo.Text.RegularExpressions.EcmaRegex;
+using EcmaRegexOptions = Okojo.Text.RegularExpressions.EcmaRegexOptions;
+using EcmaRegexFlagSet = Okojo.Text.RegularExpressions.EcmaRegexFlagSet;
+using EcmaCapture = Okojo.Text.RegularExpressions.EcmaCapture;
 
 namespace Okojo.RegExp;
 
