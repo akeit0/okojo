@@ -7,7 +7,8 @@ namespace Okojo.Numerics;
 /// </summary>
 public static class NumberFormatting
 {
-    public static string ToJsString(double number)
+    /// <summary>Formats a <see cref="double"/> per ECMAScript <c>Number::toString(10)</c>.</summary>
+    public static string ToString(double number)
     {
         if (double.IsNaN(number))
             return "NaN";

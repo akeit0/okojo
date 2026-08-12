@@ -312,7 +312,7 @@ public sealed class RelativeTimeFormat
 
     private string FormatNumber(double value)
     {
-        var raw = NumberFormatting.ToJsString(value);
+        var raw = NumberFormatting.ToString(value);
         var integerPart = raw;
         string? fractionPart = null;
         var dotIndex = raw.IndexOf('.');
@@ -348,7 +348,7 @@ public sealed class RelativeTimeFormat
 
     private IEnumerable<IntlPart> FormatNumberParts(double value, string unit)
     {
-        var raw = NumberFormatting.ToJsString(value);
+        var raw = NumberFormatting.ToString(value);
         var integerPart = raw;
         string? fractionPart = null;
         var dotIndex = raw.IndexOf('.');

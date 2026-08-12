@@ -18,7 +18,7 @@ public class NumberFormattingTests
     [TestCase(12345678901234567890.0, "12345678901234567000")]
     public void ToJsString_MatchesEcmaNumberToString(double value, string expected)
     {
-        Assert.That(NumberFormatting.ToJsString(value), Is.EqualTo(expected));
+        Assert.That(NumberFormatting.ToString(value), Is.EqualTo(expected));
     }
 }
 

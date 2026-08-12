@@ -47,7 +47,7 @@ public partial class Intrinsics
                         out _) ||
                     !ctorValue.TryGetObject(out var ctorObject) ||
                     ctorObject is not JsFunction ctorFn)
-                    return NumberFormatting.ToJsString(number);
+                    return NumberFormatting.ToString(number);
 
                 var locales = info.Arguments.Length > 0 ? info.Arguments[0] : JsValue.Undefined;
                 var options = info.Arguments.Length > 1 ? info.Arguments[1] : JsValue.Undefined;
@@ -62,7 +62,7 @@ public partial class Intrinsics
                     return JsValue.FromString(numberFormat.Format(number));
                 }
 
-                return NumberFormatting.ToJsString(number);
+                return NumberFormatting.ToString(number);
             }, "toLocaleString", 0);
         var toFixedFn = new JsHostFunction(Realm,
             static (in info) =>
@@ -79,7 +79,7 @@ public partial class Intrinsics
                 if (double.IsNegativeInfinity(value))
                     return "-Infinity";
                 if (Math.Abs(value) >= 1e21)
-                    return NumberFormatting.ToJsString(value);
+                    return NumberFormatting.ToString(value);
                 return value.ToString($"F{digits}", CultureInfo.InvariantCulture);
             }, "toFixed", 1);
         var toExponentialFn = new JsHostFunction(Realm,
@@ -124,7 +124,7 @@ public partial class Intrinsics
                 var args = info.Arguments;
                 var value = GetThisNumberValue(thisValue, "toPrecision");
                 if (args.Length == 0 || args[0].IsUndefined)
-                    return NumberFormatting.ToJsString(value);
+                    return NumberFormatting.ToString(value);
                 var precisionNumber = realm.ToIntegerOrInfinity(args[0]);
                 if (double.IsNaN(value))
                     return "NaN";
@@ -322,7 +322,7 @@ public partial class Intrinsics
         if (double.IsNegativeInfinity(value))
             return "-Infinity";
         if (radix == 10)
-            return NumberFormatting.ToJsString(value);
+            return NumberFormatting.ToString(value);
         if (value < 0d)
             return "-" + NumberToString(-value, radix);
 
