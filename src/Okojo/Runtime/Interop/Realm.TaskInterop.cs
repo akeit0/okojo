@@ -376,7 +376,7 @@ namespace Okojo.Runtime
 
             if (value is Task task)
             {
-                if (realm.Engine.ClrAccessProvider is { } provider &&
+                if (realm.EngineHost.ClrAccessProvider is { } provider &&
                     provider.TryConvertTaskObjectToJsValue(realm, value, out jsValue))
                     return true;
 
@@ -392,7 +392,7 @@ namespace Okojo.Runtime
             }
 
             if (valueType.IsGenericType && valueType.GetGenericTypeDefinition() == typeof(ValueTask<>))
-                if (realm.Engine.ClrAccessProvider is { } provider &&
+                if (realm.EngineHost.ClrAccessProvider is { } provider &&
                     provider.TryConvertTaskObjectToJsValue(realm, value, out jsValue))
                     return true;
 
@@ -418,7 +418,7 @@ namespace Okojo.Runtime
                 return true;
             }
 
-            if (realm.Engine.ClrAccessProvider is { } provider &&
+            if (realm.EngineHost.ClrAccessProvider is { } provider &&
                 provider.TryConvertJsValueToTaskObject(realm, value, targetType, out result, out score))
                 return true;
 

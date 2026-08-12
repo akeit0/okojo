@@ -17,7 +17,7 @@ public static class WorkerRuntimeFactory
         Action<WorkerRuntimeOptions>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(ownerRealm);
-        return CreateWorkerRuntimeCore(ownerRealm.Engine, options =>
+        return CreateWorkerRuntimeCore((JsRuntime)ownerRealm.Engine, options =>
         {
             options.ModuleReferrer ??= ownerRealm.GetCurrentModuleResolvedIdOrNull();
             configure?.Invoke(options);

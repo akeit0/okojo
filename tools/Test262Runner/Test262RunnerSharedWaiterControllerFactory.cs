@@ -66,7 +66,7 @@ internal sealed class Test262RunnerSharedWaiterControllerFactory : ISharedWaiter
             {
                 if (!runnerTime.AdvanceForAsyncPump())
                     runnerTime.Advance(TimeSpan.FromMilliseconds(1));
-                if (realm.Engine.Agents.Count > 1)
+                if (((JsRuntime)realm.Engine).Agents.Count > 1)
                     Thread.Yield();
             }
 

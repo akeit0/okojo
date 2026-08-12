@@ -17,7 +17,7 @@ public sealed partial class JsAgent
                 return descriptor;
 
             descriptor =
-                Engine.ClrAccessProvider?.CreateHostTypeDescriptor(this, clrType,
+                EngineHost.ClrAccessProvider?.CreateHostTypeDescriptor(this, clrType,
                     Interlocked.Increment(ref nextHostTypeId))
                 ?? throw new InvalidOperationException(
                     "CLR access is disabled. Configure JsRuntime with options => options.AllowClrAccess().");
@@ -69,7 +69,7 @@ public sealed partial class JsAgent
 
             descriptor = bindingOverride is not null
                 ? HostTypeDescriptor.Create(clrType, Interlocked.Increment(ref nextHostTypeId), bindingOverride)
-                : Engine.ClrAccessProvider?.CreateHostTypeDescriptor(this, clrType,
+                : EngineHost.ClrAccessProvider?.CreateHostTypeDescriptor(this, clrType,
                       Interlocked.Increment(ref nextHostTypeId))
                   ?? throw new InvalidOperationException(
                       "CLR access is disabled. Configure JsRuntime with options => options.AllowClrAccess().");

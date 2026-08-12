@@ -538,14 +538,14 @@ internal static partial class Program
             ThrowIfFaulted();
             ThrowIfDisposed();
 
-            var knownAgentIds = mainRealm.Engine.Agents.Select(static a => a.Id).ToHashSet();
+            var knownAgentIds = ((JsRuntime)mainRealm.Engine).Agents.Select(static a => a.Id).ToHashSet();
             var createWorker = RequireFunction(mainRealm, "createWorker");
             var handleValue = mainRealm.Call(createWorker, JsValue.Undefined);
             if (!handleValue.TryGetObject(out var handleObj) || handleObj is not JsPlainObject handle)
                 throw new JsRuntimeException(JsErrorKind.TypeError, "createWorker did not return a worker handle",
                     "TEST262_AGENT_START");
 
-            var workerAgent = mainRealm.Engine.Agents.FirstOrDefault(agent => !knownAgentIds.Contains(agent.Id));
+            var workerAgent = ((JsRuntime)mainRealm.Engine).Agents.FirstOrDefault(agent => !knownAgentIds.Contains(agent.Id));
             if (workerAgent is null)
                 throw new JsRuntimeException(JsErrorKind.InternalError, "Failed to resolve created worker agent",
                     "TEST262_AGENT_START");

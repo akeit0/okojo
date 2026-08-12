@@ -7,7 +7,7 @@ namespace Okojo.Runtime;
 ///     Root Okojo runtime object.
 ///     Prefer the builder or options-based factory for embedding code.
 /// </summary>
-public sealed class JsRuntime : IDisposable
+public sealed class JsRuntime : IJsRuntimeHostInternal, IDisposable
 {
     private readonly List<JsAgent> agents = new();
     private readonly object agentsGate = new();
@@ -65,6 +65,7 @@ public sealed class JsRuntime : IDisposable
     public bool IsDisposed => disposed;
 
     public bool IsClrAccessEnabled => Options.ClrAccessEnabled;
+    IClrAccessProvider? IJsRuntimeHostInternal.ClrAccessProvider => Options.ClrAccessProvider;
     internal IClrAccessProvider? ClrAccessProvider => Options.ClrAccessProvider;
 
     public IReadOnlyList<JsAgent> Agents

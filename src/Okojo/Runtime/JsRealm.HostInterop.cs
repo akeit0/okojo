@@ -44,7 +44,7 @@ public sealed partial class JsRealm
     {
         EnsureClrAccessEnabled();
         ArgumentNullException.ThrowIfNull(type);
-        return Engine.ClrAccessProvider?.GetClrTypeFunction(this, type)
+        return EngineHost.ClrAccessProvider?.GetClrTypeFunction(this, type)
                ?? throw new InvalidOperationException(
                    "CLR access is disabled. Configure JsRuntime with options => options.AllowClrAccess().");
     }
@@ -54,7 +54,7 @@ public sealed partial class JsRealm
         ArgumentNullException.ThrowIfNull(type);
         ArgumentNullException.ThrowIfNull(binding);
         var boundType = binding.ClrType;
-        if (Engine.ClrAccessProvider is { } provider)
+        if (EngineHost.ClrAccessProvider is { } provider)
             return provider.GetClrTypeFunction(this, boundType, binding);
 
         var cache = boundHostTypeCache ??= new();

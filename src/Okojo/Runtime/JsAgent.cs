@@ -82,7 +82,8 @@ public sealed partial class JsAgent : IDisposable
     internal ExecutionCheckPolicy ExecutionCheckPolicy { get; }
     internal ulong ExecutionCheckInterval { get; private set; }
 
-    public JsRuntime Engine { get; }
+    public IJsRuntimeHost Engine { get; }
+    internal IJsRuntimeHostInternal EngineHost => (IJsRuntimeHostInternal)Engine;
     public JsAgentKind Kind { get; }
     public int Id { get; }
     public JsAgent? ParentAgent { get; }

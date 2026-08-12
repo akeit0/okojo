@@ -158,7 +158,8 @@ public sealed partial class JsRealm
     }
 
     public int Id { get; }
-    public JsRuntime Engine { get; }
+    public IJsRuntimeHost Engine { get; }
+    internal IJsRuntimeHostInternal EngineHost => (IJsRuntimeHostInternal)Engine;
     public JsAgent Agent { get; }
 
     public object? HostDefined { get; set; }

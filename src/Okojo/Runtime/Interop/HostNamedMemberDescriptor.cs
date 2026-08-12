@@ -206,7 +206,7 @@ internal sealed class HostNamedMemberDescriptor
         ReadOnlySpan<JsValue> typeArguments,
         int genericParameterCount)
     {
-        if (realm.Engine.ClrAccessProvider is { } provider)
+        if (realm.EngineHost.ClrAccessProvider is { } provider)
             return provider.BindGenericMethod(realm, Name, target, methods, typeArguments, genericParameterCount);
 
         throw new JsRuntimeException(JsErrorKind.TypeError,
@@ -420,7 +420,7 @@ internal sealed class HostNamedMemberDescriptor
             return new double[length];
         if (elementType == typeof(decimal))
             return new decimal[length];
-        if (realm.Engine.ClrAccessProvider is { } provider)
+        if (realm.EngineHost.ClrAccessProvider is { } provider)
             return provider.CreateParamsArray(elementType, length);
 
         throw new InvalidOperationException(
