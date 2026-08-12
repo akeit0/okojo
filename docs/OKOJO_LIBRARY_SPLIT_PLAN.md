@@ -349,8 +349,10 @@ JsAgent (engine part)
 3. **Extract `Okojo.Globalization`** cores from the `Js*Objects` + `Intrinsics.Intl.cs` pure cluster + `Runtime/Intl` data.
    - Engine `Js*Object` wrappers become thin delegates.
 4. **Split `Okojo` into `Okojo.JavaScript` (engine) and `Okojo.JavaScript.Runtime` (runtime)**.
-   - Move host/embedding/interop files out; keep engine dependency-free of host concepts.
-5. **Fix the job queue model** in the engine (ScriptJobs/PromiseJobs/`HostEnqueueJob`), move host task sources to the runtime + `Okojo.Hosting`.
+   - ✅ **Seam first**: `IJsRuntimeHost` / `IJsRuntimeHostInternal` decouple `JsRealm`/`JsAgent` from the concrete `JsRuntime` container.
+   - Remaining: physically split the assembly. Parser/compiler/VM/object model/intrinsics/realms/agents/jobs stay in `Okojo.JavaScript`; the container (`JsRuntime`, builder, options, host seams, workers, interop, modules) moves to `Okojo.JavaScript.Runtime`. Host tools that need container-specific members cast to `JsRuntime`.
+5. ✅ **Fix the job queue model** in the engine (ScriptJobs/PromiseJobs/`HostEnqueueJob`), move host task sources to the runtime + `Okojo.Hosting`.
+   - Done: `JsAgent` now owns named ECMA-262 job queues (`ScriptJobs`, `PromiseJobs`, `HostJobs`, `HostPriorityJobs`) with granular manual run primitives (`RunJobs`, `RunPromiseJobs`, `EnqueueJob(queueName, ...)`, `GetJobCount`). Host task sources route through the host scheduler seam; browsers can drive the loop manually.
    - Regression-targeted by `AgentJobQueueTests`, `TimerTests`, `WorkerAgentTests`, `WebWorkerTests`, `AsyncPromiseTests`.
 6. ✅ **Delete dead paths**: Scratch engine, `IRegExpEngine`, `.NET Regex` bridge, `Okojo.RegExp.EcmaRegex`, `--regexp-engine` variants.
    - Done as part of the regex consolidation in phase 2.
