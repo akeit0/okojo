@@ -359,6 +359,9 @@ JsAgent (engine part)
 
 ## Decisions Made
 
+- Each library presents a **standalone, obvious public API**: ECMA-402 type names (`PluralRules`, `Collator`, `ListFormat`, `RelativeTimeFormat`, `NumberFormat`, `DateTimeFormat`) with spec-aligned `*Options` records, never `*Core`-suffixed or positional-constructor-heavy surfaces.
+- Data classes use clean domain names (`LocaleData`, `CalendarData`, `NumberingSystemData`, `TimeZoneData`, `UnitData`, `LunisolarCalendar`, `LikelySubtags`), not `Okojo*`-prefixed names.
+- The regex library is `EcmaRegex` in `Okojo.Text.RegularExpressions`; `Ecma`-prefixed types are intentional (ECMAScript semantics), consistent within the library.
 - Keep `BigInt` as a `BigInteger`-backed value type; do not write a limb-level bignum unless profiling requires it.
 - Keep `.NET` culture data as the backing store for `Okojo.Globalization` (via `CultureInfo`); the library supplies ECMA-402 algorithm logic on top.
 - `Okojo.Text.*` mirrors `System.Text`: `Okojo.Text.Unicode` (code points, tables, case, segmentation) and `Okojo.Text.RegularExpressions` (regex) form the text-processing library family.
@@ -368,6 +371,6 @@ JsAgent (engine part)
 ## Risks
 
 - ✅ **Behavior parity during the regex consolidation** — resolved: full test262 (non-staging, non-annexB) passes after Scratch deletion; only intentional message-text differences were adjusted in tests.
-- **Intl core extraction churn** — the `Js*Objects` are large and mix pure logic with part-object creation; extract cores in per-Intl-feature slices with existing `Intl*Tests` as the gate.
+- ✅ **Intl formatter extraction churn** — resolved: `Js*Objects` are thin wrappers delegating to `Okojo.Globalization` formatters; pure date-math glue stays in the engine for now (a future `Okojo.Numerics` ECMA time-math slice can absorb `Intrinsics.GetEcmaDateTimePartsForIntl`).
 - **Job queue regression** — the current drain order is relied on by host profiles; migrate `Okojo.Hosting` loop implementations to the new seam before removing old agent queues.
 - **Compiler split history** — the compiler cannot leave the engine assembly until bytecode/VM types share an assembly; the engine assembly is the natural home for both, so `Okojo.JavaScript` keeps parser+compiler+VM together (per `OKOJO_COMPILER_ASSEMBLY_SPLIT.md`, the lower shared layer becomes `Okojo.JavaScript` itself).
