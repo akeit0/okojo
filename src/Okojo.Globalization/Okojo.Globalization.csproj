@@ -23,5 +23,6 @@
     <ItemGroup>
         <InternalsVisibleTo Include="Okojo"/>
         <InternalsVisibleTo Include="Okojo.Tests"/>
+        <InternalsVisibleTo Include="Okojo.Globalization.Tests"/>
     </ItemGroup>
 </Project>

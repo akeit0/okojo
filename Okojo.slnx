@@ -34,6 +34,7 @@
     <Project Path="tests/Okojo.Tests/Okojo.Tests.csproj"/>
     <Project Path="tests/Okojo.Numerics.Tests/Okojo.Numerics.Tests.csproj"/>
     <Project Path="tests/Okojo.Text.Unicode.Tests/Okojo.Text.Unicode.Tests.csproj"/>
+    <Project Path="tests/Okojo.Globalization.Tests/Okojo.Globalization.Tests.csproj"/>
     <Project Path="tests/Okojo.DotNet.Modules.Tests/Okojo.DotNet.Modules.Tests.csproj"/>
     <Project Path="tests/Okojo.Node.Tests/Okojo.Node.Tests.csproj"/>
     <Project Path="tests/Okojo.Repl.Tests/Okojo.Repl.Tests.csproj"/>
