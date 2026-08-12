@@ -562,7 +562,7 @@ internal sealed class NodeBuiltInModuleRegistry
                 throw new JsRuntimeException(JsErrorKind.TypeError, "process.nextTick callback must be callable");
 
             var args = info.Arguments.Length <= 1 ? [] : info.Arguments[1..].ToArray();
-            info.Realm.Agent.EnqueueHostPriorityMicrotask(static state =>
+            info.Realm.Agent.EnqueueHostPriorityJob(static state =>
             {
                 var invocation = (NextTickInvocation)state!;
                 _ = invocation.Realm.Call(invocation.Callback, JsValue.Undefined, invocation.Args);

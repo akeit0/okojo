@@ -742,7 +742,7 @@ public partial class Intrinsics
         };
         var resolutionValue = resolution;
 
-        Realm.Agent.EnqueueMicrotask(SExecuteThenableResolveJob,
+        Realm.Agent.EnqueuePromiseJob(SExecuteThenableResolveJob,
             new PromiseThenableResolveJobState(Realm, resolutionValue, target, thenFn, resolveFn, rejectFn,
                 targetHolder));
     }
@@ -759,7 +759,7 @@ public partial class Intrinsics
         if (!promise.TrySettle(JsPromiseObject.PromiseState.Rejected, reason))
             return;
         SchedulePromiseReactions(promise);
-        if (!promise.IsHandled) Realm.Agent.EnqueueMicrotask(SUnhandledRejectionCheckJob, promise);
+        if (!promise.IsHandled) Realm.Agent.EnqueuePromiseJob(SUnhandledRejectionCheckJob, promise);
     }
 
     internal JsValue PromiseThen(JsPromiseObject promise, in JsValue onFulfilled, in JsValue onRejected)
@@ -812,7 +812,7 @@ public partial class Intrinsics
             ? GeneratorResumeMode.Next
             : GeneratorResumeMode.Throw;
         var resumeValue = promise.Result;
-        Realm.Agent.EnqueueMicrotask(SResumeAsyncDriverJob,
+        Realm.Agent.EnqueuePromiseJob(SResumeAsyncDriverJob,
             new GeneratorResumeJobState(Realm, generator, mode, resumeValue));
     }
 
@@ -828,7 +828,7 @@ public partial class Intrinsics
     internal void EnqueuePromiseReactionJob(JsPromiseObject sourcePromise, JsPromiseObject.Reaction reaction)
     {
         reaction.SourcePromise = sourcePromise;
-        Realm.Agent.EnqueueMicrotask(SExecutePromiseReactionJob, reaction);
+        Realm.Agent.EnqueuePromiseJob(SExecutePromiseReactionJob, reaction);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -971,7 +971,7 @@ public partial class Intrinsics
         var onFulfilledCopy = onFulfilled;
         var onRejectedCopy = onRejected;
         var valueCopy = value;
-        Realm.Agent.EnqueueMicrotask(SExecuteImmediatePromiseHandlerJob,
+        Realm.Agent.EnqueuePromiseJob(SExecuteImmediatePromiseHandlerJob,
             new ImmediatePromiseHandlerJobState(Realm, onFulfilledCopy, onRejectedCopy, valueCopy));
     }
 

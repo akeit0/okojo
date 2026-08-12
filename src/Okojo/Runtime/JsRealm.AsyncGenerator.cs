@@ -98,7 +98,7 @@ public sealed partial class JsRealm
             mode == GeneratorResumeMode.Next)
         {
             var completedPromise = Intrinsics.CreatePromiseObject();
-            Agent.EnqueueMicrotask(SResolveCompletedAsyncGeneratorNextJob, completedPromise);
+            Agent.EnqueuePromiseJob(SResolveCompletedAsyncGeneratorNextJob, completedPromise);
             return completedPromise;
         }
 
@@ -361,7 +361,7 @@ public sealed partial class JsRealm
             ? GeneratorResumeMode.Return
             : GeneratorResumeMode.Throw;
         var resumeValue = promise.Result;
-        Agent.EnqueueMicrotask(SResumeAsyncGeneratorRequestJob,
+        Agent.EnqueuePromiseJob(SResumeAsyncGeneratorRequestJob,
             new GeneratorResumeJobState(this, generator, mode, resumeValue));
     }
 
@@ -443,7 +443,7 @@ public sealed partial class JsRealm
             ? GeneratorResumeMode.Next
             : GeneratorResumeMode.Throw;
         var resumeValue = promise.Result;
-        Agent.EnqueueMicrotask(SResumeAsyncGeneratorRequestJob,
+        Agent.EnqueuePromiseJob(SResumeAsyncGeneratorRequestJob,
             new GeneratorResumeJobState(this, generator, mode, resumeValue));
     }
 

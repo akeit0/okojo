@@ -557,7 +557,7 @@ public sealed partial class JsAgent
             for (var i = 0; i < readyAncestors.Count; i++)
             {
                 var ancestor = readyAncestors[i];
-                targetRealm.Agent.EnqueueMicrotask(static stateObj => ((Action)stateObj!).Invoke(),
+                targetRealm.Agent.EnqueuePromiseJob(static stateObj => ((Action)stateObj!).Invoke(),
                     (Action)(() =>
                     {
                         var ancestorPlan = ancestor.LinkPlan ??
@@ -594,7 +594,7 @@ public sealed partial class JsAgent
             for (var i = 0; i < parents.Count; i++)
             {
                 var parent = parents[i];
-                targetRealm.Agent.EnqueueMicrotask(static stateObj => ((Action)stateObj!).Invoke(),
+                targetRealm.Agent.EnqueuePromiseJob(static stateObj => ((Action)stateObj!).Invoke(),
                     (Action)(() =>
                         FailModuleEvaluation(parent, parent.ResolvedId, targetRealm, rejectionReason, null)));
             }

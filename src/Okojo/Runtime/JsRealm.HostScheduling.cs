@@ -6,7 +6,7 @@ public sealed partial class JsRealm
     {
         ArgumentNullException.ThrowIfNull(callback);
         var copiedArgs = args.Length == 0 ? Array.Empty<JsValue>() : args.ToArray();
-        Agent.EnqueueMicrotask(static stateObj =>
+        Agent.EnqueuePromiseJob(static stateObj =>
         {
             var state = (QueuedRealmCallback)stateObj!;
             _ = state.Realm.InvokeFunction(state.Callback, JsValue.FromObject(state.Realm.GlobalObject),

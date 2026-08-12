@@ -18,7 +18,7 @@ public class AgentJobQueueTests
                        globalThis.order += "s";
                        """);
 
-        // Execute() pumps jobs; microtasks should run before timer tasks.
+        // Execute() runs promise jobs; microtasks should run before timer tasks.
         Assert.That(realm.Global["order"].AsString(), Is.EqualTo("sm"));
 
         fakeTime.Advance(TimeSpan.FromMilliseconds(1));
@@ -58,17 +58,64 @@ public class AgentJobQueueTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
 
-        realm.Agent.EnqueueMicrotask(() =>
+        realm.Agent.EnqueuePromiseJob(() =>
         {
             realm.Global["order"] = realm.Global["order"].AsString() + "a";
             realm.Agent.PumpJobs();
             realm.Global["order"] = realm.Global["order"].AsString() + "b";
         });
-        realm.Agent.EnqueueMicrotask(() => { realm.Global["order"] = realm.Global["order"].AsString() + "c"; });
+        realm.Agent.EnqueuePromiseJob(() => { realm.Global["order"] = realm.Global["order"].AsString() + "c"; });
 
         realm.Global["order"] = "s";
         realm.Agent.PumpJobs();
 
         Assert.That(realm.Global["order"].AsString(), Is.EqualTo("sabc"));
+    }
+
+    [Test]
+    public void RunPromiseJobs_Manually_Drains_PromiseQueue()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+
+        realm.Agent.EnqueuePromiseJob(() => realm.Global["order"] = realm.Global["order"].AsString() + "a");
+        realm.Agent.EnqueuePromiseJob(() => realm.Global["order"] = realm.Global["order"].AsString() + "b");
+        realm.Global["order"] = "s";
+
+        var count = realm.Agent.RunPromiseJobs();
+
+        Assert.That(count, Is.EqualTo(2));
+        Assert.That(realm.Global["order"].AsString(), Is.EqualTo("sab"));
+        Assert.That(realm.Agent.GetJobCount(JobQueueName.PromiseJobs), Is.EqualTo(0));
+    }
+
+    [Test]
+    public void RunJobs_NamedHostQueue_ExecutesOnlyThatQueue()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+
+        realm.Agent.EnqueuePromiseJob(() => realm.Global["order"] = realm.Global["order"].AsString() + "p");
+        realm.Agent.EnqueueJob("my-queue", () => realm.Global["order"] = realm.Global["order"].AsString() + "h");
+        realm.Global["order"] = "s";
+
+        var count = realm.Agent.RunJobs("my-queue");
+
+        Assert.That(count, Is.EqualTo(1));
+        Assert.That(realm.Global["order"].AsString(), Is.EqualTo("sh"));
+        // Promise job is untouched until the host decides to run it.
+        Assert.That(realm.Agent.GetJobCount(JobQueueName.PromiseJobs), Is.EqualTo(1));
+        realm.Agent.RunPromiseJobs();
+        Assert.That(realm.Global["order"].AsString(), Is.EqualTo("shp"));
+    }
+
+    [Test]
+    public void RunScriptJobs_ExecutesScriptQueue()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+
+        realm.Agent.EnqueueScriptJob(() => realm.Global["order"] = realm.Global["order"].AsString() + "s");
+        realm.Global["order"] = "";
+
+        Assert.That(realm.Agent.RunScriptJobs(), Is.EqualTo(1));
+        Assert.That(realm.Global["order"].AsString(), Is.EqualTo("s"));
     }
 }

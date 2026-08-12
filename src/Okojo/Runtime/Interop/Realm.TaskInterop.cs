@@ -70,7 +70,7 @@ namespace Okojo.Runtime
                         pending.Realm.Agent.EnqueueHostTask(pending.CompletionQueueKey, SCompleteTaskPromiseJob,
                             queued);
                     else
-                        pending.Realm.Agent.EnqueueMicrotask(SCompleteTaskPromiseJob, queued);
+                        pending.Realm.Agent.EnqueuePromiseJob(SCompleteTaskPromiseJob, queued);
                 },
                 new PendingTaskPromiseState
                 {
@@ -145,7 +145,7 @@ namespace Okojo.Runtime
                         pending.Realm.Agent.EnqueueHostTask(pending.CompletionQueueKey,
                             TaskPromiseCompletion<T>.CompletePromiseJob, queued);
                     else
-                        pending.Realm.Agent.EnqueueMicrotask(TaskPromiseCompletion<T>.CompletePromiseJob, queued);
+                        pending.Realm.Agent.EnqueuePromiseJob(TaskPromiseCompletion<T>.CompletePromiseJob, queued);
                 },
                 new PendingTaskResultPromiseState<T>
                 {
@@ -585,7 +585,7 @@ namespace Okojo.Runtime
                     pending.Realm.CompletePromiseFromValueTask(pending);
                 }, state);
             else
-                Agent.EnqueueMicrotask(static boxed =>
+                Agent.EnqueuePromiseJob(static boxed =>
                 {
                     var pending = (PendingValueTaskPromiseState)boxed!;
                     pending.Realm.CompletePromiseFromValueTask(pending);
@@ -603,7 +603,7 @@ namespace Okojo.Runtime
                     pending.Realm.CompletePromiseFromValueTask(pending);
                 }, state);
             else
-                Agent.EnqueueMicrotask(static boxed =>
+                Agent.EnqueuePromiseJob(static boxed =>
                 {
                     var pending = (PendingValueTaskResultPromiseState<T>)boxed!;
                     pending.Realm.CompletePromiseFromValueTask(pending);

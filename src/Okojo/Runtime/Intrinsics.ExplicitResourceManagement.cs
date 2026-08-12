@@ -442,7 +442,7 @@ public partial class Intrinsics
     private JsValue CreateSingleAsyncDisposeTickPromise()
     {
         var promise = Realm.CreatePromiseObject();
-        Realm.Agent.EnqueueMicrotask(() => Realm.ResolvePromise(promise, JsValue.Undefined));
+        Realm.Agent.EnqueuePromiseJob(() => Realm.ResolvePromise(promise, JsValue.Undefined));
         return JsValue.FromObject(promise);
     }
 

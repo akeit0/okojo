@@ -23,7 +23,7 @@ public partial class Intrinsics
                 return;
             }
 
-            realm.Agent.EnqueueMicrotask(static stateObj =>
+            realm.Agent.EnqueuePromiseJob(static stateObj =>
             {
                 var state = (DynamicImportJobState)stateObj!;
                 try

@@ -26,13 +26,13 @@ public sealed partial class JsAgent : IDisposable
         new(StringComparer.Ordinal);
 
     private readonly object lifecycleGate = new();
-    private readonly Queue<PendingJob> microtasks = new();
+    private readonly Queue<PendingJob> scriptJobs = new();
     private readonly object moduleCacheGate = new();
 
     private readonly Dictionary<string, string> moduleSourceCache =
         new(StringComparer.Ordinal);
 
-    private readonly Queue<PendingJob> priorityMicrotasks = new();
+    private readonly Queue<PendingJob> promiseJobs = new();
     private readonly List<JsRealm> realms = new();
     private readonly object realmsGate = new();
     private readonly HashSet<JsScript> registeredScripts = new(ReferenceEqualityComparer.Instance);
@@ -42,7 +42,8 @@ public sealed partial class JsAgent : IDisposable
     private readonly HashSet<JsScript> scriptsWithoutSourcePath = new(ReferenceEqualityComparer.Instance);
     private readonly object stepGate = new();
     private readonly object symbolRegistryGate = new();
-    private readonly Queue<PendingJob> tasks = new();
+    private readonly Queue<PendingJob> hostJobs = new();
+    private readonly Queue<PendingJob> hostPriorityJobs = new();
     private volatile bool disposed;
     internal ulong ExecutionCheckCountdown;
     internal volatile int ExecutionCheckpointHookBits;
@@ -67,7 +68,7 @@ public sealed partial class JsAgent : IDisposable
         ExecutionCheckpointHookBits = (int)Options.ExecutionCheckpointHooks;
         ExecutionCheckCountdown = ExecutionCheckPolicy.HasPeriodicChecks ? ExecutionCheckInterval : ulong.MaxValue;
         HostDefined = Options.HostDefined;
-        hostTaskTarget = new(Engine.TimeProvider, EnqueueTask, () => IsTerminated);
+        hostTaskTarget = new(Engine.TimeProvider, EnqueueHostJobDirect, () => IsTerminated);
         HostTaskScheduler = Engine.Options.HostServices.HostTaskScheduler.CreateAgentScheduler(hostTaskTarget);
         var realm = new JsRealm(this, realms.Count, Options.Realm);
         lock (realmsGate)
@@ -121,8 +122,27 @@ public sealed partial class JsAgent : IDisposable
                 return 0;
             lock (jobsGate)
             {
-                return priorityMicrotasks.Count + microtasks.Count + tasks.Count;
+                return scriptJobs.Count + promiseJobs.Count + hostJobs.Count + hostPriorityJobs.Count;
             }
+        }
+    }
+
+    /// <summary>Number of pending jobs in a named queue. Returns 0 for unknown queue names.</summary>
+    public int GetJobCount(string queueName)
+    {
+        ArgumentNullException.ThrowIfNull(queueName);
+        if (terminated)
+            return 0;
+        lock (jobsGate)
+        {
+            return queueName switch
+            {
+                JobQueueName.ScriptJobs => scriptJobs.Count,
+                JobQueueName.PromiseJobs => promiseJobs.Count,
+                JobQueueName.HostJobs => hostJobs.Count,
+                JobQueueName.HostPriorityJobs => hostPriorityJobs.Count,
+                _ => 0
+            };
         }
     }
 
@@ -774,62 +794,116 @@ public sealed partial class JsAgent : IDisposable
         };
     }
 
-    // MDN execution model: promise reactions/await continuations are microtasks.
-    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Execution_model
-    internal void EnqueueMicrotask(Action job)
+    /// <summary>Enqueues a ScriptJobs queue job (script/module evaluation).</summary>
+    public void EnqueueScriptJob(Action job)
     {
-        EnqueueMicrotask(SInvokeActionJob, job);
+        EnqueueScriptJob(SInvokeActionJob, job);
     }
 
-    // ECMA-262 allows host-defined job classes to have higher priority than Promise jobs.
-    // Okojo keeps this internal and host-facing so runtime profiles like Node can map nextTick-style
-    // jobs without hardcoding Node policy into the public core API.
-    internal void EnqueueHostPriorityMicrotask(Action job)
-    {
-        EnqueueHostPriorityMicrotask(SInvokeActionJob, job);
-    }
-
-    internal void EnqueueHostPriorityMicrotask(Action<object?> callback, object? state)
+    /// <summary>Enqueues a ScriptJobs queue job (script/module evaluation).</summary>
+    public void EnqueueScriptJob(Action<object?> callback, object? state)
     {
         if (terminated)
             return;
         lock (jobsGate)
         {
-            priorityMicrotasks.Enqueue(new(callback, state));
+            scriptJobs.Enqueue(new(callback, state));
         }
 
         SignalJobsAvailable();
     }
 
-    internal void EnqueueMicrotask(Action<object?> callback, object? state)
+    /// <summary>Enqueues a PromiseJobs queue job (promise reaction, async continuation, queueMicrotask).</summary>
+    public void EnqueuePromiseJob(Action job)
+    {
+        EnqueuePromiseJob(SInvokeActionJob, job);
+    }
+
+    /// <summary>Enqueues a PromiseJobs queue job (promise reaction, async continuation, queueMicrotask).</summary>
+    public void EnqueuePromiseJob(Action<object?> callback, object? state)
     {
         if (terminated)
             return;
         lock (jobsGate)
         {
-            microtasks.Enqueue(new(callback, state));
+            promiseJobs.Enqueue(new(callback, state));
         }
 
         SignalJobsAvailable();
     }
 
-    // MDN execution model: timers are task-queue work.
-    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Execution_model
-    internal void EnqueueTask(Action job)
+    /// <summary>
+    ///     Enqueues a job into a host-defined job queue. The engine owns only
+    ///     <see cref="JobQueueName.ScriptJobs"/> and <see cref="JobQueueName.PromiseJobs"/>;
+    ///     this seam lets hosts define additional named job classes (timers, I/O, rendering).
+    /// </summary>
+    public void EnqueueJob(string queueName, Action job)
     {
-        EnqueueTask(SInvokeActionJob, job);
+        EnqueueJob(queueName, SInvokeActionJob, job);
     }
 
+    /// <summary>
+    ///     Enqueues a job into a host-defined job queue. Unknown queue names default to the
+    ///     <see cref="JobQueueName.HostJobs"/> queue.
+    /// </summary>
+    public void EnqueueJob(string queueName, Action<object?> callback, object? state)
+    {
+        if (terminated)
+            return;
+        lock (jobsGate)
+        {
+            switch (queueName)
+            {
+                case JobQueueName.ScriptJobs:
+                    scriptJobs.Enqueue(new(callback, state));
+                    break;
+                case JobQueueName.PromiseJobs:
+                    promiseJobs.Enqueue(new(callback, state));
+                    break;
+                case JobQueueName.HostPriorityJobs:
+                    hostPriorityJobs.Enqueue(new(callback, state));
+                    break;
+                default:
+                    hostJobs.Enqueue(new(callback, state));
+                    break;
+            }
+        }
+
+        SignalJobsAvailable();
+    }
+
+    /// <summary>Enqueues a host task that runs before Promise jobs (e.g. Node nextTick).</summary>
+    internal void EnqueueHostPriorityJob(Action job)
+    {
+        EnqueueHostPriorityJob(SInvokeActionJob, job);
+    }
+
+    /// <summary>Enqueues a host task that runs before Promise jobs (e.g. Node nextTick).</summary>
+    internal void EnqueueHostPriorityJob(Action<object?> callback, object? state)
+    {
+        if (terminated)
+            return;
+        lock (jobsGate)
+        {
+            hostPriorityJobs.Enqueue(new(callback, state));
+        }
+
+        SignalJobsAvailable();
+    }
+
+    /// <summary>Enqueues a host task. Routes through the host scheduler when one is queued.</summary>
     internal void EnqueueHostTask(Action job)
     {
         EnqueueHostTask(SInvokeActionJob, job);
     }
 
+    /// <summary>Enqueues a host task. Routes through the host scheduler when one is queued.</summary>
     internal void EnqueueHostTask(Action<object?> callback, object? state)
     {
         EnqueueHostTask(InternalHostTaskQueueDefaults.Default, callback, state);
     }
 
+    /// <summary>Enqueues a host task onto a specific host queue, or the default host queue.</summary>
     internal void EnqueueHostTask(HostTaskQueueKey queueKey, Action<object?> callback, object? state)
     {
         if (terminated)
@@ -841,21 +915,20 @@ public sealed partial class JsAgent : IDisposable
             HostTaskScheduler.EnqueueTask(callback, state);
     }
 
-    internal void EnqueueTask(Action<object?> callback, object? state)
+    /// <summary>Delivery target used by host schedulers: enqueues straight into the host job queue.</summary>
+    private void EnqueueHostJobDirect(Action<object?> callback, object? state)
     {
         if (terminated)
             return;
         lock (jobsGate)
         {
-            tasks.Enqueue(new(callback, state));
+            hostJobs.Enqueue(new(callback, state));
         }
 
         SignalJobsAvailable();
     }
 
-    // Cross-agent messaging follows task-queue semantics.
-    // MDN execution model: message events are tasks, not microtasks.
-    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Execution_model
+    // Cross-agent messaging follows host-task semantics (message events are host tasks).
     public void PostMessage(JsAgent target, object? payload)
     {
         PostMessage(target, payload, InternalHostTaskQueueDefaults.Default);
@@ -872,6 +945,11 @@ public sealed partial class JsAgent : IDisposable
         target.EnqueueHostTask(queueKey, SPostMessageTask, new PostMessageTaskState(this, target, clonedPayload));
     }
 
+    /// <summary>
+    ///     Runs one iteration of the default job-order policy: host priority jobs, then
+    ///     Promise jobs (microtask checkpoint), then one host task. Hosts that need precise
+    ///     control should use <see cref="RunJobs"/> / <see cref="RunPromiseJobs"/> instead.
+    /// </summary>
     internal void PumpJobs()
     {
         if (terminated)
@@ -903,17 +981,54 @@ public sealed partial class JsAgent : IDisposable
         }
     }
 
+    /// <summary>Runs all pending jobs in a named queue, FIFO. Returns the number executed.</summary>
+    public int RunJobs(string queueName)
+    {
+        if (terminated)
+            return 0;
+        var executed = 0;
+        while (TryDequeueJob(queueName, out var job))
+        {
+            job.Invoke();
+            executed++;
+        }
+
+        return executed;
+    }
+
+    /// <summary>Runs all pending ScriptJobs queue jobs, FIFO.</summary>
+    public int RunScriptJobs() => RunJobs(JobQueueName.ScriptJobs);
+
+    /// <summary>Runs all pending PromiseJobs queue jobs, FIFO (the microtask checkpoint).</summary>
+    public int RunPromiseJobs() => RunJobs(JobQueueName.PromiseJobs);
+
+    /// <summary>Runs all pending host priority jobs, FIFO.</summary>
+    internal int RunHostPriorityJobs() => RunJobs(JobQueueName.HostPriorityJobs);
+
+    /// <summary>Runs one pending host job.</summary>
+    internal bool RunOneHostJob()
+    {
+        if (!TryDequeueJob(JobQueueName.HostJobs, out var job))
+            return false;
+        job.Invoke();
+        return true;
+    }
+
+    /// <summary>Runs all pending host jobs, FIFO.</summary>
+    internal int RunHostJobs() => RunJobs(JobQueueName.HostJobs);
+
     private void PumpJobsCore()
     {
         while (true)
         {
-            while (TryDequeuePriorityMicrotask(out var priorityMicrotask) || TryDequeueMicrotask(out priorityMicrotask))
-                priorityMicrotask.Invoke();
+            while (TryDequeueJob(JobQueueName.HostPriorityJobs, out var priorityJob) ||
+                   TryDequeueJob(JobQueueName.PromiseJobs, out priorityJob))
+                priorityJob.Invoke();
 
-            if (!TryDequeueTask(out var task))
+            if (!TryDequeueJob(JobQueueName.HostJobs, out var hostJob))
                 break;
 
-            task.Invoke();
+            hostJob.Invoke();
         }
     }
 
@@ -931,9 +1046,10 @@ public sealed partial class JsAgent : IDisposable
 
         lock (jobsGate)
         {
-            priorityMicrotasks.Clear();
-            microtasks.Clear();
-            tasks.Clear();
+            scriptJobs.Clear();
+            promiseJobs.Clear();
+            hostJobs.Clear();
+            hostPriorityJobs.Clear();
             isPumpingJobs = false;
         }
 
@@ -948,47 +1064,24 @@ public sealed partial class JsAgent : IDisposable
         SignalJobsAvailable();
     }
 
-    private bool TryDequeuePriorityMicrotask(out PendingJob job)
+    private bool TryDequeueJob(string queueName, out PendingJob job)
     {
         lock (jobsGate)
         {
-            if (priorityMicrotasks.Count == 0)
+            var queue = queueName switch
+            {
+                JobQueueName.ScriptJobs => scriptJobs,
+                JobQueueName.PromiseJobs => promiseJobs,
+                JobQueueName.HostPriorityJobs => hostPriorityJobs,
+                _ => hostJobs
+            };
+            if (queue.Count == 0)
             {
                 job = default;
                 return false;
             }
 
-            job = priorityMicrotasks.Dequeue();
-            return true;
-        }
-    }
-
-    private bool TryDequeueMicrotask(out PendingJob job)
-    {
-        lock (jobsGate)
-        {
-            if (microtasks.Count == 0)
-            {
-                job = default;
-                return false;
-            }
-
-            job = microtasks.Dequeue();
-            return true;
-        }
-    }
-
-    private bool TryDequeueTask(out PendingJob job)
-    {
-        lock (jobsGate)
-        {
-            if (tasks.Count == 0)
-            {
-                job = default;
-                return false;
-            }
-
-            job = tasks.Dequeue();
+            job = queue.Dequeue();
             return true;
         }
     }
