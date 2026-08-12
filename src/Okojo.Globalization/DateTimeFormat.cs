@@ -65,6 +65,7 @@ public sealed class DateTimeFormat
 
 
 
+    /// <summary>Creates a date-time formatter for a locale.</summary>
     public DateTimeFormat(string locale, DateTimeFormatOptions? options = null, CultureInfo? cultureInfo = null)
     {
         ArgumentNullException.ThrowIfNull(locale);
@@ -142,6 +143,7 @@ public sealed class DateTimeFormat
     {
     }
 
+    /// <summary>Builds the formatted part stream for a date-time value.</summary>
     public List<IntlPart> BuildParts(DateTimeValue dateTime)
     {
         if (DateStyle is not null || TimeStyle is not null)
@@ -223,6 +225,10 @@ public sealed class DateTimeFormat
 
 
 
+    /// <summary>
+    ///     Attempts to compress a text month range (e.g. "Dec 17 – Jan 3") into shared parts.
+    ///     Returns true with a compacted part stream when applicable.
+    /// </summary>
     public bool TryCreateCompressedTextMonthRange(List<IntlPart> startParts, List<IntlPart> endParts,
         out List<RangeIntlPart> result)
     {
@@ -792,6 +798,7 @@ public readonly record struct DateTimeValue(
     int WeekdayIndex,
     DateTimeOffset? NativeDateTime)
 {
+    /// <summary>Builds a <see cref="DateTimeValue"/> from a .NET <see cref="DateTimeOffset"/>.</summary>
     public static DateTimeValue FromDateTimeOffset(DateTimeOffset value)
     {
         return new(

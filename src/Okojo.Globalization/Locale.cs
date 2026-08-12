@@ -97,6 +97,7 @@ public static partial class Locale
         100)]
     private static partial Regex LanguageTagRegex();
 
+    /// <summary>Removes the <c>-u-...</c> unicode extension from a locale tag, leaving the base tag.</summary>
     public static string RemoveUnicodeExtensions(string locale)
     {
         var extensionIndex = locale.IndexOf("-u-", StringComparison.OrdinalIgnoreCase);
@@ -116,11 +117,16 @@ public static partial class Locale
             : locale.Substring(0, extensionIndex);
     }
 
+    /// <summary>Returns true if the locale tag contains a unicode extension (<c>-u-</c>).</summary>
     public static bool ContainsUnicodeExtension(string locale)
     {
         return locale.IndexOf("-u-", StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
+    /// <summary>
+    ///     Validates and canonicalizes a locale tag, returning the canonical form on success.
+    ///     Results are cached per input tag.
+    /// </summary>
     public static bool TryGetValidatedCanonicalLocale(string locale, out string canonicalized)
     {
         if (ValidatedCanonicalLocaleCache.TryGetValue(locale, out var cachedCanonicalized))
@@ -141,6 +147,7 @@ public static partial class Locale
         return true;
     }
 
+    /// <summary>Returns true if the string is a structurally valid BCP-47 language tag.</summary>
     public static bool IsStructurallyValidLanguageTag(string locale)
     {
         if (string.IsNullOrEmpty(locale))
@@ -266,6 +273,7 @@ public static partial class Locale
         return ValidateTransformedExtension(locale);
     }
 
+    /// <summary>Canonicalizes a unicode locale id, applying tag/language/region/variant/extension mappings.</summary>
     public static string CanonicalizeUnicodeLocaleId(string locale)
     {
         if (CanonicalLocaleCache.TryGetValue(locale, out var cached))
@@ -387,6 +395,7 @@ public static partial class Locale
         return canonical;
     }
 
+    /// <summary>Parses a language tag into its language/script/region/variant/extension components.</summary>
     public static ParsedLanguageTag ParseLanguageTag(string tag)
     {
         var result = new ParsedLanguageTag();
@@ -759,6 +768,7 @@ public static partial class Locale
         return IsAllLetters(part);
     }
 
+    /// <summary>Returns true if the subtag has a valid ECMAScript variant shape (4-8 chars, digit-leading 4-char forms).</summary>
     public static bool IsValidVariant(string part)
     {
         if (part.Length >= 5 && part.Length <= 8)
@@ -786,6 +796,7 @@ public static partial class Locale
         return true;
     }
 
+    /// <summary>Returns the language subtag of a locale tag (lower-cased).</summary>
     public static string GetLanguageSubtag(string locale)
     {
         var dash = locale.IndexOf('-');
@@ -793,23 +804,41 @@ public static partial class Locale
     }
 }
 
+/// <summary>The component parts of a parsed language tag.</summary>
 public sealed class ParsedLanguageTag
 {
+    /// <summary>The language subtag (lower-cased), if present.</summary>
     public string? Language { get; set; }
+
+    /// <summary>The script subtag, if present.</summary>
     public string? Script { get; set; }
+
+    /// <summary>The region subtag, if present.</summary>
     public string? Region { get; set; }
+
+    /// <summary>Variant subtags, if any.</summary>
     public List<string>? Variants { get; set; }
+
+    /// <summary>Extensions (singleton-led subtag groups), if any.</summary>
     public List<ExtensionSubtag>? Extensions { get; set; }
 }
 
+/// <summary>An extension subtag group (singleton type + following parts).</summary>
 public sealed class ExtensionSubtag
 {
+    /// <summary>The singleton extension type (e.g. <c>u</c>, <c>t</c>, <c>x</c>).</summary>
     public char Type { get; set; }
+
+    /// <summary>The extension parts, including the type singleton.</summary>
     public List<string> Parts { get; set; } = [];
 }
 
+/// <summary>A key/value pair within a unicode extension.</summary>
 public sealed class KeyValueParts
 {
+    /// <summary>The extension key.</summary>
     public string Key { get; set; } = string.Empty;
+
+    /// <summary>The values associated with the key.</summary>
     public List<string> Values { get; set; } = [];
 }

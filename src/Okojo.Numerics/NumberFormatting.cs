@@ -39,7 +39,7 @@ public static class NumberFormatting
         var digits = exponent[1..].TrimStart('0');
         if (digits.Length == 0)
             digits = "0";
-        return mantissa.ToLowerInvariant() + "e" + sign + digits;
+        return mantissa + "e" + sign + digits;
     }
 
     private static string ExpandExponent(string roundTrip, int exponentIndex)

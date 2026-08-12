@@ -23,17 +23,20 @@ public static class UnitData
     private static readonly string[] SupportedValuesOfUnits =
         [.. SimpleSanctionedUnits.OrderBy(static value => value, StringComparer.Ordinal)];
 
-    internal static string[] GetSupportedValues()
+    /// <summary>Returns the sorted supported sanctioned unit values.</summary>
+    public static string[] GetSupportedValues()
     {
         return SupportedValuesOfUnits;
     }
 
-    internal static bool IsRelativeTimeFormatUnit(string unit)
+    /// <summary>Returns true if the unit is valid for RelativeTimeFormat.</summary>
+    public static bool IsRelativeTimeFormatUnit(string unit)
     {
         return RelativeTimeFormatUnits.Contains(unit);
     }
 
-    internal static bool IsSimpleSanctionedUnit(string unit)
+    /// <summary>Returns true if the unit is a simple sanctioned unit.</summary>
+    public static bool IsSimpleSanctionedUnit(string unit)
     {
         return SimpleSanctionedUnits.Contains(unit);
     }

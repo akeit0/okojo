@@ -1,5 +1,6 @@
 namespace Okojo.Text.RegularExpressions;
 
+/// <summary>Categories of ECMAScript pattern or flag syntax errors.</summary>
 public enum EcmaRegexError
 {
     UnexpectedToken,
@@ -32,10 +33,14 @@ public sealed class EcmaRegexParseException : ArgumentException
         Error = error;
     }
 
+    /// <summary>Zero-based index of the offending pattern position, or -1 when not position-specific.</summary>
     public int PatternIndex { get; }
+
+    /// <summary>The category of the parse error.</summary>
     public EcmaRegexError Error { get; }
 }
 
+/// <summary>Categories of matching resource limits.</summary>
 public enum EcmaRegexLimitKind
 {
     Steps,
@@ -54,5 +59,6 @@ public sealed class EcmaRegexExecutionException : Exception
         LimitKind = limitKind;
     }
 
+    /// <summary>The limit that was exceeded.</summary>
     public EcmaRegexLimitKind LimitKind { get; }
 }

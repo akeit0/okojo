@@ -20,7 +20,8 @@ public static class LunisolarCalendar
     private static ChineseLunisolarCalendar ChineseCalendar => chineseCalendar ??= new();
     private static KoreanLunisolarCalendar KoreanCalendar => koreanCalendar ??= new();
 
-    internal static LunisolarDate GetChineseDate(DateTime dateTime)
+    /// <summary>Returns the Chinese lunisolar date for a date-time.</summary>
+    public static LunisolarDate GetChineseDate(DateTime dateTime)
     {
         if (dateTime < ChineseCalendar.MinSupportedDateTime || dateTime > ChineseCalendar.MaxSupportedDateTime)
             return GetLunisolarDate(dateTime, KoreanCalendar);
@@ -28,7 +29,8 @@ public static class LunisolarCalendar
         return GetLunisolarDate(dateTime, ChineseCalendar);
     }
 
-    internal static LunisolarDate GetDangiDate(DateTime dateTime)
+    /// <summary>Returns the Dangi (Korean) lunisolar date for a date-time.</summary>
+    public static LunisolarDate GetDangiDate(DateTime dateTime)
     {
         return GetLunisolarDate(dateTime, KoreanCalendar);
     }
@@ -63,12 +65,22 @@ public static class LunisolarCalendar
         return HeavenlyStems[index % 10] + EarthlyBranches[index % 12];
     }
 
-    internal readonly struct LunisolarDate(int relatedYear, string yearName, int month, int day, bool isLeapMonth)
+    /// <summary>A lunisolar calendar date (related year, sexagenary year name, month, day, leap-month flag).</summary>
+    public readonly struct LunisolarDate(int relatedYear, string yearName, int month, int day, bool isLeapMonth)
     {
-        internal int RelatedYear { get; } = relatedYear;
-        internal string YearName { get; } = yearName;
-        internal int Month { get; } = month;
-        internal int Day { get; } = day;
-        internal bool IsLeapMonth { get; } = isLeapMonth;
+        /// <summary>The related (lunisolar) year.</summary>
+        public int RelatedYear { get; } = relatedYear;
+
+        /// <summary>The sexagenary year name (e.g. <c>甲子</c>).</summary>
+        public string YearName { get; } = yearName;
+
+        /// <summary>The month number.</summary>
+        public int Month { get; } = month;
+
+        /// <summary>The day of month.</summary>
+        public int Day { get; } = day;
+
+        /// <summary>True if the month is a leap month.</summary>
+        public bool IsLeapMonth { get; } = isLeapMonth;
     }
 }

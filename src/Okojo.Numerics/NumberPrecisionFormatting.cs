@@ -8,12 +8,17 @@ namespace Okojo.Numerics;
 /// </summary>
 public static class NumberPrecisionFormatting
 {
+    /// <summary>Formats a value in exponential notation with the given fraction-digit count.</summary>
     public static string FormatExponential(double value, int fractionDigits)
     {
         var digits = RoundToSignificantDigits(value, fractionDigits + 1);
         return BuildExponentialString(digits, fractionDigits + 1);
     }
 
+    /// <summary>
+    ///     Formats a value with the given number of significant digits, choosing exponential or
+    ///     fixed notation per ECMAScript <c>Number.prototype.toPrecision</c>.
+    /// </summary>
     public static string FormatPrecision(double value, int precision)
     {
         var digits = RoundToSignificantDigits(value, precision);
@@ -48,6 +53,7 @@ public static class NumberPrecisionFormatting
         return sign + digits.Digits[..decimalPoint] + "." + digits.Digits[decimalPoint..];
     }
 
+    /// <summary>Rounds a value to the given number of significant digits using exact rational arithmetic.</summary>
     public static SignificantDigits RoundToSignificantDigits(double value, int significantDigits)
     {
         if (significantDigits < 1)
@@ -137,5 +143,6 @@ public static class NumberPrecisionFormatting
         return (numerator * BigInteger.Pow(10, -exponent)).CompareTo(denominator);
     }
 
+    /// <summary>Exact decimal representation of a rounded value: sign, base-10 exponent, and digit string.</summary>
     public readonly record struct SignificantDigits(bool Negative, int Exponent, string Digits);
 }

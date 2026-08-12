@@ -14,19 +14,22 @@ public static class CalendarData
     private static JapaneseEraRule[]? japaneseEraRules;
     private static volatile bool loaded;
 
-    internal static string[] GetSupportedCalendars()
+    /// <summary>Returns the sorted list of supported calendars.</summary>
+    public static string[] GetSupportedCalendars()
     {
         EnsureLoaded();
         return supportedCalendarsSorted!;
     }
 
-    internal static bool IsSupportedCalendar(string calendar)
+    /// <summary>Returns true if the calendar is supported.</summary>
+    public static bool IsSupportedCalendar(string calendar)
     {
         EnsureLoaded();
         return supportedCalendars!.Contains(calendar);
     }
 
-    internal static string? FormatEra(string calendar, int isoYear, string eraWidth)
+    /// <summary>Formats an era name for a calendar/year/width, or null when era is suppressed.</summary>
+    public static string? FormatEra(string calendar, int isoYear, string eraWidth)
     {
         EnsureLoaded();
 

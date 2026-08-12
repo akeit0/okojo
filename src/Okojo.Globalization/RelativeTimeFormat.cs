@@ -105,6 +105,7 @@ public sealed class RelativeTimeFormat
             { ["many"] = "lat", ["few"] = "lata", ["one"] = "rok", ["other"] = "roku" }
         };
 
+    /// <summary>Creates a relative time formatter for a locale.</summary>
     public RelativeTimeFormat(
         string locale,
         RelativeTimeFormatOptions? options = null,
@@ -119,6 +120,7 @@ public sealed class RelativeTimeFormat
         CultureInfo = cultureInfo ?? Okojo.Globalization.Locale.GetCultureInfo(locale);
     }
 
+    /// <summary>Creates a relative time formatter from explicit option values.</summary>
     public RelativeTimeFormat(
         string locale,
         string numberingSystem,
@@ -134,12 +136,22 @@ public sealed class RelativeTimeFormat
     {
     }
 
+    /// <summary>The locale tag.</summary>
     public string Locale { get; }
+
+    /// <summary>The numbering system used for the numeric part.</summary>
     public string NumberingSystem { get; }
+
+    /// <summary><c>"long"</c>, <c>"short"</c>, or <c>"narrow"</c>.</summary>
     public string Style { get; }
+
+    /// <summary><c>"always"</c> or <c>"auto"</c>.</summary>
     public string Numeric { get; }
+
+    /// <summary>The .NET culture backing number formatting.</summary>
     public CultureInfo CultureInfo { get; }
 
+    /// <summary>Formats a relative value (e.g. <c>-3</c> days) into a phrase.</summary>
     public string Format(double value, string unit)
     {
         if (string.Equals(Numeric, "auto", StringComparison.Ordinal))
@@ -161,6 +173,7 @@ public sealed class RelativeTimeFormat
         return isPast ? $"{formattedNumber} {unitName} ago" : $"in {formattedNumber} {unitName}";
     }
 
+    /// <summary>Formats a relative value into a part stream (literal/unit/number parts).</summary>
     public List<IntlPart> FormatToParts(double value, string unit)
     {
         var result = new List<IntlPart>();
@@ -280,8 +293,18 @@ public sealed class RelativeTimeFormat
         var fracPart = absValue - intPart;
         if (fracPart == 0)
             return 0;
-        var fraction = fracPart.ToString("0.###############", CultureInfo.InvariantCulture);
-        return fraction.StartsWith("0.", StringComparison.Ordinal) ? fraction.Length - 2 : 0;
+
+        // Count visible fraction digits without allocating: multiply by ten until an integral
+        // value (within double precision) is reached, capping at 15 digits.
+        var scaled = fracPart;
+        for (var digits = 1; digits <= 15; digits++)
+        {
+            scaled *= 10d;
+            if (Math.Abs(scaled - Math.Round(scaled)) < 1e-9)
+                return digits;
+        }
+
+        return 15;
     }
 
     private string GetUnitName(string unit, string pluralForm)

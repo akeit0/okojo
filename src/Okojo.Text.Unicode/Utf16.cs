@@ -8,19 +8,27 @@ namespace Okojo.Text.Unicode;
 /// </summary>
 public static class Utf16
 {
+    /// <summary>Returns true if the value is a UTF-16 high surrogate (U+D800..U+DBFF).</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsHighSurrogate(int value) => (uint)(value - 0xD800) <= 0x3FF;
 
+    /// <summary>Returns true if the value is a UTF-16 low surrogate (U+DC00..U+DFFF).</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsLowSurrogate(int value) => (uint)(value - 0xDC00) <= 0x3FF;
 
+    /// <summary>Combines a high/low surrogate pair into a single code point.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int CombineSurrogates(int high, int low) =>
         ((high - 0xD800) << 10) + (low - 0xDC00) + 0x10000;
 
+    /// <summary>Returns the UTF-16 code-unit width (1 or 2) of a code point.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int CodeUnitLength(int codePoint) => codePoint >= 0x10000 ? 2 : 1;
 
+    /// <summary>
+    ///     Reads the code point at <paramref name="position"/>. In unicode mode a valid surrogate
+    ///     pair is combined into one code point; otherwise reads a single UTF-16 code unit.
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool TryReadForward(
         ReadOnlySpan<char> input,
@@ -54,6 +62,10 @@ public static class Utf16
         return true;
     }
 
+    /// <summary>
+    ///     Reads the code point ending just before <paramref name="position"/>. In unicode mode a
+    ///     valid surrogate pair is combined into one code point.
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool TryReadBackward(
         ReadOnlySpan<char> input,
@@ -87,6 +99,7 @@ public static class Utf16
         return true;
     }
 
+    /// <summary>Reads the code point at <paramref name="position"/>, returning 0 when out of range.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int ReadForward(
         ReadOnlySpan<char> input,
@@ -99,6 +112,10 @@ public static class Utf16
         return codePoint;
     }
 
+    /// <summary>
+    ///     ECMAScript <c>AdvanceStringIndex</c>: advances by two code units across a surrogate pair
+    ///     in unicode mode, otherwise by one.
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int AdvanceStringIndex(ReadOnlySpan<char> input, int index, bool unicode)
     {
@@ -116,6 +133,7 @@ public static class Utf16
         return index + 1;
     }
 
+    /// <summary>Counts the code points in a UTF-16 string (lone surrogates count as one each).</summary>
     public static int CountCodePoints(ReadOnlySpan<char> value)
     {
         int count = 0;
@@ -144,10 +162,12 @@ public static class Utf16
         return first;
     }
 
+    /// <summary>Returns true if the code point is an ECMAScript line terminator.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsLineTerminator(int codePoint) =>
         codePoint is '\n' or '\r' or 0x2028 or 0x2029;
 
+    /// <summary>Returns true if the code point is an ASCII word character (<c>a-z A-Z 0-9 _</c>).</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsAsciiWord(int codePoint) =>
         (uint)(codePoint - 'a') <= 'z' - 'a'
@@ -155,6 +175,10 @@ public static class Utf16
         || (uint)(codePoint - '0') <= 9
         || codePoint == '_';
 
+    /// <summary>
+    ///     Returns true if the code point is a word character, optionally using Unicode case-fold
+    ///     equivalence when both <paramref name="unicode"/> and <paramref name="ignoreCase"/> are set.
+    /// </summary>
     public static bool IsWord(int codePoint, bool unicode, bool ignoreCase)
     {
         if (IsAsciiWord(codePoint))
@@ -171,12 +195,14 @@ public static class Utf16
         return false;
     }
 
+    /// <summary>Returns true if <paramref name="position"/> is not inside a surrogate pair.</summary>
     public static bool IsUnicodeBoundary(ReadOnlySpan<char> input, int position) =>
         position <= 0
         || position >= input.Length
         || !char.IsLowSurrogate(input[position])
         || !char.IsHighSurrogate(input[position - 1]);
 
+    /// <summary>Appends a code point to a <see cref="StringBuilder"/>, encoding astral values as a surrogate pair.</summary>
     public static void AppendCodePoint(StringBuilder builder, int codePoint)
     {
         if ((uint)codePoint <= 0xFFFFu)

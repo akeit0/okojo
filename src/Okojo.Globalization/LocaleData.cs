@@ -13,6 +13,7 @@ public static class LocaleData
     private static Dictionary<string, Dictionary<string, string>>? unicodeMappings;
     private static volatile bool loaded;
 
+    /// <summary>Whole-tag alias mappings (grandfathered tags etc.).</summary>
     public static Dictionary<string, string> TagMappings
     {
         get
@@ -22,6 +23,7 @@ public static class LocaleData
         }
     }
 
+    /// <summary>Language subtag alias mappings.</summary>
     public static Dictionary<string, string> LanguageMappings
     {
         get
@@ -31,6 +33,7 @@ public static class LocaleData
         }
     }
 
+    /// <summary>Complex language alias mappings that also replace script/region.</summary>
     public static Dictionary<string, ComplexLanguageMapping> ComplexLanguageMappings
     {
         get
@@ -40,6 +43,7 @@ public static class LocaleData
         }
     }
 
+    /// <summary>Region subtag alias mappings.</summary>
     public static Dictionary<string, string> RegionMappings
     {
         get
@@ -49,6 +53,7 @@ public static class LocaleData
         }
     }
 
+    /// <summary>Variant subtag alias mappings.</summary>
     public static Dictionary<string, VariantMapping> VariantMappings
     {
         get
@@ -58,6 +63,7 @@ public static class LocaleData
         }
     }
 
+    /// <summary>Language+variant composite alias mappings.</summary>
     public static Dictionary<string, string> LanguageVariantMappings
     {
         get
@@ -67,6 +73,7 @@ public static class LocaleData
         }
     }
 
+    /// <summary>Script+region composite alias mappings.</summary>
     public static Dictionary<string, string> ScriptRegionMappings
     {
         get
@@ -76,6 +83,7 @@ public static class LocaleData
         }
     }
 
+    /// <summary>Unicode extension key/value alias mappings.</summary>
     public static Dictionary<string, Dictionary<string, string>> UnicodeMappings
     {
         get
@@ -220,7 +228,9 @@ public static class LocaleData
         typeDict[oldValue] = value;
     }
 
+    /// <summary>A complex language alias: replacement language plus optional script/region.</summary>
     public readonly record struct ComplexLanguageMapping(string Language, string? Script, string? Region);
 
+    /// <summary>A variant alias: replacement value, replacement type, and optional required prefix.</summary>
     public readonly record struct VariantMapping(string Type, string Replacement, string? Prefix = null);
 }

@@ -10,6 +10,7 @@ public static class LikelySubtagsData
 
     private static Dictionary<string, string> LikelySubtags => likelySubtags ??= Load();
 
+    /// <summary>Looks up a likely-subtags key (e.g. <c>"zh"</c>) and returns its maximized value.</summary>
     public static bool TryResolve(string key, out string value)
     {
         return LikelySubtags.TryGetValue(key, out value!);

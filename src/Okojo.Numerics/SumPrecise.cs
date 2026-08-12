@@ -39,6 +39,7 @@ public static class SumPrecise
     //  - none of them are -0, NaN, or ±Infinity
     //  - all of them are finite
     [MethodImpl(512)]
+    /// <summary>Computes the exact rounded sum of the given finite doubles (Shewchuk's algorithm).</summary>
     public static double Sum(ReadOnlySpan<double> array)
     {
         double hi, lo;

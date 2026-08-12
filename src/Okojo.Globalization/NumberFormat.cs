@@ -51,6 +51,7 @@ public sealed class NumberFormat
     internal string TrailingZeroDisplay { get; }
     internal CultureInfo CultureInfo { get; }
 
+    /// <summary>Creates a number formatter for a locale.</summary>
     public NumberFormat(string locale, NumberFormatOptions? options = null, CultureInfo? cultureInfo = null)
     {
         ArgumentNullException.ThrowIfNull(locale);
@@ -1748,6 +1749,7 @@ public sealed class NumberFormat
         return builder.ToString();
     }
 
+    /// <summary>Formats a value into a part stream (integer/group/decimal/fraction/currency/unit/sign parts).</summary>
     public List<IntlPart> FormatParts(double value)
     {
         List<(string Type, string Value)> parts;
@@ -1784,6 +1786,7 @@ public sealed class NumberFormat
         return ToIntlParts(parts);
     }
 
+    /// <summary>Formats a raw decimal string exactly (no double rounding), returning false when inapplicable.</summary>
     public bool TryFormatExactString(string raw, out string formatted)
     {
         if (!TryFormatExactPartsRaw(raw, out var tupleParts))
@@ -1796,6 +1799,7 @@ public sealed class NumberFormat
         return true;
     }
 
+    /// <summary>Formats a raw decimal string into a part stream exactly, returning false when inapplicable.</summary>
     public bool TryFormatExactParts(string raw, out List<IntlPart> parts)
     {
         if (!TryFormatExactPartsRaw(raw, out var tupleParts))

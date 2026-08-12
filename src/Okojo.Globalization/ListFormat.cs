@@ -7,6 +7,7 @@ namespace Okojo.Globalization;
 /// </summary>
 public sealed class ListFormat
 {
+    /// <summary>Creates a list formatter for a locale.</summary>
     public ListFormat(string locale, ListFormatOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(locale);
@@ -16,15 +17,22 @@ public sealed class ListFormat
         Style = options.Style;
     }
 
+    /// <summary>Creates a list formatter from explicit type/style strings.</summary>
     public ListFormat(string locale, string type, string style)
         : this(locale, new ListFormatOptions { Type = type, Style = style })
     {
     }
 
+    /// <summary>The locale tag.</summary>
     public string Locale { get; }
+
+    /// <summary><c>"conjunction"</c>, <c>"disjunction"</c>, or <c>"unit"</c>.</summary>
     public string Type { get; }
+
+    /// <summary><c>"long"</c>, <c>"short"</c>, or <c>"narrow"</c>.</summary>
     public string Style { get; }
 
+    /// <summary>Returns the separator pattern (middle/two/end) for the configured type and style.</summary>
     public ListPattern GetPattern()
     {
         var isSpanish = Locale.StartsWith("es", StringComparison.OrdinalIgnoreCase);
@@ -79,6 +87,7 @@ public sealed class ListFormat
             : new(", ", " and ", ", and ");
     }
 
+    /// <summary>Formats a list of items into a single string.</summary>
     public string Format(IReadOnlyList<string> items)
     {
         if (items.Count == 0)
@@ -101,7 +110,7 @@ public sealed class ListFormat
         return builder.ToString();
     }
 
-    /// <summary>Produces the element/literal part stream without allocating JS objects.</summary>
+    /// <summary>Produces the element/literal part stream.</summary>
     public List<IntlPart> FormatToParts(IReadOnlyList<string> items)
     {
         var result = new List<IntlPart>();

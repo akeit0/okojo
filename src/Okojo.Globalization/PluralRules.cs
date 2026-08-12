@@ -7,6 +7,9 @@ namespace Okojo.Globalization;
 /// </summary>
 public sealed class PluralRules
 {
+    private readonly string languageCode;
+
+    /// <summary>Creates a plural-rules selector for a locale.</summary>
     public PluralRules(string locale, PluralRulesOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(locale);
@@ -14,17 +17,25 @@ public sealed class PluralRules
         Locale = locale;
         PluralRuleType = options.PluralRuleType;
         Notation = options.Notation;
+        languageCode = GetLanguageCodeCore(locale);
     }
 
+    /// <summary>Creates a plural-rules selector from explicit option strings.</summary>
     public PluralRules(string locale, string pluralRuleType, string notation)
         : this(locale, new PluralRulesOptions { PluralRuleType = pluralRuleType, Notation = notation })
     {
     }
 
+    /// <summary>The locale tag.</summary>
     public string Locale { get; }
+
+    /// <summary><c>"cardinal"</c> or <c>"ordinal"</c>.</summary>
     public string PluralRuleType { get; }
+
+    /// <summary>The number notation (<c>"standard"</c> etc.).</summary>
     public string Notation { get; }
 
+    /// <summary>Returns the plural category for a numeric value.</summary>
     public string Select(double n)
     {
         return string.Equals(PluralRuleType, "ordinal", StringComparison.Ordinal)
@@ -32,9 +43,10 @@ public sealed class PluralRules
             : SelectCardinal(n);
     }
 
+    /// <summary>Returns the plural categories the locale/type can produce.</summary>
     public string[] GetPluralCategories()
     {
-        var lang = GetLanguageCode();
+        var lang = languageCode;
         if (string.Equals(PluralRuleType, "ordinal", StringComparison.Ordinal))
             return lang switch
             {
@@ -63,7 +75,7 @@ public sealed class PluralRules
         var i = (long)Math.Floor(absN);
         var v = GetVisibleFractionDigitCount(n);
 
-        var lang = GetLanguageCode();
+        var lang = languageCode;
         return lang switch
         {
             "en" or "de" or "nl" or "sv" or "da" or "no" or "nb" or "nn" =>
@@ -87,7 +99,7 @@ public sealed class PluralRules
             return "other";
 
         var i = (long)Math.Floor(Math.Abs(n));
-        var lang = GetLanguageCode();
+        var lang = languageCode;
         return lang switch
         {
             "en" => SelectEnglishOrdinal(i),
@@ -95,10 +107,10 @@ public sealed class PluralRules
         };
     }
 
-    private string GetLanguageCode()
+    private static string GetLanguageCodeCore(string locale)
     {
-        var dashIndex = Locale.IndexOf('-');
-        return dashIndex > 0 ? Locale[..dashIndex].ToLowerInvariant() : Locale.ToLowerInvariant();
+        var dashIndex = locale.IndexOf('-');
+        return dashIndex > 0 ? locale[..dashIndex].ToLowerInvariant() : locale.ToLowerInvariant();
     }
 
     private static string SelectEnglishOrdinal(long n)
@@ -210,8 +222,11 @@ public sealed class PluralRules
 
     private static int GetVisibleFractionDigitCount(double n)
     {
-        var str = n.ToString(CultureInfo.InvariantCulture);
-        var dotIndex = str.IndexOf('.');
-        return dotIndex < 0 ? 0 : str.Length - dotIndex - 1;
+        Span<char> buffer = stackalloc char[32];
+        if (!n.TryFormat(buffer, out var written, provider: CultureInfo.InvariantCulture))
+            return 0;
+        var span = buffer[..written];
+        var dotIndex = span.IndexOf('.');
+        return dotIndex < 0 ? 0 : written - dotIndex - 1;
     }
 }

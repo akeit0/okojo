@@ -139,29 +139,34 @@ public static class NumberingSystemData
         ["arabext"] = "\u066C"
     };
 
-    internal static bool IsSupported(string numberingSystem)
+    /// <summary>Returns true if the numbering system is supported.</summary>
+    public static bool IsSupported(string numberingSystem)
     {
         return Digits.ContainsKey(numberingSystem);
     }
 
-    internal static string[] GetSupportedNumberingSystems()
+    private static readonly string[] SupportedNumberingSystems = [.. Digits.Keys.OrderBy(static k => k, StringComparer.Ordinal)];
+
+    /// <summary>Returns the sorted supported numbering systems.</summary>
+    public static string[] GetSupportedNumberingSystems()
     {
-        var result = Digits.Keys.ToArray();
-        Array.Sort(result, StringComparer.Ordinal);
-        return result;
+        return SupportedNumberingSystems;
     }
 
-    internal static string GetDecimalSeparator(string numberingSystem, string fallback)
+    /// <summary>Returns the decimal separator for a numbering system, or the fallback.</summary>
+    public static string GetDecimalSeparator(string numberingSystem, string fallback)
     {
         return DecimalSeparators.TryGetValue(numberingSystem, out var value) ? value : fallback;
     }
 
-    internal static string GetGroupSeparator(string numberingSystem, string fallback)
+    /// <summary>Returns the group separator for a numbering system, or the fallback.</summary>
+    public static string GetGroupSeparator(string numberingSystem, string fallback)
     {
         return GroupSeparators.TryGetValue(numberingSystem, out var value) ? value : fallback;
     }
 
-    internal static string TransliterateDigits(string input, string numberingSystem)
+    /// <summary>Transliterates ASCII digits in the input to the numbering system's digits.</summary>
+    public static string TransliterateDigits(string input, string numberingSystem)
     {
         if (string.Equals(numberingSystem, "latn", StringComparison.OrdinalIgnoreCase))
             return input;

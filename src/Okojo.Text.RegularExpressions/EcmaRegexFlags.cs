@@ -4,15 +4,32 @@ namespace Okojo.Text.RegularExpressions;
 [Flags]
 public enum EcmaRegexFlagSet
 {
+    /// <summary>No flags set.</summary>
     None = 0,
-    HasIndices = 1 << 0, // d
-    Global = 1 << 1, // g
-    IgnoreCase = 1 << 2, // i
-    Multiline = 1 << 3, // m
-    DotAll = 1 << 4, // s
-    Unicode = 1 << 5, // u
-    UnicodeSets = 1 << 6, // v
-    Sticky = 1 << 7, // y
+
+    /// <summary>The <c>d</c> (has indices) flag.</summary>
+    HasIndices = 1 << 0,
+
+    /// <summary>The <c>g</c> (global) flag.</summary>
+    Global = 1 << 1,
+
+    /// <summary>The <c>i</c> (ignore case) flag.</summary>
+    IgnoreCase = 1 << 2,
+
+    /// <summary>The <c>m</c> (multiline) flag.</summary>
+    Multiline = 1 << 3,
+
+    /// <summary>The <c>s</c> (dot all) flag.</summary>
+    DotAll = 1 << 4,
+
+    /// <summary>The <c>u</c> (unicode) flag.</summary>
+    Unicode = 1 << 5,
+
+    /// <summary>The <c>v</c> (unicode sets) flag.</summary>
+    UnicodeSets = 1 << 6,
+
+    /// <summary>The <c>y</c> (sticky) flag.</summary>
+    Sticky = 1 << 7,
 }
 
 internal static class EcmaRegexFlagParser

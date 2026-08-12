@@ -8,6 +8,7 @@ namespace Okojo.Globalization;
 /// </summary>
 public sealed class Collator
 {
+    /// <summary>Creates a collator for a locale, resolving the default <see cref="CompareInfo"/> from the locale.</summary>
     public Collator(
         string locale,
         CollatorOptions? options = null,
@@ -27,6 +28,7 @@ public sealed class Collator
         CompareOptions = compareOptions;
     }
 
+    /// <summary>Creates a collator from explicit option values and compare configuration.</summary>
     public Collator(
         string locale,
         string usage,
@@ -49,16 +51,34 @@ public sealed class Collator
     {
     }
 
+    /// <summary>The locale tag.</summary>
     public string Locale { get; }
+
+    /// <summary><c>"sort"</c> or <c>"search"</c>.</summary>
     public string Usage { get; }
+
+    /// <summary><c>"base"</c>, <c>"accent"</c>, <c>"case"</c>, or <c>"variant"</c>.</summary>
     public string Sensitivity { get; }
+
+    /// <summary>Whether punctuation is ignored.</summary>
     public bool IgnorePunctuation { get; }
+
+    /// <summary>The collation (<c>"default"</c>, <c>"phonebk"</c>, etc.).</summary>
     public string Collation { get; }
+
+    /// <summary>Whether numeric digit runs compare numerically.</summary>
     public bool Numeric { get; }
+
+    /// <summary><c>"false"</c>, <c>"upper"</c>, or <c>"lower"</c>.</summary>
     public string CaseFirst { get; }
+
+    /// <summary>The .NET compare info backing the collation.</summary>
     public CompareInfo CompareInfo { get; }
+
+    /// <summary>The .NET compare options backing the collation.</summary>
     public CompareOptions CompareOptions { get; }
 
+    /// <summary>Compares two strings per the collator configuration, returning -1/0/1.</summary>
     public int Compare(string x, string y)
     {
         x = x.Normalize(NormalizationForm.FormC);

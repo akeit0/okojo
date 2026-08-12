@@ -45,8 +45,13 @@ public sealed class EcmaRegex
         _unicode = (flags & (EcmaRegexFlagSet.Unicode | EcmaRegexFlagSet.UnicodeSets)) != 0;
     }
 
+    /// <summary>The original source pattern text.</summary>
     public string Pattern { get; }
+
+    /// <summary>The parsed ECMAScript flags.</summary>
     public EcmaRegexFlagSet Flags { get; }
+
+    /// <summary>The canonical flag string (e.g. <c>"dgimsuvy"</c>).</summary>
     public string FlagsText { get; }
 
     /// <summary>Number of explicit capturing groups, excluding group zero.</summary>
@@ -55,6 +60,7 @@ public sealed class EcmaRegex
     /// <summary>Required caller buffer length: group zero plus all explicit groups.</summary>
     public int RequiredCaptureCount { get; }
 
+    /// <summary>Maps each group name to its representative capture index.</summary>
     public IReadOnlyDictionary<string, int> GroupNames => _groupNames;
 
     /// <summary>
@@ -63,15 +69,21 @@ public sealed class EcmaRegex
     /// most recently matched index among the set.
     /// </summary>
     public IReadOnlyDictionary<string, int[]> NameGroups => _nameGroups;
+
+    /// <summary>True if <see cref="IsMatch(ReadOnlySpan{char},int)"/> uses the linear Boolean engine.</summary>
     public bool UsesLinearEngineForIsMatch => _linearProgram is not null;
+
+    /// <summary>Description of the Unicode data source used for property matching.</summary>
     public static string UnicodeDataSource => UnicodePropertyDatabase.DataSource;
 
+    /// <summary>Compiles a pattern with flags given as a string (e.g. <c>"gi"</c>).</summary>
     public static EcmaRegex Compile(
         string pattern,
         string? flags = null,
         EcmaRegexOptions? options = null
     ) => Compile(pattern, EcmaRegexFlagParser.Parse(flags), options);
 
+    /// <summary>Compiles a pattern with an explicit flag set.</summary>
     public static EcmaRegex Compile(
         string pattern,
         EcmaRegexFlagSet flags,
@@ -146,6 +158,7 @@ public sealed class EcmaRegex
         }
     }
 
+    /// <summary>Tests for a match over a span, starting at <paramref name="startIndex"/>.</summary>
     public bool IsMatch(string input, int startIndex = 0)
     {
         ArgumentNullException.ThrowIfNull(input);
@@ -164,6 +177,7 @@ public sealed class EcmaRegex
         return TryMatchCore(input, startIndex, sticky, captures, out match);
     }
 
+    /// <summary>Searches at or after index zero, unless the <c>y</c> flag is set.</summary>
     public bool TryMatch(
         ReadOnlySpan<char> input,
         Span<EcmaCapture> captures,
@@ -233,12 +247,14 @@ public sealed class EcmaRegex
             : null;
     }
 
+    /// <summary>Enumerates all non-overlapping matches over the input span.</summary>
     public MatchEnumerable EnumerateMatches(ReadOnlySpan<char> input, int startIndex = 0)
     {
         ValidateStart(input, startIndex);
         return new MatchEnumerable(this, input, startIndex);
     }
 
+    /// <summary>Returns the capture index for a named group, or throws if the name is unknown.</summary>
     public int GetCaptureIndex(string name)
     {
         ArgumentNullException.ThrowIfNull(name);
@@ -247,6 +263,7 @@ public sealed class EcmaRegex
             : throw new KeyNotFoundException($"No capture group named '{name}' exists.");
     }
 
+    /// <summary>Returns a human-readable disassembly of the compiled program.</summary>
     public string GetDebugView()
     {
         string linear = _linearProgram is null

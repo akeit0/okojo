@@ -601,7 +601,8 @@ public static class TimeZoneData
         ["Zulu"] = "Zulu"
     };
 
-    internal static bool TryGetCanonicalTimeZone(string timeZone, out string canonicalTimeZone)
+    /// <summary>Maps a time-zone identifier to its canonical identifier, returning false for unknown zones.</summary>
+    public static bool TryGetCanonicalTimeZone(string timeZone, out string canonicalTimeZone)
     {
         return CanonicalTimeZones.TryGetValue(timeZone, out canonicalTimeZone!);
     }

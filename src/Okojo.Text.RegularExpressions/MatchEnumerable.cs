@@ -16,9 +16,11 @@ public readonly ref struct MatchEnumerable
         _startIndex = startIndex;
     }
 
+    /// <summary>Returns an enumerator over successive non-overlapping matches.</summary>
     public MatchEnumerator GetEnumerator() => new(_regex, _input, _startIndex);
 }
 
+/// <summary>Enumeration over successive non-overlapping matches, renting one capture buffer.</summary>
 public ref struct MatchEnumerator
 {
     private readonly EcmaRegex _regex;
@@ -38,8 +40,10 @@ public ref struct MatchEnumerator
         _current = default;
     }
 
+    /// <summary>The current match view.</summary>
     public readonly MatchView Current => _current;
 
+    /// <summary>Advances to the next match, returning false when no more matches exist.</summary>
     public bool MoveNext()
     {
         EcmaCapture[]? array = _captures;
@@ -57,6 +61,7 @@ public ref struct MatchEnumerator
         return true;
     }
 
+    /// <summary>Returns the rented capture buffer to the pool.</summary>
     public void Dispose()
     {
         EcmaCapture[]? array = _captures;
@@ -68,6 +73,7 @@ public ref struct MatchEnumerator
     }
 }
 
+/// <summary>Allocation-free view of a single match and its captures over the input span.</summary>
 public readonly ref struct MatchView
 {
     private readonly ReadOnlySpan<char> _input;
@@ -84,12 +90,22 @@ public readonly ref struct MatchView
         Match = match;
     }
 
+    /// <summary>Metadata for the whole match.</summary>
     public EcmaMatch Match { get; }
+
+    /// <summary>Start offset of the whole match.</summary>
     public int Index => Match.Index;
+
+    /// <summary>Length of the whole match.</summary>
     public int Length => Match.Length;
+
+    /// <summary>Matched text of the whole match.</summary>
     public ReadOnlySpan<char> Value => Match.Value(_input);
+
+    /// <summary>All capture ranges, index zero being the whole match.</summary>
     public ReadOnlySpan<EcmaCapture> Captures => _captures;
 
+    /// <summary>Returns the captured text of a group, or empty if unmatched.</summary>
     public ReadOnlySpan<char> GroupValue(int group)
     {
         if ((uint)group >= (uint)_captures.Length)
