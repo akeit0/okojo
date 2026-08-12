@@ -1,7 +1,7 @@
 using System.Buffers;
 using System.Runtime.CompilerServices;
 
-namespace Okojo.Runtime;
+namespace Okojo.Numerics;
 
 internal ref struct PooledList<T>(int capacity)
 {

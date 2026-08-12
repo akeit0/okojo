@@ -1,8 +1,11 @@
 using System.Globalization;
 
-namespace Okojo.Runtime;
+namespace Okojo.Numerics;
 
-internal static class JsNumberFormatting
+/// <summary>
+///     ECMAScript <c>Number::toString(10)</c> shortest-decimal conversion.
+/// </summary>
+public static class NumberFormatting
 {
     public static string ToJsString(double number)
     {

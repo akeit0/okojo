@@ -720,7 +720,7 @@ public readonly struct JsValue : IEquatable<JsValue>
         if (IsUndefined) return "undefined";
         if (IsNull) return "null";
         if (IsNaN) return "NaN";
-        if (IsFloat64) return JsNumberFormatting.ToJsString(Float64Value);
+        if (IsFloat64) return NumberFormatting.ToJsString(Float64Value);
         if (IsTrue) return "true";
         if (IsFalse) return "false";
         if (IsInt32) return Int32Value.ToString();
@@ -736,7 +736,7 @@ public readonly struct JsValue : IEquatable<JsValue>
         if (IsUndefined) return "undefined";
         if (IsNull) return "null";
         if (IsNaN) return "NaN";
-        if (IsFloat64) return JsNumberFormatting.ToJsString(Float64Value);
+        if (IsFloat64) return NumberFormatting.ToJsString(Float64Value);
         if (IsTrue) return "true";
         if (IsFalse) return "false";
         if (IsInt32) return Int32Value.ToString();
@@ -768,7 +768,7 @@ public readonly struct JsValue : IEquatable<JsValue>
 
     public static string NumberToJsString(double number)
     {
-        return JsNumberFormatting.ToJsString(number);
+        return NumberFormatting.ToJsString(number);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]

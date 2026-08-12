@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>14</LangVersion>
+        <IsPackable>true</IsPackable>
+        <PackageId>Okojo.Numerics</PackageId>
+        <PackageVersion>$(OkojoPackageVersion_Okojo_Numerics)</PackageVersion>
+        <Description>Engine-independent ECMAScript-compatible numerics for .NET: BigInt, exact decimal, double/string conversion, and ECMA-262 time math.</Description>
+        <PackageTags>javascript;ecmascript;numerics;bigint;dotnet</PackageTags>
+    </PropertyGroup>
+    <ItemGroup>
+        <InternalsVisibleTo Include="Okojo"/>
+    </ItemGroup>
+</Project>

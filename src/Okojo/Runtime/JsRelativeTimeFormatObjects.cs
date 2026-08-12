@@ -294,7 +294,7 @@ internal sealed class JsRelativeTimeFormatObject : JsObject
 
     private string FormatNumber(double value)
     {
-        var raw = JsNumberFormatting.ToJsString(value);
+        var raw = NumberFormatting.ToJsString(value);
         var integerPart = raw;
         string? fractionPart = null;
         var dotIndex = raw.IndexOf('.');
@@ -344,7 +344,7 @@ internal sealed class JsRelativeTimeFormatObject : JsObject
 
     private IEnumerable<JsPlainObject> FormatNumberParts(double value, string unit)
     {
-        var raw = JsNumberFormatting.ToJsString(value);
+        var raw = NumberFormatting.ToJsString(value);
         var integerPart = raw;
         string? fractionPart = null;
         var dotIndex = raw.IndexOf('.');

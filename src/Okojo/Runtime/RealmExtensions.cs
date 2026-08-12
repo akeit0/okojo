@@ -828,7 +828,7 @@ internal static class RealmExtensions
         internal string ToJsStringSlowPath(in JsValue value)
         {
             if (value.IsString) return value.AsJsString().Flatten();
-            if (value.IsNumber) return JsNumberFormatting.ToJsString(value.NumberValue);
+            if (value.IsNumber) return NumberFormatting.ToJsString(value.NumberValue);
             if (value.IsBool) return value.IsTrue ? "true" : "false";
             if (value.IsNull) return "null";
             if (value.IsUndefined) return "undefined";
@@ -934,7 +934,7 @@ internal static class RealmExtensions
         internal JsString ToJsStringValueSlowPath(in JsValue value)
         {
             if (value.IsString) return value.AsJsString();
-            if (value.IsNumber) return JsNumberFormatting.ToJsString(value.NumberValue);
+            if (value.IsNumber) return NumberFormatting.ToJsString(value.NumberValue);
             if (value.IsBool) return value.IsTrue ? "true" : "false";
             if (value.IsNull) return "null";
             if (value.IsUndefined) return "undefined";

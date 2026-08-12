@@ -1,9 +1,12 @@
 using System.Globalization;
 using System.Numerics;
 
-namespace Okojo.Runtime;
+namespace Okojo.Numerics;
 
-internal static class JsNumberPrecisionFormatting
+/// <summary>
+///     ECMAScript number precision formatting helpers (exponential/fixed/significant-digits).
+/// </summary>
+public static class NumberPrecisionFormatting
 {
     public static string FormatExponential(double value, int fractionDigits)
     {
@@ -134,5 +137,5 @@ internal static class JsNumberPrecisionFormatting
         return (numerator * BigInteger.Pow(10, -exponent)).CompareTo(denominator);
     }
 
-    internal readonly record struct SignificantDigits(bool Negative, int Exponent, string Digits);
+    public readonly record struct SignificantDigits(bool Negative, int Exponent, string Digits);
 }

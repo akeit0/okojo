@@ -3,3 +3,4 @@ global using Okojo.Runtime.Interop;
 global using Okojo.Objects;
 global using Okojo.Values;
 global using Okojo.Runtime;
+global using Okojo.Numerics;

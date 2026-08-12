@@ -1,18 +1,18 @@
 using System.Runtime.CompilerServices;
 
-namespace Okojo.Internals;
+namespace Okojo.Numerics;
 
 /// <summary>
-///     https://raw.githubusercontent.com/es-shims/Math.sumPrecise/main/sum.js
+///     <see href="https://raw.githubusercontent.com/es-shims/Math.sumPrecise/main/sum.js"/>
 ///     adapted from
-///     https://github.com/tc39/proposal-math-sum/blob/f4286d0a9d8525bda61be486df964bf2527c8789/polyfill/polyfill.mjs
-///     https://www-2.cs.cmu.edu/afs/cs/project/quake/public/papers/robust-arithmetic.ps
+///     <see href="https://github.com/tc39/proposal-math-sum/blob/f4286d0a9d8525bda61be486df964bf2527c8789/polyfill/polyfill.mjs"/>
+///     <see href="https://www-2.cs.cmu.edu/afs/cs/project/quake/public/papers/robust-arithmetic.ps"/>
 ///     Shewchuk's algorithm for exactly floating point addition
 ///     as implemented in Python's fsum:
-///     https://github.com/python/cpython/blob/48dfd74a9db9d4aa9c6f23b4a67b461e5d977173/Modules/mathmodule.c#L1359-L1474
+///     <see href="https://github.com/python/cpython/blob/48dfd74a9db9d4aa9c6f23b4a67b461e5d977173/Modules/mathmodule.c#L1359-L1474"/>
 ///     adapted to handle overflow via an additional "biased" partial, representing 2**1024 times its actual value
 /// </summary>
-internal static class SumPrecise
+public static class SumPrecise
 {
     // exponent 11111111110, significand all 1s
     private const double MaxDouble = 1.79769313486231570815e+308; // i.e. (2**1024 - 2**(1023 - 52))
@@ -39,7 +39,7 @@ internal static class SumPrecise
     //  - none of them are -0, NaN, or ±Infinity
     //  - all of them are finite
     [MethodImpl(512)]
-    internal static double Sum(ReadOnlySpan<double> array)
+    public static double Sum(ReadOnlySpan<double> array)
     {
         double hi, lo;
 

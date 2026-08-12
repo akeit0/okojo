@@ -498,7 +498,7 @@ public partial class Intrinsics
             if (!sawValue || sawNegativeZeroOnly)
                 return BitConverter.Int64BitsToDouble(unchecked((long)0x8000000000000000UL));
 
-            return Internals.SumPrecise.Sum(values.AsSpan());
+            return Okojo.Numerics.SumPrecise.Sum(values.AsSpan());
         }
         finally
         {
