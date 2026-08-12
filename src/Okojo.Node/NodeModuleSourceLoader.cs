@@ -7,15 +7,17 @@ namespace Okojo.Node;
 
 internal sealed partial class NodeModuleSourceLoader(
     IModuleSourceLoader inner,
-    SourceMapRegistry? sourceMapRegistry = null)
-    : IModuleSourceLoader
+    SourceMapRegistry? sourceMapRegistry = null
+) : IModuleSourceLoader
 {
-    private const string NodeHostImportSymbolAccessor = "globalThis[Symbol.for(\"node.host.import\")]";
+    private const string NodeHostImportSymbolAccessor =
+        "globalThis[Symbol.for(\"node.host.import\")]";
     private readonly NodeModuleFormatResolver formatResolver = new(inner.LoadSource);
     private readonly NodeCommonJsResolver resolver = new(inner.ResolveSpecifier, inner.LoadSource);
 
-    private readonly NodeSourceMapLoader? sourceMapLoader =
-        sourceMapRegistry is null ? null : new NodeSourceMapLoader(sourceMapRegistry);
+    private readonly NodeSourceMapLoader? sourceMapLoader = sourceMapRegistry is null
+        ? null
+        : new NodeSourceMapLoader(sourceMapRegistry);
 
     public string ResolveSpecifier(string specifier, string? referrer)
     {
@@ -28,12 +30,15 @@ internal sealed partial class NodeModuleSourceLoader(
     public string LoadSource(string resolvedId)
     {
         if (NodeBuiltInModuleSource.IsBuiltInSpecifier(resolvedId))
-            return NodeBuiltInModuleSource.GetModuleSource(NodeBuiltInModuleSource.Canonicalize(resolvedId));
+            return NodeBuiltInModuleSource.GetModuleSource(
+                NodeBuiltInModuleSource.Canonicalize(resolvedId)
+            );
 
         if (formatResolver.DetermineFormat(resolvedId) == NodeModuleFormat.CommonJs)
             return CreateCommonJsImportModuleSource(
                 resolvedId,
-                DiscoverCommonJsExportNames(resolvedId));
+                DiscoverCommonJsExportNames(resolvedId)
+            );
 
         var source = inner.LoadSource(resolvedId);
         TryRegisterSourceMap(resolvedId, source);
@@ -43,7 +48,9 @@ internal sealed partial class NodeModuleSourceLoader(
     public string LoadRawSource(string resolvedId)
     {
         if (NodeBuiltInModuleSource.IsBuiltInSpecifier(resolvedId))
-            return NodeBuiltInModuleSource.GetModuleSource(NodeBuiltInModuleSource.Canonicalize(resolvedId));
+            return NodeBuiltInModuleSource.GetModuleSource(
+                NodeBuiltInModuleSource.Canonicalize(resolvedId)
+            );
 
         var source = inner.LoadSource(resolvedId);
         TryRegisterSourceMap(resolvedId, source);
@@ -55,11 +62,15 @@ internal sealed partial class NodeModuleSourceLoader(
         return formatResolver.DetermineFormat(resolvedId);
     }
 
-    private static string CreateCommonJsImportModuleSource(string resolvedId, IReadOnlyList<string> exportNames)
+    private static string CreateCommonJsImportModuleSource(
+        string resolvedId,
+        IReadOnlyList<string> exportNames
+    )
     {
         var escapedResolvedId = EscapeJavaScriptStringLiteral(resolvedId);
         var builder = new StringBuilder();
-        builder.Append("const nodeCjsDefault = ")
+        builder
+            .Append("const nodeCjsDefault = ")
             .Append(NodeHostImportSymbolAccessor)
             .Append("(\"")
             .Append(escapedResolvedId)
@@ -72,7 +83,8 @@ internal sealed partial class NodeModuleSourceLoader(
             if (!IsValidExportIdentifier(exportName))
                 continue;
 
-            builder.Append("export const ")
+            builder
+                .Append("export const ")
                 .Append(exportName)
                 .Append(" = nodeCjsDefault.")
                 .Append(exportName)
@@ -98,7 +110,11 @@ internal sealed partial class NodeModuleSourceLoader(
         return names.Count == 0 ? Array.Empty<string>() : names.ToArray();
     }
 
-    private void DiscoverCommonJsExportNamesCore(string resolvedId, HashSet<string> names, HashSet<string> visited)
+    private void DiscoverCommonJsExportNamesCore(
+        string resolvedId,
+        HashSet<string> names,
+        HashSet<string> visited
+    )
     {
         if (!visited.Add(resolvedId))
             return;
@@ -108,8 +124,14 @@ internal sealed partial class NodeModuleSourceLoader(
         {
             source = LoadRawSource(resolvedId);
         }
-        catch (Exception ex) when (ex is InvalidOperationException or FileNotFoundException
-                                       or DirectoryNotFoundException or UnauthorizedAccessException or IOException)
+        catch (Exception ex)
+            when (ex
+                    is InvalidOperationException
+                        or FileNotFoundException
+                        or DirectoryNotFoundException
+                        or UnauthorizedAccessException
+                        or IOException
+            )
         {
             return;
         }
@@ -123,8 +145,10 @@ internal sealed partial class NodeModuleSourceLoader(
         foreach (Match match in RequireAssignmentRegex().Matches(source))
         {
             var requiredSpecifier = match.Groups[1].Value;
-            if (!requiredSpecifier.StartsWith("./", StringComparison.Ordinal) &&
-                !requiredSpecifier.StartsWith("../", StringComparison.Ordinal))
+            if (
+                !requiredSpecifier.StartsWith("./", StringComparison.Ordinal)
+                && !requiredSpecifier.StartsWith("../", StringComparison.Ordinal)
+            )
                 continue;
 
             var requiredResolvedId = resolver.ResolveRequire(requiredSpecifier, resolvedId);
@@ -162,11 +186,13 @@ internal sealed partial class NodeModuleSourceLoader(
 
     [GeneratedRegex(
         @"(?:^|[;\r\n\s])(?:exports|module\.exports)\.([A-Za-z_$][A-Za-z0-9_$]*)\s*=",
-        RegexOptions.CultureInvariant)]
+        RegexOptions.CultureInvariant
+    )]
     private static partial Regex NamedExportAssignmentRegex();
 
     [GeneratedRegex(
         @"module\.exports\s*=\s*require\(\s*['""]([^'""]+)['""]\s*\)",
-        RegexOptions.CultureInvariant)]
+        RegexOptions.CultureInvariant
+    )]
     private static partial Regex RequireAssignmentRegex();
 }

@@ -28,7 +28,9 @@ public sealed partial class JsCompiler
                 EmitRaw(JsOpCode.ToString);
                 EmitRegisterSlotOp(JsOpCode.Add, lhsReg);
 
-                var quasiIdx = builder.AddObjectConstant(templateExpr.Quasis[i + 1] ?? string.Empty);
+                var quasiIdx = builder.AddObjectConstant(
+                    templateExpr.Quasis[i + 1] ?? string.Empty
+                );
                 EmitStarRegister(lhsReg);
                 EmitLdaStringConstantByIndex(quasiIdx);
                 EmitRegisterSlotOp(JsOpCode.Add, lhsReg);
@@ -68,9 +70,14 @@ public sealed partial class JsCompiler
                 {
                     if (!TryResolvePrivateMemberBinding(memberTag, out var privateBinding))
                         throw new NotSupportedException(
-                            "Private tagged template call shape is not supported in Okojo Phase 2.");
-                    EmitPrivateFieldOp(JsOpCode.GetPrivateField, objReg, privateBinding.BrandId,
-                        privateBinding.SlotIndex);
+                            "Private tagged template call shape is not supported in Okojo Phase 2."
+                        );
+                    EmitPrivateFieldOp(
+                        JsOpCode.GetPrivateField,
+                        objReg,
+                        privateBinding.BrandId,
+                        privateBinding.SlotIndex
+                    );
                 }
                 else if (memberTag.IsComputed)
                 {
@@ -81,7 +88,8 @@ public sealed partial class JsCompiler
                 {
                     if (!TryGetNamedMemberKey(memberTag, out var memberName))
                         throw new NotImplementedException(
-                            "Only non-private member tagged template calls are supported in Okojo Phase 1.");
+                            "Only non-private member tagged template calls are supported in Okojo Phase 1."
+                        );
                     var nameIdx = builder.AddAtomizedStringConstant(memberName);
                     var feedbackSlot = builder.AllocateFeedbackSlot();
                     EmitLdaNamedPropertyByIndex(objReg, nameIdx, feedbackSlot);

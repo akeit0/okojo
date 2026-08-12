@@ -9,7 +9,11 @@ namespace OkojoGameLoopSandbox;
 
 internal sealed class GameSandboxHost : IDisposable
 {
-    private static readonly HostTaskQueueKey[] SQueueOrder = [WebTaskQueueKeys.Timers, HostingTaskQueueKeys.Default];
+    private static readonly HostTaskQueueKey[] SQueueOrder =
+    [
+        WebTaskQueueKeys.Timers,
+        HostingTaskQueueKeys.Default,
+    ];
     private readonly List<string> appLogs = [];
     private readonly List<string> appSignals = [];
     private readonly CancellationTokenSource disposeCancellationSource = new();
@@ -48,7 +52,8 @@ internal sealed class GameSandboxHost : IDisposable
 
         var eventLoop = new ManualHostEventLoop(TimeProvider.System);
         var moduleLoader = new GameModuleLoader(assets);
-        var runtime = JsRuntime.CreateBuilder()
+        var runtime = JsRuntime
+            .CreateBuilder()
             .UseLowLevelHost(host => host.UseTaskScheduler(eventLoop))
             .UseModuleSourceLoader(moduleLoader)
             .UseWebDelayScheduler(eventLoop)
@@ -58,7 +63,8 @@ internal sealed class GameSandboxHost : IDisposable
             {
                 agent.ApplyExecutionBudget(
                     initialBudget.MaxInstructions,
-                    checkInterval: initialBudget.CheckInterval);
+                    checkInterval: initialBudget.CheckInterval
+                );
             })
             .Build();
 
@@ -71,12 +77,18 @@ internal sealed class GameSandboxHost : IDisposable
     {
         var result = Runtime.LoadModule(specifier);
         if (!result.IsCompleted)
-            throw new InvalidOperationException("This sandbox expects sync module linking/evaluation at load time.");
+            throw new InvalidOperationException(
+                "This sandbox expects sync module linking/evaluation at load time."
+            );
         return result.Namespace;
     }
 
-    public FrameRunResult RunFrames(JsModuleNamespace module, int frameCount, FrameBudget budget,
-        int framesPerSecond = 30)
+    public FrameRunResult RunFrames(
+        JsModuleNamespace module,
+        int frameCount,
+        FrameBudget budget,
+        int framesPerSecond = 30
+    )
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(frameCount);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(framesPerSecond);
@@ -98,14 +110,10 @@ internal sealed class GameSandboxHost : IDisposable
             {
                 Runtime.MainAgent.ResetExecutionBudget(budget.MaxInstructions, budget.MaxWallTime);
                 module.CallExport("update", JsValue.FromInt32(frame), new JsValue(frameDurationMs));
-                while (HostTurnRunner.RunTurn(eventLoop, pump, SQueueOrder))
-                {
-                }
+                while (HostTurnRunner.RunTurn(eventLoop, pump, SQueueOrder)) { }
 
                 DrainFrameWaiters(frame);
-                while (HostTurnRunner.RunTurn(eventLoop, pump, SQueueOrder))
-                {
-                }
+                while (HostTurnRunner.RunTurn(eventLoop, pump, SQueueOrder)) { }
             }
             catch (JsRuntimeException ex) when (IsFrameBudgetError(ex))
             {
@@ -123,28 +131,46 @@ internal sealed class GameSandboxHost : IDisposable
 
     private static bool IsFrameBudgetError(JsRuntimeException ex)
     {
-        return string.Equals(ex.DetailCode, "EXECUTION_LIMIT_EXCEEDED", StringComparison.Ordinal) ||
-               string.Equals(ex.DetailCode, "EXECUTION_TIMEOUT_EXCEEDED", StringComparison.Ordinal);
+        return string.Equals(ex.DetailCode, "EXECUTION_LIMIT_EXCEEDED", StringComparison.Ordinal)
+            || string.Equals(ex.DetailCode, "EXECUTION_TIMEOUT_EXCEEDED", StringComparison.Ordinal);
     }
 
     private void InstallAppApi(JsRealm realm, FrameBudget initialBudget)
     {
         var app = new JsPlainObject(realm);
         app.DefineDataProperty("targetFps", JsValue.FromInt32(30), JsShapePropertyFlags.Open);
-        app.DefineDataProperty("maxInstructionsPerFrame", new(initialBudget.MaxInstructions),
-            JsShapePropertyFlags.Open);
-        app.DefineDataProperty("maxFrameTimeMs", new(initialBudget.MaxWallTime.TotalMilliseconds),
-            JsShapePropertyFlags.Open);
+        app.DefineDataProperty(
+            "maxInstructionsPerFrame",
+            new(initialBudget.MaxInstructions),
+            JsShapePropertyFlags.Open
+        );
+        app.DefineDataProperty(
+            "maxFrameTimeMs",
+            new(initialBudget.MaxWallTime.TotalMilliseconds),
+            JsShapePropertyFlags.Open
+        );
         app.DefineDataProperty("frame", JsValue.FromInt32(0), JsShapePropertyFlags.Open);
         app.DefineDataProperty("deltaMs", JsValue.FromInt32(0), JsShapePropertyFlags.Open);
-        app.DefineDataProperty("log", JsValue.FromObject(new JsHostFunction(realm, "log", 1, Log)),
-            JsShapePropertyFlags.Open);
-        app.DefineDataProperty("emit", JsValue.FromObject(new JsHostFunction(realm, "emit", 1, Emit)),
-            JsShapePropertyFlags.Open);
-        app.DefineDataProperty("delayMs", JsValue.FromObject(new JsHostFunction(realm, "delayMs", 1, DelayMs)),
-            JsShapePropertyFlags.Open);
-        app.DefineDataProperty("waitFrames", JsValue.FromObject(new JsHostFunction(realm, "waitFrames", 1, WaitFrames)),
-            JsShapePropertyFlags.Open);
+        app.DefineDataProperty(
+            "log",
+            JsValue.FromObject(new JsHostFunction(realm, "log", 1, Log)),
+            JsShapePropertyFlags.Open
+        );
+        app.DefineDataProperty(
+            "emit",
+            JsValue.FromObject(new JsHostFunction(realm, "emit", 1, Emit)),
+            JsShapePropertyFlags.Open
+        );
+        app.DefineDataProperty(
+            "delayMs",
+            JsValue.FromObject(new JsHostFunction(realm, "delayMs", 1, DelayMs)),
+            JsShapePropertyFlags.Open
+        );
+        app.DefineDataProperty(
+            "waitFrames",
+            JsValue.FromObject(new JsHostFunction(realm, "waitFrames", 1, WaitFrames)),
+            JsShapePropertyFlags.Open
+        );
         realm.Global["app"] = JsValue.FromObject(app);
         return;
 
@@ -171,11 +197,20 @@ internal sealed class GameSandboxHost : IDisposable
             var operation = eventLoop.ScheduleDelayed(
                 TimeSpan.FromMilliseconds(delayMs),
                 WebTaskQueueKeys.Timers,
-                static state => { _ = ((SandboxAwaitableSource)state!).TryResolve(); },
-                awaitable);
+                static state =>
+                {
+                    _ = ((SandboxAwaitableSource)state!).TryResolve();
+                },
+                awaitable
+            );
             awaitable.CancelOn(disposeCancellationSource.Token);
             _ = disposeCancellationSource.Token.Register(
-                static state => { _ = ((IHostDelayedOperation)state!).Cancel(); }, operation);
+                static state =>
+                {
+                    _ = ((IHostDelayedOperation)state!).Cancel();
+                },
+                operation
+            );
             return awaitable.ThenableValue;
         }
 
@@ -191,7 +226,10 @@ internal sealed class GameSandboxHost : IDisposable
 
     private void UpdateAppFrameState(int frame, int frameDurationMs)
     {
-        if (!Runtime.MainRealm.Global.TryGetValue("app", out var appValue) || !appValue.TryGetObject(out var appObject))
+        if (
+            !Runtime.MainRealm.Global.TryGetValue("app", out var appValue)
+            || !appValue.TryGetObject(out var appObject)
+        )
             return;
 
         appObject.SetProperty("frame", JsValue.FromInt32(frame));
@@ -244,7 +282,8 @@ internal sealed class GameSandboxHost : IDisposable
 
     private sealed class SandboxAwaitableSource
     {
-        private static readonly ConditionalWeakTable<JsRealm, JsHostFunction> SThenFunctions = new();
+        private static readonly ConditionalWeakTable<JsRealm, JsHostFunction> SThenFunctions =
+            new();
         private readonly object gate = new();
         private readonly JsUserDataObject<SandboxAwaitableSource> thenableObject;
         private CancellationTokenRegistration cancellationRegistration;
@@ -260,9 +299,14 @@ internal sealed class GameSandboxHost : IDisposable
             thenableObject.UserData = this;
             thenableObject.DefineDataProperty(
                 "then",
-                JsValue.FromObject(SThenFunctions.GetValue(realm, static realm =>
-                    new(realm, "then", 2, ThenBody, false))),
-                JsShapePropertyFlags.Open);
+                JsValue.FromObject(
+                    SThenFunctions.GetValue(
+                        realm,
+                        static realm => new(realm, "then", 2, ThenBody, false)
+                    )
+                ),
+                JsShapePropertyFlags.Open
+            );
             settlementValue = JsValue.Undefined;
         }
 
@@ -296,7 +340,12 @@ internal sealed class GameSandboxHost : IDisposable
             }
 
             var registration = cancellationToken.Register(
-                static state => { _ = ((SandboxAwaitableSource)state!).TryCancel("Game sandbox canceled"); }, this);
+                static state =>
+                {
+                    _ = ((SandboxAwaitableSource)state!).TryCancel("Game sandbox canceled");
+                },
+                this
+            );
 
             CancellationTokenRegistration previousRegistration = default;
             var disposePrevious = false;
@@ -328,11 +377,15 @@ internal sealed class GameSandboxHost : IDisposable
 
         private static JsValue ThenBody(scoped in CallInfo info)
         {
-            if (!info.ThisValue.TryGetObject(out var thisObj) ||
-                thisObj is not JsUserDataObject<SandboxAwaitableSource> awaitableObject ||
-                awaitableObject.UserData is not SandboxAwaitableSource source)
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Sandbox awaitable called on incompatible receiver.");
+            if (
+                !info.ThisValue.TryGetObject(out var thisObj)
+                || thisObj is not JsUserDataObject<SandboxAwaitableSource> awaitableObject
+                || awaitableObject.UserData is not SandboxAwaitableSource source
+            )
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Sandbox awaitable called on incompatible receiver."
+                );
 
             return source.OnThen(in info);
         }
@@ -424,7 +477,11 @@ internal sealed class GameSandboxHost : IDisposable
             return value.TryGetObject(out var obj) && obj is JsFunction function ? function : null;
         }
 
-        private static void InvokeHandler(PendingHandler handler, SettlementKind kind, JsValue value)
+        private static void InvokeHandler(
+            PendingHandler handler,
+            SettlementKind kind,
+            JsValue value
+        )
         {
             var callback = kind == SettlementKind.Resolved ? handler.Resolve : handler.Reject;
             if (callback is null)
@@ -433,7 +490,11 @@ internal sealed class GameSandboxHost : IDisposable
             _ = handler.Realm.Call(callback, JsValue.Undefined, value);
         }
 
-        private readonly struct PendingHandler(JsRealm realm, JsFunction? resolve, JsFunction? reject)
+        private readonly struct PendingHandler(
+            JsRealm realm,
+            JsFunction? resolve,
+            JsFunction? reject
+        )
         {
             public readonly JsRealm Realm = realm;
             public readonly JsFunction? Resolve = resolve;
@@ -444,7 +505,7 @@ internal sealed class GameSandboxHost : IDisposable
         {
             Pending,
             Resolved,
-            Rejected
+            Rejected,
         }
     }
 

@@ -2,14 +2,19 @@ namespace Okojo.Objects;
 
 public sealed class JsPlainObject : JsObject
 {
-    public JsPlainObject(JsRealm realm, bool assignDefaultPrototype = true, bool useDictionaryMode = false)
+    public JsPlainObject(
+        JsRealm realm,
+        bool assignDefaultPrototype = true,
+        bool useDictionaryMode = false
+    )
         : base(realm, useDictionaryMode)
     {
         if (assignDefaultPrototype)
             Prototype = realm.ObjectPrototype;
     }
 
-    public JsPlainObject(StaticNamedPropertyLayout shape, bool assignDefaultPrototype = true) : base(shape)
+    public JsPlainObject(StaticNamedPropertyLayout shape, bool assignDefaultPrototype = true)
+        : base(shape)
     {
         if (assignDefaultPrototype)
             Prototype = shape.Owner.ObjectPrototype;

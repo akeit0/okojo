@@ -9,13 +9,13 @@ public enum JsLocalDebugFlags : byte
     Parameter = 1 << 2,
     Const = 1 << 3,
     CapturedByChild = 1 << 4,
-    ImmutableFunctionName = 1 << 5
+    ImmutableFunctionName = 1 << 5,
 }
 
 public enum JsLocalDebugStorageKind : byte
 {
     Register = 0,
-    ContextSlot = 1
+    ContextSlot = 1,
 }
 
 public readonly record struct JsLocalDebugInfo(
@@ -24,7 +24,8 @@ public readonly record struct JsLocalDebugInfo(
     int StorageIndex,
     int StartPc,
     int EndPc,
-    JsLocalDebugFlags Flags)
+    JsLocalDebugFlags Flags
+)
 {
     public bool IsLiveAt(int pc)
     {

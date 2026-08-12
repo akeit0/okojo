@@ -7,5 +7,5 @@ internal enum CompilerCollectedScopeKind : byte
     Block = 2,
     Catch = 3,
     Class = 4,
-    StaticBlock = 5
+    StaticBlock = 5,
 }

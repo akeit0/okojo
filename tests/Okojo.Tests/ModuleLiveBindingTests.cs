@@ -8,13 +8,15 @@ public class ModuleLiveBindingTests
     [Test]
     public void EvaluateModule_ExportedLocalBinding_IsLive()
     {
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/live.js"] = """
-                                export let x = 1;
-                                export function inc() { x = x + 1; }
-                                """
-        });
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal)
+            {
+                ["/mods/live.js"] = """
+                export let x = 1;
+                export function inc() { x = x + 1; }
+                """,
+            }
+        );
 
         var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var realm = engine.MainRealm;
@@ -28,7 +30,11 @@ public class ModuleLiveBindingTests
         Assert.That(nsObj.TryGetProperty("inc", out var incValue), Is.True);
         Assert.That(incValue.TryGetObject(out var incObj), Is.True);
         Assert.That(incObj, Is.InstanceOf<JsFunction>());
-        _ = realm.InvokeFunction((JsFunction)incObj!, JsValue.Undefined, ReadOnlySpan<JsValue>.Empty);
+        _ = realm.InvokeFunction(
+            (JsFunction)incObj!,
+            JsValue.Undefined,
+            ReadOnlySpan<JsValue>.Empty
+        );
 
         Assert.That(nsObj.TryGetProperty("x", out var after), Is.True);
         Assert.That(after.Int32Value, Is.EqualTo(2));
@@ -37,14 +43,16 @@ public class ModuleLiveBindingTests
     [Test]
     public void EvaluateModule_ExportFromBinding_IsLive()
     {
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/dep.js"] = """
-                               export let x = 1;
-                               export function inc() { x = x + 1; }
-                               """,
-            ["/mods/main.js"] = """export { x, inc } from "./dep.js";"""
-        });
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal)
+            {
+                ["/mods/dep.js"] = """
+                export let x = 1;
+                export function inc() { x = x + 1; }
+                """,
+                ["/mods/main.js"] = """export { x, inc } from "./dep.js";""",
+            }
+        );
 
         var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var realm = engine.MainRealm;
@@ -55,7 +63,11 @@ public class ModuleLiveBindingTests
         Assert.That(nsObj!.TryGetProperty("inc", out var incValue), Is.True);
         Assert.That(incValue.TryGetObject(out var incObj), Is.True);
         Assert.That(incObj, Is.InstanceOf<JsFunction>());
-        _ = realm.InvokeFunction((JsFunction)incObj!, JsValue.Undefined, ReadOnlySpan<JsValue>.Empty);
+        _ = realm.InvokeFunction(
+            (JsFunction)incObj!,
+            JsValue.Undefined,
+            ReadOnlySpan<JsValue>.Empty
+        );
 
         Assert.That(nsObj.TryGetProperty("x", out var xValue), Is.True);
         Assert.That(xValue.Int32Value, Is.EqualTo(2));
@@ -64,14 +76,16 @@ public class ModuleLiveBindingTests
     [Test]
     public void EvaluateModule_ExportStarBinding_IsLive()
     {
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/dep.js"] = """
-                               export let x = 1;
-                               export function inc() { x = x + 1; }
-                               """,
-            ["/mods/main.js"] = """export * from "./dep.js";"""
-        });
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal)
+            {
+                ["/mods/dep.js"] = """
+                export let x = 1;
+                export function inc() { x = x + 1; }
+                """,
+                ["/mods/main.js"] = """export * from "./dep.js";""",
+            }
+        );
 
         var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var realm = engine.MainRealm;
@@ -82,7 +96,11 @@ public class ModuleLiveBindingTests
         Assert.That(nsObj!.TryGetProperty("inc", out var incValue), Is.True);
         Assert.That(incValue.TryGetObject(out var incObj), Is.True);
         Assert.That(incObj, Is.InstanceOf<JsFunction>());
-        _ = realm.InvokeFunction((JsFunction)incObj!, JsValue.Undefined, ReadOnlySpan<JsValue>.Empty);
+        _ = realm.InvokeFunction(
+            (JsFunction)incObj!,
+            JsValue.Undefined,
+            ReadOnlySpan<JsValue>.Empty
+        );
 
         Assert.That(nsObj.TryGetProperty("x", out var xValue), Is.True);
         Assert.That(xValue.Int32Value, Is.EqualTo(2));
@@ -91,18 +109,22 @@ public class ModuleLiveBindingTests
     [Test]
     public void EvaluateModule_NamespaceObject_GetOwnPropertyDescriptor_On_Uninitialized_Export_Throws()
     {
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/main.js"] = """
-                                import * as ns from "./main.js";
-                                Object.getOwnPropertyDescriptor(ns, "local1");
-                                export let local1 = 23;
-                                """
-        });
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal)
+            {
+                ["/mods/main.js"] = """
+                import * as ns from "./main.js";
+                Object.getOwnPropertyDescriptor(ns, "local1");
+                export let local1 = 23;
+                """,
+            }
+        );
 
         var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var realm = engine.MainRealm;
-        var ex = Assert.Throws<JsRuntimeException>(() => engine.MainAgent.EvaluateModule(realm, "/mods/main.js"));
+        var ex = Assert.Throws<JsRuntimeException>(() =>
+            engine.MainAgent.EvaluateModule(realm, "/mods/main.js")
+        );
         Assert.That(ex, Is.Not.Null);
         Assert.That(ex!.Kind, Is.EqualTo(JsErrorKind.ReferenceError));
     }
@@ -110,18 +132,22 @@ public class ModuleLiveBindingTests
     [Test]
     public void EvaluateModule_NamespaceObject_Freeze_With_Exported_Bindings_Throws()
     {
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/main.js"] = """
-                                import * as ns from "./main.js";
-                                export var local1;
-                                Object.freeze(ns);
-                                """
-        });
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal)
+            {
+                ["/mods/main.js"] = """
+                import * as ns from "./main.js";
+                export var local1;
+                Object.freeze(ns);
+                """,
+            }
+        );
 
         var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var realm = engine.MainRealm;
-        var ex = Assert.Throws<JsRuntimeException>(() => engine.MainAgent.EvaluateModule(realm, "/mods/main.js"));
+        var ex = Assert.Throws<JsRuntimeException>(() =>
+            engine.MainAgent.EvaluateModule(realm, "/mods/main.js")
+        );
         Assert.That(ex, Is.Not.Null);
         Assert.That(ex!.Kind, Is.EqualTo(JsErrorKind.TypeError));
     }
@@ -129,15 +155,17 @@ public class ModuleLiveBindingTests
     [Test]
     public void EvaluateModule_NamespaceObject_IsFrozen_Remains_False_After_Freeze_Throws()
     {
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/main.js"] = """
-                                import * as ns from "./main.js";
-                                try { Object.freeze(ns); } catch {}
-                                export var local1;
-                                export default Object.isFrozen(ns);
-                                """
-        });
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal)
+            {
+                ["/mods/main.js"] = """
+                import * as ns from "./main.js";
+                try { Object.freeze(ns); } catch {}
+                export var local1;
+                export default Object.isFrozen(ns);
+                """,
+            }
+        );
 
         var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var realm = engine.MainRealm;
@@ -147,7 +175,8 @@ public class ModuleLiveBindingTests
         Assert.That(frozenValue.IsFalse, Is.True);
     }
 
-    private sealed class InMemoryModuleLoader(Dictionary<string, string> modules) : IModuleSourceLoader
+    private sealed class InMemoryModuleLoader(Dictionary<string, string> modules)
+        : IModuleSourceLoader
     {
         public string ResolveSpecifier(string specifier, string? referrer)
         {

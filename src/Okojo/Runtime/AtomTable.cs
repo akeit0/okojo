@@ -470,7 +470,6 @@ public sealed class AtomTable
     public const int IdUse = 461; // "use"
     public const int IdDisposeAsync = 462; // "disposeAsync"
 
-
     // Symbol-keyed property atoms are negative to avoid collisions with string atoms.
     public const int IdSymbolIterator = -1;
     public const int IdSymbolHasInstance = -2;
@@ -952,7 +951,7 @@ public sealed class AtomTable
         "promise",
         "suppressed",
         "use",
-        "disposeAsync"
+        "disposeAsync",
     };
 
     private static readonly string[] PredefinedSymbolAtoms =
@@ -971,13 +970,12 @@ public sealed class AtomTable
         "Symbol.matchAll",
         "Symbol.split",
         "Symbol.search",
-        "Symbol.asyncDispose"
+        "Symbol.asyncDispose",
     ];
 
     private readonly Dictionary<string, int> atomByString = new(StringComparer.Ordinal);
     private readonly List<string> stringByAtom = new();
     private readonly List<Symbol> symbolByAtom = new();
-
 
     public AtomTable()
     {
@@ -994,7 +992,10 @@ public sealed class AtomTable
         for (var i = 0; i < PredefinedSymbolAtoms.Length; i++)
         {
             var name = PredefinedSymbolAtoms[i];
-            Debug.Assert(predefinedSymbolSet.Add(name), $"Duplicate predefined symbol string: {name}");
+            Debug.Assert(
+                predefinedSymbolSet.Add(name),
+                $"Duplicate predefined symbol string: {name}"
+            );
             var atom = -i - 1;
             symbolByAtom.Add(new(atom, name, true));
         }
@@ -1004,10 +1005,12 @@ public sealed class AtomTable
     public static bool TryGetArrayIndexFromCanonicalString(string text, out uint index)
     {
         index = 0;
-        if (string.IsNullOrEmpty(text)) return false;
+        if (string.IsNullOrEmpty(text))
+            return false;
 
         var firstChar = text[0];
-        if (firstChar is < '0' or > '9') return false;
+        if (firstChar is < '0' or > '9')
+            return false;
         return TryGetArrayIndexFromCanonicalStringSlowPath(text, out index);
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -1063,7 +1066,8 @@ public sealed class AtomTable
 #if DEBUG
         if (TryGetArrayIndexFromCanonicalString(name, out _))
             throw new InvalidOperationException(
-                $"InternNoCheck received canonical array-index string '{name}'.");
+                $"InternNoCheck received canonical array-index string '{name}'."
+            );
 #endif
 
         atom = stringByAtom.Count;

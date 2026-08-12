@@ -4,7 +4,10 @@ public sealed partial class JsCompiler
 {
     private int GetOrCreateSymbolId(string name)
     {
-        if (identifierTable is not null && identifierTable.TryGetIdentifierId(name, out var identifierId))
+        if (
+            identifierTable is not null
+            && identifierTable.TryGetIdentifierId(name, out var identifierId)
+        )
             return CompilerSymbolId.FromSourceIdentifier(identifierId).Value;
         if (syntheticSymbolIdsByName.TryGetValue(name, out var existingSymbolId))
             return existingSymbolId;
@@ -47,7 +50,9 @@ public sealed partial class JsCompiler
         if (symbolId == SuperBaseSymbolId)
             return SuperBaseInternalBindingName;
         if (CompilerSymbolId.IsSourceIdentifier(symbolId) && identifierTable is not null)
-            return identifierTable.GetIdentifierLiteral(CompilerSymbolId.GetSourceIdentifierId(symbolId));
+            return identifierTable.GetIdentifierLiteral(
+                CompilerSymbolId.GetSourceIdentifierId(symbolId)
+            );
         if (symbolNamesById.TryGetValue(symbolId, out var name))
             return name;
         return $"<symbol:{symbolId}>";
@@ -58,8 +63,11 @@ public sealed partial class JsCompiler
         return localBindingInfoById.TryGetValue(symbolId, out info);
     }
 
-    private bool TryGetResolvedAliasSymbolId(CompilerIdentifierName identifier, out int symbolId,
-        out string resolvedName)
+    private bool TryGetResolvedAliasSymbolId(
+        CompilerIdentifierName identifier,
+        out int symbolId,
+        out string resolvedName
+    )
     {
         foreach (var scope in activeBlockLexicalAliases)
         {
@@ -74,7 +82,9 @@ public sealed partial class JsCompiler
                 {
                     if (identifier.NameId >= 0)
                     {
-                        var sourceSymbolId = CompilerSymbolId.FromSourceIdentifier(identifier.NameId).Value;
+                        var sourceSymbolId = CompilerSymbolId
+                            .FromSourceIdentifier(identifier.NameId)
+                            .Value;
                         if (locals.ContainsKey(sourceSymbolId))
                         {
                             symbolId = sourceSymbolId;
@@ -82,16 +92,20 @@ public sealed partial class JsCompiler
                             return true;
                         }
                     }
-                    else if (TryGetSymbolId(identifier.Name, out var directSymbolId) &&
-                             locals.ContainsKey(directSymbolId))
+                    else if (
+                        TryGetSymbolId(identifier.Name, out var directSymbolId)
+                        && locals.ContainsKey(directSymbolId)
+                    )
                     {
                         symbolId = directSymbolId;
                         resolvedName = identifier.Name;
                         return true;
                     }
 
-                    if (!TryGetSymbolId(binding.InternalName, out var inheritedInternalSymbolId) ||
-                        !locals.ContainsKey(inheritedInternalSymbolId))
+                    if (
+                        !TryGetSymbolId(binding.InternalName, out var inheritedInternalSymbolId)
+                        || !locals.ContainsKey(inheritedInternalSymbolId)
+                    )
                         continue;
 
                     symbolId = inheritedInternalSymbolId;
@@ -116,12 +130,17 @@ public sealed partial class JsCompiler
         return false;
     }
 
-    private bool TryGetMatchingSourceIdentifierSymbolId(CompilerIdentifierName identifier, out int symbolId)
+    private bool TryGetMatchingSourceIdentifierSymbolId(
+        CompilerIdentifierName identifier,
+        out int symbolId
+    )
     {
-        if (identifier.NameId >= 0 &&
-            identifierTable is not null &&
-            identifierTable.TryGetIdentifierId(identifier.Name, out var identifierId) &&
-            identifierId == identifier.NameId)
+        if (
+            identifier.NameId >= 0
+            && identifierTable is not null
+            && identifierTable.TryGetIdentifierId(identifier.Name, out var identifierId)
+            && identifierId == identifier.NameId
+        )
         {
             symbolId = CompilerSymbolId.FromSourceIdentifier(identifier.NameId).Value;
             return true;
@@ -131,7 +150,10 @@ public sealed partial class JsCompiler
         return false;
     }
 
-    private int GetOrCreateResolvedAliasSymbolId(CompilerIdentifierName identifier, out string resolvedName)
+    private int GetOrCreateResolvedAliasSymbolId(
+        CompilerIdentifierName identifier,
+        out string resolvedName
+    )
     {
         if (TryGetResolvedAliasSymbolId(identifier, out var symbolId, out resolvedName))
             return symbolId;
@@ -140,12 +162,23 @@ public sealed partial class JsCompiler
         return GetOrCreateSymbolId(identifier.Name);
     }
 
-    private bool TryGetResolvedAliasSymbolId(string sourceName, out int symbolId, out string resolvedName)
+    private bool TryGetResolvedAliasSymbolId(
+        string sourceName,
+        out int symbolId,
+        out string resolvedName
+    )
     {
-        return TryGetResolvedAliasSymbolId(new CompilerIdentifierName(sourceName), out symbolId, out resolvedName);
+        return TryGetResolvedAliasSymbolId(
+            new CompilerIdentifierName(sourceName),
+            out symbolId,
+            out resolvedName
+        );
     }
 
-    private bool TryResolveLocalBinding(CompilerIdentifierName identifier, out ResolvedLocalBinding binding)
+    private bool TryResolveLocalBinding(
+        CompilerIdentifierName identifier,
+        out ResolvedLocalBinding binding
+    )
     {
         if (TryGetResolvedAliasSymbolId(identifier, out var symbolId, out var resolvedName))
         {
@@ -164,7 +197,8 @@ public sealed partial class JsCompiler
 
     private bool IsKnownInitializedLexical(string resolvedName)
     {
-        return TryGetSymbolId(resolvedName, out var symbolId) && knownInitializedLexicals.Contains(symbolId);
+        return TryGetSymbolId(resolvedName, out var symbolId)
+            && knownInitializedLexicals.Contains(symbolId);
     }
 
     private bool IsKnownInitializedLexical(int symbolId)
@@ -190,7 +224,8 @@ public sealed partial class JsCompiler
 
     private bool ShouldSkipLexicalRegisterHoleInit(string resolvedName)
     {
-        return TryGetSymbolId(resolvedName, out var symbolId) && skipLexicalRegisterPrologueHoleInit.Contains(symbolId);
+        return TryGetSymbolId(resolvedName, out var symbolId)
+            && skipLexicalRegisterPrologueHoleInit.Contains(symbolId);
     }
 
     private bool ShouldSkipLexicalRegisterHoleInit(int symbolId)
@@ -210,7 +245,8 @@ public sealed partial class JsCompiler
 
     private bool IsSwitchLexicalInternal(string resolvedName)
     {
-        return TryGetSymbolId(resolvedName, out var symbolId) && switchLexicalInternalNames.Contains(symbolId);
+        return TryGetSymbolId(resolvedName, out var symbolId)
+            && switchLexicalInternalNames.Contains(symbolId);
     }
 
     private bool IsSwitchLexicalInternal(int symbolId)
@@ -240,15 +276,18 @@ public sealed partial class JsCompiler
 
     private bool IsParameterLocalBinding(string name)
     {
-        if (TryGetSymbolId(name, out var symbolId) && localBindingInfoById.TryGetValue(symbolId, out var info))
+        if (
+            TryGetSymbolId(name, out var symbolId)
+            && localBindingInfoById.TryGetValue(symbolId, out var info)
+        )
             return (info.Flags & LocalBindingFlags.Parameter) != 0;
         return false;
     }
 
     private bool IsParameterLocalBinding(int symbolId)
     {
-        return TryGetLocalBindingInfo(symbolId, out var info) &&
-               (info.Flags & LocalBindingFlags.Parameter) != 0;
+        return TryGetLocalBindingInfo(symbolId, out var info)
+            && (info.Flags & LocalBindingFlags.Parameter) != 0;
     }
 
     private void ClearParameterBindingFlags()
@@ -278,7 +317,8 @@ public sealed partial class JsCompiler
 
     private bool IsInitializedParameterBinding(string resolvedName)
     {
-        return TryGetSymbolId(resolvedName, out var symbolId) && initializedParameterBindingIds.Contains(symbolId);
+        return TryGetSymbolId(resolvedName, out var symbolId)
+            && initializedParameterBindingIds.Contains(symbolId);
     }
 
     private bool IsInitializedParameterBinding(int symbolId)
@@ -304,13 +344,15 @@ public sealed partial class JsCompiler
     private void MarkLexicalBinding(string name, bool isConst)
     {
         AddBindingFlags(name, LocalBindingFlags.Lexical);
-        if (isConst) AddBindingFlags(name, LocalBindingFlags.Const);
+        if (isConst)
+            AddBindingFlags(name, LocalBindingFlags.Const);
     }
 
     private void MarkLexicalBinding(int symbolId, bool isConst)
     {
         AddBindingFlags(symbolId, LocalBindingFlags.Lexical);
-        if (isConst) AddBindingFlags(symbolId, LocalBindingFlags.Const);
+        if (isConst)
+            AddBindingFlags(symbolId, LocalBindingFlags.Const);
     }
 
     private void MarkCapturedByChildBinding(string name)
@@ -333,9 +375,11 @@ public sealed partial class JsCompiler
 
     private void MarkImmutableFunctionNameBinding(int symbolId)
     {
-        AddBindingFlags(symbolId, LocalBindingFlags.Lexical | LocalBindingFlags.ImmutableFunctionName);
+        AddBindingFlags(
+            symbolId,
+            LocalBindingFlags.Lexical | LocalBindingFlags.ImmutableFunctionName
+        );
     }
-
 
     private void SetLocalBindingRegister(string name, int register)
     {
@@ -367,7 +411,10 @@ public sealed partial class JsCompiler
 
     private bool TryGetLocalRegister(string name, out int reg)
     {
-        if (!TryGetSymbolId(name, out var symbolId) || !locals.TryGetValue(symbolId, out var localReg))
+        if (
+            !TryGetSymbolId(name, out var symbolId)
+            || !locals.TryGetValue(symbolId, out var localReg)
+        )
         {
             reg = -1;
             return false;
@@ -401,7 +448,9 @@ public sealed partial class JsCompiler
         localBindingInfoById[symbolId] = new()
         {
             Register = localReg,
-            Flags = localBindingInfoById.TryGetValue(symbolId, out info) ? info.Flags : LocalBindingFlags.None
+            Flags = localBindingInfoById.TryGetValue(symbolId, out info)
+                ? info.Flags
+                : LocalBindingFlags.None,
         };
         reg = localReg;
         return true;
@@ -409,67 +458,82 @@ public sealed partial class JsCompiler
 
     private bool IsConstLocalBinding(string name)
     {
-        if (TryGetSymbolId(name, out var symbolId) && localBindingInfoById.TryGetValue(symbolId, out var info))
+        if (
+            TryGetSymbolId(name, out var symbolId)
+            && localBindingInfoById.TryGetValue(symbolId, out var info)
+        )
             return (info.Flags & LocalBindingFlags.Const) != 0;
         return false;
     }
 
     private bool IsConstLocalBinding(int symbolId)
     {
-        return TryGetLocalBindingInfo(symbolId, out var info) &&
-               (info.Flags & LocalBindingFlags.Const) != 0;
+        return TryGetLocalBindingInfo(symbolId, out var info)
+            && (info.Flags & LocalBindingFlags.Const) != 0;
     }
 
     private bool IsVarLocalBinding(string name)
     {
-        if (TryGetSymbolId(name, out var symbolId) && localBindingInfoById.TryGetValue(symbolId, out var info))
+        if (
+            TryGetSymbolId(name, out var symbolId)
+            && localBindingInfoById.TryGetValue(symbolId, out var info)
+        )
             return (info.Flags & LocalBindingFlags.Var) != 0;
         return false;
     }
 
     private bool IsVarLocalBinding(int symbolId)
     {
-        return TryGetLocalBindingInfo(symbolId, out var info) &&
-               (info.Flags & LocalBindingFlags.Var) != 0;
+        return TryGetLocalBindingInfo(symbolId, out var info)
+            && (info.Flags & LocalBindingFlags.Var) != 0;
     }
 
     private bool IsLexicalLocalBinding(string name)
     {
-        if (TryGetSymbolId(name, out var symbolId) && localBindingInfoById.TryGetValue(symbolId, out var info))
+        if (
+            TryGetSymbolId(name, out var symbolId)
+            && localBindingInfoById.TryGetValue(symbolId, out var info)
+        )
             return (info.Flags & LocalBindingFlags.Lexical) != 0;
         return false;
     }
 
     private bool IsLexicalLocalBinding(int symbolId)
     {
-        return TryGetLocalBindingInfo(symbolId, out var info) &&
-               (info.Flags & LocalBindingFlags.Lexical) != 0;
+        return TryGetLocalBindingInfo(symbolId, out var info)
+            && (info.Flags & LocalBindingFlags.Lexical) != 0;
     }
 
     private bool IsCapturedByChildBinding(string name)
     {
-        if (TryGetSymbolId(name, out var symbolId) && localBindingInfoById.TryGetValue(symbolId, out var info))
+        if (
+            TryGetSymbolId(name, out var symbolId)
+            && localBindingInfoById.TryGetValue(symbolId, out var info)
+        )
             return (info.Flags & LocalBindingFlags.CapturedByChild) != 0;
         return false;
     }
 
     private bool IsCapturedByChildBinding(int symbolId)
     {
-        return TryGetLocalBindingInfo(symbolId, out var info) &&
-               (info.Flags & LocalBindingFlags.CapturedByChild) != 0;
+        return TryGetLocalBindingInfo(symbolId, out var info)
+            && (info.Flags & LocalBindingFlags.CapturedByChild) != 0;
     }
 
     private bool IsImmutableFunctionNameBinding(string name)
     {
-        if (TryGetSymbolId(name, out var symbolId) && localBindingInfoById.TryGetValue(symbolId, out var info))
+        if (
+            TryGetSymbolId(name, out var symbolId)
+            && localBindingInfoById.TryGetValue(symbolId, out var info)
+        )
             return (info.Flags & LocalBindingFlags.ImmutableFunctionName) != 0;
         return false;
     }
 
     private bool IsImmutableFunctionNameBinding(int symbolId)
     {
-        return TryGetLocalBindingInfo(symbolId, out var info) &&
-               (info.Flags & LocalBindingFlags.ImmutableFunctionName) != 0;
+        return TryGetLocalBindingInfo(symbolId, out var info)
+            && (info.Flags & LocalBindingFlags.ImmutableFunctionName) != 0;
     }
 
     private bool HasCapturedByChildLocals()
@@ -503,7 +567,8 @@ public sealed partial class JsCompiler
         out int slotIdx,
         out bool hasCurrentContextSlot,
         out bool isLexicalRegisterLocal,
-        out bool isConstLocal)
+        out bool isConstLocal
+    )
     {
         slotIdx = -1;
         hasCurrentContextSlot = false;
@@ -528,7 +593,8 @@ public sealed partial class JsCompiler
         out int slotIdx,
         out bool hasCurrentContextSlot,
         out bool isLexicalRegisterLocal,
-        out bool isConstLocal)
+        out bool isConstLocal
+    )
     {
         slotIdx = -1;
         hasCurrentContextSlot = false;
@@ -549,7 +615,8 @@ public sealed partial class JsCompiler
     private bool TryGetFastPathLocalRegister(
         string resolvedName,
         out int reg,
-        out bool needsLexicalTdzReadCheck)
+        out bool needsLexicalTdzReadCheck
+    )
     {
         needsLexicalTdzReadCheck = false;
         if (!TryGetLocalRegister(resolvedName, out reg))
@@ -565,7 +632,8 @@ public sealed partial class JsCompiler
     private bool TryGetFastPathLocalRegister(
         int resolvedSymbolId,
         out int reg,
-        out bool needsLexicalTdzReadCheck)
+        out bool needsLexicalTdzReadCheck
+    )
     {
         needsLexicalTdzReadCheck = false;
         if (!TryGetLocalRegister(resolvedSymbolId, out reg))
@@ -574,7 +642,8 @@ public sealed partial class JsCompiler
             return false;
 
         needsLexicalTdzReadCheck =
-            IsLexicalRegisterLocal(resolvedSymbolId) && !IsKnownInitializedLexical(resolvedSymbolId);
+            IsLexicalRegisterLocal(resolvedSymbolId)
+            && !IsKnownInitializedLexical(resolvedSymbolId);
         return true;
     }
 
@@ -628,7 +697,7 @@ public sealed partial class JsCompiler
         Var = 1 << 2,
         Parameter = 1 << 3,
         CapturedByChild = 1 << 4,
-        ImmutableFunctionName = 1 << 5
+        ImmutableFunctionName = 1 << 5,
     }
 
     private struct LocalBindingInfo

@@ -8,13 +8,17 @@ public sealed partial class JsCompiler
     }
 
     private IReadOnlyDictionary<string, PrivateFieldBinding> MergeVisiblePrivateBindings(
-        IReadOnlyDictionary<string, PrivateFieldBinding> ownBindings)
+        IReadOnlyDictionary<string, PrivateFieldBinding> ownBindings
+    )
     {
         var outerVisibleBindings = GetVisiblePrivateNameBindings();
         if (outerVisibleBindings is null || outerVisibleBindings.Count == 0)
             return ownBindings;
 
-        var merged = new Dictionary<string, PrivateFieldBinding>(outerVisibleBindings, StringComparer.Ordinal);
+        var merged = new Dictionary<string, PrivateFieldBinding>(
+            outerVisibleBindings,
+            StringComparer.Ordinal
+        );
         foreach (var entry in ownBindings)
             merged[entry.Key] = entry.Value;
         return merged;
@@ -23,7 +27,8 @@ public sealed partial class JsCompiler
     private static List<int>? CollectInheritedPrivateBrandIds(
         IReadOnlyDictionary<string, PrivateFieldBinding> visibleBindings,
         int instanceBrandId,
-        int staticBrandId)
+        int staticBrandId
+    )
     {
         List<int>? inheritedBrandIds = null;
         foreach (var binding in visibleBindings.Values)
@@ -41,7 +46,8 @@ public sealed partial class JsCompiler
 
     private static IReadOnlyList<int>? CombinePrivateBrandIds(
         IReadOnlyList<int>? inheritedBrandIds,
-        int extraBrandId)
+        int extraBrandId
+    )
     {
         if (extraBrandId == 0)
             return inheritedBrandIds;
@@ -60,7 +66,8 @@ public sealed partial class JsCompiler
 
     private List<PrivateBrandSourceMapping>? CollectInheritedPrivateBrandMappingsFromActiveScopes(
         int instanceBrandId,
-        int staticBrandId)
+        int staticBrandId
+    )
     {
         if (activeClassPrivateSourceScopes.Count == 0)
             return null;
@@ -68,18 +75,22 @@ public sealed partial class JsCompiler
         List<PrivateBrandSourceMapping>? mappings = null;
         foreach (var scope in activeClassPrivateSourceScopes)
         {
-            if (scope.InstanceBrandId != 0 &&
-                scope.InstanceBrandId != instanceBrandId &&
-                scope.InstanceBrandId != staticBrandId)
+            if (
+                scope.InstanceBrandId != 0
+                && scope.InstanceBrandId != instanceBrandId
+                && scope.InstanceBrandId != staticBrandId
+            )
             {
                 mappings ??= new(2);
                 if (!mappings.Exists(m => m.BrandId == scope.InstanceBrandId))
                     mappings.Add(new(scope.InstanceBrandId, scope.InstanceBrandSourceReg));
             }
 
-            if (scope.StaticBrandId != 0 &&
-                scope.StaticBrandId != instanceBrandId &&
-                scope.StaticBrandId != staticBrandId)
+            if (
+                scope.StaticBrandId != 0
+                && scope.StaticBrandId != instanceBrandId
+                && scope.StaticBrandId != staticBrandId
+            )
             {
                 mappings ??= new(2);
                 if (!mappings.Exists(m => m.BrandId == scope.StaticBrandId))
@@ -94,7 +105,8 @@ public sealed partial class JsCompiler
         int instanceBrandId,
         int instanceBrandSourceReg,
         int staticBrandId,
-        int staticBrandSourceReg)
+        int staticBrandSourceReg
+    )
     {
         List<PrivateBrandSourceMapping>? mappings = null;
         if (instanceBrandId != 0 && instanceBrandSourceReg >= 0)
@@ -114,14 +126,17 @@ public sealed partial class JsCompiler
 
     private static IReadOnlyList<PrivateBrandSourceMapping>? CombinePrivateBrandMappings(
         IReadOnlyList<PrivateBrandSourceMapping>? inheritedMappings,
-        IReadOnlyList<PrivateBrandSourceMapping>? currentClassMappings)
+        IReadOnlyList<PrivateBrandSourceMapping>? currentClassMappings
+    )
     {
         if (inheritedMappings is null || inheritedMappings.Count == 0)
             return currentClassMappings;
         if (currentClassMappings is null || currentClassMappings.Count == 0)
             return inheritedMappings;
 
-        var combined = new List<PrivateBrandSourceMapping>(currentClassMappings.Count + inheritedMappings.Count);
+        var combined = new List<PrivateBrandSourceMapping>(
+            currentClassMappings.Count + inheritedMappings.Count
+        );
         for (var i = 0; i < currentClassMappings.Count; i++)
             combined.Add(currentClassMappings[i]);
 

@@ -17,7 +17,11 @@ internal static class ProxyDescriptorUtilities
         return false;
     }
 
-    internal static JsValue GetOwnPropertyDescriptorValue(JsRealm realm, JsObject target, in JsValue key)
+    internal static JsValue GetOwnPropertyDescriptorValue(
+        JsRealm realm,
+        JsObject target,
+        in JsValue key
+    )
     {
         if (target.TryGetOwnPropertyDescriptorViaTrap(realm, key, out var trapDescriptor))
             return trapDescriptor;
@@ -28,19 +32,38 @@ internal static class ProxyDescriptorUtilities
         return JsValue.Undefined;
     }
 
-    internal static DescriptorRequest ReadDescriptorRequest(JsRealm realm, JsObject descriptorObject)
+    internal static DescriptorRequest ReadDescriptorRequest(
+        JsRealm realm,
+        JsObject descriptorObject
+    )
     {
         var hasValue = descriptorObject.TryGetPropertyAtom(realm, IdValue, out var value, out _);
-        var hasWritable = descriptorObject.TryGetPropertyAtom(realm, IdWritable, out var writableValue, out _);
-        var hasEnumerable = descriptorObject.TryGetPropertyAtom(realm, IdEnumerable, out var enumerableValue, out _);
-        var hasConfigurable =
-            descriptorObject.TryGetPropertyAtom(realm, IdConfigurable, out var configurableValue, out _);
+        var hasWritable = descriptorObject.TryGetPropertyAtom(
+            realm,
+            IdWritable,
+            out var writableValue,
+            out _
+        );
+        var hasEnumerable = descriptorObject.TryGetPropertyAtom(
+            realm,
+            IdEnumerable,
+            out var enumerableValue,
+            out _
+        );
+        var hasConfigurable = descriptorObject.TryGetPropertyAtom(
+            realm,
+            IdConfigurable,
+            out var configurableValue,
+            out _
+        );
         var hasGet = descriptorObject.TryGetPropertyAtom(realm, IdGet, out var getValue, out _);
         var hasSet = descriptorObject.TryGetPropertyAtom(realm, IdSet, out var setValue, out _);
 
         if ((hasGet || hasSet) && (hasValue || hasWritable))
-            throw new JsRuntimeException(JsErrorKind.TypeError,
-                "Invalid property descriptor. Cannot both specify accessors and a value or writable attribute");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Invalid property descriptor. Cannot both specify accessors and a value or writable attribute"
+            );
 
         return new(
             hasValue,
@@ -54,41 +77,87 @@ internal static class ProxyDescriptorUtilities
             hasGet,
             getValue,
             hasSet,
-            setValue);
+            setValue
+        );
     }
 
-    internal static JsPlainObject CreateCanonicalDescriptorObject(JsRealm realm, JsObject descriptorObject)
+    internal static JsPlainObject CreateCanonicalDescriptorObject(
+        JsRealm realm,
+        JsObject descriptorObject
+    )
     {
         var request = ReadDescriptorRequest(realm, descriptorObject);
 
-        if (request.HasGet && !request.GetValue.IsUndefined &&
-            (!request.GetValue.TryGetObject(out var getObject) || getObject is not JsFunction))
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Getter must be a function or undefined");
+        if (
+            request.HasGet
+            && !request.GetValue.IsUndefined
+            && (!request.GetValue.TryGetObject(out var getObject) || getObject is not JsFunction)
+        )
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Getter must be a function or undefined"
+            );
 
-        if (request.HasSet && !request.SetValue.IsUndefined &&
-            (!request.SetValue.TryGetObject(out var setObject) || setObject is not JsFunction))
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Setter must be a function or undefined");
+        if (
+            request.HasSet
+            && !request.SetValue.IsUndefined
+            && (!request.SetValue.TryGetObject(out var setObject) || setObject is not JsFunction)
+        )
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Setter must be a function or undefined"
+            );
 
         var canonical = new JsPlainObject(realm);
         if (request.HasValue)
-            canonical.DefineDataPropertyAtom(realm, IdValue, request.Value, JsShapePropertyFlags.Open);
+            canonical.DefineDataPropertyAtom(
+                realm,
+                IdValue,
+                request.Value,
+                JsShapePropertyFlags.Open
+            );
         if (request.HasWritable)
-            canonical.DefineDataPropertyAtom(realm, IdWritable, request.Writable ? JsValue.True : JsValue.False,
-                JsShapePropertyFlags.Open);
+            canonical.DefineDataPropertyAtom(
+                realm,
+                IdWritable,
+                request.Writable ? JsValue.True : JsValue.False,
+                JsShapePropertyFlags.Open
+            );
         if (request.HasEnumerable)
-            canonical.DefineDataPropertyAtom(realm, IdEnumerable,
-                request.Enumerable ? JsValue.True : JsValue.False, JsShapePropertyFlags.Open);
+            canonical.DefineDataPropertyAtom(
+                realm,
+                IdEnumerable,
+                request.Enumerable ? JsValue.True : JsValue.False,
+                JsShapePropertyFlags.Open
+            );
         if (request.HasConfigurable)
-            canonical.DefineDataPropertyAtom(realm, IdConfigurable,
-                request.Configurable ? JsValue.True : JsValue.False, JsShapePropertyFlags.Open);
+            canonical.DefineDataPropertyAtom(
+                realm,
+                IdConfigurable,
+                request.Configurable ? JsValue.True : JsValue.False,
+                JsShapePropertyFlags.Open
+            );
         if (request.HasGet)
-            canonical.DefineDataPropertyAtom(realm, IdGet, request.GetValue, JsShapePropertyFlags.Open);
+            canonical.DefineDataPropertyAtom(
+                realm,
+                IdGet,
+                request.GetValue,
+                JsShapePropertyFlags.Open
+            );
         if (request.HasSet)
-            canonical.DefineDataPropertyAtom(realm, IdSet, request.SetValue, JsShapePropertyFlags.Open);
+            canonical.DefineDataPropertyAtom(
+                realm,
+                IdSet,
+                request.SetValue,
+                JsShapePropertyFlags.Open
+            );
         return canonical;
     }
 
-    internal static bool IsCompatibleDefineRequest(in DescriptorRequest request, in PropertyDescriptor targetDescriptor)
+    internal static bool IsCompatibleDefineRequest(
+        in DescriptorRequest request,
+        in PropertyDescriptor targetDescriptor
+    )
     {
         if (targetDescriptor.Configurable)
             return true;
@@ -129,13 +198,17 @@ internal static class ProxyDescriptorUtilities
     {
         if (requested.IsUndefined)
             return current is null;
-        return requested.TryGetObject(out var requestedObject) && ReferenceEquals(current, requestedObject);
+        return requested.TryGetObject(out var requestedObject)
+            && ReferenceEquals(current, requestedObject);
     }
 
-
-    internal static bool TryDefineOwnDataPropertyForSet(JsRealm realm, JsObject target, in JsValue key,
+    internal static bool TryDefineOwnDataPropertyForSet(
+        JsRealm realm,
+        JsObject target,
+        in JsValue key,
         in JsValue value,
-        bool hasDescriptor)
+        bool hasDescriptor
+    )
     {
         if (hasDescriptor)
         {
@@ -161,8 +234,12 @@ internal static class ProxyDescriptorUtilities
         return target.DefineOwnDataPropertyExact(realm, atom, value, JsShapePropertyFlags.Open);
     }
 
-    internal static bool TryGetOwnPropertyDescriptor(JsRealm realm, JsObject target, in JsValue key,
-        out PropertyDescriptor descriptor)
+    internal static bool TryGetOwnPropertyDescriptor(
+        JsRealm realm,
+        JsObject target,
+        in JsValue key,
+        out PropertyDescriptor descriptor
+    )
     {
         if (key.IsSymbol)
         {
@@ -170,8 +247,10 @@ internal static class ProxyDescriptorUtilities
             if (target.TryGetOwnNamedPropertyDescriptorAtom(realm, atom, out descriptor))
                 return true;
 
-            if (target is JsGlobalObject symbolGlobal &&
-                symbolGlobal.TryGetOwnGlobalDescriptorAtom(atom, out descriptor))
+            if (
+                target is JsGlobalObject symbolGlobal
+                && symbolGlobal.TryGetOwnGlobalDescriptorAtom(atom, out descriptor)
+            )
                 return true;
 
             descriptor = default;
@@ -186,7 +265,10 @@ internal static class ProxyDescriptorUtilities
         if (target.TryGetOwnNamedPropertyDescriptorAtom(realm, namedAtom, out descriptor))
             return true;
 
-        if (target is JsGlobalObject global && global.TryGetOwnGlobalDescriptorAtom(namedAtom, out descriptor))
+        if (
+            target is JsGlobalObject global
+            && global.TryGetOwnGlobalDescriptorAtom(namedAtom, out descriptor)
+        )
             return true;
 
         descriptor = default;
@@ -198,22 +280,47 @@ internal static class ProxyDescriptorUtilities
         var result = new JsPlainObject(realm);
         if (descriptor.IsAccessor)
         {
-            result.DefineDataPropertyAtom(realm, IdGet,
-                descriptor.Getter ?? JsValue.Undefined, JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(realm, IdSet,
-                descriptor.Setter ?? JsValue.Undefined, JsShapePropertyFlags.Open);
+            result.DefineDataPropertyAtom(
+                realm,
+                IdGet,
+                descriptor.Getter ?? JsValue.Undefined,
+                JsShapePropertyFlags.Open
+            );
+            result.DefineDataPropertyAtom(
+                realm,
+                IdSet,
+                descriptor.Setter ?? JsValue.Undefined,
+                JsShapePropertyFlags.Open
+            );
         }
         else
         {
-            result.DefineDataPropertyAtom(realm, IdValue, descriptor.Value, JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(realm, IdWritable, new(descriptor.Writable),
-                JsShapePropertyFlags.Open);
+            result.DefineDataPropertyAtom(
+                realm,
+                IdValue,
+                descriptor.Value,
+                JsShapePropertyFlags.Open
+            );
+            result.DefineDataPropertyAtom(
+                realm,
+                IdWritable,
+                new(descriptor.Writable),
+                JsShapePropertyFlags.Open
+            );
         }
 
-        result.DefineDataPropertyAtom(realm, IdEnumerable, new(descriptor.Enumerable),
-            JsShapePropertyFlags.Open);
-        result.DefineDataPropertyAtom(realm, IdConfigurable, new(descriptor.Configurable),
-            JsShapePropertyFlags.Open);
+        result.DefineDataPropertyAtom(
+            realm,
+            IdEnumerable,
+            new(descriptor.Enumerable),
+            JsShapePropertyFlags.Open
+        );
+        result.DefineDataPropertyAtom(
+            realm,
+            IdConfigurable,
+            new(descriptor.Configurable),
+            JsShapePropertyFlags.Open
+        );
         return result;
     }
 
@@ -244,7 +351,8 @@ internal static class ProxyDescriptorUtilities
             bool hasGet,
             in JsValue getValue,
             bool hasSet,
-            in JsValue setValue)
+            in JsValue setValue
+        )
         {
             HasValue = hasValue;
             Value = value;

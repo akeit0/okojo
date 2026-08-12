@@ -21,8 +21,13 @@ public class NodeCliIntegrationTests
         {
             await File.WriteAllTextAsync(envFile, "OKOJO_NODE_CLI_TEST=from-env-file");
 
-            await using var process =
-                NodeCliProcess.Start("--env-file", envFile, "-p", "-e", "process.env.OKOJO_NODE_CLI_TEST");
+            await using var process = NodeCliProcess.Start(
+                "--env-file",
+                envFile,
+                "-p",
+                "-e",
+                "process.env.OKOJO_NODE_CLI_TEST"
+            );
 
             await process.WaitForExitAsync(TimeSpan.FromSeconds(10));
 
@@ -51,12 +56,16 @@ public class NodeCliIntegrationTests
     [Test]
     public async Task OkojoNode_FileMain_Uses_CommonJs_ModuleScope_And_InspectStyle_Console()
     {
-        var directory = Path.Combine(Path.GetTempPath(), "okojo-node-cli-scope-" + Guid.NewGuid().ToString("N"));
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            "okojo-node-cli-scope-" + Guid.NewGuid().ToString("N")
+        );
         Directory.CreateDirectory(directory);
         var scriptPath = Path.Combine(directory, "main.js");
         try
         {
-            await File.WriteAllTextAsync(scriptPath,
+            await File.WriteAllTextAsync(
+                scriptPath,
                 """
                 console.log(this === globalThis);
                 console.log(this);
@@ -66,14 +75,19 @@ public class NodeCliIntegrationTests
                 } catch (error) {
                   console.log(error.name + ": " + error.message);
                 }
-                """);
+                """
+            );
 
             await using var process = NodeCliProcess.Start(scriptPath);
 
             await process.WaitForExitAsync(TimeSpan.FromSeconds(10));
 
-            var stdoutLines = process.GetStdout()
-                .Split(["\r\n", "\n"], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var stdoutLines = process
+                .GetStdout()
+                .Split(
+                    ["\r\n", "\n"],
+                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+                );
             Assert.That(stdoutLines, Has.Length.EqualTo(3));
             Assert.That(stdoutLines[0], Is.EqualTo("false"));
             Assert.That(stdoutLines[1], Is.EqualTo("{}"));
@@ -97,18 +111,21 @@ public class NodeCliIntegrationTests
 
         var timerId = await process.WaitForStdoutLineAsync(
             static line => line.Trim() == "1",
-            TimeSpan.FromSeconds(10));
+            TimeSpan.FromSeconds(10)
+        );
         Assert.That(timerId.Trim(), Is.EqualTo("1"));
 
         var callbackLine = await process.WaitForStdoutLineAsync(
             static line => line.Contains("3seconds", StringComparison.Ordinal),
-            TimeSpan.FromSeconds(10));
+            TimeSpan.FromSeconds(10)
+        );
         Assert.That(callbackLine, Does.Contain("3seconds"));
 
         process.SendCommand("a");
         var valueLine = await process.WaitForStdoutLineAsync(
             static line => line.Trim() == "2000",
-            TimeSpan.FromSeconds(10));
+            TimeSpan.FromSeconds(10)
+        );
         Assert.That(valueLine.Trim(), Is.EqualTo("2000"));
         Assert.That(process.GetStderr(), Is.Empty);
     }
@@ -118,7 +135,9 @@ public class NodeCliIntegrationTests
     {
         await using var process = NodeCliProcess.Start();
 
-        process.SendCommand("const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));");
+        process.SendCommand(
+            "const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));"
+        );
         process.SendCommand("async function init() {");
         process.SendCommand("  console.log(\"now\");");
         process.SendCommand("  await delay(25);");
@@ -132,17 +151,20 @@ public class NodeCliIntegrationTests
 
         var promptStayedResponsive = await process.WaitForStdoutLineAsync(
             static line => line.Trim() == "42",
-            TimeSpan.FromSeconds(5));
+            TimeSpan.FromSeconds(5)
+        );
         Assert.That(promptStayedResponsive.Trim(), Is.EqualTo("42"));
 
         var firstLog = await process.WaitForStdoutLineAsync(
             static line => line.Contains("after 1 tick", StringComparison.Ordinal),
-            TimeSpan.FromSeconds(5));
+            TimeSpan.FromSeconds(5)
+        );
         Assert.That(firstLog, Does.Contain("after 1 tick"));
 
         var secondLog = await process.WaitForStdoutLineAsync(
             static line => line.Contains("after 2 ticks", StringComparison.Ordinal),
-            TimeSpan.FromSeconds(5));
+            TimeSpan.FromSeconds(5)
+        );
         Assert.That(secondLog, Does.Contain("after 2 ticks"));
 
         Assert.That(process.GetStdout(), Does.Contain("now"));
@@ -157,23 +179,29 @@ public class NodeCliIntegrationTests
         process.SendCommand("await 2");
         var awaitedValue = await process.WaitForStdoutLineAsync(
             static line => line.Trim() == "2",
-            TimeSpan.FromSeconds(5));
+            TimeSpan.FromSeconds(5)
+        );
         Assert.That(awaitedValue.Trim(), Is.EqualTo("2"));
 
         process.SendCommand(
-            "for (let i = 0; i < 3; i++) { await new Promise(resolve => setTimeout(resolve, 25)); console.log(i); }");
+            "for (let i = 0; i < 3; i++) { await new Promise(resolve => setTimeout(resolve, 25)); console.log(i); }"
+        );
         var zero = await process.WaitForStdoutLineAsync(
             static line => line.Trim() == "0",
-            TimeSpan.FromSeconds(5));
+            TimeSpan.FromSeconds(5)
+        );
         var one = await process.WaitForStdoutLineAsync(
             static line => line.Trim() == "1",
-            TimeSpan.FromSeconds(5));
+            TimeSpan.FromSeconds(5)
+        );
         var two = await process.WaitForStdoutLineAsync(
             static line => line.Trim() == "2",
-            TimeSpan.FromSeconds(5));
+            TimeSpan.FromSeconds(5)
+        );
         var result = await process.WaitForStdoutLineAsync(
             static line => line.Trim() == "undefined",
-            TimeSpan.FromSeconds(5));
+            TimeSpan.FromSeconds(5)
+        );
 
         Assert.That(zero.Trim(), Is.EqualTo("0"));
         Assert.That(one.Trim(), Is.EqualTo("1"));
@@ -188,7 +216,8 @@ public class NodeCliIntegrationTests
         await using var process = NodeCliProcess.Start(
             "-p",
             "-e",
-            "await (await import('node:timers/promises')).setTimeout(25, 'ok')");
+            "await (await import('node:timers/promises')).setTimeout(25, 'ok')"
+        );
 
         await process.WaitForExitAsync(TimeSpan.FromSeconds(10));
 
@@ -202,20 +231,26 @@ public class NodeCliIntegrationTests
         await using var process = NodeCliProcess.Start();
 
         process.SendCommand("const { setTimeout } = await import('node:timers/promises');");
-        process.SendCommand("for (let i = 0; i < 3; i++) { await setTimeout(25); console.log(i); }");
+        process.SendCommand(
+            "for (let i = 0; i < 3; i++) { await setTimeout(25); console.log(i); }"
+        );
 
         var zero = await process.WaitForStdoutLineAsync(
             static line => line.Trim() == "0",
-            TimeSpan.FromSeconds(5));
+            TimeSpan.FromSeconds(5)
+        );
         var one = await process.WaitForStdoutLineAsync(
             static line => line.Trim() == "1",
-            TimeSpan.FromSeconds(5));
+            TimeSpan.FromSeconds(5)
+        );
         var two = await process.WaitForStdoutLineAsync(
             static line => line.Trim() == "2",
-            TimeSpan.FromSeconds(5));
+            TimeSpan.FromSeconds(5)
+        );
         var result = await process.WaitForStdoutLineAsync(
             static line => line.Trim() == "undefined",
-            TimeSpan.FromSeconds(5));
+            TimeSpan.FromSeconds(5)
+        );
 
         Assert.That(zero.Trim(), Is.EqualTo("0"));
         Assert.That(one.Trim(), Is.EqualTo("1"));
@@ -227,30 +262,37 @@ public class NodeCliIntegrationTests
     [Test]
     public async Task OkojoNode_Eval_Supports_NodeRepl_Start_And_Context()
     {
-        var directory = Path.Combine(Path.GetTempPath(), "okojo-node-repl-" + Guid.NewGuid().ToString("N"));
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            "okojo-node-repl-" + Guid.NewGuid().ToString("N")
+        );
         Directory.CreateDirectory(directory);
         var scriptPath = Path.Combine(directory, "main.js");
         try
         {
-            await File.WriteAllTextAsync(scriptPath,
+            await File.WriteAllTextAsync(
+                scriptPath,
                 """
                 const repl = require('node:repl');
                 const r = repl.start('repl> ');
                 r.context.m = 'message';
                 console.log('ready');
-                """);
+                """
+            );
 
             await using var process = NodeCliProcess.Start(scriptPath);
 
             var ready = await process.WaitForStdoutLineAsync(
                 static line => line.Contains("ready", StringComparison.Ordinal),
-                TimeSpan.FromSeconds(10));
+                TimeSpan.FromSeconds(10)
+            );
             Assert.That(ready, Does.Contain("ready"));
 
             process.SendCommand("m");
             var value = await process.WaitForStdoutLineAsync(
                 static line => line.Trim() == "'message'",
-                TimeSpan.FromSeconds(10));
+                TimeSpan.FromSeconds(10)
+            );
             Assert.That(value.Trim(), Is.EqualTo("'message'"));
 
             process.SendCommand(".exit");
@@ -297,15 +339,18 @@ public class NodeCliIntegrationTests
         await using var process = NodeCliProcess.Start("--inspect-brk", "-p", "-e", "40 + 2");
 
         var stopped = await process.WaitForStdoutLineAsync(
-            static line => line.Contains("Break on start in [eval-1].js:1", StringComparison.Ordinal),
-            TimeSpan.FromSeconds(10));
+            static line =>
+                line.Contains("Break on start in [eval-1].js:1", StringComparison.Ordinal),
+            TimeSpan.FromSeconds(10)
+        );
         Assert.That(stopped, Does.Contain("Break on start in [eval-1].js:1"));
 
         process.SendCommand("continue");
 
         var result = await process.WaitForStdoutLineAsync(
             static line => line.TrimEnd().EndsWith("42", StringComparison.Ordinal),
-            TimeSpan.FromSeconds(10));
+            TimeSpan.FromSeconds(10)
+        );
         Assert.That(result.TrimEnd(), Does.EndWith("42"));
 
         await process.WaitForExitAsync(TimeSpan.FromSeconds(10));
@@ -315,36 +360,48 @@ public class NodeCliIntegrationTests
     [Test]
     public async Task OkojoNode_Inspect_Command_Supports_SetBreakpoint_List_And_Continue()
     {
-        var directory = Path.Combine(Path.GetTempPath(), "okojo-node-cli-inspect-" + Guid.NewGuid().ToString("N"));
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            "okojo-node-cli-inspect-" + Guid.NewGuid().ToString("N")
+        );
         Directory.CreateDirectory(directory);
         var scriptPath = Path.Combine(directory, "index.js");
         try
         {
-            await File.WriteAllTextAsync(Path.Combine(directory, "package.json"), """{ "type": "module" }""");
-            await File.WriteAllTextAsync(scriptPath, """
-                                                     const line1 = 1;
-                                                     const line2 = 2;
-                                                     const line3 = 3;
-                                                     const line4 = 4;
-                                                     const line5 = 5;
-                                                     const line6 = 6;
-                                                     const line7 = 7;
-                                                     const line8 = 8;
-                                                     const line9 = 9;
-                                                     globalThis.answer = 42;
-                                                     console.log(globalThis.answer);
-                                                     """);
+            await File.WriteAllTextAsync(
+                Path.Combine(directory, "package.json"),
+                """{ "type": "module" }"""
+            );
+            await File.WriteAllTextAsync(
+                scriptPath,
+                """
+                const line1 = 1;
+                const line2 = 2;
+                const line3 = 3;
+                const line4 = 4;
+                const line5 = 5;
+                const line6 = 6;
+                const line7 = 7;
+                const line8 = 8;
+                const line9 = 9;
+                globalThis.answer = 42;
+                console.log(globalThis.answer);
+                """
+            );
 
             await using var process = NodeCliProcess.Start("inspect", scriptPath);
 
             var entryStop = await process.WaitForStdoutLineAsync(
-                static line => line.Contains("Break on start in index.js:1", StringComparison.Ordinal),
-                TimeSpan.FromSeconds(10));
+                static line =>
+                    line.Contains("Break on start in index.js:1", StringComparison.Ordinal),
+                TimeSpan.FromSeconds(10)
+            );
             Assert.That(entryStop, Does.Contain("Break on start in index.js:1"));
 
             var entryListing = await process.WaitForStdoutLineAsync(
                 static line => line.Contains(">    1 const line1 = 1;", StringComparison.Ordinal),
-                TimeSpan.FromSeconds(10));
+                TimeSpan.FromSeconds(10)
+            );
             Assert.That(entryListing, Does.Contain("const line1 = 1;"));
 
             process.SendCommand("sb('index.js',10)");
@@ -352,13 +409,15 @@ public class NodeCliIntegrationTests
             process.SendCommand("breakpoints");
             var breakpointList = await process.WaitForStdoutLineAsync(
                 static line => line.Contains("#0 index.js:10", StringComparison.Ordinal),
-                TimeSpan.FromSeconds(10));
+                TimeSpan.FromSeconds(10)
+            );
             Assert.That(breakpointList, Does.Contain("#0 index.js:10"));
 
             process.SendCommand("list(5)");
             var listedLine = await process.WaitForStdoutLineAsync(
                 static line => line.Contains(">    1 const line1 = 1;", StringComparison.Ordinal),
-                TimeSpan.FromSeconds(10));
+                TimeSpan.FromSeconds(10)
+            );
             Assert.That(listedLine, Does.Contain("const line1 = 1;"));
 
             process.SendCommand("c");
@@ -384,7 +443,10 @@ public class NodeCliIntegrationTests
             Assert.That(withoutMaps.GetStderr(), Does.Contain("index.js:"));
             Assert.That(withoutMaps.GetStderr(), Does.Not.Contain("app.ts"));
 
-            await using var withMaps = NodeCliProcess.Start("--enable-source-maps", fixture.ScriptPath);
+            await using var withMaps = NodeCliProcess.Start(
+                "--enable-source-maps",
+                fixture.ScriptPath
+            );
             await withMaps.WaitForExitAsync(TimeSpan.FromSeconds(10));
             Assert.That(withMaps.GetStderr(), Does.Contain("app.ts:"));
             Assert.That(withMaps.GetStderr(), Does.Not.Contain("index.js:"));
@@ -401,29 +463,43 @@ public class NodeCliIntegrationTests
         var fixture = await CreateSourceMapFixtureAsync();
         try
         {
-            await using var process = NodeCliProcess.Start("inspect", "--enable-source-maps", fixture.ScriptPath);
+            await using var process = NodeCliProcess.Start(
+                "inspect",
+                "--enable-source-maps",
+                fixture.ScriptPath
+            );
 
             var entryStop = await process.WaitForStdoutLineAsync(
-                static line => line.Contains("Break on start in app.ts:3", StringComparison.Ordinal),
-                TimeSpan.FromSeconds(10));
+                static line =>
+                    line.Contains("Break on start in app.ts:3", StringComparison.Ordinal),
+                TimeSpan.FromSeconds(10)
+            );
             Assert.That(entryStop, Does.Contain("Break on start in app.ts:3"));
 
             var entryListing = await process.WaitForStdoutLineAsync(
-                static line => line.Contains(">    3 const title: string = \"probe\";", StringComparison.Ordinal),
-                TimeSpan.FromSeconds(10));
+                static line =>
+                    line.Contains(
+                        ">    3 const title: string = \"probe\";",
+                        StringComparison.Ordinal
+                    ),
+                TimeSpan.FromSeconds(10)
+            );
             Assert.That(entryListing, Does.Contain("const title: string = \"probe\";"));
 
             process.SendCommand("sb('app.ts',7)");
             process.SendCommand("breakpoints");
             var breakpointList = await process.WaitForStdoutLineAsync(
                 static line => line.Contains("#0 app.ts:7", StringComparison.Ordinal),
-                TimeSpan.FromSeconds(10));
+                TimeSpan.FromSeconds(10)
+            );
             Assert.That(breakpointList, Does.Contain("#0 app.ts:7"));
 
             process.SendCommand("list(5)");
             var listedLine = await process.WaitForStdoutLineAsync(
-                static line => line.Contains("     5   throw new Error(\"boom\");", StringComparison.Ordinal),
-                TimeSpan.FromSeconds(10));
+                static line =>
+                    line.Contains("     5   throw new Error(\"boom\");", StringComparison.Ordinal),
+                TimeSpan.FromSeconds(10)
+            );
             Assert.That(listedLine, Does.Contain("throw new Error(\"boom\");"));
             Assert.That(process.GetStderr(), Is.Empty);
         }
@@ -435,40 +511,52 @@ public class NodeCliIntegrationTests
 
     private static async Task<SourceMapFixture> CreateSourceMapFixtureAsync()
     {
-        var directory = Path.Combine(Path.GetTempPath(), "okojo-node-cli-sourcemaps-" + Guid.NewGuid().ToString("N"));
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            "okojo-node-cli-sourcemaps-" + Guid.NewGuid().ToString("N")
+        );
         Directory.CreateDirectory(directory);
 
         var sourcePath = Path.Combine(directory, "app.ts");
         var scriptPath = Path.Combine(directory, "index.js");
         var mapPath = Path.Combine(directory, "index.js.map");
 
-        await File.WriteAllTextAsync(sourcePath, """
-                                                 const pad1 = 1;
-                                                 const pad2 = 2;
-                                                 const title: string = "probe";
-                                                 function boom(): never {
-                                                   throw new Error("boom");
-                                                 }
-                                                 boom();
-                                                 """);
+        await File.WriteAllTextAsync(
+            sourcePath,
+            """
+            const pad1 = 1;
+            const pad2 = 2;
+            const title: string = "probe";
+            function boom(): never {
+              throw new Error("boom");
+            }
+            boom();
+            """
+        );
 
-        await File.WriteAllTextAsync(scriptPath, """
-                                                 const title = "probe";
-                                                 function boom() {
-                                                   throw new Error("boom");
-                                                 }
-                                                 boom();
-                                                 //# sourceMappingURL=index.js.map
-                                                 """);
+        await File.WriteAllTextAsync(
+            scriptPath,
+            """
+            const title = "probe";
+            function boom() {
+              throw new Error("boom");
+            }
+            boom();
+            //# sourceMappingURL=index.js.map
+            """
+        );
 
-        await File.WriteAllTextAsync(mapPath, """
-                                              {
-                                                "version": 3,
-                                                "file": "index.js",
-                                                "sources": ["app.ts"],
-                                                "mappings": "AAEA;AACA;AACA;AACA;AACA"
-                                              }
-                                              """);
+        await File.WriteAllTextAsync(
+            mapPath,
+            """
+            {
+              "version": 3,
+              "file": "index.js",
+              "sources": ["app.ts"],
+              "mappings": "AAEA;AACA;AACA;AACA;AACA"
+            }
+            """
+        );
 
         return new(directory, scriptPath);
     }

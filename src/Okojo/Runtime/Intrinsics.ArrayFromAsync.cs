@@ -6,60 +6,83 @@ public partial class Intrinsics
 {
     private JsHostFunction CreateArrayFromAsyncFunction()
     {
-        return new(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var thisValue = info.ThisValue;
-            var args = info.Arguments;
-            var promise = realm.CreatePromiseObject();
-            try
+        return new(
+            Realm,
+            (in info) =>
             {
-                var operation = CreateArrayFromAsyncOperation(promise, thisValue, args);
-                StartArrayFromAsync(operation);
-            }
-            catch (JsRuntimeException ex)
-            {
-                realm.RejectPromise(promise, ex.ThrownValue ?? realm.CreateErrorObjectFromException(ex));
-            }
+                var realm = info.Realm;
+                var thisValue = info.ThisValue;
+                var args = info.Arguments;
+                var promise = realm.CreatePromiseObject();
+                try
+                {
+                    var operation = CreateArrayFromAsyncOperation(promise, thisValue, args);
+                    StartArrayFromAsync(operation);
+                }
+                catch (JsRuntimeException ex)
+                {
+                    realm.RejectPromise(
+                        promise,
+                        ex.ThrownValue ?? realm.CreateErrorObjectFromException(ex)
+                    );
+                }
 
-            return promise;
-        }, "fromAsync", 1);
+                return promise;
+            },
+            "fromAsync",
+            1
+        );
     }
 
     private JsArrayFromAsyncOperation CreateArrayFromAsyncOperation(
         JsPromiseObject promise,
         JsValue thisValue,
-        ReadOnlySpan<JsValue> args)
+        ReadOnlySpan<JsValue> args
+    )
     {
         JsFunction? mapFn = null;
         var thisArg = JsValue.Undefined;
         if (args.Length > 1 && !args[1].IsUndefined)
         {
             if (!args[1].TryGetObject(out var mapFnObj) || mapFnObj is not JsFunction callback)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Array.fromAsync mapfn must be a function");
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Array.fromAsync mapfn must be a function"
+                );
             mapFn = callback;
             if (args.Length > 2)
                 thisArg = args[2];
         }
 
         if (args.Length == 0 || !Realm.TryToObject(args[0], out var items))
-            throw new JsRuntimeException(JsErrorKind.TypeError,
-                "Array.fromAsync items must not be null or undefined");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Array.fromAsync items must not be null or undefined"
+            );
 
         JsObject target;
-        var ctor = thisValue.TryGetObject(out var ctorObject) && ctorObject is JsFunction ctorCandidate &&
-                   ctorCandidate.IsConstructor
-            ? ctorCandidate
-            : null;
+        var ctor =
+            thisValue.TryGetObject(out var ctorObject)
+            && ctorObject is JsFunction ctorCandidate
+            && ctorCandidate.IsConstructor
+                ? ctorCandidate
+                : null;
         var usedConstructor = ctor is not null;
         var operation = new JsArrayFromAsyncOperation
         {
             Promise = promise,
             MapFunction = mapFn,
-            ThisArg = thisArg
+            ThisArg = thisArg,
         };
 
-        if (TryGetAsyncIteratorObjectForArrayFromAsync(Realm, items, out var asyncIterator, out var asyncNextMethod))
+        if (
+            TryGetAsyncIteratorObjectForArrayFromAsync(
+                Realm,
+                items,
+                out var asyncIterator,
+                out var asyncNextMethod
+            )
+        )
         {
             target = usedConstructor
                 ? ConstructArrayFromAsyncTarget(ctor!, true, 0)
@@ -71,7 +94,14 @@ public partial class Intrinsics
             return operation;
         }
 
-        if (TryGetIteratorObjectForArrayFromAsync(Realm, items, out var iterator, out var nextMethod))
+        if (
+            TryGetIteratorObjectForArrayFromAsync(
+                Realm,
+                items,
+                out var iterator,
+                out var nextMethod
+            )
+        )
         {
             target = usedConstructor
                 ? ConstructArrayFromAsyncTarget(ctor!, true, 0)
@@ -85,7 +115,11 @@ public partial class Intrinsics
 
         var arrayLikeLength = Realm.GetArrayLikeLengthLong(items);
         if (!usedConstructor && arrayLikeLength > uint.MaxValue)
-            throw new JsRuntimeException(JsErrorKind.RangeError, "Invalid array length", "ARRAY_LENGTH_INVALID");
+            throw new JsRuntimeException(
+                JsErrorKind.RangeError,
+                "Invalid array length",
+                "ARRAY_LENGTH_INVALID"
+            );
 
         target = usedConstructor
             ? ConstructArrayFromAsyncTarget(ctor!, false, arrayLikeLength)
@@ -102,19 +136,27 @@ public partial class Intrinsics
         JsValue created;
         if (iterablePath)
         {
-            created = Realm.ConstructWithExplicitNewTarget(ctor, ReadOnlySpan<JsValue>.Empty, ctor, 0);
+            created = Realm.ConstructWithExplicitNewTarget(
+                ctor,
+                ReadOnlySpan<JsValue>.Empty,
+                ctor,
+                0
+            );
         }
         else
         {
             var lenArg = new InlineJsValueArray1
             {
-                Item0 = length <= int.MaxValue ? JsValue.FromInt32((int)length) : new(length)
+                Item0 = length <= int.MaxValue ? JsValue.FromInt32((int)length) : new(length),
             };
             created = Realm.ConstructWithExplicitNewTarget(ctor, lenArg.AsSpan(), ctor, 0);
         }
 
         if (!created.TryGetObject(out var target))
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Array.fromAsync constructor must return an object");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Array.fromAsync constructor must return an object"
+            );
         return target;
     }
 
@@ -133,10 +175,19 @@ public partial class Intrinsics
     {
         try
         {
-            var stepResult = Realm.InvokeFunction(operation.NextMethod!, JsValue.FromObject(operation.Iterator!),
-                ReadOnlySpan<JsValue>.Empty);
-            AwaitArrayFromAsync(operation, stepResult,
-                static (realm, op, settled) => { realm.Intrinsics.OnArrayFromAsyncIteratorStepSettled(op, settled); });
+            var stepResult = Realm.InvokeFunction(
+                operation.NextMethod!,
+                JsValue.FromObject(operation.Iterator!),
+                ReadOnlySpan<JsValue>.Empty
+            );
+            AwaitArrayFromAsync(
+                operation,
+                stepResult,
+                static (realm, op, settled) =>
+                {
+                    realm.Intrinsics.OnArrayFromAsyncIteratorStepSettled(op, settled);
+                }
+            );
         }
         catch (JsRuntimeException ex)
         {
@@ -144,17 +195,28 @@ public partial class Intrinsics
         }
     }
 
-    private void OnArrayFromAsyncIteratorStepSettled(JsArrayFromAsyncOperation operation, JsValue settled)
+    private void OnArrayFromAsyncIteratorStepSettled(
+        JsArrayFromAsyncOperation operation,
+        JsValue settled
+    )
     {
         try
         {
             if (!settled.TryGetObject(out var stepObj))
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Array.fromAsync iterator result must be object");
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Array.fromAsync iterator result must be object"
+                );
 
             stepObj.TryGetPropertyAtom(Realm, IdDone, out var doneValue, out _);
             if (JsRealm.ToBoolean(doneValue))
             {
-                SetArrayLikeLengthOrThrow(Realm, operation.Target, operation.Index, "Array.fromAsync");
+                SetArrayLikeLengthOrThrow(
+                    Realm,
+                    operation.Target,
+                    operation.Index,
+                    "Array.fromAsync"
+                );
                 ResolvePromise(operation.Promise, JsValue.FromObject(operation.Target));
                 return;
             }
@@ -174,7 +236,12 @@ public partial class Intrinsics
         {
             try
             {
-                SetArrayLikeLengthOrThrow(Realm, operation.Target, operation.Index, "Array.fromAsync");
+                SetArrayLikeLengthOrThrow(
+                    Realm,
+                    operation.Target,
+                    operation.Index,
+                    "Array.fromAsync"
+                );
                 ResolvePromise(operation.Promise, JsValue.FromObject(operation.Target));
             }
             catch (JsRuntimeException ex)
@@ -196,38 +263,65 @@ public partial class Intrinsics
         }
     }
 
-    private void ProcessArrayFromAsyncSourceValue(JsArrayFromAsyncOperation operation, JsValue value)
+    private void ProcessArrayFromAsyncSourceValue(
+        JsArrayFromAsyncOperation operation,
+        JsValue value
+    )
     {
         if (operation.MapFunction is null)
         {
             if (operation.AwaitInputValue)
-                AwaitArrayFromAsync(operation, value,
+                AwaitArrayFromAsync(
+                    operation,
+                    value,
                     static (realm, op, settled) =>
                     {
                         realm.Intrinsics.StoreArrayFromAsyncValueAndContinue(op, settled);
-                    });
+                    }
+                );
             else
                 StoreArrayFromAsyncValueAndContinue(operation, value);
 
             return;
         }
 
-        AwaitArrayFromAsync(operation, value,
-            static (realm, op, settled) => { realm.Intrinsics.MapArrayFromAsyncValueAndAwaitResult(op, settled); });
+        AwaitArrayFromAsync(
+            operation,
+            value,
+            static (realm, op, settled) =>
+            {
+                realm.Intrinsics.MapArrayFromAsyncValueAndAwaitResult(op, settled);
+            }
+        );
     }
 
-    private void MapArrayFromAsyncValueAndAwaitResult(JsArrayFromAsyncOperation operation, JsValue value)
+    private void MapArrayFromAsyncValueAndAwaitResult(
+        JsArrayFromAsyncOperation operation,
+        JsValue value
+    )
     {
         try
         {
             Span<JsValue> callbackArgs =
             [
                 value,
-                operation.Index <= int.MaxValue ? JsValue.FromInt32((int)operation.Index) : new(operation.Index)
+                operation.Index <= int.MaxValue
+                    ? JsValue.FromInt32((int)operation.Index)
+                    : new(operation.Index),
             ];
-            var mapped = Realm.InvokeFunction(operation.MapFunction!, operation.ThisArg, callbackArgs);
-            AwaitArrayFromAsync(operation, mapped,
-                static (realm, op, settled) => { realm.Intrinsics.StoreArrayFromAsyncValueAndContinue(op, settled); });
+            var mapped = Realm.InvokeFunction(
+                operation.MapFunction!,
+                operation.ThisArg,
+                callbackArgs
+            );
+            AwaitArrayFromAsync(
+                operation,
+                mapped,
+                static (realm, op, settled) =>
+                {
+                    realm.Intrinsics.StoreArrayFromAsyncValueAndContinue(op, settled);
+                }
+            );
         }
         catch (JsRuntimeException ex)
         {
@@ -235,7 +329,10 @@ public partial class Intrinsics
         }
     }
 
-    private void StoreArrayFromAsyncValueAndContinue(JsArrayFromAsyncOperation operation, JsValue value)
+    private void StoreArrayFromAsyncValueAndContinue(
+        JsArrayFromAsyncOperation operation,
+        JsValue value
+    )
     {
         try
         {
@@ -255,31 +352,46 @@ public partial class Intrinsics
     private void AwaitArrayFromAsync(
         JsArrayFromAsyncOperation operation,
         JsValue value,
-        Action<JsRealm, JsArrayFromAsyncOperation, JsValue> onFulfilled)
+        Action<JsRealm, JsArrayFromAsyncOperation, JsValue> onFulfilled
+    )
     {
         var promise = PromiseResolveValue(value);
-        var fulfilled = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            var f = (JsHostFunction)info.Function;
-            var continuation = (ArrayFromAsyncContinuation)f.UserData!;
-            continuation.OnFulfilled(realm, continuation.Operation, args.Length != 0 ? args[0] : JsValue.Undefined);
-            return JsValue.Undefined;
-        }, string.Empty, 1);
+        var fulfilled = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                var f = (JsHostFunction)info.Function;
+                var continuation = (ArrayFromAsyncContinuation)f.UserData!;
+                continuation.OnFulfilled(
+                    realm,
+                    continuation.Operation,
+                    args.Length != 0 ? args[0] : JsValue.Undefined
+                );
+                return JsValue.Undefined;
+            },
+            string.Empty,
+            1
+        );
         fulfilled.UserData = new ArrayFromAsyncContinuation(operation, onFulfilled);
 
-        var rejected = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            var f = (JsHostFunction)info.Function;
-            var continuation = (ArrayFromAsyncContinuation)f.UserData!;
-            var reason = args.Length != 0 ? args[0] : JsValue.Undefined;
-            realm.Intrinsics.CloseArrayFromAsyncIteratorBestEffort(continuation.Operation);
-            realm.RejectPromise(continuation.Operation.Promise, reason);
-            return JsValue.Undefined;
-        }, string.Empty, 1);
+        var rejected = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                var f = (JsHostFunction)info.Function;
+                var continuation = (ArrayFromAsyncContinuation)f.UserData!;
+                var reason = args.Length != 0 ? args[0] : JsValue.Undefined;
+                realm.Intrinsics.CloseArrayFromAsyncIteratorBestEffort(continuation.Operation);
+                realm.RejectPromise(continuation.Operation.Promise, reason);
+                return JsValue.Undefined;
+            },
+            string.Empty,
+            1
+        );
         rejected.UserData = new ArrayFromAsyncContinuation(operation, onFulfilled);
 
         PromiseThen(promise, JsValue.FromObject(fulfilled), JsValue.FromObject(rejected));
@@ -288,10 +400,17 @@ public partial class Intrinsics
     private void RejectArrayFromAsync(JsArrayFromAsyncOperation operation, JsRuntimeException ex)
     {
         CloseArrayFromAsyncIteratorBestEffort(operation);
-        RejectPromise(operation.Promise, ex.ThrownValue ?? Realm.CreateErrorObjectFromException(ex));
+        RejectPromise(
+            operation.Promise,
+            ex.ThrownValue ?? Realm.CreateErrorObjectFromException(ex)
+        );
     }
 
-    private void CreateDataPropertyOrThrowForArrayFromAsync(JsObject target, long index, JsValue value)
+    private void CreateDataPropertyOrThrowForArrayFromAsync(
+        JsObject target,
+        long index,
+        JsValue value
+    )
     {
         CreateDataPropertyOrThrowForArrayLike(Realm, target, index, value, "Array.fromAsync");
     }
@@ -303,40 +422,67 @@ public partial class Intrinsics
 
         try
         {
-            if (!operation.Iterator.TryGetPropertyAtom(Realm, IdReturn, out var returnValue, out _) ||
-                !returnValue.TryGetObject(out var returnObj) || returnObj is not JsFunction returnFn)
+            if (
+                !operation.Iterator.TryGetPropertyAtom(Realm, IdReturn, out var returnValue, out _)
+                || !returnValue.TryGetObject(out var returnObj)
+                || returnObj is not JsFunction returnFn
+            )
                 return;
 
-            Realm.InvokeFunction(returnFn, JsValue.FromObject(operation.Iterator), ReadOnlySpan<JsValue>.Empty);
+            Realm.InvokeFunction(
+                returnFn,
+                JsValue.FromObject(operation.Iterator),
+                ReadOnlySpan<JsValue>.Empty
+            );
         }
-        catch (JsRuntimeException)
-        {
-        }
+        catch (JsRuntimeException) { }
     }
 
     private static bool TryGetAsyncIteratorObjectForArrayFromAsync(
         JsRealm realm,
         JsObject items,
         out JsObject iterator,
-        out JsFunction nextMethod)
+        out JsFunction nextMethod
+    )
     {
         iterator = null!;
         nextMethod = null!;
-        if (!items.TryGetPropertyAtom(realm, IdSymbolAsyncIterator, out var iteratorMethod, out _) ||
-            iteratorMethod.IsUndefined || iteratorMethod.IsNull)
+        if (
+            !items.TryGetPropertyAtom(realm, IdSymbolAsyncIterator, out var iteratorMethod, out _)
+            || iteratorMethod.IsUndefined
+            || iteratorMethod.IsNull
+        )
             return false;
 
-        if (!iteratorMethod.TryGetObject(out var iteratorMethodObj) || iteratorMethodObj is not JsFunction iteratorFn)
-            throw new JsRuntimeException(JsErrorKind.TypeError,
-                "Array.fromAsync async iterator method is not a function");
+        if (
+            !iteratorMethod.TryGetObject(out var iteratorMethodObj)
+            || iteratorMethodObj is not JsFunction iteratorFn
+        )
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Array.fromAsync async iterator method is not a function"
+            );
 
-        var iteratorValue = realm.InvokeFunction(iteratorFn, JsValue.FromObject(items), ReadOnlySpan<JsValue>.Empty);
+        var iteratorValue = realm.InvokeFunction(
+            iteratorFn,
+            JsValue.FromObject(items),
+            ReadOnlySpan<JsValue>.Empty
+        );
         if (!iteratorValue.TryGetObject(out var iteratorObject))
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Array.fromAsync async iterator result must be object");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Array.fromAsync async iterator result must be object"
+            );
 
-        if (!iteratorObject.TryGetPropertyAtom(realm, IdNext, out var nextValue, out _) ||
-            !nextValue.TryGetObject(out var nextObj) || nextObj is not JsFunction nextFn)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Array.fromAsync iterator.next is not a function");
+        if (
+            !iteratorObject.TryGetPropertyAtom(realm, IdNext, out var nextValue, out _)
+            || !nextValue.TryGetObject(out var nextObj)
+            || nextObj is not JsFunction nextFn
+        )
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Array.fromAsync iterator.next is not a function"
+            );
 
         iterator = iteratorObject;
         nextMethod = nextFn;
@@ -347,24 +493,47 @@ public partial class Intrinsics
         JsRealm realm,
         JsObject items,
         out JsObject iterator,
-        out JsFunction nextMethod)
+        out JsFunction nextMethod
+    )
     {
         iterator = null!;
         nextMethod = null!;
-        if (!items.TryGetPropertyAtom(realm, IdSymbolIterator, out var iteratorMethod, out _) ||
-            iteratorMethod.IsUndefined || iteratorMethod.IsNull)
+        if (
+            !items.TryGetPropertyAtom(realm, IdSymbolIterator, out var iteratorMethod, out _)
+            || iteratorMethod.IsUndefined
+            || iteratorMethod.IsNull
+        )
             return false;
 
-        if (!iteratorMethod.TryGetObject(out var iteratorMethodObj) || iteratorMethodObj is not JsFunction iteratorFn)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Array.fromAsync iterator method is not a function");
+        if (
+            !iteratorMethod.TryGetObject(out var iteratorMethodObj)
+            || iteratorMethodObj is not JsFunction iteratorFn
+        )
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Array.fromAsync iterator method is not a function"
+            );
 
-        var iteratorValue = realm.InvokeFunction(iteratorFn, JsValue.FromObject(items), ReadOnlySpan<JsValue>.Empty);
+        var iteratorValue = realm.InvokeFunction(
+            iteratorFn,
+            JsValue.FromObject(items),
+            ReadOnlySpan<JsValue>.Empty
+        );
         if (!iteratorValue.TryGetObject(out var iteratorObject))
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Array.fromAsync iterator result must be object");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Array.fromAsync iterator result must be object"
+            );
 
-        if (!iteratorObject.TryGetPropertyAtom(realm, IdNext, out var nextValue, out _) ||
-            !nextValue.TryGetObject(out var nextObj) || nextObj is not JsFunction nextFn)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Array.fromAsync iterator.next is not a function");
+        if (
+            !iteratorObject.TryGetPropertyAtom(realm, IdNext, out var nextValue, out _)
+            || !nextValue.TryGetObject(out var nextObj)
+            || nextObj is not JsFunction nextFn
+        )
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Array.fromAsync iterator.next is not a function"
+            );
 
         iterator = iteratorObject;
         nextMethod = nextFn;
@@ -373,9 +542,11 @@ public partial class Intrinsics
 
     private sealed class ArrayFromAsyncContinuation(
         JsArrayFromAsyncOperation operation,
-        Action<JsRealm, JsArrayFromAsyncOperation, JsValue> onFulfilled)
+        Action<JsRealm, JsArrayFromAsyncOperation, JsValue> onFulfilled
+    )
     {
         public JsArrayFromAsyncOperation Operation { get; } = operation;
-        public Action<JsRealm, JsArrayFromAsyncOperation, JsValue> OnFulfilled { get; } = onFulfilled;
+        public Action<JsRealm, JsArrayFromAsyncOperation, JsValue> OnFulfilled { get; } =
+            onFulfilled;
     }
 }

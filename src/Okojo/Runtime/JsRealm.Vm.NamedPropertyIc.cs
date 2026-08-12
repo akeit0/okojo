@@ -12,7 +12,8 @@ public sealed partial class JsRealm
         bool receiverIsObject,
         JsObject obj,
         int atom,
-        out OkojoNamedPropertyIcEntry ic)
+        out OkojoNamedPropertyIcEntry ic
+    )
     {
         if (namedPropertyIcEntries is null || !receiverIsObject || obj.UsesDynamicNamedProperties)
         {
@@ -28,13 +29,17 @@ public sealed partial class JsRealm
         ic = namedPropertyIcEntries[icSlot];
         return ReferenceEquals(obj.Shape, ic.Shape)
 #if DEBUG
-               && ic.NameAtom == atom
+            && ic.NameAtom == atom
 #endif
-            ;
+        ;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool CanCacheNamedPropertyResult(bool receiverIsObject, JsObject obj, in SlotInfo slotInfo)
+    private static bool CanCacheNamedPropertyResult(
+        bool receiverIsObject,
+        JsObject obj,
+        in SlotInfo slotInfo
+    )
     {
         return receiverIsObject && slotInfo.IsValid && !obj.UsesDynamicNamedProperties;
     }
@@ -45,7 +50,8 @@ public sealed partial class JsRealm
         int icSlot,
         JsObject obj,
         int atom,
-        in SlotInfo slotInfo)
+        in SlotInfo slotInfo
+    )
     {
         if (namedPropertyIcEntries is null || !slotInfo.IsValid || obj.UsesDynamicNamedProperties)
             return;

@@ -9,8 +9,10 @@ public interface ILazyHostMethodProvider
     [MethodImpl(MethodImplOptions.NoInlining)]
     static void GetOrCreateLazyHostMethod(int atom, JsObject provider, out JsValue method)
     {
-        if (provider is ILazyHostMethodProvider lazyProvider &&
-            lazyProvider.TryGetOrCreateLazyHostMethod(provider.Realm, atom, out method))
+        if (
+            provider is ILazyHostMethodProvider lazyProvider
+            && lazyProvider.TryGetOrCreateLazyHostMethod(provider.Realm, atom, out method)
+        )
             return;
 
         method = JsValue.Undefined;
@@ -22,12 +24,14 @@ public sealed class JsHostObject : JsObject, ILazyHostMethodProvider
     private readonly HostRealmLayoutInfo layoutInfo;
 
     internal JsHostObject(JsRealm realm, object data, HostTypeDescriptor descriptor)
-        : this(realm, data, descriptor, descriptor.GetOrCreateRealmLayout(realm))
-    {
-    }
+        : this(realm, data, descriptor, descriptor.GetOrCreateRealmLayout(realm)) { }
 
-    private JsHostObject(JsRealm realm, object data, HostTypeDescriptor descriptor,
-        HostRealmLayoutInfo layoutInfo)
+    private JsHostObject(
+        JsRealm realm,
+        object data,
+        HostTypeDescriptor descriptor,
+        HostRealmLayoutInfo layoutInfo
+    )
         : base(layoutInfo.Layout)
     {
         this.layoutInfo = layoutInfo;
@@ -48,8 +52,10 @@ public sealed class JsHostObject : JsObject, ILazyHostMethodProvider
     internal static JsValue InvokeHostIteratorMethod(scoped in CallInfo info)
     {
         if (!info.ThisValue.TryGetObject(out var thisObj) || thisObj is not JsHostObject host)
-            throw new JsRuntimeException(JsErrorKind.TypeError,
-                "[Symbol.iterator] called on incompatible receiver");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "[Symbol.iterator] called on incompatible receiver"
+            );
 
         return JsValue.FromObject(new JsClrEnumeratorObject(info.Realm, host));
     }
@@ -57,8 +63,10 @@ public sealed class JsHostObject : JsObject, ILazyHostMethodProvider
     internal static JsValue InvokeHostAsyncIteratorMethod(scoped in CallInfo info)
     {
         if (!info.ThisValue.TryGetObject(out var thisObj) || thisObj is not JsHostObject host)
-            throw new JsRuntimeException(JsErrorKind.TypeError,
-                "[Symbol.asyncIterator] called on incompatible receiver");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "[Symbol.asyncIterator] called on incompatible receiver"
+            );
 
         return JsValue.FromObject(new JsClrAsyncEnumeratorObject(info.Realm, host));
     }
@@ -66,8 +74,10 @@ public sealed class JsHostObject : JsObject, ILazyHostMethodProvider
     internal static JsValue InvokeHostDisposeMethod(scoped in CallInfo info)
     {
         if (!info.ThisValue.TryGetObject(out var thisObj) || thisObj is not JsHostObject host)
-            throw new JsRuntimeException(JsErrorKind.TypeError,
-                "[Symbol.dispose] called on incompatible receiver");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "[Symbol.dispose] called on incompatible receiver"
+            );
 
         host.Descriptor.Dispose!(host.Data);
         return JsValue.Undefined;
@@ -76,21 +86,29 @@ public sealed class JsHostObject : JsObject, ILazyHostMethodProvider
     internal static JsValue InvokeHostAsyncDisposeMethod(scoped in CallInfo info)
     {
         if (!info.ThisValue.TryGetObject(out var thisObj) || thisObj is not JsHostObject host)
-            throw new JsRuntimeException(JsErrorKind.TypeError,
-                "[Symbol.asyncDispose] called on incompatible receiver");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "[Symbol.asyncDispose] called on incompatible receiver"
+            );
 
         return info.Realm.WrapTask(DisposeAsync(host));
     }
 
     public bool TryGetOrCreateLazyHostMethod(JsRealm realm, int atom, out JsValue method)
     {
-        if (layoutInfo.TryGetOrCreateMethodValue(realm, atom, out method)) return true;
+        if (layoutInfo.TryGetOrCreateMethodValue(realm, atom, out method))
+            return true;
 
         return false;
     }
 
-    internal override bool TryGetPropertyAtomWithReceiverValue(JsRealm realm, in JsValue receiverValue, int atom,
-        out JsValue value, out SlotInfo slotInfo)
+    internal override bool TryGetPropertyAtomWithReceiverValue(
+        JsRealm realm,
+        in JsValue receiverValue,
+        int atom,
+        out JsValue value,
+        out SlotInfo slotInfo
+    )
     {
         slotInfo = SlotInfo.Invalid;
         if (atom == IdSymbolToStringTag)
@@ -104,18 +122,26 @@ public sealed class JsHostObject : JsObject, ILazyHostMethodProvider
             return true;
         }
 
-        return base.TryGetPropertyAtomWithReceiverValue(realm, receiverValue, atom, out value, out slotInfo);
+        return base.TryGetPropertyAtomWithReceiverValue(
+            realm,
+            receiverValue,
+            atom,
+            out value,
+            out slotInfo
+        );
     }
 
-    internal override bool TryGetOwnNamedPropertyDescriptorAtom(JsRealm realm, int atom,
+    internal override bool TryGetOwnNamedPropertyDescriptorAtom(
+        JsRealm realm,
+        int atom,
         out PropertyDescriptor descriptor,
-        bool needDescriptor = true)
+        bool needDescriptor = true
+    )
     {
         if (atom == IdSymbolToStringTag)
         {
             descriptor = needDescriptor
-                ? PropertyDescriptor.Const(JsValue.FromString(DisplayTag), false, false,
-                    true)
+                ? PropertyDescriptor.Const(JsValue.FromString(DisplayTag), false, false, true)
                 : default;
             return true;
         }
@@ -138,7 +164,12 @@ public sealed class JsHostObject : JsObject, ILazyHostMethodProvider
         {
             if (needDescriptor)
             {
-                _ = MaterializeLazyMethodValueIfNeeded(realm, atom, foundInfo, Slots[foundInfo.Slot]);
+                _ = MaterializeLazyMethodValueIfNeeded(
+                    realm,
+                    atom,
+                    foundInfo,
+                    Slots[foundInfo.Slot]
+                );
 
                 descriptor = BuildNamedDescriptorBySlotInfo(foundInfo);
             }
@@ -154,7 +185,11 @@ public sealed class JsHostObject : JsObject, ILazyHostMethodProvider
         return false;
     }
 
-    internal override void CollectOwnNamedPropertyAtoms(JsRealm realm, List<int> atomsOut, bool enumerableOnly)
+    internal override void CollectOwnNamedPropertyAtoms(
+        JsRealm realm,
+        List<int> atomsOut,
+        bool enumerableOnly
+    )
     {
         base.CollectOwnNamedPropertyAtoms(realm, atomsOut, enumerableOnly);
         if (!enumerableOnly)
@@ -164,8 +199,12 @@ public sealed class JsHostObject : JsObject, ILazyHostMethodProvider
         }
     }
 
-    internal override bool TryGetElementWithReceiver(JsRealm realm, JsObject receiver, uint index,
-        out JsValue value)
+    internal override bool TryGetElementWithReceiver(
+        JsRealm realm,
+        JsObject receiver,
+        uint index,
+        out JsValue value
+    )
     {
         var indexer = Descriptor.Indexer;
         if (indexer is not null)
@@ -181,7 +220,12 @@ public sealed class JsHostObject : JsObject, ILazyHostMethodProvider
         return base.TryGetElementWithReceiver(realm, receiver, index, out value);
     }
 
-    internal override bool SetElementWithReceiver(JsRealm realm, JsObject receiver, uint index, JsValue value)
+    internal override bool SetElementWithReceiver(
+        JsRealm realm,
+        JsObject receiver,
+        uint index,
+        JsValue value
+    )
     {
         var indexer = Descriptor.Indexer;
         if (ReferenceEquals(this, receiver) && indexer?.Setter is not null)
@@ -214,9 +258,12 @@ public sealed class JsHostObject : JsObject, ILazyHostMethodProvider
             var result = indexer.Getter(Realm, Data, index);
             if (result.Success)
             {
-                descriptor = PropertyDescriptor.Data(result.Value, indexer.Setter is not null,
+                descriptor = PropertyDescriptor.Data(
+                    result.Value,
+                    indexer.Setter is not null,
                     true,
-                    true);
+                    true
+                );
                 return true;
             }
         }
@@ -235,8 +282,12 @@ public sealed class JsHostObject : JsObject, ILazyHostMethodProvider
         return $"[{DisplayTag}]";
     }
 
-    private JsValue MaterializeLazyMethodValueIfNeeded(JsRealm realm, int atom, in SlotInfo slotInfo,
-        in JsValue value)
+    private JsValue MaterializeLazyMethodValueIfNeeded(
+        JsRealm realm,
+        int atom,
+        in SlotInfo slotInfo,
+        in JsValue value
+    )
     {
         if (!value.IsTheHole)
             return value;

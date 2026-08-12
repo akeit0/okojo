@@ -19,72 +19,106 @@ internal sealed class NodeReplBuiltIn(NodeRuntime runtime)
 
         var realm = runtime.MainRealm;
         var module = new JsPlainObject(realm, useDictionaryMode: true);
-        module.DefineDataProperty("start", JsValue.FromObject(CreateStartFunction(realm)), JsShapePropertyFlags.Open);
+        module.DefineDataProperty(
+            "start",
+            JsValue.FromObject(CreateStartFunction(realm)),
+            JsShapePropertyFlags.Open
+        );
         moduleObject = module;
         return module;
     }
 
     private JsHostFunction CreateStartFunction(JsRealm realm)
     {
-        return new(realm, "start", 0, (in info) =>
-        {
-            var prompt = GetPrompt(info);
-            var server = new JsPlainObject(info.Realm, useDictionaryMode: true);
-            server.DefineDataProperty("context", JsValue.FromObject(info.Realm.GlobalObject),
-                JsShapePropertyFlags.Open);
-            server.DefineDataProperty("close", JsValue.FromObject(CreateCloseFunction(info.Realm, server)),
-                JsShapePropertyFlags.Open);
+        return new(
+            realm,
+            "start",
+            0,
+            (in info) =>
+            {
+                var prompt = GetPrompt(info);
+                var server = new JsPlainObject(info.Realm, useDictionaryMode: true);
+                server.DefineDataProperty(
+                    "context",
+                    JsValue.FromObject(info.Realm.GlobalObject),
+                    JsShapePropertyFlags.Open
+                );
+                server.DefineDataProperty(
+                    "close",
+                    JsValue.FromObject(CreateCloseFunction(info.Realm, server)),
+                    JsShapePropertyFlags.Open
+                );
 
-            var state = new ReplServerState(info.Realm, prompt);
-            states.Remove(server);
-            states.Add(server, state);
+                var state = new ReplServerState(info.Realm, prompt);
+                states.Remove(server);
+                states.Add(server, state);
 
-            info.Realm.QueueHostTask(CreateStartDriver(info.Realm, server));
-            return JsValue.FromObject(server);
-        }, false);
+                info.Realm.QueueHostTask(CreateStartDriver(info.Realm, server));
+                return JsValue.FromObject(server);
+            },
+            false
+        );
     }
 
     private JsHostFunction CreateCloseFunction(JsRealm realm, JsObject server)
     {
-        return new(realm, "close", 0, (in info) =>
-        {
-            if (states.TryGetValue(server, out var state))
-                state.StopRequested = true;
-            return JsValue.Undefined;
-        }, false);
+        return new(
+            realm,
+            "close",
+            0,
+            (in info) =>
+            {
+                if (states.TryGetValue(server, out var state))
+                    state.StopRequested = true;
+                return JsValue.Undefined;
+            },
+            false
+        );
     }
 
     private JsHostFunction CreateStartDriver(JsRealm realm, JsObject server)
     {
-        return new(realm, "replStart", 0, (in info) =>
-        {
-            if (!states.TryGetValue(server, out var state) || state.StopRequested)
-                return JsValue.Undefined;
+        return new(
+            realm,
+            "replStart",
+            0,
+            (in info) =>
+            {
+                if (!states.TryGetValue(server, out var state) || state.StopRequested)
+                    return JsValue.Undefined;
 
-            RunServer(state);
-            return JsValue.Undefined;
-        }, false);
+                RunServer(state);
+                return JsValue.Undefined;
+            },
+            false
+        );
     }
 
     private void RunServer(ReplServerState state)
     {
         var pumpTurn = CreatePumpTurn(state.Realm);
         var evaluator = new NodeReplEvaluator(state.Realm, pumpTurn);
-        SystemReplLoop.RunAsync(new()
-        {
-            History = ReplHistoryStore.CreateEphemeral(),
-            IsInputComplete = input => ReplInputParser.IsInputComplete(input, true),
-            PumpTurn = pumpTurn,
-            PrimaryPrompt = state.Prompt,
-            ContinuationPrompt = "... ",
-            HandleInputAsync = line => HandleLineAsync(state, evaluator, line)
-        }).GetAwaiter().GetResult();
+        SystemReplLoop
+            .RunAsync(
+                new()
+                {
+                    History = ReplHistoryStore.CreateEphemeral(),
+                    IsInputComplete = input => ReplInputParser.IsInputComplete(input, true),
+                    PumpTurn = pumpTurn,
+                    PrimaryPrompt = state.Prompt,
+                    ContinuationPrompt = "... ",
+                    HandleInputAsync = line => HandleLineAsync(state, evaluator, line),
+                }
+            )
+            .GetAwaiter()
+            .GetResult();
     }
 
     private static async Task<bool> HandleLineAsync(
         ReplServerState state,
         NodeReplEvaluator evaluator,
-        string line)
+        string line
+    )
     {
         if (state.StopRequested)
             return false;
@@ -109,9 +143,11 @@ internal sealed class NodeReplBuiltIn(NodeRuntime runtime)
         }
         catch (JsRuntimeException runtimeException)
         {
-            Console.Error.WriteLine(runtimeException.ThrownValue is { } thrown
-                ? $"Uncaught {new ReplFormatter(evaluator.Realm, 2).Format(thrown)}"
-                : $"Uncaught {runtimeException.Kind}: {runtimeException.Message}");
+            Console.Error.WriteLine(
+                runtimeException.ThrownValue is { } thrown
+                    ? $"Uncaught {new ReplFormatter(evaluator.Realm, 2).Format(thrown)}"
+                    : $"Uncaught {runtimeException.Kind}: {runtimeException.Message}"
+            );
         }
         catch (Exception ex)
         {
@@ -146,9 +182,11 @@ internal sealed class NodeReplBuiltIn(NodeRuntime runtime)
         if (first.IsString)
             return first.AsString();
 
-        if (first.TryGetObject(out var options) &&
-            options.TryGetProperty("prompt", out var promptValue) &&
-            promptValue.IsString)
+        if (
+            first.TryGetObject(out var options)
+            && options.TryGetProperty("prompt", out var promptValue)
+            && promptValue.IsString
+        )
             return promptValue.AsString();
 
         return "> ";
@@ -161,7 +199,8 @@ internal sealed class NodeReplBuiltIn(NodeRuntime runtime)
             Commands:
               .help                    Show REPL help
               .exit                    Exit the REPL
-            """);
+            """
+        );
     }
 
     private sealed class ReplServerState(JsRealm realm, string prompt)

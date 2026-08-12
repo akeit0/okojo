@@ -22,63 +22,93 @@ public partial class Intrinsics
     {
         const int atomErrors = IdErrors;
         const int atomCause = IdCause;
-        return new(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            var callee = (JsHostFunction)info.Function;
-            var err = CreateAggregateErrorInstance(in info);
-            if (args.Length > 1 && !args[1].IsUndefined)
+        return new(
+            Realm,
+            (in info) =>
             {
-                var message = realm.ToJsStringSlowPath(args[1]);
-                err.DefineDataPropertyAtom(realm, IdMessage, JsValue.FromString(message),
-                    JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable);
-            }
+                var realm = info.Realm;
+                var args = info.Arguments;
+                var callee = (JsHostFunction)info.Function;
+                var err = CreateAggregateErrorInstance(in info);
+                if (args.Length > 1 && !args[1].IsUndefined)
+                {
+                    var message = realm.ToJsStringSlowPath(args[1]);
+                    err.DefineDataPropertyAtom(
+                        realm,
+                        IdMessage,
+                        JsValue.FromString(message),
+                        JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable
+                    );
+                }
 
-            var errorsArray = CollectAggregateErrorErrors(args.Length > 0 ? args[0] : JsValue.Undefined);
-            err.DefineDataPropertyAtom(realm, atomErrors, JsValue.FromObject(errorsArray),
-                JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable);
+                var errorsArray = CollectAggregateErrorErrors(
+                    args.Length > 0 ? args[0] : JsValue.Undefined
+                );
+                err.DefineDataPropertyAtom(
+                    realm,
+                    atomErrors,
+                    JsValue.FromObject(errorsArray),
+                    JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable
+                );
 
-            if (args.Length > 2)
-                InstallErrorCause(err, args[2], atomCause);
+                if (args.Length > 2)
+                    InstallErrorCause(err, args[2], atomCause);
 
-            return err;
-        }, "AggregateError", 2, true);
+                return err;
+            },
+            "AggregateError",
+            2,
+            true
+        );
     }
 
     private JsHostFunction CreateSuppressedErrorConstructor()
     {
-        return new(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            var prototype = GetPrototypeFromConstructorOrIntrinsic(info.NewTarget, (JsHostFunction)info.Function,
-                SuppressedErrorPrototype);
-            if (args.Length > 2 && !args[2].IsUndefined)
+        return new(
+            Realm,
+            (in info) =>
             {
-                var message = JsValue.FromString(realm.ToJsStringSlowPath(args[2]));
-                return CreateSuppressedErrorInstance(prototype,
-                    args.Length > 0 ? args[0] : JsValue.Undefined,
-                    args.Length > 1 ? args[1] : JsValue.Undefined,
-                    message);
-            }
+                var realm = info.Realm;
+                var args = info.Arguments;
+                var prototype = GetPrototypeFromConstructorOrIntrinsic(
+                    info.NewTarget,
+                    (JsHostFunction)info.Function,
+                    SuppressedErrorPrototype
+                );
+                if (args.Length > 2 && !args[2].IsUndefined)
+                {
+                    var message = JsValue.FromString(realm.ToJsStringSlowPath(args[2]));
+                    return CreateSuppressedErrorInstance(
+                        prototype,
+                        args.Length > 0 ? args[0] : JsValue.Undefined,
+                        args.Length > 1 ? args[1] : JsValue.Undefined,
+                        message
+                    );
+                }
 
-            return CreateSuppressedErrorInstance(prototype,
-                args.Length > 0 ? args[0] : JsValue.Undefined,
-                args.Length > 1 ? args[1] : JsValue.Undefined);
-        }, "SuppressedError", 3, true);
+                return CreateSuppressedErrorInstance(
+                    prototype,
+                    args.Length > 0 ? args[0] : JsValue.Undefined,
+                    args.Length > 1 ? args[1] : JsValue.Undefined
+                );
+            },
+            "SuppressedError",
+            3,
+            true
+        );
     }
 
-    private JsPlainObject CreateSuppressedErrorInstance(JsObject prototype, in JsValue error, in JsValue suppressed,
-        JsValue? message = null)
+    private JsPlainObject CreateSuppressedErrorInstance(
+        JsObject prototype,
+        in JsValue error,
+        in JsValue suppressed,
+        JsValue? message = null
+    )
     {
         if (message is JsValue messageValue)
         {
             var shape = suppressedErrorWithMessageShape ??= CreateSuppressedErrorWithMessageShape();
-            var err = new JsPlainObject(shape, false)
-            {
-                Prototype = prototype
-            };
+            var err = new JsPlainObject(shape, false) { Prototype = prototype };
             err.SetNamedSlotUnchecked(SuppressedErrorWithMessageMessageSlot, messageValue);
             err.SetNamedSlotUnchecked(SuppressedErrorWithMessageErrorSlot, error);
             err.SetNamedSlotUnchecked(SuppressedErrorWithMessageSuppressedSlot, suppressed);
@@ -86,10 +116,7 @@ public partial class Intrinsics
         }
 
         var baseShape = suppressedErrorShape ??= CreateSuppressedErrorShape();
-        var result = new JsPlainObject(baseShape, false)
-        {
-            Prototype = prototype
-        };
+        var result = new JsPlainObject(baseShape, false) { Prototype = prototype };
         result.SetNamedSlotUnchecked(SuppressedErrorErrorSlot, error);
         result.SetNamedSlotUnchecked(SuppressedErrorSuppressedSlot, suppressed);
         return result;
@@ -120,27 +147,39 @@ public partial class Intrinsics
     internal JsHostFunction CreateNativeErrorConstructor(string name, JsObject prototype)
     {
         const int atomCause = IdCause;
-        return new(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            var err = CreateNativeErrorInstance(in info, prototype);
-            if (args.Length != 0 && !args[0].IsUndefined)
+        return new(
+            Realm,
+            (in info) =>
             {
-                var message = realm.ToJsStringSlowPath(args[0]);
-                err.DefineDataPropertyAtom(realm, IdMessage, JsValue.FromString(message),
-                    JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable);
-            }
+                var realm = info.Realm;
+                var args = info.Arguments;
+                var err = CreateNativeErrorInstance(in info, prototype);
+                if (args.Length != 0 && !args[0].IsUndefined)
+                {
+                    var message = realm.ToJsStringSlowPath(args[0]);
+                    err.DefineDataPropertyAtom(
+                        realm,
+                        IdMessage,
+                        JsValue.FromString(message),
+                        JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable
+                    );
+                }
 
-            if (args.Length > 1)
-                InstallErrorCause(err, args[1], atomCause);
+                if (args.Length > 1)
+                    InstallErrorCause(err, args[1], atomCause);
 
-            return err;
-        }, name, 1, true);
+                return err;
+            },
+            name,
+            1,
+            true
+        );
     }
 
-    internal JsPlainObject CreateNativeErrorInstance(in CallInfo info,
-        JsObject intrinsicDefaultPrototype)
+    internal JsPlainObject CreateNativeErrorInstance(
+        in CallInfo info,
+        JsObject intrinsicDefaultPrototype
+    )
     {
         return CreateErrorInstance(in info, intrinsicDefaultPrototype);
     }
@@ -152,21 +191,26 @@ public partial class Intrinsics
 
     internal JsPlainObject CreateErrorInstance(in CallInfo info, JsObject intrinsicDefaultPrototype)
     {
-        if (info.IsConstruct &&
-            info.ThisValue.TryGetObject(out var existingObj) &&
-            existingObj is JsPlainObject existingPlainObject)
+        if (
+            info.IsConstruct
+            && info.ThisValue.TryGetObject(out var existingObj)
+            && existingObj is JsPlainObject existingPlainObject
+        )
             return existingPlainObject;
 
-        var prototype = GetPrototypeFromConstructorOrIntrinsic(info.NewTarget, (JsHostFunction)info.Function,
-            intrinsicDefaultPrototype);
-        return new(Realm, false)
-        {
-            Prototype = prototype
-        };
+        var prototype = GetPrototypeFromConstructorOrIntrinsic(
+            info.NewTarget,
+            (JsHostFunction)info.Function,
+            intrinsicDefaultPrototype
+        );
+        return new(Realm, false) { Prototype = prototype };
     }
 
-    internal JsObject GetPrototypeFromConstructorOrIntrinsic(in JsValue newTarget, JsHostFunction activeFunction,
-        JsObject intrinsicDefaultPrototype)
+    internal JsObject GetPrototypeFromConstructorOrIntrinsic(
+        in JsValue newTarget,
+        JsHostFunction activeFunction,
+        JsObject intrinsicDefaultPrototype
+    )
     {
         JsObject constructorObject;
         if (newTarget.TryGetObject(out var newTargetObj) && newTargetObj is JsFunction)
@@ -174,14 +218,18 @@ public partial class Intrinsics
         else
             constructorObject = activeFunction;
 
-        if (constructorObject.TryGetPropertyAtom(Realm, IdPrototype, out var prototypeValue, out _) &&
-            prototypeValue.TryGetObject(out var prototypeObj))
+        if (
+            constructorObject.TryGetPropertyAtom(Realm, IdPrototype, out var prototypeValue, out _)
+            && prototypeValue.TryGetObject(out var prototypeObj)
+        )
             return prototypeObj;
 
         if (constructorObject is JsFunction constructorFunction)
-            return GetIntrinsicPrototypeForRealm(GetFunctionRealm(activeFunction.Realm, constructorFunction),
+            return GetIntrinsicPrototypeForRealm(
+                GetFunctionRealm(activeFunction.Realm, constructorFunction),
                 activeFunction.Realm,
-                intrinsicDefaultPrototype);
+                intrinsicDefaultPrototype
+            );
 
         return intrinsicDefaultPrototype;
     }
@@ -190,15 +238,20 @@ public partial class Intrinsics
     {
         if (function is JsBoundFunction bound)
             return GetFunctionRealm(errorRealm, bound.Target);
-        if (function.TryGetProxyTargetOrThrow(errorRealm, out var target) &&
-            target is JsFunction targetFunction)
+        if (
+            function.TryGetProxyTargetOrThrow(errorRealm, out var target)
+            && target is JsFunction targetFunction
+        )
             return GetFunctionRealm(errorRealm, targetFunction);
 
         return function.Realm;
     }
 
-    private static JsObject GetIntrinsicPrototypeForRealm(JsRealm targetRealm, JsRealm sourceRealm,
-        JsObject intrinsicDefaultPrototype)
+    private static JsObject GetIntrinsicPrototypeForRealm(
+        JsRealm targetRealm,
+        JsRealm sourceRealm,
+        JsObject intrinsicDefaultPrototype
+    )
     {
         if (ReferenceEquals(intrinsicDefaultPrototype, sourceRealm.ArrayPrototype))
             return targetRealm.ArrayPrototype;
@@ -251,7 +304,12 @@ public partial class Intrinsics
         for (var i = 0; i < 12; i++)
         {
             var kind = (TypedArrayElementKind)i;
-            if (ReferenceEquals(intrinsicDefaultPrototype, sourceRealm.Intrinsics.GetTypedArrayPrototype(kind)))
+            if (
+                ReferenceEquals(
+                    intrinsicDefaultPrototype,
+                    sourceRealm.Intrinsics.GetTypedArrayPrototype(kind)
+                )
+            )
                 return targetRealm.Intrinsics.GetTypedArrayPrototype(kind);
         }
 
@@ -282,20 +340,35 @@ public partial class Intrinsics
         if (!realm.TryToObject(errors, out var iterableObj))
             throw new JsRuntimeException(JsErrorKind.TypeError, "errors is not iterable");
 
-        if (!iterableObj.TryGetPropertyAtom(realm, IdSymbolIterator, out var iteratorMethod, out _) ||
-            iteratorMethod.IsUndefined || iteratorMethod.IsNull)
+        if (
+            !iterableObj.TryGetPropertyAtom(realm, IdSymbolIterator, out var iteratorMethod, out _)
+            || iteratorMethod.IsUndefined
+            || iteratorMethod.IsNull
+        )
             throw new JsRuntimeException(JsErrorKind.TypeError, "errors is not iterable");
 
-        if (!iteratorMethod.TryGetObject(out var iteratorMethodObj) || iteratorMethodObj is not JsFunction iteratorFn)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Symbol.iterator is not a function");
+        if (
+            !iteratorMethod.TryGetObject(out var iteratorMethodObj)
+            || iteratorMethodObj is not JsFunction iteratorFn
+        )
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Symbol.iterator is not a function"
+            );
 
-        var iteratorValue =
-            realm.InvokeFunction(iteratorFn, JsValue.FromObject(iterableObj), ReadOnlySpan<JsValue>.Empty);
+        var iteratorValue = realm.InvokeFunction(
+            iteratorFn,
+            JsValue.FromObject(iterableObj),
+            ReadOnlySpan<JsValue>.Empty
+        );
         if (!iteratorValue.TryGetObject(out var iteratorObj))
             throw new JsRuntimeException(JsErrorKind.TypeError, "iterator is not an object");
 
-        if (!iteratorObj.TryGetPropertyAtom(realm, IdNext, out var nextMethod, out _) ||
-            !nextMethod.TryGetObject(out var nextFnObj) || nextFnObj is not JsFunction)
+        if (
+            !iteratorObj.TryGetPropertyAtom(realm, IdNext, out var nextMethod, out _)
+            || !nextMethod.TryGetObject(out var nextFnObj)
+            || nextFnObj is not JsFunction
+        )
             throw new JsRuntimeException(JsErrorKind.TypeError, "iterator.next is not a function");
 
         var result = realm.CreateArrayObject();
@@ -332,36 +405,51 @@ public partial class Intrinsics
             return;
 
         _ = optionsObj.TryGetPropertyAtom(realm, atomCause, out var causeValue, out _);
-        errorObject.DefineDataPropertyAtom(realm, atomCause, causeValue,
-            JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable);
+        errorObject.DefineDataPropertyAtom(
+            realm,
+            atomCause,
+            causeValue,
+            JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable
+        );
     }
 
     private void InstallErrorConstructorBuiltins()
     {
-        var toStringFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var thisValue = info.ThisValue;
-            if (!thisValue.TryGetObject(out var target))
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Error.prototype.toString called on incompatible receiver",
-                    "ERROR_TOSTRING_BAD_RECEIVER");
+        var toStringFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var thisValue = info.ThisValue;
+                if (!thisValue.TryGetObject(out var target))
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Error.prototype.toString called on incompatible receiver",
+                        "ERROR_TOSTRING_BAD_RECEIVER"
+                    );
 
-            _ = target.TryGetPropertyAtom(realm, IdName, out var name, out _);
-            _ = target.TryGetPropertyAtom(realm, IdMessage, out var message, out _);
-            var nameText = name.IsUndefined ? "Error" : realm.ToJsStringSlowPath(name);
-            var messageText = message.IsUndefined ? string.Empty : realm.ToJsStringSlowPath(message);
-            if (nameText.Length == 0) return messageText;
-            if (messageText.Length == 0) return nameText;
-            return $"{nameText}: {messageText}";
-        }, "toString", 0);
+                _ = target.TryGetPropertyAtom(realm, IdName, out var name, out _);
+                _ = target.TryGetPropertyAtom(realm, IdMessage, out var message, out _);
+                var nameText = name.IsUndefined ? "Error" : realm.ToJsStringSlowPath(name);
+                var messageText = message.IsUndefined
+                    ? string.Empty
+                    : realm.ToJsStringSlowPath(message);
+                if (nameText.Length == 0)
+                    return messageText;
+                if (messageText.Length == 0)
+                    return nameText;
+                return $"{nameText}: {messageText}";
+            },
+            "toString",
+            0
+        );
 
         Span<PropertyDefinition> protoDefs =
         [
             PropertyDefinition.Mutable(IdConstructor, JsValue.FromObject(ErrorConstructor)),
             PropertyDefinition.Mutable(IdName, JsValue.FromString("Error")),
             PropertyDefinition.Mutable(IdMessage, JsValue.FromString(string.Empty)),
-            PropertyDefinition.Mutable(IdToString, JsValue.FromObject(toStringFn))
+            PropertyDefinition.Mutable(IdToString, JsValue.FromObject(toStringFn)),
         ];
         ErrorPrototype.DefineNewPropertiesNoCollision(Realm, protoDefs);
 
@@ -391,15 +479,18 @@ public partial class Intrinsics
         [
             PropertyDefinition.Mutable(IdConstructor, JsValue.FromObject(TypeErrorConstructor)),
             PropertyDefinition.Mutable(IdName, JsValue.FromString("TypeError")),
-            PropertyDefinition.Mutable(IdMessage, JsValue.FromString(string.Empty))
+            PropertyDefinition.Mutable(IdMessage, JsValue.FromString(string.Empty)),
         ];
         TypeErrorPrototype.DefineNewPropertiesNoCollision(Realm, typeProtoDefs);
 
         Span<PropertyDefinition> referenceProtoDefs =
         [
-            PropertyDefinition.Mutable(IdConstructor, JsValue.FromObject(ReferenceErrorConstructor)),
+            PropertyDefinition.Mutable(
+                IdConstructor,
+                JsValue.FromObject(ReferenceErrorConstructor)
+            ),
             PropertyDefinition.Mutable(IdName, JsValue.FromString("ReferenceError")),
-            PropertyDefinition.Mutable(IdMessage, JsValue.FromString(string.Empty))
+            PropertyDefinition.Mutable(IdMessage, JsValue.FromString(string.Empty)),
         ];
         ReferenceErrorPrototype.DefineNewPropertiesNoCollision(Realm, referenceProtoDefs);
 
@@ -407,7 +498,7 @@ public partial class Intrinsics
         [
             PropertyDefinition.Mutable(IdConstructor, JsValue.FromObject(RangeErrorConstructor)),
             PropertyDefinition.Mutable(IdName, JsValue.FromString("RangeError")),
-            PropertyDefinition.Mutable(IdMessage, JsValue.FromString(string.Empty))
+            PropertyDefinition.Mutable(IdMessage, JsValue.FromString(string.Empty)),
         ];
         RangeErrorPrototype.DefineNewPropertiesNoCollision(Realm, rangeProtoDefs);
 
@@ -415,7 +506,7 @@ public partial class Intrinsics
         [
             PropertyDefinition.Mutable(IdConstructor, JsValue.FromObject(SyntaxErrorConstructor)),
             PropertyDefinition.Mutable(IdName, JsValue.FromString("SyntaxError")),
-            PropertyDefinition.Mutable(IdMessage, JsValue.FromString(string.Empty))
+            PropertyDefinition.Mutable(IdMessage, JsValue.FromString(string.Empty)),
         ];
         SyntaxErrorPrototype.DefineNewPropertiesNoCollision(Realm, syntaxProtoDefs);
 
@@ -423,7 +514,7 @@ public partial class Intrinsics
         [
             PropertyDefinition.Mutable(IdConstructor, JsValue.FromObject(EvalErrorConstructor)),
             PropertyDefinition.Mutable(IdName, JsValue.FromString("EvalError")),
-            PropertyDefinition.Mutable(IdMessage, JsValue.FromString(string.Empty))
+            PropertyDefinition.Mutable(IdMessage, JsValue.FromString(string.Empty)),
         ];
         EvalErrorPrototype.DefineNewPropertiesNoCollision(Realm, evalProtoDefs);
 
@@ -431,23 +522,29 @@ public partial class Intrinsics
         [
             PropertyDefinition.Mutable(IdConstructor, JsValue.FromObject(UriErrorConstructor)),
             PropertyDefinition.Mutable(IdName, JsValue.FromString("URIError")),
-            PropertyDefinition.Mutable(IdMessage, JsValue.FromString(string.Empty))
+            PropertyDefinition.Mutable(IdMessage, JsValue.FromString(string.Empty)),
         ];
         UriErrorPrototype.DefineNewPropertiesNoCollision(Realm, uriProtoDefs);
 
         Span<PropertyDefinition> aggregateProtoDefs =
         [
-            PropertyDefinition.Mutable(IdConstructor, JsValue.FromObject(AggregateErrorConstructor)),
+            PropertyDefinition.Mutable(
+                IdConstructor,
+                JsValue.FromObject(AggregateErrorConstructor)
+            ),
             PropertyDefinition.Mutable(IdName, JsValue.FromString("AggregateError")),
-            PropertyDefinition.Mutable(IdMessage, JsValue.FromString(string.Empty))
+            PropertyDefinition.Mutable(IdMessage, JsValue.FromString(string.Empty)),
         ];
         AggregateErrorPrototype.DefineNewPropertiesNoCollision(Realm, aggregateProtoDefs);
 
         Span<PropertyDefinition> suppressedProtoDefs =
         [
-            PropertyDefinition.Mutable(IdConstructor, JsValue.FromObject(SuppressedErrorConstructor)),
+            PropertyDefinition.Mutable(
+                IdConstructor,
+                JsValue.FromObject(SuppressedErrorConstructor)
+            ),
             PropertyDefinition.Mutable(IdName, JsValue.FromString("SuppressedError")),
-            PropertyDefinition.Mutable(IdMessage, JsValue.FromString(string.Empty))
+            PropertyDefinition.Mutable(IdMessage, JsValue.FromString(string.Empty)),
         ];
         SuppressedErrorPrototype.DefineNewPropertiesNoCollision(Realm, suppressedProtoDefs);
     }

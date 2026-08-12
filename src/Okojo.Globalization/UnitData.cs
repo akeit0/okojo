@@ -6,22 +6,77 @@ public static class UnitData
 {
     private static readonly FrozenSet<string> RelativeTimeFormatUnits = new[]
     {
-        "second", "seconds", "minute", "minutes", "hour", "hours", "day", "days",
-        "week", "weeks", "month", "months", "quarter", "quarters", "year", "years"
+        "second",
+        "seconds",
+        "minute",
+        "minutes",
+        "hour",
+        "hours",
+        "day",
+        "days",
+        "week",
+        "weeks",
+        "month",
+        "months",
+        "quarter",
+        "quarters",
+        "year",
+        "years",
     }.ToFrozenSet(StringComparer.Ordinal);
 
     private static readonly FrozenSet<string> SimpleSanctionedUnits = new[]
     {
-        "acre", "bit", "byte", "celsius", "centimeter", "day", "degree", "fahrenheit",
-        "fluid-ounce", "foot", "gallon", "gigabit", "gigabyte", "gram", "hectare", "hour",
-        "inch", "kilobit", "kilobyte", "kilogram", "kilometer", "liter", "megabit",
-        "megabyte", "meter", "microsecond", "mile", "mile-scandinavian", "milliliter",
-        "millimeter", "millisecond", "minute", "month", "nanosecond", "ounce", "percent",
-        "petabyte", "pound", "second", "stone", "terabit", "terabyte", "week", "yard", "year"
+        "acre",
+        "bit",
+        "byte",
+        "celsius",
+        "centimeter",
+        "day",
+        "degree",
+        "fahrenheit",
+        "fluid-ounce",
+        "foot",
+        "gallon",
+        "gigabit",
+        "gigabyte",
+        "gram",
+        "hectare",
+        "hour",
+        "inch",
+        "kilobit",
+        "kilobyte",
+        "kilogram",
+        "kilometer",
+        "liter",
+        "megabit",
+        "megabyte",
+        "meter",
+        "microsecond",
+        "mile",
+        "mile-scandinavian",
+        "milliliter",
+        "millimeter",
+        "millisecond",
+        "minute",
+        "month",
+        "nanosecond",
+        "ounce",
+        "percent",
+        "petabyte",
+        "pound",
+        "second",
+        "stone",
+        "terabit",
+        "terabyte",
+        "week",
+        "yard",
+        "year",
     }.ToFrozenSet(StringComparer.Ordinal);
 
     private static readonly string[] SupportedValuesOfUnits =
-        [.. SimpleSanctionedUnits.OrderBy(static value => value, StringComparer.Ordinal)];
+    [
+        .. SimpleSanctionedUnits.OrderBy(static value => value, StringComparer.Ordinal),
+    ];
 
     /// <summary>Returns the sorted supported sanctioned unit values.</summary>
     public static string[] GetSupportedValues()

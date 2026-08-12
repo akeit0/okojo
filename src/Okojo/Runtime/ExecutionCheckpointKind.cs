@@ -11,5 +11,5 @@ public enum ExecutionCheckpointKind
     ResumeGenerator = 6,
     Breakpoint = 7,
     Step = 8,
-    CaughtException = 9
+    CaughtException = 9,
 }

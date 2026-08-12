@@ -26,7 +26,8 @@ public sealed partial class JsRealm
 
     internal Dictionary<TKey, TValue> RentCompileDictionary<TKey, TValue>(
         int minCapacity = 0,
-        IEqualityComparer<TKey>? comparer = null)
+        IEqualityComparer<TKey>? comparer = null
+    )
         where TKey : notnull
     {
         return compileCollectionPool.RentDictionary<TKey, TValue>(minCapacity, comparer);
@@ -38,7 +39,10 @@ public sealed partial class JsRealm
         compileCollectionPool.ReturnDictionary(dictionary);
     }
 
-    internal HashSet<T> RentCompileHashSet<T>(int minCapacity = 0, IEqualityComparer<T>? comparer = null)
+    internal HashSet<T> RentCompileHashSet<T>(
+        int minCapacity = 0,
+        IEqualityComparer<T>? comparer = null
+    )
     {
         return compileCollectionPool.RentHashSet(minCapacity, comparer);
     }
@@ -48,7 +52,10 @@ public sealed partial class JsRealm
         compileCollectionPool.ReturnHashSet(set);
     }
 
-    internal HashSet<T> RentScratchHashSet<T>(int minCapacity = 0, IEqualityComparer<T>? comparer = null)
+    internal HashSet<T> RentScratchHashSet<T>(
+        int minCapacity = 0,
+        IEqualityComparer<T>? comparer = null
+    )
     {
         return compileCollectionPool.RentHashSet(minCapacity, comparer);
     }
@@ -116,7 +123,10 @@ public sealed partial class JsRealm
             }
         }
 
-        public Dictionary<TKey, TValue> RentDictionary<TKey, TValue>(int minCapacity, IEqualityComparer<TKey>? comparer)
+        public Dictionary<TKey, TValue> RentDictionary<TKey, TValue>(
+            int minCapacity,
+            IEqualityComparer<TKey>? comparer
+        )
             where TKey : notnull
         {
             lock (gate)
@@ -143,7 +153,8 @@ public sealed partial class JsRealm
             return minCapacity > 0 ? new(minCapacity) : new Dictionary<TKey, TValue>();
         }
 
-        public void ReturnDictionary<TKey, TValue>(Dictionary<TKey, TValue>? dictionary) where TKey : notnull
+        public void ReturnDictionary<TKey, TValue>(Dictionary<TKey, TValue>? dictionary)
+            where TKey : notnull
         {
             if (dictionary is null)
                 return;
@@ -173,7 +184,9 @@ public sealed partial class JsRealm
                 {
                     var set = (HashSet<T>)pool.Pop();
                     if (comparer is not null && !ReferenceEquals(set.Comparer, comparer))
-                        return minCapacity > 0 ? new(minCapacity, comparer) : new HashSet<T>(comparer);
+                        return minCapacity > 0
+                            ? new(minCapacity, comparer)
+                            : new HashSet<T>(comparer);
 
                     set.Clear();
                     set.EnsureCapacity(minCapacity);

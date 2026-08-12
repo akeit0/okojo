@@ -9,12 +9,32 @@ public static class LunisolarCalendar
 
     private static readonly string[] HeavenlyStems =
     [
-        "甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"
+        "甲",
+        "乙",
+        "丙",
+        "丁",
+        "戊",
+        "己",
+        "庚",
+        "辛",
+        "壬",
+        "癸",
     ];
 
     private static readonly string[] EarthlyBranches =
     [
-        "子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"
+        "子",
+        "丑",
+        "寅",
+        "卯",
+        "辰",
+        "巳",
+        "午",
+        "未",
+        "申",
+        "酉",
+        "戌",
+        "亥",
     ];
 
     private static ChineseLunisolarCalendar ChineseCalendar => chineseCalendar ??= new();
@@ -23,7 +43,10 @@ public static class LunisolarCalendar
     /// <summary>Returns the Chinese lunisolar date for a date-time.</summary>
     public static LunisolarDate GetChineseDate(DateTime dateTime)
     {
-        if (dateTime < ChineseCalendar.MinSupportedDateTime || dateTime > ChineseCalendar.MaxSupportedDateTime)
+        if (
+            dateTime < ChineseCalendar.MinSupportedDateTime
+            || dateTime > ChineseCalendar.MaxSupportedDateTime
+        )
             return GetLunisolarDate(dateTime, KoreanCalendar);
 
         return GetLunisolarDate(dateTime, ChineseCalendar);
@@ -35,7 +58,10 @@ public static class LunisolarCalendar
         return GetLunisolarDate(dateTime, KoreanCalendar);
     }
 
-    private static LunisolarDate GetLunisolarDate(DateTime dateTime, EastAsianLunisolarCalendar calendar)
+    private static LunisolarDate GetLunisolarDate(
+        DateTime dateTime,
+        EastAsianLunisolarCalendar calendar
+    )
     {
         if (dateTime < calendar.MinSupportedDateTime)
             dateTime = calendar.MinSupportedDateTime;
@@ -66,7 +92,13 @@ public static class LunisolarCalendar
     }
 
     /// <summary>A lunisolar calendar date (related year, sexagenary year name, month, day, leap-month flag).</summary>
-    public readonly struct LunisolarDate(int relatedYear, string yearName, int month, int day, bool isLeapMonth)
+    public readonly struct LunisolarDate(
+        int relatedYear,
+        string yearName,
+        int month,
+        int day,
+        bool isLeapMonth
+    )
     {
         /// <summary>The related (lunisolar) year.</summary>
         public int RelatedYear { get; } = relatedYear;

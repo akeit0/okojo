@@ -19,9 +19,7 @@ public sealed class ListFormat
 
     /// <summary>Creates a list formatter from explicit type/style strings.</summary>
     public ListFormat(string locale, string type, string style)
-        : this(locale, new ListFormatOptions { Type = type, Style = style })
-    {
-    }
+        : this(locale, new ListFormatOptions { Type = type, Style = style }) { }
 
     /// <summary>The locale tag.</summary>
     public string Locale { get; }
@@ -45,7 +43,7 @@ public sealed class ListFormat
                 {
                     "narrow" => new(" ", " ", " "),
                     "short" => new(", ", " y ", ", "),
-                    _ => new(", ", " y ", " y ")
+                    _ => new(", ", " y ", " y "),
                 };
 
             if (string.Equals(Type, "disjunction", StringComparison.Ordinal))
@@ -55,7 +53,7 @@ public sealed class ListFormat
             {
                 "narrow" => new(", ", " y ", " y "),
                 "short" => new(", ", " y ", " y "),
-                _ => new(", ", " y ", " y ")
+                _ => new(", ", " y ", " y "),
             };
         }
 
@@ -68,18 +66,20 @@ public sealed class ListFormat
                 return Style switch
                 {
                     "narrow" => new(" ", " ", " "),
-                    _ => new(", ", ", ", ", ")
+                    _ => new(", ", ", ", ", "),
                 };
 
             return Style switch
             {
                 "short" => new(", ", " & ", ", & "),
-                _ => new(", ", " and ", ", and ")
+                _ => new(", ", " and ", ", and "),
             };
         }
 
-        if (string.Equals(Type, "unit", StringComparison.Ordinal) &&
-            string.Equals(Style, "narrow", StringComparison.Ordinal))
+        if (
+            string.Equals(Type, "unit", StringComparison.Ordinal)
+            && string.Equals(Style, "narrow", StringComparison.Ordinal)
+        )
             return new(" ", " ", " ");
 
         return string.Equals(Type, "disjunction", StringComparison.Ordinal)
@@ -124,11 +124,10 @@ public sealed class ListFormat
             if (i >= items.Count - 1)
                 continue;
 
-            var separator = items.Count == 2
-                ? pattern.Two
-                : i == items.Count - 2
-                    ? pattern.End
-                    : pattern.Middle;
+            var separator =
+                items.Count == 2 ? pattern.Two
+                : i == items.Count - 2 ? pattern.End
+                : pattern.Middle;
             result.Add(new IntlPart("literal", separator));
         }
 

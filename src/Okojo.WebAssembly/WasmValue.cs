@@ -5,15 +5,20 @@ namespace Okojo.WebAssembly;
 [StructLayout(LayoutKind.Explicit)]
 public readonly struct WasmValue
 {
-    [FieldOffset(0)] private readonly int int32Value;
+    [FieldOffset(0)]
+    private readonly int int32Value;
 
-    [FieldOffset(0)] private readonly long int64Value;
+    [FieldOffset(0)]
+    private readonly long int64Value;
 
-    [FieldOffset(0)] private readonly float float32Value;
+    [FieldOffset(0)]
+    private readonly float float32Value;
 
-    [FieldOffset(0)] private readonly double float64Value;
+    [FieldOffset(0)]
+    private readonly double float64Value;
 
-    [FieldOffset(8)] private readonly object? objectValue;
+    [FieldOffset(8)]
+    private readonly object? objectValue;
 
     private WasmValue(WasmValueKind kind, int value)
     {
@@ -65,27 +70,33 @@ public readonly struct WasmValue
         this.Kind = kind;
     }
 
-    [field: FieldOffset(16)] public WasmValueKind Kind { get; }
+    [field: FieldOffset(16)]
+    public WasmValueKind Kind { get; }
 
-    public int Int32Value => Kind == WasmValueKind.Int32
-        ? int32Value
-        : throw CreateKindMismatchException(WasmValueKind.Int32);
+    public int Int32Value =>
+        Kind == WasmValueKind.Int32
+            ? int32Value
+            : throw CreateKindMismatchException(WasmValueKind.Int32);
 
-    public long Int64Value => Kind == WasmValueKind.Int64
-        ? int64Value
-        : throw CreateKindMismatchException(WasmValueKind.Int64);
+    public long Int64Value =>
+        Kind == WasmValueKind.Int64
+            ? int64Value
+            : throw CreateKindMismatchException(WasmValueKind.Int64);
 
-    public float Float32Value => Kind == WasmValueKind.Float32
-        ? float32Value
-        : throw CreateKindMismatchException(WasmValueKind.Float32);
+    public float Float32Value =>
+        Kind == WasmValueKind.Float32
+            ? float32Value
+            : throw CreateKindMismatchException(WasmValueKind.Float32);
 
-    public double Float64Value => Kind == WasmValueKind.Float64
-        ? float64Value
-        : throw CreateKindMismatchException(WasmValueKind.Float64);
+    public double Float64Value =>
+        Kind == WasmValueKind.Float64
+            ? float64Value
+            : throw CreateKindMismatchException(WasmValueKind.Float64);
 
-    public object? ObjectValue => Kind is WasmValueKind.FuncRef or WasmValueKind.ExternRef or WasmValueKind.V128
-        ? objectValue
-        : null;
+    public object? ObjectValue =>
+        Kind is WasmValueKind.FuncRef or WasmValueKind.ExternRef or WasmValueKind.V128
+            ? objectValue
+            : null;
 
     public static WasmValue FromInt32(int value)
     {

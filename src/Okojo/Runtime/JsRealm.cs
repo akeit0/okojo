@@ -29,15 +29,18 @@ public sealed partial class JsRealm
         Engine = agent.Engine;
         Agent = agent;
         EmptyShape = new(this, new());
-        FunctionPrototypeObjectShape = new(this,
+        FunctionPrototypeObjectShape = new(
+            this,
             new()
             {
-                [IdConstructor] = new(FunctionPrototypeConstructorSlot,
-                    JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable)
+                [IdConstructor] = new(
+                    FunctionPrototypeConstructorSlot,
+                    JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable
+                ),
             },
-            1);
-        FunctionPrototypeObjectShapeNoConstructor = new(this,
-            new());
+            1
+        );
+        FunctionPrototypeObjectShapeNoConstructor = new(this, new());
         var atomSource = IdSource;
         var atomFlags = IdFlags;
         var atomGlobal = IdGlobal;
@@ -47,7 +50,8 @@ public sealed partial class JsRealm
         var atomSticky = IdSticky;
         var atomUnicode = IdUnicode;
         var atomDotAll = IdDotAll;
-        RegExpOwnShape = new(this,
+        RegExpOwnShape = new(
+            this,
             new()
             {
                 [atomSource] = new(RegExpOwnSourceSlot, JsShapePropertyFlags.Configurable),
@@ -58,79 +62,111 @@ public sealed partial class JsRealm
                 [atomLastIndex] = new(RegExpOwnLastIndexSlot, JsShapePropertyFlags.Writable),
                 [atomSticky] = new(RegExpOwnStickySlot, JsShapePropertyFlags.Configurable),
                 [atomUnicode] = new(RegExpOwnUnicodeSlot, JsShapePropertyFlags.Configurable),
-                [atomDotAll] = new(RegExpOwnDotAllSlot, JsShapePropertyFlags.Configurable)
+                [atomDotAll] = new(RegExpOwnDotAllSlot, JsShapePropertyFlags.Configurable),
             },
-            9);
-        IteratorResultObjectShape = new(this,
+            9
+        );
+        IteratorResultObjectShape = new(
+            this,
             new()
             {
                 [IdValue] = new(IteratorResultValueSlot, JsShapePropertyFlags.Open),
-                [IdDone] = new(IteratorResultDoneSlot, JsShapePropertyFlags.Open)
+                [IdDone] = new(IteratorResultDoneSlot, JsShapePropertyFlags.Open),
             },
-            2);
-        IntlPartObjectShape = new(this,
+            2
+        );
+        IntlPartObjectShape = new(
+            this,
             new()
             {
                 [IdType] = new(IntlPartTypeSlot, JsShapePropertyFlags.Open),
-                [IdValue] = new(IntlPartValueSlot, JsShapePropertyFlags.Open)
+                [IdValue] = new(IntlPartValueSlot, JsShapePropertyFlags.Open),
             },
-            2);
-        IntlRangePartObjectShape = new(this,
+            2
+        );
+        IntlRangePartObjectShape = new(
+            this,
             new()
             {
                 [IdType] = new(IntlRangePartTypeSlot, JsShapePropertyFlags.Open),
                 [IdValue] = new(IntlRangePartValueSlot, JsShapePropertyFlags.Open),
-                [IdSource] = new(IntlRangePartSourceSlot, JsShapePropertyFlags.Open)
+                [IdSource] = new(IntlRangePartSourceSlot, JsShapePropertyFlags.Open),
             },
-            3);
+            3
+        );
 
-        ErrorObjectShape = new(this,
+        ErrorObjectShape = new(
+            this,
             new()
             {
                 [IdName] = new(0, JsShapePropertyFlags.Open),
-                [IdMessage] = new(1, JsShapePropertyFlags.Open)
-            }
-            , 2);
+                [IdMessage] = new(1, JsShapePropertyFlags.Open),
+            },
+            2
+        );
         bootstrapObjectPrototype = new(this, false);
         Intrinsics = new(this, bootstrapObjectPrototype);
         GlobalObject = new(this);
         Global = new(this);
-        GlobalObject.DefineDataPropertyAtom(this, IdGlobalThis, JsValue.FromObject(GlobalObject),
-            JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable);
+        GlobalObject.DefineDataPropertyAtom(
+            this,
+            IdGlobalThis,
+            JsValue.FromObject(GlobalObject),
+            JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable
+        );
 
-        SymbolAsyncIteratorSymbol =
-            Atoms.TryGetSymbolByAtom(IdSymbolAsyncIterator, out var symbolAsyncIterator)
-                ? symbolAsyncIterator
-                : new(IdSymbolAsyncIterator, "Symbol.asyncIterator", true);
+        SymbolAsyncIteratorSymbol = Atoms.TryGetSymbolByAtom(
+            IdSymbolAsyncIterator,
+            out var symbolAsyncIterator
+        )
+            ? symbolAsyncIterator
+            : new(IdSymbolAsyncIterator, "Symbol.asyncIterator", true);
         SymbolIteratorSymbol = Atoms.TryGetSymbolByAtom(IdSymbolIterator, out var symbolIterator)
             ? symbolIterator
             : new(IdSymbolIterator, "Symbol.iterator", true);
-        SymbolHasInstanceSymbol = Atoms.TryGetSymbolByAtom(IdSymbolHasInstance, out var symbolHasInstance)
+        SymbolHasInstanceSymbol = Atoms.TryGetSymbolByAtom(
+            IdSymbolHasInstance,
+            out var symbolHasInstance
+        )
             ? symbolHasInstance
             : new(IdSymbolHasInstance, "Symbol.hasInstance", true);
-        SymbolToStringTagSymbol = Atoms.TryGetSymbolByAtom(IdSymbolToStringTag, out var symbolToStringTag)
+        SymbolToStringTagSymbol = Atoms.TryGetSymbolByAtom(
+            IdSymbolToStringTag,
+            out var symbolToStringTag
+        )
             ? symbolToStringTag
             : new(IdSymbolToStringTag, "Symbol.toStringTag", true);
-        SymbolToPrimitiveSymbol = Atoms.TryGetSymbolByAtom(IdSymbolToPrimitive, out var symbolToPrimitive)
+        SymbolToPrimitiveSymbol = Atoms.TryGetSymbolByAtom(
+            IdSymbolToPrimitive,
+            out var symbolToPrimitive
+        )
             ? symbolToPrimitive
             : new(IdSymbolToPrimitive, "Symbol.toPrimitive", true);
         SymbolSpeciesSymbol = Atoms.TryGetSymbolByAtom(IdSymbolSpecies, out var symbolSpecies)
             ? symbolSpecies
             : new(IdSymbolSpecies, "Symbol.species", true);
-        SymbolIsConcatSpreadableSymbol =
-            Atoms.TryGetSymbolByAtom(IdSymbolIsConcatSpreadable, out var symbolIsConcatSpreadable)
-                ? symbolIsConcatSpreadable
-                : new(IdSymbolIsConcatSpreadable, "Symbol.isConcatSpreadable", true);
+        SymbolIsConcatSpreadableSymbol = Atoms.TryGetSymbolByAtom(
+            IdSymbolIsConcatSpreadable,
+            out var symbolIsConcatSpreadable
+        )
+            ? symbolIsConcatSpreadable
+            : new(IdSymbolIsConcatSpreadable, "Symbol.isConcatSpreadable", true);
         SymbolMatchSymbol = Atoms.TryGetSymbolByAtom(IdSymbolMatch, out var symbolMatch)
             ? symbolMatch
             : new(IdSymbolMatch, "Symbol.match", true);
-        SymbolUnscopablesSymbol = Atoms.TryGetSymbolByAtom(IdSymbolUnscopables, out var symbolUnscopables)
+        SymbolUnscopablesSymbol = Atoms.TryGetSymbolByAtom(
+            IdSymbolUnscopables,
+            out var symbolUnscopables
+        )
             ? symbolUnscopables
             : new(IdSymbolUnscopables, "Symbol.unscopables", true);
         SymbolDisposeSymbol = Atoms.TryGetSymbolByAtom(IdSymbolDispose, out var symbolDispose)
             ? symbolDispose
             : new(IdSymbolDispose, "Symbol.dispose", true);
-        SymbolAsyncDisposeSymbol = Atoms.TryGetSymbolByAtom(IdSymbolAsyncDispose, out var symbolAsyncDispose)
+        SymbolAsyncDisposeSymbol = Atoms.TryGetSymbolByAtom(
+            IdSymbolAsyncDispose,
+            out var symbolAsyncDispose
+        )
             ? symbolAsyncDispose
             : new(IdSymbolAsyncDispose, "Symbol.asyncDispose", true);
         SymbolReplaceSymbol = Atoms.TryGetSymbolByAtom(IdSymbolReplace, out var symbolReplace)
@@ -175,11 +211,14 @@ public sealed partial class JsRealm
     internal StaticNamedPropertyLayout IntlPartObjectShape { get; }
     internal StaticNamedPropertyLayout IntlRangePartObjectShape { get; }
     internal StaticNamedPropertyLayout ErrorObjectShape { get; }
-    internal JsPlainObject ObjectPrototype => Intrinsics?.ObjectPrototype ?? bootstrapObjectPrototype;
-    internal JsHostFunction FunctionPrototype => Intrinsics?.FunctionPrototype ?? BootstrapFunctionPrototype!;
+    internal JsPlainObject ObjectPrototype =>
+        Intrinsics?.ObjectPrototype ?? bootstrapObjectPrototype;
+    internal JsHostFunction FunctionPrototype =>
+        Intrinsics?.FunctionPrototype ?? BootstrapFunctionPrototype!;
     internal JsPlainObject GeneratorFunctionPrototype => Intrinsics.GeneratorFunctionPrototype;
     internal JsPlainObject AsyncFunctionPrototype => Intrinsics.AsyncFunctionPrototype;
-    internal JsPlainObject AsyncGeneratorFunctionPrototype => Intrinsics.AsyncGeneratorFunctionPrototype;
+    internal JsPlainObject AsyncGeneratorFunctionPrototype =>
+        Intrinsics.AsyncGeneratorFunctionPrototype;
     internal JsArray ArrayPrototype => Intrinsics.ArrayPrototype;
     internal JsHostFunction ArrayPrototypeValuesFunction => Intrinsics.ArrayPrototypeValuesFunction;
     internal JsNumberObject NumberPrototype => Intrinsics.NumberPrototype;
@@ -191,10 +230,12 @@ public sealed partial class JsRealm
     internal JsPlainObject SharedArrayBufferPrototype => Intrinsics.SharedArrayBufferPrototype;
     internal JsPlainObject ArrayIteratorPrototype => Intrinsics.ArrayIteratorPrototype;
     internal JsPlainObject StringIteratorPrototype => Intrinsics.StringIteratorPrototype;
-    internal JsPlainObject RegExpStringIteratorPrototype => Intrinsics.RegExpStringIteratorPrototype;
+    internal JsPlainObject RegExpStringIteratorPrototype =>
+        Intrinsics.RegExpStringIteratorPrototype;
     internal JsPlainObject TypedArrayPrototype => Intrinsics.TypedArrayPrototype;
     internal JsPlainObject[] TypedArrayPrototypes => Intrinsics.TypedArrayPrototypes;
-    internal JsPlainObject Uint8ArrayPrototype => TypedArrayPrototypes[(int)TypedArrayElementKind.Uint8];
+    internal JsPlainObject Uint8ArrayPrototype =>
+        TypedArrayPrototypes[(int)TypedArrayElementKind.Uint8];
     internal JsPlainObject DataViewPrototype => Intrinsics.DataViewPrototype;
     internal JsPlainObject TypedArrayIteratorPrototype => Intrinsics.TypedArrayIteratorPrototype;
     internal JsPlainObject IteratorPrototype => Intrinsics.IteratorPrototype;
@@ -202,7 +243,8 @@ public sealed partial class JsRealm
     internal JsPlainObject AsyncIteratorPrototype => Intrinsics.AsyncIteratorPrototype;
     internal JsHostFunction IteratorSelfFunction => Intrinsics.IteratorSelfFunction;
     internal JsHostFunction AsyncIteratorSelfFunction => Intrinsics.AsyncIteratorSelfFunction;
-    internal JsPlainObject GeneratorObjectPrototypeForFunctions => Intrinsics.GeneratorObjectPrototypeForFunctions;
+    internal JsPlainObject GeneratorObjectPrototypeForFunctions =>
+        Intrinsics.GeneratorObjectPrototypeForFunctions;
     internal JsPlainObject MapPrototype => Intrinsics.MapPrototype;
     internal JsPlainObject MapIteratorPrototype => Intrinsics.MapIteratorPrototype;
     internal JsPlainObject SetPrototype => Intrinsics.SetPrototype;
@@ -210,14 +252,17 @@ public sealed partial class JsRealm
     internal JsPlainObject WeakMapPrototype => Intrinsics.WeakMapPrototype;
     internal JsPlainObject WeakSetPrototype => Intrinsics.WeakSetPrototype;
     internal JsPlainObject WeakRefPrototype => Intrinsics.WeakRefPrototype;
-    internal JsPlainObject FinalizationRegistryPrototype => Intrinsics.FinalizationRegistryPrototype;
-    internal JsPlainObject AsyncGeneratorObjectPrototype => Intrinsics.AsyncGeneratorObjectPrototype;
+    internal JsPlainObject FinalizationRegistryPrototype =>
+        Intrinsics.FinalizationRegistryPrototype;
+    internal JsPlainObject AsyncGeneratorObjectPrototype =>
+        Intrinsics.AsyncGeneratorObjectPrototype;
     internal JsHostFunction ObjectConstructor => Intrinsics.ObjectConstructor;
     internal JsHostFunction ArrayConstructor => Intrinsics.ArrayConstructor;
     internal JsHostFunction FunctionConstructor => Intrinsics.FunctionConstructor;
     internal JsHostFunction GeneratorFunctionConstructor => Intrinsics.GeneratorFunctionConstructor;
     internal JsHostFunction AsyncFunctionConstructor => Intrinsics.AsyncFunctionConstructor;
-    internal JsHostFunction AsyncGeneratorFunctionConstructor => Intrinsics.AsyncGeneratorFunctionConstructor;
+    internal JsHostFunction AsyncGeneratorFunctionConstructor =>
+        Intrinsics.AsyncGeneratorFunctionConstructor;
     internal JsHostFunction ErrorConstructor => Intrinsics.ErrorConstructor;
     internal JsHostFunction TypeErrorConstructor => Intrinsics.TypeErrorConstructor;
     internal JsHostFunction ReferenceErrorConstructor => Intrinsics.ReferenceErrorConstructor;
@@ -243,16 +288,19 @@ public sealed partial class JsRealm
     internal JsHostFunction WeakMapConstructor => Intrinsics.WeakMapConstructor;
     internal JsHostFunction WeakSetConstructor => Intrinsics.WeakSetConstructor;
     internal JsHostFunction WeakRefConstructor => Intrinsics.WeakRefConstructor;
-    internal JsHostFunction FinalizationRegistryConstructor => Intrinsics.FinalizationRegistryConstructor;
+    internal JsHostFunction FinalizationRegistryConstructor =>
+        Intrinsics.FinalizationRegistryConstructor;
     internal JsHostFunction RegExpConstructor => Intrinsics.RegExpConstructor;
     internal JsHostFunction DateConstructor => Intrinsics.DateConstructor;
     internal JsHostFunction PromiseConstructor => Intrinsics.PromiseConstructor;
     internal JsHostFunction SymbolConstructor => Intrinsics.SymbolConstructor;
     internal JsHostFunction ProxyConstructor => Intrinsics.ProxyConstructor;
     internal JsHostFunction DisposableStackConstructor => Intrinsics.DisposableStackConstructor;
-    internal JsHostFunction AsyncDisposableStackConstructor => Intrinsics.AsyncDisposableStackConstructor;
+    internal JsHostFunction AsyncDisposableStackConstructor =>
+        Intrinsics.AsyncDisposableStackConstructor;
     internal JsPlainObject AtomicsObject => Intrinsics.AtomicsObject;
-    internal JsFunction ObjectPrototypeToStringIntrinsic => Intrinsics.ObjectPrototypeToStringIntrinsic;
+    internal JsFunction ObjectPrototypeToStringIntrinsic =>
+        Intrinsics.ObjectPrototypeToStringIntrinsic;
     internal JsHostFunction ThrowTypeErrorIntrinsic => Intrinsics.ThrowTypeErrorIntrinsic;
     internal JsPlainObject ErrorPrototype => Intrinsics.ErrorPrototype;
     internal JsPlainObject TypeErrorPrototype => Intrinsics.TypeErrorPrototype;
@@ -267,7 +315,8 @@ public sealed partial class JsRealm
     internal JsPlainObject RegExpPrototype => Intrinsics.RegExpPrototype;
     internal JsPlainObject DatePrototype => Intrinsics.DatePrototype;
     internal JsPlainObject DisposableStackPrototype => Intrinsics.DisposableStackPrototype;
-    internal JsPlainObject AsyncDisposableStackPrototype => Intrinsics.AsyncDisposableStackPrototype;
+    internal JsPlainObject AsyncDisposableStackPrototype =>
+        Intrinsics.AsyncDisposableStackPrototype;
     internal Symbol SymbolIteratorSymbol { get; }
     internal Symbol SymbolHasInstanceSymbol { get; }
     internal Symbol SymbolToStringTagSymbol { get; }

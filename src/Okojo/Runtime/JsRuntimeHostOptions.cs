@@ -8,7 +8,9 @@ namespace Okojo.Runtime;
 /// </summary>
 public sealed class JsRuntimeHostOptions
 {
-    private readonly List<Func<IModuleSourceLoader, IModuleSourceLoader>> moduleSourceLoaderDecorators = [];
+    private readonly List<
+        Func<IModuleSourceLoader, IModuleSourceLoader>
+    > moduleSourceLoaderDecorators = [];
 
     public SourceMapRegistry? SourceMapRegistry { get; private set; }
     public TimeProvider? TimeProvider { get; private set; }
@@ -29,14 +31,18 @@ public sealed class JsRuntimeHostOptions
         return this;
     }
 
-    public JsRuntimeHostOptions DecorateModuleSourceLoader(Func<IModuleSourceLoader, IModuleSourceLoader> decorator)
+    public JsRuntimeHostOptions DecorateModuleSourceLoader(
+        Func<IModuleSourceLoader, IModuleSourceLoader> decorator
+    )
     {
         ArgumentNullException.ThrowIfNull(decorator);
         moduleSourceLoaderDecorators.Add(decorator);
         return this;
     }
 
-    public JsRuntimeHostOptions UseWorkerScriptSourceLoader(IWorkerScriptSourceLoader workerScriptLoader)
+    public JsRuntimeHostOptions UseWorkerScriptSourceLoader(
+        IWorkerScriptSourceLoader workerScriptLoader
+    )
     {
         ArgumentNullException.ThrowIfNull(workerScriptLoader);
         WorkerScriptSourceLoader = workerScriptLoader;
@@ -66,7 +72,7 @@ public sealed class JsRuntimeHostOptions
             SourceMapRegistry = SourceMapRegistry,
             TimeProvider = TimeProvider,
             ModuleSourceLoader = ModuleSourceLoader,
-            WorkerScriptSourceLoader = WorkerScriptSourceLoader
+            WorkerScriptSourceLoader = WorkerScriptSourceLoader,
         };
 
         clone.moduleSourceLoaderDecorators.AddRange(moduleSourceLoaderDecorators);

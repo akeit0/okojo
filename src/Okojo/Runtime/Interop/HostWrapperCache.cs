@@ -15,7 +15,11 @@ internal sealed class HostWrapperCache
         return false;
     }
 
-    internal JsHostObject GetOrAdd<TState>(object target, TState state, Func<object, TState, JsHostObject> factory)
+    internal JsHostObject GetOrAdd<TState>(
+        object target,
+        TState state,
+        Func<object, TState, JsHostObject> factory
+    )
     {
         var entry = entries.GetValue(target, static _ => new());
         lock (entry.Sync)

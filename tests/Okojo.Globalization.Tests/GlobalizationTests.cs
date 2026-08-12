@@ -123,7 +123,10 @@ public class IntlDataTests
     [Test]
     public void NumberingSystemData_TransliteratesArabicDigits()
     {
-        Assert.That(NumberingSystemData.TransliterateDigits("123", "arab"), Is.EqualTo("\u0661\u0662\u0663"));
+        Assert.That(
+            NumberingSystemData.TransliterateDigits("123", "arab"),
+            Is.EqualTo("\u0661\u0662\u0663")
+        );
     }
 
     [TestCase("gregory", true)]
@@ -233,24 +236,30 @@ public class StandaloneApiTests
     [Test]
     public void NumberFormat_OptionsConstructor()
     {
-        var nf = new NumberFormat("de-DE", new NumberFormatOptions
-        {
-            Style = "decimal",
-            UseGrouping = "false",
-            MinimumFractionDigits = 2
-        });
+        var nf = new NumberFormat(
+            "de-DE",
+            new NumberFormatOptions
+            {
+                Style = "decimal",
+                UseGrouping = "false",
+                MinimumFractionDigits = 2,
+            }
+        );
         Assert.That(nf.Format(1234.5), Is.EqualTo("1234,50"));
     }
 
     [Test]
     public void DateTimeFormat_OptionsConstructor()
     {
-        var dtf = new DateTimeFormat("en-US", new DateTimeFormatOptions
-        {
-            Year = "numeric",
-            Month = "2-digit",
-            Day = "2-digit"
-        });
+        var dtf = new DateTimeFormat(
+            "en-US",
+            new DateTimeFormatOptions
+            {
+                Year = "numeric",
+                Month = "2-digit",
+                Day = "2-digit",
+            }
+        );
         var value = new DateTimeValue(1995, 12, 17, 3, 24, 56, 0, 0, null);
         var text = string.Concat(dtf.BuildParts(value).Select(p => p.Value));
         Assert.That(text, Does.Contain("1995"));
@@ -268,8 +277,17 @@ public class StandaloneApiTests
 public class CollatorTests
 {
     private static Collator EnCollator() =>
-        new("en-US", "sort", "variant", false, "default", false, "false",
-            CultureInfo.InvariantCulture.CompareInfo, CompareOptions.None);
+        new(
+            "en-US",
+            "sort",
+            "variant",
+            false,
+            "default",
+            false,
+            "false",
+            CultureInfo.InvariantCulture.CompareInfo,
+            CompareOptions.None
+        );
 
     [Test]
     public void Compare_BasicOrdering()
@@ -283,8 +301,17 @@ public class CollatorTests
     [Test]
     public void Compare_Numeric_OrdersDigitRunsNumerically()
     {
-        var core = new Collator("en-US", "sort", "variant", false, "default", true, "false",
-            CultureInfo.InvariantCulture.CompareInfo, CompareOptions.None);
+        var core = new Collator(
+            "en-US",
+            "sort",
+            "variant",
+            false,
+            "default",
+            true,
+            "false",
+            CultureInfo.InvariantCulture.CompareInfo,
+            CompareOptions.None
+        );
         Assert.That(core.Compare("item2", "item10"), Is.LessThan(0));
         Assert.That(core.Compare("item10", "item2"), Is.GreaterThan(0));
     }
@@ -292,8 +319,17 @@ public class CollatorTests
     [Test]
     public void Compare_CaseFirst_Upper_OrdersUpperCaseFirst()
     {
-        var core = new Collator("en-US", "sort", "base", false, "default", false, "upper",
-            CultureInfo.InvariantCulture.CompareInfo, CompareOptions.IgnoreCase);
+        var core = new Collator(
+            "en-US",
+            "sort",
+            "base",
+            false,
+            "default",
+            false,
+            "upper",
+            CultureInfo.InvariantCulture.CompareInfo,
+            CompareOptions.IgnoreCase
+        );
         Assert.That(core.Compare("a", "A"), Is.GreaterThan(0));
     }
 }
@@ -350,7 +386,13 @@ public class RelativeTimeFormatTests
     [Test]
     public void Format_Auto_SpecialPhrases()
     {
-        var core = new RelativeTimeFormat("en-US", "latn", "long", "auto", CultureInfo.InvariantCulture);
+        var core = new RelativeTimeFormat(
+            "en-US",
+            "latn",
+            "long",
+            "auto",
+            CultureInfo.InvariantCulture
+        );
         Assert.That(core.Format(0, "day"), Is.EqualTo("today"));
         Assert.That(core.Format(-1, "day"), Is.EqualTo("yesterday"));
         Assert.That(core.Format(1, "day"), Is.EqualTo("tomorrow"));
@@ -361,9 +403,32 @@ public class RelativeTimeFormatTests
 public class NumberFormatTests
 {
     private static NumberFormat Decimal(string locale = "en-US", string grouping = "auto") =>
-        new(locale, "latn", "decimal", null, "symbol", "standard", null, "short", "standard", "short",
-            1, 0, 3, null, null, false, false, grouping, "auto", "halfExpand", "auto", 1, "auto",
-            CultureInfo.InvariantCulture);
+        new(
+            locale,
+            "latn",
+            "decimal",
+            null,
+            "symbol",
+            "standard",
+            null,
+            "short",
+            "standard",
+            "short",
+            1,
+            0,
+            3,
+            null,
+            null,
+            false,
+            false,
+            grouping,
+            "auto",
+            "halfExpand",
+            "auto",
+            1,
+            "auto",
+            CultureInfo.InvariantCulture
+        );
 
     [Test]
     public void Format_Decimal_Grouping()
@@ -389,7 +454,10 @@ public class NumberFormatTests
     public void TryFormatExactString_RoundsBigIntegersExactly()
     {
         var core = Decimal();
-        Assert.That(core.TryFormatExactString("12344501000000000000000000000000000", out var formatted), Is.True);
+        Assert.That(
+            core.TryFormatExactString("12344501000000000000000000000000000", out var formatted),
+            Is.True
+        );
         Assert.That(formatted, Is.EqualTo("12,344,501,000,000,000,000,000,000,000,000,000"));
     }
 }
@@ -398,8 +466,30 @@ public class NumberFormatTests
 public class DateTimeFormatTests
 {
     private static DateTimeFormat ShortDate() =>
-        new("en-US", "gregory", "latn", "UTC", false, "h23", null, null, null, "numeric", "2-digit",
-            "2-digit", null, null, null, null, null, null, "basic", null, null, CultureInfo.InvariantCulture);
+        new(
+            "en-US",
+            "gregory",
+            "latn",
+            "UTC",
+            false,
+            "h23",
+            null,
+            null,
+            null,
+            "numeric",
+            "2-digit",
+            "2-digit",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            "basic",
+            null,
+            null,
+            CultureInfo.InvariantCulture
+        );
 
     [Test]
     public void BuildParts_FormatsDateFields()
@@ -412,4 +502,3 @@ public class DateTimeFormatTests
         Assert.That(string.Concat(parts.Select(p => p.Value)), Does.Contain("1995"));
     }
 }
-

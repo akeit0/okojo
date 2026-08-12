@@ -8,8 +8,7 @@ public sealed partial class JsCompiler
     {
         if (currentContextSlotById.Count == 0)
             return null;
-        if (stmt.Left is not JsVariableDeclarationStatement declStmt ||
-            !declStmt.Kind.IsLexical())
+        if (stmt.Left is not JsVariableDeclarationStatement declStmt || !declStmt.Kind.IsLexical())
             return null;
 
         var slots = Vm.RentCompileHashSet<int>(4);
@@ -35,14 +34,18 @@ public sealed partial class JsCompiler
     private bool TryResolveForInOfPerIterationBindingSymbolId(
         JsForInOfStatement stmt,
         BoundIdentifier boundIdentifier,
-        out int symbolId)
+        out int symbolId
+    )
     {
         if (TryResolveWrappedForInOfBodyBindingSymbolId(stmt, boundIdentifier, out symbolId))
             return true;
 
-        if (TryResolveLocalBinding(
+        if (
+            TryResolveLocalBinding(
                 new CompilerIdentifierName(boundIdentifier.Name, boundIdentifier.NameId),
-                out var resolved))
+                out var resolved
+            )
+        )
         {
             symbolId = resolved.SymbolId;
             return true;
@@ -55,7 +58,8 @@ public sealed partial class JsCompiler
     private bool TryResolveWrappedForInOfBodyBindingSymbolId(
         JsForInOfStatement stmt,
         BoundIdentifier boundIdentifier,
-        out int symbolId)
+        out int symbolId
+    )
     {
         symbolId = default;
 
@@ -70,7 +74,11 @@ public sealed partial class JsCompiler
 
         foreach (var binding in bindings)
         {
-            if (!binding.Matches(new CompilerIdentifierName(boundIdentifier.Name, boundIdentifier.NameId)))
+            if (
+                !binding.Matches(
+                    new CompilerIdentifierName(boundIdentifier.Name, boundIdentifier.NameId)
+                )
+            )
                 continue;
 
             symbolId = binding.InternalSymbolId;

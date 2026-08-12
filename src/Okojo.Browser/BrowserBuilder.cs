@@ -1,7 +1,7 @@
+using System.Runtime.CompilerServices;
 using Okojo.Hosting;
 using Okojo.Runtime;
 using Okojo.WebPlatform;
-using System.Runtime.CompilerServices;
 
 namespace Okojo.Browser;
 
@@ -32,7 +32,8 @@ public sealed class BrowserBuilder
                 _ => new TimeProviderDelayScheduler(realm.Engine.TimeProvider),
                 WebTaskQueueKeys.Timers,
                 state.AnimationFrameQueueKey,
-                state.AnimationFrameInterval).Install(realm);
+                state.AnimationFrameInterval
+            ).Install(realm);
         });
 
         return UseFetch(configureFetch);

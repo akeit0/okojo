@@ -25,10 +25,7 @@ public class BigIntBytecodeTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScript(
-            [
-                (byte)JsOpCode.LdaTypedConst, (byte)Tag.JsTagBigInt, 0,
-                (byte)JsOpCode.Return
-            ],
+            [(byte)JsOpCode.LdaTypedConst, (byte)Tag.JsTagBigInt, 0, (byte)JsOpCode.Return],
             Array.Empty<double>(),
             [new JsBigInt(1)],
             0,
@@ -45,10 +42,7 @@ public class BigIntBytecodeTests
     public void Disassembler_Formats_LdaTypedConst()
     {
         var script = new JsScript(
-            [
-                (byte)JsOpCode.LdaTypedConst, (byte)Tag.JsTagBigInt, 0,
-                (byte)JsOpCode.Return
-            ],
+            [(byte)JsOpCode.LdaTypedConst, (byte)Tag.JsTagBigInt, 0, (byte)JsOpCode.Return],
             Array.Empty<double>(),
             [new JsBigInt(1)],
             0,

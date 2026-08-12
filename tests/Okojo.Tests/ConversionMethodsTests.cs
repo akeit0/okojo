@@ -35,12 +35,36 @@ public class ConversionMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var obj = new JsPlainObject(realm);
 
-        var valueOf = new JsHostFunction(realm, static (in info) => { return JsValue.FromInt32(1); }, "valueOf", 0);
-        var toString =
-            new JsHostFunction(realm, static (in info) => { return JsValue.FromString("x"); }, "toString", 0);
-        obj.DefineDataPropertyAtom(realm, AtomTable.IdValueOf, JsValue.FromObject(valueOf), JsShapePropertyFlags.Open);
-        obj.DefineDataPropertyAtom(realm, AtomTable.IdToString, JsValue.FromObject(toString),
-            JsShapePropertyFlags.Open);
+        var valueOf = new JsHostFunction(
+            realm,
+            static (in info) =>
+            {
+                return JsValue.FromInt32(1);
+            },
+            "valueOf",
+            0
+        );
+        var toString = new JsHostFunction(
+            realm,
+            static (in info) =>
+            {
+                return JsValue.FromString("x");
+            },
+            "toString",
+            0
+        );
+        obj.DefineDataPropertyAtom(
+            realm,
+            AtomTable.IdValueOf,
+            JsValue.FromObject(valueOf),
+            JsShapePropertyFlags.Open
+        );
+        obj.DefineDataPropertyAtom(
+            realm,
+            AtomTable.IdToString,
+            JsValue.FromObject(toString),
+            JsShapePropertyFlags.Open
+        );
 
         var primitive = realm.ToPrimitiveSlowPath(JsValue.FromObject(obj), false);
         Assert.That(primitive.IsInt32, Is.True);
@@ -53,16 +77,37 @@ public class ConversionMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var obj = new JsPlainObject(realm);
 
-        var valueOf = new JsHostFunction(realm, (in info) =>
-        {
-            var r = info.Realm;
-            return JsValue.FromObject(new JsPlainObject(r));
-        }, "valueOf", 0);
-        var toString =
-            new JsHostFunction(realm, static (in info) => { return JsValue.FromString("+1"); }, "toString", 0);
-        obj.DefineDataPropertyAtom(realm, AtomTable.IdValueOf, JsValue.FromObject(valueOf), JsShapePropertyFlags.Open);
-        obj.DefineDataPropertyAtom(realm, AtomTable.IdToString, JsValue.FromObject(toString),
-            JsShapePropertyFlags.Open);
+        var valueOf = new JsHostFunction(
+            realm,
+            (in info) =>
+            {
+                var r = info.Realm;
+                return JsValue.FromObject(new JsPlainObject(r));
+            },
+            "valueOf",
+            0
+        );
+        var toString = new JsHostFunction(
+            realm,
+            static (in info) =>
+            {
+                return JsValue.FromString("+1");
+            },
+            "toString",
+            0
+        );
+        obj.DefineDataPropertyAtom(
+            realm,
+            AtomTable.IdValueOf,
+            JsValue.FromObject(valueOf),
+            JsShapePropertyFlags.Open
+        );
+        obj.DefineDataPropertyAtom(
+            realm,
+            AtomTable.IdToString,
+            JsValue.FromObject(toString),
+            JsShapePropertyFlags.Open
+        );
 
         var primitive = realm.ToPrimitiveSlowPath(JsValue.FromObject(obj), false);
         Assert.That(primitive.IsString, Is.True);
@@ -75,16 +120,40 @@ public class ConversionMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var obj = new JsPlainObject(realm);
 
-        var valueOf = new JsHostFunction(realm,
-            static (in info) => { throw new JsRuntimeException(JsErrorKind.TypeError, "valueOf boom"); }, "valueOf", 0);
-        var toString = new JsHostFunction(realm, static (in info) => { return JsValue.FromString("ignored"); },
-            "toString", 0);
-        obj.DefineDataPropertyAtom(realm, AtomTable.IdValueOf, JsValue.FromObject(valueOf), JsShapePropertyFlags.Open);
-        obj.DefineDataPropertyAtom(realm, AtomTable.IdToString, JsValue.FromObject(toString),
-            JsShapePropertyFlags.Open);
+        var valueOf = new JsHostFunction(
+            realm,
+            static (in info) =>
+            {
+                throw new JsRuntimeException(JsErrorKind.TypeError, "valueOf boom");
+            },
+            "valueOf",
+            0
+        );
+        var toString = new JsHostFunction(
+            realm,
+            static (in info) =>
+            {
+                return JsValue.FromString("ignored");
+            },
+            "toString",
+            0
+        );
+        obj.DefineDataPropertyAtom(
+            realm,
+            AtomTable.IdValueOf,
+            JsValue.FromObject(valueOf),
+            JsShapePropertyFlags.Open
+        );
+        obj.DefineDataPropertyAtom(
+            realm,
+            AtomTable.IdToString,
+            JsValue.FromObject(toString),
+            JsShapePropertyFlags.Open
+        );
 
         var ex = Assert.Throws<JsRuntimeException>(() =>
-            realm.ToPrimitiveSlowPath(JsValue.FromObject(obj), false));
+            realm.ToPrimitiveSlowPath(JsValue.FromObject(obj), false)
+        );
         Assert.That(ex!.Message, Is.EqualTo("valueOf boom"));
     }
 
@@ -92,11 +161,13 @@ public class ConversionMethodsTests
     public void ObjectPlusEmptyString_UsesValueOfThenStringify()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        realm.Eval("""
-                   var object = {valueOf: function() {return 1}, toString: function() {return 0}};
-                   this.r = object + "";
-                   this.t = typeof this.r + ":" + this.r;
-                   """);
+        realm.Eval(
+            """
+            var object = {valueOf: function() {return 1}, toString: function() {return 0}};
+            this.r = object + "";
+            this.t = typeof this.r + ":" + this.r;
+            """
+        );
         Assert.That(realm.Global["t"].AsString(), Is.EqualTo("string:1"));
     }
 
@@ -104,9 +175,11 @@ public class ConversionMethodsTests
     public void ObjectLiteralValueOfMethod_ReturnsDeclaredValue()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var result = realm.Eval("""
-                                ({valueOf: function() {return 1}, toString: function() {return 0}}).valueOf() === 1;
-                                """);
+        var result = realm.Eval(
+            """
+            ({valueOf: function() {return 1}, toString: function() {return 0}}).valueOf() === 1;
+            """
+        );
         Assert.That(result.IsTrue, Is.True);
     }
 
@@ -114,9 +187,11 @@ public class ConversionMethodsTests
     public void ToPrimitiveSlowPath_OnJsObjectLiteral_UsesValueOfFirst()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var objValue = realm.Eval("""
-                                  ({valueOf: function() {return 1}, toString: function() {return 0}});
-                                  """);
+        var objValue = realm.Eval(
+            """
+            ({valueOf: function() {return 1}, toString: function() {return 0}});
+            """
+        );
         Assert.That(objValue.TryGetObject(out _), Is.True);
 
         var prim = realm.ToPrimitiveSlowPath(objValue, false);

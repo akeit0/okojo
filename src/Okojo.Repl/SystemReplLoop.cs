@@ -11,7 +11,8 @@ public sealed class ReplLoopOptions
     public IReplConsole? Console { get; init; }
     public string PrimaryPrompt { get; init; } = "> ";
     public string ContinuationPrompt { get; init; } = "| ";
-    public string InterruptMessage { get; init; } = "To exit, press Ctrl+C again or Ctrl+D or type .exit";
+    public string InterruptMessage { get; init; } =
+        "To exit, press Ctrl+C again or Ctrl+D or type .exit";
 }
 
 public static class SystemReplLoop
@@ -64,7 +65,8 @@ public static class SystemReplLoop
             options.IsInputComplete,
             history,
             options.PrimaryPrompt,
-            options.ContinuationPrompt);
+            options.ContinuationPrompt
+        );
         var exitRequested = false;
         var interruptRequested = false;
         var pendingExitConfirmation = false;
@@ -98,7 +100,8 @@ public static class SystemReplLoop
                         options.IsInputComplete,
                         history,
                         options.PrimaryPrompt,
-                        options.ContinuationPrompt);
+                        options.ContinuationPrompt
+                    );
                     console.WriteLine();
                     Console.WriteLine(options.InterruptMessage);
                     session.Render(console);
@@ -109,15 +112,16 @@ public static class SystemReplLoop
                 while (console.KeyAvailable)
                 {
                     var key = console.ReadKey(true);
-                    if ((key.Modifiers & ConsoleModifiers.Control) != 0 &&
-                        key.Key == ConsoleKey.D)
+                    if ((key.Modifiers & ConsoleModifiers.Control) != 0 && key.Key == ConsoleKey.D)
                         return null;
 
                     pendingExitConfirmation = false;
                     if (session.HandleKey(key, out var submitted))
                     {
-                        if (!string.IsNullOrWhiteSpace(submitted) &&
-                            !submitted.StartsWith(".", StringComparison.Ordinal))
+                        if (
+                            !string.IsNullOrWhiteSpace(submitted)
+                            && !submitted.StartsWith(".", StringComparison.Ordinal)
+                        )
                             history.Record(submitted);
                         console.WriteLine();
                         return submitted;

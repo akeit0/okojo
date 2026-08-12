@@ -36,13 +36,19 @@ internal sealed partial class JsPlannedFunctionCompiler
                 builder.EmitLda(JsOpCode.LdaUndefined);
                 return;
             default:
-                throw new NotSupportedException($"JsPlannedFunctionCompiler does not support statement '{statement.GetType().Name}'.");
+                throw new NotSupportedException(
+                    $"JsPlannedFunctionCompiler does not support statement '{statement.GetType().Name}'."
+                );
         }
     }
 
     private void EmitBlockStatement(JsBlockStatement block)
     {
-        var childScope = FindChildScope(activeScopes.Peek().ScopeId, CompilerCollectedScopeKind.Block, block.Position);
+        var childScope = FindChildScope(
+            activeScopes.Peek().ScopeId,
+            CompilerCollectedScopeKind.Block,
+            block.Position
+        );
         EnterScope(childScope.ScopeId);
         try
         {
@@ -78,13 +84,17 @@ internal sealed partial class JsPlannedFunctionCompiler
     private void EmitVariableDeclaration(JsVariableDeclarationStatement declaration)
     {
         if (declaration.BindingPattern is not null)
-            throw new NotSupportedException("Binding patterns are not supported by JsPlannedFunctionCompiler.");
+            throw new NotSupportedException(
+                "Binding patterns are not supported by JsPlannedFunctionCompiler."
+            );
 
         for (var i = 0; i < declaration.Declarators.Count; i++)
         {
             var declarator = declaration.Declarators[i];
             if (!TryResolveBinding(declarator.Name, out var binding))
-                throw new InvalidOperationException($"No planned binding found for '{declarator.Name}'.");
+                throw new InvalidOperationException(
+                    $"No planned binding found for '{declarator.Name}'."
+                );
 
             if (declarator.Initializer is not null)
                 EmitExpression(declarator.Initializer);
@@ -98,13 +108,16 @@ internal sealed partial class JsPlannedFunctionCompiler
     private void EmitFunctionDeclaration(JsFunctionDeclaration functionDeclaration)
     {
         if (!TryResolveBinding(functionDeclaration.Name, out var binding))
-            throw new InvalidOperationException($"No planned binding found for function '{functionDeclaration.Name}'.");
+            throw new InvalidOperationException(
+                $"No planned binding found for function '{functionDeclaration.Name}'."
+            );
 
         var functionCompiler = new JsPlannedFunctionCompiler(Vm, BuildChildCaptureBindings());
         var functionObject = functionCompiler.CompileFunction(
             functionDeclaration.Name,
             FunctionParameterPlan.FromFunction(functionDeclaration),
-            functionDeclaration.Body);
+            functionDeclaration.Body
+        );
         var idx = builder.AddObjectConstant(functionObject);
         EmitCreateClosureByIndex(idx);
         EmitStore(binding);

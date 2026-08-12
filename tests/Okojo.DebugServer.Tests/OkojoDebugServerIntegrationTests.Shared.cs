@@ -7,37 +7,50 @@ public sealed partial class OkojoDebugServerIntegrationTests
 {
     private static string? GetString(JsonElement payload, string propertyName)
     {
-        return payload.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String
+        return
+            payload.TryGetProperty(propertyName, out var property)
+            && property.ValueKind == JsonValueKind.String
             ? property.GetString()
             : null;
     }
 
-    private static string? GetNestedString(JsonElement payload, string parentPropertyName, string propertyName)
+    private static string? GetNestedString(
+        JsonElement payload,
+        string parentPropertyName,
+        string propertyName
+    )
     {
-        return payload.TryGetProperty(parentPropertyName, out var parent) &&
-               parent.ValueKind == JsonValueKind.Object &&
-               parent.TryGetProperty(propertyName, out var child) &&
-               child.ValueKind == JsonValueKind.String
+        return
+            payload.TryGetProperty(parentPropertyName, out var parent)
+            && parent.ValueKind == JsonValueKind.Object
+            && parent.TryGetProperty(propertyName, out var child)
+            && child.ValueKind == JsonValueKind.String
             ? child.GetString()
             : null;
     }
 
-    private static int? GetNestedInt(JsonElement payload, string parentPropertyName, string propertyName)
+    private static int? GetNestedInt(
+        JsonElement payload,
+        string parentPropertyName,
+        string propertyName
+    )
     {
-        return payload.TryGetProperty(parentPropertyName, out var parent) &&
-               parent.ValueKind == JsonValueKind.Object &&
-               parent.TryGetProperty(propertyName, out var child) &&
-               child.ValueKind == JsonValueKind.Number &&
-               child.TryGetInt32(out var value)
+        return
+            payload.TryGetProperty(parentPropertyName, out var parent)
+            && parent.ValueKind == JsonValueKind.Object
+            && parent.TryGetProperty(propertyName, out var child)
+            && child.ValueKind == JsonValueKind.Number
+            && child.TryGetInt32(out var value)
             ? value
             : null;
     }
 
     private static int? GetInt(JsonElement payload, string propertyName)
     {
-        return payload.TryGetProperty(propertyName, out var property) &&
-               property.ValueKind == JsonValueKind.Number &&
-               property.TryGetInt32(out var value)
+        return
+            payload.TryGetProperty(propertyName, out var property)
+            && property.ValueKind == JsonValueKind.Number
+            && property.TryGetInt32(out var value)
             ? value
             : null;
     }
@@ -46,10 +59,17 @@ public sealed partial class OkojoDebugServerIntegrationTests
     {
         public TempWorkspace(string source)
         {
-            Root = Path.Combine(Path.GetTempPath(), "okojo-debugserver-tests", Guid.NewGuid().ToString("N"));
+            Root = Path.Combine(
+                Path.GetTempPath(),
+                "okojo-debugserver-tests",
+                Guid.NewGuid().ToString("N")
+            );
             Directory.CreateDirectory(Root);
             ScriptPath = Path.Combine(Root, "sample.js");
-            File.WriteAllText(ScriptPath, source.Replace("\r\n", "\n").Replace("\n", Environment.NewLine));
+            File.WriteAllText(
+                ScriptPath,
+                source.Replace("\r\n", "\n").Replace("\n", Environment.NewLine)
+            );
         }
 
         public string Root { get; }
@@ -62,9 +82,7 @@ public sealed partial class OkojoDebugServerIntegrationTests
                 if (Directory.Exists(Root))
                     Directory.Delete(Root, recursive: true);
             }
-            catch
-            {
-            }
+            catch { }
 
             return ValueTask.CompletedTask;
         }
@@ -74,7 +92,11 @@ public sealed partial class OkojoDebugServerIntegrationTests
     {
         public TempModuleWorkspace()
         {
-            Root = Path.Combine(Path.GetTempPath(), "okojo-debugserver-tests", Guid.NewGuid().ToString("N"));
+            Root = Path.Combine(
+                Path.GetTempPath(),
+                "okojo-debugserver-tests",
+                Guid.NewGuid().ToString("N")
+            );
             Directory.CreateDirectory(Root);
             Directory.CreateDirectory(Path.Combine(Root, "lib"));
             EntryPath = Path.Combine(Root, "entry.mjs");
@@ -87,7 +109,10 @@ public sealed partial class OkojoDebugServerIntegrationTests
         {
             string fullPath = Path.Combine(Root, relativePath);
             Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
-            File.WriteAllText(fullPath, source.Replace("\r\n", "\n").Replace("\n", Environment.NewLine));
+            File.WriteAllText(
+                fullPath,
+                source.Replace("\r\n", "\n").Replace("\n", Environment.NewLine)
+            );
         }
 
         public ValueTask DisposeAsync()
@@ -97,9 +122,7 @@ public sealed partial class OkojoDebugServerIntegrationTests
                 if (Directory.Exists(Root))
                     Directory.Delete(Root, recursive: true);
             }
-            catch
-            {
-            }
+            catch { }
 
             return ValueTask.CompletedTask;
         }

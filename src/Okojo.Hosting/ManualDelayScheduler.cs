@@ -12,10 +12,15 @@ public sealed class ManualDelayScheduler : IHostDelayScheduler
         this.timeProvider = timeProvider;
     }
 
-    public IHostDelayedOperation ScheduleDelayed(TimeSpan delay, Action<object?> callback, object? state)
+    public IHostDelayedOperation ScheduleDelayed(
+        TimeSpan delay,
+        Action<object?> callback,
+        object? state
+    )
     {
         ArgumentNullException.ThrowIfNull(callback);
-        var dueAt = timeProvider.GetUtcNow() + (delay <= TimeSpan.Zero ? TimeSpan.FromTicks(1) : delay);
+        var dueAt =
+            timeProvider.GetUtcNow() + (delay <= TimeSpan.Zero ? TimeSpan.FromTicks(1) : delay);
         var operation = new ScheduledOperation(this, dueAt, callback, state);
         lock (gate)
         {
@@ -64,8 +69,8 @@ public sealed class ManualDelayScheduler : IHostDelayScheduler
         ManualDelayScheduler owner,
         DateTimeOffset dueAt,
         Action<object?> callback,
-        object? state)
-        : IHostDelayedOperation
+        object? state
+    ) : IHostDelayedOperation
     {
         private int status;
 

@@ -7,7 +7,7 @@ internal enum FunctionParameterBindingKind : byte
     Plain,
     Rest,
     Pattern,
-    RestPattern
+    RestPattern,
 }
 
 internal readonly record struct BoundIdentifier(string Name, int NameId);
@@ -19,9 +19,11 @@ internal readonly record struct FunctionParameterBindingEntry(
     FunctionParameterBindingKind Kind,
     JsExpression? Initializer,
     JsExpression? Pattern,
-    IReadOnlyList<BoundIdentifier> BoundIdentifiers)
+    IReadOnlyList<BoundIdentifier> BoundIdentifiers
+)
 {
-    public bool IsRest => Kind is FunctionParameterBindingKind.Rest or FunctionParameterBindingKind.RestPattern;
+    public bool IsRest =>
+        Kind is FunctionParameterBindingKind.Rest or FunctionParameterBindingKind.RestPattern;
 
     public bool IsPattern =>
         Kind is FunctionParameterBindingKind.Pattern or FunctionParameterBindingKind.RestPattern;
@@ -37,7 +39,8 @@ internal sealed class FunctionParameterPlan
         bool hasSimpleParameterList,
         int restParameterIndex,
         bool hasPatternBindings,
-        bool hasInitializers)
+        bool hasInitializers
+    )
     {
         Names = names;
         Initializers = initializers;
@@ -76,7 +79,8 @@ internal sealed class FunctionParameterPlan
             function.ParameterBindingKinds,
             function.FunctionLength,
             function.HasSimpleParameterList,
-            function.RestParameterIndex);
+            function.RestParameterIndex
+        );
     }
 
     public static FunctionParameterPlan FromFunction(JsFunctionDeclaration function)
@@ -93,7 +97,8 @@ internal sealed class FunctionParameterPlan
             function.ParameterBindingKinds,
             function.FunctionLength,
             function.HasSimpleParameterList,
-            function.RestParameterIndex);
+            function.RestParameterIndex
+        );
     }
 
     public static FunctionParameterPlan Empty()
@@ -106,7 +111,8 @@ internal sealed class FunctionParameterPlan
             true,
             -1,
             false,
-            false);
+            false
+        );
     }
 
     public static FunctionParameterPlan FromCompilerInputs(
@@ -114,7 +120,8 @@ internal sealed class FunctionParameterPlan
         IReadOnlyList<int>? nameIds,
         IReadOnlyList<JsExpression?> initializers,
         int restParameterIndex,
-        bool hasSimpleParameterList = true)
+        bool hasSimpleParameterList = true
+    )
     {
         if (names.Count == 0)
             return Empty();
@@ -125,10 +132,14 @@ internal sealed class FunctionParameterPlan
             initializers,
             JsFunctionExpression.CreateDefaultInitializers(names.Count),
             JsFunctionExpression.CreateDefaultParameterPositions(names.Count),
-            JsFunctionExpression.CreateDefaultParameterBindingKinds(names.Count, restParameterIndex),
+            JsFunctionExpression.CreateDefaultParameterBindingKinds(
+                names.Count,
+                restParameterIndex
+            ),
             names.Count,
             hasSimpleParameterList,
-            restParameterIndex);
+            restParameterIndex
+        );
     }
 
     private static FunctionParameterPlan Create(
@@ -140,7 +151,8 @@ internal sealed class FunctionParameterPlan
         IReadOnlyList<JsFormalParameterBindingKind> bindingKinds,
         int functionLength,
         bool hasSimpleParameterList,
-        int restParameterIndex)
+        int restParameterIndex
+    )
     {
         var bindings = new FunctionParameterBindingEntry[names.Count];
         var computedRestParameterIndex = -1;
@@ -151,17 +163,24 @@ internal sealed class FunctionParameterPlan
             var initializer = i < initializers.Count ? initializers[i] : null;
             var pattern = i < patterns.Count ? patterns[i] : null;
             var position = i < positions.Count ? positions[i] : -1;
-            var kind = i < bindingKinds.Count
-                ? ConvertBindingKind(bindingKinds[i])
-                : i == restParameterIndex
-                    ? FunctionParameterBindingKind.Rest
-                    : FunctionParameterBindingKind.Plain;
+            var kind =
+                i < bindingKinds.Count ? ConvertBindingKind(bindingKinds[i])
+                : i == restParameterIndex ? FunctionParameterBindingKind.Rest
+                : FunctionParameterBindingKind.Plain;
             if (initializer is not null)
                 hasInitializers = true;
-            if (kind is FunctionParameterBindingKind.Pattern or FunctionParameterBindingKind.RestPattern)
+            if (
+                kind
+                is FunctionParameterBindingKind.Pattern
+                    or FunctionParameterBindingKind.RestPattern
+            )
                 hasPatternBindings = true;
-            if (computedRestParameterIndex < 0 &&
-                kind is FunctionParameterBindingKind.Rest or FunctionParameterBindingKind.RestPattern)
+            if (
+                computedRestParameterIndex < 0
+                && kind
+                    is FunctionParameterBindingKind.Rest
+                        or FunctionParameterBindingKind.RestPattern
+            )
                 computedRestParameterIndex = i;
             bindings[i] = new(
                 names[i],
@@ -170,7 +189,8 @@ internal sealed class FunctionParameterPlan
                 kind,
                 initializer,
                 pattern,
-                CollectPatternBoundIdentifiers(pattern));
+                CollectPatternBoundIdentifiers(pattern)
+            );
         }
 
         return new(
@@ -181,10 +201,13 @@ internal sealed class FunctionParameterPlan
             hasSimpleParameterList,
             computedRestParameterIndex,
             hasPatternBindings,
-            hasInitializers);
+            hasInitializers
+        );
     }
 
-    private static FunctionParameterBindingKind ConvertBindingKind(JsFormalParameterBindingKind kind)
+    private static FunctionParameterBindingKind ConvertBindingKind(
+        JsFormalParameterBindingKind kind
+    )
     {
         return kind switch
         {
@@ -192,11 +215,13 @@ internal sealed class FunctionParameterPlan
             JsFormalParameterBindingKind.Rest => FunctionParameterBindingKind.Rest,
             JsFormalParameterBindingKind.Pattern => FunctionParameterBindingKind.Pattern,
             JsFormalParameterBindingKind.RestPattern => FunctionParameterBindingKind.RestPattern,
-            _ => FunctionParameterBindingKind.Plain
+            _ => FunctionParameterBindingKind.Plain,
         };
     }
 
-    private static IReadOnlyList<BoundIdentifier> CollectPatternBoundIdentifiers(JsExpression? pattern)
+    private static IReadOnlyList<BoundIdentifier> CollectPatternBoundIdentifiers(
+        JsExpression? pattern
+    )
     {
         if (pattern is null)
             return Array.Empty<BoundIdentifier>();
@@ -209,7 +234,10 @@ internal sealed class FunctionParameterPlan
         return identifiers.Count == 0 ? Array.Empty<BoundIdentifier>() : identifiers.ToArray();
     }
 
-    private static void CollectPatternBoundIdentifiersCore(JsExpression pattern, List<BoundIdentifier> identifiers)
+    private static void CollectPatternBoundIdentifiersCore(
+        JsExpression pattern,
+        List<BoundIdentifier> identifiers
+    )
     {
         switch (pattern)
         {
@@ -232,9 +260,7 @@ internal sealed class FunctionParameterPlan
                 for (var i = 0; i < objectPattern.Properties.Count; i++)
                 {
                     var property = objectPattern.Properties[i];
-                    if (property.Kind is JsObjectPropertyKind.Spread)
-                    {
-                    }
+                    if (property.Kind is JsObjectPropertyKind.Spread) { }
 
                     CollectPatternBoundIdentifiersCore(property.Value, identifiers);
                 }

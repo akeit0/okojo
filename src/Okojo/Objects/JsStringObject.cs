@@ -8,11 +8,10 @@ public sealed class JsStringObject : JsObject
     private string? flatValue;
 
     public JsStringObject(JsRealm realm, string value, JsObject? prototype = null)
-        : this(realm, (JsString)value, prototype)
-    {
-    }
+        : this(realm, (JsString)value, prototype) { }
 
-    public JsStringObject(JsRealm realm, JsString value, JsObject? prototype = null) : base(realm)
+    public JsStringObject(JsRealm realm, JsString value, JsObject? prototype = null)
+        : base(realm)
     {
         this.value = value;
         Prototype = prototype ?? realm.StringPrototype;
@@ -25,8 +24,13 @@ public sealed class JsStringObject : JsObject
         return flatValue ??= value.Flatten();
     }
 
-    internal override bool TryGetPropertyAtomWithReceiverValue(JsRealm realm, in JsValue receiverValue, int atom,
-        out JsValue value, out SlotInfo slotInfo)
+    internal override bool TryGetPropertyAtomWithReceiverValue(
+        JsRealm realm,
+        in JsValue receiverValue,
+        int atom,
+        out JsValue value,
+        out SlotInfo slotInfo
+    )
     {
         if (atom == IdLength)
         {
@@ -35,20 +39,31 @@ public sealed class JsStringObject : JsObject
             return true;
         }
 
-        if (TryGetArrayIndexFromCanonicalString(realm.Atoms.AtomToString(atom), out var index) &&
-            index < (uint)this.value.Length)
+        if (
+            TryGetArrayIndexFromCanonicalString(realm.Atoms.AtomToString(atom), out var index)
+            && index < (uint)this.value.Length
+        )
         {
             value = JsValue.FromString(GetFlatValue()[checked((int)index)].ToString());
             slotInfo = SlotInfo.Invalid;
             return true;
         }
 
-        return base.TryGetPropertyAtomWithReceiverValue(realm, receiverValue, atom, out value, out slotInfo);
+        return base.TryGetPropertyAtomWithReceiverValue(
+            realm,
+            receiverValue,
+            atom,
+            out value,
+            out slotInfo
+        );
     }
 
-    internal override bool TryGetOwnNamedPropertyDescriptorAtom(JsRealm realm, int atom,
+    internal override bool TryGetOwnNamedPropertyDescriptorAtom(
+        JsRealm realm,
+        int atom,
         out PropertyDescriptor descriptor,
-        bool needDescriptor = true)
+        bool needDescriptor = true
+    )
     {
         if (atom == IdLength)
         {
@@ -58,13 +73,14 @@ public sealed class JsStringObject : JsObject
                 return true;
             }
 
-            descriptor = PropertyDescriptor.Data(
-                JsValue.FromInt32(value.Length));
+            descriptor = PropertyDescriptor.Data(JsValue.FromInt32(value.Length));
             return true;
         }
 
-        if (TryGetArrayIndexFromCanonicalString(realm.Atoms.AtomToString(atom), out var index) &&
-            index < (uint)value.Length)
+        if (
+            TryGetArrayIndexFromCanonicalString(realm.Atoms.AtomToString(atom), out var index)
+            && index < (uint)value.Length
+        )
         {
             if (!needDescriptor)
             {
@@ -75,11 +91,17 @@ public sealed class JsStringObject : JsObject
             descriptor = PropertyDescriptor.Data(
                 JsValue.FromString(GetFlatValue()[checked((int)index)].ToString()),
                 false,
-                true);
+                true
+            );
             return true;
         }
 
-        return base.TryGetOwnNamedPropertyDescriptorAtom(realm, atom, out descriptor, needDescriptor);
+        return base.TryGetOwnNamedPropertyDescriptorAtom(
+            realm,
+            atom,
+            out descriptor,
+            needDescriptor
+        );
     }
 
     internal override bool TryGetOwnElementDescriptor(uint index, out PropertyDescriptor descriptor)
@@ -89,7 +111,8 @@ public sealed class JsStringObject : JsObject
             descriptor = PropertyDescriptor.Data(
                 JsValue.FromString(GetFlatValue()[checked((int)index)].ToString()),
                 false,
-                true);
+                true
+            );
             return true;
         }
 
@@ -103,15 +126,25 @@ public sealed class JsStringObject : JsObject
         return base.DeleteElement(index);
     }
 
-    internal override bool SetElementWithReceiver(JsRealm realm, JsObject receiver, uint index, JsValue value)
+    internal override bool SetElementWithReceiver(
+        JsRealm realm,
+        JsObject receiver,
+        uint index,
+        JsValue value
+    )
     {
         if (ReferenceEquals(this, receiver) && index < (uint)this.value.Length)
             return false;
         return base.SetElementWithReceiver(realm, receiver, index, value);
     }
 
-    internal override bool SetPropertyAtomWithReceiver(JsRealm realm, JsObject receiver, int atom, JsValue value,
-        out SlotInfo slotInfo)
+    internal override bool SetPropertyAtomWithReceiver(
+        JsRealm realm,
+        JsObject receiver,
+        int atom,
+        JsValue value,
+        out SlotInfo slotInfo
+    )
     {
         if (ReferenceEquals(this, receiver))
         {
@@ -119,8 +152,10 @@ public sealed class JsStringObject : JsObject
             if (atom == IdLength)
                 return false;
 
-            if (TryGetArrayIndexFromCanonicalString(realm.Atoms.AtomToString(atom), out var index) &&
-                index < (uint)this.value.Length)
+            if (
+                TryGetArrayIndexFromCanonicalString(realm.Atoms.AtomToString(atom), out var index)
+                && index < (uint)this.value.Length
+            )
                 return false;
         }
 
@@ -132,8 +167,10 @@ public sealed class JsStringObject : JsObject
         if (atom == IdLength)
             return false;
 
-        if (TryGetArrayIndexFromCanonicalString(realm.Atoms.AtomToString(atom), out var index) &&
-            index < (uint)value.Length)
+        if (
+            TryGetArrayIndexFromCanonicalString(realm.Atoms.AtomToString(atom), out var index)
+            && index < (uint)value.Length
+        )
             return false;
 
         return base.DeletePropertyAtom(realm, atom);
@@ -142,7 +179,8 @@ public sealed class JsStringObject : JsObject
     internal override void CollectForInEnumerableStringAtomKeys(
         JsRealm realm,
         HashSet<string> visited,
-        List<string> enumerableKeysOut)
+        List<string> enumerableKeysOut
+    )
     {
         for (var i = 0; i < value.Length; i++)
         {
@@ -163,7 +201,11 @@ public sealed class JsStringObject : JsObject
         base.CollectOwnElementIndices(indicesOut, enumerableOnly);
     }
 
-    internal override void CollectOwnNamedPropertyAtoms(JsRealm realm, List<int> atomsOut, bool enumerableOnly)
+    internal override void CollectOwnNamedPropertyAtoms(
+        JsRealm realm,
+        List<int> atomsOut,
+        bool enumerableOnly
+    )
     {
         if (!enumerableOnly)
             atomsOut.Add(IdLength);

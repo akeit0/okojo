@@ -5,7 +5,8 @@ internal sealed record RegExpCompiledPattern(
     string Flags,
     string ExecutionPattern,
     string[] NamedGroupNames,
-    RegExpRuntimeFlags ParsedFlags)
+    RegExpRuntimeFlags ParsedFlags
+)
 {
     /// <summary>
     ///     Engine-private compiled state attached by the <see cref="RegExpEngine"/>

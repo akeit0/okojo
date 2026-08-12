@@ -9,8 +9,11 @@ internal sealed class ThreadAffinityBrowserHost : IDisposable
 {
     private static readonly HostTaskQueueKey[] SQueueOrder =
     [
-        WebTaskQueueKeys.Timers, WebTaskQueueKeys.Messages, WebTaskQueueKeys.Network, HostingTaskQueueKeys.Default,
-        WebTaskQueueKeys.Rendering
+        WebTaskQueueKeys.Timers,
+        WebTaskQueueKeys.Messages,
+        WebTaskQueueKeys.Network,
+        HostingTaskQueueKeys.Default,
+        WebTaskQueueKeys.Rendering,
     ];
 
     private readonly SandboxAssets assets;
@@ -22,7 +25,8 @@ internal sealed class ThreadAffinityBrowserHost : IDisposable
         SandboxAssets assets,
         JsRuntime runtime,
         HttpClient httpClient,
-        ThreadAffinityHostLoop hostLoop)
+        ThreadAffinityHostLoop hostLoop
+    )
     {
         this.assets = assets;
         this.Runtime = runtime;
@@ -49,7 +53,8 @@ internal sealed class ThreadAffinityBrowserHost : IDisposable
         var hostLoop = new ThreadAffinityHostLoop();
         var moduleLoader = new DemoModuleLoader(assets);
         var httpClient = new HttpClient(new DemoFetchHandler(assets.FetchPayloads));
-        var runtime = JsRuntime.CreateBuilder()
+        var runtime = JsRuntime
+            .CreateBuilder()
             .UseLowLevelHost(host => host.UseTaskScheduler(hostLoop))
             .UseWebDelayScheduler(hostLoop)
             .UseWebTimerQueue(WebTaskQueueKeys.Timers)
@@ -67,29 +72,36 @@ internal sealed class ThreadAffinityBrowserHost : IDisposable
         ArgumentNullException.ThrowIfNull(completed);
 
         var timeout = TimeSpan.FromMilliseconds(timeoutMs);
-        var deadline = timeout == Timeout.InfiniteTimeSpan
-            ? long.MaxValue
-            : Environment.TickCount64 + checked((long)Math.Ceiling(timeout.TotalMilliseconds));
+        var deadline =
+            timeout == Timeout.InfiniteTimeSpan
+                ? long.MaxValue
+                : Environment.TickCount64 + checked((long)Math.Ceiling(timeout.TotalMilliseconds));
 
         while (timeout == Timeout.InfiniteTimeSpan || Environment.TickCount64 < deadline)
         {
             if (completed())
                 return;
 
-            var remaining = timeout == Timeout.InfiniteTimeSpan
-                ? Timeout.InfiniteTimeSpan
-                : TimeSpan.FromMilliseconds(Math.Max(1, deadline - Environment.TickCount64));
+            var remaining =
+                timeout == Timeout.InfiniteTimeSpan
+                    ? Timeout.InfiniteTimeSpan
+                    : TimeSpan.FromMilliseconds(Math.Max(1, deadline - Environment.TickCount64));
 
             _ = hostLoop.RunOneTurn(
-                remaining < TimeSpan.FromMilliseconds(20) ? remaining : TimeSpan.FromMilliseconds(20),
+                remaining < TimeSpan.FromMilliseconds(20)
+                    ? remaining
+                    : TimeSpan.FromMilliseconds(20),
                 SQueueOrder,
-                pump);
+                pump
+            );
 
             if (completed())
                 return;
         }
 
-        throw new TimeoutException("The thread-affinity browser host sandbox timed out waiting for work to complete.");
+        throw new TimeoutException(
+            "The thread-affinity browser host sandbox timed out waiting for work to complete."
+        );
     }
 
     public void RunScript(string scriptPath)

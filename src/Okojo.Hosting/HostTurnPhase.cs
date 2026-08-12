@@ -6,5 +6,5 @@ public enum HostTurnPhase
     AfterHostTask = 1,
     BeforeMicrotaskCheckpoint = 2,
     AfterMicrotaskCheckpoint = 3,
-    AfterTurn = 4
+    AfterTurn = 4,
 }

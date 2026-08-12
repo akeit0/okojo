@@ -11,4 +11,5 @@ public readonly record struct HostTurnNotification(
     bool RanHostTask,
     HostTaskQueueKey? HostTaskQueueKey,
     int ReadyDelayedCount,
-    int PendingJobCount);
+    int PendingJobCount
+);

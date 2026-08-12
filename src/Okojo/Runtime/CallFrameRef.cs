@@ -24,5 +24,6 @@ public readonly ref struct CallFrameRef
     public readonly ref readonly JsValue ThisValue => ref frame.ThisValue;
     public JsValue NewTarget => Realm.GetFrameNewTarget(framePointer);
 
-    public ReadOnlySpan<JsValue> Arguments => Realm.Stack.AsSpan(framePointer + FrameLayout.HeaderSize, ArgCount);
+    public ReadOnlySpan<JsValue> Arguments =>
+        Realm.Stack.AsSpan(framePointer + FrameLayout.HeaderSize, ArgCount);
 }

@@ -19,7 +19,9 @@ internal readonly struct CompilerSymbolId(int value)
     public static CompilerSymbolId FromSourceIdentifier(int identifierId)
     {
         if ((uint)identifierId > PayloadMask)
-            throw new InvalidOperationException("Identifier id exceeds packed compiler symbol id payload range.");
+            throw new InvalidOperationException(
+                "Identifier id exceeds packed compiler symbol id payload range."
+            );
 
         return new(Pack(SourceIdentifierTag, identifierId));
     }
@@ -27,7 +29,9 @@ internal readonly struct CompilerSymbolId(int value)
     public static CompilerSymbolId CreateCompilerSynthetic(int ordinal)
     {
         if ((uint)ordinal > PayloadMask)
-            throw new InvalidOperationException("Synthetic compiler symbol id exceeds packed payload range.");
+            throw new InvalidOperationException(
+                "Synthetic compiler symbol id exceeds packed payload range."
+            );
 
         return new(Pack(CompilerSyntheticTag, ordinal));
     }
@@ -40,7 +44,9 @@ internal readonly struct CompilerSymbolId(int value)
     public static int GetSourceIdentifierId(int symbolId)
     {
         if (!IsSourceIdentifier(symbolId))
-            throw new InvalidOperationException("Compiler symbol id does not reference a source identifier.");
+            throw new InvalidOperationException(
+                "Compiler symbol id does not reference a source identifier."
+            );
 
         return symbolId & PayloadMask;
     }

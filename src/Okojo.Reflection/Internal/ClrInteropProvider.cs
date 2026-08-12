@@ -11,24 +11,38 @@ namespace Okojo.Reflection.Internal;
 internal sealed class ClrInteropProvider : IClrAccessProvider
 {
     private static readonly ConditionalWeakTable<JsRealm, RealmClrState> SStates = new();
-    private static readonly ConcurrentDictionary<Type, Func<JsRealm, object, JsValue>> STaskWrappers = new();
-    private static readonly ConcurrentDictionary<Type, Func<JsRealm, object, object>> STaskConverters = new();
+    private static readonly ConcurrentDictionary<
+        Type,
+        Func<JsRealm, object, JsValue>
+    > STaskWrappers = new();
+    private static readonly ConcurrentDictionary<
+        Type,
+        Func<JsRealm, object, object>
+    > STaskConverters = new();
 
     private static readonly MethodInfo SWrapGenericTaskMethod =
-        typeof(ClrInteropProvider).GetMethod(nameof(WrapGenericTaskObject),
-            BindingFlags.Static | BindingFlags.NonPublic)!;
+        typeof(ClrInteropProvider).GetMethod(
+            nameof(WrapGenericTaskObject),
+            BindingFlags.Static | BindingFlags.NonPublic
+        )!;
 
     private static readonly MethodInfo SWrapGenericValueTaskMethod =
-        typeof(ClrInteropProvider).GetMethod(nameof(WrapGenericValueTaskObject),
-            BindingFlags.Static | BindingFlags.NonPublic)!;
+        typeof(ClrInteropProvider).GetMethod(
+            nameof(WrapGenericValueTaskObject),
+            BindingFlags.Static | BindingFlags.NonPublic
+        )!;
 
     private static readonly MethodInfo SConvertPromiseToGenericTaskMethod =
-        typeof(ClrInteropProvider).GetMethod(nameof(ConvertPromiseToGenericTaskObject),
-            BindingFlags.Static | BindingFlags.NonPublic)!;
+        typeof(ClrInteropProvider).GetMethod(
+            nameof(ConvertPromiseToGenericTaskObject),
+            BindingFlags.Static | BindingFlags.NonPublic
+        )!;
 
     private static readonly MethodInfo SConvertPromiseToGenericValueTaskMethod =
-        typeof(ClrInteropProvider).GetMethod(nameof(ConvertPromiseToGenericValueTaskObject),
-            BindingFlags.Static | BindingFlags.NonPublic)!;
+        typeof(ClrInteropProvider).GetMethod(
+            nameof(ConvertPromiseToGenericValueTaskObject),
+            BindingFlags.Static | BindingFlags.NonPublic
+        )!;
 
     private static readonly ClrInteropProvider SProvider = new();
 
@@ -50,9 +64,14 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
             ? realm.Agent.GetOrCreateHostTypeDescriptor(type, binding)
             : realm.Agent.GetOrCreateHostTypeDescriptor(type);
         var staticLayout = descriptor.GetOrCreateStaticRealmLayout(realm);
-        var function = JsHostFunction.CreateShapedFunction(realm, InvokeClrTypeFunction, type.Name, 0,
+        var function = JsHostFunction.CreateShapedFunction(
+            realm,
+            InvokeClrTypeFunction,
+            type.Name,
+            0,
             staticLayout.Layout,
-            IsClrTypeConstructable(type));
+            IsClrTypeConstructable(type)
+        );
         function.UserData = new OkojoClrTypeFunctionData(type, staticLayout);
         if (staticLayout.SlotTemplate.Length != 0)
             Array.Copy(staticLayout.SlotTemplate, function.Slots, staticLayout.SlotTemplate.Length);
@@ -65,14 +84,20 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
         if (binding?.AsyncEnumerator is not null)
             return binding;
 
-        var asyncEnumerableInterface = clrType.GetInterfaces()
-            .FirstOrDefault(static x => x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IAsyncEnumerable<>));
+        var asyncEnumerableInterface = clrType
+            .GetInterfaces()
+            .FirstOrDefault(static x =>
+                x.IsGenericType && x.GetGenericTypeDefinition() == typeof(IAsyncEnumerable<>)
+            );
         if (asyncEnumerableInterface is null)
             return binding;
 
         var elementType = asyncEnumerableInterface.GetGenericArguments()[0];
-        var factory = typeof(ClrInteropProvider).GetMethod(nameof(CreateAsyncEnumerableBinding),
-                          BindingFlags.NonPublic | BindingFlags.Static)!
+        var factory = typeof(ClrInteropProvider)
+            .GetMethod(
+                nameof(CreateAsyncEnumerableBinding),
+                BindingFlags.NonPublic | BindingFlags.Static
+            )!
             .MakeGenericMethod(elementType);
         var asyncEnumerableBinding = (HostAsyncEnumeratorBinding)factory.Invoke(null, null)!;
         if (binding is null)
@@ -84,7 +109,7 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
             Enumerator = binding.Enumerator,
             AsyncEnumerator = asyncEnumerableBinding,
             Dispose = binding.Dispose,
-            AsyncDispose = binding.AsyncDispose
+            AsyncDispose = binding.AsyncDispose,
         };
     }
 
@@ -97,8 +122,10 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
         if (asyncDisposeBinding is null && typeof(IAsyncDisposable).IsAssignableFrom(clrType))
             asyncDisposeBinding = static target => ((IAsyncDisposable)target).DisposeAsync();
 
-        if (ReferenceEquals(disposeBinding, binding?.Dispose) &&
-            ReferenceEquals(asyncDisposeBinding, binding?.AsyncDispose))
+        if (
+            ReferenceEquals(disposeBinding, binding?.Dispose)
+            && ReferenceEquals(asyncDisposeBinding, binding?.AsyncDispose)
+        )
             return binding;
 
         if (binding is null)
@@ -106,7 +133,7 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
             return new HostBinding(clrType, [], [])
             {
                 Dispose = disposeBinding,
-                AsyncDispose = asyncDisposeBinding
+                AsyncDispose = asyncDisposeBinding,
             };
         }
 
@@ -116,7 +143,7 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
             Enumerator = binding.Enumerator,
             AsyncEnumerator = binding.AsyncEnumerator,
             Dispose = disposeBinding,
-            AsyncDispose = asyncDisposeBinding
+            AsyncDispose = asyncDisposeBinding,
         };
     }
 
@@ -126,7 +153,8 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
             static target => ((IAsyncEnumerable<T>)target).GetAsyncEnumerator(),
             static state => ((IAsyncEnumerator<T>)state).MoveNextAsync(),
             static state => ((IAsyncEnumerator<T>)state).Current,
-            static state => ((IAsyncEnumerator<T>)state).DisposeAsync());
+            static state => ((IAsyncEnumerator<T>)state).DisposeAsync()
+        );
     }
 
     public bool TryConvertTaskObjectToJsValue(JsRealm realm, object value, out JsValue jsValue)
@@ -136,13 +164,16 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
             var type = value.GetType();
             if (TryGetGenericTaskResultType(type, out _))
             {
-                var wrapper = STaskWrappers.GetOrAdd(type, static taskType =>
-                {
-                    _ = TryGetGenericTaskResultType(taskType, out var resultType);
-                    var method = SWrapGenericTaskMethod.MakeGenericMethod(resultType);
-                    return (Func<JsRealm, object, JsValue>)method.CreateDelegate(
-                        typeof(Func<JsRealm, object, JsValue>));
-                });
+                var wrapper = STaskWrappers.GetOrAdd(
+                    type,
+                    static taskType =>
+                    {
+                        _ = TryGetGenericTaskResultType(taskType, out var resultType);
+                        var method = SWrapGenericTaskMethod.MakeGenericMethod(resultType);
+                        return (Func<JsRealm, object, JsValue>)
+                            method.CreateDelegate(typeof(Func<JsRealm, object, JsValue>));
+                    }
+                );
                 jsValue = wrapper(realm, value);
                 return true;
             }
@@ -151,12 +182,16 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
         var valueType = value.GetType();
         if (valueType.IsGenericType && valueType.GetGenericTypeDefinition() == typeof(ValueTask<>))
         {
-            var wrapper = STaskWrappers.GetOrAdd(valueType, static taskType =>
-            {
-                var resultType = taskType.GetGenericArguments()[0];
-                var method = SWrapGenericValueTaskMethod.MakeGenericMethod(resultType);
-                return (Func<JsRealm, object, JsValue>)method.CreateDelegate(typeof(Func<JsRealm, object, JsValue>));
-            });
+            var wrapper = STaskWrappers.GetOrAdd(
+                valueType,
+                static taskType =>
+                {
+                    var resultType = taskType.GetGenericArguments()[0];
+                    var method = SWrapGenericValueTaskMethod.MakeGenericMethod(resultType);
+                    return (Func<JsRealm, object, JsValue>)
+                        method.CreateDelegate(typeof(Func<JsRealm, object, JsValue>));
+                }
+            );
             jsValue = wrapper(realm, value);
             return true;
         }
@@ -165,8 +200,13 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
         return false;
     }
 
-    public bool TryConvertJsValueToTaskObject(JsRealm realm, JsValue value, Type targetType, out object? result,
-        out int score)
+    public bool TryConvertJsValueToTaskObject(
+        JsRealm realm,
+        JsValue value,
+        Type targetType,
+        out object? result,
+        out int score
+    )
     {
         score = 0;
         if (!targetType.IsGenericType)
@@ -178,24 +218,34 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
         var genericType = targetType.GetGenericTypeDefinition();
         if (genericType == typeof(Task<>))
         {
-            var converter = STaskConverters.GetOrAdd(targetType, static closedType =>
-            {
-                var resultType = closedType.GetGenericArguments()[0];
-                var method = SConvertPromiseToGenericTaskMethod.MakeGenericMethod(resultType);
-                return (Func<JsRealm, object, object>)method.CreateDelegate(typeof(Func<JsRealm, object, object>));
-            });
+            var converter = STaskConverters.GetOrAdd(
+                targetType,
+                static closedType =>
+                {
+                    var resultType = closedType.GetGenericArguments()[0];
+                    var method = SConvertPromiseToGenericTaskMethod.MakeGenericMethod(resultType);
+                    return (Func<JsRealm, object, object>)
+                        method.CreateDelegate(typeof(Func<JsRealm, object, object>));
+                }
+            );
             result = converter(realm, value);
             return true;
         }
 
         if (genericType == typeof(ValueTask<>))
         {
-            var converter = STaskConverters.GetOrAdd(targetType, static closedType =>
-            {
-                var resultType = closedType.GetGenericArguments()[0];
-                var method = SConvertPromiseToGenericValueTaskMethod.MakeGenericMethod(resultType);
-                return (Func<JsRealm, object, object>)method.CreateDelegate(typeof(Func<JsRealm, object, object>));
-            });
+            var converter = STaskConverters.GetOrAdd(
+                targetType,
+                static closedType =>
+                {
+                    var resultType = closedType.GetGenericArguments()[0];
+                    var method = SConvertPromiseToGenericValueTaskMethod.MakeGenericMethod(
+                        resultType
+                    );
+                    return (Func<JsRealm, object, object>)
+                        method.CreateDelegate(typeof(Func<JsRealm, object, object>));
+                }
+            );
             result = converter(realm, value);
             return true;
         }
@@ -204,20 +254,30 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
         return false;
     }
 
-    public JsValue BindGenericMethod(JsRealm realm, string memberName, object? target, MethodInfo[] methods,
-        ReadOnlySpan<JsValue> typeArguments, int genericParameterCount)
+    public JsValue BindGenericMethod(
+        JsRealm realm,
+        string memberName,
+        object? target,
+        MethodInfo[] methods,
+        ReadOnlySpan<JsValue> typeArguments,
+        int genericParameterCount
+    )
     {
         if (typeArguments.Length != genericParameterCount)
-            throw new JsRuntimeException(JsErrorKind.TypeError,
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
                 $"CLR generic method '{memberName}' requires {genericParameterCount} type arguments.",
-                "CLR_GENERIC_METHOD_ARITY");
+                "CLR_GENERIC_METHOD_ARITY"
+            );
 
         var genericTypes = new Type[typeArguments.Length];
         for (var i = 0; i < typeArguments.Length; i++)
             if (!JsRealm.TryExtractClrType(typeArguments[i], out genericTypes[i]))
-                throw new JsRuntimeException(JsErrorKind.TypeError,
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
                     $"Invalid generic type parameter on CLR method '{memberName}'.",
-                    "CLR_GENERIC_ARGUMENT");
+                    "CLR_GENERIC_ARGUMENT"
+                );
 
         MethodInfo[] closedMethods;
         try
@@ -226,16 +286,22 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
         }
         catch (ArgumentException ex)
         {
-            throw new JsRuntimeException(JsErrorKind.TypeError,
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
                 $"Invalid generic type parameter on CLR method '{memberName}': {ex.Message}",
-                "CLR_GENERIC_ARGUMENT");
+                "CLR_GENERIC_ARGUMENT"
+            );
         }
 
         var closedMember = HostNamedMemberDescriptor.CreateMethod(memberName, closedMethods);
-        var function = new JsHostFunction(realm, HostTypeDescriptor.InvokeBoundGenericHostMethod, memberName,
-            closedMember.FunctionLength)
+        var function = new JsHostFunction(
+            realm,
+            HostTypeDescriptor.InvokeBoundGenericHostMethod,
+            memberName,
+            closedMember.FunctionLength
+        )
         {
-            UserData = new BoundGenericHostMethodData(closedMember, target)
+            UserData = new BoundGenericHostMethodData(closedMember, target),
         };
         return JsValue.FromObject(function);
     }
@@ -254,7 +320,9 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
         if (value.TryGetObject(out var obj) && obj is JsObject okojoObject)
             return okojoObject;
 
-        throw new InvalidOperationException($"CLR path '{namespacePath}' does not resolve to a namespace.");
+        throw new InvalidOperationException(
+            $"CLR path '{namespacePath}' does not resolve to a namespace."
+        );
     }
 
     public JsValue ResolveClrPath(JsRealm realm, string path)
@@ -305,52 +373,95 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
 
     public JsHostFunction CreateClrTypedNullHelperFunction(JsRealm realm)
     {
-        return new(realm, static (in info) =>
-        {
-            if (info.Arguments.Length == 0 || !JsRealm.TryExtractClrType(info.Arguments[0], out var targetType))
-                throw new JsRuntimeException(JsErrorKind.TypeError, "$null requires a CLR type argument.",
-                    "CLR_TYPED_NULL");
+        return new(
+            realm,
+            static (in info) =>
+            {
+                if (
+                    info.Arguments.Length == 0
+                    || !JsRealm.TryExtractClrType(info.Arguments[0], out var targetType)
+                )
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "$null requires a CLR type argument.",
+                        "CLR_TYPED_NULL"
+                    );
 
-            return JsValue.FromObject(new JsClrTypedNullObject(info.Realm, targetType));
-        }, "$null", 1);
+                return JsValue.FromObject(new JsClrTypedNullObject(info.Realm, targetType));
+            },
+            "$null",
+            1
+        );
     }
 
     public JsHostFunction CreateClrPlaceHolderHelperFunction(JsRealm realm)
     {
-        return new(realm, static (in info) =>
-        {
-            if (info.Arguments.Length == 0 || !JsRealm.TryExtractClrType(info.Arguments[0], out var targetType))
-                throw new JsRuntimeException(JsErrorKind.TypeError, "$place requires a CLR type argument.",
-                    "CLR_PLACE");
+        return new(
+            realm,
+            static (in info) =>
+            {
+                if (
+                    info.Arguments.Length == 0
+                    || !JsRealm.TryExtractClrType(info.Arguments[0], out var targetType)
+                )
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "$place requires a CLR type argument.",
+                        "CLR_PLACE"
+                    );
 
-            var placeholder = new JsClrPlaceHolderObject(info.Realm, targetType);
-            if (info.Arguments.Length > 1)
-                placeholder.InitializeFromJsValue(info.Realm, info.Arguments[1]);
-            return JsValue.FromObject(placeholder);
-        }, "$place", 2);
+                var placeholder = new JsClrPlaceHolderObject(info.Realm, targetType);
+                if (info.Arguments.Length > 1)
+                    placeholder.InitializeFromJsValue(info.Realm, info.Arguments[1]);
+                return JsValue.FromObject(placeholder);
+            },
+            "$place",
+            2
+        );
     }
 
     public JsHostFunction CreateClrCastHelperFunction(JsRealm realm)
     {
-        return new(realm, static (in info) =>
-        {
-            if (info.Arguments.Length == 0 || !JsRealm.TryExtractClrType(info.Arguments[0], out var targetType))
-                throw new JsRuntimeException(JsErrorKind.TypeError, "$cast requires a CLR type argument.", "CLR_CAST");
+        return new(
+            realm,
+            static (in info) =>
+            {
+                if (
+                    info.Arguments.Length == 0
+                    || !JsRealm.TryExtractClrType(info.Arguments[0], out var targetType)
+                )
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "$cast requires a CLR type argument.",
+                        "CLR_CAST"
+                    );
 
-            var value = info.Arguments.Length > 1 ? info.Arguments[1] : JsValue.Undefined;
-            var converted = HostValueConverter.ConvertFromJsValue(info.Realm, value, targetType);
-            return HostValueConverter.ConvertToJsValue(info.Realm, converted);
-        }, "$cast", 2);
+                var value = info.Arguments.Length > 1 ? info.Arguments[1] : JsValue.Undefined;
+                var converted = HostValueConverter.ConvertFromJsValue(
+                    info.Realm,
+                    value,
+                    targetType
+                );
+                return HostValueConverter.ConvertToJsValue(info.Realm, converted);
+            },
+            "$cast",
+            2
+        );
     }
 
     public JsHostFunction CreateClrUsingHelperFunction(JsRealm realm)
     {
-        return new(realm, static (in info) =>
-        {
-            var resolver = new JsClrUsingResolverObject(info.Realm);
-            resolver.AddImports(info.Arguments);
-            return JsValue.FromObject(resolver);
-        }, "$using", 0);
+        return new(
+            realm,
+            static (in info) =>
+            {
+                var resolver = new JsClrUsingResolverObject(info.Realm);
+                resolver.AddImports(info.Arguments);
+                return JsValue.FromObject(resolver);
+            },
+            "$using",
+            0
+        );
     }
 
     private static JsValue InvokeClrTypeFunction(scoped in CallInfo info)
@@ -360,9 +471,11 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
             return BindGenericClrType(info.Realm, type, info.Arguments);
 
         if (!IsClrTypeConstructable(type))
-            throw new JsRuntimeException(JsErrorKind.TypeError,
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
                 $"CLR type '{type.FullName ?? type.Name}' is not constructable.",
-                "CLR_NOT_CONSTRUCTABLE");
+                "CLR_NOT_CONSTRUCTABLE"
+            );
 
         var instance = CreateClrInstance(info.Realm, type, info.Arguments);
         return HostValueConverter.ConvertToJsValue(info.Realm, instance);
@@ -387,13 +500,19 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
             if (TryBuildConstructorArguments(realm, constructors[i], args, out var converted))
                 return constructors[i].Invoke(converted);
 
-        throw new JsRuntimeException(JsErrorKind.TypeError,
+        throw new JsRuntimeException(
+            JsErrorKind.TypeError,
             $"Could not resolve a constructor for CLR type '{type.FullName ?? type.Name}'.",
-            "CLR_CONSTRUCTOR");
+            "CLR_CONSTRUCTOR"
+        );
     }
 
-    private static bool TryBuildConstructorArguments(JsRealm realm, ConstructorInfo constructor,
-        ReadOnlySpan<JsValue> args, out object?[] converted)
+    private static bool TryBuildConstructorArguments(
+        JsRealm realm,
+        ConstructorInfo constructor,
+        ReadOnlySpan<JsValue> args,
+        out object?[] converted
+    )
     {
         var parameters = constructor.GetParameters();
         if (args.Length > parameters.Length)
@@ -407,7 +526,11 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
         try
         {
             for (; i < args.Length; i++)
-                converted[i] = HostValueConverter.ConvertFromJsValue(realm, args[i], parameters[i].ParameterType);
+                converted[i] = HostValueConverter.ConvertFromJsValue(
+                    realm,
+                    args[i],
+                    parameters[i].ParameterType
+                );
 
             for (; i < parameters.Length; i++)
             {
@@ -457,14 +580,21 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
         foreach (var type in assembly.GetTypes())
         {
             var fullName = type.FullName;
-            if (fullName is not null && fullName.Replace('+', '.').Equals(comparedPath, StringComparison.Ordinal))
+            if (
+                fullName is not null
+                && fullName.Replace('+', '.').Equals(comparedPath, StringComparison.Ordinal)
+            )
                 return type;
         }
 
         return null;
     }
 
-    private static Type? FindGenericClrTypeDefinition(Assembly assembly, string path, bool requireAritySuffix = false)
+    private static Type? FindGenericClrTypeDefinition(
+        Assembly assembly,
+        string path,
+        bool requireAritySuffix = false
+    )
     {
         int? requiredArity = null;
         if (TryParseClrAritySuffix(path, out var unsuffixedPath, out var arity))
@@ -503,13 +633,19 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
         return singleMatch;
     }
 
-    private static bool TryParseClrAritySuffix(string name, out string unsuffixedName, out int arity)
+    private static bool TryParseClrAritySuffix(
+        string name,
+        out string unsuffixedName,
+        out int arity
+    )
     {
         var suffixIndex = name.LastIndexOf('$');
-        if (suffixIndex > 0 &&
-            suffixIndex + 1 < name.Length &&
-            int.TryParse(name.AsSpan(suffixIndex + 1), out arity) &&
-            arity >= 0)
+        if (
+            suffixIndex > 0
+            && suffixIndex + 1 < name.Length
+            && int.TryParse(name.AsSpan(suffixIndex + 1), out arity)
+            && arity >= 0
+        )
         {
             unsuffixedName = name[..suffixIndex];
             return true;
@@ -542,20 +678,27 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
         return new(buffer[..count]);
     }
 
-    private static JsValue BindGenericClrType(JsRealm realm, Type genericTypeDefinition,
-        ReadOnlySpan<JsValue> typeArguments)
+    private static JsValue BindGenericClrType(
+        JsRealm realm,
+        Type genericTypeDefinition,
+        ReadOnlySpan<JsValue> typeArguments
+    )
     {
         var genericTypes = new Type[typeArguments.Length];
         for (var i = 0; i < typeArguments.Length; i++)
             if (!JsRealm.TryExtractClrType(typeArguments[i], out genericTypes[i]))
-                throw new JsRuntimeException(JsErrorKind.TypeError,
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
                     $"Invalid generic type parameter on '{genericTypeDefinition.FullName ?? genericTypeDefinition.Name}'.",
-                    "CLR_GENERIC_ARGUMENT");
+                    "CLR_GENERIC_ARGUMENT"
+                );
 
         if (genericTypeDefinition.GetGenericArguments().Length != genericTypes.Length)
-            throw new JsRuntimeException(JsErrorKind.TypeError,
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
                 $"CLR generic type '{genericTypeDefinition.FullName ?? genericTypeDefinition.Name}' requires {genericTypeDefinition.GetGenericArguments().Length} type arguments.",
-                "CLR_GENERIC_ARITY");
+                "CLR_GENERIC_ARITY"
+            );
 
         try
         {
@@ -564,9 +707,11 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
         }
         catch (ArgumentException ex)
         {
-            throw new JsRuntimeException(JsErrorKind.TypeError,
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
                 $"Invalid generic type parameter on '{genericTypeDefinition.FullName ?? genericTypeDefinition.Name}': {ex.Message}",
-                "CLR_GENERIC_ARGUMENT");
+                "CLR_GENERIC_ARGUMENT"
+            );
         }
     }
 
@@ -634,11 +779,13 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
         public int ClrAssembliesVersion;
     }
 
-    private sealed class OkojoClrTypeFunctionData(Type clrType, HostRealmLayoutInfo layoutInfo) : IClrTypeFunctionData
+    private sealed class OkojoClrTypeFunctionData(Type clrType, HostRealmLayoutInfo layoutInfo)
+        : IClrTypeFunctionData
     {
         [DynamicallyAccessedMembers(
-            DynamicallyAccessedMemberTypes.PublicConstructors |
-            DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
+            DynamicallyAccessedMemberTypes.PublicConstructors
+                | DynamicallyAccessedMemberTypes.PublicParameterlessConstructor
+        )]
         public Type ClrType { get; } = clrType;
 
         public HostRealmLayoutInfo LayoutInfo { get; } = layoutInfo;

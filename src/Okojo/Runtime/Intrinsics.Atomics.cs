@@ -8,100 +8,251 @@ public partial class Intrinsics
     {
         var atomics = new JsPlainObject(Realm);
 
-        atomics.DefineNewPropertiesNoCollision(Realm,
-        [
-            PropertyDefinition.Mutable(IdAdd, JsValue.FromObject(CreateAtomicsReadModifyWriteFunction("add",
-                static (kind, left, right) => AtomicsAdd(kind, left, right),
-                static (_, left, right) => left + right))),
-            PropertyDefinition.Mutable(IdAnd, JsValue.FromObject(CreateAtomicsReadModifyWriteFunction("and",
-                static (_, left, right) => left & right,
-                static (_, left, right) => left & right))),
-            PropertyDefinition.Mutable(IdCompareExchange, JsValue.FromObject(new JsHostFunction(Realm,
-                static (in info) => AtomicsCompareExchange(info), "compareExchange", 4))),
-            PropertyDefinition.Mutable(IdExchange, JsValue.FromObject(new JsHostFunction(Realm,
-                static (in info) => AtomicsExchange(info), "exchange", 3))),
-            PropertyDefinition.Mutable(IdIsLockFree, JsValue.FromObject(new JsHostFunction(Realm,
-                static (in info) =>
-                {
-                    var args = info.Arguments;
-                    var size = args.Length == 0 ? 0 : (int)info.Realm.ToIntegerOrInfinity(args[0]);
-                    return size is 1 or 2 or 4 or 8 ? JsValue.True : JsValue.False;
-                }, "isLockFree", 1))),
-            PropertyDefinition.Mutable(IdLoad, JsValue.FromObject(new JsHostFunction(Realm,
-                static (in info) =>
-                {
-                    var view = ValidateIntegerTypedArray(info.Realm, info.Arguments, out var index, false);
-                    return view.GetDirectElementValue((uint)index);
-                }, "load", 2))),
-            PropertyDefinition.Mutable(IdNotify, JsValue.FromObject(new JsHostFunction(Realm,
-                static (in info) => AtomicsNotify(info), "notify", 3))),
-            PropertyDefinition.Mutable(IdOr, JsValue.FromObject(CreateAtomicsReadModifyWriteFunction("or",
-                static (_, left, right) => left | right,
-                static (_, left, right) => left | right))),
-            PropertyDefinition.Mutable(IdPause, JsValue.FromObject(new JsHostFunction(Realm,
-                static (in info) =>
-                {
-                    var args = info.Arguments;
-                    if (args.Length == 0 || args[0].IsUndefined)
-                        return JsValue.Undefined;
+        atomics.DefineNewPropertiesNoCollision(
+            Realm,
+            [
+                PropertyDefinition.Mutable(
+                    IdAdd,
+                    JsValue.FromObject(
+                        CreateAtomicsReadModifyWriteFunction(
+                            "add",
+                            static (kind, left, right) => AtomicsAdd(kind, left, right),
+                            static (_, left, right) => left + right
+                        )
+                    )
+                ),
+                PropertyDefinition.Mutable(
+                    IdAnd,
+                    JsValue.FromObject(
+                        CreateAtomicsReadModifyWriteFunction(
+                            "and",
+                            static (_, left, right) => left & right,
+                            static (_, left, right) => left & right
+                        )
+                    )
+                ),
+                PropertyDefinition.Mutable(
+                    IdCompareExchange,
+                    JsValue.FromObject(
+                        new JsHostFunction(
+                            Realm,
+                            static (in info) => AtomicsCompareExchange(info),
+                            "compareExchange",
+                            4
+                        )
+                    )
+                ),
+                PropertyDefinition.Mutable(
+                    IdExchange,
+                    JsValue.FromObject(
+                        new JsHostFunction(
+                            Realm,
+                            static (in info) => AtomicsExchange(info),
+                            "exchange",
+                            3
+                        )
+                    )
+                ),
+                PropertyDefinition.Mutable(
+                    IdIsLockFree,
+                    JsValue.FromObject(
+                        new JsHostFunction(
+                            Realm,
+                            static (in info) =>
+                            {
+                                var args = info.Arguments;
+                                var size =
+                                    args.Length == 0
+                                        ? 0
+                                        : (int)info.Realm.ToIntegerOrInfinity(args[0]);
+                                return size is 1 or 2 or 4 or 8 ? JsValue.True : JsValue.False;
+                            },
+                            "isLockFree",
+                            1
+                        )
+                    )
+                ),
+                PropertyDefinition.Mutable(
+                    IdLoad,
+                    JsValue.FromObject(
+                        new JsHostFunction(
+                            Realm,
+                            static (in info) =>
+                            {
+                                var view = ValidateIntegerTypedArray(
+                                    info.Realm,
+                                    info.Arguments,
+                                    out var index,
+                                    false
+                                );
+                                return view.GetDirectElementValue((uint)index);
+                            },
+                            "load",
+                            2
+                        )
+                    )
+                ),
+                PropertyDefinition.Mutable(
+                    IdNotify,
+                    JsValue.FromObject(
+                        new JsHostFunction(
+                            Realm,
+                            static (in info) => AtomicsNotify(info),
+                            "notify",
+                            3
+                        )
+                    )
+                ),
+                PropertyDefinition.Mutable(
+                    IdOr,
+                    JsValue.FromObject(
+                        CreateAtomicsReadModifyWriteFunction(
+                            "or",
+                            static (_, left, right) => left | right,
+                            static (_, left, right) => left | right
+                        )
+                    )
+                ),
+                PropertyDefinition.Mutable(
+                    IdPause,
+                    JsValue.FromObject(
+                        new JsHostFunction(
+                            Realm,
+                            static (in info) =>
+                            {
+                                var args = info.Arguments;
+                                if (args.Length == 0 || args[0].IsUndefined)
+                                    return JsValue.Undefined;
 
-                    var value = args[0];
-                    var iterationNumber = value.IsInt32
-                        ? value.Int32Value
-                        : value.IsFloat64
-                            ? value.Float64Value
-                            : double.NaN;
-                    if (double.IsNaN(iterationNumber) ||
-                        double.IsInfinity(iterationNumber) ||
-                        Math.Floor(iterationNumber) != iterationNumber)
-                        throw new JsRuntimeException(JsErrorKind.TypeError,
-                            "Atomics.pause iterationNumber must be an integral Number");
+                                var value = args[0];
+                                var iterationNumber =
+                                    value.IsInt32 ? value.Int32Value
+                                    : value.IsFloat64 ? value.Float64Value
+                                    : double.NaN;
+                                if (
+                                    double.IsNaN(iterationNumber)
+                                    || double.IsInfinity(iterationNumber)
+                                    || Math.Floor(iterationNumber) != iterationNumber
+                                )
+                                    throw new JsRuntimeException(
+                                        JsErrorKind.TypeError,
+                                        "Atomics.pause iterationNumber must be an integral Number"
+                                    );
 
-                    return JsValue.Undefined;
-                }, "pause", 0))),
-            PropertyDefinition.Mutable(IdStore, JsValue.FromObject(new JsHostFunction(Realm,
-                static (in info) => AtomicsStore(info), "store", 3))),
-            PropertyDefinition.Mutable(IdSub, JsValue.FromObject(CreateAtomicsReadModifyWriteFunction("sub",
-                static (kind, left, right) => AtomicsSub(kind, left, right),
-                static (_, left, right) => left - right))),
-            PropertyDefinition.Mutable(IdWait, JsValue.FromObject(new JsHostFunction(Realm,
-                static (in info) => AtomicsWait(info), "wait", 4))),
-            PropertyDefinition.Mutable(IdWaitAsync, JsValue.FromObject(new JsHostFunction(Realm,
-                (in info) => AtomicsWaitAsync(info), "waitAsync", 4))),
-            PropertyDefinition.Mutable(IdXor, JsValue.FromObject(CreateAtomicsReadModifyWriteFunction("xor",
-                static (_, left, right) => left ^ right,
-                static (_, left, right) => left ^ right))),
-            PropertyDefinition.Const(IdSymbolToStringTag, "Atomics", configurable: true)
-        ]);
+                                return JsValue.Undefined;
+                            },
+                            "pause",
+                            0
+                        )
+                    )
+                ),
+                PropertyDefinition.Mutable(
+                    IdStore,
+                    JsValue.FromObject(
+                        new JsHostFunction(
+                            Realm,
+                            static (in info) => AtomicsStore(info),
+                            "store",
+                            3
+                        )
+                    )
+                ),
+                PropertyDefinition.Mutable(
+                    IdSub,
+                    JsValue.FromObject(
+                        CreateAtomicsReadModifyWriteFunction(
+                            "sub",
+                            static (kind, left, right) => AtomicsSub(kind, left, right),
+                            static (_, left, right) => left - right
+                        )
+                    )
+                ),
+                PropertyDefinition.Mutable(
+                    IdWait,
+                    JsValue.FromObject(
+                        new JsHostFunction(Realm, static (in info) => AtomicsWait(info), "wait", 4)
+                    )
+                ),
+                PropertyDefinition.Mutable(
+                    IdWaitAsync,
+                    JsValue.FromObject(
+                        new JsHostFunction(
+                            Realm,
+                            (in info) => AtomicsWaitAsync(info),
+                            "waitAsync",
+                            4
+                        )
+                    )
+                ),
+                PropertyDefinition.Mutable(
+                    IdXor,
+                    JsValue.FromObject(
+                        CreateAtomicsReadModifyWriteFunction(
+                            "xor",
+                            static (_, left, right) => left ^ right,
+                            static (_, left, right) => left ^ right
+                        )
+                    )
+                ),
+                PropertyDefinition.Const(IdSymbolToStringTag, "Atomics", configurable: true),
+            ]
+        );
 
         return atomics;
     }
 
-    private JsHostFunction CreateAtomicsReadModifyWriteFunction(string name,
+    private JsHostFunction CreateAtomicsReadModifyWriteFunction(
+        string name,
         Func<TypedArrayElementKind, long, long, long> numericOp,
-        Func<TypedArrayElementKind, BigInteger, BigInteger, BigInteger> bigIntOp)
+        Func<TypedArrayElementKind, BigInteger, BigInteger, BigInteger> bigIntOp
+    )
     {
-        return new(Realm, (in info) =>
-        {
-            var view = ValidateIntegerTypedArray(info.Realm, info.Arguments, out var index, false);
-            var args = info.Arguments;
-            var valueArg = args.Length > 2 ? args[2] : JsValue.Undefined;
-            return DoAtomicsReadModifyWrite(info.Realm, view, (uint)index, valueArg, numericOp, bigIntOp);
-        }, name, 3);
+        return new(
+            Realm,
+            (in info) =>
+            {
+                var view = ValidateIntegerTypedArray(
+                    info.Realm,
+                    info.Arguments,
+                    out var index,
+                    false
+                );
+                var args = info.Arguments;
+                var valueArg = args.Length > 2 ? args[2] : JsValue.Undefined;
+                return DoAtomicsReadModifyWrite(
+                    info.Realm,
+                    view,
+                    (uint)index,
+                    valueArg,
+                    numericOp,
+                    bigIntOp
+                );
+            },
+            name,
+            3
+        );
     }
 
     private static long AtomicsAdd(TypedArrayElementKind kind, long left, long right)
     {
-        return kind is TypedArrayElementKind.BigUint64 or TypedArrayElementKind.Uint32 or TypedArrayElementKind.Uint16
-            or TypedArrayElementKind.Uint8
+        return
+            kind
+                is TypedArrayElementKind.BigUint64
+                    or TypedArrayElementKind.Uint32
+                    or TypedArrayElementKind.Uint16
+                    or TypedArrayElementKind.Uint8
             ? unchecked(left + right)
             : left + right;
     }
 
     private static long AtomicsSub(TypedArrayElementKind kind, long left, long right)
     {
-        return kind is TypedArrayElementKind.BigUint64 or TypedArrayElementKind.Uint32 or TypedArrayElementKind.Uint16
-            or TypedArrayElementKind.Uint8
+        return
+            kind
+                is TypedArrayElementKind.BigUint64
+                    or TypedArrayElementKind.Uint32
+                    or TypedArrayElementKind.Uint16
+                    or TypedArrayElementKind.Uint8
             ? unchecked(left - right)
             : left - right;
     }
@@ -159,7 +310,11 @@ public partial class Intrinsics
 
         lock (GetAtomicsSyncRoot(buffer))
         {
-            buffer.WriteNormalizedTypedArrayElement(kind, GetTypedArrayByteIndex(view, (uint)index), normalized);
+            buffer.WriteNormalizedTypedArrayElement(
+                kind,
+                GetTypedArrayByteIndex(view, (uint)index),
+                normalized
+            );
         }
 
         return kind.IsBigIntFamily()
@@ -173,14 +328,25 @@ public partial class Intrinsics
         var args = info.Arguments;
         var view = RequireAtomicsTypedArray(args, true);
         if (view.Buffer.IsDetached)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Atomics.notify requires a non-detached typed array");
-        var index = ValidateAtomicsAccess(realm, view, args.Length > 1 ? args[1] : JsValue.Undefined);
-        var count = args.Length > 2 && !args[2].IsUndefined
-            ? (int)Math.Max(0, realm.ToIntegerOrInfinity(args[2]))
-            : int.MaxValue;
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Atomics.notify requires a non-detached typed array"
+            );
+        var index = ValidateAtomicsAccess(
+            realm,
+            view,
+            args.Length > 1 ? args[1] : JsValue.Undefined
+        );
+        var count =
+            args.Length > 2 && !args[2].IsUndefined
+                ? (int)Math.Max(0, realm.ToIntegerOrInfinity(args[2]))
+                : int.MaxValue;
         if (!view.Buffer.IsShared)
             return JsValue.FromInt32(0);
-        var woken = view.Buffer.NotifySharedWaiters(GetTypedArrayByteIndex(view, (uint)index), count);
+        var woken = view.Buffer.NotifySharedWaiters(
+            GetTypedArrayByteIndex(view, (uint)index),
+            count
+        );
         return JsValue.FromInt32(woken);
     }
 
@@ -190,11 +356,20 @@ public partial class Intrinsics
         var args = info.Arguments;
         var view = RequireAtomicsTypedArray(args, true);
         if (view.Buffer.IsDetached || !view.Buffer.IsShared)
-            throw new JsRuntimeException(JsErrorKind.TypeError,
-                "Atomics.wait requires a SharedArrayBuffer-backed typed array");
-        var index = ValidateAtomicsAccess(realm, view, args.Length > 1 ? args[1] : JsValue.Undefined);
-        var expected =
-            TypedArrayElementKindInfo.NormalizeValue(realm, view.Kind, args.Length > 2 ? args[2] : JsValue.Undefined);
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Atomics.wait requires a SharedArrayBuffer-backed typed array"
+            );
+        var index = ValidateAtomicsAccess(
+            realm,
+            view,
+            args.Length > 1 ? args[1] : JsValue.Undefined
+        );
+        var expected = TypedArrayElementKindInfo.NormalizeValue(
+            realm,
+            view.Kind,
+            args.Length > 2 ? args[2] : JsValue.Undefined
+        );
         var timeout = NormalizeWaitTimeout(realm, args.Length > 3 ? args[3] : JsValue.Undefined);
         return AtomicsWaitCore(realm, view, (uint)index, expected, timeout, false);
     }
@@ -205,16 +380,29 @@ public partial class Intrinsics
         var args = info.Arguments;
         var view = RequireAtomicsTypedArray(args, true);
         if (view.Buffer.IsDetached || !view.Buffer.IsShared)
-            throw new JsRuntimeException(JsErrorKind.TypeError,
-                "Atomics.waitAsync requires a SharedArrayBuffer-backed typed array");
-        var index = ValidateAtomicsAccess(realm, view, args.Length > 1 ? args[1] : JsValue.Undefined);
-        var expected =
-            TypedArrayElementKindInfo.NormalizeValue(realm, view.Kind, args.Length > 2 ? args[2] : JsValue.Undefined);
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Atomics.waitAsync requires a SharedArrayBuffer-backed typed array"
+            );
+        var index = ValidateAtomicsAccess(
+            realm,
+            view,
+            args.Length > 1 ? args[1] : JsValue.Undefined
+        );
+        var expected = TypedArrayElementKindInfo.NormalizeValue(
+            realm,
+            view.Kind,
+            args.Length > 2 ? args[2] : JsValue.Undefined
+        );
         var timeout = NormalizeWaitTimeout(realm, args.Length > 3 ? args[3] : JsValue.Undefined);
         var byteIndex = GetTypedArrayByteIndex(view, (uint)index);
         var buffer = view.Buffer;
         var capability = CreatePromiseCapabilityWithFunctions(PromiseConstructor);
-        var result = CreateAtomicsWaitAsyncResult(realm, true, JsValue.FromObject(capability.Promise));
+        var result = CreateAtomicsWaitAsyncResult(
+            realm,
+            true,
+            JsValue.FromObject(capability.Promise)
+        );
         JsArrayBufferObject.SharedWaiter? waiter;
         lock (buffer.GetSharedSyncRoot())
         {
@@ -228,18 +416,34 @@ public partial class Intrinsics
             waiter = buffer.AddSharedWaiterLocked(realm, byteIndex);
             waiter.Continuation = static state =>
             {
-                var data = ((JsRealm Realm, JsArrayBufferObject Buffer, uint ByteIndex,
-                    JsArrayBufferObject.SharedWaiter Waiter, JsPromiseObject.PromiseCapability Capability))state!;
+                var data = ((
+                    JsRealm Realm,
+                    JsArrayBufferObject Buffer,
+                    uint ByteIndex,
+                    JsArrayBufferObject.SharedWaiter Waiter,
+                    JsPromiseObject.PromiseCapability Capability
+                ))
+                    state!;
                 data.Buffer.RemoveSharedWaiter(data.ByteIndex, data.Waiter);
                 var notified = data.Waiter.Notified;
                 data.Waiter.Dispose();
                 var settled = JsValue.FromString(notified ? "ok" : "timed-out");
-                data.Realm.Agent.EnqueueHostTask(static taskState =>
-                {
-                    var taskData =
-                        ((JsRealm Realm, JsPromiseObject.PromiseCapability Capability, JsValue Settled))taskState!;
-                    taskData.Realm.ResolvePromiseCapability(taskData.Capability, taskData.Settled);
-                }, (data.Realm, data.Capability, settled));
+                data.Realm.Agent.EnqueueHostTask(
+                    static taskState =>
+                    {
+                        var taskData = ((
+                            JsRealm Realm,
+                            JsPromiseObject.PromiseCapability Capability,
+                            JsValue Settled
+                        ))
+                            taskState!;
+                        taskData.Realm.ResolvePromiseCapability(
+                            taskData.Capability,
+                            taskData.Settled
+                        );
+                    },
+                    (data.Realm, data.Capability, settled)
+                );
             };
             waiter.ContinuationState = (realm, buffer, byteIndex, waiter, capability);
         }
@@ -250,10 +454,14 @@ public partial class Intrinsics
         return JsValue.FromObject(result);
     }
 
-    private static JsValue DoAtomicsReadModifyWrite(JsRealm realm, JsTypedArrayObject view, uint index,
+    private static JsValue DoAtomicsReadModifyWrite(
+        JsRealm realm,
+        JsTypedArrayObject view,
+        uint index,
         in JsValue valueArg,
         Func<TypedArrayElementKind, long, long, long> numericOp,
-        Func<TypedArrayElementKind, BigInteger, BigInteger, BigInteger> bigIntOp)
+        Func<TypedArrayElementKind, BigInteger, BigInteger, BigInteger> bigIntOp
+    )
     {
         var buffer = view.Buffer;
         var kind = view.Kind;
@@ -263,15 +471,25 @@ public partial class Intrinsics
         {
             var current = buffer.ReadTypedArrayElement(realm, kind, byteIndex);
             var replacement = kind.IsBigIntFamily()
-                ? FromAtomicBigInt(kind, bigIntOp(kind, current.AsBigInt().Value, normalized.AsBigInt().Value))
-                : FromAtomicInt64(kind, numericOp(kind, ToAtomicInt64(kind, current), ToAtomicInt64(kind, normalized)));
+                ? FromAtomicBigInt(
+                    kind,
+                    bigIntOp(kind, current.AsBigInt().Value, normalized.AsBigInt().Value)
+                )
+                : FromAtomicInt64(
+                    kind,
+                    numericOp(kind, ToAtomicInt64(kind, current), ToAtomicInt64(kind, normalized))
+                );
             buffer.WriteNormalizedTypedArrayElement(kind, byteIndex, replacement);
             return current;
         }
     }
 
-    private static JsTypedArrayObject ValidateIntegerTypedArray(JsRealm realm, ReadOnlySpan<JsValue> args,
-        out int index, bool requireWaitable)
+    private static JsTypedArrayObject ValidateIntegerTypedArray(
+        JsRealm realm,
+        ReadOnlySpan<JsValue> args,
+        out int index,
+        bool requireWaitable
+    )
     {
         var view = RequireAtomicsTypedArray(args, requireWaitable);
         var length = (int)view.Length;
@@ -282,19 +500,37 @@ public partial class Intrinsics
         return view;
     }
 
-    private static JsTypedArrayObject RequireAtomicsTypedArray(ReadOnlySpan<JsValue> args, bool waitableOnly)
+    private static JsTypedArrayObject RequireAtomicsTypedArray(
+        ReadOnlySpan<JsValue> args,
+        bool waitableOnly
+    )
     {
         if (args.Length == 0 || !TryGetTypedArrayValue(args[0], out var view))
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Atomics operation requires a typed array");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Atomics operation requires a typed array"
+            );
         if (!IsAtomicsElementKind(view.Kind))
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Atomics operation requires an integer typed array");
-        if (waitableOnly && view.Kind is not (TypedArrayElementKind.Int32 or TypedArrayElementKind.BigInt64))
-            throw new JsRuntimeException(JsErrorKind.TypeError,
-                "Atomics.wait/notify require Int32Array or BigInt64Array");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Atomics operation requires an integer typed array"
+            );
+        if (
+            waitableOnly
+            && view.Kind is not (TypedArrayElementKind.Int32 or TypedArrayElementKind.BigInt64)
+        )
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Atomics.wait/notify require Int32Array or BigInt64Array"
+            );
         return view;
     }
 
-    private static int ValidateAtomicsAccess(JsRealm realm, JsTypedArrayObject view, in JsValue indexValue)
+    private static int ValidateAtomicsAccess(
+        JsRealm realm,
+        JsTypedArrayObject view,
+        in JsValue indexValue
+    )
     {
         var length = (int)view.Length;
         var numericIndex = ToAtomicsIndex(realm, indexValue);
@@ -305,15 +541,15 @@ public partial class Intrinsics
 
     private static bool IsAtomicsElementKind(TypedArrayElementKind kind)
     {
-        return kind is
-            TypedArrayElementKind.Int8 or
-            TypedArrayElementKind.Uint8 or
-            TypedArrayElementKind.Int16 or
-            TypedArrayElementKind.Uint16 or
-            TypedArrayElementKind.Int32 or
-            TypedArrayElementKind.Uint32 or
-            TypedArrayElementKind.BigInt64 or
-            TypedArrayElementKind.BigUint64;
+        return kind
+            is TypedArrayElementKind.Int8
+                or TypedArrayElementKind.Uint8
+                or TypedArrayElementKind.Int16
+                or TypedArrayElementKind.Uint16
+                or TypedArrayElementKind.Int32
+                or TypedArrayElementKind.Uint32
+                or TypedArrayElementKind.BigInt64
+                or TypedArrayElementKind.BigUint64;
     }
 
     private static uint GetTypedArrayByteIndex(JsTypedArrayObject view, uint index)
@@ -326,8 +562,14 @@ public partial class Intrinsics
         return buffer.IsShared ? buffer.GetSharedSyncRoot() : buffer;
     }
 
-    private static JsValue AtomicsWaitCore(JsRealm realm, JsTypedArrayObject view, uint index, in JsValue expected,
-        double timeout, bool asyncMode)
+    private static JsValue AtomicsWaitCore(
+        JsRealm realm,
+        JsTypedArrayObject view,
+        uint index,
+        in JsValue expected,
+        double timeout,
+        bool asyncMode
+    )
     {
         var byteIndex = GetTypedArrayByteIndex(view, index);
         var buffer = view.Buffer;
@@ -360,17 +602,30 @@ public partial class Intrinsics
         return JsValue.FromString(notified ? "ok" : "timed-out");
     }
 
-    private static JsPlainObject CreateAtomicsWaitAsyncResult(JsRealm realm, bool async, object value)
+    private static JsPlainObject CreateAtomicsWaitAsyncResult(
+        JsRealm realm,
+        bool async,
+        object value
+    )
     {
         var result = new JsPlainObject(realm);
-        result.DefineDataPropertyAtom(realm, IdAsync, async ? JsValue.True : JsValue.False, JsShapePropertyFlags.Open);
-        result.DefineDataPropertyAtom(realm, IdValue,
+        result.DefineDataPropertyAtom(
+            realm,
+            IdAsync,
+            async ? JsValue.True : JsValue.False,
+            JsShapePropertyFlags.Open
+        );
+        result.DefineDataPropertyAtom(
+            realm,
+            IdValue,
             value switch
             {
                 JsValue jsValue => jsValue,
                 string s => JsValue.FromString(s),
-                _ => JsValue.Undefined
-            }, JsShapePropertyFlags.Open);
+                _ => JsValue.Undefined,
+            },
+            JsShapePropertyFlags.Open
+        );
         return result;
     }
 
@@ -385,12 +640,16 @@ public partial class Intrinsics
     {
         return kind switch
         {
-            TypedArrayElementKind.Int8 or TypedArrayElementKind.Int16 or TypedArrayElementKind.Int32 =>
-                value.Int32Value,
-            TypedArrayElementKind.Uint8 or TypedArrayElementKind.Uint16 => unchecked((ushort)value.Int32Value),
+            TypedArrayElementKind.Int8
+            or TypedArrayElementKind.Int16
+            or TypedArrayElementKind.Int32 => value.Int32Value,
+            TypedArrayElementKind.Uint8 or TypedArrayElementKind.Uint16 => unchecked(
+                (ushort)value.Int32Value
+            ),
             TypedArrayElementKind.Uint32 => unchecked((uint)value.NumberValue),
-            TypedArrayElementKind.BigInt64 or TypedArrayElementKind.BigUint64 => (long)value.AsBigInt().Value,
-            _ => throw new InvalidOperationException("Unsupported Atomics kind")
+            TypedArrayElementKind.BigInt64 or TypedArrayElementKind.BigUint64 => (long)
+                value.AsBigInt().Value,
+            _ => throw new InvalidOperationException("Unsupported Atomics kind"),
         };
     }
 
@@ -405,8 +664,10 @@ public partial class Intrinsics
             TypedArrayElementKind.Int32 => JsValue.FromInt32(unchecked((int)value)),
             TypedArrayElementKind.Uint32 => new((double)unchecked((uint)value)),
             TypedArrayElementKind.BigInt64 => JsValue.FromBigInt(new(new(value))),
-            TypedArrayElementKind.BigUint64 => JsValue.FromBigInt(new(new(unchecked((ulong)value)))),
-            _ => throw new InvalidOperationException("Unsupported Atomics kind")
+            TypedArrayElementKind.BigUint64 => JsValue.FromBigInt(
+                new(new(unchecked((ulong)value)))
+            ),
+            _ => throw new InvalidOperationException("Unsupported Atomics kind"),
         };
     }
 
@@ -416,7 +677,7 @@ public partial class Intrinsics
         {
             TypedArrayElementKind.BigInt64 => JsValue.FromBigInt(new(BigIntAsIntN(64, value))),
             TypedArrayElementKind.BigUint64 => JsValue.FromBigInt(new(BigIntAsUintN(64, value))),
-            _ => throw new InvalidOperationException("Unsupported Atomics kind")
+            _ => throw new InvalidOperationException("Unsupported Atomics kind"),
         };
     }
 

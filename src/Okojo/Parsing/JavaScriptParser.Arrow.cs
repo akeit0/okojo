@@ -4,7 +4,8 @@ internal sealed partial class JsParser
 {
     private JsFunctionExpression ParseArrowFunctionExpressionCore(
         JsParsedFormalParameters parsedParameters,
-        bool isAsync = false)
+        bool isAsync = false
+    )
     {
         MarkNestedFunctionSyntaxSeen();
         var strictBeforeBody = strictMode;
@@ -22,10 +23,7 @@ internal sealed partial class JsParser
             else
             {
                 var expr = ParseAssignment(true);
-                body = new(new JsStatement[]
-                {
-                    new JsReturnStatement(expr)
-                }, false);
+                body = new(new JsStatement[] { new JsReturnStatement(expr) }, false);
             }
         }
         finally
@@ -35,8 +33,16 @@ internal sealed partial class JsParser
 
         if (!strictBeforeBody && strictMode)
             for (var i = 0; i < parsedParameters.Parameters.Count; i++)
-                if (IsEvalOrArguments(parsedParameters.Parameters[i], parsedParameters.ParameterIds[i]))
-                    throw Error("Unexpected eval or arguments in strict mode", parsedParameters.ParameterPositions[i]);
+                if (
+                    IsEvalOrArguments(
+                        parsedParameters.Parameters[i],
+                        parsedParameters.ParameterIds[i]
+                    )
+                )
+                    throw Error(
+                        "Unexpected eval or arguments in strict mode",
+                        parsedParameters.ParameterPositions[i]
+                    );
 
         strictMode = strictBeforeBody;
 
@@ -61,10 +67,14 @@ internal sealed partial class JsParser
             allowSuperProperty,
             parsedParameters.HasDuplicateParameters,
             parsedParameters.RestParameterIndex,
-            parameterIds: parsedParameters.ParameterIds);
+            parameterIds: parsedParameters.ParameterIds
+        );
     }
 
-    private static bool TryExtractArrowParameters(JsExpression head, out IReadOnlyList<string> parameters)
+    private static bool TryExtractArrowParameters(
+        JsExpression head,
+        out IReadOnlyList<string> parameters
+    )
     {
         switch (head)
         {
@@ -72,22 +82,22 @@ internal sealed partial class JsParser
                 parameters = new[] { id.Name };
                 return true;
             case JsSequenceExpression seq:
+            {
+                var list = new string[seq.Expressions.Count];
+                for (var i = 0; i < seq.Expressions.Count; i++)
                 {
-                    var list = new string[seq.Expressions.Count];
-                    for (var i = 0; i < seq.Expressions.Count; i++)
+                    if (seq.Expressions[i] is not JsIdentifierExpression p)
                     {
-                        if (seq.Expressions[i] is not JsIdentifierExpression p)
-                        {
-                            parameters = Array.Empty<string>();
-                            return false;
-                        }
-
-                        list[i] = p.Name;
+                        parameters = Array.Empty<string>();
+                        return false;
                     }
 
-                    parameters = list;
-                    return true;
+                    list[i] = p.Name;
                 }
+
+                parameters = list;
+                return true;
+            }
             default:
                 parameters = Array.Empty<string>();
                 return false;
@@ -101,22 +111,33 @@ internal sealed partial class JsParser
 
         try
         {
-            if (current.Kind == JsTokenKind.Identifier &&
-                CurrentSourceTextEquals("async") &&
-                !Peek().HasLineTerminatorBefore)
+            if (
+                current.Kind == JsTokenKind.Identifier
+                && CurrentSourceTextEquals("async")
+                && !Peek().HasLineTerminatorBefore
+            )
             {
                 Next();
-                if ((current.Kind == JsTokenKind.Identifier || current.Kind == JsTokenKind.Of) &&
-                    Peek().Kind == JsTokenKind.Arrow)
+                if (
+                    (current.Kind == JsTokenKind.Identifier || current.Kind == JsTokenKind.Of)
+                    && Peek().Kind == JsTokenKind.Arrow
+                )
                 {
                     var paramToken = current;
                     var param = ParseCheckedIdentifierName(paramToken, true);
                     Next();
                     Expect(JsTokenKind.Arrow);
-                    expr = At(ParseArrowFunctionExpressionCore(
-                        CreateSimpleArrowParameters(new[] { param.Name }, new[] { param.NameId },
-                            new[] { param.Position }),
-                        true), start);
+                    expr = At(
+                        ParseArrowFunctionExpressionCore(
+                            CreateSimpleArrowParameters(
+                                new[] { param.Name },
+                                new[] { param.NameId },
+                                new[] { param.Position }
+                            ),
+                            true
+                        ),
+                        start
+                    );
                     return true;
                 }
 
@@ -128,7 +149,13 @@ internal sealed partial class JsParser
                         Expect(JsTokenKind.RightParen);
                         if (Match(JsTokenKind.Arrow))
                         {
-                            expr = At(ParseArrowFunctionExpressionCore(JsParsedFormalParameters.Empty, true), start);
+                            expr = At(
+                                ParseArrowFunctionExpressionCore(
+                                    JsParsedFormalParameters.Empty,
+                                    true
+                                ),
+                                start
+                            );
                             return true;
                         }
 
@@ -183,7 +210,8 @@ internal sealed partial class JsParser
     private static JsParsedFormalParameters CreateSimpleArrowParameters(
         IReadOnlyList<string> parameters,
         IReadOnlyList<int> parameterIds,
-        IReadOnlyList<int>? positions = null)
+        IReadOnlyList<int>? positions = null
+    )
     {
         var count = parameters.Count;
         if (count == 0 && positions is null)
@@ -207,7 +235,9 @@ internal sealed partial class JsParser
             positions is null
                 ? count == 0
                     ? Array.Empty<int>()
-                    : new List<int>(JsFunctionExpression.CreateDefaultParameterPositions(count)).ToArray()
+                    : new List<int>(
+                        JsFunctionExpression.CreateDefaultParameterPositions(count)
+                    ).ToArray()
                 : count == 0
                     ? Array.Empty<int>()
                     : new List<int>(positions).ToArray(),
@@ -215,6 +245,7 @@ internal sealed partial class JsParser
             count,
             true,
             false,
-            -1);
+            -1
+        );
     }
 }

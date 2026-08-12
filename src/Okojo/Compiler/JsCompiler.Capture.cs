@@ -6,7 +6,8 @@ public sealed partial class JsCompiler
 {
     private void PrecomputeDirectChildCaptures(IEnumerable<JsStatement> statements)
     {
-        foreach (var stmt in statements) ScanForDirectNestedFunctionCapturesInStatement(stmt);
+        foreach (var stmt in statements)
+            ScanForDirectNestedFunctionCapturesInStatement(stmt);
     }
 
     private void ScanForDirectNestedFunctionCapturesInStatement(JsStatement stmt)
@@ -20,7 +21,8 @@ public sealed partial class JsCompiler
                 PushBlockLexicalAliases(block);
                 try
                 {
-                    foreach (var s in block.Statements) ScanForDirectNestedFunctionCapturesInStatement(s);
+                    foreach (var s in block.Statements)
+                        ScanForDirectNestedFunctionCapturesInStatement(s);
                     MarkBlockLexicalsCapturedByNestedFunctionFallback(block);
                 }
                 finally
@@ -32,7 +34,8 @@ public sealed partial class JsCompiler
             case JsIfStatement i:
                 ScanForDirectNestedFunctionCapturesInExpression(i.Test);
                 ScanForDirectNestedFunctionCapturesInStatement(i.Consequent);
-                if (i.Alternate != null) ScanForDirectNestedFunctionCapturesInStatement(i.Alternate);
+                if (i.Alternate != null)
+                    ScanForDirectNestedFunctionCapturesInStatement(i.Alternate);
                 break;
             case JsWhileStatement w:
                 ScanForDirectNestedFunctionCapturesInExpression(w.Test);
@@ -57,8 +60,10 @@ public sealed partial class JsCompiler
                         ScanForDirectNestedFunctionCapturesInExpression(initExpr);
                     }
 
-                    if (f.Test != null) ScanForDirectNestedFunctionCapturesInExpression(f.Test);
-                    if (f.Update != null) ScanForDirectNestedFunctionCapturesInExpression(f.Update);
+                    if (f.Test != null)
+                        ScanForDirectNestedFunctionCapturesInExpression(f.Test);
+                    if (f.Update != null)
+                        ScanForDirectNestedFunctionCapturesInExpression(f.Update);
                     ScanForDirectNestedFunctionCapturesInStatement(f.Body);
                     MarkForLoopHeadBindingsCapturedByNestedFunctionFallback(f);
                 }
@@ -111,7 +116,8 @@ public sealed partial class JsCompiler
 
                 break;
             case JsReturnStatement r:
-                if (r.Argument != null) ScanForDirectNestedFunctionCapturesInExpression(r.Argument);
+                if (r.Argument != null)
+                    ScanForDirectNestedFunctionCapturesInExpression(r.Argument);
                 break;
             case JsThrowStatement t:
                 ScanForDirectNestedFunctionCapturesInExpression(t.Argument);
@@ -139,8 +145,12 @@ public sealed partial class JsCompiler
             case JsFunctionDeclaration f:
                 if (!string.IsNullOrEmpty(f.Name))
                 {
-                    if (TryResolveLocalBinding(new CompilerIdentifierName(f.Name, f.NameId),
-                            out var resolvedFunctionBinding))
+                    if (
+                        TryResolveLocalBinding(
+                            new CompilerIdentifierName(f.Name, f.NameId),
+                            out var resolvedFunctionBinding
+                        )
+                    )
                         MarkCapturedByChildBinding(resolvedFunctionBinding.SymbolId);
                     else if (HasLocalBinding(f.Name))
                         MarkCapturedByChildBinding(f.Name);
@@ -159,7 +169,9 @@ public sealed partial class JsCompiler
                     try
                     {
                         if (t.Handler.BindingPattern is not null)
-                            ScanForDirectNestedFunctionCapturesInExpression(t.Handler.BindingPattern);
+                            ScanForDirectNestedFunctionCapturesInExpression(
+                                t.Handler.BindingPattern
+                            );
                         ScanForDirectNestedFunctionCapturesInStatement(t.Handler.Body);
                     }
                     finally
@@ -201,8 +213,12 @@ public sealed partial class JsCompiler
             case JsFunctionExpression f:
                 if (!string.IsNullOrEmpty(f.Name))
                 {
-                    if (TryResolveLocalBinding(new CompilerIdentifierName(f.Name, f.NameId),
-                            out var resolvedFunctionBinding))
+                    if (
+                        TryResolveLocalBinding(
+                            new CompilerIdentifierName(f.Name, f.NameId),
+                            out var resolvedFunctionBinding
+                        )
+                    )
                         MarkCapturedByChildBinding(resolvedFunctionBinding.SymbolId);
                     else if (HasLocalBinding(f.Name))
                         MarkCapturedByChildBinding(f.Name);
@@ -227,11 +243,13 @@ public sealed partial class JsCompiler
                 break;
             case JsCallExpression c:
                 ScanForDirectNestedFunctionCapturesInExpression(c.Callee);
-                foreach (var arg in c.Arguments) ScanForDirectNestedFunctionCapturesInExpression(arg);
+                foreach (var arg in c.Arguments)
+                    ScanForDirectNestedFunctionCapturesInExpression(arg);
                 break;
             case JsNewExpression n:
                 ScanForDirectNestedFunctionCapturesInExpression(n.Callee);
-                foreach (var arg in n.Arguments) ScanForDirectNestedFunctionCapturesInExpression(arg);
+                foreach (var arg in n.Arguments)
+                    ScanForDirectNestedFunctionCapturesInExpression(arg);
                 break;
             case JsUpdateExpression u:
                 ScanForDirectNestedFunctionCapturesInExpression(u.Argument);
@@ -314,11 +332,17 @@ public sealed partial class JsCompiler
         string? classLexicalInternalName = null;
         if (!string.IsNullOrEmpty(classExpr.Name))
         {
-            classLexicalInternalName = GetClassLexicalInternalName(classExpr.Name, classExpr.Position);
+            classLexicalInternalName = GetClassLexicalInternalName(
+                classExpr.Name,
+                classExpr.Position
+            );
             var classLexicalSymbolId = GetOrCreateSymbolId(classLexicalInternalName);
             GetOrCreateLocal(classLexicalSymbolId);
             MarkLexicalBinding(classLexicalSymbolId, true);
-            PushAliasScope(new CompilerIdentifierName(classExpr.Name, classExpr.NameId), classLexicalInternalName);
+            PushAliasScope(
+                new CompilerIdentifierName(classExpr.Name, classExpr.NameId),
+                classLexicalInternalName
+            );
         }
 
         try
@@ -328,16 +352,24 @@ public sealed partial class JsCompiler
 
             foreach (var element in classExpr.Elements)
             {
-                if (element.IsStatic && element.Kind == JsClassElementKind.Field &&
-                    element.FieldInitializer is not null)
-                    MarkCapturedNamesReferencedBySyntheticClassFieldInitializer(element.FieldInitializer);
+                if (
+                    element.IsStatic
+                    && element.Kind == JsClassElementKind.Field
+                    && element.FieldInitializer is not null
+                )
+                    MarkCapturedNamesReferencedBySyntheticClassFieldInitializer(
+                        element.FieldInitializer
+                    );
 
                 if (!element.IsStatic && element.Kind == JsClassElementKind.Field)
                 {
                     if (element.IsComputedKey && element.ComputedKey is not null)
                         MarkCapturedNamesReferencedByNestedFunction(element.ComputedKey, false);
                     if (element.FieldInitializer is not null)
-                        MarkCapturedNamesReferencedByNestedFunction(element.FieldInitializer, false);
+                        MarkCapturedNamesReferencedByNestedFunction(
+                            element.FieldInitializer,
+                            false
+                        );
                 }
 
                 if (element.IsComputedKey && element.ComputedKey is not null)
@@ -353,7 +385,10 @@ public sealed partial class JsCompiler
                     ScanForDirectNestedFunctionCapturesInExpression(element.FieldInitializer);
 
                 if (element.Value is not null)
-                    MarkDirectCapturesFromNestedFunction(element.Value.ParameterInitializers, element.Value.Body);
+                    MarkDirectCapturesFromNestedFunction(
+                        element.Value.ParameterInitializers,
+                        element.Value.Body
+                    );
             }
         }
         finally
@@ -363,7 +398,9 @@ public sealed partial class JsCompiler
         }
     }
 
-    private void MarkCapturedNamesReferencedBySyntheticClassFieldInitializer(JsExpression initializer)
+    private void MarkCapturedNamesReferencedBySyntheticClassFieldInitializer(
+        JsExpression initializer
+    )
     {
         MarkCapturedNamesReferencedByNestedFunction(initializer, false);
     }
@@ -371,16 +408,21 @@ public sealed partial class JsCompiler
     private void MarkDirectCapturesFromNestedFunction(
         IReadOnlyList<JsExpression?> parameterInitializers,
         JsBlockStatement body,
-        bool allowArgumentsCapture = true)
+        bool allowArgumentsCapture = true
+    )
     {
         foreach (var initializer in parameterInitializers)
             if (initializer is not null)
                 MarkCapturedNamesReferencedByNestedFunction(initializer, allowArgumentsCapture);
 
-        foreach (var stmt in body.Statements) MarkCapturedNamesReferencedByNestedFunction(stmt, allowArgumentsCapture);
+        foreach (var stmt in body.Statements)
+            MarkCapturedNamesReferencedByNestedFunction(stmt, allowArgumentsCapture);
     }
 
-    private void MarkCapturedNamesReferencedByNestedFunction(JsStatement stmt, bool allowArgumentsCapture = true)
+    private void MarkCapturedNamesReferencedByNestedFunction(
+        JsStatement stmt,
+        bool allowArgumentsCapture = true
+    )
     {
         switch (stmt)
         {
@@ -413,15 +455,26 @@ public sealed partial class JsCompiler
                     {
                         foreach (var d in initDecl.Declarators)
                             if (d.Initializer != null)
-                                MarkCapturedNamesReferencedByNestedFunction(d.Initializer, allowArgumentsCapture);
+                                MarkCapturedNamesReferencedByNestedFunction(
+                                    d.Initializer,
+                                    allowArgumentsCapture
+                                );
                     }
                     else if (f.Init is JsExpression initExpr)
                     {
-                        MarkCapturedNamesReferencedByNestedFunction(initExpr, allowArgumentsCapture);
+                        MarkCapturedNamesReferencedByNestedFunction(
+                            initExpr,
+                            allowArgumentsCapture
+                        );
                     }
 
-                    if (f.Test != null) MarkCapturedNamesReferencedByNestedFunction(f.Test, allowArgumentsCapture);
-                    if (f.Update != null) MarkCapturedNamesReferencedByNestedFunction(f.Update, allowArgumentsCapture);
+                    if (f.Test != null)
+                        MarkCapturedNamesReferencedByNestedFunction(f.Test, allowArgumentsCapture);
+                    if (f.Update != null)
+                        MarkCapturedNamesReferencedByNestedFunction(
+                            f.Update,
+                            allowArgumentsCapture
+                        );
                     MarkCapturedNamesReferencedByNestedFunction(f.Body, allowArgumentsCapture);
                     MarkForLoopHeadBindingsCapturedByNestedFunctionFallback(f);
                 }
@@ -439,7 +492,10 @@ public sealed partial class JsCompiler
                     {
                         foreach (var d in leftDecl.Declarators)
                             if (d.Initializer != null)
-                                MarkCapturedNamesReferencedByNestedFunction(d.Initializer, allowArgumentsCapture);
+                                MarkCapturedNamesReferencedByNestedFunction(
+                                    d.Initializer,
+                                    allowArgumentsCapture
+                                );
                     }
                     finally
                     {
@@ -474,7 +530,8 @@ public sealed partial class JsCompiler
 
                 break;
             case JsReturnStatement r:
-                if (r.Argument != null) MarkCapturedNamesReferencedByNestedFunction(r.Argument, allowArgumentsCapture);
+                if (r.Argument != null)
+                    MarkCapturedNamesReferencedByNestedFunction(r.Argument, allowArgumentsCapture);
                 break;
             case JsThrowStatement t:
                 MarkCapturedNamesReferencedByNestedFunction(t.Argument, allowArgumentsCapture);
@@ -483,32 +540,49 @@ public sealed partial class JsCompiler
             case JsContinueStatement:
                 break;
             case JsLabeledStatement labeled:
-                MarkCapturedNamesReferencedByNestedFunction(labeled.Statement, allowArgumentsCapture);
+                MarkCapturedNamesReferencedByNestedFunction(
+                    labeled.Statement,
+                    allowArgumentsCapture
+                );
                 break;
             case JsVariableDeclarationStatement v:
                 if (v.BindingInitializer is not null)
                 {
-                    MarkCapturedNamesReferencedByNestedFunction(v.BindingInitializer, allowArgumentsCapture);
+                    MarkCapturedNamesReferencedByNestedFunction(
+                        v.BindingInitializer,
+                        allowArgumentsCapture
+                    );
                     break;
                 }
 
                 foreach (var d in v.Declarators)
                     if (d.Initializer != null)
-                        MarkCapturedNamesReferencedByNestedFunction(d.Initializer, allowArgumentsCapture);
+                        MarkCapturedNamesReferencedByNestedFunction(
+                            d.Initializer,
+                            allowArgumentsCapture
+                        );
                 break;
             case JsEmptyObjectBindingDeclarationStatement emptyObjectBinding:
-                MarkCapturedNamesReferencedByNestedFunction(emptyObjectBinding.Initializer, allowArgumentsCapture);
+                MarkCapturedNamesReferencedByNestedFunction(
+                    emptyObjectBinding.Initializer,
+                    allowArgumentsCapture
+                );
                 break;
             case JsFunctionDeclaration functionDeclaration:
                 {
                     var nested = functionDeclaration;
-                    MarkDirectCapturesFromNestedFunction(nested.ParameterInitializers, nested.Body,
-                        false);
+                    MarkDirectCapturesFromNestedFunction(
+                        nested.ParameterInitializers,
+                        nested.Body,
+                        false
+                    );
                 }
                 break;
             case JsClassDeclaration classDeclaration:
-                MarkCapturedNamesReferencedByNestedClassExpression(classDeclaration.ClassExpression,
-                    allowArgumentsCapture);
+                MarkCapturedNamesReferencedByNestedClassExpression(
+                    classDeclaration.ClassExpression,
+                    allowArgumentsCapture
+                );
                 break;
             case JsTryStatement t:
                 MarkCapturedNamesReferencedByNestedFunction(t.Block, allowArgumentsCapture);
@@ -518,9 +592,14 @@ public sealed partial class JsCompiler
                     try
                     {
                         if (t.Handler.BindingPattern is not null)
-                            MarkCapturedNamesReferencedByNestedFunction(t.Handler.BindingPattern,
-                                allowArgumentsCapture);
-                        MarkCapturedNamesReferencedByNestedFunction(t.Handler.Body, allowArgumentsCapture);
+                            MarkCapturedNamesReferencedByNestedFunction(
+                                t.Handler.BindingPattern,
+                                allowArgumentsCapture
+                            );
+                        MarkCapturedNamesReferencedByNestedFunction(
+                            t.Handler.Body,
+                            allowArgumentsCapture
+                        );
                     }
                     finally
                     {
@@ -540,7 +619,10 @@ public sealed partial class JsCompiler
                     foreach (var c in sw.Cases)
                     {
                         if (c.Test is not null)
-                            MarkCapturedNamesReferencedByNestedFunction(c.Test, allowArgumentsCapture);
+                            MarkCapturedNamesReferencedByNestedFunction(
+                                c.Test,
+                                allowArgumentsCapture
+                            );
                         foreach (var s in c.Consequent)
                             MarkCapturedNamesReferencedByNestedFunction(s, allowArgumentsCapture);
                     }
@@ -554,32 +636,50 @@ public sealed partial class JsCompiler
         }
     }
 
-    private void MarkCapturedNamesReferencedByNestedFunction(JsExpression expr, bool allowArgumentsCapture = true)
+    private void MarkCapturedNamesReferencedByNestedFunction(
+        JsExpression expr,
+        bool allowArgumentsCapture = true
+    )
     {
         switch (expr)
         {
             case JsIdentifierExpression id:
                 {
                     var identifier = CompilerIdentifierName.From(id);
-                    if (!allowArgumentsCapture && string.Equals(id.Name, "arguments", StringComparison.Ordinal))
+                    if (
+                        !allowArgumentsCapture
+                        && string.Equals(id.Name, "arguments", StringComparison.Ordinal)
+                    )
                         break;
 
-                    if (allowArgumentsCapture &&
-                        string.Equals(id.Name, "arguments", StringComparison.Ordinal) &&
-                        ShouldUseFunctionArgumentsBinding(id.Name))
+                    if (
+                        allowArgumentsCapture
+                        && string.Equals(id.Name, "arguments", StringComparison.Ordinal)
+                        && ShouldUseFunctionArgumentsBinding(id.Name)
+                    )
                     {
                         MarkCapturedByChildBinding(SyntheticArgumentsSymbolId);
                         break;
                     }
 
-                    if (TryGetModuleVariableBinding(id.Name, out _) ||
-                        (identifier.NameId >= 0 &&
-                         !string.Equals(ResolveLocalAlias(identifier), id.Name, StringComparison.Ordinal) &&
-                         TryGetModuleVariableBinding(ResolveLocalAlias(identifier), out _)))
+                    if (
+                        TryGetModuleVariableBinding(id.Name, out _)
+                        || (
+                            identifier.NameId >= 0
+                            && !string.Equals(
+                                ResolveLocalAlias(identifier),
+                                id.Name,
+                                StringComparison.Ordinal
+                            )
+                            && TryGetModuleVariableBinding(ResolveLocalAlias(identifier), out _)
+                        )
+                    )
                         break;
 
-                    if (TryResolveLocalBinding(identifier, out var resolvedBinding) &&
-                        IsCurrentFunctionLocalVisibleForCapture(resolvedBinding.SymbolId))
+                    if (
+                        TryResolveLocalBinding(identifier, out var resolvedBinding)
+                        && IsCurrentFunctionLocalVisibleForCapture(resolvedBinding.SymbolId)
+                    )
                         MarkCapturedByChildBinding(resolvedBinding.SymbolId);
                     else
                         MarkAncestorBindingCapturedByNestedFunction(identifier);
@@ -588,9 +688,15 @@ public sealed partial class JsCompiler
             case JsImportMetaExpression:
                 break;
             case JsImportCallExpression importCall:
-                MarkCapturedNamesReferencedByNestedFunction(importCall.Argument, allowArgumentsCapture);
+                MarkCapturedNamesReferencedByNestedFunction(
+                    importCall.Argument,
+                    allowArgumentsCapture
+                );
                 if (importCall.Options is not null)
-                    MarkCapturedNamesReferencedByNestedFunction(importCall.Options, allowArgumentsCapture);
+                    MarkCapturedNamesReferencedByNestedFunction(
+                        importCall.Options,
+                        allowArgumentsCapture
+                    );
                 break;
             case JsAssignmentExpression a:
                 MarkCapturedNamesReferencedByNestedFunction(a.Left, allowArgumentsCapture);
@@ -635,10 +741,14 @@ public sealed partial class JsCompiler
                 MarkDirectCapturesFromNestedFunction(
                     f.ParameterInitializers,
                     f.Body,
-                    f.IsArrow && allowArgumentsCapture);
+                    f.IsArrow && allowArgumentsCapture
+                );
                 break;
             case JsClassExpression classExpr:
-                MarkCapturedNamesReferencedByNestedClassExpression(classExpr, allowArgumentsCapture);
+                MarkCapturedNamesReferencedByNestedClassExpression(
+                    classExpr,
+                    allowArgumentsCapture
+                );
                 break;
             case JsMemberExpression m:
                 MarkCapturedNamesReferencedByNestedFunction(m.Object, allowArgumentsCapture);
@@ -649,7 +759,10 @@ public sealed partial class JsCompiler
                 foreach (var prop in o.Properties)
                 {
                     if (prop.IsComputed && prop.ComputedKey is not null)
-                        MarkCapturedNamesReferencedByNestedFunction(prop.ComputedKey, allowArgumentsCapture);
+                        MarkCapturedNamesReferencedByNestedFunction(
+                            prop.ComputedKey,
+                            allowArgumentsCapture
+                        );
                     MarkCapturedNamesReferencedByNestedFunction(prop.Value, allowArgumentsCapture);
                 }
 
@@ -678,28 +791,41 @@ public sealed partial class JsCompiler
 
     private void MarkCapturedNamesReferencedByNestedClassExpression(
         JsClassExpression classExpr,
-        bool allowArgumentsCapture)
+        bool allowArgumentsCapture
+    )
     {
         string? classLexicalInternalName = null;
         if (!string.IsNullOrEmpty(classExpr.Name))
         {
-            classLexicalInternalName = GetClassLexicalInternalName(classExpr.Name, classExpr.Position);
+            classLexicalInternalName = GetClassLexicalInternalName(
+                classExpr.Name,
+                classExpr.Position
+            );
             var classLexicalSymbolId = GetOrCreateSymbolId(classLexicalInternalName);
             GetOrCreateLocal(classLexicalSymbolId);
             MarkLexicalBinding(classLexicalSymbolId, true);
-            PushAliasScope(new CompilerIdentifierName(classExpr.Name, classExpr.NameId), classLexicalInternalName);
+            PushAliasScope(
+                new CompilerIdentifierName(classExpr.Name, classExpr.NameId),
+                classLexicalInternalName
+            );
         }
 
         try
         {
             if (classExpr.ExtendsExpression is not null)
-                MarkCapturedNamesReferencedByNestedFunction(classExpr.ExtendsExpression, allowArgumentsCapture);
+                MarkCapturedNamesReferencedByNestedFunction(
+                    classExpr.ExtendsExpression,
+                    allowArgumentsCapture
+                );
 
             foreach (var element in classExpr.Elements)
             {
                 if (element.StaticBlock is not null)
                 {
-                    MarkCapturedNamesReferencedByNestedFunction(element.StaticBlock, allowArgumentsCapture);
+                    MarkCapturedNamesReferencedByNestedFunction(
+                        element.StaticBlock,
+                        allowArgumentsCapture
+                    );
                     continue;
                 }
 
@@ -708,21 +834,31 @@ public sealed partial class JsCompiler
                     if (element.IsComputedKey && element.ComputedKey is not null)
                         MarkCapturedNamesReferencedByNestedFunction(element.ComputedKey, false);
                     if (element.FieldInitializer is not null)
-                        MarkCapturedNamesReferencedByNestedFunction(element.FieldInitializer, false);
+                        MarkCapturedNamesReferencedByNestedFunction(
+                            element.FieldInitializer,
+                            false
+                        );
                     continue;
                 }
 
                 if (element.IsComputedKey && element.ComputedKey is not null)
-                    MarkCapturedNamesReferencedByNestedFunction(element.ComputedKey, allowArgumentsCapture);
+                    MarkCapturedNamesReferencedByNestedFunction(
+                        element.ComputedKey,
+                        allowArgumentsCapture
+                    );
 
                 if (element.FieldInitializer is not null)
-                    MarkCapturedNamesReferencedByNestedFunction(element.FieldInitializer, allowArgumentsCapture);
+                    MarkCapturedNamesReferencedByNestedFunction(
+                        element.FieldInitializer,
+                        allowArgumentsCapture
+                    );
 
                 if (element.Value is not null)
                     MarkDirectCapturesFromNestedFunction(
                         element.Value.ParameterInitializers,
                         element.Value.Body,
-                        element.Value.IsArrow && allowArgumentsCapture);
+                        element.Value.IsArrow && allowArgumentsCapture
+                    );
             }
         }
         finally
@@ -742,8 +878,10 @@ public sealed partial class JsCompiler
             if (!ancestor.IsCurrentFunctionLocalVisibleForCapture(resolvedBinding.SymbolId))
                 continue;
 
-            if (!ancestor.HasLocalBinding(resolvedBinding.SymbolId) &&
-                !ancestor.TryGetCurrentContextSlot(resolvedBinding.SymbolId, out _))
+            if (
+                !ancestor.HasLocalBinding(resolvedBinding.SymbolId)
+                && !ancestor.TryGetCurrentContextSlot(resolvedBinding.SymbolId, out _)
+            )
                 continue;
 
             ancestor.MarkCapturedByChildBinding(resolvedBinding.SymbolId);

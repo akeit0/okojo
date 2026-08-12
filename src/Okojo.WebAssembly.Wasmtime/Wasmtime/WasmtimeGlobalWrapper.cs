@@ -19,19 +19,21 @@ internal sealed class WasmtimeGlobalWrapper(Global global, WasmGlobalType type) 
             WasmValueKind.Int64 => WasmValue.FromInt64((long)rawValue!),
             WasmValueKind.Float32 => WasmValue.FromFloat32((float)rawValue!),
             WasmValueKind.Float64 => WasmValue.FromFloat64((double)rawValue!),
-            _ => new(Type.ValueKind, rawValue)
+            _ => new(Type.ValueKind, rawValue),
         };
     }
 
     public void SetValue(WasmValue value)
     {
-        Global.SetValue(value.Kind switch
-        {
-            WasmValueKind.Int32 => value.Int32Value,
-            WasmValueKind.Int64 => value.Int64Value,
-            WasmValueKind.Float32 => value.Float32Value,
-            WasmValueKind.Float64 => value.Float64Value,
-            _ => value.ObjectValue
-        });
+        Global.SetValue(
+            value.Kind switch
+            {
+                WasmValueKind.Int32 => value.Int32Value,
+                WasmValueKind.Int64 => value.Int64Value,
+                WasmValueKind.Float32 => value.Float32Value,
+                WasmValueKind.Float64 => value.Float64Value,
+                _ => value.ObjectValue,
+            }
+        );
     }
 }

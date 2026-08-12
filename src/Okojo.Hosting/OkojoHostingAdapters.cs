@@ -2,7 +2,8 @@ using Okojo.Runtime;
 
 namespace Okojo.Hosting;
 
-internal sealed class HostingMessageSerializerAdapter(IHostingMessageSerializer inner) : IHostMessageSerializer
+internal sealed class HostingMessageSerializerAdapter(IHostingMessageSerializer inner)
+    : IHostMessageSerializer
 {
     public object? CloneCrossAgentPayload(object? payload)
     {
@@ -22,7 +23,11 @@ internal sealed class HostingMessageSerializerAdapter(IHostingMessageSerializer 
 
 internal sealed class HostingJsWorkerHostAdapter(IHostingJsWorkerHost inner) : IWorkerHost
 {
-    public WorkerHostBinding CreateWorker(JsRealm ownerRealm, string? moduleEntry, string? ownerReferrer)
+    public WorkerHostBinding CreateWorker(
+        JsRealm ownerRealm,
+        string? moduleEntry,
+        string? ownerReferrer
+    )
     {
         var hostedWorker = inner.CreateWorker(ownerRealm, moduleEntry, ownerReferrer);
         return new()
@@ -38,7 +43,7 @@ internal sealed class HostingJsWorkerHostAdapter(IHostingJsWorkerHost inner) : I
                 else
                     new HostPump(callerRealm.Agent).PumpUntilIdle();
             },
-            Terminate = hostedWorker.Terminate
+            Terminate = hostedWorker.Terminate,
         };
     }
 }

@@ -52,11 +52,13 @@ public class JsStringTests
     public void String_Addition_And_Slice_Work_For_Large_Concat_Chains()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        realm.Eval("""
-                   let s = "";
-                   for (let i = 0; i < 2048; i++) s = s + "ab";
-                   [s.length, s.slice(1024, 1032), s.substring(0, 4), s === s.slice(0)].join("|");
-                   """);
+        realm.Eval(
+            """
+            let s = "";
+            for (let i = 0; i < 2048; i++) s = s + "ab";
+            [s.length, s.slice(1024, 1032), s.substring(0, 4), s === s.slice(0)].join("|");
+            """
+        );
 
         Assert.That(realm.Accumulator.AsString(), Is.EqualTo("4096|abababab|abab|true"));
     }
@@ -65,20 +67,22 @@ public class JsStringTests
     public void String_Search_Methods_Work_On_Large_Rope_Strings()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        realm.Eval("""
-                   let s = "";
-                   for (let i = 0; i < 1024; i++) s += "ab";
-                   s += "XYZ";
-                   for (let i = 0; i < 1024; i++) s += "cd";
-                   [
-                     s.indexOf("XYZ"),
-                     s.lastIndexOf("XYZ"),
-                     s.includes("XYZ"),
-                     s.startsWith("ababab"),
-                     s.endsWith("cdcdcd"),
-                     s.startsWith("XYZ", 2048)
-                   ].join("|");
-                   """);
+        realm.Eval(
+            """
+            let s = "";
+            for (let i = 0; i < 1024; i++) s += "ab";
+            s += "XYZ";
+            for (let i = 0; i < 1024; i++) s += "cd";
+            [
+              s.indexOf("XYZ"),
+              s.lastIndexOf("XYZ"),
+              s.includes("XYZ"),
+              s.startsWith("ababab"),
+              s.endsWith("cdcdcd"),
+              s.startsWith("XYZ", 2048)
+            ].join("|");
+            """
+        );
 
         Assert.That(realm.Accumulator.AsString(), Is.EqualTo("2048|2048|true|true|true|true"));
     }

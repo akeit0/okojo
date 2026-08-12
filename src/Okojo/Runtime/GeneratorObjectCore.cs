@@ -83,13 +83,18 @@ internal sealed class GeneratorObjectCore
         if (copiedCount != 0)
             startArguments[..copiedCount].CopyTo(RegisterSnapshotBuffer);
 
-        OverflowStartArguments = startArguments.Length > registerCount
-            ? startArguments[registerCount..].ToArray()
-            : null;
+        OverflowStartArguments =
+            startArguments.Length > registerCount
+                ? startArguments[registerCount..].ToArray()
+                : null;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void RestoreOverflowStartArguments(Span<JsValue> frameSlots, int registerCount, int startArgumentCount)
+    public void RestoreOverflowStartArguments(
+        Span<JsValue> frameSlots,
+        int registerCount,
+        int startArgumentCount
+    )
     {
         if (OverflowStartArguments is null || startArgumentCount <= registerCount)
             return;

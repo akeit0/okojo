@@ -8,11 +8,15 @@ namespace Okojo.Runtime;
 /// </summary>
 public sealed class JsRuntimeLowLevelHostOptions
 {
-    public IBackgroundScheduler BackgroundScheduler { get; private set; } = JsDefaultBackgroundScheduler.Shared;
-    public IHostTaskScheduler HostTaskScheduler { get; private set; } = DefaultHostTaskScheduler.Shared;
-    public IHostMessageSerializer MessageSerializer { get; private set; } = JsDefaultHostMessageSerializer.Shared;
+    public IBackgroundScheduler BackgroundScheduler { get; private set; } =
+        JsDefaultBackgroundScheduler.Shared;
+    public IHostTaskScheduler HostTaskScheduler { get; private set; } =
+        DefaultHostTaskScheduler.Shared;
+    public IHostMessageSerializer MessageSerializer { get; private set; } =
+        JsDefaultHostMessageSerializer.Shared;
     public IWorkerHost WorkerHost { get; private set; } = DefaultWorkerHost.Shared;
-    public HostTaskQueueKey WorkerMessageQueueKey { get; private set; } = InternalHostTaskQueueDefaults.Default;
+    public HostTaskQueueKey WorkerMessageQueueKey { get; private set; } =
+        InternalHostTaskQueueDefaults.Default;
 
     public JsRuntimeLowLevelHostOptions UseBackgroundScheduler(IBackgroundScheduler scheduler)
     {
@@ -28,7 +32,9 @@ public sealed class JsRuntimeLowLevelHostOptions
         return this;
     }
 
-    public JsRuntimeLowLevelHostOptions UseMessageSerializer(IHostMessageSerializer messageSerializer)
+    public JsRuntimeLowLevelHostOptions UseMessageSerializer(
+        IHostMessageSerializer messageSerializer
+    )
     {
         ArgumentNullException.ThrowIfNull(messageSerializer);
         MessageSerializer = messageSerializer;
@@ -56,7 +62,7 @@ public sealed class JsRuntimeLowLevelHostOptions
             HostTaskScheduler = HostTaskScheduler,
             MessageSerializer = MessageSerializer,
             WorkerHost = WorkerHost,
-            WorkerMessageQueueKey = WorkerMessageQueueKey
+            WorkerMessageQueueKey = WorkerMessageQueueKey,
         };
     }
 }

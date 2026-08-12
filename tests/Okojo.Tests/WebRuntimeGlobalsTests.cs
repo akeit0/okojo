@@ -11,38 +11,42 @@ public class WebRuntimeGlobalsTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
 
-        var result = realm.Eval("""
-                                [
-                                  typeof window,
-                                  typeof self,
-                                  typeof AbortController,
-                                  typeof AbortSignal,
-                                  typeof atob,
-                                  typeof btoa,
-                                  typeof queueMicrotask,
-                                  typeof setTimeout,
-                                  typeof setInterval,
-                                  typeof requestAnimationFrame,
-                                  typeof cancelAnimationFrame
-                                ].join("|")
-                                """);
+        var result = realm.Eval(
+            """
+            [
+              typeof window,
+              typeof self,
+              typeof AbortController,
+              typeof AbortSignal,
+              typeof atob,
+              typeof btoa,
+              typeof queueMicrotask,
+              typeof setTimeout,
+              typeof setInterval,
+              typeof requestAnimationFrame,
+              typeof cancelAnimationFrame
+            ].join("|")
+            """
+        );
 
-        Assert.That(result.AsString(),
+        Assert.That(
+            result.AsString(),
             Is.EqualTo(
-                "undefined|undefined|undefined|undefined|undefined|undefined|undefined|undefined|undefined|undefined|undefined"));
+                "undefined|undefined|undefined|undefined|undefined|undefined|undefined|undefined|undefined|undefined|undefined"
+            )
+        );
     }
 
     [Test]
     public void WebRuntimeGlobals_Do_Not_Install_Window_Or_Self()
     {
-        var realm = JsRuntime.CreateBuilder()
-            .UseWebRuntimeGlobals()
-            .Build()
-            .DefaultRealm;
+        var realm = JsRuntime.CreateBuilder().UseWebRuntimeGlobals().Build().DefaultRealm;
 
-        var result = realm.Eval("""
-                                [typeof window, typeof self, typeof atob, typeof btoa].join("|")
-                                """);
+        var result = realm.Eval(
+            """
+            [typeof window, typeof self, typeof atob, typeof btoa].join("|")
+            """
+        );
 
         Assert.That(result.AsString(), Is.EqualTo("undefined|undefined|function|function"));
     }
@@ -50,19 +54,18 @@ public class WebRuntimeGlobalsTests
     [Test]
     public void BrowserGlobals_Install_Window_Self_And_Base64_Helpers()
     {
-        var realm = JsRuntime.CreateBuilder()
-            .UseBrowserGlobals()
-            .Build()
-            .DefaultRealm;
+        var realm = JsRuntime.CreateBuilder().UseBrowserGlobals().Build().DefaultRealm;
 
-        var result = realm.Eval("""
-                                [
-                                  window === globalThis,
-                                  self === globalThis,
-                                  btoa("Hi"),
-                                  atob("SGk=")
-                                ].join("|")
-                                """);
+        var result = realm.Eval(
+            """
+            [
+              window === globalThis,
+              self === globalThis,
+              btoa("Hi"),
+              atob("SGk=")
+            ].join("|")
+            """
+        );
 
         Assert.That(result.AsString(), Is.EqualTo("true|true|SGk=|Hi"));
     }
@@ -70,26 +73,25 @@ public class WebRuntimeGlobalsTests
     [Test]
     public void WebRuntimeGlobals_Install_AbortController()
     {
-        var realm = JsRuntime.CreateBuilder()
-            .UseWebRuntimeGlobals()
-            .Build()
-            .DefaultRealm;
+        var realm = JsRuntime.CreateBuilder().UseWebRuntimeGlobals().Build().DefaultRealm;
 
-        var result = realm.Eval("""
-                                const controller = new AbortController();
-                                const events = [];
-                                controller.signal.addEventListener("abort", event => {
-                                  events.push(`${event.type}|${event.target === controller.signal}|${controller.signal.aborted}`);
-                                });
-                                controller.abort("bye");
-                                [
-                                  typeof AbortController,
-                                  typeof AbortSignal,
-                                  controller.signal.aborted,
-                                  controller.signal.reason,
-                                  events.join(",")
-                                ].join("|")
-                                """);
+        var result = realm.Eval(
+            """
+            const controller = new AbortController();
+            const events = [];
+            controller.signal.addEventListener("abort", event => {
+              events.push(`${event.type}|${event.target === controller.signal}|${controller.signal.aborted}`);
+            });
+            controller.abort("bye");
+            [
+              typeof AbortController,
+              typeof AbortSignal,
+              controller.signal.aborted,
+              controller.signal.reason,
+              events.join(",")
+            ].join("|")
+            """
+        );
 
         Assert.That(result.AsString(), Is.EqualTo("function|function|true|bye|abort|true|true"));
     }
@@ -97,22 +99,33 @@ public class WebRuntimeGlobalsTests
     [Test]
     public void AbortInterop_Can_Cancel_Host_Task_And_Reject_With_Abort_Reason()
     {
-        using var runtime = JsRuntime.CreateBuilder()
+        using var runtime = JsRuntime
+            .CreateBuilder()
             .UseWebRuntimeGlobals()
-            .UseGlobals(globals => globals.Function("waitForAbort", 1, static (in info) =>
-            {
-                var abort = AbortInterop.Link(info.GetArgumentOrDefault(0, JsValue.Undefined));
-                var task = Task.Delay(Timeout.InfiniteTimeSpan, abort.Token);
-                return abort.WrapTask(info.Realm, task);
-            }))
+            .UseGlobals(globals =>
+                globals.Function(
+                    "waitForAbort",
+                    1,
+                    static (in info) =>
+                    {
+                        var abort = AbortInterop.Link(
+                            info.GetArgumentOrDefault(0, JsValue.Undefined)
+                        );
+                        var task = Task.Delay(Timeout.InfiniteTimeSpan, abort.Token);
+                        return abort.WrapTask(info.Realm, task);
+                    }
+                )
+            )
             .Build();
 
-        var promise = runtime.MainRealm.Eval("""
-                                             const controller = new AbortController();
-                                             const pending = waitForAbort(controller.signal);
-                                             controller.abort("bye");
-                                             pending.catch(reason => reason);
-                                             """);
+        var promise = runtime.MainRealm.Eval(
+            """
+            const controller = new AbortController();
+            const pending = waitForAbort(controller.signal);
+            controller.abort("bye");
+            pending.catch(reason => reason);
+            """
+        );
 
         var result = runtime.MainRealm.ToTask(promise).GetAwaiter().GetResult();
         Assert.That(result.AsString(), Is.EqualTo("bye"));
@@ -123,25 +136,40 @@ public class WebRuntimeGlobalsTests
     {
         var tracker = new TrackingDisposable();
 
-        using var runtime = JsRuntime.CreateBuilder()
+        using var runtime = JsRuntime
+            .CreateBuilder()
             .UseWebRuntimeGlobals()
-            .UseGlobals(globals => globals.Function("waitForCancelableValueTask", 1, (in info) =>
-            {
-                var abort = AbortInterop.Link(info.GetArgumentOrDefault(0, JsValue.Undefined));
-                var linkedSource = CancellationTokenSource.CreateLinkedTokenSource(abort.Token);
-                return abort.WrapTask(info.Realm,
-                    WaitForCancelAsync(linkedSource.Token),
-                    linkedSource,
-                    tracker);
-            }))
+            .UseGlobals(globals =>
+                globals.Function(
+                    "waitForCancelableValueTask",
+                    1,
+                    (in info) =>
+                    {
+                        var abort = AbortInterop.Link(
+                            info.GetArgumentOrDefault(0, JsValue.Undefined)
+                        );
+                        var linkedSource = CancellationTokenSource.CreateLinkedTokenSource(
+                            abort.Token
+                        );
+                        return abort.WrapTask(
+                            info.Realm,
+                            WaitForCancelAsync(linkedSource.Token),
+                            linkedSource,
+                            tracker
+                        );
+                    }
+                )
+            )
             .Build();
 
-        var promise = runtime.MainRealm.Eval("""
-                                             const controller = new AbortController();
-                                             const pending = waitForCancelableValueTask(controller.signal);
-                                             controller.abort("bye");
-                                             pending.catch(reason => reason);
-                                             """);
+        var promise = runtime.MainRealm.Eval(
+            """
+            const controller = new AbortController();
+            const pending = waitForCancelableValueTask(controller.signal);
+            controller.abort("bye");
+            pending.catch(reason => reason);
+            """
+        );
 
         var result = runtime.MainRealm.ToTask(promise).GetAwaiter().GetResult();
         Assert.That(result.AsString(), Is.EqualTo("bye"));
@@ -151,14 +179,13 @@ public class WebRuntimeGlobalsTests
     [Test]
     public void BrowserGlobals_Install_Window_And_Fetch_Together()
     {
-        var realm = JsRuntime.CreateBuilder()
-            .UseBrowserGlobals()
-            .Build()
-            .DefaultRealm;
+        var realm = JsRuntime.CreateBuilder().UseBrowserGlobals().Build().DefaultRealm;
 
-        var result = realm.Eval("""
-                                [typeof window, typeof fetch, typeof setTimeout, typeof queueMicrotask].join("|")
-                                """);
+        var result = realm.Eval(
+            """
+            [typeof window, typeof fetch, typeof setTimeout, typeof queueMicrotask].join("|")
+            """
+        );
 
         Assert.That(result.AsString(), Is.EqualTo("object|function|function|function"));
     }
@@ -166,14 +193,20 @@ public class WebRuntimeGlobalsTests
     [Test]
     public void ServerRuntime_Installs_Fetch_Without_Window_And_Can_Add_Host_Module()
     {
-        var realm = JsRuntime.CreateBuilder()
-            .UseServerRuntime(server => { server.RealmApiModules.Add(new ServerTestApiModule()); })
+        var realm = JsRuntime
+            .CreateBuilder()
+            .UseServerRuntime(server =>
+            {
+                server.RealmApiModules.Add(new ServerTestApiModule());
+            })
             .Build()
             .DefaultRealm;
 
-        var result = realm.Eval("""
-                                [typeof window, typeof Worker, typeof fetch, host.name].join("|")
-                                """);
+        var result = realm.Eval(
+            """
+            [typeof window, typeof Worker, typeof fetch, host.name].join("|")
+            """
+        );
 
         Assert.That(result.AsString(), Is.EqualTo("undefined|undefined|function|server"));
     }
@@ -181,16 +214,15 @@ public class WebRuntimeGlobalsTests
     [Test]
     public void ServerRuntime_Installs_AbortController_Without_Window()
     {
-        var realm = JsRuntime.CreateBuilder()
-            .UseServerRuntime()
-            .Build()
-            .DefaultRealm;
+        var realm = JsRuntime.CreateBuilder().UseServerRuntime().Build().DefaultRealm;
 
-        var result = realm.Eval("""
-                                const controller = new AbortController();
-                                controller.abort("stop");
-                                [typeof window, typeof AbortController, typeof AbortSignal, controller.signal.reason].join("|")
-                                """);
+        var result = realm.Eval(
+            """
+            const controller = new AbortController();
+            controller.abort("stop");
+            [typeof window, typeof AbortController, typeof AbortSignal, controller.signal.reason].join("|")
+            """
+        );
 
         Assert.That(result.AsString(), Is.EqualTo("undefined|function|function|stop"));
     }
@@ -199,25 +231,30 @@ public class WebRuntimeGlobalsTests
     public void AbortSignal_Timeout_Aborts_With_TimeoutError()
     {
         var fakeTime = new FakeTimeProvider();
-        var realm = JsRuntime.CreateBuilder()
+        var realm = JsRuntime
+            .CreateBuilder()
             .UseTimeProvider(fakeTime)
             .UseWebRuntimeGlobals()
             .Build()
             .DefaultRealm;
 
-        _ = realm.Eval("""
-                       globalThis.signal = AbortSignal.timeout(5);
-                       globalThis.snapshot = `${signal.aborted}|${signal.reason}`;
-                       """);
+        _ = realm.Eval(
+            """
+            globalThis.signal = AbortSignal.timeout(5);
+            globalThis.snapshot = `${signal.aborted}|${signal.reason}`;
+            """
+        );
 
         Assert.That(realm.Global["snapshot"].AsString(), Is.EqualTo("false|undefined"));
 
         fakeTime.Advance(TimeSpan.FromMilliseconds(5));
         realm.PumpJobs();
 
-        var result = realm.Eval("""
-                                [signal.aborted, signal.reason.name, signal.reason.message].join("|")
-                                """);
+        var result = realm.Eval(
+            """
+            [signal.aborted, signal.reason.name, signal.reason.message].join("|")
+            """
+        );
 
         Assert.That(result.AsString(), Is.EqualTo("true|TimeoutError|The operation timed out."));
     }
@@ -226,18 +263,21 @@ public class WebRuntimeGlobalsTests
     public void QueueMicrotask_Runs_Before_Timer_Task()
     {
         var fakeTime = new FakeTimeProvider();
-        var realm = JsRuntime.CreateBuilder()
+        var realm = JsRuntime
+            .CreateBuilder()
             .UseTimeProvider(fakeTime)
             .UseWebRuntimeGlobals()
             .Build()
             .DefaultRealm;
 
-        _ = realm.Eval("""
-                       globalThis.trace = "";
-                       setTimeout(function () { trace += "t"; }, 1);
-                       queueMicrotask(function () { trace += "m"; });
-                       trace += "s";
-                       """);
+        _ = realm.Eval(
+            """
+            globalThis.trace = "";
+            setTimeout(function () { trace += "t"; }, 1);
+            queueMicrotask(function () { trace += "m"; });
+            trace += "s";
+            """
+        );
 
         Assert.That(realm.Global["trace"].AsString(), Is.EqualTo("sm"));
 
@@ -251,21 +291,24 @@ public class WebRuntimeGlobalsTests
     public void SetInterval_Uses_Shared_Timer_Ids_And_Can_Be_Cleared_Via_ClearTimeout()
     {
         var fakeTime = new FakeTimeProvider();
-        var realm = JsRuntime.CreateBuilder()
+        var realm = JsRuntime
+            .CreateBuilder()
             .UseTimeProvider(fakeTime)
             .UseWebRuntimeGlobals()
             .Build()
             .DefaultRealm;
 
-        _ = realm.Eval("""
-                       globalThis.hits = 0;
-                       const id = setInterval(function () {
-                         hits++;
-                         if (hits === 2) {
-                           clearTimeout(id);
-                         }
-                       }, 5);
-                       """);
+        _ = realm.Eval(
+            """
+            globalThis.hits = 0;
+            const id = setInterval(function () {
+              hits++;
+              if (hits === 2) {
+                clearTimeout(id);
+              }
+            }, 5);
+            """
+        );
 
         fakeTime.Advance(TimeSpan.FromMilliseconds(5));
         realm.PumpJobs();
@@ -284,23 +327,26 @@ public class WebRuntimeGlobalsTests
     public void RequestAnimationFrame_Runs_On_Next_Render_Turn_And_Drains_Microtasks()
     {
         var fakeTime = new FakeTimeProvider();
-        var realm = JsRuntime.CreateBuilder()
+        var realm = JsRuntime
+            .CreateBuilder()
             .UseTimeProvider(fakeTime)
             .UseAnimationFrameInterval(TimeSpan.FromMilliseconds(16))
             .UseBrowserGlobals()
             .Build()
             .DefaultRealm;
 
-        _ = realm.Eval("""
-                       globalThis.trace = "";
-                       globalThis.frameTimestamp = -1;
-                       requestAnimationFrame(function (timestamp) {
-                         trace += "r";
-                         frameTimestamp = timestamp;
-                         queueMicrotask(function () { trace += "m"; });
-                       });
-                       trace += "s";
-                       """);
+        _ = realm.Eval(
+            """
+            globalThis.trace = "";
+            globalThis.frameTimestamp = -1;
+            requestAnimationFrame(function (timestamp) {
+              trace += "r";
+              frameTimestamp = timestamp;
+              queueMicrotask(function () { trace += "m"; });
+            });
+            trace += "s";
+            """
+        );
 
         Assert.That(realm.Global["trace"].AsString(), Is.EqualTo("s"));
 
@@ -315,19 +361,22 @@ public class WebRuntimeGlobalsTests
     public void CancelAnimationFrame_Prevents_Render_Callback()
     {
         var fakeTime = new FakeTimeProvider();
-        var realm = JsRuntime.CreateBuilder()
+        var realm = JsRuntime
+            .CreateBuilder()
             .UseTimeProvider(fakeTime)
             .UseAnimationFrameInterval(TimeSpan.FromMilliseconds(16))
             .UseBrowserGlobals()
             .Build()
             .DefaultRealm;
 
-        _ = realm.Eval("""
-                       globalThis.trace = "";
-                       const id = requestAnimationFrame(function () { trace += "r"; });
-                       cancelAnimationFrame(id);
-                       trace += "s";
-                       """);
+        _ = realm.Eval(
+            """
+            globalThis.trace = "";
+            const id = requestAnimationFrame(function () { trace += "r"; });
+            cancelAnimationFrame(id);
+            trace += "s";
+            """
+        );
 
         fakeTime.Advance(TimeSpan.FromMilliseconds(16));
         realm.PumpJobs();
@@ -340,7 +389,8 @@ public class WebRuntimeGlobalsTests
     {
         var fakeTime = new FakeTimeProvider();
         var eventLoop = new ManualHostEventLoop(fakeTime);
-        var realm = JsRuntime.CreateBuilder()
+        var realm = JsRuntime
+            .CreateBuilder()
             .UseTimeProvider(fakeTime)
             .UseLowLevelHost(host => host.UseTaskScheduler(eventLoop))
             .UseWebDelayScheduler(eventLoop)
@@ -349,11 +399,13 @@ public class WebRuntimeGlobalsTests
             .Build()
             .DefaultRealm;
 
-        _ = realm.Eval("""
-                       globalThis.trace = "";
-                       setTimeout(function () { trace += "t"; }, 5);
-                       trace += "s";
-                       """);
+        _ = realm.Eval(
+            """
+            globalThis.trace = "";
+            setTimeout(function () { trace += "t"; }, 5);
+            trace += "s";
+            """
+        );
 
         Assert.That(realm.Global["trace"].AsString(), Is.EqualTo("s"));
 
@@ -386,7 +438,11 @@ public class WebRuntimeGlobalsTests
         public void Install(JsRealm realm)
         {
             var hostObject = new JsPlainObject(realm);
-            hostObject.DefineDataProperty("name", JsValue.FromString("server"), JsShapePropertyFlags.Open);
+            hostObject.DefineDataProperty(
+                "name",
+                JsValue.FromString("server"),
+                JsShapePropertyFlags.Open
+            );
             realm.Global["host"] = JsValue.FromObject(hostObject);
         }
     }

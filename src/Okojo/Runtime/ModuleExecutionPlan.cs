@@ -6,11 +6,13 @@ internal sealed class ModuleExecutionPlan(
     IReadOnlySet<string> preinitializedLocalExportNames,
     bool requiresTopLevelAwait,
     bool hasTopLevelUsingLike,
-    bool hasTopLevelAwaitUsingLike)
+    bool hasTopLevelAwaitUsingLike
+)
 {
     public IReadOnlyList<ModuleExecutionOp> Operations { get; } = operations;
     public IReadOnlyDictionary<string, string> ExportLocalByName { get; } = exportLocalByName;
-    public IReadOnlySet<string> PreinitializedLocalExportNames { get; } = preinitializedLocalExportNames;
+    public IReadOnlySet<string> PreinitializedLocalExportNames { get; } =
+        preinitializedLocalExportNames;
     public bool RequiresTopLevelAwait { get; } = requiresTopLevelAwait;
     public bool HasTopLevelUsingLike { get; } = hasTopLevelUsingLike;
     public bool HasTopLevelAwaitUsingLike { get; } = hasTopLevelAwaitUsingLike;

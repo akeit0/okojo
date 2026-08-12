@@ -5,7 +5,8 @@ namespace Okojo.Runtime;
 
 public sealed partial class JsAgent : IDisposable
 {
-    private static readonly Action<object?> SInvokeActionJob = static state => ((Action)state!).Invoke();
+    private static readonly Action<object?> SInvokeActionJob = static state =>
+        ((Action)state!).Invoke();
 
     private static readonly Action<object?> SPostMessageTask = static state =>
     {
@@ -20,17 +21,18 @@ public sealed partial class JsAgent : IDisposable
     private readonly AutoResetEvent jobsAvailable = new(false);
     private readonly object jobsGate = new();
 
-    private readonly Dictionary<string, JsModuleNamespaceObject> jsonModuleNamespaceCache =
-        new(StringComparer.Ordinal);
-    private readonly Dictionary<string, JsModuleNamespaceObject> textModuleNamespaceCache =
-        new(StringComparer.Ordinal);
+    private readonly Dictionary<string, JsModuleNamespaceObject> jsonModuleNamespaceCache = new(
+        StringComparer.Ordinal
+    );
+    private readonly Dictionary<string, JsModuleNamespaceObject> textModuleNamespaceCache = new(
+        StringComparer.Ordinal
+    );
 
     private readonly object lifecycleGate = new();
     private readonly Queue<PendingJob> scriptJobs = new();
     private readonly object moduleCacheGate = new();
 
-    private readonly Dictionary<string, string> moduleSourceCache =
-        new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> moduleSourceCache = new(StringComparer.Ordinal);
 
     private readonly Queue<PendingJob> promiseJobs = new();
     private readonly List<JsRealm> realms = new();
@@ -38,8 +40,12 @@ public sealed partial class JsAgent : IDisposable
     private readonly HashSet<JsScript> registeredScripts = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<int, Symbol> registeredSymbolByAtom = new();
     private readonly object scriptRegistryGate = new();
-    private readonly Dictionary<string, HashSet<JsScript>> scriptsBySourcePath = new(SourcePathComparer.Instance);
-    private readonly HashSet<JsScript> scriptsWithoutSourcePath = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<string, HashSet<JsScript>> scriptsBySourcePath = new(
+        SourcePathComparer.Instance
+    );
+    private readonly HashSet<JsScript> scriptsWithoutSourcePath = new(
+        ReferenceEqualityComparer.Instance
+    );
     private readonly object stepGate = new();
     private readonly object symbolRegistryGate = new();
     private readonly Queue<PendingJob> hostJobs = new();
@@ -53,7 +59,13 @@ public sealed partial class JsAgent : IDisposable
     private DebuggerStepRequest? stepRequest;
     private volatile bool terminated;
 
-    internal JsAgent(JsRuntime engine, JsAgentKind kind, int id, JsAgentOptions options, JsAgent? parentAgent = null)
+    internal JsAgent(
+        JsRuntime engine,
+        JsAgentKind kind,
+        int id,
+        JsAgentOptions options,
+        JsAgent? parentAgent = null
+    )
     {
         Engine = engine;
         Kind = kind;
@@ -66,10 +78,14 @@ public sealed partial class JsAgent : IDisposable
         ExecutionCheckPolicy = new(Options, Engine.TimeProvider);
         ExecutionCheckInterval = Math.Min(Options.CheckInterval, Options.MaxInstructions);
         ExecutionCheckpointHookBits = (int)Options.ExecutionCheckpointHooks;
-        ExecutionCheckCountdown = ExecutionCheckPolicy.HasPeriodicChecks ? ExecutionCheckInterval : ulong.MaxValue;
+        ExecutionCheckCountdown = ExecutionCheckPolicy.HasPeriodicChecks
+            ? ExecutionCheckInterval
+            : ulong.MaxValue;
         HostDefined = Options.HostDefined;
         hostTaskTarget = new(Engine.TimeProvider, EnqueueHostJobDirect, () => IsTerminated);
-        HostTaskScheduler = Engine.Options.HostServices.HostTaskScheduler.CreateAgentScheduler(hostTaskTarget);
+        HostTaskScheduler = Engine.Options.HostServices.HostTaskScheduler.CreateAgentScheduler(
+            hostTaskTarget
+        );
         var realm = new JsRealm(this, realms.Count, Options.Realm);
         lock (realmsGate)
         {
@@ -123,7 +139,10 @@ public sealed partial class JsAgent : IDisposable
                 return 0;
             lock (jobsGate)
             {
-                return scriptJobs.Count + promiseJobs.Count + hostJobs.Count + hostPriorityJobs.Count;
+                return scriptJobs.Count
+                    + promiseJobs.Count
+                    + hostJobs.Count
+                    + hostPriorityJobs.Count;
             }
         }
     }
@@ -142,7 +161,7 @@ public sealed partial class JsAgent : IDisposable
                 JobQueueName.PromiseJobs => promiseJobs.Count,
                 JobQueueName.HostJobs => hostJobs.Count,
                 JobQueueName.HostPriorityJobs => hostPriorityJobs.Count,
-                _ => 0
+                _ => 0,
             };
         }
     }
@@ -158,9 +177,12 @@ public sealed partial class JsAgent : IDisposable
     public bool IsCaughtExceptionHookEnabled =>
         (ExecutionCheckpointHookBits & (int)ExecutionCheckpointHooks.CaughtException) != 0;
 
-    public bool IsCallHookEnabled => (ExecutionCheckpointHookBits & (int)ExecutionCheckpointHooks.Call) != 0;
-    public bool IsReturnHookEnabled => (ExecutionCheckpointHookBits & (int)ExecutionCheckpointHooks.Return) != 0;
-    public bool IsPumpHookEnabled => (ExecutionCheckpointHookBits & (int)ExecutionCheckpointHooks.Pump) != 0;
+    public bool IsCallHookEnabled =>
+        (ExecutionCheckpointHookBits & (int)ExecutionCheckpointHooks.Call) != 0;
+    public bool IsReturnHookEnabled =>
+        (ExecutionCheckpointHookBits & (int)ExecutionCheckpointHooks.Return) != 0;
+    public bool IsPumpHookEnabled =>
+        (ExecutionCheckpointHookBits & (int)ExecutionCheckpointHooks.Pump) != 0;
 
     public bool IsSuspendGeneratorHookEnabled =>
         (ExecutionCheckpointHookBits & (int)ExecutionCheckpointHooks.SuspendGenerator) != 0;
@@ -321,8 +343,10 @@ public sealed partial class JsAgent : IDisposable
     {
         lock (scriptRegistryGate)
         {
-            if (sourcePath is { Length: > 0 } &&
-                scriptsBySourcePath.TryGetValue(sourcePath, out var scripts))
+            if (
+                sourcePath is { Length: > 0 }
+                && scriptsBySourcePath.TryGetValue(sourcePath, out var scripts)
+            )
                 return scripts.ToArray();
 
             if (sourcePath is null && scriptsWithoutSourcePath.Count != 0)
@@ -345,30 +369,44 @@ public sealed partial class JsAgent : IDisposable
         ArgumentNullException.ThrowIfNull(script);
         lock (scriptRegistryGate)
         {
-            if (script.SourcePath is { Length: > 0 } sourcePath &&
-                scriptsBySourcePath.TryGetValue(sourcePath, out var scripts))
+            if (
+                script.SourcePath is { Length: > 0 } sourcePath
+                && scriptsBySourcePath.TryGetValue(sourcePath, out var scripts)
+            )
             {
                 foreach (var registeredScript in scripts)
                     breakpointRegistry.ArmPendingBreakpoints(this, registeredScript);
                 return;
             }
 
-            if (script.SourcePath is null && scriptsWithoutSourcePath.Contains(script))
-            {
-            }
+            if (script.SourcePath is null && scriptsWithoutSourcePath.Contains(script)) { }
 
             breakpointRegistry.ArmPendingBreakpoints(this, script);
         }
     }
 
-    internal bool TryRestoreBreakpointForHit(JsScript script, int pc, out string? sourcePath, out int line,
-        out int column)
+    internal bool TryRestoreBreakpointForHit(
+        JsScript script,
+        int pc,
+        out string? sourcePath,
+        out int line,
+        out int column
+    )
     {
-        return breakpointRegistry.TryRestoreBreakpointForHit(script, pc, out sourcePath, out line, out column);
+        return breakpointRegistry.TryRestoreBreakpointForHit(
+            script,
+            pc,
+            out sourcePath,
+            out line,
+            out column
+        );
     }
 
-    internal bool TryGetOriginalBreakpointInstruction(JsScript script, int pc,
-        out JsBreakpointRegistry.OriginalInstructionInfo instruction)
+    internal bool TryGetOriginalBreakpointInstruction(
+        JsScript script,
+        int pc,
+        out JsBreakpointRegistry.OriginalInstructionInfo instruction
+    )
     {
         return breakpointRegistry.TryGetOriginalInstruction(script, pc, out instruction);
     }
@@ -534,17 +572,26 @@ public sealed partial class JsAgent : IDisposable
         ExecutionCheckpointHookBits &= ~(int)ExecutionCheckpointHooks.CaughtException;
     }
 
-    internal void RequestStepInto(int startStackDepth, CheckpointSourceLocation? startLocation = null)
+    internal void RequestStepInto(
+        int startStackDepth,
+        CheckpointSourceLocation? startLocation = null
+    )
     {
         SetStepRequest(DebuggerStepMode.Into, startStackDepth, startLocation);
     }
 
-    internal void RequestStepOver(int startStackDepth, CheckpointSourceLocation? startLocation = null)
+    internal void RequestStepOver(
+        int startStackDepth,
+        CheckpointSourceLocation? startLocation = null
+    )
     {
         SetStepRequest(DebuggerStepMode.Over, startStackDepth, startLocation);
     }
 
-    internal void RequestStepOut(int startStackDepth, CheckpointSourceLocation? startLocation = null)
+    internal void RequestStepOut(
+        int startStackDepth,
+        CheckpointSourceLocation? startLocation = null
+    )
     {
         SetStepRequest(DebuggerStepMode.Out, startStackDepth, startLocation);
     }
@@ -557,7 +604,10 @@ public sealed partial class JsAgent : IDisposable
         }
     }
 
-    internal bool TryConsumeStepRequest(in ExecutionCheckpoint checkpoint, out ExecutionCheckpointKind stepKind)
+    internal bool TryConsumeStepRequest(
+        in ExecutionCheckpoint checkpoint,
+        out ExecutionCheckpointKind stepKind
+    )
     {
         lock (stepGate)
         {
@@ -580,7 +630,11 @@ public sealed partial class JsAgent : IDisposable
         }
     }
 
-    private void SetStepRequest(DebuggerStepMode mode, int startStackDepth, CheckpointSourceLocation? startLocation)
+    private void SetStepRequest(
+        DebuggerStepMode mode,
+        int startStackDepth,
+        CheckpointSourceLocation? startLocation
+    )
     {
         lock (stepGate)
         {
@@ -598,7 +652,11 @@ public sealed partial class JsAgent : IDisposable
 
         var interval = ExecutionCheckPolicy.CheckInterval;
         ExecutionCheckInterval = interval;
-        if (resetCountdown || ExecutionCheckCountdown == ulong.MaxValue || ExecutionCheckCountdown > interval)
+        if (
+            resetCountdown
+            || ExecutionCheckCountdown == ulong.MaxValue
+            || ExecutionCheckCountdown > interval
+        )
             ExecutionCheckCountdown = interval;
     }
 
@@ -678,14 +736,12 @@ public sealed partial class JsAgent : IDisposable
 
     internal JsAgentModuleApi.ModuleInvalidationResult InvalidateModuleByResolvedId(
         string resolvedId,
-        JsAgentModuleApi.ModuleInvalidationScope scope)
+        JsAgentModuleApi.ModuleInvalidationScope scope
+    )
     {
         lock (moduleCacheGate)
         {
-            var invalidatedIds = new HashSet<string>(StringComparer.Ordinal)
-            {
-                resolvedId
-            };
+            var invalidatedIds = new HashSet<string>(StringComparer.Ordinal) { resolvedId };
             if ((scope & JsAgentModuleApi.ModuleInvalidationScope.Importers) != 0)
                 ModuleGraph.CollectImporterClosure(resolvedId, invalidatedIds);
             if ((scope & JsAgentModuleApi.ModuleInvalidationScope.Dependencies) != 0)
@@ -708,11 +764,19 @@ public sealed partial class JsAgent : IDisposable
                 resolvedId,
                 scope,
                 removedCount,
-                invalidatedIds.Count == 0 ? [] : invalidatedIds.OrderBy(static value => value, StringComparer.Ordinal).ToArray());
+                invalidatedIds.Count == 0
+                    ? []
+                    : invalidatedIds
+                        .OrderBy(static value => value, StringComparer.Ordinal)
+                        .ToArray()
+            );
         }
     }
 
-    internal bool TryGetCachedModuleNamespaceByResolvedId(string resolvedId, out JsValue namespaceValue)
+    internal bool TryGetCachedModuleNamespaceByResolvedId(
+        string resolvedId,
+        out JsValue namespaceValue
+    )
     {
         lock (moduleCacheGate)
         {
@@ -739,8 +803,10 @@ public sealed partial class JsAgent : IDisposable
         }
     }
 
-    internal JsAgentModuleApi.ModuleStateSnapshot GetModuleStateSnapshotByResolvedId(string resolvedId,
-        bool includeError)
+    internal JsAgentModuleApi.ModuleStateSnapshot GetModuleStateSnapshotByResolvedId(
+        string resolvedId,
+        bool includeError
+    )
     {
         lock (moduleCacheGate)
         {
@@ -752,7 +818,8 @@ public sealed partial class JsAgent : IDisposable
                     JsAgentModuleApi.ModuleStateKind.Uninitialized,
                     false,
                     hasSourceCache,
-                    null);
+                    null
+                );
 
             JsAgentModuleApi.ModuleErrorSnapshot? errorSnapshot = null;
             if (includeError && node.LastError is not null)
@@ -763,13 +830,16 @@ public sealed partial class JsAgent : IDisposable
                         runtimeEx.DetailCode,
                         runtimeEx.Message,
                         runtimeEx.GetType().FullName ?? runtimeEx.GetType().Name,
-                        runtimeEx.InnerException?.GetType().FullName ?? runtimeEx.InnerException?.GetType().Name);
+                        runtimeEx.InnerException?.GetType().FullName
+                            ?? runtimeEx.InnerException?.GetType().Name
+                    );
                 else
                     errorSnapshot = new JsAgentModuleApi.ModuleErrorSnapshot(
                         null,
                         err.Message,
                         err.GetType().FullName ?? err.GetType().Name,
-                        err.InnerException?.GetType().FullName ?? err.InnerException?.GetType().Name);
+                        err.InnerException?.GetType().FullName ?? err.InnerException?.GetType().Name
+                    );
             }
 
             return new(
@@ -778,7 +848,8 @@ public sealed partial class JsAgent : IDisposable
                 MapModuleState(node.State),
                 node.LinkPlan is not null,
                 hasSourceCache,
-                errorSnapshot);
+                errorSnapshot
+            );
         }
     }
 
@@ -791,7 +862,7 @@ public sealed partial class JsAgent : IDisposable
             ModuleEvalState.Evaluating => JsAgentModuleApi.ModuleStateKind.Evaluating,
             ModuleEvalState.Evaluated => JsAgentModuleApi.ModuleStateKind.Evaluated,
             ModuleEvalState.Failed => JsAgentModuleApi.ModuleStateKind.Failed,
-            _ => JsAgentModuleApi.ModuleStateKind.Uninitialized
+            _ => JsAgentModuleApi.ModuleStateKind.Uninitialized,
         };
     }
 
@@ -905,7 +976,11 @@ public sealed partial class JsAgent : IDisposable
     }
 
     /// <summary>Enqueues a host task onto a specific host queue, or the default host queue.</summary>
-    internal void EnqueueHostTask(HostTaskQueueKey queueKey, Action<object?> callback, object? state)
+    internal void EnqueueHostTask(
+        HostTaskQueueKey queueKey,
+        Action<object?> callback,
+        object? state
+    )
     {
         if (terminated)
             return;
@@ -942,8 +1017,14 @@ public sealed partial class JsAgent : IDisposable
         if (terminated || target.terminated)
             return;
 
-        var clonedPayload = Engine.Options.HostServices.MessageSerializer.CloneCrossAgentPayload(payload);
-        target.EnqueueHostTask(queueKey, SPostMessageTask, new PostMessageTaskState(this, target, clonedPayload));
+        var clonedPayload = Engine.Options.HostServices.MessageSerializer.CloneCrossAgentPayload(
+            payload
+        );
+        target.EnqueueHostTask(
+            queueKey,
+            SPostMessageTask,
+            new PostMessageTaskState(this, target, clonedPayload)
+        );
     }
 
     /// <summary>
@@ -1022,8 +1103,10 @@ public sealed partial class JsAgent : IDisposable
     {
         while (true)
         {
-            while (TryDequeueJob(JobQueueName.HostPriorityJobs, out var priorityJob) ||
-                   TryDequeueJob(JobQueueName.PromiseJobs, out priorityJob))
+            while (
+                TryDequeueJob(JobQueueName.HostPriorityJobs, out var priorityJob)
+                || TryDequeueJob(JobQueueName.PromiseJobs, out priorityJob)
+            )
                 priorityJob.Invoke();
 
             if (!TryDequeueJob(JobQueueName.HostJobs, out var hostJob))
@@ -1074,7 +1157,7 @@ public sealed partial class JsAgent : IDisposable
                 JobQueueName.ScriptJobs => scriptJobs,
                 JobQueueName.PromiseJobs => promiseJobs,
                 JobQueueName.HostPriorityJobs => hostPriorityJobs,
-                _ => hostJobs
+                _ => hostJobs,
             };
             if (queue.Count == 0)
             {
@@ -1142,5 +1225,6 @@ public sealed partial class JsAgent : IDisposable
     private readonly record struct DebuggerStepRequest(
         DebuggerStepMode Mode,
         int StartStackDepth,
-        CheckpointSourceLocation? StartLocation);
+        CheckpointSourceLocation? StartLocation
+    );
 }

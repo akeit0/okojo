@@ -6,11 +6,14 @@ internal sealed class JsDefaultBackgroundScheduler : IBackgroundScheduler
 
     public void Queue(Action<object?> callback, object? state)
     {
-        ThreadPool.QueueUserWorkItem(static item =>
-        {
-            var work = ((Action<object?> Callback, object? State))item!;
-            work.Callback(work.State);
-        }, (callback, state));
+        ThreadPool.QueueUserWorkItem(
+            static item =>
+            {
+                var work = ((Action<object?> Callback, object? State))item!;
+                work.Callback(work.State);
+            },
+            (callback, state)
+        );
     }
 
     public Task WaitHandleAsync(WaitHandle handle, CancellationToken cancellationToken)

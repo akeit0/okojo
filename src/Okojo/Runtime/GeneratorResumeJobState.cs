@@ -4,7 +4,8 @@ internal sealed class GeneratorResumeJobState(
     JsRealm realm,
     JsGeneratorObject generator,
     GeneratorResumeMode mode,
-    JsValue value)
+    JsValue value
+)
 {
     public readonly JsGeneratorObject Generator = generator;
     public readonly GeneratorResumeMode Mode = mode;

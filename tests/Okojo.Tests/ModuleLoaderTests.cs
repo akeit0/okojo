@@ -22,7 +22,8 @@ public class ModuleLoaderTests
     {
         var moduleLoader = new StubModuleLoader("module-source");
         var workerLoader = new StubWorkerLoader("worker-source");
-        var engine = JsRuntime.CreateBuilder()
+        var engine = JsRuntime
+            .CreateBuilder()
             .UseModuleSourceLoader(moduleLoader)
             .UseWorkerScriptSourceLoader(workerLoader)
             .Build();

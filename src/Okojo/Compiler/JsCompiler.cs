@@ -9,12 +9,16 @@ public sealed partial class JsCompiler : IDisposable
     private const string SuperBaseInternalBindingName = "$[[SuperBase]]";
     private const string SyntheticArgumentsBindingName = "$arguments";
     private const string DerivedThisInternalBindingName = "$[[DerivedThis]]";
-    private static readonly int SyntheticArgumentsSymbolId = CompilerSymbolId.SyntheticArguments.Value;
+    private static readonly int SyntheticArgumentsSymbolId = CompilerSymbolId
+        .SyntheticArguments
+        .Value;
     private static readonly int DerivedThisSymbolId = CompilerSymbolId.DerivedThis.Value;
     private static readonly int SuperBaseSymbolId = CompilerSymbolId.SuperBase.Value;
     private readonly Stack<bool> activeAbruptEmptyNormalizations;
     private readonly Stack<LexicalAliasScope> activeBlockLexicalAliases;
-    private readonly Stack<IReadOnlyDictionary<string, PrivateFieldBinding>> activeClassPrivateBindingScopes;
+    private readonly Stack<
+        IReadOnlyDictionary<string, PrivateFieldBinding>
+    > activeClassPrivateBindingScopes;
     private readonly Stack<ActiveClassPrivateSourceScope> activeClassPrivateSourceScopes;
     private readonly Stack<FinallyFlowContext> activeFinallyFlow;
     private readonly Stack<ForAwaitLoopContext> activeForAwaitLoops;
@@ -114,9 +118,8 @@ public sealed partial class JsCompiler : IDisposable
             false,
             null,
             null,
-            null)
-    {
-    }
+            null
+        ) { }
 
     internal JsCompiler(JsRealm realm, JsCompilerContext compileContext)
         : this(
@@ -134,11 +137,14 @@ public sealed partial class JsCompiler : IDisposable
             false,
             null,
             null,
-            null)
-    {
-    }
+            null
+        ) { }
 
-    internal JsCompiler(JsRealm realm, JsCompilerContext compileContext, JsBytecodeFunctionKind topLevelFunctionKind)
+    internal JsCompiler(
+        JsRealm realm,
+        JsCompilerContext compileContext,
+        JsBytecodeFunctionKind topLevelFunctionKind
+    )
         : this(
             realm,
             null,
@@ -154,14 +160,14 @@ public sealed partial class JsCompiler : IDisposable
             false,
             null,
             null,
-            null)
-    {
-    }
+            null
+        ) { }
 
     internal JsCompiler(
         JsRealm realm,
         IReadOnlyDictionary<string, ModuleVariableBinding>? moduleVariableBindings,
-        bool forceModuleFunctionContext = true)
+        bool forceModuleFunctionContext = true
+    )
         : this(
             realm,
             null,
@@ -177,9 +183,8 @@ public sealed partial class JsCompiler : IDisposable
             false,
             null,
             null,
-            null)
-    {
-    }
+            null
+        ) { }
 
     private JsCompiler(
         JsRealm realm,
@@ -196,7 +201,8 @@ public sealed partial class JsCompiler : IDisposable
         bool useMethodEnvironmentCapture,
         CompilerIdentifierName? classLexicalNameForMethodResolution,
         IReadOnlyDictionary<string, PrivateFieldBinding>? classPrivateNameToBinding,
-        SourceCode? sourceCode)
+        SourceCode? sourceCode
+    )
     {
         this.parent = parent;
         this.compileContext = compileContext;
@@ -218,7 +224,10 @@ public sealed partial class JsCompiler : IDisposable
         locals = Vm.RentCompileDictionary<int, int>(32);
         localBindingInfoById = Vm.RentCompileDictionary<int, LocalBindingInfo>(32);
         symbolNamesById = Vm.RentCompileDictionary<int, string>(32);
-        syntheticSymbolIdsByName = Vm.RentCompileDictionary<string, int>(32, StringComparer.Ordinal);
+        syntheticSymbolIdsByName = Vm.RentCompileDictionary<string, int>(
+            32,
+            StringComparer.Ordinal
+        );
         localRegisters = Vm.RentCompileHashSet<int>(32);
         currentContextSlotById = Vm.RentCompileDictionary<int, int>(16);
         currentContextPerIterationBaseDepthBySymbol = Vm.RentCompileDictionary<int, int>(16);
@@ -226,7 +235,9 @@ public sealed partial class JsCompiler : IDisposable
         switchLexicalsByPosition = Vm.RentCompileDictionary<int, List<BlockLexicalBinding>>(8);
         forHeadLexicalsByPosition = Vm.RentCompileDictionary<int, List<BlockLexicalBinding>>(8);
         forInOfHeadLexicalsByPosition = Vm.RentCompileDictionary<int, List<BlockLexicalBinding>>(8);
-        forInOfHeadTdzLexicalsByPosition = Vm.RentCompileDictionary<int, List<BlockLexicalBinding>>(8);
+        forInOfHeadTdzLexicalsByPosition = Vm.RentCompileDictionary<int, List<BlockLexicalBinding>>(
+            8
+        );
         forcedAliasContextSlotSymbolIds = Vm.RentCompileHashSet<int>(16);
         activeBlockLexicalAliases = Vm.RentCompileStack<LexicalAliasScope>(8);
         activeLocalDebugScopeStarts = Vm.RentCompileStack<int>(8);
@@ -240,13 +251,16 @@ public sealed partial class JsCompiler : IDisposable
         activeFinallyFlow = Vm.RentCompileStack<FinallyFlowContext>(8);
         activeForAwaitLoops = Vm.RentCompileStack<ForAwaitLoopContext>(4);
         activeForOfIteratorLoops = Vm.RentCompileStack<ForOfIteratorLoopContext>(4);
-        activeClassPrivateBindingScopes =
-            Vm.RentCompileStack<IReadOnlyDictionary<string, PrivateFieldBinding>>(4);
+        activeClassPrivateBindingScopes = Vm.RentCompileStack<
+            IReadOnlyDictionary<string, PrivateFieldBinding>
+        >(4);
         activeClassPrivateSourceScopes = Vm.RentCompileStack<ActiveClassPrivateSourceScope>(4);
         skipLexicalRegisterPrologueHoleInit = Vm.RentCompileHashSet<int>(16);
         knownInitializedLexicals = Vm.RentCompileHashSet<int>(16);
-        topLevelLexicalDeclarationPositionByName =
-            Vm.RentCompileDictionary<string, int>(16, StringComparer.Ordinal);
+        topLevelLexicalDeclarationPositionByName = Vm.RentCompileDictionary<string, int>(
+            16,
+            StringComparer.Ordinal
+        );
         switchLexicalInternalNames = Vm.RentCompileHashSet<int>(16);
         generatorResumeTargetPcBySuspendId = Vm.RentCompileList<int>(8);
         suspendPinnedRegisterRefCounts = Vm.RentCompileDictionary<int, int>(8);
@@ -258,15 +272,19 @@ public sealed partial class JsCompiler : IDisposable
             builder.SetSourceText(sourceCode.Source);
     }
 
-    private JsCompiler(JsCompiler parent, JsBytecodeFunctionKind functionKind = 0,
-        bool isArrowFunction = false, bool requiresArgumentsObject = false,
+    private JsCompiler(
+        JsCompiler parent,
+        JsBytecodeFunctionKind functionKind = 0,
+        bool isArrowFunction = false,
+        bool requiresArgumentsObject = false,
         bool isDerivedConstructor = false,
         bool emitImplicitSuperForwardAll = false,
         bool hasSuperReference = false,
         bool useMethodEnvironmentCapture = false,
         bool forceModuleFunctionContext = false,
         CompilerIdentifierName? classLexicalNameForMethodResolution = null,
-        IReadOnlyDictionary<string, PrivateFieldBinding>? classPrivateNameToBinding = null)
+        IReadOnlyDictionary<string, PrivateFieldBinding>? classPrivateNameToBinding = null
+    )
         : this(
             parent.Vm,
             parent,
@@ -282,7 +300,8 @@ public sealed partial class JsCompiler : IDisposable
             useMethodEnvironmentCapture,
             classLexicalNameForMethodResolution,
             classPrivateNameToBinding,
-            parent.sourceCode)
+            parent.sourceCode
+        )
     {
         identifierTable = parent.identifierTable;
     }
@@ -293,9 +312,9 @@ public sealed partial class JsCompiler : IDisposable
     public JsRealm Vm { get; }
 
     private bool CanReturnNormally =>
-        activeForAwaitLoops.Count == 0 &&
-        activeFinallyFlow.Count == 0 &&
-        activeForOfIteratorLoops.Count == 0;
+        activeForAwaitLoops.Count == 0
+        && activeFinallyFlow.Count == 0
+        && activeForOfIteratorLoops.Count == 0;
 
     public void Dispose()
     {
@@ -343,7 +362,10 @@ public sealed partial class JsCompiler : IDisposable
         while (activeBlockLexicalAliases.Count != 0)
         {
             var aliasScope = activeBlockLexicalAliases.Pop();
-            if (aliasScope.OwnsBindings && aliasScope.Bindings is List<BlockLexicalBinding> ownedBindings)
+            if (
+                aliasScope.OwnsBindings
+                && aliasScope.Bindings is List<BlockLexicalBinding> ownedBindings
+            )
                 Vm.ReturnCompileList(ownedBindings);
         }
 
@@ -398,7 +420,11 @@ public sealed partial class JsCompiler : IDisposable
         return compiler.Compile(program);
     }
 
-    public static JsScript Compile(JsRealm realm, JsProgram program, JsCompilerContext compileContext)
+    public static JsScript Compile(
+        JsRealm realm,
+        JsProgram program,
+        JsCompilerContext compileContext
+    )
     {
         ArgumentNullException.ThrowIfNull(realm);
         ArgumentNullException.ThrowIfNull(program);
@@ -412,7 +438,8 @@ public sealed partial class JsCompiler : IDisposable
         JsRealm realm,
         JsProgram program,
         JsCompilerContext compileContext,
-        JsBytecodeFunctionKind topLevelFunctionKind)
+        JsBytecodeFunctionKind topLevelFunctionKind
+    )
     {
         ArgumentNullException.ThrowIfNull(realm);
         ArgumentNullException.ThrowIfNull(program);
@@ -438,7 +465,7 @@ public sealed partial class JsCompiler : IDisposable
         var script = CompileStatements(program.Statements) with
         {
             SourcePath = program.SourcePath,
-            SourceCode = sourceCode
+            SourceCode = sourceCode,
         };
         script.BindAgent(Vm.Agent);
         return script;
@@ -447,7 +474,8 @@ public sealed partial class JsCompiler : IDisposable
     public static JsCompiler CreateForModuleExecution(
         JsRealm realm,
         IReadOnlyDictionary<string, ModuleVariableBinding>? moduleVariableBindings,
-        bool forceModuleFunctionContext = true)
+        bool forceModuleFunctionContext = true
+    )
     {
         return new(realm, moduleVariableBindings, forceModuleFunctionContext);
     }
@@ -460,7 +488,8 @@ public sealed partial class JsCompiler : IDisposable
         bool isImplicitlyStrict = false,
         bool isClassConstructor = false,
         bool isDerivedConstructor = false,
-        bool emitImplicitSuperForwardAll = false)
+        bool emitImplicitSuperForwardAll = false
+    )
     {
         return new(
             GetFunctionKind(isGenerator, isAsync),
@@ -469,27 +498,40 @@ public sealed partial class JsCompiler : IDisposable
             isImplicitlyStrict,
             isClassConstructor,
             isDerivedConstructor,
-            emitImplicitSuperForwardAll);
+            emitImplicitSuperForwardAll
+        );
     }
 
     private void HoistFunction(JsFunctionDeclaration f)
     {
         var funcObj = CompileHoistedFunctionTemplate(f);
-        if (funcObj.RequiresClosureBinding) requiresClosureBinding = true;
+        if (funcObj.RequiresClosureBinding)
+            requiresClosureBinding = true;
         var idx = builder.AddObjectConstant(funcObj);
         EmitCreateClosureByIndex(idx);
         EmitInheritCurrentFunctionPrivateBrandStateIfNeeded();
         var hasResolvedLocalTarget =
-            TryGetResolvedAliasSymbolId(new CompilerIdentifierName(f.Name, f.NameId), out var resolvedSymbolId,
-                out _) &&
-            (HasLocalBinding(resolvedSymbolId) || TryGetCurrentContextSlot(resolvedSymbolId, out _));
-        if (!hasResolvedLocalTarget &&
-            UsesGlobalScriptBindingsMode() &&
-            !HasLocalBinding(f.Name) &&
-            !TryGetCurrentContextSlot(f.Name, out _))
+            TryGetResolvedAliasSymbolId(
+                new CompilerIdentifierName(f.Name, f.NameId),
+                out var resolvedSymbolId,
+                out _
+            )
+            && (
+                HasLocalBinding(resolvedSymbolId)
+                || TryGetCurrentContextSlot(resolvedSymbolId, out _)
+            );
+        if (
+            !hasResolvedLocalTarget
+            && UsesGlobalScriptBindingsMode()
+            && !HasLocalBinding(f.Name)
+            && !TryGetCurrentContextSlot(f.Name, out _)
+        )
         {
             var nameIdx = builder.AddAtomizedStringConstant(f.Name);
-            EmitStaGlobalFunctionDeclarationByIndex(nameIdx, builder.GetOrAllocateGlobalBindingFeedbackSlot(f.Name));
+            EmitStaGlobalFunctionDeclarationByIndex(
+                nameIdx,
+                builder.GetOrAllocateGlobalBindingFeedbackSlot(f.Name)
+            );
             return;
         }
 
@@ -512,14 +554,21 @@ public sealed partial class JsCompiler : IDisposable
         IReadOnlyList<PrivateMethodInitPlan>? privateMethodInitializers = null,
         IReadOnlyList<InstanceFieldInitializerPlan>? instanceFieldInitializers = null,
         IReadOnlyList<PublicFieldInitPlan>? publicFieldInitializers = null,
-        bool forceHasSuperReference = false)
+        bool forceHasSuperReference = false
+    )
     {
         var parameters = parameterPlan.Names;
         var parameterInitializers = parameterPlan.Initializers;
-        var effectivePrivateNameToBinding = classPrivateNameToBinding ?? GetVisiblePrivateNameBindings();
-        var requiresArgumentsObject =
-            ShouldCreateArgumentsObjectForFunction(parameters, parameterInitializers, body, functionShape.IsArrow);
-        var hasSuperReference = forceHasSuperReference || FunctionUsesSuper(parameterInitializers, body);
+        var effectivePrivateNameToBinding =
+            classPrivateNameToBinding ?? GetVisiblePrivateNameBindings();
+        var requiresArgumentsObject = ShouldCreateArgumentsObjectForFunction(
+            parameters,
+            parameterInitializers,
+            body,
+            functionShape.IsArrow
+        );
+        var hasSuperReference =
+            forceHasSuperReference || FunctionUsesSuper(parameterInitializers, body);
         var needsMethodEnvironmentForNestedArrowSuper =
             !functionShape.IsArrow && FunctionUsesSuperInNestedArrows(parameterInitializers, body);
         var effectiveUseMethodEnvironmentCapture =
@@ -539,17 +588,28 @@ public sealed partial class JsCompiler : IDisposable
             useMethodEnvironmentCapture: effectiveUseMethodEnvironmentCapture,
             hasSuperReference: hasSuperReference,
             classLexicalNameForMethodResolution: classLexicalNameForMethodResolution,
-            classPrivateNameToBinding: effectivePrivateNameToBinding);
+            classPrivateNameToBinding: effectivePrivateNameToBinding
+        );
         if (activeBlockLexicalAliases.Count != 0)
         {
             var aliasScopes = activeBlockLexicalAliases.ToArray();
             for (var i = aliasScopes.Length - 1; i >= 0; i--)
                 funcCompiler.activeBlockLexicalAliases.Push(
-                    aliasScopes[i] with { OwnsBindings = false, Inherited = true });
+                    aliasScopes[i] with
+                    {
+                        OwnsBindings = false,
+                        Inherited = true,
+                    }
+                );
         }
 
-        if (functionShape.IsArrow &&
-            funcCompiler.TryResolveDerivedThisContextAccess(out var lexicalThisSlot, out var lexicalThisDepth))
+        if (
+            functionShape.IsArrow
+            && funcCompiler.TryResolveDerivedThisContextAccess(
+                out var lexicalThisSlot,
+                out var lexicalThisDepth
+            )
+        )
         {
             funcCompiler.lexicalThisContextSlot = lexicalThisSlot;
             funcCompiler.lexicalThisContextDepth = lexicalThisDepth;
@@ -570,19 +630,21 @@ public sealed partial class JsCompiler : IDisposable
             for (var i = 0; i < binding.BoundIdentifiers.Count; i++)
             {
                 var boundIdentifier = binding.BoundIdentifiers[i];
-                funcCompiler.GetOrCreateLocal(new CompilerIdentifierName(boundIdentifier.Name, boundIdentifier.NameId));
+                funcCompiler.GetOrCreateLocal(
+                    new CompilerIdentifierName(boundIdentifier.Name, boundIdentifier.NameId)
+                );
             }
         }
 
         var initializeSelf = immutableSelfBinding && !string.IsNullOrEmpty(name);
-        var selfBindingInternalName = initializeSelf
-            ? $"{name}#nfe{sourceStartPosition}"
-            : null;
+        var selfBindingInternalName = initializeSelf ? $"{name}#nfe{sourceStartPosition}" : null;
         if (initializeSelf && selfBindingInternalName is not null)
             funcCompiler.PushInheritedAliasScope(new(name!), selfBindingInternalName);
         var effectiveStrictDeclared =
-            strictDeclared || body.StrictDeclared || functionShape.IsImplicitlyStrict ||
-            functionShape.IsClassConstructor;
+            strictDeclared
+            || body.StrictDeclared
+            || functionShape.IsImplicitlyStrict
+            || functionShape.IsClassConstructor;
         funcCompiler.strictDeclared = effectiveStrictDeclared;
         funcCompiler.builder.SetStrictDeclared(effectiveStrictDeclared);
         JsScript script;
@@ -591,7 +653,8 @@ public sealed partial class JsCompiler : IDisposable
             script = funcCompiler.CompileStatementsCore(
                 body.Statements,
                 initializeSelf ? selfBindingInternalName : null,
-                parameterPlan);
+                parameterPlan
+            );
         }
         finally
         {
@@ -599,20 +662,33 @@ public sealed partial class JsCompiler : IDisposable
                 funcCompiler.PopAliasScope();
         }
 
-        var functionSourceText = TryGetFunctionSourceText(sourceStartPosition,
-            sourceEndPosition >= 0 ? sourceEndPosition : body.EndPosition);
-        var function = new JsBytecodeFunction(Vm, script with { FunctionSourceText = functionSourceText },
-            name ?? "", funcCompiler.requiresClosureBinding,
+        var functionSourceText = TryGetFunctionSourceText(
+            sourceStartPosition,
+            sourceEndPosition >= 0 ? sourceEndPosition : body.EndPosition
+        );
+        var function = new JsBytecodeFunction(
+            Vm,
+            script with
+            {
+                FunctionSourceText = functionSourceText,
+            },
+            name ?? "",
+            funcCompiler.requiresClosureBinding,
             effectiveStrictDeclared,
-            hasNewTarget: funcCompiler.compiledFunctionHasNewTarget, kind: functionShape.Kind,
-            isArrow: functionShape.IsArrow, isMethod: functionShape.IsMethod,
-            formalParameterCount: parameters.Count, hasSimpleParameterList: parameterPlan.HasSimpleParameterList,
+            hasNewTarget: funcCompiler.compiledFunctionHasNewTarget,
+            kind: functionShape.Kind,
+            isArrow: functionShape.IsArrow,
+            isMethod: functionShape.IsMethod,
+            formalParameterCount: parameters.Count,
+            hasSimpleParameterList: parameterPlan.HasSimpleParameterList,
             isClassConstructor: functionShape.IsClassConstructor,
             isDerivedConstructor: functionShape.IsDerivedConstructor,
-            hasEagerGeneratorParameterBinding: funcCompiler.functionHasParameterExpressions &&
-                                               functionShape.Kind is JsBytecodeFunctionKind.Generator
-                                                   or JsBytecodeFunctionKind.AsyncGenerator,
-            expectedArgumentCount: parameterPlan.FunctionLength);
+            hasEagerGeneratorParameterBinding: funcCompiler.functionHasParameterExpressions
+                && functionShape.Kind
+                    is JsBytecodeFunctionKind.Generator
+                        or JsBytecodeFunctionKind.AsyncGenerator,
+            expectedArgumentCount: parameterPlan.FunctionLength
+        );
         function.SuperBaseContextSlot = funcCompiler.superBaseContextSlot;
         function.DerivedThisContextSlot = funcCompiler.derivedThisContextSlot;
         function.LexicalThisContextSlot = funcCompiler.lexicalThisContextSlot;
@@ -628,19 +704,26 @@ public sealed partial class JsCompiler : IDisposable
         string? selfName = null,
         IReadOnlyList<string>? parameterNames = null,
         IReadOnlyList<JsExpression?>? parameterInitializers = null,
-        int restParameterIndex = -1)
+        int restParameterIndex = -1
+    )
     {
-        var parameterPlan = parameterNames is null || parameterInitializers is null
-            ? null
-            : FunctionParameterPlan.FromCompilerInputs(parameterNames, null, parameterInitializers,
-                restParameterIndex);
+        var parameterPlan =
+            parameterNames is null || parameterInitializers is null
+                ? null
+                : FunctionParameterPlan.FromCompilerInputs(
+                    parameterNames,
+                    null,
+                    parameterInitializers,
+                    restParameterIndex
+                );
         return CompileStatementsCore(statements, selfName, parameterPlan);
     }
 
     private JsScript CompileStatementsCore(
         IEnumerable<JsStatement> statements,
         string? selfName,
-        FunctionParameterPlan? parameterPlan = null)
+        FunctionParameterPlan? parameterPlan = null
+    )
     {
         cachedNewTargetRegister = -1;
         compiledFunctionHasNewTarget = false;
@@ -666,8 +749,11 @@ public sealed partial class JsCompiler : IDisposable
             }
 
         functionHasParameterExpressions =
-            currentFunctionParameterPlan is not null &&
-            (currentFunctionParameterPlan.HasInitializers || currentFunctionParameterPlan.HasPatternBindings);
+            currentFunctionParameterPlan is not null
+            && (
+                currentFunctionParameterPlan.HasInitializers
+                || currentFunctionParameterPlan.HasPatternBindings
+            );
         emittingParameterInitializers = false;
         ClearInitializedParameterBindings();
         hasEmittedDeferredInstanceInitializers = false;
@@ -715,7 +801,12 @@ public sealed partial class JsCompiler : IDisposable
             var argumentsReg = EnsureSyntheticArgumentsRegister();
             EmitRaw(JsOpCode.CreateMappedArguments);
             EmitStarRegister(argumentsReg);
-            if (currentContextSlotById.TryGetValue(SyntheticArgumentsSymbolId, out var argumentsSlot))
+            if (
+                currentContextSlotById.TryGetValue(
+                    SyntheticArgumentsSymbolId,
+                    out var argumentsSlot
+                )
+            )
             {
                 EmitLdaRegister(argumentsReg);
                 EmitStaCurrentContextSlot(argumentsSlot);
@@ -736,11 +827,19 @@ public sealed partial class JsCompiler : IDisposable
 
             EmitParameterInitializerAndPatternPrologue();
             EmitHoistedFunctionDeclarations(statementList);
-            if (functionHasParameterExpressions &&
-                functionKind is JsBytecodeFunctionKind.Generator or JsBytecodeFunctionKind.AsyncGenerator)
+            if (
+                functionHasParameterExpressions
+                && functionKind
+                    is JsBytecodeFunctionKind.Generator
+                        or JsBytecodeFunctionKind.AsyncGenerator
+            )
             {
                 EmitLdaUndefined();
-                EmitGeneratorSuspendResume(minimizeLiveRange: true, guaranteedNextOnly: true, isPrestartSuspend: true);
+                EmitGeneratorSuspendResume(
+                    minimizeLiveRange: true,
+                    guaranteedNextOnly: true,
+                    isPrestartSuspend: true
+                );
             }
 
             // Match V8-like lowering shape: materialize lexical new.target register
@@ -754,7 +853,8 @@ public sealed partial class JsCompiler : IDisposable
                 EmitStarRegister(cachedNewTargetRegister);
             }
 
-            if (!isDerivedConstructor && HasPendingInstanceInitializers()) EmitPendingInstanceInitializers();
+            if (!isDerivedConstructor && HasPendingInstanceInitializers())
+                EmitPendingInstanceInitializers();
 
             var trackScriptCompletion =
                 IsTopLevelScriptMode() && !StatementListLeavesDirectCompletionValue(statementList);
@@ -780,7 +880,10 @@ public sealed partial class JsCompiler : IDisposable
                     {
                         lastReachableStatement = statement;
                         VisitStatement(statement, bodyStatementResultsUsed);
-                        if (StatementAlwaysReturns(statement) || StatementNeverCompletesNormally(statement))
+                        if (
+                            StatementAlwaysReturns(statement)
+                            || StatementNeverCompletesNormally(statement)
+                        )
                         {
                             alwaysReturns = true;
                             break;
@@ -789,13 +892,17 @@ public sealed partial class JsCompiler : IDisposable
                 }
 
                 if (BlockNeedsExplicitResourceScope(statementList))
-                    EmitExplicitResourceScope(EmitBodyStatementList, BlockNeedsAsyncExplicitResourceScope(statementList));
+                    EmitExplicitResourceScope(
+                        EmitBodyStatementList,
+                        BlockNeedsAsyncExplicitResourceScope(statementList)
+                    );
                 else
                     EmitBodyStatementList();
             }
             finally
             {
-                if (trackScriptCompletion) PopStatementCompletionState();
+                if (trackScriptCompletion)
+                    PopStatementCompletionState();
             }
 
             EmitModuleLocalLiveExportEpilogue();
@@ -803,9 +910,15 @@ public sealed partial class JsCompiler : IDisposable
             {
                 if (trackScriptCompletion)
                     EmitLoadRegisterOrUndefinedIfHole(scriptCompletionReg);
-                else if ((parent is not null || moduleVariableBindings is not null) &&
-                         (lastReachableStatement is null ||
-                          !StatementLeavesKnownUndefinedValueInCurrentContext(lastReachableStatement)))
+                else if (
+                    (parent is not null || moduleVariableBindings is not null)
+                    && (
+                        lastReachableStatement is null
+                        || !StatementLeavesKnownUndefinedValueInCurrentContext(
+                            lastReachableStatement
+                        )
+                    )
+                )
                     EmitLdaUndefined();
                 EmitRaw(JsOpCode.Return);
             }
@@ -828,9 +941,15 @@ public sealed partial class JsCompiler : IDisposable
         {
             SourcePath = CurrentSourcePath,
             SourceCode = sourceCode,
-            TopLevelLexicalAtoms = compiledTopLevelLexicalBindings?.Select(static entry => entry.Atom).ToArray(),
-            TopLevelLexicalSlots = compiledTopLevelLexicalBindings?.Select(static entry => entry.Slot).ToArray(),
-            TopLevelLexicalConstFlags = compiledTopLevelLexicalBindings?.Select(static entry => entry.IsConst).ToArray()
+            TopLevelLexicalAtoms = compiledTopLevelLexicalBindings
+                ?.Select(static entry => entry.Atom)
+                .ToArray(),
+            TopLevelLexicalSlots = compiledTopLevelLexicalBindings
+                ?.Select(static entry => entry.Slot)
+                .ToArray(),
+            TopLevelLexicalConstFlags = compiledTopLevelLexicalBindings
+                ?.Select(static entry => entry.IsConst)
+                .ToArray(),
         };
     }
 
@@ -891,7 +1010,10 @@ public sealed partial class JsCompiler : IDisposable
         return brandIds;
     }
 
-    private bool TryResolvePrivateMemberBinding(JsMemberExpression member, out PrivateFieldBinding binding)
+    private bool TryResolvePrivateMemberBinding(
+        JsMemberExpression member,
+        out PrivateFieldBinding binding
+    )
     {
         binding = default;
         if (!member.IsPrivate || member.IsComputed)
@@ -899,22 +1021,32 @@ public sealed partial class JsCompiler : IDisposable
         if (member.Property is not JsLiteralExpression { Value: string sourcePrivateName })
             return false;
         var visiblePrivateBindings = GetVisiblePrivateNameBindings();
-        if (visiblePrivateBindings is null ||
-            !visiblePrivateBindings.TryGetValue(sourcePrivateName, out var resolvedBinding))
-            throw new NotSupportedException($"Private name '{sourcePrivateName}' is not declared in this class scope.");
+        if (
+            visiblePrivateBindings is null
+            || !visiblePrivateBindings.TryGetValue(sourcePrivateName, out var resolvedBinding)
+        )
+            throw new NotSupportedException(
+                $"Private name '{sourcePrivateName}' is not declared in this class scope."
+            );
 
         binding = resolvedBinding;
         return true;
     }
 
-    private bool TryResolvePrivateIdentifierBinding(JsPrivateIdentifierExpression identifier,
-        out PrivateFieldBinding binding)
+    private bool TryResolvePrivateIdentifierBinding(
+        JsPrivateIdentifierExpression identifier,
+        out PrivateFieldBinding binding
+    )
     {
         binding = default;
         var visiblePrivateBindings = GetVisiblePrivateNameBindings();
-        if (visiblePrivateBindings is null ||
-            !visiblePrivateBindings.TryGetValue(identifier.Name, out var resolvedBinding))
-            throw new NotSupportedException($"Private name '{identifier.Name}' is not declared in this class scope.");
+        if (
+            visiblePrivateBindings is null
+            || !visiblePrivateBindings.TryGetValue(identifier.Name, out var resolvedBinding)
+        )
+            throw new NotSupportedException(
+                $"Private name '{identifier.Name}' is not declared in this class scope."
+            );
 
         binding = resolvedBinding;
         return true;
@@ -934,8 +1066,13 @@ public sealed partial class JsCompiler : IDisposable
             else
                 EmitLdaUndefined();
             EmitStarRegister(valueReg);
-            EmitPrivateFieldOp(JsOpCode.InitPrivateField, objReg, valueReg, initPlan.Binding.BrandId,
-                initPlan.Binding.SlotIndex);
+            EmitPrivateFieldOp(
+                JsOpCode.InitPrivateField,
+                objReg,
+                valueReg,
+                initPlan.Binding.BrandId,
+                initPlan.Binding.SlotIndex
+            );
         }
         finally
         {
@@ -943,8 +1080,12 @@ public sealed partial class JsCompiler : IDisposable
         }
     }
 
-    private void EmitPrivateFieldInitializerOnTarget(int targetReg, in PrivateFieldBinding binding,
-        JsExpression? initializer, string? sourceName = null)
+    private void EmitPrivateFieldInitializerOnTarget(
+        int targetReg,
+        in PrivateFieldBinding binding,
+        JsExpression? initializer,
+        string? sourceName = null
+    )
     {
         var tempScope = BeginTemporaryRegisterScope();
         try
@@ -955,7 +1096,13 @@ public sealed partial class JsCompiler : IDisposable
             else
                 EmitLdaUndefined();
             EmitStarRegister(valueReg);
-            EmitPrivateFieldOp(JsOpCode.InitPrivateField, targetReg, valueReg, binding.BrandId, binding.SlotIndex);
+            EmitPrivateFieldOp(
+                JsOpCode.InitPrivateField,
+                targetReg,
+                valueReg,
+                binding.BrandId,
+                binding.SlotIndex
+            );
         }
         finally
         {
@@ -985,16 +1132,22 @@ public sealed partial class JsCompiler : IDisposable
                         initPlan.Getter.IsGenerator,
                         initPlan.Getter.IsAsync,
                         initPlan.Getter.IsArrow,
-                        true),
+                        true
+                    ),
                     sourceStartPosition: initPlan.Getter.Position,
                     useMethodEnvironmentCapture: true,
-                    classPrivateNameToBinding: classPrivateNameToBinding);
+                    classPrivateNameToBinding: classPrivateNameToBinding
+                );
                 if (getterObj.RequiresClosureBinding)
                     requiresClosureBinding = true;
                 var currentFunctionReg = AllocateTemporaryRegister();
                 builder.EmitLda(JsOpCode.LdaCurrentFunction);
                 EmitStarRegister(currentFunctionReg);
-                EmitCreateClosureForMethodWithEnvironment(getterObj, objReg, privateBrandSourceReg: currentFunctionReg);
+                EmitCreateClosureForMethodWithEnvironment(
+                    getterObj,
+                    objReg,
+                    privateBrandSourceReg: currentFunctionReg
+                );
             }
             else
             {
@@ -1014,16 +1167,22 @@ public sealed partial class JsCompiler : IDisposable
                         initPlan.Setter.IsGenerator,
                         initPlan.Setter.IsAsync,
                         initPlan.Setter.IsArrow,
-                        true),
+                        true
+                    ),
                     sourceStartPosition: initPlan.Setter.Position,
                     useMethodEnvironmentCapture: true,
-                    classPrivateNameToBinding: classPrivateNameToBinding);
+                    classPrivateNameToBinding: classPrivateNameToBinding
+                );
                 if (setterObj.RequiresClosureBinding)
                     requiresClosureBinding = true;
                 var currentFunctionReg = AllocateTemporaryRegister();
                 builder.EmitLda(JsOpCode.LdaCurrentFunction);
                 EmitStarRegister(currentFunctionReg);
-                EmitCreateClosureForMethodWithEnvironment(setterObj, objReg, privateBrandSourceReg: currentFunctionReg);
+                EmitCreateClosureForMethodWithEnvironment(
+                    setterObj,
+                    objReg,
+                    privateBrandSourceReg: currentFunctionReg
+                );
             }
             else
             {
@@ -1032,8 +1191,13 @@ public sealed partial class JsCompiler : IDisposable
 
             EmitStarRegister(setterReg);
 
-            EmitPrivateAccessorInitOp(objReg, getterReg, setterReg, initPlan.Binding.BrandId,
-                initPlan.Binding.SlotIndex);
+            EmitPrivateAccessorInitOp(
+                objReg,
+                getterReg,
+                setterReg,
+                initPlan.Binding.BrandId,
+                initPlan.Binding.SlotIndex
+            );
         }
         finally
         {
@@ -1053,7 +1217,12 @@ public sealed partial class JsCompiler : IDisposable
             EmitLoadCurrentFunctionPrivateMethodValue(initPlan.Binding.SlotIndex);
             EmitStarRegister(methodReg);
 
-            EmitPrivateMethodInitOp(objReg, methodReg, initPlan.Binding.BrandId, initPlan.Binding.SlotIndex);
+            EmitPrivateMethodInitOp(
+                objReg,
+                methodReg,
+                initPlan.Binding.BrandId,
+                initPlan.Binding.SlotIndex
+            );
         }
         finally
         {
@@ -1068,7 +1237,8 @@ public sealed partial class JsCompiler : IDisposable
         JsFunctionExpression functionExpr,
         IReadOnlyList<int>? inheritedPrivateBrandIds = null,
         int inheritedPrivateBrandSourceReg = -1,
-        IReadOnlyList<PrivateBrandSourceMapping>? explicitPrivateBrandMappings = null)
+        IReadOnlyList<PrivateBrandSourceMapping>? explicitPrivateBrandMappings = null
+    )
     {
         var parameterPlan = FunctionParameterPlan.FromFunction(functionExpr);
         var methodObj = CompileFunctionObject(
@@ -1079,20 +1249,26 @@ public sealed partial class JsCompiler : IDisposable
                 functionExpr.IsGenerator,
                 functionExpr.IsAsync,
                 functionExpr.IsArrow,
-                true),
+                true
+            ),
             sourceStartPosition: functionExpr.Position,
             useMethodEnvironmentCapture: true,
-            classPrivateNameToBinding: classPrivateNameToBinding);
+            classPrivateNameToBinding: classPrivateNameToBinding
+        );
         if (methodObj.RequiresClosureBinding)
             requiresClosureBinding = true;
 
         var tempScope = BeginTemporaryRegisterScope();
         try
         {
-            EmitCreateClosureForMethodWithEnvironment(methodObj, targetReg, privateBrandSourceReg: targetReg,
+            EmitCreateClosureForMethodWithEnvironment(
+                methodObj,
+                targetReg,
+                privateBrandSourceReg: targetReg,
                 inheritedPrivateBrandIds: inheritedPrivateBrandIds,
                 inheritedPrivateBrandSourceReg: inheritedPrivateBrandSourceReg,
-                explicitPrivateBrandMappings: explicitPrivateBrandMappings);
+                explicitPrivateBrandMappings: explicitPrivateBrandMappings
+            );
             var methodReg = AllocateTemporaryRegister();
             EmitStarRegister(methodReg);
 
@@ -1111,7 +1287,8 @@ public sealed partial class JsCompiler : IDisposable
         JsBytecodeFunction? setterObj,
         IReadOnlyList<int>? inheritedPrivateBrandIds = null,
         int inheritedPrivateBrandSourceReg = -1,
-        IReadOnlyList<PrivateBrandSourceMapping>? explicitPrivateBrandMappings = null)
+        IReadOnlyList<PrivateBrandSourceMapping>? explicitPrivateBrandMappings = null
+    )
     {
         var tempScope = BeginTemporaryRegisterScope();
         try
@@ -1119,26 +1296,40 @@ public sealed partial class JsCompiler : IDisposable
             var getterReg = AllocateTemporaryRegisterBlock(2);
             var setterReg = getterReg + 1;
             if (getterObj is not null)
-                EmitCreateClosureForMethodWithEnvironment(getterObj, targetReg, privateBrandSourceReg: targetReg,
+                EmitCreateClosureForMethodWithEnvironment(
+                    getterObj,
+                    targetReg,
+                    privateBrandSourceReg: targetReg,
                     inheritedPrivateBrandIds: inheritedPrivateBrandIds,
                     inheritedPrivateBrandSourceReg: inheritedPrivateBrandSourceReg,
-                    explicitPrivateBrandMappings: explicitPrivateBrandMappings);
+                    explicitPrivateBrandMappings: explicitPrivateBrandMappings
+                );
             else
                 EmitLdaUndefined();
 
             EmitStarRegister(getterReg);
 
             if (setterObj is not null)
-                EmitCreateClosureForMethodWithEnvironment(setterObj, targetReg, privateBrandSourceReg: targetReg,
+                EmitCreateClosureForMethodWithEnvironment(
+                    setterObj,
+                    targetReg,
+                    privateBrandSourceReg: targetReg,
                     inheritedPrivateBrandIds: inheritedPrivateBrandIds,
                     inheritedPrivateBrandSourceReg: inheritedPrivateBrandSourceReg,
-                    explicitPrivateBrandMappings: explicitPrivateBrandMappings);
+                    explicitPrivateBrandMappings: explicitPrivateBrandMappings
+                );
             else
                 EmitLdaUndefined();
 
             EmitStarRegister(setterReg);
 
-            EmitPrivateAccessorInitOp(targetReg, getterReg, setterReg, binding.BrandId, binding.SlotIndex);
+            EmitPrivateAccessorInitOp(
+                targetReg,
+                getterReg,
+                setterReg,
+                binding.BrandId,
+                binding.SlotIndex
+            );
         }
         finally
         {
@@ -1157,7 +1348,10 @@ public sealed partial class JsCompiler : IDisposable
             builder.EmitLda(JsOpCode.LdaThis);
             EmitStarRegister(targetReg);
             if (initPlan.Element.FieldInitializer is not null)
-                VisitExpressionWithInferredName(initPlan.Element.FieldInitializer, initPlan.SourceName);
+                VisitExpressionWithInferredName(
+                    initPlan.Element.FieldInitializer,
+                    initPlan.SourceName
+                );
             else
                 EmitLdaUndefined();
             EmitStarRegister(valueReg);
@@ -1187,11 +1381,14 @@ public sealed partial class JsCompiler : IDisposable
             JsFunctionExpression { Name: null } => true,
             JsClassExpression { Name: null, Elements: var classElements } =>
                 ShouldInferAnonymousClassName(classElements),
-            _ => false
+            _ => false,
         };
     }
 
-    private static JsExpression ApplyInferredNameIfNeeded(JsExpression expression, string? inferredName)
+    private static JsExpression ApplyInferredNameIfNeeded(
+        JsExpression expression,
+        string? inferredName
+    )
     {
         if (string.IsNullOrEmpty(inferredName) || !ShouldAssignAnonymousFunctionName(expression))
             return expression;
@@ -1233,30 +1430,32 @@ public sealed partial class JsCompiler : IDisposable
                 hasDuplicateParameters,
                 restParameterIndex,
                 -1,
-                parameterIds),
-            JsClassExpression { Name: null } classExpr when ShouldInferAnonymousClassName(classExpr.Elements) => new
-                JsClassExpression(
-                    inferredName,
-                    classExpr.Elements,
-                    classExpr.Decorators,
-                    classExpr.HasExtends,
-                    classExpr.ExtendsExpression,
-                    classExpr.NameId)
+                parameterIds
+            ),
+            JsClassExpression { Name: null } classExpr
+                when ShouldInferAnonymousClassName(classExpr.Elements) => new JsClassExpression(
+                inferredName,
+                classExpr.Elements,
+                classExpr.Decorators,
+                classExpr.HasExtends,
+                classExpr.ExtendsExpression,
+                classExpr.NameId
+            )
             {
                 Position = classExpr.Position,
-                EndPosition = classExpr.EndPosition
+                EndPosition = classExpr.EndPosition,
             },
-            _ => expression
+            _ => expression,
         };
     }
 
     private bool HasPendingInstanceInitializers()
     {
-        return pendingPrivateFieldInitializers is { Count: > 0 } ||
-               pendingPrivateAccessorInitializers is { Count: > 0 } ||
-               pendingPrivateMethodInitializers is { Count: > 0 } ||
-               pendingInstanceFieldInitializers is { Count: > 0 } ||
-               pendingPublicFieldInitializers is { Count: > 0 };
+        return pendingPrivateFieldInitializers is { Count: > 0 }
+            || pendingPrivateAccessorInitializers is { Count: > 0 }
+            || pendingPrivateMethodInitializers is { Count: > 0 }
+            || pendingInstanceFieldInitializers is { Count: > 0 }
+            || pendingPublicFieldInitializers is { Count: > 0 };
     }
 
     private void EmitPendingInstanceInitializers()
@@ -1292,15 +1491,14 @@ public sealed partial class JsCompiler : IDisposable
                 EmitPrivateAccessorInitializer(pendingPrivateAccessorInitializers[i]);
     }
 
-
     private static long PackPrivateBrandSlotKey(int brandId, int slotIndex)
     {
         return ((long)brandId << 32) | (uint)slotIndex;
     }
 
-
     private void RegisterPrivateFieldDebugNamesForFunction(
-        IReadOnlyDictionary<string, PrivateFieldBinding>? classPrivateNameToBinding)
+        IReadOnlyDictionary<string, PrivateFieldBinding>? classPrivateNameToBinding
+    )
     {
         if (classPrivateNameToBinding is null || classPrivateNameToBinding.Count == 0)
             return;
@@ -1308,7 +1506,10 @@ public sealed partial class JsCompiler : IDisposable
         foreach (var entry in classPrivateNameToBinding)
         {
             var binding = entry.Value;
-            builder.AddPrivateFieldDebugName(PackPrivateBrandSlotKey(binding.BrandId, binding.SlotIndex), entry.Key);
+            builder.AddPrivateFieldDebugName(
+                PackPrivateBrandSlotKey(binding.BrandId, binding.SlotIndex),
+                entry.Key
+            );
         }
     }
 
@@ -1336,8 +1537,10 @@ public sealed partial class JsCompiler : IDisposable
             {
                 var binding = parameterPlan.Bindings[i];
                 var parameterName = binding.Name;
-                _ = TryResolveLocalBinding(new CompilerIdentifierName(parameterName, binding.NameId),
-                    out var resolvedParameter);
+                _ = TryResolveLocalBinding(
+                    new CompilerIdentifierName(parameterName, binding.NameId),
+                    out var resolvedParameter
+                );
                 var initializer = binding.Initializer;
                 if (initializer is null)
                 {
@@ -1346,7 +1549,9 @@ public sealed partial class JsCompiler : IDisposable
                 }
 
                 if (!TryGetLocalRegister(resolvedParameter.SymbolId, out var parameterReg))
-                    parameterReg = GetOrCreateLocal(new CompilerIdentifierName(parameterName, binding.NameId));
+                    parameterReg = GetOrCreateLocal(
+                        new CompilerIdentifierName(parameterName, binding.NameId)
+                    );
 
                 var doneLabel = builder.CreateLabel();
                 EmitLdaRegister(parameterReg);
@@ -1363,15 +1568,20 @@ public sealed partial class JsCompiler : IDisposable
                 if (binding.Pattern is null)
                     continue;
 
-                VisitExpression(new JsAssignmentExpression(
-                    JsAssignmentOperator.Assign,
-                    binding.Pattern,
-                    new JsIdentifierExpression(binding.Name, binding.NameId)));
+                VisitExpression(
+                    new JsAssignmentExpression(
+                        JsAssignmentOperator.Assign,
+                        binding.Pattern,
+                        new JsIdentifierExpression(binding.Name, binding.NameId)
+                    )
+                );
                 for (var j = 0; j < binding.BoundIdentifiers.Count; j++)
                 {
                     var boundIdentifier = binding.BoundIdentifiers[j];
-                    _ = TryResolveLocalBinding(new CompilerIdentifierName(boundIdentifier.Name, boundIdentifier.NameId),
-                        out var resolvedBound);
+                    _ = TryResolveLocalBinding(
+                        new CompilerIdentifierName(boundIdentifier.Name, boundIdentifier.NameId),
+                        out var resolvedBound
+                    );
                     MarkInitializedParameterBinding(resolvedBound.SymbolId);
                 }
             }
@@ -1436,7 +1646,10 @@ public sealed partial class JsCompiler : IDisposable
         }
     }
 
-    private void EmitWhileStatement(JsWhileStatement whileStmt, IReadOnlyList<string>? labels = null)
+    private void EmitWhileStatement(
+        JsWhileStatement whileStmt,
+        IReadOnlyList<string>? labels = null
+    )
     {
         var perIterationSlots = TryCollectDirectLoopBodyPerIterationContextSlots(whileStmt.Body);
         var needsPerIterationContext = perIterationSlots is not null;
@@ -1488,7 +1701,10 @@ public sealed partial class JsCompiler : IDisposable
         EmitLoadLoopCompletionValue(completionReg);
     }
 
-    private void EmitDoWhileStatement(JsDoWhileStatement doWhileStmt, IReadOnlyList<string>? labels = null)
+    private void EmitDoWhileStatement(
+        JsDoWhileStatement doWhileStmt,
+        IReadOnlyList<string>? labels = null
+    )
     {
         var perIterationSlots = TryCollectDirectLoopBodyPerIterationContextSlots(doWhileStmt.Body);
         var needsPerIterationContext = perIterationSlots is not null;
@@ -1557,8 +1773,9 @@ public sealed partial class JsCompiler : IDisposable
                 if (TryGetSafeSingleLexicalInitDeclarator(initDecl, out var resolvedInitBinding))
                     knownInitializedLoopLexical = resolvedInitBinding.Name;
                 if (ShouldUsePerIterationContextForForLoop(initDecl))
-                    perIterationSlots =
-                        CollectPerIterationContextSlots(initDecl.Declarators.Select(static d => d.Name));
+                    perIterationSlots = CollectPerIterationContextSlots(
+                        initDecl.Declarators.Select(static d => d.Name)
+                    );
             }
             else if (forStmt.Init is JsExpression initExpr)
             {
@@ -1570,7 +1787,8 @@ public sealed partial class JsCompiler : IDisposable
 
             perIterationSlots = UnionPerIterationContextSlots(
                 perIterationSlots,
-                TryCollectDirectLoopBodyPerIterationContextSlots(forStmt.Body));
+                TryCollectDirectLoopBodyPerIterationContextSlots(forStmt.Body)
+            );
             var needsPerIterationContext = perIterationSlots is not null;
             if (needsPerIterationContext)
             {
@@ -1661,7 +1879,6 @@ public sealed partial class JsCompiler : IDisposable
         StoreIdentifier(restBinding.Name);
     }
 
-
     private bool ShouldUsePerIterationContextForForLoop(JsVariableDeclarationStatement initDecl)
     {
         if (currentContextSlotById.Count == 0)
@@ -1670,8 +1887,10 @@ public sealed partial class JsCompiler : IDisposable
             return false;
 
         foreach (var decl in initDecl.Declarators)
-            if (TryResolveLocalBinding(decl.Name, out var resolved) &&
-                IsCapturedByChildBinding(resolved.SymbolId))
+            if (
+                TryResolveLocalBinding(decl.Name, out var resolved)
+                && IsCapturedByChildBinding(resolved.SymbolId)
+            )
                 return true;
 
         return false;
@@ -1683,7 +1902,10 @@ public sealed partial class JsCompiler : IDisposable
             return null;
         if (loopBody is not JsBlockStatement bodyBlock)
             return null;
-        if (!nestedBlockLexicals.TryGetValue(bodyBlock.Position, out var bindings) || bindings.Count == 0)
+        if (
+            !nestedBlockLexicals.TryGetValue(bodyBlock.Position, out var bindings)
+            || bindings.Count == 0
+        )
             return null;
 
         HashSet<int>? slots = null;
@@ -1702,7 +1924,10 @@ public sealed partial class JsCompiler : IDisposable
         return slots;
     }
 
-    private HashSet<int>? UnionPerIterationContextSlots(HashSet<int>? existing, HashSet<int>? additional)
+    private HashSet<int>? UnionPerIterationContextSlots(
+        HashSet<int>? existing,
+        HashSet<int>? additional
+    )
     {
         if (existing is null)
             return additional;
@@ -1719,8 +1944,10 @@ public sealed partial class JsCompiler : IDisposable
     {
         var slots = Vm.RentCompileHashSet<int>(4);
         foreach (var sourceName in sourceNames)
-            if (TryResolveLocalBinding(sourceName, out var resolved) &&
-                TryGetCurrentContextSlot(resolved.SymbolId, out _))
+            if (
+                TryResolveLocalBinding(sourceName, out var resolved)
+                && TryGetCurrentContextSlot(resolved.SymbolId, out _)
+            )
                 _ = slots.Add(resolved.SymbolId);
 
         return slots;
@@ -1752,7 +1979,9 @@ public sealed partial class JsCompiler : IDisposable
             : 0;
     }
 
-    private void RecordCurrentContextPerIterationBaseDepth(IReadOnlyList<BlockLexicalBinding> bindings)
+    private void RecordCurrentContextPerIterationBaseDepth(
+        IReadOnlyList<BlockLexicalBinding> bindings
+    )
     {
         if (bindings.Count == 0)
             return;
@@ -1816,14 +2045,21 @@ public sealed partial class JsCompiler : IDisposable
         }
     }
 
-    private void PushLabeledTargets(IReadOnlyList<string> labels, BytecodeBuilder.Label breakTarget,
-        BytecodeBuilder.Label continueTarget, bool hasContinueTarget)
+    private void PushLabeledTargets(
+        IReadOnlyList<string> labels,
+        BytecodeBuilder.Label breakTarget,
+        BytecodeBuilder.Label continueTarget,
+        bool hasContinueTarget
+    )
     {
         for (var i = 0; i < labels.Count; i++)
             labeledTargets.Push(new(labels[i], breakTarget, continueTarget, hasContinueTarget));
     }
 
-    private void EmitSwitchStatement(JsSwitchStatement switchStmt, IReadOnlyList<string>? labels = null)
+    private void EmitSwitchStatement(
+        JsSwitchStatement switchStmt,
+        IReadOnlyList<string>? labels = null
+    )
     {
         var tempScope = BeginTemporaryRegisterScope();
         try
@@ -1840,7 +2076,9 @@ public sealed partial class JsCompiler : IDisposable
                 EmitStarRegister(completionReg);
 
                 var caseCount = switchStmt.Cases.Count;
-                var caseLabels = Vm.RentCompileList<BytecodeBuilder.Label>(caseCount == 0 ? 1 : caseCount);
+                var caseLabels = Vm.RentCompileList<BytecodeBuilder.Label>(
+                    caseCount == 0 ? 1 : caseCount
+                );
                 var endLabel = builder.CreateLabel();
                 var defaultLabel = endLabel;
                 try
@@ -1939,8 +2177,11 @@ public sealed partial class JsCompiler : IDisposable
         return false;
     }
 
-    private bool TryResolveContinueTarget(string? label, out BytecodeBuilder.Label continueTarget,
-        out ContinueLabelError error)
+    private bool TryResolveContinueTarget(
+        string? label,
+        out BytecodeBuilder.Label continueTarget,
+        out ContinueLabelError error
+    )
     {
         if (label is null)
         {
@@ -1990,17 +2231,21 @@ public sealed partial class JsCompiler : IDisposable
 
     private void ThrowIllegalContinueNoLoopSyntaxError(int position)
     {
-        throw new JsParseException("Illegal continue statement: no surrounding iteration statement", position,
-            CurrentSourceText);
+        throw new JsParseException(
+            "Illegal continue statement: no surrounding iteration statement",
+            position,
+            CurrentSourceText
+        );
     }
 
     private void ThrowIllegalContinueLabelSyntaxError(string label, int position)
     {
         throw new JsParseException(
             $"Illegal continue statement: '{label}' does not denote an iteration statement",
-            position, CurrentSourceText);
+            position,
+            CurrentSourceText
+        );
     }
-
 
     private void EmitTryStatement(JsTryStatement tryStmt)
     {
@@ -2073,7 +2318,9 @@ public sealed partial class JsCompiler : IDisposable
         EmitStarRegister(completionValueReg);
 
         builder.EmitJump(JsOpCode.PushTry, catchLabel);
-        activeFinallyFlow.Push(new(completionKindReg, completionValueReg, finallyFromTryLabel, true, routeMap));
+        activeFinallyFlow.Push(
+            new(completionKindReg, completionValueReg, finallyFromTryLabel, true, routeMap)
+        );
         try
         {
             activeAbruptEmptyNormalizations.Push(true);
@@ -2133,7 +2380,11 @@ public sealed partial class JsCompiler : IDisposable
         var routeCompareReg = -1;
         try
         {
-            void EmitCompletionKindJump(int kind, BytecodeBuilder.Label target, BytecodeBuilder.Label fallthrough)
+            void EmitCompletionKindJump(
+                int kind,
+                BytecodeBuilder.Label target,
+                BytecodeBuilder.Label fallthrough
+            )
             {
                 EmitLda(kind);
                 EmitStarRegister(kindCompareReg);
@@ -2187,8 +2438,13 @@ public sealed partial class JsCompiler : IDisposable
             {
                 var noBreakRouteMatchedLabel = builder.CreateLabel();
                 builder.BindLabel(breakLabel);
-                EmitFinallyRouteDispatch(routeMap, false, completionValueReg, routeCompareReg,
-                    noBreakRouteMatchedLabel);
+                EmitFinallyRouteDispatch(
+                    routeMap,
+                    false,
+                    completionValueReg,
+                    routeCompareReg,
+                    noBreakRouteMatchedLabel
+                );
                 builder.BindLabel(noBreakRouteMatchedLabel);
                 EmitJump(endLabel);
             }
@@ -2196,7 +2452,13 @@ public sealed partial class JsCompiler : IDisposable
             if (continueLabel.IsInitialized)
             {
                 builder.BindLabel(continueLabel);
-                EmitFinallyRouteDispatch(routeMap, true, completionValueReg, routeCompareReg, endLabel);
+                EmitFinallyRouteDispatch(
+                    routeMap,
+                    true,
+                    completionValueReg,
+                    routeCompareReg,
+                    endLabel
+                );
             }
         }
         finally
@@ -2215,7 +2477,8 @@ public sealed partial class JsCompiler : IDisposable
         {
             EmitFinallyFlowScope(
                 () => VisitStatement(tryStmt.Block),
-                (_, _) => VisitStatement(tryStmt.Finalizer!));
+                (_, _) => VisitStatement(tryStmt.Finalizer!)
+            );
             return;
         }
 
@@ -2244,12 +2507,15 @@ public sealed partial class JsCompiler : IDisposable
 
         // try { ... }
         builder.EmitJump(JsOpCode.PushTry, catchLabel);
-        activeFinallyFlow.Push(new(
-            completionKindReg,
-            completionValueReg,
-            finallyFromTryLabel,
-            tryStmt.Handler is null,
-            routeMap));
+        activeFinallyFlow.Push(
+            new(
+                completionKindReg,
+                completionValueReg,
+                finallyFromTryLabel,
+                tryStmt.Handler is null,
+                routeMap
+            )
+        );
         try
         {
             if (tryStmt.Handler is not null)
@@ -2286,12 +2552,9 @@ public sealed partial class JsCompiler : IDisposable
             var catchThrowLabel = builder.CreateLabel();
 
             builder.EmitJump(JsOpCode.PushTry, catchThrowLabel);
-            activeFinallyFlow.Push(new(
-                completionKindReg,
-                completionValueReg,
-                finallyFromCatchLabel,
-                true,
-                routeMap));
+            activeFinallyFlow.Push(
+                new(completionKindReg, completionValueReg, finallyFromCatchLabel, true, routeMap)
+            );
             try
             {
                 activeAbruptEmptyNormalizations.Push(true);
@@ -2400,8 +2663,13 @@ public sealed partial class JsCompiler : IDisposable
         {
             var noBreakRouteMatchedLabel = builder.CreateLabel();
             builder.BindLabel(breakLabel);
-            EmitFinallyRouteDispatch(routeMap, false, completionValueReg, routeCompareReg,
-                noBreakRouteMatchedLabel);
+            EmitFinallyRouteDispatch(
+                routeMap,
+                false,
+                completionValueReg,
+                routeCompareReg,
+                noBreakRouteMatchedLabel
+            );
             builder.BindLabel(noBreakRouteMatchedLabel);
             EmitJump(endLabel);
         }
@@ -2429,8 +2697,7 @@ public sealed partial class JsCompiler : IDisposable
                 {
                     var catchBinding = catchBindings[0];
                     EmitLdaRegister(thrownValueReg);
-                    StoreIdentifier(catchBinding.InternalName, true,
-                        catchBinding.SourceName);
+                    StoreIdentifier(catchBinding.InternalName, true, catchBinding.SourceName);
                 }
                 else
                 {
@@ -2438,15 +2705,23 @@ public sealed partial class JsCompiler : IDisposable
                     switch (catchClause.BindingPattern)
                     {
                         case JsArrayExpression arrayPattern:
-                            EmitArrayDestructuringAssignmentFromRegister(arrayPattern, thrownValueReg,
-                                initializeIdentifiers: true);
+                            EmitArrayDestructuringAssignmentFromRegister(
+                                arrayPattern,
+                                thrownValueReg,
+                                initializeIdentifiers: true
+                            );
                             break;
                         case JsObjectExpression objectPattern:
-                            EmitObjectDestructuringAssignmentFromRegister(objectPattern, thrownValueReg,
-                                initializeIdentifiers: true);
+                            EmitObjectDestructuringAssignmentFromRegister(
+                                objectPattern,
+                                thrownValueReg,
+                                initializeIdentifiers: true
+                            );
                             break;
                         default:
-                            throw new NotSupportedException("Catch binding pattern is not supported.");
+                            throw new NotSupportedException(
+                                "Catch binding pattern is not supported."
+                            );
                     }
                 }
             }
@@ -2454,8 +2729,7 @@ public sealed partial class JsCompiler : IDisposable
             {
                 var catchBinding = catchBindings[0];
                 EmitLdaRegister(thrownValueReg);
-                StoreIdentifier(catchBinding.InternalName, true,
-                    catchBinding.SourceName);
+                StoreIdentifier(catchBinding.InternalName, true, catchBinding.SourceName);
             }
 
             EmitLdaUndefined();
@@ -2530,7 +2804,9 @@ public sealed partial class JsCompiler : IDisposable
     {
         MarkForAwaitLoopsForContinueTarget(continueTarget);
         if (activeForOfIteratorLoops.Count != 0)
-            EmitPreserveAccumulator(() => EmitCloseForOfIteratorLoopsForContinueTarget(continueTarget));
+            EmitPreserveAccumulator(() =>
+                EmitCloseForOfIteratorLoopsForContinueTarget(continueTarget)
+            );
 
         if (activeFinallyFlow.Count == 0)
         {
@@ -2558,9 +2834,9 @@ public sealed partial class JsCompiler : IDisposable
             EmitLdaRegister(preservedValueReg);
         }
 
-        var throwHandledInsideActiveForOfLoop = activeForOfIteratorLoops.Count != 0 &&
-                                                activeCatchableTryDepth > activeForOfIteratorLoops.Peek()
-                                                    .CatchableTryDepthAtEntry;
+        var throwHandledInsideActiveForOfLoop =
+            activeForOfIteratorLoops.Count != 0
+            && activeCatchableTryDepth > activeForOfIteratorLoops.Peek().CatchableTryDepthAtEntry;
         var throwLocallyCatchable = activeCatchableTryDepth != 0;
 
         if (!throwHandledInsideActiveForOfLoop && activeForOfIteratorLoops.Count != 0)
@@ -2590,7 +2866,8 @@ public sealed partial class JsCompiler : IDisposable
         bool isContinue,
         int completionValueReg,
         int routeCompareReg,
-        BytecodeBuilder.Label fallthroughLabel)
+        BytecodeBuilder.Label fallthroughLabel
+    )
     {
         var routes = routeMap.Routes.Where(r => r.IsContinue == isContinue).ToList();
         for (var i = 0; i < routes.Count; i++)
@@ -2704,7 +2981,8 @@ public sealed partial class JsCompiler : IDisposable
                 ? RuntimeId.DestructureIteratorClose
                 : RuntimeId.DestructureIteratorCloseBestEffort,
             iteratorRegister,
-            1);
+            1
+        );
     }
 
     private void EmitJump(BytecodeBuilder.Label target)
@@ -2749,14 +3027,18 @@ public sealed partial class JsCompiler : IDisposable
         return activeStatementCompletionStates.Pop();
     }
 
-    private static bool ShouldEmitLoopBreakExitJump(int completionReg, bool needsPerIterationContext)
+    private static bool ShouldEmitLoopBreakExitJump(
+        int completionReg,
+        bool needsPerIterationContext
+    )
     {
         return completionReg >= 0 || needsPerIterationContext;
     }
 
     private bool LoopCompletionIsObservable()
     {
-        return activeStatementCompletionStates.Count != 0 || activeSwitchCompletionRegisters.Count != 0;
+        return activeStatementCompletionStates.Count != 0
+            || activeSwitchCompletionRegisters.Count != 0;
     }
 
     private bool LoopBodyNeedsCompletionTracking(JsStatement body)
@@ -2904,11 +3186,13 @@ public sealed partial class JsCompiler : IDisposable
         else if (value >= int.MinValue && value <= int.MaxValue)
         {
             var v = (int)value;
-            builder.EmitLda(JsOpCode.LdaSmiExtraWide,
+            builder.EmitLda(
+                JsOpCode.LdaSmiExtraWide,
                 (byte)(v & 0xFF),
                 (byte)((v >> 8) & 0xFF),
                 (byte)((v >> 16) & 0xFF),
-                (byte)((v >> 24) & 0xFF));
+                (byte)((v >> 24) & 0xFF)
+            );
         }
         else
         {
@@ -2927,11 +3211,17 @@ public sealed partial class JsCompiler : IDisposable
 
         if ((uint)idx <= ushort.MaxValue)
         {
-            builder.EmitLda(JsOpCode.LdaNumericConstantWide, (byte)(idx & 0xFF), (byte)((idx >> 8) & 0xFF));
+            builder.EmitLda(
+                JsOpCode.LdaNumericConstantWide,
+                (byte)(idx & 0xFF),
+                (byte)((idx >> 8) & 0xFF)
+            );
             return;
         }
 
-        throw new InvalidOperationException("Numeric constant pool index exceeds ushort operand capacity.");
+        throw new InvalidOperationException(
+            "Numeric constant pool index exceeds ushort operand capacity."
+        );
     }
 
     private void EmitLdaStringConstantByIndex(int idx)
@@ -2955,16 +3245,29 @@ public sealed partial class JsCompiler : IDisposable
 
         if ((uint)idx <= ushort.MaxValue)
         {
-            builder.EmitLda(JsOpCode.LdaTypedConstWide, (byte)tag, (byte)(idx & 0xFF), (byte)((idx >> 8) & 0xFF));
+            builder.EmitLda(
+                JsOpCode.LdaTypedConstWide,
+                (byte)tag,
+                (byte)(idx & 0xFF),
+                (byte)((idx >> 8) & 0xFF)
+            );
             return;
         }
 
-        throw new InvalidOperationException("Typed constant pool index exceeds ushort operand capacity.");
+        throw new InvalidOperationException(
+            "Typed constant pool index exceeds ushort operand capacity."
+        );
     }
 
-    private void EmitGeneratorSuspendResume(int delegateIteratorRegister = -1, bool minimizeLiveRange = false,
-        bool guaranteedNextOnly = false, bool isAwaitSuspend = false, bool isPrestartSuspend = false,
-        bool inspectActiveDelegateOnNext = false, BytecodeBuilder.Label? delegateCompletedAsNextLabel = null)
+    private void EmitGeneratorSuspendResume(
+        int delegateIteratorRegister = -1,
+        bool minimizeLiveRange = false,
+        bool guaranteedNextOnly = false,
+        bool isAwaitSuspend = false,
+        bool isPrestartSuspend = false,
+        bool inspectActiveDelegateOnNext = false,
+        BytecodeBuilder.Label? delegateCompletedAsNextLabel = null
+    )
     {
         byte firstRegister = 0;
         var liveCountInt = builder.RegisterCount;
@@ -2975,21 +3278,23 @@ public sealed partial class JsCompiler : IDisposable
         }
 
         if (liveCountInt > byte.MaxValue)
-            throw new NotSupportedException("Generator live register range exceeds bytecode operand capacity.");
+            throw new NotSupportedException(
+                "Generator live register range exceeds bytecode operand capacity."
+            );
         var liveCount = (byte)liveCountInt;
 
         var suspendIdInt = nextGeneratorSuspendId++;
         if ((uint)suspendIdInt > byte.MaxValue)
-            throw new NotSupportedException("Generator suspend point id exceeds bytecode operand capacity.");
+            throw new NotSupportedException(
+                "Generator suspend point id exceeds bytecode operand capacity."
+            );
         var suspendId = (byte)suspendIdInt;
 
-        var genRegister = isPrestartSuspend
-            ? (byte)0xFD
-            : isAwaitSuspend
-                ? (byte)0xFE
-                : delegateIteratorRegister >= 0
-                    ? (byte)delegateIteratorRegister
-                    : (byte)0xFF;
+        var genRegister =
+            isPrestartSuspend ? (byte)0xFD
+            : isAwaitSuspend ? (byte)0xFE
+            : delegateIteratorRegister >= 0 ? (byte)delegateIteratorRegister
+            : (byte)0xFF;
         EmitRaw(JsOpCode.SuspendGenerator, genRegister, firstRegister, liveCount, suspendId);
         if (functionKind != JsBytecodeFunctionKind.Normal && generatorSwitchInstructionPc >= 0)
         {
@@ -3019,7 +3324,9 @@ public sealed partial class JsCompiler : IDisposable
                 var returnModeLabel = builder.CreateLabel();
                 var throwModeLabel = builder.CreateLabel();
                 var continueLabel = builder.CreateLabel();
-                var delegateStillActiveLabel = inspectActiveDelegateOnNext ? builder.CreateLabel() : default;
+                var delegateStillActiveLabel = inspectActiveDelegateOnNext
+                    ? builder.CreateLabel()
+                    : default;
 
                 EmitCallRuntime(RuntimeId.GeneratorGetResumeMode, 0, 0);
                 EmitStarRegister(generatorResumeModeTempRegister);
@@ -3036,7 +3343,9 @@ public sealed partial class JsCompiler : IDisposable
                 if (inspectActiveDelegateOnNext)
                 {
                     if (delegateCompletedAsNextLabel is null)
-                        throw new InvalidOperationException("yield* delegate completion label is required.");
+                        throw new InvalidOperationException(
+                            "yield* delegate completion label is required."
+                        );
                     EmitCallRuntime(RuntimeId.GeneratorHasActiveDelegateIterator, 0, 0);
                     builder.EmitJump(JsOpCode.JumpIfTrue, delegateStillActiveLabel);
                     EmitLdaRegister(generatorResumeValueTempRegister);
@@ -3073,7 +3382,7 @@ public sealed partial class JsCompiler : IDisposable
             bool => true,
             string => true,
             _ when lit.Value is JsValue => true, // includes `undefined` token literal
-            _ => false
+            _ => false,
         };
     }
 
@@ -3085,13 +3394,15 @@ public sealed partial class JsCompiler : IDisposable
             case JsYieldExpression:
                 return true;
             case JsAssignmentExpression a:
-                return ExpressionMaySuspendInCurrentFunction(a.Left) || ExpressionMaySuspendInCurrentFunction(a.Right);
+                return ExpressionMaySuspendInCurrentFunction(a.Left)
+                    || ExpressionMaySuspendInCurrentFunction(a.Right);
             case JsBinaryExpression b:
-                return ExpressionMaySuspendInCurrentFunction(b.Left) || ExpressionMaySuspendInCurrentFunction(b.Right);
+                return ExpressionMaySuspendInCurrentFunction(b.Left)
+                    || ExpressionMaySuspendInCurrentFunction(b.Right);
             case JsConditionalExpression c:
-                return ExpressionMaySuspendInCurrentFunction(c.Test) ||
-                       ExpressionMaySuspendInCurrentFunction(c.Consequent) ||
-                       ExpressionMaySuspendInCurrentFunction(c.Alternate);
+                return ExpressionMaySuspendInCurrentFunction(c.Test)
+                    || ExpressionMaySuspendInCurrentFunction(c.Consequent)
+                    || ExpressionMaySuspendInCurrentFunction(c.Alternate);
             case JsCallExpression c:
                 if (ExpressionMaySuspendInCurrentFunction(c.Callee))
                     return true;
@@ -3109,8 +3420,8 @@ public sealed partial class JsCompiler : IDisposable
 
                 return false;
             case JsMemberExpression m:
-                return ExpressionMaySuspendInCurrentFunction(m.Object) ||
-                       (m.IsComputed && ExpressionMaySuspendInCurrentFunction(m.Property));
+                return ExpressionMaySuspendInCurrentFunction(m.Object)
+                    || (m.IsComputed && ExpressionMaySuspendInCurrentFunction(m.Property));
             case JsSequenceExpression s:
                 foreach (var e in s.Expressions)
                     if (ExpressionMaySuspendInCurrentFunction(e))
@@ -3126,8 +3437,11 @@ public sealed partial class JsCompiler : IDisposable
             case JsObjectExpression o:
                 foreach (var prop in o.Properties)
                 {
-                    if (prop.IsComputed && prop.ComputedKey is not null &&
-                        ExpressionMaySuspendInCurrentFunction(prop.ComputedKey))
+                    if (
+                        prop.IsComputed
+                        && prop.ComputedKey is not null
+                        && ExpressionMaySuspendInCurrentFunction(prop.ComputedKey)
+                    )
                         return true;
                     if (prop.Value is not null && ExpressionMaySuspendInCurrentFunction(prop.Value))
                         return true;
@@ -3172,22 +3486,33 @@ public sealed partial class JsCompiler : IDisposable
         var maxReg = -1;
         foreach (var reg in locals.Values)
         {
-            if (reg < minReg) minReg = reg;
-            if (reg > maxReg) maxReg = reg;
+            if (reg < minReg)
+                minReg = reg;
+            if (reg > maxReg)
+                maxReg = reg;
         }
 
-        if (builder.TryGetActiveTemporaryRegisterRange(out var activeTempMinReg, out var activeTempMaxReg))
+        if (
+            builder.TryGetActiveTemporaryRegisterRange(
+                out var activeTempMinReg,
+                out var activeTempMaxReg
+            )
+        )
         {
-            if (activeTempMinReg < minReg) minReg = activeTempMinReg;
-            if (activeTempMaxReg > maxReg) maxReg = activeTempMaxReg;
+            if (activeTempMinReg < minReg)
+                minReg = activeTempMinReg;
+            if (activeTempMaxReg > maxReg)
+                maxReg = activeTempMaxReg;
         }
 
         foreach (var (reg, refCount) in suspendPinnedRegisterRefCounts)
         {
             if (refCount <= 0)
                 continue;
-            if (reg < minReg) minReg = reg;
-            if (reg > maxReg) maxReg = reg;
+            if (reg < minReg)
+                minReg = reg;
+            if (reg > maxReg)
+                maxReg = reg;
         }
 
         if (maxReg < 0)
@@ -3227,17 +3552,23 @@ public sealed partial class JsCompiler : IDisposable
 
         var tableLen = generatorResumeTargetPcBySuspendId.Count;
         if (tableLen > byte.MaxValue)
-            throw new NotSupportedException("Generator switch table length exceeds bytecode operand capacity.");
+            throw new NotSupportedException(
+                "Generator switch table length exceeds bytecode operand capacity."
+            );
 
         var tableStart = builder.GeneratorSwitchTargetCount;
         if (tableStart > byte.MaxValue)
-            throw new NotSupportedException("Generator switch table start exceeds bytecode operand capacity.");
+            throw new NotSupportedException(
+                "Generator switch table start exceeds bytecode operand capacity."
+            );
 
         for (var i = 0; i < tableLen; i++)
         {
             var targetPc = generatorResumeTargetPcBySuspendId[i];
             if (targetPc < 0)
-                throw new InvalidOperationException("Generator switch table has an unresolved suspend target.");
+                throw new InvalidOperationException(
+                    "Generator switch table has an unresolved suspend target."
+                );
             builder.AddGeneratorSwitchTarget(targetPc);
         }
 
@@ -3273,8 +3604,10 @@ public sealed partial class JsCompiler : IDisposable
             for (var i = 0; i < arrExpr.Elements.Count; i++)
             {
                 var elem = arrExpr.Elements[i];
-                if (elem is null) EmitLdaTheHole();
-                else VisitExpression(elem);
+                if (elem is null)
+                    EmitLdaTheHole();
+                else
+                    VisitExpression(elem);
 
                 EmitInitializeArrayElement(targetReg, i);
             }
@@ -3285,7 +3618,10 @@ public sealed partial class JsCompiler : IDisposable
         }
     }
 
-    private bool TryEmitCompileTimeArrayLiteralIntoRegister(JsArrayExpression arrExpr, int targetReg)
+    private bool TryEmitCompileTimeArrayLiteralIntoRegister(
+        JsArrayExpression arrExpr,
+        int targetReg
+    )
     {
         if (!TryCreateCompileTimeArrayLiteralPayload(arrExpr, out var literalValues))
             return false;
@@ -3296,7 +3632,10 @@ public sealed partial class JsCompiler : IDisposable
         return true;
     }
 
-    private static bool TryCreateCompileTimeArrayLiteralPayload(JsArrayExpression arrExpr, out JsValue[] values)
+    private static bool TryCreateCompileTimeArrayLiteralPayload(
+        JsArrayExpression arrExpr,
+        out JsValue[] values
+    )
     {
         if (arrExpr.Elements.Count == 0)
         {
@@ -3318,7 +3657,10 @@ public sealed partial class JsCompiler : IDisposable
         return true;
     }
 
-    private static bool TryGetCompileTimeArrayLiteralElementValue(JsExpression? element, out JsValue value)
+    private static bool TryGetCompileTimeArrayLiteralElementValue(
+        JsExpression? element,
+        out JsValue value
+    )
     {
         if (element is null)
         {
@@ -3429,8 +3771,11 @@ public sealed partial class JsCompiler : IDisposable
         for (var i = 0; i < objExpr.Properties.Count; i++)
         {
             var p = objExpr.Properties[i];
-            if (p.Kind == JsObjectPropertyKind.Spread || p.IsComputed ||
-                TryGetCanonicalArrayIndexObjectLiteralKey(p, out _))
+            if (
+                p.Kind == JsObjectPropertyKind.Spread
+                || p.IsComputed
+                || TryGetCanonicalArrayIndexObjectLiteralKey(p, out _)
+            )
             {
                 shapePrefixEnd = i;
                 break;
@@ -3438,8 +3783,10 @@ public sealed partial class JsCompiler : IDisposable
 
             var atom = atomTable.InternNoCheck(p.Key);
             var isAccessor = p.Kind is JsObjectPropertyKind.Getter or JsObjectPropertyKind.Setter;
-            if (prefixAccessorKindByAtom.TryGetValue(atom, out var existingIsAccessor) &&
-                existingIsAccessor != isAccessor)
+            if (
+                prefixAccessorKindByAtom.TryGetValue(atom, out var existingIsAccessor)
+                && existingIsAccessor != isAccessor
+            )
             {
                 shapePrefixEnd = i;
                 break;
@@ -3465,7 +3812,8 @@ public sealed partial class JsCompiler : IDisposable
                 JsObjectPropertyKind.Getter => JsShapePropertyFlags.HasGetter,
                 JsObjectPropertyKind.Setter => JsShapePropertyFlags.HasSetter,
                 _ => throw new NotImplementedException(
-                    $"Object property kind {prop.Kind} is not supported in Okojo Phase 1.")
+                    $"Object property kind {prop.Kind} is not supported in Okojo Phase 1."
+                ),
             };
 
             if (prop.Kind is JsObjectPropertyKind.Getter or JsObjectPropertyKind.Setter)
@@ -3474,7 +3822,11 @@ public sealed partial class JsCompiler : IDisposable
             if (!finalFlagsByAtom.TryGetValue(atom, out var currentFlags))
                 finalFlagsByAtom[atom] = NormalizeObjectLiteralFinalFlags(initFlags);
             else
-                finalFlagsByAtom[atom] = MergeObjectLiteralPropertyFlags(currentFlags, initFlags, prop.Key);
+                finalFlagsByAtom[atom] = MergeObjectLiteralPropertyFlags(
+                    currentFlags,
+                    initFlags,
+                    prop.Key
+                );
 
             namePlanByProperty[i] = new(atom, initFlags);
         }
@@ -3514,14 +3866,17 @@ public sealed partial class JsCompiler : IDisposable
                         EmitObjectLiteralDataValue(prop, targetReg);
                         EmitDefineOwnKeyedProperty(targetReg, keyReg);
                     }
-                    else if (prop.Kind is JsObjectPropertyKind.Getter or JsObjectPropertyKind.Setter)
+                    else if (
+                        prop.Kind is JsObjectPropertyKind.Getter or JsObjectPropertyKind.Setter
+                    )
                     {
                         EmitDefineObjectLiteralAccessor(targetReg, keyReg, prop);
                     }
                     else
                     {
                         throw new NotSupportedException(
-                            $"Object literal property kind {prop.Kind} is not supported in Okojo Phase 2.");
+                            $"Object literal property kind {prop.Kind} is not supported in Okojo Phase 2."
+                        );
                     }
 
                     continue;
@@ -3530,7 +3885,9 @@ public sealed partial class JsCompiler : IDisposable
                 if (prop.IsComputed)
                 {
                     if (prop.ComputedKey is null)
-                        throw new InvalidOperationException("Computed object literal key expression is missing.");
+                        throw new InvalidOperationException(
+                            "Computed object literal key expression is missing."
+                        );
                     VisitExpression(prop.ComputedKey);
                     if (keyReg == -1)
                         keyReg = AllocateTemporaryRegister();
@@ -3542,14 +3899,17 @@ public sealed partial class JsCompiler : IDisposable
                         EmitObjectLiteralDataValue(prop, targetReg);
                         EmitDefineOwnKeyedProperty(targetReg, keyReg);
                     }
-                    else if (prop.Kind is JsObjectPropertyKind.Getter or JsObjectPropertyKind.Setter)
+                    else if (
+                        prop.Kind is JsObjectPropertyKind.Getter or JsObjectPropertyKind.Setter
+                    )
                     {
                         EmitDefineObjectLiteralAccessor(targetReg, keyReg, prop);
                     }
                     else
                     {
                         throw new NotSupportedException(
-                            $"Object literal property kind {prop.Kind} is not supported in Okojo Phase 2.");
+                            $"Object literal property kind {prop.Kind} is not supported in Okojo Phase 2."
+                        );
                     }
 
                     continue;
@@ -3557,7 +3917,8 @@ public sealed partial class JsCompiler : IDisposable
 
                 if (i < shapePrefixEnd)
                 {
-                    if (!prop.IsComputed) EmitObjectLiteralDataValue(prop, targetReg);
+                    if (!prop.IsComputed)
+                        EmitObjectLiteralDataValue(prop, targetReg);
 
                     if (prop.Kind is JsObjectPropertyKind.Getter or JsObjectPropertyKind.Setter)
                     {
@@ -3572,12 +3933,15 @@ public sealed partial class JsCompiler : IDisposable
 
                     var plan = namePlanByProperty[i];
                     if (!shape.TryGetSlotInfo(plan.Atom, out var slotInfo))
-                        throw new InvalidOperationException("Missing precomputed object literal shape slot.");
-                    var slot = prop.Kind == JsObjectPropertyKind.Setter &&
-                               (slotInfo.Flags & JsShapePropertyFlags.BothAccessor) ==
-                               JsShapePropertyFlags.BothAccessor
-                        ? slotInfo.AccessorSetterSlot
-                        : slotInfo.Slot;
+                        throw new InvalidOperationException(
+                            "Missing precomputed object literal shape slot."
+                        );
+                    var slot =
+                        prop.Kind == JsObjectPropertyKind.Setter
+                        && (slotInfo.Flags & JsShapePropertyFlags.BothAccessor)
+                            == JsShapePropertyFlags.BothAccessor
+                            ? slotInfo.AccessorSetterSlot
+                            : slotInfo.Slot;
                     EmitInitializeNamedProperty(targetReg, slot);
                 }
                 else
@@ -3592,7 +3956,9 @@ public sealed partial class JsCompiler : IDisposable
                         EmitObjectLiteralDataValue(prop, targetReg);
                         EmitDefineOwnKeyedProperty(targetReg, keyReg);
                     }
-                    else if (prop.Kind is JsObjectPropertyKind.Getter or JsObjectPropertyKind.Setter)
+                    else if (
+                        prop.Kind is JsObjectPropertyKind.Getter or JsObjectPropertyKind.Setter
+                    )
                     {
                         if (keyReg == -1)
                             keyReg = AllocateTemporaryRegister();
@@ -3604,7 +3970,8 @@ public sealed partial class JsCompiler : IDisposable
                     else
                     {
                         throw new NotSupportedException(
-                            $"Object literal property kind {prop.Kind} is not supported in Okojo Phase 2.");
+                            $"Object literal property kind {prop.Kind} is not supported in Okojo Phase 2."
+                        );
                     }
                 }
             }
@@ -3619,7 +3986,8 @@ public sealed partial class JsCompiler : IDisposable
     {
         if (prop.Kind is not (JsObjectPropertyKind.Getter or JsObjectPropertyKind.Setter))
             throw new InvalidOperationException(
-                "Object literal accessor emitter requires getter/setter property kind.");
+                "Object literal accessor emitter requires getter/setter property kind."
+            );
 
         var tempScope = BeginTemporaryRegisterScope();
         try
@@ -3654,81 +4022,100 @@ public sealed partial class JsCompiler : IDisposable
 
     private bool TryEmitFoldedUnaryLiteral(JsUnaryExpression unary)
     {
-        if (unary.Argument is not JsLiteralExpression lit) return false;
+        if (unary.Argument is not JsLiteralExpression lit)
+            return false;
 
         switch (unary.Operator)
         {
             case JsUnaryOperator.LogicalNot:
+            {
+                var b = lit.Value switch
                 {
-                    var b = lit.Value switch
-                    {
-                        null => false,
-                        bool bb => bb,
-                        double d => d != 0 && !double.IsNaN(d),
-                        JsBigInt bi => !bi.Value.IsZero,
-                        string s => s.Length > 0,
-                        _ => throw new NotImplementedException($"Unary literal fold ! for {lit.Value?.GetType().Name}")
-                    };
-                    EmitLda(!b);
-                    return true;
-                }
+                    null => false,
+                    bool bb => bb,
+                    double d => d != 0 && !double.IsNaN(d),
+                    JsBigInt bi => !bi.Value.IsZero,
+                    string s => s.Length > 0,
+                    _ => throw new NotImplementedException(
+                        $"Unary literal fold ! for {lit.Value?.GetType().Name}"
+                    ),
+                };
+                EmitLda(!b);
+                return true;
+            }
             case JsUnaryOperator.BitwiseNot:
-                {
-                    if (lit.Value is not double d) return false;
-                    var v = ToInt32ForLiteralFold(d);
-                    EmitNumberLiteral(~v);
-                    return true;
-                }
+            {
+                if (lit.Value is not double d)
+                    return false;
+                var v = ToInt32ForLiteralFold(d);
+                EmitNumberLiteral(~v);
+                return true;
+            }
             case JsUnaryOperator.Plus:
-                {
-                    if (lit.Value is not double d) return false;
-                    EmitNumberLiteral(d);
-                    return true;
-                }
+            {
+                if (lit.Value is not double d)
+                    return false;
+                EmitNumberLiteral(d);
+                return true;
+            }
             case JsUnaryOperator.Minus:
-                {
-                    if (lit.Value is not double d) return false;
-                    EmitNumberLiteral(-d);
-                    return true;
-                }
+            {
+                if (lit.Value is not double d)
+                    return false;
+                EmitNumberLiteral(-d);
+                return true;
+            }
             case JsUnaryOperator.Void:
-                {
-                    EmitLdaUndefined();
-                    return true;
-                }
+            {
+                EmitLdaUndefined();
+                return true;
+            }
             default:
                 return false;
         }
     }
 
-    private static JsShapePropertyFlags NormalizeObjectLiteralFinalFlags(JsShapePropertyFlags initFlags)
+    private static JsShapePropertyFlags NormalizeObjectLiteralFinalFlags(
+        JsShapePropertyFlags initFlags
+    )
     {
         if ((initFlags & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter)) == 0)
             return JsShapePropertyFlags.Open;
-        return (initFlags & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter)) |
-               JsShapePropertyFlags.Enumerable | JsShapePropertyFlags.Configurable;
+        return (initFlags & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter))
+            | JsShapePropertyFlags.Enumerable
+            | JsShapePropertyFlags.Configurable;
     }
 
-    private static JsShapePropertyFlags MergeObjectLiteralPropertyFlags(JsShapePropertyFlags currentFlags,
-        JsShapePropertyFlags nextInitFlags, string keyForError)
+    private static JsShapePropertyFlags MergeObjectLiteralPropertyFlags(
+        JsShapePropertyFlags currentFlags,
+        JsShapePropertyFlags nextInitFlags,
+        string keyForError
+    )
     {
-        var currentAccessor = (currentFlags & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter)) != 0;
-        var nextAccessor = (nextInitFlags & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter)) != 0;
+        var currentAccessor =
+            (currentFlags & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter)) != 0;
+        var nextAccessor =
+            (nextInitFlags & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter))
+            != 0;
 
         if (!currentAccessor && !nextAccessor)
             return JsShapePropertyFlags.Open; // duplicate data property; last write wins
 
         if (currentAccessor && nextAccessor)
         {
-            var merged = (currentFlags | nextInitFlags) &
-                         (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter);
+            var merged =
+                (currentFlags | nextInitFlags)
+                & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter);
             return merged | JsShapePropertyFlags.Enumerable | JsShapePropertyFlags.Configurable;
         }
 
         if (nextAccessor)
         {
-            var accessorFlags = nextInitFlags & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter);
-            return accessorFlags | JsShapePropertyFlags.Enumerable | JsShapePropertyFlags.Configurable;
+            var accessorFlags =
+                nextInitFlags & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter);
+            return accessorFlags
+                | JsShapePropertyFlags.Enumerable
+                | JsShapePropertyFlags.Configurable;
         }
 
         return JsShapePropertyFlags.Open;
@@ -3772,12 +4159,15 @@ public sealed partial class JsCompiler : IDisposable
             JsBinaryOperator.StrictEqual => JsOpCode.TestEqualStrict,
             JsBinaryOperator.In => JsOpCode.TestIn,
             JsBinaryOperator.Instanceof => JsOpCode.TestInstanceOf,
-            _ => (JsOpCode)byte.MaxValue
+            _ => (JsOpCode)byte.MaxValue,
         };
         return (byte)jsOp != byte.MaxValue;
     }
 
-    private static bool TryMapCompoundAssignmentOperatorToOkojoOpCode(JsAssignmentOperator op, out JsOpCode jsOp)
+    private static bool TryMapCompoundAssignmentOperatorToOkojoOpCode(
+        JsAssignmentOperator op,
+        out JsOpCode jsOp
+    )
     {
         JsBinaryOperator? binaryOp = op switch
         {
@@ -3793,7 +4183,7 @@ public sealed partial class JsCompiler : IDisposable
             JsAssignmentOperator.BitwiseAndAssign => JsBinaryOperator.BitwiseAnd,
             JsAssignmentOperator.BitwiseOrAssign => JsBinaryOperator.BitwiseOr,
             JsAssignmentOperator.BitwiseXorAssign => JsBinaryOperator.BitwiseXor,
-            _ => null
+            _ => null,
         };
         if (binaryOp is null)
         {
@@ -3806,8 +4196,10 @@ public sealed partial class JsCompiler : IDisposable
 
     private static bool IsLogicalAssignmentOperator(JsAssignmentOperator op)
     {
-        return op is JsAssignmentOperator.LogicalAndAssign or JsAssignmentOperator.LogicalOrAssign
-            or JsAssignmentOperator.NullishCoalescingAssign;
+        return op
+            is JsAssignmentOperator.LogicalAndAssign
+                or JsAssignmentOperator.LogicalOrAssign
+                or JsAssignmentOperator.NullishCoalescingAssign;
     }
 
     private static int ToInt32ForLiteralFold(double number)
@@ -3827,7 +4219,8 @@ public sealed partial class JsCompiler : IDisposable
     private static bool TryGetNamedMemberKey(JsMemberExpression member, out string key)
     {
         key = string.Empty;
-        if (member.IsComputed || member.IsPrivate) return false;
+        if (member.IsComputed || member.IsPrivate)
+            return false;
         switch (member.Property)
         {
             case JsLiteralExpression { Value: string s }:
@@ -3858,7 +4251,10 @@ public sealed partial class JsCompiler : IDisposable
         EmitLdaNumericConstantByIndex(numIdx);
     }
 
-    private static bool TryGetCanonicalArrayIndexObjectLiteralKey(JsObjectProperty prop, out uint index)
+    private static bool TryGetCanonicalArrayIndexObjectLiteralKey(
+        JsObjectProperty prop,
+        out uint index
+    )
     {
         if (!prop.IsComputed)
             return TryParseCanonicalArrayIndexString(prop.Key, out index);
@@ -3883,13 +4279,14 @@ public sealed partial class JsCompiler : IDisposable
         return false;
     }
 
-    private static bool TryGetCompileTimeObjectLiteralPropertyKeyValue(string key, out JsValue value)
+    private static bool TryGetCompileTimeObjectLiteralPropertyKeyValue(
+        string key,
+        out JsValue value
+    )
     {
         if (TryParseCanonicalArrayIndexString(key, out var index))
         {
-            value = index <= int.MaxValue
-                ? JsValue.FromInt32((int)index)
-                : new((double)index);
+            value = index <= int.MaxValue ? JsValue.FromInt32((int)index) : new((double)index);
             return true;
         }
 
@@ -3959,7 +4356,8 @@ public sealed partial class JsCompiler : IDisposable
 
             perIterationSlots = UnionPerIterationContextSlots(
                 perIterationSlots,
-                TryCollectDirectLoopBodyPerIterationContextSlots(stmt.Body));
+                TryCollectDirectLoopBodyPerIterationContextSlots(stmt.Body)
+            );
             var needsPerIterationContext = perIterationSlots is not null;
             if (needsPerIterationContext)
             {
@@ -4016,11 +4414,25 @@ public sealed partial class JsCompiler : IDisposable
             PushForInOfHeadLexicalAliases(stmt);
             try
             {
-                EmitForOfFastArrayPath(stmt, iterableReg, arrayLengthReg, fastArrayLabel, doneLabel, completionReg,
+                EmitForOfFastArrayPath(
+                    stmt,
+                    iterableReg,
+                    arrayLengthReg,
+                    fastArrayLabel,
+                    doneLabel,
+                    completionReg,
                     labels,
-                    needsPerIterationContext);
-                EmitForOfIteratorFallbackPath(stmt, iterableReg, fallbackLabel, doneLabel, completionReg, labels,
-                    needsPerIterationContext);
+                    needsPerIterationContext
+                );
+                EmitForOfIteratorFallbackPath(
+                    stmt,
+                    iterableReg,
+                    fallbackLabel,
+                    doneLabel,
+                    completionReg,
+                    labels,
+                    needsPerIterationContext
+                );
             }
             finally
             {
@@ -4042,8 +4454,11 @@ public sealed partial class JsCompiler : IDisposable
         }
     }
 
-    private void EmitForInStatement(JsForInOfStatement stmt, IReadOnlyList<string>? labels = null,
-        bool needsPerIterationContext = false)
+    private void EmitForInStatement(
+        JsForInOfStatement stmt,
+        IReadOnlyList<string>? labels = null,
+        bool needsPerIterationContext = false
+    )
     {
         var tempScope = BeginTemporaryRegisterScope();
         try
@@ -4128,7 +4543,8 @@ public sealed partial class JsCompiler : IDisposable
         BytecodeBuilder.Label doneLabel,
         int completionReg,
         IReadOnlyList<string>? labels = null,
-        bool needsPerIterationContext = false)
+        bool needsPerIterationContext = false
+    )
     {
         builder.BindLabel(fastArrayLabel);
         var indexReg = AllocateTemporaryRegister();
@@ -4168,7 +4584,8 @@ public sealed partial class JsCompiler : IDisposable
                 EmitExplicitResourceScope(
                     () => VisitLoopBodyWithCompletion(stmt.Body, completionReg),
                     usingLikeDeclaration.Kind == JsVariableDeclarationKind.AwaitUsing,
-                    _ => EmitRegisterExplicitResource(usingLikeDeclaration.Kind, iterationValueReg));
+                    _ => EmitRegisterExplicitResource(usingLikeDeclaration.Kind, iterationValueReg)
+                );
             }
             else
             {
@@ -4203,7 +4620,8 @@ public sealed partial class JsCompiler : IDisposable
         BytecodeBuilder.Label doneLabel,
         int completionReg,
         IReadOnlyList<string>? labels = null,
-        bool needsPerIterationContext = false)
+        bool needsPerIterationContext = false
+    )
     {
         builder.BindLabel(fallbackLabel);
 
@@ -4242,17 +4660,16 @@ public sealed partial class JsCompiler : IDisposable
         EmitJump(assignDoneLabel);
         builder.BindLabel(assignCatchLabel);
         EmitPreserveAccumulator(() =>
-            EmitCallRuntime(RuntimeId.DestructureIteratorCloseBestEffort, iterReg, 1));
+            EmitCallRuntime(RuntimeId.DestructureIteratorCloseBestEffort, iterReg, 1)
+        );
         EmitThrowConsideringFinallyFlow();
         builder.BindLabel(assignDoneLabel);
 
         loopTargets.Push(new(loopBreakLabel, continueLabel));
         breakTargets.Push(loopBreakLabel);
-        activeForOfIteratorLoops.Push(new(
-            loopBreakLabel,
-            continueLabel,
-            iterReg,
-            activeCatchableTryDepth));
+        activeForOfIteratorLoops.Push(
+            new(loopBreakLabel, continueLabel, iterReg, activeCatchableTryDepth)
+        );
         if (labels is not null && labels.Count != 0)
             PushLabeledTargets(labels, loopBreakLabel, continueLabel, true);
         try
@@ -4262,7 +4679,8 @@ public sealed partial class JsCompiler : IDisposable
                 EmitExplicitResourceScope(
                     () => VisitLoopBodyWithCompletion(stmt.Body, completionReg),
                     usingLikeDeclaration.Kind == JsVariableDeclarationKind.AwaitUsing,
-                    _ => EmitRegisterExplicitResource(usingLikeDeclaration.Kind, stepValueReg));
+                    _ => EmitRegisterExplicitResource(usingLikeDeclaration.Kind, stepValueReg)
+                );
             }
             else
             {
@@ -4292,18 +4710,18 @@ public sealed partial class JsCompiler : IDisposable
     {
         if (currentContextSlotById.Count == 0)
             return false;
-        if (stmt.Left is not JsVariableDeclarationStatement declStmt ||
-            !declStmt.Kind.IsLexical())
+        if (stmt.Left is not JsVariableDeclarationStatement declStmt || !declStmt.Kind.IsLexical())
             return false;
 
         foreach (var boundName in GetForInOfHeadBoundIdentifiers(stmt))
-            if (TryResolveLocalBinding(boundName.Name, out var resolved) &&
-                IsCapturedByChildBinding(resolved.SymbolId))
+            if (
+                TryResolveLocalBinding(boundName.Name, out var resolved)
+                && IsCapturedByChildBinding(resolved.SymbolId)
+            )
                 return true;
 
         return false;
     }
-
 
     private void EmitForIterationAssignLeft(JsNode left, bool isLoopInitialization)
     {
@@ -4315,38 +4733,57 @@ public sealed partial class JsCompiler : IDisposable
                     {
                         EmitStoreOrDestructureAssignmentTarget(
                             declStmt.BindingPattern,
-                            isLoopInitialization);
+                            isLoopInitialization
+                        );
                         break;
                     }
 
                     if (declStmt.Declarators.Count != 1)
-                        throw new NotSupportedException("iteration declaration must have a single declarator.");
+                        throw new NotSupportedException(
+                            "iteration declaration must have a single declarator."
+                        );
                     var decl = declStmt.Declarators[0];
                     if (decl.Initializer is not null)
-                        throw new NotSupportedException("iteration declaration initializer is not supported.");
-                    var useInitializationStore = isLoopInitialization && declStmt.Kind is not JsVariableDeclarationKind.Var;
-                    StoreIdentifier(TryResolveLocalBinding(decl.Name, out var resolvedDecl) ? resolvedDecl.Name : decl.Name,
+                        throw new NotSupportedException(
+                            "iteration declaration initializer is not supported."
+                        );
+                    var useInitializationStore =
+                        isLoopInitialization && declStmt.Kind is not JsVariableDeclarationKind.Var;
+                    StoreIdentifier(
+                        TryResolveLocalBinding(decl.Name, out var resolvedDecl)
+                            ? resolvedDecl.Name
+                            : decl.Name,
                         useInitializationStore,
-                        decl.Name);
+                        decl.Name
+                    );
                 }
                 break;
             case JsIdentifierExpression id:
                 // Bare identifier in for-in/of/await assignment is a normal PutValue, not declaration initialization.
-                StoreIdentifier(TryResolveLocalBinding(id.Name, out var resolvedId) ? resolvedId.Name : id.Name, false,
-                    id.Name);
+                StoreIdentifier(
+                    TryResolveLocalBinding(id.Name, out var resolvedId) ? resolvedId.Name : id.Name,
+                    false,
+                    id.Name
+                );
                 break;
             case JsExpression expr:
                 EmitStoreOrDestructureAssignmentTargetPreservingValue(expr);
                 break;
             default:
-                throw new NotSupportedException("iteration left side currently supports identifier/declaration only.");
+                throw new NotSupportedException(
+                    "iteration left side currently supports identifier/declaration only."
+                );
         }
     }
 
     private void EmitDeleteExpression(JsExpression argument)
     {
         if (TryGetDeletePrivateIdentifier(argument, out var privateName, out var privatePosition))
-            throw new JsParseException($"Unexpected identifier '{privateName}'", privatePosition, CurrentSourceText);
+            throw new JsParseException(
+                $"Unexpected identifier '{privateName}'",
+                privatePosition,
+                CurrentSourceText
+            );
 
         if (argument is not JsMemberExpression member)
         {
@@ -4364,18 +4801,27 @@ public sealed partial class JsCompiler : IDisposable
                 var deleteKeyReg = deleteTargetReg + 1;
                 try
                 {
-                    var globalThisNameIdx = builder.AddAtomizedStringConstant(AtomTable.IdGlobalThis);
-                    EmitLdaGlobalByIndex(globalThisNameIdx,
-                        builder.GetOrAllocateGlobalBindingFeedbackSlot("globalThis"));
+                    var globalThisNameIdx = builder.AddAtomizedStringConstant(
+                        AtomTable.IdGlobalThis
+                    );
+                    EmitLdaGlobalByIndex(
+                        globalThisNameIdx,
+                        builder.GetOrAllocateGlobalBindingFeedbackSlot("globalThis")
+                    );
                     EmitStarRegister(deleteTargetReg);
                     var nameIdx = builder.AddObjectConstant(identifier.Name);
                     EmitLdaStringConstantByIndex(nameIdx);
                     EmitStarRegister(deleteKeyReg);
                     EmitRaw(
                         JsOpCode.CallRuntime,
-                        (byte)(strictDeclared ? RuntimeId.DeleteKeyedPropertyStrict : RuntimeId.DeleteKeyedProperty),
+                        (byte)(
+                            strictDeclared
+                                ? RuntimeId.DeleteKeyedPropertyStrict
+                                : RuntimeId.DeleteKeyedProperty
+                        ),
                         (byte)deleteTargetReg,
-                        2);
+                        2
+                    );
                 }
                 finally
                 {
@@ -4394,7 +4840,11 @@ public sealed partial class JsCompiler : IDisposable
         if (member.Object is JsSuperExpression)
         {
             if (member.IsPrivate)
-                throw new JsParseException("Unexpected private field", member.Position, CurrentSourceText);
+                throw new JsParseException(
+                    "Unexpected private field",
+                    member.Position,
+                    CurrentSourceText
+                );
 
             var superDeleteScope = BeginTemporaryRegisterScope();
             var superDeleteReg = AllocateTemporaryRegister();
@@ -4433,7 +4883,9 @@ public sealed partial class JsCompiler : IDisposable
             else
             {
                 if (!TryGetNamedMemberKey(member, out var memberName))
-                    throw new NotImplementedException("Only non-private member delete is supported in Okojo Phase 1.");
+                    throw new NotImplementedException(
+                        "Only non-private member delete is supported in Okojo Phase 1."
+                    );
                 var nameIdx = builder.AddObjectConstant(memberName);
                 EmitLdaStringConstantByIndex(nameIdx);
             }
@@ -4441,9 +4893,14 @@ public sealed partial class JsCompiler : IDisposable
             EmitStarRegister(keyReg);
             EmitRaw(
                 JsOpCode.CallRuntime,
-                (byte)(strictDeclared ? RuntimeId.DeleteKeyedPropertyStrict : RuntimeId.DeleteKeyedProperty),
+                (byte)(
+                    strictDeclared
+                        ? RuntimeId.DeleteKeyedPropertyStrict
+                        : RuntimeId.DeleteKeyedProperty
+                ),
                 (byte)targetReg,
-                2);
+                2
+            );
         }
         finally
         {
@@ -4451,7 +4908,11 @@ public sealed partial class JsCompiler : IDisposable
         }
     }
 
-    private static bool TryGetDeletePrivateIdentifier(JsExpression expr, out string name, out int position)
+    private static bool TryGetDeletePrivateIdentifier(
+        JsExpression expr,
+        out string name,
+        out int position
+    )
     {
         switch (expr)
         {
@@ -4459,11 +4920,19 @@ public sealed partial class JsCompiler : IDisposable
                 name = p.Name;
                 position = p.Position;
                 return true;
-            case JsBinaryExpression { Operator: JsBinaryOperator.In, Left: JsPrivateIdentifierExpression p }:
+            case JsBinaryExpression
+            {
+                Operator: JsBinaryOperator.In,
+                Left: JsPrivateIdentifierExpression p
+            }:
                 name = p.Name;
                 position = p.Position;
                 return true;
-            case JsMemberExpression { IsPrivate: true, Property: JsLiteralExpression { Value: string s } } m:
+            case JsMemberExpression
+            {
+                IsPrivate: true,
+                Property: JsLiteralExpression { Value: string s }
+            } m:
                 name = s;
                 position = m.Position;
                 return true;
@@ -4474,7 +4943,11 @@ public sealed partial class JsCompiler : IDisposable
         }
     }
 
-    private void StoreIdentifier(string name, bool isInitialization = false, string? sourceNameForDebug = null)
+    private void StoreIdentifier(
+        string name,
+        bool isInitialization = false,
+        string? sourceNameForDebug = null
+    )
     {
         if (ShouldUseFunctionArgumentsBinding(sourceNameForDebug ?? name))
         {
@@ -4600,7 +5073,11 @@ public sealed partial class JsCompiler : IDisposable
                 _ = TryEmitMirrorCurrentLocalStoreToModuleExport(resolvedName);
             }
 
-            if (isInitialization && binding.IsLexicalRegisterLocal && ShouldTrackKnownInitializedLexical(resolvedName))
+            if (
+                isInitialization
+                && binding.IsLexicalRegisterLocal
+                && ShouldTrackKnownInitializedLexical(resolvedName)
+            )
                 MarkKnownInitializedLexical(resolvedName);
         }
         else if (binding.Kind == IdentifierStoreBindingKind.CapturedContext)
@@ -4668,7 +5145,11 @@ public sealed partial class JsCompiler : IDisposable
             }
 
             var nameIdx = builder.AddAtomizedStringConstant(sourceName);
-            EmitStaGlobalByIndex(nameIdx, builder.GetOrAllocateGlobalBindingFeedbackSlot(sourceName), isInitialization);
+            EmitStaGlobalByIndex(
+                nameIdx,
+                builder.GetOrAllocateGlobalBindingFeedbackSlot(sourceName),
+                isInitialization
+            );
         }
     }
 
@@ -4697,9 +5178,11 @@ public sealed partial class JsCompiler : IDisposable
             return false;
         if (functionHasParameterExpressions && emittingParameterInitializers)
             return requiresArgumentsObject;
-        if (TryGetSymbolId(identifierName, out var symbolId) &&
-            symbolId != SyntheticArgumentsSymbolId &&
-            localBindingInfoById.ContainsKey(symbolId))
+        if (
+            TryGetSymbolId(identifierName, out var symbolId)
+            && symbolId != SyntheticArgumentsSymbolId
+            && localBindingInfoById.ContainsKey(symbolId)
+        )
             return false;
         return requiresArgumentsObject;
     }
@@ -4746,18 +5229,18 @@ public sealed partial class JsCompiler : IDisposable
     {
         if (!functionHasParameterExpressions || !emittingParameterInitializers)
             return true;
-        return IsParameterLocalBinding(resolvedName) ||
-               IsImmutableFunctionNameBinding(resolvedName) ||
-               string.Equals(resolvedName, SyntheticArgumentsBindingName, StringComparison.Ordinal);
+        return IsParameterLocalBinding(resolvedName)
+            || IsImmutableFunctionNameBinding(resolvedName)
+            || string.Equals(resolvedName, SyntheticArgumentsBindingName, StringComparison.Ordinal);
     }
 
     private bool IsCurrentFunctionLocalVisibleForCapture(int resolvedSymbolId)
     {
         if (!functionHasParameterExpressions || !emittingParameterInitializers)
             return true;
-        return IsParameterLocalBinding(resolvedSymbolId) ||
-               IsImmutableFunctionNameBinding(resolvedSymbolId) ||
-               resolvedSymbolId == SyntheticArgumentsSymbolId;
+        return IsParameterLocalBinding(resolvedSymbolId)
+            || IsImmutableFunctionNameBinding(resolvedSymbolId)
+            || resolvedSymbolId == SyntheticArgumentsSymbolId;
     }
 
     private int EnsureSyntheticArgumentsRegister()
@@ -4792,7 +5275,6 @@ public sealed partial class JsCompiler : IDisposable
         return reg;
     }
 
-
     private void EmitThrowConstAssignErrorRuntime(string name)
     {
         var callPc = builder.CodeLength;
@@ -4806,21 +5288,28 @@ public sealed partial class JsCompiler : IDisposable
             switch (stmt)
             {
                 case JsVariableDeclarationStatement varStmt:
-                    if (IsReplTopLevelMode() && !insideNestedBlock &&
-                        varStmt.Kind is not JsVariableDeclarationKind.Var)
+                    if (
+                        IsReplTopLevelMode()
+                        && !insideNestedBlock
+                        && varStmt.Kind is not JsVariableDeclarationKind.Var
+                    )
                         break;
-                    if (insideNestedBlock &&
-                        varStmt.Kind.IsLexical())
+                    if (insideNestedBlock && varStmt.Kind.IsLexical())
                         // Nested-block lexicals are declared via block alias prepass to preserve shadowing.
                         break;
 
                     foreach (var decl in varStmt.Declarators)
                     {
-                        if (varStmt.Kind is JsVariableDeclarationKind.Var &&
-                            ShouldUseFunctionArgumentsBinding(decl.Name))
+                        if (
+                            varStmt.Kind is JsVariableDeclarationKind.Var
+                            && ShouldUseFunctionArgumentsBinding(decl.Name)
+                        )
                             continue;
 
-                        if (varStmt.Kind is JsVariableDeclarationKind.Var && UsesGlobalScriptBindingsMode())
+                        if (
+                            varStmt.Kind is JsVariableDeclarationKind.Var
+                            && UsesGlobalScriptBindingsMode()
+                        )
                         {
                             MarkVarBinding(decl.Name);
                             continue;
@@ -4835,8 +5324,11 @@ public sealed partial class JsCompiler : IDisposable
                         if (varStmt.Kind.IsLexical())
                         {
                             MarkLexicalBinding(decl.Name, varStmt.Kind.IsConstLike());
-                            if (UsesPersistentGlobalLexicalBindingsMode() && !insideNestedBlock &&
-                                !topLevelLexicalDeclarationPositionByName.ContainsKey(decl.Name))
+                            if (
+                                UsesPersistentGlobalLexicalBindingsMode()
+                                && !insideNestedBlock
+                                && !topLevelLexicalDeclarationPositionByName.ContainsKey(decl.Name)
+                            )
                                 topLevelLexicalDeclarationPositionByName[decl.Name] = decl.Position;
                         }
 
@@ -4851,7 +5343,8 @@ public sealed partial class JsCompiler : IDisposable
                     break;
                 case JsIfStatement ifStmt:
                     PredeclareLocals([ifStmt.Consequent], insideNestedBlock);
-                    if (ifStmt.Alternate != null) PredeclareLocals([ifStmt.Alternate], insideNestedBlock);
+                    if (ifStmt.Alternate != null)
+                        PredeclareLocals([ifStmt.Alternate], insideNestedBlock);
                     break;
                 case JsWhileStatement whileStmt:
                     PredeclareLocals([whileStmt.Body], insideNestedBlock);
@@ -4897,9 +5390,13 @@ public sealed partial class JsCompiler : IDisposable
                         break;
                     GetOrCreateLocal(classDecl.Name);
                     MarkLexicalBinding(classDecl.Name, false);
-                    if (UsesPersistentGlobalLexicalBindingsMode() && !insideNestedBlock &&
-                        !topLevelLexicalDeclarationPositionByName.ContainsKey(classDecl.Name))
-                        topLevelLexicalDeclarationPositionByName[classDecl.Name] = classDecl.Position;
+                    if (
+                        UsesPersistentGlobalLexicalBindingsMode()
+                        && !insideNestedBlock
+                        && !topLevelLexicalDeclarationPositionByName.ContainsKey(classDecl.Name)
+                    )
+                        topLevelLexicalDeclarationPositionByName[classDecl.Name] =
+                            classDecl.Position;
 
                     break;
                 case JsTryStatement tryStmt:
@@ -4928,24 +5425,29 @@ public sealed partial class JsCompiler : IDisposable
             }
     }
 
-
     private void AssignCurrentContextSlots()
     {
         EnsureDerivedThisContextSlotIfNeeded();
 
-        if (hasSuperReference) EnsureCurrentContextSlotForLocal(SuperBaseSymbolId);
+        if (hasSuperReference)
+            EnsureCurrentContextSlotForLocal(SuperBaseSymbolId);
 
-        if (requiresArgumentsObject &&
-            currentFunctionParameterPlan is not null &&
-            currentFunctionParameterPlan.HasSimpleParameterList &&
-            !strictDeclared &&
-            !isArrowFunction)
+        if (
+            requiresArgumentsObject
+            && currentFunctionParameterPlan is not null
+            && currentFunctionParameterPlan.HasSimpleParameterList
+            && !strictDeclared
+            && !isArrowFunction
+        )
             for (var i = 0; i < currentFunctionParameterPlan.Bindings.Count; i++)
             {
                 var parameter = currentFunctionParameterPlan.Bindings[i];
-                if (TryResolveLocalBinding(new CompilerIdentifierName(parameter.Name, parameter.NameId),
-                        out var resolvedParameter) &&
-                    TryGetLocalRegister(resolvedParameter.SymbolId, out _))
+                if (
+                    TryResolveLocalBinding(
+                        new CompilerIdentifierName(parameter.Name, parameter.NameId),
+                        out var resolvedParameter
+                    ) && TryGetLocalRegister(resolvedParameter.SymbolId, out _)
+                )
                     EnsureCurrentContextSlotForLocal(resolvedParameter.SymbolId);
             }
 
@@ -4953,17 +5455,26 @@ public sealed partial class JsCompiler : IDisposable
         {
             foreach (var parameter in currentFunctionParameterPlan.Bindings)
             {
-                if (TryResolveLocalBinding(new CompilerIdentifierName(parameter.Name, parameter.NameId),
-                        out var resolvedParameter) &&
-                    TryGetLocalRegister(resolvedParameter.SymbolId, out _))
+                if (
+                    TryResolveLocalBinding(
+                        new CompilerIdentifierName(parameter.Name, parameter.NameId),
+                        out var resolvedParameter
+                    ) && TryGetLocalRegister(resolvedParameter.SymbolId, out _)
+                )
                     EnsureCurrentContextSlotForLocal(resolvedParameter.SymbolId);
 
                 for (var i = 0; i < parameter.BoundIdentifiers.Count; i++)
                 {
                     var boundIdentifier = parameter.BoundIdentifiers[i];
-                    if (TryResolveLocalBinding(new CompilerIdentifierName(boundIdentifier.Name, boundIdentifier.NameId),
-                            out var resolvedBound) &&
-                        TryGetLocalRegister(resolvedBound.SymbolId, out _))
+                    if (
+                        TryResolveLocalBinding(
+                            new CompilerIdentifierName(
+                                boundIdentifier.Name,
+                                boundIdentifier.NameId
+                            ),
+                            out var resolvedBound
+                        ) && TryGetLocalRegister(resolvedBound.SymbolId, out _)
+                    )
                         EnsureCurrentContextSlotForLocal(resolvedBound.SymbolId);
                 }
             }
@@ -4988,11 +5499,16 @@ public sealed partial class JsCompiler : IDisposable
 
         EnsureLoopAliasContextSlots();
 
-        if (hasSuperReference && currentContextSlotById.TryGetValue(SuperBaseSymbolId, out var superSlot))
+        if (
+            hasSuperReference
+            && currentContextSlotById.TryGetValue(SuperBaseSymbolId, out var superSlot)
+        )
             superBaseContextSlot = superSlot;
 
-        if (derivedThisContextSlot < 0 &&
-            currentContextSlotById.TryGetValue(DerivedThisSymbolId, out var derivedThisSlot))
+        if (
+            derivedThisContextSlot < 0
+            && currentContextSlotById.TryGetValue(DerivedThisSymbolId, out var derivedThisSlot)
+        )
             derivedThisContextSlot = derivedThisSlot;
     }
 
@@ -5080,8 +5596,12 @@ public sealed partial class JsCompiler : IDisposable
         for (var i = 0; i < currentFunctionParameterPlan.Bindings.Count; i++)
         {
             var parameter = currentFunctionParameterPlan.Bindings[i];
-            if (!TryResolveLocalBinding(new CompilerIdentifierName(parameter.Name, parameter.NameId),
-                    out var resolvedParameter))
+            if (
+                !TryResolveLocalBinding(
+                    new CompilerIdentifierName(parameter.Name, parameter.NameId),
+                    out var resolvedParameter
+                )
+            )
                 continue;
             if (!TryGetLocalRegister(resolvedParameter.SymbolId, out var parameterReg))
                 continue;
@@ -5136,7 +5656,9 @@ public sealed partial class JsCompiler : IDisposable
         EmitStaCurrentContextSlot(superBaseContextSlot);
     }
 
-    private void ComputeSafeLexicalRegisterPrologueHoleInitSkips(IReadOnlyList<JsStatement> statements)
+    private void ComputeSafeLexicalRegisterPrologueHoleInitSkips(
+        IReadOnlyList<JsStatement> statements
+    )
     {
         skipLexicalRegisterPrologueHoleInit.Clear();
 
@@ -5145,9 +5667,16 @@ public sealed partial class JsCompiler : IDisposable
         {
             foreach (var stmt in statements)
             {
-                if (stmt is JsFunctionDeclaration) continue; // hoisted
+                if (stmt is JsFunctionDeclaration)
+                    continue; // hoisted
 
-                if (!TryGetSafePrefixLexicalDeclBindingToSkip(stmt, out var sourceName, out var resolvedBinding))
+                if (
+                    !TryGetSafePrefixLexicalDeclBindingToSkip(
+                        stmt,
+                        out var sourceName,
+                        out var resolvedBinding
+                    )
+                )
                     break;
 
                 var referencedEarlier = false;
@@ -5164,9 +5693,11 @@ public sealed partial class JsCompiler : IDisposable
             }
 
             foreach (var stmt in statements)
-                if (stmt is JsForStatement forStmt &&
-                    forStmt.Init is JsVariableDeclarationStatement initDecl &&
-                    TryGetSafeSingleLexicalInitDeclarator(initDecl, out var resolvedBinding))
+                if (
+                    stmt is JsForStatement forStmt
+                    && forStmt.Init is JsVariableDeclarationStatement initDecl
+                    && TryGetSafeSingleLexicalInitDeclarator(initDecl, out var resolvedBinding)
+                )
                     MarkSkipLexicalRegisterHoleInit(resolvedBinding.SymbolId);
         }
         finally
@@ -5175,43 +5706,59 @@ public sealed partial class JsCompiler : IDisposable
         }
     }
 
-    private bool TryGetSafePrefixLexicalDeclBindingToSkip(JsStatement stmt, out string sourceName,
-        out ResolvedLocalBinding resolvedBinding)
+    private bool TryGetSafePrefixLexicalDeclBindingToSkip(
+        JsStatement stmt,
+        out string sourceName,
+        out ResolvedLocalBinding resolvedBinding
+    )
     {
         sourceName = string.Empty;
         resolvedBinding = default;
 
-        if (stmt is not JsVariableDeclarationStatement declStmt) return false;
-        if (!declStmt.Kind.IsLexical()) return false;
-        if (declStmt.Declarators.Count != 1) return false;
+        if (stmt is not JsVariableDeclarationStatement declStmt)
+            return false;
+        if (!declStmt.Kind.IsLexical())
+            return false;
+        if (declStmt.Declarators.Count != 1)
+            return false;
 
         var decl = declStmt.Declarators[0];
-        if (decl.Initializer is null) return false;
-        if (ExpressionReferencesIdentifier(decl.Initializer, decl.Name)) return false;
+        if (decl.Initializer is null)
+            return false;
+        if (ExpressionReferencesIdentifier(decl.Initializer, decl.Name))
+            return false;
 
         sourceName = decl.Name;
         if (!TryResolveLocalBinding(decl.Name, out resolvedBinding))
             return false;
-        if (!IsLexicalRegisterLocal(resolvedBinding.SymbolId)) return false;
+        if (!IsLexicalRegisterLocal(resolvedBinding.SymbolId))
+            return false;
 
         return true;
     }
 
-    private bool TryGetSafeSingleLexicalInitDeclarator(JsVariableDeclarationStatement declStmt,
-        out ResolvedLocalBinding resolvedBinding)
+    private bool TryGetSafeSingleLexicalInitDeclarator(
+        JsVariableDeclarationStatement declStmt,
+        out ResolvedLocalBinding resolvedBinding
+    )
     {
         resolvedBinding = default;
 
-        if (!declStmt.Kind.IsLexical()) return false;
-        if (declStmt.Declarators.Count != 1) return false;
+        if (!declStmt.Kind.IsLexical())
+            return false;
+        if (declStmt.Declarators.Count != 1)
+            return false;
 
         var decl = declStmt.Declarators[0];
-        if (decl.Initializer is null) return false;
-        if (ExpressionReferencesIdentifier(decl.Initializer, decl.Name)) return false;
+        if (decl.Initializer is null)
+            return false;
+        if (ExpressionReferencesIdentifier(decl.Initializer, decl.Name))
+            return false;
 
         if (!TryResolveLocalBinding(decl.Name, out resolvedBinding))
             return false;
-        if (!IsLexicalRegisterLocal(resolvedBinding.SymbolId)) return false;
+        if (!IsLexicalRegisterLocal(resolvedBinding.SymbolId))
+            return false;
         return true;
     }
 
@@ -5250,12 +5797,16 @@ public sealed partial class JsCompiler : IDisposable
                 {
                     if (identifier.NameId >= 0)
                     {
-                        var sourceSymbolId = CompilerSymbolId.FromSourceIdentifier(identifier.NameId).Value;
+                        var sourceSymbolId = CompilerSymbolId
+                            .FromSourceIdentifier(identifier.NameId)
+                            .Value;
                         if (locals.ContainsKey(sourceSymbolId))
                             return identifier.Name;
                     }
-                    else if (TryGetSymbolId(identifier.Name, out var directSymbolId) &&
-                             locals.ContainsKey(directSymbolId))
+                    else if (
+                        TryGetSymbolId(identifier.Name, out var directSymbolId)
+                        && locals.ContainsKey(directSymbolId)
+                    )
                     {
                         return identifier.Name;
                     }
@@ -5279,9 +5830,11 @@ public sealed partial class JsCompiler : IDisposable
                 if (!binding.Matches(sourceName))
                     continue;
 
-                if (scope.Inherited &&
-                    TryGetSymbolId(sourceName, out var sourceSymbolId) &&
-                    locals.ContainsKey(sourceSymbolId))
+                if (
+                    scope.Inherited
+                    && TryGetSymbolId(sourceName, out var sourceSymbolId)
+                    && locals.ContainsKey(sourceSymbolId)
+                )
                     return sourceName;
 
                 return binding.InternalName;
@@ -5293,7 +5846,8 @@ public sealed partial class JsCompiler : IDisposable
 
     private void PredeclareNestedBlockLexicals(JsBlockStatement block)
     {
-        if (nestedBlockLexicals.ContainsKey(block.Position)) return;
+        if (nestedBlockLexicals.ContainsKey(block.Position))
+            return;
 
         var bindings = Vm.RentCompileList<BlockLexicalBinding>(4);
         foreach (var stmt in block.Statements)
@@ -5307,8 +5861,15 @@ public sealed partial class JsCompiler : IDisposable
                     var internalName = $"{decl.Name}#b{blockLexicalUniqueId++}";
                     var internalSymbolId = GetOrCreateSymbolId(internalName);
                     MarkLexicalBinding(internalSymbolId, declStmt.Kind.IsConstLike());
-                    bindings.Add(new(decl.Name, decl.NameId, internalName, internalSymbolId,
-                        declStmt.Kind.IsConstLike()));
+                    bindings.Add(
+                        new(
+                            decl.Name,
+                            decl.NameId,
+                            internalName,
+                            internalSymbolId,
+                            declStmt.Kind.IsConstLike()
+                        )
+                    );
                 }
             }
             else if (stmt is JsFunctionDeclaration functionDecl)
@@ -5316,8 +5877,15 @@ public sealed partial class JsCompiler : IDisposable
                 var internalName = $"{functionDecl.Name}#b{blockLexicalUniqueId++}";
                 var internalSymbolId = GetOrCreateSymbolId(internalName);
                 MarkLexicalBinding(internalSymbolId, false);
-                bindings.Add(new(functionDecl.Name, functionDecl.NameId, internalName, internalSymbolId,
-                    false));
+                bindings.Add(
+                    new(
+                        functionDecl.Name,
+                        functionDecl.NameId,
+                        internalName,
+                        internalSymbolId,
+                        false
+                    )
+                );
             }
 
         if (bindings.Count > 0)
@@ -5330,11 +5898,15 @@ public sealed partial class JsCompiler : IDisposable
     {
         if (forHeadLexicalsByPosition.ContainsKey(forStmt.Position))
             return;
-        if (forStmt.Init is not JsVariableDeclarationStatement declStmt ||
-            !declStmt.Kind.IsLexical())
+        if (
+            forStmt.Init is not JsVariableDeclarationStatement declStmt
+            || !declStmt.Kind.IsLexical()
+        )
             return;
 
-        var bindings = Vm.RentCompileList<BlockLexicalBinding>(Math.Max(1, declStmt.Declarators.Count));
+        var bindings = Vm.RentCompileList<BlockLexicalBinding>(
+            Math.Max(1, declStmt.Declarators.Count)
+        );
         foreach (var decl in declStmt.Declarators)
         {
             var internalName = $"{decl.Name}#f{blockLexicalUniqueId++}";
@@ -5354,8 +5926,10 @@ public sealed partial class JsCompiler : IDisposable
     {
         if (forInOfHeadLexicalsByPosition.ContainsKey(forInOfStmt.Position))
             return;
-        if (forInOfStmt.Left is not JsVariableDeclarationStatement declStmt ||
-            !declStmt.Kind.IsLexical())
+        if (
+            forInOfStmt.Left is not JsVariableDeclarationStatement declStmt
+            || !declStmt.Kind.IsLexical()
+        )
             return;
 
         var boundIdentifiers = GetForInOfHeadBoundIdentifiers(forInOfStmt);
@@ -5366,7 +5940,15 @@ public sealed partial class JsCompiler : IDisposable
             var internalSymbolId = GetOrCreateSymbolId(internalName);
             var isConst = declStmt.Kind.IsConstLike();
             MarkLexicalBinding(internalSymbolId, isConst);
-            bindings.Add(new(boundIdentifier.Name, boundIdentifier.NameId, internalName, internalSymbolId, isConst));
+            bindings.Add(
+                new(
+                    boundIdentifier.Name,
+                    boundIdentifier.NameId,
+                    internalName,
+                    internalSymbolId,
+                    isConst
+                )
+            );
         }
 
         if (bindings.Count > 0)
@@ -5374,14 +5956,24 @@ public sealed partial class JsCompiler : IDisposable
         else
             Vm.ReturnCompileList(bindings);
 
-        var tdzBindings = Vm.RentCompileList<BlockLexicalBinding>(Math.Max(1, boundIdentifiers.Count));
+        var tdzBindings = Vm.RentCompileList<BlockLexicalBinding>(
+            Math.Max(1, boundIdentifiers.Count)
+        );
         foreach (var boundIdentifier in boundIdentifiers)
         {
             var internalName = $"{boundIdentifier.Name}#t{blockLexicalUniqueId++}";
             var internalSymbolId = GetOrCreateSymbolId(internalName);
             var isConst = declStmt.Kind.IsConstLike();
             MarkLexicalBinding(internalSymbolId, isConst);
-            tdzBindings.Add(new(boundIdentifier.Name, boundIdentifier.NameId, internalName, internalSymbolId, isConst));
+            tdzBindings.Add(
+                new(
+                    boundIdentifier.Name,
+                    boundIdentifier.NameId,
+                    internalName,
+                    internalSymbolId,
+                    isConst
+                )
+            );
         }
 
         if (tdzBindings.Count > 0)
@@ -5400,37 +5992,50 @@ public sealed partial class JsCompiler : IDisposable
         try
         {
             foreach (var c in switchStmt.Cases)
-                foreach (var stmt in c.Consequent)
-                    if (stmt is JsVariableDeclarationStatement declStmt &&
-                        declStmt.Kind.IsLexical())
+            foreach (var stmt in c.Consequent)
+                if (stmt is JsVariableDeclarationStatement declStmt && declStmt.Kind.IsLexical())
+                {
+                    foreach (var decl in declStmt.Declarators)
                     {
-                        foreach (var decl in declStmt.Declarators)
-                        {
-                            if (!seen.Add(decl.Name))
-                                throw new JsParseException($"Identifier '{decl.Name}' has already been declared",
-                                    stmt.Position, CurrentSourceText);
+                        if (!seen.Add(decl.Name))
+                            throw new JsParseException(
+                                $"Identifier '{decl.Name}' has already been declared",
+                                stmt.Position,
+                                CurrentSourceText
+                            );
 
-                            var internalName = $"{decl.Name}#s{blockLexicalUniqueId++}";
-                            var internalSymbolId = GetOrCreateSymbolId(internalName);
-                            MarkLexicalBinding(internalSymbolId, declStmt.Kind.IsConstLike());
-                            MarkSwitchLexicalInternal(internalSymbolId);
-                            bindings.Add(new(decl.Name, decl.NameId, internalName, internalSymbolId,
-                                declStmt.Kind.IsConstLike()));
-                        }
-                    }
-                    else if (stmt is JsClassDeclaration classDecl)
-                    {
-                        if (!seen.Add(classDecl.Name))
-                            throw new JsParseException($"Identifier '{classDecl.Name}' has already been declared",
-                                stmt.Position, CurrentSourceText);
-
-                        var internalName = $"{classDecl.Name}#s{blockLexicalUniqueId++}";
+                        var internalName = $"{decl.Name}#s{blockLexicalUniqueId++}";
                         var internalSymbolId = GetOrCreateSymbolId(internalName);
-                        MarkLexicalBinding(internalSymbolId, false);
+                        MarkLexicalBinding(internalSymbolId, declStmt.Kind.IsConstLike());
                         MarkSwitchLexicalInternal(internalSymbolId);
-                        bindings.Add(new(classDecl.Name, classDecl.NameId, internalName, internalSymbolId,
-                            false));
+                        bindings.Add(
+                            new(
+                                decl.Name,
+                                decl.NameId,
+                                internalName,
+                                internalSymbolId,
+                                declStmt.Kind.IsConstLike()
+                            )
+                        );
                     }
+                }
+                else if (stmt is JsClassDeclaration classDecl)
+                {
+                    if (!seen.Add(classDecl.Name))
+                        throw new JsParseException(
+                            $"Identifier '{classDecl.Name}' has already been declared",
+                            stmt.Position,
+                            CurrentSourceText
+                        );
+
+                    var internalName = $"{classDecl.Name}#s{blockLexicalUniqueId++}";
+                    var internalSymbolId = GetOrCreateSymbolId(internalName);
+                    MarkLexicalBinding(internalSymbolId, false);
+                    MarkSwitchLexicalInternal(internalSymbolId);
+                    bindings.Add(
+                        new(classDecl.Name, classDecl.NameId, internalName, internalSymbolId, false)
+                    );
+                }
 
             if (bindings.Count > 0)
                 switchLexicalsByPosition[switchStmt.Position] = bindings;
@@ -5445,7 +6050,10 @@ public sealed partial class JsCompiler : IDisposable
 
     private void PushBlockLexicalAliases(JsBlockStatement block)
     {
-        if (!nestedBlockLexicals.TryGetValue(block.Position, out var bindings) || bindings.Count == 0)
+        if (
+            !nestedBlockLexicals.TryGetValue(block.Position, out var bindings)
+            || bindings.Count == 0
+        )
             return;
 
         var scope = new LexicalAliasScope(bindings, false, false);
@@ -5468,7 +6076,10 @@ public sealed partial class JsCompiler : IDisposable
 
     private void PushSwitchLexicalAliases(JsSwitchStatement switchStmt)
     {
-        if (!switchLexicalsByPosition.TryGetValue(switchStmt.Position, out var bindings) || bindings.Count == 0)
+        if (
+            !switchLexicalsByPosition.TryGetValue(switchStmt.Position, out var bindings)
+            || bindings.Count == 0
+        )
             return;
 
         var scope = new LexicalAliasScope(bindings, false, false);
@@ -5479,7 +6090,10 @@ public sealed partial class JsCompiler : IDisposable
 
     private void PopSwitchLexicalAliases(JsSwitchStatement switchStmt)
     {
-        if (switchLexicalsByPosition.TryGetValue(switchStmt.Position, out var bindings) && bindings.Count > 0)
+        if (
+            switchLexicalsByPosition.TryGetValue(switchStmt.Position, out var bindings)
+            && bindings.Count > 0
+        )
         {
             var aliasScope = activeBlockLexicalAliases.Peek();
             var startPc = PopLocalDebugScopeStart();
@@ -5491,7 +6105,10 @@ public sealed partial class JsCompiler : IDisposable
 
     private void PushForHeadLexicalAliases(JsForStatement forStmt)
     {
-        if (!forHeadLexicalsByPosition.TryGetValue(forStmt.Position, out var bindings) || bindings.Count == 0)
+        if (
+            !forHeadLexicalsByPosition.TryGetValue(forStmt.Position, out var bindings)
+            || bindings.Count == 0
+        )
             return;
 
         var scope = new LexicalAliasScope(bindings, false, false);
@@ -5502,7 +6119,10 @@ public sealed partial class JsCompiler : IDisposable
 
     private void PopForHeadLexicalAliases(JsForStatement forStmt)
     {
-        if (forHeadLexicalsByPosition.TryGetValue(forStmt.Position, out var bindings) && bindings.Count > 0)
+        if (
+            forHeadLexicalsByPosition.TryGetValue(forStmt.Position, out var bindings)
+            && bindings.Count > 0
+        )
         {
             var aliasScope = activeBlockLexicalAliases.Peek();
             var startPc = PopLocalDebugScopeStart();
@@ -5514,7 +6134,10 @@ public sealed partial class JsCompiler : IDisposable
 
     private void PushForInOfHeadLexicalAliases(JsForInOfStatement forInOfStmt)
     {
-        if (!forInOfHeadLexicalsByPosition.TryGetValue(forInOfStmt.Position, out var bindings) || bindings.Count == 0)
+        if (
+            !forInOfHeadLexicalsByPosition.TryGetValue(forInOfStmt.Position, out var bindings)
+            || bindings.Count == 0
+        )
             return;
 
         var scope = new LexicalAliasScope(bindings, false, false);
@@ -5525,7 +6148,10 @@ public sealed partial class JsCompiler : IDisposable
 
     private void PopForInOfHeadLexicalAliases(JsForInOfStatement forInOfStmt)
     {
-        if (forInOfHeadLexicalsByPosition.TryGetValue(forInOfStmt.Position, out var bindings) && bindings.Count > 0)
+        if (
+            forInOfHeadLexicalsByPosition.TryGetValue(forInOfStmt.Position, out var bindings)
+            && bindings.Count > 0
+        )
         {
             var aliasScope = activeBlockLexicalAliases.Peek();
             var startPc = PopLocalDebugScopeStart();
@@ -5537,8 +6163,10 @@ public sealed partial class JsCompiler : IDisposable
 
     private void PushForInOfHeadTdzLexicalAliases(JsForInOfStatement forInOfStmt)
     {
-        if (!forInOfHeadTdzLexicalsByPosition.TryGetValue(forInOfStmt.Position, out var bindings) ||
-            bindings.Count == 0)
+        if (
+            !forInOfHeadTdzLexicalsByPosition.TryGetValue(forInOfStmt.Position, out var bindings)
+            || bindings.Count == 0
+        )
             return;
 
         var scope = new LexicalAliasScope(bindings, false, false);
@@ -5549,7 +6177,10 @@ public sealed partial class JsCompiler : IDisposable
 
     private void PopForInOfHeadTdzLexicalAliases(JsForInOfStatement forInOfStmt)
     {
-        if (forInOfHeadTdzLexicalsByPosition.TryGetValue(forInOfStmt.Position, out var bindings) && bindings.Count > 0)
+        if (
+            forInOfHeadTdzLexicalsByPosition.TryGetValue(forInOfStmt.Position, out var bindings)
+            && bindings.Count > 0
+        )
         {
             var aliasScope = activeBlockLexicalAliases.Peek();
             var startPc = PopLocalDebugScopeStart();
@@ -5571,9 +6202,11 @@ public sealed partial class JsCompiler : IDisposable
             return identifiers;
         }
 
-        if (declStmt.Declarators.Count == 1 &&
-            declStmt.Declarators[0].Name.StartsWith("$forpat_", StringComparison.Ordinal) &&
-            forInOfStmt.Body is JsBlockStatement bodyBlock)
+        if (
+            declStmt.Declarators.Count == 1
+            && declStmt.Declarators[0].Name.StartsWith("$forpat_", StringComparison.Ordinal)
+            && forInOfStmt.Body is JsBlockStatement bodyBlock
+        )
             foreach (var statement in bodyBlock.Statements)
                 switch (statement)
                 {
@@ -5596,7 +6229,10 @@ public sealed partial class JsCompiler : IDisposable
         return identifiers;
     }
 
-    private static void CollectPatternBoundIdentifiers(JsExpression pattern, List<BoundIdentifier> identifiers)
+    private static void CollectPatternBoundIdentifiers(
+        JsExpression pattern,
+        List<BoundIdentifier> identifiers
+    )
     {
         switch (pattern)
         {
@@ -5630,8 +6266,12 @@ public sealed partial class JsCompiler : IDisposable
         var identifiers = new List<BoundIdentifier>(4);
         CollectPatternBoundIdentifiers(pattern, identifiers);
         foreach (var identifier in identifiers)
-            if (TryResolveLocalBinding(new CompilerIdentifierName(identifier.Name, identifier.NameId),
-                    out var resolved))
+            if (
+                TryResolveLocalBinding(
+                    new CompilerIdentifierName(identifier.Name, identifier.NameId),
+                    out var resolved
+                )
+            )
             {
                 GetOrCreateLocal(resolved.SymbolId);
                 MarkVarBinding(resolved.SymbolId);
@@ -5643,7 +6283,11 @@ public sealed partial class JsCompiler : IDisposable
             }
     }
 
-    private string GetCatchBindingInternalName(string sourceName, int catchClausePosition, int ordinal)
+    private string GetCatchBindingInternalName(
+        string sourceName,
+        int catchClausePosition,
+        int ordinal
+    )
     {
         return $"{sourceName}#c{catchClausePosition}_{ordinal}";
     }
@@ -5663,7 +6307,11 @@ public sealed partial class JsCompiler : IDisposable
         if (!scope.Inherited)
             RecordCurrentContextPerIterationBaseDepth(scope.Bindings);
 
-        if (!enableAliasScopeRegisterAllocation || scope.Inherited || scope.RuntimeAllocatedSymbolIds is not null)
+        if (
+            !enableAliasScopeRegisterAllocation
+            || scope.Inherited
+            || scope.RuntimeAllocatedSymbolIds is not null
+        )
             return;
 
         var allocated = Vm.RentCompileList<int>(scope.Bindings.Count);
@@ -5725,7 +6373,11 @@ public sealed partial class JsCompiler : IDisposable
         scope.RuntimeAllocatedSymbolIds = null;
     }
 
-    private void EmitLocalDebugInfos(IReadOnlyList<BlockLexicalBinding> bindings, int startPc, int endPc)
+    private void EmitLocalDebugInfos(
+        IReadOnlyList<BlockLexicalBinding> bindings,
+        int startPc,
+        int endPc
+    )
     {
         if (bindings.Count == 0 || endPc <= startPc)
             return;
@@ -5733,7 +6385,15 @@ public sealed partial class JsCompiler : IDisposable
         for (var i = 0; i < bindings.Count; i++)
         {
             var binding = bindings[i];
-            if (!TryEmitLocalDebugInfo(binding.SourceName, binding.InternalSymbolId, binding.IsConst, startPc, endPc))
+            if (
+                !TryEmitLocalDebugInfo(
+                    binding.SourceName,
+                    binding.InternalSymbolId,
+                    binding.IsConst,
+                    startPc,
+                    endPc
+                )
+            )
                 continue;
         }
     }
@@ -5754,7 +6414,13 @@ public sealed partial class JsCompiler : IDisposable
         }
     }
 
-    private bool TryEmitLocalDebugInfo(string sourceName, int symbolId, bool? isConstOverride, int startPc, int endPc)
+    private bool TryEmitLocalDebugInfo(
+        string sourceName,
+        int symbolId,
+        bool? isConstOverride,
+        int startPc,
+        int endPc
+    )
     {
         if (endPc <= startPc)
             return false;
@@ -5762,7 +6428,9 @@ public sealed partial class JsCompiler : IDisposable
             return false;
 
         var flags = GetLocalDebugFlags(symbolId, isConstOverride);
-        builder.AddLocalDebugInfo(new(sourceName, storageKind, storageIndex, startPc, endPc, flags));
+        builder.AddLocalDebugInfo(
+            new(sourceName, storageKind, storageIndex, startPc, endPc, flags)
+        );
         return true;
     }
 
@@ -5770,7 +6438,9 @@ public sealed partial class JsCompiler : IDisposable
     {
         if (CompilerSymbolId.IsSourceIdentifier(symbolId) && identifierTable is not null)
         {
-            name = identifierTable.GetIdentifierLiteral(CompilerSymbolId.GetSourceIdentifierId(symbolId));
+            name = identifierTable.GetIdentifierLiteral(
+                CompilerSymbolId.GetSourceIdentifierId(symbolId)
+            );
             return true;
         }
 
@@ -5782,7 +6452,11 @@ public sealed partial class JsCompiler : IDisposable
         return false;
     }
 
-    private bool TryGetLocalDebugStorage(int symbolId, out JsLocalDebugStorageKind storageKind, out int storageIndex)
+    private bool TryGetLocalDebugStorage(
+        int symbolId,
+        out JsLocalDebugStorageKind storageKind,
+        out int storageIndex
+    )
     {
         if (TryGetCurrentContextSlot(symbolId, out storageIndex))
         {
@@ -5823,20 +6497,37 @@ public sealed partial class JsCompiler : IDisposable
     {
         var bindings = Vm.RentCompileList<BlockLexicalBinding>(1);
         var internalSymbolId = GetOrCreateSymbolId(internalName);
-        bindings.Add(new(sourceIdentifier.Name, sourceIdentifier.NameId, internalName, internalSymbolId,
-            false));
+        bindings.Add(
+            new(
+                sourceIdentifier.Name,
+                sourceIdentifier.NameId,
+                internalName,
+                internalSymbolId,
+                false
+            )
+        );
         var scope = new LexicalAliasScope(bindings, true, false);
         activeBlockLexicalAliases.Push(scope);
         PushLocalDebugScope();
         ActivateLexicalAliasScope(scope);
     }
 
-    private void PushInheritedAliasScope(CompilerIdentifierName sourceIdentifier, string internalName)
+    private void PushInheritedAliasScope(
+        CompilerIdentifierName sourceIdentifier,
+        string internalName
+    )
     {
         var bindings = Vm.RentCompileList<BlockLexicalBinding>(1);
         var internalSymbolId = GetOrCreateSymbolId(internalName);
-        bindings.Add(new(sourceIdentifier.Name, sourceIdentifier.NameId, internalName, internalSymbolId,
-            false));
+        bindings.Add(
+            new(
+                sourceIdentifier.Name,
+                sourceIdentifier.NameId,
+                internalName,
+                internalSymbolId,
+                false
+            )
+        );
         var scope = new LexicalAliasScope(bindings, true, true);
         activeBlockLexicalAliases.Push(scope);
         PushLocalDebugScope();
@@ -5869,22 +6560,28 @@ public sealed partial class JsCompiler : IDisposable
             var sourceName = catchClause.ParamName;
             var internalName = GetCatchBindingInternalName(sourceName, catchClause.Position, 0);
             var internalSymbolId = GetOrCreateSymbolId(internalName);
-            bindings.Add(new(sourceName, -1, internalName,
-                internalSymbolId, false));
+            bindings.Add(new(sourceName, -1, internalName, internalSymbolId, false));
             return bindings;
         }
 
         if (catchClause.Declarators.Count == 0)
             return null;
 
-        var declaratorBindings = Vm.RentCompileList<BlockLexicalBinding>(catchClause.Declarators.Count);
+        var declaratorBindings = Vm.RentCompileList<BlockLexicalBinding>(
+            catchClause.Declarators.Count
+        );
         for (var i = 0; i < catchClause.Declarators.Count; i++)
         {
             var declarator = catchClause.Declarators[i];
-            var internalName = GetCatchBindingInternalName(declarator.Name, catchClause.Position, i);
+            var internalName = GetCatchBindingInternalName(
+                declarator.Name,
+                catchClause.Position,
+                i
+            );
             var internalSymbolId = GetOrCreateSymbolId(internalName);
-            declaratorBindings.Add(new(declarator.Name, declarator.NameId, internalName,
-                internalSymbolId, false));
+            declaratorBindings.Add(
+                new(declarator.Name, declarator.NameId, internalName, internalSymbolId, false)
+            );
         }
 
         return declaratorBindings;
@@ -5917,10 +6614,12 @@ public sealed partial class JsCompiler : IDisposable
         EmitLocalDebugInfos(aliasScope.Bindings, startPc, builder.CodeLength);
         DeactivateLexicalAliasScope(aliasScope);
         _ = activeBlockLexicalAliases.Pop();
-        if (aliasScope.OwnsBindings && aliasScope.Bindings is List<BlockLexicalBinding> ownedBindings)
+        if (
+            aliasScope.OwnsBindings
+            && aliasScope.Bindings is List<BlockLexicalBinding> ownedBindings
+        )
             Vm.ReturnCompileList(ownedBindings);
     }
-
 
     private static bool StatementAlwaysReturns(JsStatement statement)
     {
@@ -5936,9 +6635,9 @@ public sealed partial class JsCompiler : IDisposable
 
                 return false;
             case JsIfStatement i:
-                return i.Alternate is not null &&
-                       StatementAlwaysReturns(i.Consequent) &&
-                       StatementAlwaysReturns(i.Alternate);
+                return i.Alternate is not null
+                    && StatementAlwaysReturns(i.Consequent)
+                    && StatementAlwaysReturns(i.Alternate);
             case JsForInOfStatement:
                 return false;
             case JsLabeledStatement:
@@ -5958,14 +6657,14 @@ public sealed partial class JsCompiler : IDisposable
             case JsContinueStatement:
                 return true;
             case JsBlockStatement block:
-                {
-                    var last = GetLastReachableStatement(block.Statements);
-                    return last is not null && StatementNeverCompletesNormally(last);
-                }
+            {
+                var last = GetLastReachableStatement(block.Statements);
+                return last is not null && StatementNeverCompletesNormally(last);
+            }
             case JsIfStatement conditional:
                 return conditional.Alternate is not null
-                       && StatementNeverCompletesNormally(conditional.Consequent)
-                       && StatementNeverCompletesNormally(conditional.Alternate);
+                    && StatementNeverCompletesNormally(conditional.Consequent)
+                    && StatementNeverCompletesNormally(conditional.Alternate);
             default:
                 return false;
         }
@@ -5984,7 +6683,9 @@ public sealed partial class JsCompiler : IDisposable
         return last;
     }
 
-    private static bool StatementListLeavesDirectCompletionValue(IReadOnlyList<JsStatement> statements)
+    private static bool StatementListLeavesDirectCompletionValue(
+        IReadOnlyList<JsStatement> statements
+    )
     {
         var last = GetLastReachableStatement(statements);
         return last is not null && StatementLeavesDirectCompletionValue(last);
@@ -5995,14 +6696,14 @@ public sealed partial class JsCompiler : IDisposable
         switch (statement)
         {
             case JsBlockStatement block:
-                {
-                    var last = GetLastReachableStatement(block.Statements);
-                    return last is not null && StatementLeavesKnownUndefinedValueInCurrentContext(last);
-                }
+            {
+                var last = GetLastReachableStatement(block.Statements);
+                return last is not null && StatementLeavesKnownUndefinedValueInCurrentContext(last);
+            }
             case JsIfStatement conditional:
                 return conditional.Alternate is not null
-                       && StatementLeavesKnownUndefinedValueInCurrentContext(conditional.Consequent)
-                       && StatementLeavesKnownUndefinedValueInCurrentContext(conditional.Alternate);
+                    && StatementLeavesKnownUndefinedValueInCurrentContext(conditional.Consequent)
+                    && StatementLeavesKnownUndefinedValueInCurrentContext(conditional.Alternate);
             case JsLabeledStatement labeled:
                 return StatementLeavesKnownUndefinedValueInCurrentContext(labeled.Statement);
             case JsWhileStatement whileStmt:
@@ -6028,8 +6729,8 @@ public sealed partial class JsCompiler : IDisposable
                 return StatementListLeavesDirectCompletionValue(block.Statements);
             case JsIfStatement conditional:
                 return conditional.Alternate is not null
-                       && StatementLeavesDirectCompletionValue(conditional.Consequent)
-                       && StatementLeavesDirectCompletionValue(conditional.Alternate);
+                    && StatementLeavesDirectCompletionValue(conditional.Consequent)
+                    && StatementLeavesDirectCompletionValue(conditional.Alternate);
             case JsLabeledStatement labeled:
                 return StatementLeavesDirectCompletionValue(labeled.Statement);
             default:
@@ -6037,7 +6738,9 @@ public sealed partial class JsCompiler : IDisposable
         }
     }
 
-    private static bool StatementListCanProduceTrackedCompletion(IReadOnlyList<JsStatement> statements)
+    private static bool StatementListCanProduceTrackedCompletion(
+        IReadOnlyList<JsStatement> statements
+    )
     {
         foreach (var statement in statements)
         {
@@ -6051,11 +6754,15 @@ public sealed partial class JsCompiler : IDisposable
         return false;
     }
 
-    private static bool StatementListNeedsStructuredCompletionTracking(IReadOnlyList<JsStatement> statements)
+    private static bool StatementListNeedsStructuredCompletionTracking(
+        IReadOnlyList<JsStatement> statements
+    )
     {
         return !StatementListLeavesDirectCompletionValue(statements)
-               && (StatementListCanProduceTrackedCompletion(statements)
-                   || StatementListCanCompleteAbruptEmpty(statements));
+            && (
+                StatementListCanProduceTrackedCompletion(statements)
+                || StatementListCanCompleteAbruptEmpty(statements)
+            );
     }
 
     private static bool StatementCanProduceTrackedCompletion(JsStatement statement)
@@ -6116,14 +6823,16 @@ public sealed partial class JsCompiler : IDisposable
                 return StatementListAlwaysProducesTrackedCompletion(block.Statements);
             case JsIfStatement conditional:
                 return conditional.Alternate is not null
-                       && StatementAlwaysProducesTrackedCompletion(conditional.Consequent)
-                       && StatementAlwaysProducesTrackedCompletion(conditional.Alternate);
+                    && StatementAlwaysProducesTrackedCompletion(conditional.Consequent)
+                    && StatementAlwaysProducesTrackedCompletion(conditional.Alternate);
             default:
                 return false;
         }
     }
 
-    private static bool StatementListAlwaysProducesTrackedCompletion(IReadOnlyList<JsStatement> statements)
+    private static bool StatementListAlwaysProducesTrackedCompletion(
+        IReadOnlyList<JsStatement> statements
+    )
     {
         foreach (var statement in statements)
         {
@@ -6138,7 +6847,9 @@ public sealed partial class JsCompiler : IDisposable
         return false;
     }
 
-    private static bool StatementListNeedsCompletionIsolationFromParent(IReadOnlyList<JsStatement> statements)
+    private static bool StatementListNeedsCompletionIsolationFromParent(
+        IReadOnlyList<JsStatement> statements
+    )
     {
         foreach (var statement in statements)
         {
@@ -6164,8 +6875,10 @@ public sealed partial class JsCompiler : IDisposable
                 return StatementListCanCompleteAbruptEmpty(block.Statements);
             case JsIfStatement conditional:
                 return StatementCanCompleteAbruptEmpty(conditional.Consequent)
-                       || (conditional.Alternate is not null
-                           && StatementCanCompleteAbruptEmpty(conditional.Alternate));
+                    || (
+                        conditional.Alternate is not null
+                        && StatementCanCompleteAbruptEmpty(conditional.Alternate)
+                    );
             case JsLabeledStatement labeled:
                 return StatementCanCompleteAbruptEmpty(labeled.Statement);
             case JsWhileStatement whileStmt:
@@ -6177,19 +6890,23 @@ public sealed partial class JsCompiler : IDisposable
             case JsForInOfStatement forInOfStmt:
                 return StatementCanCompleteAbruptEmpty(forInOfStmt.Body);
             case JsSwitchStatement switchStmt:
-                {
-                    foreach (var switchCase in switchStmt.Cases)
-                        if (StatementListCanCompleteAbruptEmpty(switchCase.Consequent))
-                            return true;
+            {
+                foreach (var switchCase in switchStmt.Cases)
+                    if (StatementListCanCompleteAbruptEmpty(switchCase.Consequent))
+                        return true;
 
-                    return false;
-                }
+                return false;
+            }
             case JsTryStatement tryStmt:
                 return StatementListCanCompleteAbruptEmpty(tryStmt.Block.Statements)
-                       || (tryStmt.Handler is not null
-                           && StatementListCanCompleteAbruptEmpty(tryStmt.Handler.Body.Statements))
-                       || (tryStmt.Finalizer is not null
-                           && StatementListCanCompleteAbruptEmpty(tryStmt.Finalizer.Statements));
+                    || (
+                        tryStmt.Handler is not null
+                        && StatementListCanCompleteAbruptEmpty(tryStmt.Handler.Body.Statements)
+                    )
+                    || (
+                        tryStmt.Finalizer is not null
+                        && StatementListCanCompleteAbruptEmpty(tryStmt.Finalizer.Statements)
+                    );
             default:
                 return false;
         }
@@ -6255,7 +6972,8 @@ public sealed partial class JsCompiler : IDisposable
 
     private int EmitSpreadAwareArgumentsIntoContiguousTemporaryRegisters(
         IReadOnlyList<JsExpression> arguments,
-        out int flagsReg)
+        out int flagsReg
+    )
     {
         if (arguments.Count == 0)
         {
@@ -6293,11 +7011,11 @@ public sealed partial class JsCompiler : IDisposable
 
     private bool TryEmitExplicitSuperForwardAllArguments(IReadOnlyList<JsExpression> arguments)
     {
-        if (arguments.Count != 1 ||
-            arguments[0] is not JsSpreadExpression
-            {
-                Argument: JsIdentifierExpression { Name: "arguments" }
-            })
+        if (
+            arguments.Count != 1
+            || arguments[0]
+                is not JsSpreadExpression { Argument: JsIdentifierExpression { Name: "arguments" } }
+        )
             return false;
 
         EmitCallRuntime(RuntimeId.CallSuperConstructorForwardAll, 0, 0);
@@ -6312,8 +7030,11 @@ public sealed partial class JsCompiler : IDisposable
             return;
         if (suspendPinnedRegisterRefCounts.TryGetValue(register, out var refCount) && refCount > 0)
             return;
-        if (register == syntheticArgumentsRegister || register == cachedNewTargetRegister ||
-            register == generatorResumeValueTempRegister)
+        if (
+            register == syntheticArgumentsRegister
+            || register == cachedNewTargetRegister
+            || register == generatorResumeValueTempRegister
+        )
             return;
         builder.ReleaseTemporaryRegister(register);
     }
@@ -6332,7 +7053,8 @@ public sealed partial class JsCompiler : IDisposable
         IReadOnlyList<string> parameters,
         IReadOnlyList<JsExpression?> parameterInitializers,
         JsBlockStatement body,
-        bool isArrow)
+        bool isArrow
+    )
     {
         if (isArrow)
             return false;
@@ -6341,7 +7063,10 @@ public sealed partial class JsCompiler : IDisposable
                 return false;
 
         foreach (var initializer in parameterInitializers)
-            if (initializer is not null && ExpressionReferencesArgumentsInFunctionScope(initializer))
+            if (
+                initializer is not null
+                && ExpressionReferencesArgumentsInFunctionScope(initializer)
+            )
                 return true;
 
         foreach (var statement in body.Statements)
@@ -6356,49 +7081,78 @@ public sealed partial class JsCompiler : IDisposable
         return stmt switch
         {
             JsExpressionStatement es => ExpressionReferencesArgumentsInFunctionScope(es.Expression),
-            JsBlockStatement block => block.Statements.Any(StatementReferencesArgumentsInFunctionScope),
+            JsBlockStatement block => block.Statements.Any(
+                StatementReferencesArgumentsInFunctionScope
+            ),
             JsIfStatement i => ExpressionReferencesArgumentsInFunctionScope(i.Test)
-                               || StatementReferencesArgumentsInFunctionScope(i.Consequent)
-                               || (i.Alternate is not null && StatementReferencesArgumentsInFunctionScope(i.Alternate)),
+                || StatementReferencesArgumentsInFunctionScope(i.Consequent)
+                || (
+                    i.Alternate is not null
+                    && StatementReferencesArgumentsInFunctionScope(i.Alternate)
+                ),
             JsWhileStatement w => ExpressionReferencesArgumentsInFunctionScope(w.Test)
-                                  || StatementReferencesArgumentsInFunctionScope(w.Body),
-            JsForStatement f =>
-                (f.Init is JsVariableDeclarationStatement initDecl &&
-                 initDecl.Declarators.Any(d =>
-                     d.Initializer is not null && ExpressionReferencesArgumentsInFunctionScope(d.Initializer))) ||
-                (f.Init is JsExpression initExpr && ExpressionReferencesArgumentsInFunctionScope(initExpr)) ||
-                (f.Test is not null && ExpressionReferencesArgumentsInFunctionScope(f.Test)) ||
-                (f.Update is not null && ExpressionReferencesArgumentsInFunctionScope(f.Update)) ||
-                StatementReferencesArgumentsInFunctionScope(f.Body),
-            JsForInOfStatement f =>
-                (f.Left is JsVariableDeclarationStatement leftDecl &&
-                 leftDecl.Declarators.Any(d =>
-                     d.Initializer is not null && ExpressionReferencesArgumentsInFunctionScope(d.Initializer))) ||
-                (f.Left is JsExpression leftExpr && ExpressionReferencesArgumentsInFunctionScope(leftExpr)) ||
-                ExpressionReferencesArgumentsInFunctionScope(f.Right) ||
-                StatementReferencesArgumentsInFunctionScope(f.Body),
-            JsReturnStatement r => r.Argument is not null && ExpressionReferencesArgumentsInFunctionScope(r.Argument),
+                || StatementReferencesArgumentsInFunctionScope(w.Body),
+            JsForStatement f => (
+                f.Init is JsVariableDeclarationStatement initDecl
+                && initDecl.Declarators.Any(d =>
+                    d.Initializer is not null
+                    && ExpressionReferencesArgumentsInFunctionScope(d.Initializer)
+                )
+            )
+                || (
+                    f.Init is JsExpression initExpr
+                    && ExpressionReferencesArgumentsInFunctionScope(initExpr)
+                )
+                || (f.Test is not null && ExpressionReferencesArgumentsInFunctionScope(f.Test))
+                || (f.Update is not null && ExpressionReferencesArgumentsInFunctionScope(f.Update))
+                || StatementReferencesArgumentsInFunctionScope(f.Body),
+            JsForInOfStatement f => (
+                f.Left is JsVariableDeclarationStatement leftDecl
+                && leftDecl.Declarators.Any(d =>
+                    d.Initializer is not null
+                    && ExpressionReferencesArgumentsInFunctionScope(d.Initializer)
+                )
+            )
+                || (
+                    f.Left is JsExpression leftExpr
+                    && ExpressionReferencesArgumentsInFunctionScope(leftExpr)
+                )
+                || ExpressionReferencesArgumentsInFunctionScope(f.Right)
+                || StatementReferencesArgumentsInFunctionScope(f.Body),
+            JsReturnStatement r => r.Argument is not null
+                && ExpressionReferencesArgumentsInFunctionScope(r.Argument),
             JsThrowStatement t => ExpressionReferencesArgumentsInFunctionScope(t.Argument),
-            JsVariableDeclarationStatement v =>
-                (v.BindingInitializer is not null &&
-                 ExpressionReferencesArgumentsInFunctionScope(v.BindingInitializer)) ||
-                (v.BindingPattern is not null && ExpressionReferencesArgumentsInFunctionScope(v.BindingPattern)) ||
-                v.Declarators.Any(d =>
-                    d.Initializer is not null && ExpressionReferencesArgumentsInFunctionScope(d.Initializer)),
-            JsEmptyObjectBindingDeclarationStatement emptyObjectBinding => ExpressionReferencesArgumentsInFunctionScope(
-                emptyObjectBinding.Initializer),
+            JsVariableDeclarationStatement v => (
+                v.BindingInitializer is not null
+                && ExpressionReferencesArgumentsInFunctionScope(v.BindingInitializer)
+            )
+                || (
+                    v.BindingPattern is not null
+                    && ExpressionReferencesArgumentsInFunctionScope(v.BindingPattern)
+                )
+                || v.Declarators.Any(d =>
+                    d.Initializer is not null
+                    && ExpressionReferencesArgumentsInFunctionScope(d.Initializer)
+                ),
+            JsEmptyObjectBindingDeclarationStatement emptyObjectBinding =>
+                ExpressionReferencesArgumentsInFunctionScope(emptyObjectBinding.Initializer),
             JsFunctionDeclaration => false,
-            JsTryStatement t =>
-                StatementReferencesArgumentsInFunctionScope(t.Block) ||
-                (t.Handler is not null && StatementReferencesArgumentsInFunctionScope(t.Handler.Body)) ||
-                (t.Finalizer is not null && StatementReferencesArgumentsInFunctionScope(t.Finalizer)),
-            JsSwitchStatement sw =>
-                ExpressionReferencesArgumentsInFunctionScope(sw.Discriminant) ||
-                sw.Cases.Any(c =>
-                    (c.Test is not null && ExpressionReferencesArgumentsInFunctionScope(c.Test)) ||
-                    c.Consequent.Any(StatementReferencesArgumentsInFunctionScope)),
+            JsTryStatement t => StatementReferencesArgumentsInFunctionScope(t.Block)
+                || (
+                    t.Handler is not null
+                    && StatementReferencesArgumentsInFunctionScope(t.Handler.Body)
+                )
+                || (
+                    t.Finalizer is not null
+                    && StatementReferencesArgumentsInFunctionScope(t.Finalizer)
+                ),
+            JsSwitchStatement sw => ExpressionReferencesArgumentsInFunctionScope(sw.Discriminant)
+                || sw.Cases.Any(c =>
+                    (c.Test is not null && ExpressionReferencesArgumentsInFunctionScope(c.Test))
+                    || c.Consequent.Any(StatementReferencesArgumentsInFunctionScope)
+                ),
             JsLabeledStatement l => StatementReferencesArgumentsInFunctionScope(l.Statement),
-            _ => false
+            _ => false,
         };
     }
 
@@ -6406,70 +7160,101 @@ public sealed partial class JsCompiler : IDisposable
     {
         return expr switch
         {
-            JsIdentifierExpression id => string.Equals(id.Name, "arguments", StringComparison.Ordinal),
-            JsAssignmentExpression a => ExpressionReferencesArgumentsInFunctionScope(a.Left) ||
-                                        ExpressionReferencesArgumentsInFunctionScope(a.Right),
-            JsBinaryExpression b => ExpressionReferencesArgumentsInFunctionScope(b.Left) ||
-                                    ExpressionReferencesArgumentsInFunctionScope(b.Right),
-            JsConditionalExpression c => ExpressionReferencesArgumentsInFunctionScope(c.Test) ||
-                                         ExpressionReferencesArgumentsInFunctionScope(c.Consequent) ||
-                                         ExpressionReferencesArgumentsInFunctionScope(c.Alternate),
-            JsCallExpression c => ExpressionReferencesArgumentsInFunctionScope(c.Callee) ||
-                                  c.Arguments.Any(ExpressionReferencesArgumentsInFunctionScope),
-            JsImportCallExpression importCall =>
-                ExpressionReferencesArgumentsInFunctionScope(importCall.Argument) ||
-                (importCall.Options is not null && ExpressionReferencesArgumentsInFunctionScope(importCall.Options)),
-            JsNewExpression n => ExpressionReferencesArgumentsInFunctionScope(n.Callee) ||
-                                 n.Arguments.Any(ExpressionReferencesArgumentsInFunctionScope),
-            JsMemberExpression m => ExpressionReferencesArgumentsInFunctionScope(m.Object) ||
-                                    (m.IsComputed && ExpressionReferencesArgumentsInFunctionScope(m.Property)),
-            JsSequenceExpression s => s.Expressions.Any(ExpressionReferencesArgumentsInFunctionScope),
+            JsIdentifierExpression id => string.Equals(
+                id.Name,
+                "arguments",
+                StringComparison.Ordinal
+            ),
+            JsAssignmentExpression a => ExpressionReferencesArgumentsInFunctionScope(a.Left)
+                || ExpressionReferencesArgumentsInFunctionScope(a.Right),
+            JsBinaryExpression b => ExpressionReferencesArgumentsInFunctionScope(b.Left)
+                || ExpressionReferencesArgumentsInFunctionScope(b.Right),
+            JsConditionalExpression c => ExpressionReferencesArgumentsInFunctionScope(c.Test)
+                || ExpressionReferencesArgumentsInFunctionScope(c.Consequent)
+                || ExpressionReferencesArgumentsInFunctionScope(c.Alternate),
+            JsCallExpression c => ExpressionReferencesArgumentsInFunctionScope(c.Callee)
+                || c.Arguments.Any(ExpressionReferencesArgumentsInFunctionScope),
+            JsImportCallExpression importCall => ExpressionReferencesArgumentsInFunctionScope(
+                importCall.Argument
+            )
+                || (
+                    importCall.Options is not null
+                    && ExpressionReferencesArgumentsInFunctionScope(importCall.Options)
+                ),
+            JsNewExpression n => ExpressionReferencesArgumentsInFunctionScope(n.Callee)
+                || n.Arguments.Any(ExpressionReferencesArgumentsInFunctionScope),
+            JsMemberExpression m => ExpressionReferencesArgumentsInFunctionScope(m.Object)
+                || (m.IsComputed && ExpressionReferencesArgumentsInFunctionScope(m.Property)),
+            JsSequenceExpression s => s.Expressions.Any(
+                ExpressionReferencesArgumentsInFunctionScope
+            ),
             JsSpreadExpression s => ExpressionReferencesArgumentsInFunctionScope(s.Argument),
-            JsIntrinsicCallExpression i => i.Arguments.Any(ExpressionReferencesArgumentsInFunctionScope),
-            JsParameterInitializerExpression p => ExpressionReferencesArgumentsInFunctionScope(p.Expression),
+            JsIntrinsicCallExpression i => i.Arguments.Any(
+                ExpressionReferencesArgumentsInFunctionScope
+            ),
+            JsParameterInitializerExpression p => ExpressionReferencesArgumentsInFunctionScope(
+                p.Expression
+            ),
             JsArrayExpression a => a.Elements.Any(e =>
-                e is not null && ExpressionReferencesArgumentsInFunctionScope(e)),
-            JsTemplateExpression t => t.Expressions.Any(ExpressionReferencesArgumentsInFunctionScope),
-            JsTaggedTemplateExpression tt =>
-                ExpressionReferencesArgumentsInFunctionScope(tt.Tag) ||
-                tt.Template.Expressions.Any(ExpressionReferencesArgumentsInFunctionScope),
+                e is not null && ExpressionReferencesArgumentsInFunctionScope(e)
+            ),
+            JsTemplateExpression t => t.Expressions.Any(
+                ExpressionReferencesArgumentsInFunctionScope
+            ),
+            JsTaggedTemplateExpression tt => ExpressionReferencesArgumentsInFunctionScope(tt.Tag)
+                || tt.Template.Expressions.Any(ExpressionReferencesArgumentsInFunctionScope),
             JsObjectExpression o => o.Properties.Any(PropertyReferencesArgumentsInFunctionScope),
-            JsClassExpression c => (c.ExtendsExpression is not null &&
-                                    ExpressionReferencesArgumentsInFunctionScope(c.ExtendsExpression)) ||
-                                   c.Elements.Any(ClassElementReferencesArgumentsInFunctionScope),
+            JsClassExpression c => (
+                c.ExtendsExpression is not null
+                && ExpressionReferencesArgumentsInFunctionScope(c.ExtendsExpression)
+            ) || c.Elements.Any(ClassElementReferencesArgumentsInFunctionScope),
             JsUnaryExpression u => ExpressionReferencesArgumentsInFunctionScope(u.Argument),
             JsUpdateExpression u => ExpressionReferencesArgumentsInFunctionScope(u.Argument),
-            JsYieldExpression y => y.Argument is not null && ExpressionReferencesArgumentsInFunctionScope(y.Argument),
+            JsYieldExpression y => y.Argument is not null
+                && ExpressionReferencesArgumentsInFunctionScope(y.Argument),
             JsAwaitExpression a => ExpressionReferencesArgumentsInFunctionScope(a.Argument),
-            JsFunctionExpression f when f.IsArrow =>
-                f.ParameterInitializers.Any(i => i is not null && ExpressionReferencesArgumentsInFunctionScope(i)) ||
-                f.Body.Statements.Any(StatementReferencesArgumentsInFunctionScope),
+            JsFunctionExpression f when f.IsArrow => f.ParameterInitializers.Any(i =>
+                i is not null && ExpressionReferencesArgumentsInFunctionScope(i)
+            ) || f.Body.Statements.Any(StatementReferencesArgumentsInFunctionScope),
             JsFunctionExpression => false,
-            _ => false
+            _ => false,
         };
     }
 
     private static bool PropertyReferencesArgumentsInFunctionScope(JsObjectProperty property)
     {
-        if (property.ComputedKey is not null && ExpressionReferencesArgumentsInFunctionScope(property.ComputedKey))
+        if (
+            property.ComputedKey is not null
+            && ExpressionReferencesArgumentsInFunctionScope(property.ComputedKey)
+        )
             return true;
         return ExpressionReferencesArgumentsInFunctionScope(property.Value);
     }
 
     private static bool ClassElementReferencesArgumentsInFunctionScope(JsClassElement element)
     {
-        if (element.ComputedKey is not null && ExpressionReferencesArgumentsInFunctionScope(element.ComputedKey))
+        if (
+            element.ComputedKey is not null
+            && ExpressionReferencesArgumentsInFunctionScope(element.ComputedKey)
+        )
             return true;
-        if (element.StaticBlock is not null &&
-            element.StaticBlock.Statements.Any(StatementReferencesArgumentsInFunctionScope))
+        if (
+            element.StaticBlock is not null
+            && element.StaticBlock.Statements.Any(StatementReferencesArgumentsInFunctionScope)
+        )
             return true;
-        if (element.FieldInitializer is not null &&
-            ExpressionReferencesArgumentsInFunctionScope(element.FieldInitializer))
+        if (
+            element.FieldInitializer is not null
+            && ExpressionReferencesArgumentsInFunctionScope(element.FieldInitializer)
+        )
             return true;
         if (element.Value is not null && element.Value.IsArrow)
         {
-            if (element.Value.ParameterInitializers.Any(i =>
-                    i is not null && ExpressionReferencesArgumentsInFunctionScope(i)))
+            if (
+                element.Value.ParameterInitializers.Any(i =>
+                    i is not null && ExpressionReferencesArgumentsInFunctionScope(i)
+                )
+            )
                 return true;
             if (element.Value.Body.Statements.Any(StatementReferencesArgumentsInFunctionScope))
                 return true;
@@ -6481,7 +7266,8 @@ public sealed partial class JsCompiler : IDisposable
     private static int CountNewTargetExpressions(IEnumerable<JsStatement> statements)
     {
         var count = 0;
-        foreach (var statement in statements) count += CountNewTargetInStatement(statement);
+        foreach (var statement in statements)
+            count += CountNewTargetInStatement(statement);
 
         return count;
     }
@@ -6495,31 +7281,42 @@ public sealed partial class JsCompiler : IDisposable
             case JsBlockStatement b:
                 return CountNewTargetExpressions(b.Statements);
             case JsIfStatement i:
-                return CountNewTargetInExpression(i.Test) +
-                       CountNewTargetInStatement(i.Consequent) +
-                       (i.Alternate is not null ? CountNewTargetInStatement(i.Alternate) : 0);
+                return CountNewTargetInExpression(i.Test)
+                    + CountNewTargetInStatement(i.Consequent)
+                    + (i.Alternate is not null ? CountNewTargetInStatement(i.Alternate) : 0);
             case JsWhileStatement w:
                 return CountNewTargetInExpression(w.Test) + CountNewTargetInStatement(w.Body);
             case JsForStatement f:
-                return (f.Init is JsExpression initExpr ? CountNewTargetInExpression(initExpr) : 0) +
-                       (f.Init is JsVariableDeclarationStatement initDecl
-                           ? initDecl.Declarators.Sum(d =>
-                               d.Initializer is not null ? CountNewTargetInExpression(d.Initializer) : 0)
-                           : 0) +
-                       (f.Test is not null ? CountNewTargetInExpression(f.Test) : 0) +
-                       (f.Update is not null ? CountNewTargetInExpression(f.Update) : 0) +
-                       CountNewTargetInStatement(f.Body);
+                return (f.Init is JsExpression initExpr ? CountNewTargetInExpression(initExpr) : 0)
+                    + (
+                        f.Init is JsVariableDeclarationStatement initDecl
+                            ? initDecl.Declarators.Sum(d =>
+                                d.Initializer is not null
+                                    ? CountNewTargetInExpression(d.Initializer)
+                                    : 0
+                            )
+                            : 0
+                    )
+                    + (f.Test is not null ? CountNewTargetInExpression(f.Test) : 0)
+                    + (f.Update is not null ? CountNewTargetInExpression(f.Update) : 0)
+                    + CountNewTargetInStatement(f.Body);
             case JsForInOfStatement f:
-                return (f.Left is JsVariableDeclarationStatement leftDecl
-                           ? leftDecl.Declarators.Sum(d =>
-                               d.Initializer is not null ? CountNewTargetInExpression(d.Initializer) : 0)
-                           : 0) +
-                       (f.Left is JsExpression leftExpr ? CountNewTargetInExpression(leftExpr) : 0) +
-                       CountNewTargetInExpression(f.Right) +
-                       CountNewTargetInStatement(f.Body);
+                return (
+                        f.Left is JsVariableDeclarationStatement leftDecl
+                            ? leftDecl.Declarators.Sum(d =>
+                                d.Initializer is not null
+                                    ? CountNewTargetInExpression(d.Initializer)
+                                    : 0
+                            )
+                            : 0
+                    )
+                    + (f.Left is JsExpression leftExpr ? CountNewTargetInExpression(leftExpr) : 0)
+                    + CountNewTargetInExpression(f.Right)
+                    + CountNewTargetInStatement(f.Body);
             case JsVariableDeclarationStatement v:
                 return v.Declarators.Sum(d =>
-                    d.Initializer is not null ? CountNewTargetInExpression(d.Initializer) : 0);
+                    d.Initializer is not null ? CountNewTargetInExpression(d.Initializer) : 0
+                );
             case JsEmptyObjectBindingDeclarationStatement emptyObjectBinding:
                 return CountNewTargetInExpression(emptyObjectBinding.Initializer);
             case JsReturnStatement r:
@@ -6527,22 +7324,22 @@ public sealed partial class JsCompiler : IDisposable
             case JsThrowStatement t:
                 return CountNewTargetInExpression(t.Argument);
             case JsTryStatement t:
-                return CountNewTargetInStatement(t.Block) +
-                       (t.Handler is not null ? CountNewTargetInStatement(t.Handler.Body) : 0) +
-                       (t.Finalizer is not null ? CountNewTargetInStatement(t.Finalizer) : 0);
+                return CountNewTargetInStatement(t.Block)
+                    + (t.Handler is not null ? CountNewTargetInStatement(t.Handler.Body) : 0)
+                    + (t.Finalizer is not null ? CountNewTargetInStatement(t.Finalizer) : 0);
             case JsSwitchStatement sw:
+            {
+                var count = CountNewTargetInExpression(sw.Discriminant);
+                foreach (var c in sw.Cases)
                 {
-                    var count = CountNewTargetInExpression(sw.Discriminant);
-                    foreach (var c in sw.Cases)
-                    {
-                        if (c.Test is not null)
-                            count += CountNewTargetInExpression(c.Test);
-                        foreach (var s in c.Consequent)
-                            count += CountNewTargetInStatement(s);
-                    }
-
-                    return count;
+                    if (c.Test is not null)
+                        count += CountNewTargetInExpression(c.Test);
+                    foreach (var s in c.Consequent)
+                        count += CountNewTargetInStatement(s);
                 }
+
+                return count;
+            }
             case JsLabeledStatement l:
                 return CountNewTargetInStatement(l.Statement);
             default:
@@ -6561,15 +7358,18 @@ public sealed partial class JsCompiler : IDisposable
             case JsBinaryExpression b:
                 return CountNewTargetInExpression(b.Left) + CountNewTargetInExpression(b.Right);
             case JsConditionalExpression c:
-                return CountNewTargetInExpression(c.Test) +
-                       CountNewTargetInExpression(c.Consequent) +
-                       CountNewTargetInExpression(c.Alternate);
+                return CountNewTargetInExpression(c.Test)
+                    + CountNewTargetInExpression(c.Consequent)
+                    + CountNewTargetInExpression(c.Alternate);
             case JsCallExpression c:
-                return CountNewTargetInExpression(c.Callee) + c.Arguments.Sum(CountNewTargetInExpression);
+                return CountNewTargetInExpression(c.Callee)
+                    + c.Arguments.Sum(CountNewTargetInExpression);
             case JsNewExpression n:
-                return CountNewTargetInExpression(n.Callee) + n.Arguments.Sum(CountNewTargetInExpression);
+                return CountNewTargetInExpression(n.Callee)
+                    + n.Arguments.Sum(CountNewTargetInExpression);
             case JsMemberExpression m:
-                return CountNewTargetInExpression(m.Object) + CountNewTargetInExpression(m.Property);
+                return CountNewTargetInExpression(m.Object)
+                    + CountNewTargetInExpression(m.Property);
             case JsUnaryExpression u:
                 return CountNewTargetInExpression(u.Argument);
             case JsUpdateExpression u:
@@ -6577,8 +7377,12 @@ public sealed partial class JsCompiler : IDisposable
             case JsYieldExpression y:
                 return y.Argument is not null ? CountNewTargetInExpression(y.Argument) : 0;
             case JsImportCallExpression importCall:
-                return CountNewTargetInExpression(importCall.Argument) +
-                       (importCall.Options is not null ? CountNewTargetInExpression(importCall.Options) : 0);
+                return CountNewTargetInExpression(importCall.Argument)
+                    + (
+                        importCall.Options is not null
+                            ? CountNewTargetInExpression(importCall.Options)
+                            : 0
+                    );
             default:
                 return 0;
         }
@@ -6595,9 +7399,12 @@ public sealed partial class JsCompiler : IDisposable
 
     private static JsBytecodeFunctionKind GetFunctionKind(bool isGenerator, bool isAsync)
     {
-        if (isGenerator && isAsync) return JsBytecodeFunctionKind.AsyncGenerator;
-        if (isGenerator) return JsBytecodeFunctionKind.Generator;
-        if (isAsync) return JsBytecodeFunctionKind.Async;
+        if (isGenerator && isAsync)
+            return JsBytecodeFunctionKind.AsyncGenerator;
+        if (isGenerator)
+            return JsBytecodeFunctionKind.Generator;
+        if (isAsync)
+            return JsBytecodeFunctionKind.Async;
         return JsBytecodeFunctionKind.Normal;
     }
 
@@ -6618,40 +7425,60 @@ public sealed partial class JsCompiler : IDisposable
                 return block.Statements.Any(s => StatementReferencesIdentifier(s, name));
             case JsIfStatement i:
                 return ExpressionReferencesIdentifier(i.Test, name)
-                       || StatementReferencesIdentifier(i.Consequent, name)
-                       || (i.Alternate != null && StatementReferencesIdentifier(i.Alternate, name));
+                    || StatementReferencesIdentifier(i.Consequent, name)
+                    || (i.Alternate != null && StatementReferencesIdentifier(i.Alternate, name));
             case JsWhileStatement w:
-                return ExpressionReferencesIdentifier(w.Test, name) || StatementReferencesIdentifier(w.Body, name);
+                return ExpressionReferencesIdentifier(w.Test, name)
+                    || StatementReferencesIdentifier(w.Body, name);
             case JsForStatement f:
-                return (f.Init is JsVariableDeclarationStatement initDecl &&
-                        initDecl.Declarators.Any(d =>
-                            d.Initializer != null && ExpressionReferencesIdentifier(d.Initializer, name)))
-                       || (f.Init is JsExpression initExpr && ExpressionReferencesIdentifier(initExpr, name))
-                       || (f.Test != null && ExpressionReferencesIdentifier(f.Test, name))
-                       || (f.Update != null && ExpressionReferencesIdentifier(f.Update, name))
-                       || StatementReferencesIdentifier(f.Body, name);
+                return (
+                        f.Init is JsVariableDeclarationStatement initDecl
+                        && initDecl.Declarators.Any(d =>
+                            d.Initializer != null
+                            && ExpressionReferencesIdentifier(d.Initializer, name)
+                        )
+                    )
+                    || (
+                        f.Init is JsExpression initExpr
+                        && ExpressionReferencesIdentifier(initExpr, name)
+                    )
+                    || (f.Test != null && ExpressionReferencesIdentifier(f.Test, name))
+                    || (f.Update != null && ExpressionReferencesIdentifier(f.Update, name))
+                    || StatementReferencesIdentifier(f.Body, name);
             case JsForInOfStatement f:
-                return (f.Left is JsVariableDeclarationStatement leftDecl &&
-                        leftDecl.Declarators.Any(d =>
-                            d.Initializer != null && ExpressionReferencesIdentifier(d.Initializer, name)))
-                       || (f.Left is JsExpression leftExpr && ExpressionReferencesIdentifier(leftExpr, name))
-                       || ExpressionReferencesIdentifier(f.Right, name)
-                       || StatementReferencesIdentifier(f.Body, name);
+                return (
+                        f.Left is JsVariableDeclarationStatement leftDecl
+                        && leftDecl.Declarators.Any(d =>
+                            d.Initializer != null
+                            && ExpressionReferencesIdentifier(d.Initializer, name)
+                        )
+                    )
+                    || (
+                        f.Left is JsExpression leftExpr
+                        && ExpressionReferencesIdentifier(leftExpr, name)
+                    )
+                    || ExpressionReferencesIdentifier(f.Right, name)
+                    || StatementReferencesIdentifier(f.Body, name);
             case JsReturnStatement r:
                 return r.Argument != null && ExpressionReferencesIdentifier(r.Argument, name);
             case JsThrowStatement t:
                 return ExpressionReferencesIdentifier(t.Argument, name);
             case JsVariableDeclarationStatement v:
                 return v.Declarators.Any(d =>
-                    d.Initializer != null && ExpressionReferencesIdentifier(d.Initializer, name));
+                    d.Initializer != null && ExpressionReferencesIdentifier(d.Initializer, name)
+                );
             case JsEmptyObjectBindingDeclarationStatement emptyObjectBinding:
                 return ExpressionReferencesIdentifier(emptyObjectBinding.Initializer, name);
             case JsFunctionDeclaration:
                 return false; // nested function has separate self binding scope
             case JsTryStatement t:
                 return StatementReferencesIdentifier(t.Block, name)
-                       || (t.Handler is not null && StatementReferencesIdentifier(t.Handler.Body, name))
-                       || (t.Finalizer is not null && StatementReferencesIdentifier(t.Finalizer, name));
+                    || (
+                        t.Handler is not null && StatementReferencesIdentifier(t.Handler.Body, name)
+                    )
+                    || (
+                        t.Finalizer is not null && StatementReferencesIdentifier(t.Finalizer, name)
+                    );
             case JsSwitchStatement sw:
                 if (ExpressionReferencesIdentifier(sw.Discriminant, name))
                     return true;
@@ -6684,26 +7511,31 @@ public sealed partial class JsCompiler : IDisposable
             case JsLiteralExpression:
                 return false;
             case JsAssignmentExpression a:
-                return ExpressionReferencesIdentifier(a.Left, name) || ExpressionReferencesIdentifier(a.Right, name);
+                return ExpressionReferencesIdentifier(a.Left, name)
+                    || ExpressionReferencesIdentifier(a.Right, name);
             case JsBinaryExpression b:
-                return ExpressionReferencesIdentifier(b.Left, name) || ExpressionReferencesIdentifier(b.Right, name);
+                return ExpressionReferencesIdentifier(b.Left, name)
+                    || ExpressionReferencesIdentifier(b.Right, name);
             case JsConditionalExpression c:
-                return ExpressionReferencesIdentifier(c.Test, name) ||
-                       ExpressionReferencesIdentifier(c.Consequent, name) ||
-                       ExpressionReferencesIdentifier(c.Alternate, name);
+                return ExpressionReferencesIdentifier(c.Test, name)
+                    || ExpressionReferencesIdentifier(c.Consequent, name)
+                    || ExpressionReferencesIdentifier(c.Alternate, name);
             case JsCallExpression c:
-                return ExpressionReferencesIdentifier(c.Callee, name) ||
-                       c.Arguments.Any(a => ExpressionReferencesIdentifier(a, name));
+                return ExpressionReferencesIdentifier(c.Callee, name)
+                    || c.Arguments.Any(a => ExpressionReferencesIdentifier(a, name));
             case JsNewExpression n:
-                return ExpressionReferencesIdentifier(n.Callee, name) ||
-                       n.Arguments.Any(a => ExpressionReferencesIdentifier(a, name));
+                return ExpressionReferencesIdentifier(n.Callee, name)
+                    || n.Arguments.Any(a => ExpressionReferencesIdentifier(a, name));
             case JsUpdateExpression u:
                 return ExpressionReferencesIdentifier(u.Argument, name);
             case JsYieldExpression y:
                 return y.Argument is not null && ExpressionReferencesIdentifier(y.Argument, name);
             case JsImportCallExpression importCall:
-                return ExpressionReferencesIdentifier(importCall.Argument, name) ||
-                       (importCall.Options is not null && ExpressionReferencesIdentifier(importCall.Options, name));
+                return ExpressionReferencesIdentifier(importCall.Argument, name)
+                    || (
+                        importCall.Options is not null
+                        && ExpressionReferencesIdentifier(importCall.Options, name)
+                    );
             case JsFunctionExpression:
                 return false; // nested function expression has separate self binding scope
             default:
@@ -6719,34 +7551,39 @@ public sealed partial class JsCompiler : IDisposable
             case JsAwaitExpression:
                 return true;
             case JsAssignmentExpression a:
-                return ExpressionRequiresCurrentGeneratorExecution(a.Left) ||
-                       ExpressionRequiresCurrentGeneratorExecution(a.Right);
+                return ExpressionRequiresCurrentGeneratorExecution(a.Left)
+                    || ExpressionRequiresCurrentGeneratorExecution(a.Right);
             case JsBinaryExpression b:
-                return ExpressionRequiresCurrentGeneratorExecution(b.Left) ||
-                       ExpressionRequiresCurrentGeneratorExecution(b.Right);
+                return ExpressionRequiresCurrentGeneratorExecution(b.Left)
+                    || ExpressionRequiresCurrentGeneratorExecution(b.Right);
             case JsConditionalExpression c:
-                return ExpressionRequiresCurrentGeneratorExecution(c.Test) ||
-                       ExpressionRequiresCurrentGeneratorExecution(c.Consequent) ||
-                       ExpressionRequiresCurrentGeneratorExecution(c.Alternate);
+                return ExpressionRequiresCurrentGeneratorExecution(c.Test)
+                    || ExpressionRequiresCurrentGeneratorExecution(c.Consequent)
+                    || ExpressionRequiresCurrentGeneratorExecution(c.Alternate);
             case JsCallExpression c:
-                return ExpressionRequiresCurrentGeneratorExecution(c.Callee) ||
-                       c.Arguments.Any(ExpressionRequiresCurrentGeneratorExecution);
+                return ExpressionRequiresCurrentGeneratorExecution(c.Callee)
+                    || c.Arguments.Any(ExpressionRequiresCurrentGeneratorExecution);
             case JsNewExpression n:
-                return ExpressionRequiresCurrentGeneratorExecution(n.Callee) ||
-                       n.Arguments.Any(ExpressionRequiresCurrentGeneratorExecution);
+                return ExpressionRequiresCurrentGeneratorExecution(n.Callee)
+                    || n.Arguments.Any(ExpressionRequiresCurrentGeneratorExecution);
             case JsMemberExpression m:
-                return ExpressionRequiresCurrentGeneratorExecution(m.Object) ||
-                       ExpressionRequiresCurrentGeneratorExecution(m.Property);
+                return ExpressionRequiresCurrentGeneratorExecution(m.Object)
+                    || ExpressionRequiresCurrentGeneratorExecution(m.Property);
             case JsUnaryExpression u:
                 return ExpressionRequiresCurrentGeneratorExecution(u.Argument);
             case JsUpdateExpression u:
                 return ExpressionRequiresCurrentGeneratorExecution(u.Argument);
             case JsArrayExpression a:
-                return a.Elements.Any(e => e is not null && ExpressionRequiresCurrentGeneratorExecution(e));
+                return a.Elements.Any(e =>
+                    e is not null && ExpressionRequiresCurrentGeneratorExecution(e)
+                );
             case JsObjectExpression o:
                 return o.Properties.Any(p =>
-                    (p.ComputedKey is not null && ExpressionRequiresCurrentGeneratorExecution(p.ComputedKey)) ||
-                    ExpressionRequiresCurrentGeneratorExecution(p.Value));
+                    (
+                        p.ComputedKey is not null
+                        && ExpressionRequiresCurrentGeneratorExecution(p.ComputedKey)
+                    ) || ExpressionRequiresCurrentGeneratorExecution(p.Value)
+                );
             case JsFunctionExpression:
             case JsClassExpression:
                 return false;
@@ -6796,7 +7633,10 @@ public sealed partial class JsCompiler : IDisposable
 
     private void ValidateTopLevelRestrictedLexicalDeclarations()
     {
-        if (!UsesPersistentGlobalLexicalBindingsMode() || topLevelLexicalDeclarationPositionByName.Count == 0)
+        if (
+            !UsesPersistentGlobalLexicalBindingsMode()
+            || topLevelLexicalDeclarationPositionByName.Count == 0
+        )
             return;
 
         foreach (var entry in topLevelLexicalDeclarationPositionByName)
@@ -6805,11 +7645,13 @@ public sealed partial class JsCompiler : IDisposable
             var atom = Vm.Atoms.InternNoCheck(name);
             if (!Vm.GlobalObject.HasRestrictedGlobalPropertyAtom(atom))
                 continue;
-            throw new JsParseException($"Identifier '{name}' has already been declared", entry.Value,
-                CurrentSourceText);
+            throw new JsParseException(
+                $"Identifier '{name}' has already been declared",
+                entry.Value,
+                CurrentSourceText
+            );
         }
     }
-
 
     private bool IsReplTopLevelConstName(string name)
     {
@@ -6840,31 +7682,59 @@ public sealed partial class JsCompiler : IDisposable
             HoistFunction(hoisted[i]);
     }
 
-    private FunctionSourceTextSegment TryGetFunctionSourceText(int sourceStartPosition, int sourceEndPosition)
+    private FunctionSourceTextSegment TryGetFunctionSourceText(
+        int sourceStartPosition,
+        int sourceEndPosition
+    )
     {
         var sourceText = CurrentSourceText;
-        if (sourceText is null || sourceStartPosition < 0 || sourceEndPosition <= sourceStartPosition ||
-            sourceEndPosition > sourceText.Length)
+        if (
+            sourceText is null
+            || sourceStartPosition < 0
+            || sourceEndPosition <= sourceStartPosition
+            || sourceEndPosition > sourceText.Length
+        )
             return default;
 
-        if (sourceText[sourceStartPosition] == '(' &&
-            sourceStartPosition + 1 < sourceEndPosition &&
-            sourceText.AsSpan(sourceStartPosition + 1).StartsWith("function", StringComparison.Ordinal))
+        if (
+            sourceText[sourceStartPosition] == '('
+            && sourceStartPosition + 1 < sourceEndPosition
+            && sourceText
+                .AsSpan(sourceStartPosition + 1)
+                .StartsWith("function", StringComparison.Ordinal)
+        )
             sourceStartPosition++;
-        else if (sourceText[sourceStartPosition] == '(' &&
-                 sourceStartPosition + 1 < sourceEndPosition &&
-                 sourceText.AsSpan(sourceStartPosition + 1).StartsWith("async function", StringComparison.Ordinal))
+        else if (
+            sourceText[sourceStartPosition] == '('
+            && sourceStartPosition + 1 < sourceEndPosition
+            && sourceText
+                .AsSpan(sourceStartPosition + 1)
+                .StartsWith("async function", StringComparison.Ordinal)
+        )
             sourceStartPosition++;
 
-        if (!LooksLikeSourceTextStart(sourceStartPosition, sourceEndPosition) &&
-            TryFindFunctionLikeSourceStartFallback(sourceStartPosition, sourceEndPosition, out var recoveredStart))
+        if (
+            !LooksLikeSourceTextStart(sourceStartPosition, sourceEndPosition)
+            && TryFindFunctionLikeSourceStartFallback(
+                sourceStartPosition,
+                sourceEndPosition,
+                out var recoveredStart
+            )
+        )
         {
             sourceStartPosition = recoveredStart;
-            while (sourceStartPosition < sourceEndPosition && char.IsWhiteSpace(sourceText[sourceStartPosition]))
+            while (
+                sourceStartPosition < sourceEndPosition
+                && char.IsWhiteSpace(sourceText[sourceStartPosition])
+            )
                 sourceStartPosition++;
         }
 
-        return new FunctionSourceTextSegment(sourceText, sourceStartPosition, sourceEndPosition - sourceStartPosition);
+        return new FunctionSourceTextSegment(
+            sourceText,
+            sourceStartPosition,
+            sourceEndPosition - sourceStartPosition
+        );
     }
 
     private bool LooksLikeSourceTextStart(int sourceStartPosition, int sourceEndPosition)
@@ -6874,16 +7744,17 @@ public sealed partial class JsCompiler : IDisposable
             return false;
 
         var span = sourceText.AsSpan(sourceStartPosition, sourceEndPosition - sourceStartPosition);
-        return span.StartsWith("function", StringComparison.Ordinal) ||
-               span.StartsWith("async", StringComparison.Ordinal) ||
-               span.StartsWith("class", StringComparison.Ordinal) ||
-               span[0] == '(';
+        return span.StartsWith("function", StringComparison.Ordinal)
+            || span.StartsWith("async", StringComparison.Ordinal)
+            || span.StartsWith("class", StringComparison.Ordinal)
+            || span[0] == '(';
     }
 
     private bool TryFindFunctionLikeSourceStartFallback(
         int sourceStartPosition,
         int sourceEndPosition,
-        out int recoveredStart)
+        out int recoveredStart
+    )
     {
         var sourceText = CurrentSourceText;
         recoveredStart = -1;
@@ -6891,8 +7762,12 @@ public sealed partial class JsCompiler : IDisposable
             return false;
 
         var searchLength = sourceEndPosition - sourceStartPosition;
-        var functionStart =
-            sourceText.LastIndexOf("function", sourceEndPosition - 1, searchLength, StringComparison.Ordinal);
+        var functionStart = sourceText.LastIndexOf(
+            "function",
+            sourceEndPosition - 1,
+            searchLength,
+            StringComparison.Ordinal
+        );
         if (functionStart < sourceStartPosition)
             return false;
 
@@ -6958,13 +7833,20 @@ public sealed partial class JsCompiler : IDisposable
                 continue;
             }
 
-            if (current - 2 >= lowerBound &&
-                sourceText[current - 2] == '*' &&
-                sourceText[current - 1] == '/')
+            if (
+                current - 2 >= lowerBound
+                && sourceText[current - 2] == '*'
+                && sourceText[current - 1] == '/'
+            )
             {
                 var searchStart = current - 2;
                 var searchLength = searchStart - lowerBound + 1;
-                var commentStart = sourceText.LastIndexOf("/*", searchStart, searchLength, StringComparison.Ordinal);
+                var commentStart = sourceText.LastIndexOf(
+                    "/*",
+                    searchStart,
+                    searchLength,
+                    StringComparison.Ordinal
+                );
                 if (commentStart >= lowerBound)
                 {
                     current = commentStart;
@@ -6988,13 +7870,14 @@ public sealed partial class JsCompiler : IDisposable
         int SourceNameId,
         string InternalName,
         int InternalSymbolId,
-        bool IsConst)
+        bool IsConst
+    )
     {
         public bool Matches(CompilerIdentifierName identifier)
         {
             if (identifier.NameId >= 0 && SourceNameId >= 0)
-                return identifier.NameId == SourceNameId ||
-                       string.Equals(SourceName, identifier.Name, StringComparison.Ordinal);
+                return identifier.NameId == SourceNameId
+                    || string.Equals(SourceName, identifier.Name, StringComparison.Ordinal);
 
             return string.Equals(SourceName, identifier.Name, StringComparison.Ordinal);
         }
@@ -7008,20 +7891,28 @@ public sealed partial class JsCompiler : IDisposable
     private sealed record LexicalAliasScope(
         IReadOnlyList<BlockLexicalBinding> Bindings,
         bool OwnsBindings,
-        bool Inherited)
+        bool Inherited
+    )
     {
         public List<int>? RuntimeAllocatedSymbolIds { get; set; }
     }
 
-    private sealed record LoopTargets(BytecodeBuilder.Label BreakTarget, BytecodeBuilder.Label ContinueTarget);
+    private sealed record LoopTargets(
+        BytecodeBuilder.Label BreakTarget,
+        BytecodeBuilder.Label ContinueTarget
+    );
 
     private sealed record LabeledTargets(
         string Label,
         BytecodeBuilder.Label BreakTarget,
         BytecodeBuilder.Label ContinueTarget,
-        bool HasContinueTarget);
+        bool HasContinueTarget
+    );
 
-    private readonly record struct NamedLiteralPropertyPlan(int Atom, JsShapePropertyFlags InitFlags);
+    private readonly record struct NamedLiteralPropertyPlan(
+        int Atom,
+        JsShapePropertyFlags InitFlags
+    );
 
     private readonly record struct CompiledFunctionShape(
         JsBytecodeFunctionKind Kind,
@@ -7030,52 +7921,59 @@ public sealed partial class JsCompiler : IDisposable
         bool IsImplicitlyStrict = false,
         bool IsClassConstructor = false,
         bool IsDerivedConstructor = false,
-        bool EmitImplicitSuperForwardAll = false)
+        bool EmitImplicitSuperForwardAll = false
+    )
     {
         public bool IsGenerator =>
             Kind is JsBytecodeFunctionKind.Generator or JsBytecodeFunctionKind.AsyncGenerator;
 
-        public bool IsAsync => Kind is JsBytecodeFunctionKind.Async or JsBytecodeFunctionKind.AsyncGenerator;
+        public bool IsAsync =>
+            Kind is JsBytecodeFunctionKind.Async or JsBytecodeFunctionKind.AsyncGenerator;
     }
 
     private enum PrivateMemberKind : byte
     {
         Field = 0,
         Accessor = 1,
-        Method = 2
+        Method = 2,
     }
 
     private readonly record struct PrivateFieldBinding(
         int BrandId,
         int SlotIndex,
-        PrivateMemberKind Kind = PrivateMemberKind.Field);
+        PrivateMemberKind Kind = PrivateMemberKind.Field
+    );
 
     private readonly record struct PrivateFieldInitPlan(
         string SourceName,
         PrivateFieldBinding Binding,
-        JsExpression? Initializer);
+        JsExpression? Initializer
+    );
 
     private enum InstanceFieldInitializerKind : byte
     {
         PrivateField,
-        PublicField
+        PublicField,
     }
 
     private readonly record struct InstanceFieldInitializerPlan(
         InstanceFieldInitializerKind Kind,
         PrivateFieldInitPlan PrivateField,
-        PublicFieldInitPlan PublicField);
+        PublicFieldInitPlan PublicField
+    );
 
     private readonly record struct PrivateAccessorInitPlan(
         string SourceName,
         PrivateFieldBinding Binding,
         JsFunctionExpression? Getter,
-        JsFunctionExpression? Setter);
+        JsFunctionExpression? Setter
+    );
 
     private readonly record struct PrivateMethodInitPlan(
         string SourceName,
         PrivateFieldBinding Binding,
-        JsFunctionExpression Function);
+        JsFunctionExpression Function
+    );
 
     private readonly record struct PrivateBrandSourceMapping(int BrandId, int SourceReg);
 
@@ -7083,22 +7981,25 @@ public sealed partial class JsCompiler : IDisposable
         int InstanceBrandId,
         int InstanceBrandSourceReg,
         int StaticBrandId,
-        int StaticBrandSourceReg);
+        int StaticBrandSourceReg
+    );
 
     private readonly record struct PublicFieldInitPlan(
         JsClassElement Element,
         int ComputedKeyIndex = -1,
-        string? SourceName = null);
+        string? SourceName = null
+    );
 
     private readonly record struct ComputedClassElementKeyPlan(
         int KeyRegister = -1,
-        int InstanceFieldKeyIndex = -1);
+        int InstanceFieldKeyIndex = -1
+    );
 
     private enum ContinueLabelError : byte
     {
         None = 0,
         UndefinedLabel = 1,
-        NotIterationLabel = 2
+        NotIterationLabel = 2,
     }
 
     private sealed class PendingClassAccessorState
@@ -7111,10 +8012,12 @@ public sealed partial class JsCompiler : IDisposable
     {
         private readonly Dictionary<BytecodeBuilder.Label, int> breakRouteByTarget = new();
         private readonly Dictionary<BytecodeBuilder.Label, int> continueRouteByTarget = new();
-        private readonly List<(int RouteId, BytecodeBuilder.Label Target, bool IsContinue)> routes = new();
+        private readonly List<(int RouteId, BytecodeBuilder.Label Target, bool IsContinue)> routes =
+            new();
         private int nextRouteId = 1;
 
-        public IEnumerable<(int RouteId, BytecodeBuilder.Label Target, bool IsContinue)> Routes => routes;
+        public IEnumerable<(int RouteId, BytecodeBuilder.Label Target, bool IsContinue)> Routes =>
+            routes;
         public bool HasBreakRoutes => breakRouteByTarget.Count != 0;
         public bool HasContinueRoutes => continueRouteByTarget.Count != 0;
 
@@ -7136,20 +8039,21 @@ public sealed partial class JsCompiler : IDisposable
         int ValueRegister,
         BytecodeBuilder.Label TargetLabel,
         bool InterceptThrow,
-        FinallyJumpRouteMap Routes);
+        FinallyJumpRouteMap Routes
+    );
 
     private readonly record struct ForAwaitLoopContext(
         BytecodeBuilder.Label BreakTarget,
         BytecodeBuilder.Label ContinueTarget,
-        int CloseRequestedRegister);
+        int CloseRequestedRegister
+    );
 
     private readonly record struct ForOfIteratorLoopContext(
         BytecodeBuilder.Label BreakTarget,
         BytecodeBuilder.Label ContinueTarget,
         int IteratorRegister,
-        int CatchableTryDepthAtEntry);
+        int CatchableTryDepthAtEntry
+    );
 
-    private readonly record struct StatementCompletionState(
-        int Register,
-        bool KnownNonHole);
+    private readonly record struct StatementCompletionState(int Register, bool KnownNonHole);
 }

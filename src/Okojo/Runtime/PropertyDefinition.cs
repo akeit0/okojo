@@ -16,20 +16,21 @@ public readonly struct PropertyDefinition
     public readonly int Atom;
 
     public PropertyDescriptor Descriptor => new(Value1, SetterFunction, Flags);
-    public bool HasValue => (Flags & JsShapePropertyFlags.BothAccessor) == JsShapePropertyFlags.None;
+    public bool HasValue =>
+        (Flags & JsShapePropertyFlags.BothAccessor) == JsShapePropertyFlags.None;
     public bool HasGetter => (Flags & JsShapePropertyFlags.HasGetter) != 0;
     public bool HasSetter => (Flags & JsShapePropertyFlags.HasSetter) != 0;
 
-    public bool HasTwoValues => (Flags & JsShapePropertyFlags.BothAccessor) ==
-                                JsShapePropertyFlags.BothAccessor;
+    public bool HasTwoValues =>
+        (Flags & JsShapePropertyFlags.BothAccessor) == JsShapePropertyFlags.BothAccessor;
 
-    public JsValue Value => (Flags & JsShapePropertyFlags.BothAccessor) == JsShapePropertyFlags.None
-        ? Value1
-        : JsValue.Undefined;
+    public JsValue Value =>
+        (Flags & JsShapePropertyFlags.BothAccessor) == JsShapePropertyFlags.None
+            ? Value1
+            : JsValue.Undefined;
 
-    public JsFunction? Getter => (Flags & JsShapePropertyFlags.HasGetter) != 0
-        ? Unsafe.As<JsFunction>(Value1.Obj)
-        : null;
+    public JsFunction? Getter =>
+        (Flags & JsShapePropertyFlags.HasGetter) != 0 ? Unsafe.As<JsFunction>(Value1.Obj) : null;
 
     public JsFunction? Setter => SetterFunction;
 
@@ -38,7 +39,12 @@ public readonly struct PropertyDefinition
     public bool Enumerable => (Flags & JsShapePropertyFlags.Enumerable) != 0;
     public bool Configurable => (Flags & JsShapePropertyFlags.Configurable) != 0;
 
-    internal PropertyDefinition(int atom, JsValue value1, JsFunction? setterFunction, JsShapePropertyFlags flags)
+    internal PropertyDefinition(
+        int atom,
+        JsValue value1,
+        JsFunction? setterFunction,
+        JsShapePropertyFlags flags
+    )
     {
         Atom = atom;
         Value1 = value1;
@@ -58,45 +64,65 @@ public readonly struct PropertyDefinition
         return new(atom, value, null, flags);
     }
 
-    public static PropertyDefinition Const(int atom, JsValue value, bool writable = false, bool enumerable = false,
-        bool configurable = false)
+    public static PropertyDefinition Const(
+        int atom,
+        JsValue value,
+        bool writable = false,
+        bool enumerable = false,
+        bool configurable = false
+    )
     {
         var flags = DescriptorUtilities.BuildDataFlags(writable, enumerable, configurable);
 
         return new(atom, value, null, flags);
     }
 
-    public static PropertyDefinition Data(int atom, JsValue value, bool writable = false, bool enumerable = false,
-        bool configurable = false)
+    public static PropertyDefinition Data(
+        int atom,
+        JsValue value,
+        bool writable = false,
+        bool enumerable = false,
+        bool configurable = false
+    )
     {
         var flags = DescriptorUtilities.BuildDataFlags(writable, enumerable, configurable);
 
         return new(atom, value, null, flags);
     }
 
-    public static PropertyDefinition GetterData(int atom, JsFunction getter, bool enumerable = false,
-        bool configurable = false)
+    public static PropertyDefinition GetterData(
+        int atom,
+        JsFunction getter,
+        bool enumerable = false,
+        bool configurable = false
+    )
     {
-        var flags = DescriptorUtilities.BuildAccessorFlags(
-            enumerable, configurable, true, false);
+        var flags = DescriptorUtilities.BuildAccessorFlags(enumerable, configurable, true, false);
 
         return new(atom, JsValue.FromObject(getter), null, flags);
     }
 
-    public static PropertyDefinition SetterData(int atom, JsFunction value, bool enumerable = false,
-        bool configurable = false)
+    public static PropertyDefinition SetterData(
+        int atom,
+        JsFunction value,
+        bool enumerable = false,
+        bool configurable = false
+    )
     {
-        var flags = DescriptorUtilities.BuildAccessorFlags(
-            enumerable, configurable, false, true);
+        var flags = DescriptorUtilities.BuildAccessorFlags(enumerable, configurable, false, true);
 
         return new(atom, JsValue.Undefined, value, flags);
     }
 
-    public static PropertyDefinition GetterSetterData(int atom, JsFunction getter, JsFunction setter,
-        bool enumerable = false, bool configurable = false)
+    public static PropertyDefinition GetterSetterData(
+        int atom,
+        JsFunction getter,
+        JsFunction setter,
+        bool enumerable = false,
+        bool configurable = false
+    )
     {
-        var flags = DescriptorUtilities.BuildAccessorFlags(
-            enumerable, configurable, true, true);
+        var flags = DescriptorUtilities.BuildAccessorFlags(enumerable, configurable, true, true);
 
         return new(atom, JsValue.FromObject(getter), setter, flags);
     }

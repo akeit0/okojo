@@ -24,9 +24,7 @@ Console.WriteLine();
 
 var stdout = new StringWriter();
 var stderr = new StringWriter();
-using var debuggerLog = options.EnableDebugger
-    ? CreateDebuggerLogWriter(options)
-    : null;
+using var debuggerLog = options.EnableDebugger ? CreateDebuggerLogWriter(options) : null;
 
 try
 {
@@ -36,16 +34,18 @@ try
     {
         var runtimeBuilder = NodeRuntime.CreateBuilder();
         if (debuggerLog is not null)
-            runtimeBuilder.ConfigureRuntime(builder => builder.UseAgent(agent =>
-            {
-                agent.DebuggerSession = new InkProbeDebuggerSession(debuggerLog);
-                agent.EnableCaughtExceptionHook();
-            }));
+            runtimeBuilder.ConfigureRuntime(builder =>
+                builder.UseAgent(agent =>
+                {
+                    agent.DebuggerSession = new InkProbeDebuggerSession(debuggerLog);
+                    agent.EnableCaughtExceptionHook();
+                })
+            );
 
         using var runtime = runtimeBuilder
-            .UseWebAssembly(wasm => wasm
-                .UseBackend(static () => new WasmtimeBackend())
-                .InstallGlobals())
+            .UseWebAssembly(wasm =>
+                wasm.UseBackend(static () => new WasmtimeBackend()).InstallGlobals()
+            )
             .ConfigureTerminal(options =>
             {
                 options.Stdout = stdout;
@@ -65,7 +65,8 @@ try
             if (TryGetInnermostNativeException(value, out var nativeException))
             {
                 Console.WriteLine(
-                    $"native exception: {nativeException.GetType().FullName ?? nativeException.GetType().Name}");
+                    $"native exception: {nativeException.GetType().FullName ?? nativeException.GetType().Name}"
+                );
                 Console.WriteLine(nativeException.ToString());
             }
         };
@@ -103,15 +104,12 @@ Console.WriteLine($"captured stderr: {EscapeControl(stderr.ToString())}");
 
 static string EscapeControl(string text)
 {
-    return text
-        .Replace("\u001b", "\\u001b", StringComparison.Ordinal)
+    return text.Replace("\u001b", "\\u001b", StringComparison.Ordinal)
         .Replace("\r", "\\r", StringComparison.Ordinal)
         .Replace("\n", "\\n", StringComparison.Ordinal);
 }
 
-static ProbeOptions ParseArguments(
-    string[] args,
-    [CallerFilePath] string callerFilePath = "")
+static ProbeOptions ParseArguments(string[] args, [CallerFilePath] string callerFilePath = "")
 {
     var appName = "app";
     var entryArgument = "main.mjs";
@@ -156,12 +154,12 @@ static ProbeOptions ParseArguments(
     return new(appRoot, entryArgument, enableDebugger, debuggerLogPath);
 }
 
-static string ResolveAppRoot(
-    string appName,
-    [CallerFilePath] string callerFilePath = "")
+static string ResolveAppRoot(string appName, [CallerFilePath] string callerFilePath = "")
 {
     if (string.IsNullOrEmpty(callerFilePath))
-        throw new InvalidOperationException("Caller file path is required for dev probe app resolution.");
+        throw new InvalidOperationException(
+            "Caller file path is required for dev probe app resolution."
+        );
 
     return Path.Combine(Path.GetDirectoryName(callerFilePath)!, appName);
 }
@@ -218,7 +216,8 @@ file readonly record struct ProbeOptions(
     string AppRoot,
     string EntryArgument,
     bool EnableDebugger,
-    string? DebuggerLogPath);
+    string? DebuggerLogPath
+);
 
 file sealed class InkProbeDebuggerSession(TextWriter output) : IDebuggerSession
 {
@@ -234,7 +233,9 @@ file sealed class InkProbeDebuggerSession(TextWriter output) : IDebuggerSession
         stopCount++;
         var snapshot = checkpoint.ToPausedSnapshot();
         output.WriteLine();
-        output.WriteLine($"[ink-probe-debugger] stop #{stopCount}: {snapshot.GetDebuggerStopSummary()}");
+        output.WriteLine(
+            $"[ink-probe-debugger] stop #{stopCount}: {snapshot.GetDebuggerStopSummary()}"
+        );
 
         if (snapshot.SourceLocation is { } location)
             output.WriteLine($"[ink-probe-debugger] location: {FormatLocation(location)}");
@@ -248,7 +249,8 @@ file sealed class InkProbeDebuggerSession(TextWriter output) : IDebuggerSession
     {
         var frame = snapshot.CurrentFrameInfo;
         output.WriteLine(
-            $"[ink-probe-debugger] frame: {frame.FunctionName} pc:{frame.ProgramCounter} kind:{frame.FrameKind}");
+            $"[ink-probe-debugger] frame: {frame.FunctionName} pc:{frame.ProgramCounter} kind:{frame.FrameKind}"
+        );
         WriteNearbyDisassembly(snapshot);
     }
 
@@ -266,7 +268,8 @@ file sealed class InkProbeDebuggerSession(TextWriter output) : IDebuggerSession
         {
             var local = locals[i];
             output.WriteLine(
-                $"  - {local.Name} [{local.StorageKind}:{local.StorageIndex}] = {FormatValue(local.Value)}");
+                $"  - {local.Name} [{local.StorageKind}:{local.StorageIndex}] = {FormatValue(local.Value)}"
+            );
         }
     }
 
@@ -278,7 +281,8 @@ file sealed class InkProbeDebuggerSession(TextWriter output) : IDebuggerSession
         {
             var frame = frames[i];
             output.WriteLine(
-                $"  #{i} {frame.FunctionName} pc:{frame.ProgramCounter} {FormatFrameLocation(frame)}");
+                $"  #{i} {frame.FunctionName} pc:{frame.ProgramCounter} {FormatFrameLocation(frame)}"
+            );
         }
     }
 
@@ -290,22 +294,33 @@ file sealed class InkProbeDebuggerSession(TextWriter output) : IDebuggerSession
         var highlightedProgramCounter = ResolveHighlightedProgramCounter(snapshot);
         if (highlightedProgramCounter != snapshot.ProgramCounter)
             output.WriteLine(
-                $"[ink-probe-debugger] highlight-pc: {highlightedProgramCounter} (raw stop pc:{snapshot.ProgramCounter})");
+                $"[ink-probe-debugger] highlight-pc: {highlightedProgramCounter} (raw stop pc:{snapshot.ProgramCounter})"
+            );
 
-        var disasm = Disassembler.Dump(snapshot.Script, new()
-        {
-            UnitKind = "function",
-            UnitName = snapshot.CurrentFrameInfo.FunctionName,
-            IncludeConstants = false,
-            HighlightedProgramCounter = highlightedProgramCounter
-        });
+        var disasm = Disassembler.Dump(
+            snapshot.Script,
+            new()
+            {
+                UnitKind = "function",
+                UnitName = snapshot.CurrentFrameInfo.FunctionName,
+                IncludeConstants = false,
+                HighlightedProgramCounter = highlightedProgramCounter,
+            }
+        );
 
         var lines = disasm.Split(Environment.NewLine);
-        var codeStart = Array.FindIndex(lines, static line => string.Equals(line, ".code", StringComparison.Ordinal));
+        var codeStart = Array.FindIndex(
+            lines,
+            static line => string.Equals(line, ".code", StringComparison.Ordinal)
+        );
         if (codeStart < 0)
             return;
 
-        var instructionIndex = FindNearestInstructionLine(lines, codeStart + 1, highlightedProgramCounter);
+        var instructionIndex = FindNearestInstructionLine(
+            lines,
+            codeStart + 1,
+            highlightedProgramCounter
+        );
         if (instructionIndex < 0)
             return;
 
@@ -322,7 +337,10 @@ file sealed class InkProbeDebuggerSession(TextWriter output) : IDebuggerSession
         WriteResolvedInstructionRegisters(snapshot, lines[instructionIndex]);
     }
 
-    private void WriteResolvedInstructionRegisters(PausedExecutionSnapshot snapshot, string instructionLine)
+    private void WriteResolvedInstructionRegisters(
+        PausedExecutionSnapshot snapshot,
+        string instructionLine
+    )
     {
         var locals = snapshot.LocalValues;
         if (locals is null || locals.Count == 0)
@@ -343,7 +361,10 @@ file sealed class InkProbeDebuggerSession(TextWriter output) : IDebuggerSession
             for (var i = 0; i < locals.Count; i++)
             {
                 var local = locals[i];
-                if (local.StorageKind != JsLocalDebugStorageKind.Register || local.StorageIndex != register)
+                if (
+                    local.StorageKind != JsLocalDebugStorageKind.Register
+                    || local.StorageIndex != register
+                )
                     continue;
 
                 resolved.Add($"r{register}={FormatValue(local.Value)} ({local.Name})");
@@ -366,7 +387,8 @@ file sealed class InkProbeDebuggerSession(TextWriter output) : IDebuggerSession
         JsScript script,
         CheckpointSourceLocation sourceLocation,
         int preferredProgramCounter,
-        out int programCounter)
+        out int programCounter
+    )
     {
         programCounter = -1;
         if (script.DebugPcOffsets is not { Length: > 0 } pcOffsets)
@@ -397,17 +419,27 @@ file sealed class InkProbeDebuggerSession(TextWriter output) : IDebuggerSession
         return programCounter >= 0;
     }
 
-    private static bool TryGetExactSourceLocationAtPc(JsScript script, int opcodePc, out int line, out int column)
+    private static bool TryGetExactSourceLocationAtPc(
+        JsScript script,
+        int opcodePc,
+        out int line,
+        out int column
+    )
     {
         line = 0;
         column = 0;
 
-        if (script.SourceCode is not { } sourceCode ||
-            script.DebugPcOffsets is null ||
-            script.DebugSourceOffsets is null)
+        if (
+            script.SourceCode is not { } sourceCode
+            || script.DebugPcOffsets is null
+            || script.DebugSourceOffsets is null
+        )
             return false;
 
-        if (script.DebugPcOffsets.Length == 0 || script.DebugSourceOffsets.Length != script.DebugPcOffsets.Length)
+        if (
+            script.DebugPcOffsets.Length == 0
+            || script.DebugSourceOffsets.Length != script.DebugPcOffsets.Length
+        )
             return false;
 
         var index = Array.BinarySearch(script.DebugPcOffsets, opcodePc);
@@ -419,7 +451,11 @@ file sealed class InkProbeDebuggerSession(TextWriter output) : IDebuggerSession
         return true;
     }
 
-    private static int FindNearestInstructionLine(string[] lines, int startIndex, int programCounter)
+    private static int FindNearestInstructionLine(
+        string[] lines,
+        int startIndex,
+        int programCounter
+    )
     {
         var nearestIndex = -1;
         var nearestPc = -1;
@@ -460,18 +496,24 @@ file sealed class InkProbeDebuggerSession(TextWriter output) : IDebuggerSession
 
     private static string FormatValue(in JsValue value)
     {
-        if (value.IsUndefined) return "undefined";
-        if (value.IsNull) return "null";
-        if (value.IsBool) return value.IsTrue ? "true" : "false";
-        if (value.IsInt32) return value.Int32Value.ToString(CultureInfo.InvariantCulture);
-        if (value.IsFloat64) return value.Float64Value.ToString(CultureInfo.InvariantCulture);
-        if (value.IsString) return $"\"{Escape(value.AsString())}\"";
+        if (value.IsUndefined)
+            return "undefined";
+        if (value.IsNull)
+            return "null";
+        if (value.IsBool)
+            return value.IsTrue ? "true" : "false";
+        if (value.IsInt32)
+            return value.Int32Value.ToString(CultureInfo.InvariantCulture);
+        if (value.IsFloat64)
+            return value.Float64Value.ToString(CultureInfo.InvariantCulture);
+        if (value.IsString)
+            return $"\"{Escape(value.AsString())}\"";
         if (value.TryGetObject(out var obj))
             return obj switch
             {
                 JsFunction fn => $"Function({fn.Name ?? "<anonymous>"})",
                 JsObject jsObject => $"Object({jsObject.GetType().Name})",
-                _ => obj.GetType().Name
+                _ => obj.GetType().Name,
             };
 
         return value.ToString() ?? "<unknown>";
@@ -479,8 +521,7 @@ file sealed class InkProbeDebuggerSession(TextWriter output) : IDebuggerSession
 
     private static string Escape(string text)
     {
-        return text
-            .Replace("\\", "\\\\", StringComparison.Ordinal)
+        return text.Replace("\\", "\\\\", StringComparison.Ordinal)
             .Replace("\"", "\\\"", StringComparison.Ordinal)
             .Replace("\r", "\\r", StringComparison.Ordinal)
             .Replace("\n", "\\n", StringComparison.Ordinal);

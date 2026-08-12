@@ -7,13 +7,22 @@ namespace Okojo.Tests;
 public class HostingTests
 {
     private static readonly HostTaskQueueKey[] STimerDefaultOrder =
-        [WebTaskQueueKeys.Timers, HostingTaskQueueKeys.Default];
+    [
+        WebTaskQueueKeys.Timers,
+        HostingTaskQueueKeys.Default,
+    ];
 
     private static readonly HostTaskQueueKey[] SNetworkDefaultOrder =
-        [WebTaskQueueKeys.Network, HostingTaskQueueKeys.Default];
+    [
+        WebTaskQueueKeys.Network,
+        HostingTaskQueueKeys.Default,
+    ];
 
     private static readonly HostTaskQueueKey[] SMessagesDefaultOrder =
-        [WebTaskQueueKeys.Messages, HostingTaskQueueKeys.Default];
+    [
+        WebTaskQueueKeys.Messages,
+        HostingTaskQueueKeys.Default,
+    ];
 
     [Test]
     public void ThreadPoolHosting_And_AgentThreadHost_Process_Worker_PostMessage()
@@ -35,9 +44,17 @@ public class HostingTests
         host.Start();
         engine.MainAgent.PostMessage(worker, "ping");
 
-        Assert.That(received.Wait(TimeSpan.FromSeconds(2)), Is.True, "worker message was not processed in time");
+        Assert.That(
+            received.Wait(TimeSpan.FromSeconds(2)),
+            Is.True,
+            "worker message was not processed in time"
+        );
         Assert.That(payloadText, Is.EqualTo("ping"));
-        Assert.That(host.Stop(TimeSpan.FromSeconds(2)), Is.True, "agent host thread did not stop in time");
+        Assert.That(
+            host.Stop(TimeSpan.FromSeconds(2)),
+            Is.True,
+            "agent host thread did not stop in time"
+        );
     }
 
     [Test]
@@ -46,26 +63,32 @@ public class HostingTests
         var options = new JsRuntimeOptions()
             .UseThreadPoolHosting()
             .UseWorkerGlobals()
-            .UseHosting(static builder => builder.UseMessageSerializer(new PrefixHostingMessageSerializer()));
+            .UseHosting(static builder =>
+                builder.UseMessageSerializer(new PrefixHostingMessageSerializer())
+            );
 
         using var engine = JsRuntime.Create(options);
         var mainRealm = engine.MainRealm;
         var workerRealm = engine.CreateWorkerAgent().MainRealm;
 
-        _ = workerRealm.Eval("""
-                             globalThis.recv = "";
-                             onmessage = function (e) { recv = e.data; };
-                             """);
+        _ = workerRealm.Eval(
+            """
+            globalThis.recv = "";
+            onmessage = function (e) { recv = e.data; };
+            """
+        );
 
         engine.MainAgent.PostMessage(workerRealm.Agent, "ping");
         workerRealm.PumpJobs();
 
         Assert.That(workerRealm.Global["recv"].AsString(), Is.EqualTo("in:host:ping"));
 
-        _ = mainRealm.Eval("""
-                           globalThis.recv = "";
-                           onmessage = function (e) { recv = e.data; };
-                           """);
+        _ = mainRealm.Eval(
+            """
+            globalThis.recv = "";
+            onmessage = function (e) { recv = e.data; };
+            """
+        );
 
         _ = workerRealm.Eval("postMessage('pong');");
         mainRealm.PumpJobs();
@@ -76,17 +99,21 @@ public class HostingTests
     [Test]
     public void CreateWorkerRuntime_Loads_ModuleEntry_And_Pumps_On_Hosting_Side()
     {
-        var loader = new InlineModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/worker-entry.js"] = """
-                                   globalThis.workerValue = "ready";
-                                   """
-        });
+        var loader = new InlineModuleLoader(
+            new(StringComparer.Ordinal)
+            {
+                ["/worker-entry.js"] = """
+                globalThis.workerValue = "ready";
+                """,
+            }
+        );
 
-        var options = new JsRuntimeOptions()
-            .UseModuleSourceLoader(loader);
+        var options = new JsRuntimeOptions().UseModuleSourceLoader(loader);
         using var engine = JsRuntime.Create(options);
-        using var worker = engine.CreateWorkerRuntime(options => { options.ModuleEntry = "/worker-entry.js"; });
+        using var worker = engine.CreateWorkerRuntime(options =>
+        {
+            options.ModuleEntry = "/worker-entry.js";
+        });
 
         worker.PumpUntilIdle();
 
@@ -96,17 +123,17 @@ public class HostingTests
     [Test]
     public void RealmCreateWorkerRuntime_LoadsRelativeModuleEntry_WithExplicitModuleReferrer()
     {
-        var loader = new InlineModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/worker-entry.js"] = """
-                                        globalThis.workerValue = "ready";
-                                        export const marker = "worker-entry";
-                                        """
-        });
+        var loader = new InlineModuleLoader(
+            new(StringComparer.Ordinal)
+            {
+                ["/mods/worker-entry.js"] = """
+                globalThis.workerValue = "ready";
+                export const marker = "worker-entry";
+                """,
+            }
+        );
 
-        using var engine = JsRuntime.CreateBuilder()
-            .UseModuleSourceLoader(loader)
-            .Build();
+        using var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var realm = engine.MainRealm;
         using var worker = realm.CreateWorkerRuntime(options =>
         {
@@ -124,7 +151,10 @@ public class HostingTests
     {
         var options = new JsRuntimeOptions().UseThreadPoolHosting();
         using var engine = JsRuntime.Create(options);
-        using var worker = engine.CreateWorkerRuntime(options => { options.StartBackgroundHost = true; });
+        using var worker = engine.CreateWorkerRuntime(options =>
+        {
+            options.StartBackgroundHost = true;
+        });
         using var received = new ManualResetEventSlim(false);
 
         string? payloadText = null;
@@ -136,8 +166,11 @@ public class HostingTests
 
         engine.MainAgent.PostMessage(worker.Agent, "hosted-ping");
 
-        Assert.That(received.Wait(TimeSpan.FromSeconds(2)), Is.True,
-            "hosted worker did not process the message in time");
+        Assert.That(
+            received.Wait(TimeSpan.FromSeconds(2)),
+            Is.True,
+            "hosted worker did not process the message in time"
+        );
         Assert.That(payloadText, Is.EqualTo("hosted-ping"));
         Assert.That(worker.IsBackgroundHostRunning, Is.True);
         Assert.That(worker.StopBackgroundHost(TimeSpan.FromSeconds(2)), Is.True);
@@ -149,22 +182,29 @@ public class HostingTests
         var options = new JsRuntimeOptions()
             .UseThreadPoolHosting()
             .UseWorkerGlobals()
-            .UseHosting(static builder => builder.UseJsWorkerHost(
-                new WorkerRuntimeHost(options => options.StartBackgroundHost = true)));
+            .UseHosting(static builder =>
+                builder.UseJsWorkerHost(
+                    new WorkerRuntimeHost(options => options.StartBackgroundHost = true)
+                )
+            );
 
         using var engine = JsRuntime.Create(options);
         var mainRealm = engine.MainRealm;
 
-        _ = mainRealm.Eval("""
-                           globalThis.recv = "";
-                           onmessage = function (e) { recv = e.data; };
-                           globalThis.w = createWorker();
-                           w.eval("onmessage = function (e) { postMessage('bg:' + e.data); };");
-                           w.postMessage("ping");
-                           """);
+        _ = mainRealm.Eval(
+            """
+            globalThis.recv = "";
+            onmessage = function (e) { recv = e.data; };
+            globalThis.w = createWorker();
+            w.eval("onmessage = function (e) { postMessage('bg:' + e.data); };");
+            w.postMessage("ping");
+            """
+        );
 
         var deadline = Environment.TickCount64 + 2000;
-        while (Environment.TickCount64 < deadline && mainRealm.Global["recv"].AsString() != "bg:ping")
+        while (
+            Environment.TickCount64 < deadline && mainRealm.Global["recv"].AsString() != "bg:ping"
+        )
         {
             mainRealm.PumpJobs();
             Thread.Sleep(5);
@@ -176,12 +216,14 @@ public class HostingTests
     [Test]
     public void JsCreateWorker_LoadModule_Uses_Configured_Hosting_WorkerHost()
     {
-        var loader = new InlineModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/worker.js"] = """
-                                  export const value = "hosted-module";
-                                  """
-        });
+        var loader = new InlineModuleLoader(
+            new(StringComparer.Ordinal)
+            {
+                ["/mods/worker.js"] = """
+                export const value = "hosted-module";
+                """,
+            }
+        );
 
         var options = new JsRuntimeOptions()
             .UseThreadPoolHosting()
@@ -192,11 +234,13 @@ public class HostingTests
         using var engine = JsRuntime.Create(options);
         var mainRealm = engine.MainRealm;
 
-        var result = mainRealm.Eval("""
-                                    var w = createWorker();
-                                    var ns = w.loadModule("/mods/worker.js");
-                                    ns.value;
-                                    """);
+        var result = mainRealm.Eval(
+            """
+            var w = createWorker();
+            var ns = w.loadModule("/mods/worker.js");
+            ns.value;
+            """
+        );
 
         Assert.That(result.AsString(), Is.EqualTo("hosted-module"));
     }
@@ -204,10 +248,9 @@ public class HostingTests
     [Test]
     public void HostingBuilder_Can_Configure_TimeProvider_ModuleLoader_And_WorkerScriptLoader()
     {
-        var moduleLoader = new InlineModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/main.js"] = "export const value = 'module';"
-        });
+        var moduleLoader = new InlineModuleLoader(
+            new(StringComparer.Ordinal) { ["/main.js"] = "export const value = 'module';" }
+        );
         var workerLoader = new InlineWorkerScriptLoader("globalThis.workerLoaded = 'worker';");
         var timeProvider = new FakeTimeProvider();
 
@@ -227,17 +270,20 @@ public class HostingTests
     public async Task JsRuntimeBuilder_Composes_Core_Hosting_And_Web_Config()
     {
         using var httpClient = new HttpClient(new BuilderHttpMessageHandler());
-        using var engine = JsRuntime.CreateBuilder()
+        using var engine = JsRuntime
+            .CreateBuilder()
             .UseThreadPoolHosting()
             .UseFetch(fetch => fetch.HttpClient = httpClient)
             .Build();
 
-        var result = await engine.DefaultRealm.EvalAsync("""
-                                                         (async () => {
-                                                           const res = await fetch("https://builder.test/ping");
-                                                           return [typeof fetch, res.status, await res.text()].join("|");
-                                                         })()
-                                                         """);
+        var result = await engine.DefaultRealm.EvalAsync(
+            """
+            (async () => {
+              const res = await fetch("https://builder.test/ping");
+              return [typeof fetch, res.status, await res.text()].join("|");
+            })()
+            """
+        );
 
         Assert.That(result.AsString(), Is.EqualTo("function|204|builder"));
     }
@@ -246,16 +292,18 @@ public class HostingTests
     public async Task JsRuntimeCreate_Composes_Builder_Based_Hosting_And_Web_Config()
     {
         using var httpClient = new HttpClient(new BuilderHttpMessageHandler());
-        using var engine = JsRuntime.Create(builder => builder
-            .UseThreadPoolHosting()
-            .UseFetch(fetch => fetch.HttpClient = httpClient));
+        using var engine = JsRuntime.Create(builder =>
+            builder.UseThreadPoolHosting().UseFetch(fetch => fetch.HttpClient = httpClient)
+        );
 
-        var result = await engine.DefaultRealm.EvalAsync("""
-                                                         (async () => {
-                                                           const res = await fetch("https://builder.test/factory");
-                                                           return [typeof fetch, res.status, await res.text()].join("|");
-                                                         })()
-                                                         """);
+        var result = await engine.DefaultRealm.EvalAsync(
+            """
+            (async () => {
+              const res = await fetch("https://builder.test/factory");
+              return [typeof fetch, res.status, await res.text()].join("|");
+            })()
+            """
+        );
 
         Assert.That(result.AsString(), Is.EqualTo("function|204|builder"));
     }
@@ -264,14 +312,14 @@ public class HostingTests
     public void JsRuntimeBuilder_BuildOptions_Returns_Isolated_Clone()
     {
         var timeProvider = new FakeTimeProvider();
-        var builder = JsRuntime.CreateBuilder()
-            .UseTimeProvider(timeProvider);
+        var builder = JsRuntime.CreateBuilder().UseTimeProvider(timeProvider);
 
         var options = builder.BuildOptions();
-        builder.UseModuleSourceLoader(new InlineModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/later.js"] = "export const value = 'later';"
-        }));
+        builder.UseModuleSourceLoader(
+            new InlineModuleLoader(
+                new(StringComparer.Ordinal) { ["/later.js"] = "export const value = 'later';" }
+            )
+        );
 
         using var engine = JsRuntime.Create(options);
 
@@ -285,17 +333,20 @@ public class HostingTests
         var timeProvider = new FakeTimeProvider();
         var scheduler = new RecordingTaskScheduler();
 
-        using var engine = JsRuntime.CreateBuilder()
+        using var engine = JsRuntime
+            .CreateBuilder()
             .UseTimeProvider(timeProvider)
             .UseLowLevelHost(host => host.UseTaskScheduler(scheduler))
             .UseWebRuntimeGlobals()
             .Build();
 
         var realm = engine.DefaultRealm;
-        _ = realm.Eval("""
-                       globalThis.hit = 0;
-                       setTimeout(function () { hit = 1; }, 10);
-                       """);
+        _ = realm.Eval(
+            """
+            globalThis.hit = 0;
+            setTimeout(function () { hit = 1; }, 10);
+            """
+        );
 
         timeProvider.Advance(TimeSpan.FromMilliseconds(10));
         realm.PumpJobs();
@@ -317,10 +368,12 @@ public class HostingTests
         using var engine = JsRuntime.Create(options.UseWebRuntimeGlobals());
         var realm = engine.DefaultRealm;
 
-        _ = realm.Eval("""
-                       globalThis.hit = 0;
-                       setTimeout(function () { hit = 1; }, 5);
-                       """);
+        _ = realm.Eval(
+            """
+            globalThis.hit = 0;
+            setTimeout(function () { hit = 1; }, 5);
+            """
+        );
 
         timeProvider.Advance(TimeSpan.FromMilliseconds(5));
         realm.PumpJobs();
@@ -346,7 +399,8 @@ public class HostingTests
     public void HostPump_RunUntil_Completes_When_Timer_Task_Becomes_Ready()
     {
         var timeProvider = new FakeTimeProvider();
-        using var engine = JsRuntime.CreateBuilder()
+        using var engine = JsRuntime
+            .CreateBuilder()
             .UseTimeProvider(timeProvider)
             .UseWebRuntimeGlobals()
             .Build();
@@ -354,10 +408,12 @@ public class HostingTests
         var realm = engine.DefaultRealm;
         var pump = engine.CreateHostPump();
 
-        _ = realm.Eval("""
-                       globalThis.done = false;
-                       setTimeout(function () { done = true; }, 5);
-                       """);
+        _ = realm.Eval(
+            """
+            globalThis.done = false;
+            setTimeout(function () { done = true; }, 5);
+            """
+        );
 
         _ = Task.Run(async () =>
         {
@@ -376,7 +432,8 @@ public class HostingTests
     {
         var timeProvider = new FakeTimeProvider();
         var eventLoop = new ManualHostEventLoop(timeProvider);
-        using var engine = JsRuntime.CreateBuilder()
+        using var engine = JsRuntime
+            .CreateBuilder()
             .UseTimeProvider(timeProvider)
             .UseLowLevelHost(host => host.UseTaskScheduler(eventLoop))
             .UseWebDelayScheduler(eventLoop)
@@ -386,10 +443,12 @@ public class HostingTests
 
         var realm = engine.DefaultRealm;
         var pump = engine.CreateHostPump();
-        _ = realm.Eval("""
-                       globalThis.done = false;
-                       setTimeout(function () { done = true; }, 5);
-                       """);
+        _ = realm.Eval(
+            """
+            globalThis.done = false;
+            setTimeout(function () { done = true; }, 5);
+            """
+        );
 
         timeProvider.Advance(TimeSpan.FromMilliseconds(5));
         var ran = HostTurnRunner.RunTurn(eventLoop, pump, STimerDefaultOrder);
@@ -403,7 +462,8 @@ public class HostingTests
     {
         var timeProvider = new FakeTimeProvider();
         using var hostLoop = new ThreadAffinityHostLoop(timeProvider);
-        using var engine = JsRuntime.CreateBuilder()
+        using var engine = JsRuntime
+            .CreateBuilder()
             .UseTimeProvider(timeProvider)
             .UseLowLevelHost(host => host.UseTaskScheduler(hostLoop))
             .UseWebDelayScheduler(hostLoop)
@@ -413,10 +473,12 @@ public class HostingTests
         var realm = engine.DefaultRealm;
         var pump = engine.CreateHostPump();
 
-        _ = realm.Eval("""
-                       globalThis.done = false;
-                       setTimeout(function () { done = true; }, 5);
-                       """);
+        _ = realm.Eval(
+            """
+            globalThis.done = false;
+            setTimeout(function () { done = true; }, 5);
+            """
+        );
 
         timeProvider.Advance(TimeSpan.FromMilliseconds(5));
         _ = hostLoop.RunOneTurn(TimeSpan.Zero, pump);
@@ -432,7 +494,8 @@ public class HostingTests
         var timeProvider = new FakeTimeProvider();
         var eventLoop = new ManualHostEventLoop(timeProvider);
 
-        using var engine = JsRuntime.CreateBuilder()
+        using var engine = JsRuntime
+            .CreateBuilder()
             .UseTimeProvider(timeProvider)
             .UseLowLevelHost(host => host.UseTaskScheduler(eventLoop))
             .UseFetch(fetch => fetch.HttpClient = httpClient)
@@ -441,18 +504,22 @@ public class HostingTests
 
         var realm = engine.DefaultRealm;
         var pump = engine.CreateHostPump();
-        _ = realm.Eval("""
-                       globalThis.result = "pending";
-                       fetch("https://queue.test/data")
-                         .then(r => r.text())
-                         .then(t => { result = t; });
-                       """);
+        _ = realm.Eval(
+            """
+            globalThis.result = "pending";
+            fetch("https://queue.test/data")
+              .then(r => r.text())
+              .then(t => { result = t; });
+            """
+        );
 
-        tcs.SetResult(new(HttpStatusCode.OK)
-        {
-            RequestMessage = new(HttpMethod.Get, "https://queue.test/data"),
-            Content = new StringContent("network-queue")
-        });
+        tcs.SetResult(
+            new(HttpStatusCode.OK)
+            {
+                RequestMessage = new(HttpMethod.Get, "https://queue.test/data"),
+                Content = new StringContent("network-queue"),
+            }
+        );
 
         Assert.That(realm.Global["result"].AsString(), Is.EqualTo("pending"));
         var ran = HostTurnRunner.RunTurn(eventLoop, pump, SNetworkDefaultOrder);
@@ -467,7 +534,8 @@ public class HostingTests
         var timeProvider = new FakeTimeProvider();
         var eventLoop = new ManualHostEventLoop(timeProvider);
 
-        using var engine = JsRuntime.CreateBuilder()
+        using var engine = JsRuntime
+            .CreateBuilder()
             .UseTimeProvider(timeProvider)
             .UseLowLevelHost(host =>
             {
@@ -480,10 +548,12 @@ public class HostingTests
         var mainRealm = engine.MainRealm;
         var workerRealm = engine.CreateWorkerAgent().MainRealm;
         var pump = engine.CreateHostPump();
-        _ = mainRealm.Eval("""
-                           globalThis.recv = "";
-                           onmessage = function (e) { recv = e.data; };
-                           """);
+        _ = mainRealm.Eval(
+            """
+            globalThis.recv = "";
+            onmessage = function (e) { recv = e.data; };
+            """
+        );
 
         _ = workerRealm.Eval("postMessage('queued-message');");
         Assert.That(mainRealm.Global["recv"].AsString(), Is.EqualTo(string.Empty));
@@ -500,8 +570,18 @@ public class HostingTests
         var timeProvider = new FakeTimeProvider();
         var eventLoop = new ManualHostEventLoop(timeProvider);
 
-        _ = eventLoop.ScheduleDelayed(TimeSpan.FromMilliseconds(5), WebTaskQueueKeys.Timers, static _ => { }, null);
-        _ = eventLoop.ScheduleDelayed(TimeSpan.FromMilliseconds(7), WebTaskQueueKeys.Network, static _ => { }, null);
+        _ = eventLoop.ScheduleDelayed(
+            TimeSpan.FromMilliseconds(5),
+            WebTaskQueueKeys.Timers,
+            static _ => { },
+            null
+        );
+        _ = eventLoop.ScheduleDelayed(
+            TimeSpan.FromMilliseconds(7),
+            WebTaskQueueKeys.Network,
+            static _ => { },
+            null
+        );
 
         var before = eventLoop.GetSnapshot();
 
@@ -514,7 +594,10 @@ public class HostingTests
 
         var after = eventLoop.GetSnapshot();
         Assert.That(after.PendingDelayedCount, Is.EqualTo(1));
-        Assert.That(after.Queues.Single(x => x.QueueKey == WebTaskQueueKeys.Timers).PendingTaskCount, Is.EqualTo(1));
+        Assert.That(
+            after.Queues.Single(x => x.QueueKey == WebTaskQueueKeys.Timers).PendingTaskCount,
+            Is.EqualTo(1)
+        );
     }
 
     [Test]
@@ -523,7 +606,12 @@ public class HostingTests
         var timeProvider = new FakeTimeProvider();
         using var hostLoop = new ThreadAffinityHostLoop(timeProvider);
 
-        _ = hostLoop.ScheduleDelayed(TimeSpan.FromMilliseconds(5), WebTaskQueueKeys.Messages, static _ => { }, null);
+        _ = hostLoop.ScheduleDelayed(
+            TimeSpan.FromMilliseconds(5),
+            WebTaskQueueKeys.Messages,
+            static _ => { },
+            null
+        );
         var before = hostLoop.GetSnapshot();
 
         Assert.That(before.PendingDelayedCount, Is.EqualTo(1));
@@ -535,7 +623,10 @@ public class HostingTests
 
         var after = hostLoop.GetSnapshot();
         Assert.That(after.PendingDelayedCount, Is.EqualTo(0));
-        Assert.That(after.Queues.Single(x => x.QueueKey == WebTaskQueueKeys.Messages).PendingTaskCount, Is.EqualTo(0));
+        Assert.That(
+            after.Queues.Single(x => x.QueueKey == WebTaskQueueKeys.Messages).PendingTaskCount,
+            Is.EqualTo(0)
+        );
     }
 
     [Test]
@@ -543,7 +634,8 @@ public class HostingTests
     {
         var timeProvider = new FakeTimeProvider();
         var eventLoop = new ManualHostEventLoop(timeProvider);
-        using var engine = JsRuntime.CreateBuilder()
+        using var engine = JsRuntime
+            .CreateBuilder()
             .UseTimeProvider(timeProvider)
             .UseLowLevelHost(host => host.UseTaskScheduler(eventLoop))
             .UseWebDelayScheduler(eventLoop)
@@ -555,28 +647,38 @@ public class HostingTests
         var pump = engine.CreateHostPump();
         var observer = new RecordingTurnObserver();
 
-        _ = realm.Eval("""
-                       globalThis.trace = "";
-                       setTimeout(function () {
-                         trace += "t";
-                         Promise.resolve().then(function () { trace += "m"; });
-                       }, 5);
-                       """);
+        _ = realm.Eval(
+            """
+            globalThis.trace = "";
+            setTimeout(function () {
+              trace += "t";
+              Promise.resolve().then(function () { trace += "m"; });
+            }, 5);
+            """
+        );
 
         timeProvider.Advance(TimeSpan.FromMilliseconds(5));
         var ran = HostTurnRunner.RunTurn(eventLoop, pump, STimerDefaultOrder, observer);
 
         Assert.That(ran, Is.True);
         Assert.That(realm.Global["trace"].AsString(), Is.EqualTo("tm"));
-        Assert.That(observer.Notifications.Select(x => x.Phase).ToArray(), Is.EqualTo(new[]
-        {
-            HostTurnPhase.BeforeTurn,
-            HostTurnPhase.AfterHostTask,
-            HostTurnPhase.BeforeMicrotaskCheckpoint,
-            HostTurnPhase.AfterMicrotaskCheckpoint,
-            HostTurnPhase.AfterTurn
-        }));
-        Assert.That(observer.Notifications[1].HostTaskQueueKey, Is.EqualTo(WebTaskQueueKeys.Timers));
+        Assert.That(
+            observer.Notifications.Select(x => x.Phase).ToArray(),
+            Is.EqualTo(
+                new[]
+                {
+                    HostTurnPhase.BeforeTurn,
+                    HostTurnPhase.AfterHostTask,
+                    HostTurnPhase.BeforeMicrotaskCheckpoint,
+                    HostTurnPhase.AfterMicrotaskCheckpoint,
+                    HostTurnPhase.AfterTurn,
+                }
+            )
+        );
+        Assert.That(
+            observer.Notifications[1].HostTaskQueueKey,
+            Is.EqualTo(WebTaskQueueKeys.Timers)
+        );
         Assert.That(observer.Notifications[2].PendingJobCount, Is.GreaterThan(0));
         Assert.That(observer.Notifications[4].PendingJobCount, Is.EqualTo(0));
     }
@@ -598,13 +700,12 @@ public class HostingTests
 
         public JsValue DeserializeIncoming(JsRealm realm, object? payload)
         {
-            return payload is string text
-                ? JsValue.FromString("in:" + text)
-                : JsValue.Null;
+            return payload is string text ? JsValue.FromString("in:" + text) : JsValue.Null;
         }
     }
 
-    private sealed class InlineModuleLoader(Dictionary<string, string> modules) : IModuleSourceLoader
+    private sealed class InlineModuleLoader(Dictionary<string, string> modules)
+        : IModuleSourceLoader
     {
         public string ResolveSpecifier(string specifier, string? referrer)
         {
@@ -638,22 +739,29 @@ public class HostingTests
 
     private sealed class BuilderHttpMessageHandler : HttpMessageHandler
     {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
-            CancellationToken cancellationToken)
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
         {
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NoContent)
-            {
-                RequestMessage = request,
-                Content = new StringContent("builder")
-            });
+            return Task.FromResult(
+                new HttpResponseMessage(HttpStatusCode.NoContent)
+                {
+                    RequestMessage = request,
+                    Content = new StringContent("builder"),
+                }
+            );
         }
     }
 
-    private sealed class DeferredHttpMessageHandler(TaskCompletionSource<HttpResponseMessage> completion)
-        : HttpMessageHandler
+    private sealed class DeferredHttpMessageHandler(
+        TaskCompletionSource<HttpResponseMessage> completion
+    ) : HttpMessageHandler
     {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
-            CancellationToken cancellationToken)
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
         {
             return completion.Task;
         }
@@ -680,8 +788,10 @@ public class HostingTests
             return new RecordingAgentScheduler(this, target);
         }
 
-        private sealed class RecordingAgentScheduler(RecordingTaskScheduler owner, HostTaskTarget target)
-            : IHostAgentScheduler
+        private sealed class RecordingAgentScheduler(
+            RecordingTaskScheduler owner,
+            HostTaskTarget target
+        ) : IHostAgentScheduler
         {
             public void EnqueueTask(Action<object?> callback, object? state)
             {

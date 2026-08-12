@@ -3,25 +3,27 @@ namespace Okojo.Objects;
 internal enum DisposableStackState : byte
 {
     Pending = 0,
-    Disposed = 1
+    Disposed = 1,
 }
 
 internal enum DisposableResourceHint : byte
 {
     SyncDispose = 0,
-    AsyncDispose = 1
+    AsyncDispose = 1,
 }
 
 internal readonly record struct DisposableResource(
     JsValue Value,
     DisposableResourceHint Hint,
-    JsValue DisposeMethod);
+    JsValue DisposeMethod
+);
 
 internal sealed class JsDisposableStackObject : JsObject
 {
     private List<DisposableResource> resources = [];
 
-    internal JsDisposableStackObject(JsRealm realm, bool isAsync, JsObject prototype) : base(realm)
+    internal JsDisposableStackObject(JsRealm realm, bool isAsync, JsObject prototype)
+        : base(realm)
     {
         IsAsync = isAsync;
         Prototype = prototype;
@@ -37,10 +39,12 @@ internal sealed class JsDisposableStackObject : JsObject
     {
         if (IsDisposed)
         {
-            throw new JsRuntimeException(JsErrorKind.ReferenceError,
+            throw new JsRuntimeException(
+                JsErrorKind.ReferenceError,
                 IsAsync
                     ? "AsyncDisposableStack is already disposed"
-                    : "DisposableStack is already disposed");
+                    : "DisposableStack is already disposed"
+            );
         }
     }
 

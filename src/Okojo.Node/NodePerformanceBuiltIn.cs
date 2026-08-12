@@ -30,7 +30,10 @@ internal sealed class NodePerformanceBuiltIn(NodeRuntime runtime)
         var realm = runtime.MainRealm;
         var shape = performanceShape ??= CreatePerformanceShape(realm);
         var performance = new JsPlainObject(shape);
-        performance.SetNamedSlotUnchecked(PerformanceNowSlot, JsValue.FromObject(CreateNowFunction(realm)));
+        performance.SetNamedSlotUnchecked(
+            PerformanceNowSlot,
+            JsValue.FromObject(CreateNowFunction(realm))
+        );
         performance.SetNamedSlotUnchecked(PerformanceTimeOriginSlot, new(timeOrigin));
         performanceObject = performance;
         return performance;
@@ -44,7 +47,10 @@ internal sealed class NodePerformanceBuiltIn(NodeRuntime runtime)
         var realm = runtime.MainRealm;
         var shape = moduleShape ??= CreateModuleShape(realm);
         var module = new JsPlainObject(shape);
-        module.SetNamedSlotUnchecked(ModulePerformanceSlot, JsValue.FromObject(GetPerformanceObject()));
+        module.SetNamedSlotUnchecked(
+            ModulePerformanceSlot,
+            JsValue.FromObject(GetPerformanceObject())
+        );
         moduleObject = module;
         return module;
     }
@@ -52,8 +58,16 @@ internal sealed class NodePerformanceBuiltIn(NodeRuntime runtime)
     private StaticNamedPropertyLayout CreatePerformanceShape(JsRealm realm)
     {
         EnsureAtoms(realm);
-        var shape = realm.EmptyShape.GetOrAddTransition(atomNow, JsShapePropertyFlags.Open, out var nowInfo);
-        shape = shape.GetOrAddTransition(atomTimeOrigin, JsShapePropertyFlags.Open, out var timeOriginInfo);
+        var shape = realm.EmptyShape.GetOrAddTransition(
+            atomNow,
+            JsShapePropertyFlags.Open,
+            out var nowInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomTimeOrigin,
+            JsShapePropertyFlags.Open,
+            out var timeOriginInfo
+        );
         Debug.Assert(nowInfo.Slot == PerformanceNowSlot);
         Debug.Assert(timeOriginInfo.Slot == PerformanceTimeOriginSlot);
         return shape;
@@ -62,8 +76,11 @@ internal sealed class NodePerformanceBuiltIn(NodeRuntime runtime)
     private StaticNamedPropertyLayout CreateModuleShape(JsRealm realm)
     {
         EnsureAtoms(realm);
-        var shape = realm.EmptyShape.GetOrAddTransition(atomPerformance, JsShapePropertyFlags.Open,
-            out var performanceInfo);
+        var shape = realm.EmptyShape.GetOrAddTransition(
+            atomPerformance,
+            JsShapePropertyFlags.Open,
+            out var performanceInfo
+        );
         Debug.Assert(performanceInfo.Slot == ModulePerformanceSlot);
         return shape;
     }
@@ -82,6 +99,15 @@ internal sealed class NodePerformanceBuiltIn(NodeRuntime runtime)
 
     private JsHostFunction CreateNowFunction(JsRealm realm)
     {
-        return new(realm, "now", 0, (scoped in _) => { return new(stopwatch.Elapsed.TotalMilliseconds); }, false);
+        return new(
+            realm,
+            "now",
+            0,
+            (scoped in _) =>
+            {
+                return new(stopwatch.Elapsed.TotalMilliseconds);
+            },
+            false
+        );
     }
 }

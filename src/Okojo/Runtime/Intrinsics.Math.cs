@@ -11,199 +11,308 @@ public partial class Intrinsics
 
     private JsPlainObject CreateMathObject()
     {
-        var math = new JsPlainObject(Realm, false)
-        {
-            Prototype = ObjectPrototype
-        };
+        var math = new JsPlainObject(Realm, false) { Prototype = ObjectPrototype };
 
-        var absFn = new JsHostFunction(Realm,
+        var absFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 return new(Math.Abs(MathArg(realm, args, 0)));
-            }, "abs", 1);
-        var acosFn = new JsHostFunction(Realm,
+            },
+            "abs",
+            1
+        );
+        var acosFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 return new(Math.Acos(MathArg(realm, args, 0)));
-            }, "acos", 1);
-        var acoshFn = new JsHostFunction(Realm,
+            },
+            "acos",
+            1
+        );
+        var acoshFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 return new(Math.Acosh(MathArg(realm, args, 0)));
-            }, "acosh", 1);
-        var asinFn = new JsHostFunction(Realm,
+            },
+            "acosh",
+            1
+        );
+        var asinFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 return new(Math.Asin(MathArg(realm, args, 0)));
-            }, "asin", 1);
-        var asinhFn = new JsHostFunction(Realm,
+            },
+            "asin",
+            1
+        );
+        var asinhFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 return new(Math.Asinh(MathArg(realm, args, 0)));
-            }, "asinh", 1);
-        var atanFn = new JsHostFunction(Realm,
+            },
+            "asinh",
+            1
+        );
+        var atanFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 return new(Math.Atan(MathArg(realm, args, 0)));
-            }, "atan", 1);
-        var atan2Fn = new JsHostFunction(Realm,
+            },
+            "atan",
+            1
+        );
+        var atan2Fn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 return new(Math.Atan2(MathArg(realm, args, 0), MathArg(realm, args, 1)));
             },
-            "atan2", 2);
-        var atanhFn = new JsHostFunction(Realm,
+            "atan2",
+            2
+        );
+        var atanhFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 return new(Math.Atanh(MathArg(realm, args, 0)));
-            }, "atanh", 1);
-        var cbrtFn = new JsHostFunction(Realm,
+            },
+            "atanh",
+            1
+        );
+        var cbrtFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 return new(Math.Cbrt(MathArg(realm, args, 0)));
-            }, "cbrt", 1);
-        var ceilFn = new JsHostFunction(Realm,
+            },
+            "cbrt",
+            1
+        );
+        var ceilFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 return new(Math.Ceiling(MathArg(realm, args, 0)));
-            }, "ceil", 1);
-        var clz32Fn = new JsHostFunction(Realm, (in info) =>
+            },
+            "ceil",
+            1
+        );
+        var clz32Fn = new JsHostFunction(
+            Realm,
+            (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 return JsValue.FromInt32(Clz32(realm, args));
             },
-            "clz32", 1);
-        var cosFn = new JsHostFunction(Realm,
+            "clz32",
+            1
+        );
+        var cosFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 return new(Math.Cos(MathArg(realm, args, 0)));
-            }, "cos", 1);
-        var coshFn = new JsHostFunction(Realm,
+            },
+            "cos",
+            1
+        );
+        var coshFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 return new(Math.Cosh(MathArg(realm, args, 0)));
-            }, "cosh", 1);
-        var expFn = new JsHostFunction(Realm,
+            },
+            "cosh",
+            1
+        );
+        var expFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 return new(Math.Exp(MathArg(realm, args, 0)));
-            }, "exp", 1);
-        var expm1Fn = new JsHostFunction(Realm,
+            },
+            "exp",
+            1
+        );
+        var expm1Fn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 var x = MathArg(realm, args, 0);
-                if (x == 0) return new(x);
+                if (x == 0)
+                    return new(x);
                 return new(Math.Exp(x) - 1d);
-            }, "expm1", 1);
-        var f16RoundFn = new JsHostFunction(Realm,
+            },
+            "expm1",
+            1
+        );
+        var f16RoundFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 return new((double)(Half)MathArg(realm, args, 0));
-            }, "f16round", 1);
-        var floorFn = new JsHostFunction(Realm,
+            },
+            "f16round",
+            1
+        );
+        var floorFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 return new(Math.Floor(MathArg(realm, args, 0)));
-            }, "floor", 1);
-        var froundFn = new JsHostFunction(Realm,
+            },
+            "floor",
+            1
+        );
+        var froundFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 return new((float)MathArg(realm, args, 0));
-            }, "fround", 1);
-        var hypotFn = new JsHostFunction(Realm, (in info) =>
+            },
+            "fround",
+            1
+        );
+        var hypotFn = new JsHostFunction(
+            Realm,
+            (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 return new(Hypot(realm, args));
-            }, "hypot",
-            2);
-        var imulFn = new JsHostFunction(Realm,
+            },
+            "hypot",
+            2
+        );
+        var imulFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 return JsValue.FromInt32(
-                    unchecked((int)(ToUint32(realm, ArgValue(args, 0)) * ToUint32(realm, ArgValue(args, 1)))));
-            }, "imul",
-            2);
-        var logFn = new JsHostFunction(Realm,
+                    unchecked(
+                        (int)(
+                            ToUint32(realm, ArgValue(args, 0)) * ToUint32(realm, ArgValue(args, 1))
+                        )
+                    )
+                );
+            },
+            "imul",
+            2
+        );
+        var logFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 return new(Math.Log(MathArg(realm, args, 0)));
-            }, "log", 1);
-        var log1PFn = new JsHostFunction(Realm,
+            },
+            "log",
+            1
+        );
+        var log1PFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 var x = MathArg(realm, args, 0);
-                if (x == 0) return new(x);
+                if (x == 0)
+                    return new(x);
                 return new(Math.Log(1d + x));
-            }, "log1p", 1);
-        var log2Fn = new JsHostFunction(Realm,
+            },
+            "log1p",
+            1
+        );
+        var log2Fn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 return new(Math.Log2(MathArg(realm, args, 0)));
-            }, "log2", 1);
-        var log10Fn = new JsHostFunction(Realm,
+            },
+            "log2",
+            1
+        );
+        var log10Fn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 return new(Math.Log10(MathArg(realm, args, 0)));
-            }, "log10", 1);
-        var maxFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            return new(Max(realm, args));
-        }, "max", 2);
-        var minFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            return new(Min(realm, args));
-        }, "min", 2);
-        var powFn = new JsHostFunction(Realm,
+            },
+            "log10",
+            1
+        );
+        var maxFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                return new(Max(realm, args));
+            },
+            "max",
+            2
+        );
+        var minFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                return new(Min(realm, args));
+            },
+            "min",
+            2
+        );
+        var powFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
@@ -212,79 +321,129 @@ public partial class Intrinsics
                 var exponentValue = MathArg(realm, args, 1);
                 if (exponentValue == 0)
                     return new(1d);
-                if (baseValue is 1 or -1 && double.IsInfinity(exponentValue)) return new(double.NaN);
+                if (baseValue is 1 or -1 && double.IsInfinity(exponentValue))
+                    return new(double.NaN);
                 return new(Math.Pow(baseValue, exponentValue));
             },
-            "pow", 2);
-        var randomFn = new JsHostFunction(Realm, (in info) => { return new(Random.Shared.NextDouble()); },
-            "random", 0);
-        var roundFn = new JsHostFunction(Realm,
+            "pow",
+            2
+        );
+        var randomFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                return new(Random.Shared.NextDouble());
+            },
+            "random",
+            0
+        );
+        var roundFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 return new(RoundJs(MathArg(realm, args, 0)));
-            }, "round", 1);
-        var signFn = new JsHostFunction(Realm,
+            },
+            "round",
+            1
+        );
+        var signFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 return new(SignJs(MathArg(realm, args, 0)));
-            }, "sign", 1);
-        var sinFn = new JsHostFunction(Realm,
+            },
+            "sign",
+            1
+        );
+        var sinFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 return new(Math.Sin(MathArg(realm, args, 0)));
-            }, "sin", 1);
-        var sinhFn = new JsHostFunction(Realm,
+            },
+            "sin",
+            1
+        );
+        var sinhFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 return new(Math.Sinh(MathArg(realm, args, 0)));
-            }, "sinh", 1);
-        var sqrtFn = new JsHostFunction(Realm,
+            },
+            "sinh",
+            1
+        );
+        var sqrtFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 return new(Math.Sqrt(MathArg(realm, args, 0)));
-            }, "sqrt", 1);
-        var sumPreciseFn = new JsHostFunction(Realm,
+            },
+            "sqrt",
+            1
+        );
+        var sumPreciseFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 return new(SumPrecise(realm, ArgValue(args, 0)));
-            }, "sumPrecise", 1);
-        var tanFn = new JsHostFunction(Realm,
+            },
+            "sumPrecise",
+            1
+        );
+        var tanFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 return new(Math.Tan(MathArg(realm, args, 0)));
-            }, "tan", 1);
-        var tanhFn = new JsHostFunction(Realm,
+            },
+            "tan",
+            1
+        );
+        var tanhFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 return new(Math.Tanh(MathArg(realm, args, 0)));
-            }, "tanh", 1);
-        var truncFn = new JsHostFunction(Realm,
+            },
+            "tanh",
+            1
+        );
+        var truncFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 return new(Math.Truncate(MathArg(realm, args, 0)));
-            }, "trunc", 1);
+            },
+            "trunc",
+            1
+        );
 
         Span<PropertyDefinition> defs =
         [
-            PropertyDefinition.Const(IdSymbolToStringTag, JsValue.FromString("Math"), configurable: true),
+            PropertyDefinition.Const(
+                IdSymbolToStringTag,
+                JsValue.FromString("Math"),
+                configurable: true
+            ),
             PropertyDefinition.Mutable(IdAbs, JsValue.FromObject(absFn)),
             PropertyDefinition.Mutable(IdAcos, JsValue.FromObject(acosFn)),
             PropertyDefinition.Mutable(IdAcosh, JsValue.FromObject(acoshFn)),
@@ -329,7 +488,7 @@ public partial class Intrinsics
             PropertyDefinition.Const(IdLog10E, new(Math.Log10(Math.E))),
             PropertyDefinition.Const(IdPi, new(Math.PI)),
             PropertyDefinition.Const(IdSqrt12, new(Math.Sqrt(0.5d))),
-            PropertyDefinition.Const(IdSqrt2, new(Math.Sqrt(2d)))
+            PropertyDefinition.Const(IdSqrt2, new(Math.Sqrt(2d))),
         ];
 
         math.DefineNewPropertiesNoCollision(Realm, defs);
@@ -486,8 +645,16 @@ public partial class Intrinsics
 
         try
         {
-            SumPreciseIterateValues(realm, iterable, ref values, ref sawValue, ref sawNegativeZeroOnly, ref sawNaN,
-                ref sawPositiveInfinity, ref sawNegativeInfinity);
+            SumPreciseIterateValues(
+                realm,
+                iterable,
+                ref values,
+                ref sawValue,
+                ref sawNegativeZeroOnly,
+                ref sawNaN,
+                ref sawPositiveInfinity,
+                ref sawNegativeInfinity
+            );
 
             if (sawNaN || (sawPositiveInfinity && sawNegativeInfinity))
                 return double.NaN;
@@ -514,7 +681,8 @@ public partial class Intrinsics
         ref bool sawNegativeZeroOnly,
         ref bool sawNaN,
         ref bool sawPositiveInfinity,
-        ref bool sawNegativeInfinity)
+        ref bool sawNegativeInfinity
+    )
     {
         if (iterable.TryGetObject(out var objectValue))
             if (TryGetIteratorObjectForMathSum(realm, objectValue, out var iterator))
@@ -525,8 +693,15 @@ public partial class Intrinsics
                         var step = StepIteratorForMathSum(realm, iterator, out var done);
                         if (done)
                             return;
-                        SumPreciseConsumeValue(step, ref values, ref sawValue, ref sawNegativeZeroOnly, ref sawNaN,
-                            ref sawPositiveInfinity, ref sawNegativeInfinity);
+                        SumPreciseConsumeValue(
+                            step,
+                            ref values,
+                            ref sawValue,
+                            ref sawNegativeZeroOnly,
+                            ref sawNaN,
+                            ref sawPositiveInfinity,
+                            ref sawNegativeInfinity
+                        );
                     }
                 }
                 catch
@@ -535,7 +710,10 @@ public partial class Intrinsics
                     throw;
                 }
 
-        throw new JsRuntimeException(JsErrorKind.TypeError, "Math.sumPrecise value is not iterable");
+        throw new JsRuntimeException(
+            JsErrorKind.TypeError,
+            "Math.sumPrecise value is not iterable"
+        );
     }
 
     private static void SumPreciseConsumeValue(
@@ -545,11 +723,14 @@ public partial class Intrinsics
         ref bool sawNegativeZeroOnly,
         ref bool sawNaN,
         ref bool sawPositiveInfinity,
-        ref bool sawNegativeInfinity)
+        ref bool sawNegativeInfinity
+    )
     {
         if (!value.IsNumber)
-            throw new JsRuntimeException(JsErrorKind.TypeError,
-                "Math.sumPrecise iterable values must be numbers");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Math.sumPrecise iterable values must be numbers"
+            );
 
         var n = value.NumberValue;
         sawValue = true;
@@ -578,12 +759,19 @@ public partial class Intrinsics
             values.Add(n);
     }
 
-    private static bool TryGetIteratorObjectForMathSum(JsRealm realm, JsObject iterable, out JsObject iterator)
+    private static bool TryGetIteratorObjectForMathSum(
+        JsRealm realm,
+        JsObject iterable,
+        out JsObject iterator
+    )
     {
         iterator = default!;
         if (!iterable.TryGetPropertyAtom(realm, IdSymbolIterator, out var iteratorMethod, out _))
             return false;
-        if (!iteratorMethod.TryGetObject(out var iteratorMethodObj) || iteratorMethodObj is not JsFunction iteratorFn)
+        if (
+            !iteratorMethod.TryGetObject(out var iteratorMethodObj)
+            || iteratorMethodObj is not JsFunction iteratorFn
+        )
             return false;
 
         var iteratorValue = realm.InvokeFunction(iteratorFn, JsValue.FromObject(iterable), []);
@@ -595,13 +783,29 @@ public partial class Intrinsics
     private static JsValue StepIteratorForMathSum(JsRealm realm, JsObject iterator, out bool done)
     {
         if (!iterator.TryGetPropertyAtom(realm, IdNext, out var nextMethod, out _))
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Math.sumPrecise iterator.next is not a function");
-        if (!nextMethod.TryGetObject(out var nextMethodObj) || nextMethodObj is not JsFunction nextFn)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Math.sumPrecise iterator.next is not a function");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Math.sumPrecise iterator.next is not a function"
+            );
+        if (
+            !nextMethod.TryGetObject(out var nextMethodObj)
+            || nextMethodObj is not JsFunction nextFn
+        )
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Math.sumPrecise iterator.next is not a function"
+            );
 
-        var stepResult = realm.InvokeFunction(nextFn, JsValue.FromObject(iterator), ReadOnlySpan<JsValue>.Empty);
+        var stepResult = realm.InvokeFunction(
+            nextFn,
+            JsValue.FromObject(iterator),
+            ReadOnlySpan<JsValue>.Empty
+        );
         if (!stepResult.TryGetObject(out var resultObj))
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Math.sumPrecise iterator result must be object");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Math.sumPrecise iterator result must be object"
+            );
 
         _ = resultObj.TryGetPropertyAtom(realm, IdDone, out var doneValue, out _);
         done = JsRealm.ToBoolean(doneValue);
@@ -617,9 +821,16 @@ public partial class Intrinsics
     {
         if (!iterator.TryGetPropertyAtom(realm, IdReturn, out var returnMethod, out _))
             return;
-        if (!returnMethod.TryGetObject(out var returnMethodObj) || returnMethodObj is not JsFunction returnFn)
+        if (
+            !returnMethod.TryGetObject(out var returnMethodObj)
+            || returnMethodObj is not JsFunction returnFn
+        )
             return;
 
-        _ = realm.InvokeFunction(returnFn, JsValue.FromObject(iterator), ReadOnlySpan<JsValue>.Empty);
+        _ = realm.InvokeFunction(
+            returnFn,
+            JsValue.FromObject(iterator),
+            ReadOnlySpan<JsValue>.Empty
+        );
     }
 }

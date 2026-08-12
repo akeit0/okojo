@@ -1,6 +1,11 @@
 namespace Okojo.Values;
 
-public sealed class Symbol(int atom, string? description, bool isWellKnown = false, bool isRegistered = false)
+public sealed class Symbol(
+    int atom,
+    string? description,
+    bool isWellKnown = false,
+    bool isRegistered = false
+)
 {
     public int Atom { get; } = atom;
     public string? Description { get; } = description;

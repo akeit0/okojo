@@ -46,7 +46,8 @@ public class OkojoMapLookupBenchmarks : OkojoNamedPropertyBenchmarkBase
     private JsPlainObject @object = null!;
     private int targetAtom;
 
-    [Params("Static", "Dynamic")] public string LayoutMode { get; set; } = "Static";
+    [Params("Static", "Dynamic")]
+    public string LayoutMode { get; set; } = "Static";
 
     [GlobalSetup]
     public void Setup()
@@ -54,9 +55,7 @@ public class OkojoMapLookupBenchmarks : OkojoNamedPropertyBenchmarkBase
         InitializeRealm();
         BuildPropertyAtoms(32);
         targetAtom = PropertyAtoms[^1];
-        layout = LayoutMode == "Dynamic"
-            ? BuildDynamicLayout(32)
-            : BuildStaticLayout(32);
+        layout = LayoutMode == "Dynamic" ? BuildDynamicLayout(32) : BuildStaticLayout(32);
         @object = BuildObject(32, LayoutMode == "Dynamic");
     }
 
@@ -82,7 +81,8 @@ public class OkojoObjectSetExistingLinearBenchmarks : OkojoNamedPropertyBenchmar
     private JsValue setValue;
     private int targetAtom;
 
-    [Params("Static", "Dynamic")] public string LayoutMode { get; set; } = "Static";
+    [Params("Static", "Dynamic")]
+    public string LayoutMode { get; set; } = "Static";
 
     [GlobalSetup]
     public void Setup()
@@ -110,7 +110,8 @@ public class OkojoObjectSetExistingMapBenchmarks : OkojoNamedPropertyBenchmarkBa
     private JsValue setValue;
     private int targetAtom;
 
-    [Params("Static", "Dynamic")] public string LayoutMode { get; set; } = "Static";
+    [Params("Static", "Dynamic")]
+    public string LayoutMode { get; set; } = "Static";
 
     [GlobalSetup]
     public void Setup()
@@ -138,7 +139,8 @@ public class OkojoObjectCreateAndAppendLinearBenchmarks : OkojoNamedPropertyBenc
     private int appendCounter;
     private JsValue setValue;
 
-    [Params("Static", "Dynamic")] public string LayoutMode { get; set; } = "Static";
+    [Params("Static", "Dynamic")]
+    public string LayoutMode { get; set; } = "Static";
 
     [GlobalSetup]
     public void Setup()
@@ -181,7 +183,7 @@ public class OkojoMapAppendBaselineBenchmarks : OkojoNamedPropertyBenchmarkBase
             "NoResize" => 20,
             "ControlGrow" => 24,
             "EntryGrow" => 32,
-            _ => throw new InvalidOperationException($"Unknown GrowthCase: {GrowthCase}")
+            _ => throw new InvalidOperationException($"Unknown GrowthCase: {GrowthCase}"),
         };
 
         BuildPropertyAtoms(propertyCount);
@@ -255,11 +257,18 @@ public abstract class OkojoNamedPropertyBenchmarkBase
     {
         var obj = new JsPlainObject(Realm, useDictionaryMode: useDictionaryMode);
         for (var i = 0; i < propertyCount; i++)
-            obj.DefineDataPropertyAtom(Realm, PropertyAtoms[i], JsValue.FromInt32(i), JsShapePropertyFlags.Open);
+            obj.DefineDataPropertyAtom(
+                Realm,
+                PropertyAtoms[i],
+                JsValue.FromInt32(i),
+                JsShapePropertyFlags.Open
+            );
         return obj;
     }
 
-    protected Dictionary<int, PropertyDescriptor> BuildPropertyDescriptorDictionary(int propertyCount)
+    protected Dictionary<int, PropertyDescriptor> BuildPropertyDescriptorDictionary(
+        int propertyCount
+    )
     {
         var map = new Dictionary<int, PropertyDescriptor>();
         for (var i = 0; i < propertyCount; i++)
@@ -298,9 +307,10 @@ public abstract class OkojoNamedPropertyBenchmarkBase
         var parts = new string[width];
         for (var i = 0; i < width; i++)
         {
-            var child = depth == 1
-                ? $"{{\"value\":{i},\"array\":[{i},{i + 1},{i + 2}]}}"
-                : BuildNestedJsonPayload(Math.Max(2, width / 2), depth - 1);
+            var child =
+                depth == 1
+                    ? $"{{\"value\":{i},\"array\":[{i},{i + 1},{i + 2}]}}"
+                    : BuildNestedJsonPayload(Math.Max(2, width / 2), depth - 1);
             parts[i] = $"\"p{i}\":{child}";
         }
 

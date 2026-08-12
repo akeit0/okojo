@@ -19,7 +19,9 @@ internal sealed class JsCollatorObject : JsObject
         bool numeric,
         string caseFirst,
         CompareInfo compareInfo,
-        CompareOptions compareOptions) : base(realm)
+        CompareOptions compareOptions
+    )
+        : base(realm)
     {
         Prototype = prototype;
         Locale = locale;
@@ -31,8 +33,17 @@ internal sealed class JsCollatorObject : JsObject
         CaseFirst = caseFirst;
         CompareInfo = compareInfo;
         CompareOptions = compareOptions;
-        core = new(locale, usage, sensitivity, ignorePunctuation, collation, numeric, caseFirst, compareInfo,
-            compareOptions);
+        core = new(
+            locale,
+            usage,
+            sensitivity,
+            ignorePunctuation,
+            collation,
+            numeric,
+            caseFirst,
+            compareInfo,
+            compareOptions
+        );
     }
 
     internal string Locale { get; }
@@ -50,15 +61,26 @@ internal sealed class JsCollatorObject : JsObject
         if (boundCompare is not null)
             return boundCompare;
 
-        boundCompare = new(realm, static (in info) =>
+        boundCompare = new(
+            realm,
+            static (in info) =>
+            {
+                var collator = (JsCollatorObject)((JsHostFunction)info.Function).UserData!;
+                var x =
+                    info.Arguments.Length > 0
+                        ? info.Realm.ToJsStringSlowPath(info.Arguments[0])
+                        : "undefined";
+                var y =
+                    info.Arguments.Length > 1
+                        ? info.Realm.ToJsStringSlowPath(info.Arguments[1])
+                        : "undefined";
+                return JsValue.FromInt32(collator.Compare(x, y));
+            },
+            string.Empty,
+            2
+        )
         {
-            var collator = (JsCollatorObject)((JsHostFunction)info.Function).UserData!;
-            var x = info.Arguments.Length > 0 ? info.Realm.ToJsStringSlowPath(info.Arguments[0]) : "undefined";
-            var y = info.Arguments.Length > 1 ? info.Realm.ToJsStringSlowPath(info.Arguments[1]) : "undefined";
-            return JsValue.FromInt32(collator.Compare(x, y));
-        }, string.Empty, 2)
-        {
-            UserData = this
+            UserData = this,
         };
         return boundCompare;
     }

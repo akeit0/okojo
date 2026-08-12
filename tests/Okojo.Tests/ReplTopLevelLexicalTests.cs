@@ -17,7 +17,7 @@ public class ReplTopLevelLexicalTests
         {
             IsRepl = true,
             ReplTopLevelLexicalNames = lexicalNames,
-            ReplTopLevelConstNames = constNames
+            ReplTopLevelConstNames = constNames,
         };
 
         var first = Compile(realm, context, "let x = 41;");
@@ -40,7 +40,7 @@ public class ReplTopLevelLexicalTests
         {
             IsRepl = true,
             ReplTopLevelLexicalNames = lexicalNames,
-            ReplTopLevelConstNames = constNames
+            ReplTopLevelConstNames = constNames,
         };
 
         var first = Compile(realm, context, "const c = 1;");
@@ -61,12 +61,16 @@ public class ReplTopLevelLexicalTests
         {
             IsRepl = true,
             ReplTopLevelLexicalNames = lexicalNames,
-            ReplTopLevelConstNames = constNames
+            ReplTopLevelConstNames = constNames,
         };
 
-        var first = Compile(realm, context, """
-                                            function f(x) { return x + x; }
-                                            """);
+        var first = Compile(
+            realm,
+            context,
+            """
+            function f(x) { return x + x; }
+            """
+        );
         realm.Execute(first);
 
         var second = Compile(realm, context, "f(3);");
@@ -84,22 +88,35 @@ public class ReplTopLevelLexicalTests
         {
             IsRepl = true,
             ReplTopLevelLexicalNames = lexicalNames,
-            ReplTopLevelConstNames = constNames
+            ReplTopLevelConstNames = constNames,
         };
 
-        var script = Compile(realm, context, """
-                                             Object.getOwnPropertyDescriptor(this, "x");
-                                             var x;
-                                             """);
+        var script = Compile(
+            realm,
+            context,
+            """
+            Object.getOwnPropertyDescriptor(this, "x");
+            var x;
+            """
+        );
         realm.Execute(script);
 
         Assert.That(realm.Accumulator.TryGetObject(out var descriptorObj), Is.True);
         Assert.That(descriptorObj!.TryGetProperty("value", out var value), Is.True);
         Assert.That(value.IsUndefined, Is.True);
-        Assert.That(descriptorObj.TryGetProperty("writable", out var writable) && writable.IsTrue, Is.True);
-        Assert.That(descriptorObj.TryGetProperty("enumerable", out var enumerable) && enumerable.IsTrue, Is.True);
-        Assert.That(descriptorObj.TryGetProperty("configurable", out var configurable) && configurable.IsFalse,
-            Is.True);
+        Assert.That(
+            descriptorObj.TryGetProperty("writable", out var writable) && writable.IsTrue,
+            Is.True
+        );
+        Assert.That(
+            descriptorObj.TryGetProperty("enumerable", out var enumerable) && enumerable.IsTrue,
+            Is.True
+        );
+        Assert.That(
+            descriptorObj.TryGetProperty("configurable", out var configurable)
+                && configurable.IsFalse,
+            Is.True
+        );
     }
 
     private static JsScript Compile(JsRealm realm, JsCompilerContext context, string source)

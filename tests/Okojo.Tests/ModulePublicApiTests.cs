@@ -8,16 +8,16 @@ public class ModulePublicApiTests
     [Test]
     public void Realm_LoadModule_And_Call_Exports_Work()
     {
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/main.js"] = """
-                                export function f(x) { return x + 1; }
-                                """
-        });
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal)
+            {
+                ["/mods/main.js"] = """
+                export function f(x) { return x + 1; }
+                """,
+            }
+        );
 
-        using var engine = JsRuntime.CreateBuilder()
-            .UseModuleSourceLoader(loader)
-            .Build();
+        using var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var realm = engine.MainRealm;
         var module = realm.LoadModule("/mods/main.js");
 
@@ -30,17 +30,17 @@ public class ModulePublicApiTests
     [Test]
     public void Realm_LoadModule_Provides_Module_Oriented_Access()
     {
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/main.js"] = """
-                                export function f(x) { return x + 1; }
-                                export const value = 7;
-                                """
-        });
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal)
+            {
+                ["/mods/main.js"] = """
+                export function f(x) { return x + 1; }
+                export const value = 7;
+                """,
+            }
+        );
 
-        using var engine = JsRuntime.CreateBuilder()
-            .UseModuleSourceLoader(loader)
-            .Build();
+        using var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var module = engine.MainRealm.LoadModule("/mods/main.js");
 
         Assert.That(module.ResolvedId, Is.EqualTo("/mods/main.js"));
@@ -51,14 +51,11 @@ public class ModulePublicApiTests
     [Test]
     public void Realm_LoadModule_ForSyncModule_IsAlreadyCompleted()
     {
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/value.js"] = """export const value = 7;"""
-        });
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal) { ["/mods/value.js"] = """export const value = 7;""" }
+        );
 
-        using var engine = JsRuntime.CreateBuilder()
-            .UseModuleSourceLoader(loader)
-            .Build();
+        using var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var result = engine.MainRealm.LoadModule("/mods/value.js");
 
         Assert.That(result.IsCompleted, Is.True);
@@ -70,17 +67,17 @@ public class ModulePublicApiTests
     [Test]
     public async Task Realm_LoadModule_ForTopLevelAwaitModule_CanBeAwaited_FromCSharp()
     {
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/async.js"] = """
-                                 export const stage = await Promise.resolve("ready");
-                                 export function read() { return stage; }
-                                 """
-        });
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal)
+            {
+                ["/mods/async.js"] = """
+                export const stage = await Promise.resolve("ready");
+                export function read() { return stage; }
+                """,
+            }
+        );
 
-        using var engine = JsRuntime.CreateBuilder()
-            .UseModuleSourceLoader(loader)
-            .Build();
+        using var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var result = engine.MainRealm.LoadModule("/mods/async.js");
 
         Assert.That(result.IsCompleted, Is.False);
@@ -96,14 +93,11 @@ public class ModulePublicApiTests
     [Test]
     public void Engine_LoadModule_Exposes_Namespace_Object()
     {
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/value.js"] = """export const value = 7;"""
-        });
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal) { ["/mods/value.js"] = """export const value = 7;""" }
+        );
 
-        using var engine = JsRuntime.CreateBuilder()
-            .UseModuleSourceLoader(loader)
-            .Build();
+        using var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var module = engine.LoadModule("/mods/value.js");
 
         Assert.That(module.Object.TryGetProperty("value", out var value), Is.True);
@@ -113,14 +107,11 @@ public class ModulePublicApiTests
     [Test]
     public void Engine_LoadModule_Uses_Default_Realm()
     {
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/value.js"] = """export const value = 7;"""
-        });
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal) { ["/mods/value.js"] = """export const value = 7;""" }
+        );
 
-        using var engine = JsRuntime.CreateBuilder()
-            .UseModuleSourceLoader(loader)
-            .Build();
+        using var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var module = engine.LoadModule("/mods/value.js");
 
         Assert.That(module.Realm, Is.SameAs(engine.MainRealm));
@@ -130,16 +121,16 @@ public class ModulePublicApiTests
     [Test]
     public async Task Engine_LoadModule_Supports_Awaitable_Completion_In_Default_Realm()
     {
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/value.js"] = """
-                                 export const value = await Promise.resolve(7);
-                                 """
-        });
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal)
+            {
+                ["/mods/value.js"] = """
+                export const value = await Promise.resolve(7);
+                """,
+            }
+        );
 
-        using var engine = JsRuntime.CreateBuilder()
-            .UseModuleSourceLoader(loader)
-            .Build();
+        using var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var result = engine.LoadModule("/mods/value.js");
         var module = await result.ToTask();
 
@@ -151,7 +142,8 @@ public class ModulePublicApiTests
     public void Realm_LoadWorkerScript_UsesExplicitReferrer()
     {
         var workerLoader = new TrackingWorkerScriptLoader("worker-source");
-        using var engine = JsRuntime.CreateBuilder()
+        using var engine = JsRuntime
+            .CreateBuilder()
             .UseWorkerScriptSourceLoader(workerLoader)
             .Build();
         var realm = engine.MainRealm;
@@ -166,37 +158,45 @@ public class ModulePublicApiTests
     [Test]
     public void Realm_LoadModule_InfersActiveModuleReferrer_WhenNotExplicitlyProvided()
     {
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/owner.js"] = """
-                                 export const ok = __loadRelativeModuleValue__();
-                                 """,
-            ["/mods/dep.js"] = """export const value = 9;"""
-        });
-
-        using var engine = JsRuntime.CreateBuilder()
-            .UseModuleSourceLoader(loader)
-            .Build();
-        var realm = engine.MainRealm;
-        realm.Global["__loadRelativeModuleValue__"] = JsValue.FromObject(new JsHostFunction(
-            realm,
-            "__loadRelativeModuleValue__",
-            0,
-            static (in info) =>
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal)
             {
-                _ = info.Realm.LoadModule("./dep.js");
-                return JsValue.FromInt32(9);
-            },
-            false));
+                ["/mods/owner.js"] = """
+                export const ok = __loadRelativeModuleValue__();
+                """,
+                ["/mods/dep.js"] = """export const value = 9;""",
+            }
+        );
+
+        using var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
+        var realm = engine.MainRealm;
+        realm.Global["__loadRelativeModuleValue__"] = JsValue.FromObject(
+            new JsHostFunction(
+                realm,
+                "__loadRelativeModuleValue__",
+                0,
+                static (in info) =>
+                {
+                    _ = info.Realm.LoadModule("./dep.js");
+                    return JsValue.FromInt32(9);
+                },
+                false
+            )
+        );
 
         var module = realm.LoadModule("/mods/owner.js");
 
         Assert.That(module.IsCompleted, Is.True);
-        Assert.That(loader.ResolveCalls.Any(c =>
-            c.Specifier == "./dep.js" && c.Referrer == "/mods/owner.js"), Is.True);
+        Assert.That(
+            loader.ResolveCalls.Any(c =>
+                c.Specifier == "./dep.js" && c.Referrer == "/mods/owner.js"
+            ),
+            Is.True
+        );
     }
 
-    private sealed class InMemoryModuleLoader(Dictionary<string, string> modules) : IModuleSourceLoader
+    private sealed class InMemoryModuleLoader(Dictionary<string, string> modules)
+        : IModuleSourceLoader
     {
         public readonly List<(string Specifier, string? Referrer)> ResolveCalls = [];
 

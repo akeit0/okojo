@@ -2,8 +2,12 @@ namespace Okojo.Parsing;
 
 internal sealed partial class JsParser
 {
-    private JsClassExpression ParseClassExpressionCore(string? name, int nameId, int start,
-        IReadOnlyList<JsExpression>? decorators = null)
+    private JsClassExpression ParseClassExpressionCore(
+        string? name,
+        int nameId,
+        int start,
+        IReadOnlyList<JsExpression>? decorators = null
+    )
     {
         var hasExtends = false;
         JsExpression? extendsExpr = null;
@@ -23,15 +27,23 @@ internal sealed partial class JsParser
             var constructorCount = 0;
             while (current.Kind != JsTokenKind.RightBrace && current.Kind != JsTokenKind.Eof)
             {
-                if (Match(JsTokenKind.Semicolon)) continue;
+                if (Match(JsTokenKind.Semicolon))
+                    continue;
 
                 var elementStart = current.Position;
                 var isStatic = false;
-                if (current.Kind == JsTokenKind.Identifier &&
-                    CurrentSourceTextEquals("static") &&
-                    !Peek().HasLineTerminatorBefore &&
-                    Peek().Kind is not (JsTokenKind.LeftParen or JsTokenKind.Assign or JsTokenKind.Semicolon
-                        or JsTokenKind.RightBrace))
+                if (
+                    current.Kind == JsTokenKind.Identifier
+                    && CurrentSourceTextEquals("static")
+                    && !Peek().HasLineTerminatorBefore
+                    && Peek().Kind
+                        is not (
+                            JsTokenKind.LeftParen
+                            or JsTokenKind.Assign
+                            or JsTokenKind.Semicolon
+                            or JsTokenKind.RightBrace
+                        )
+                )
                 {
                     isStatic = true;
                     Next();
@@ -44,13 +56,18 @@ internal sealed partial class JsParser
                         var staticBlockBody = ParseBlockStatement(true);
                         allowSuperProperty = allowSuperPropertyBeforeBlock;
                         allowSuperCall = allowSuperCallBeforeBlock;
-                        elements.Add(At(new JsClassElement(
-                                null,
-                                JsClassElementKind.StaticBlock,
-                                null,
-                                true,
-                                staticBlock: staticBlockBody),
-                            elementStart));
+                        elements.Add(
+                            At(
+                                new JsClassElement(
+                                    null,
+                                    JsClassElementKind.StaticBlock,
+                                    null,
+                                    true,
+                                    staticBlock: staticBlockBody
+                                ),
+                                elementStart
+                            )
+                        );
                         _ = Match(JsTokenKind.Semicolon);
                         continue;
                     }
@@ -59,11 +76,18 @@ internal sealed partial class JsParser
                 var functionStart = current.Position;
 
                 var isAsyncMethod = false;
-                if (current.Kind == JsTokenKind.Identifier &&
-                    CurrentSourceTextEquals("async") &&
-                    !Peek().HasLineTerminatorBefore &&
-                    Peek().Kind is not (JsTokenKind.LeftParen or JsTokenKind.Assign or JsTokenKind.Semicolon
-                        or JsTokenKind.RightBrace))
+                if (
+                    current.Kind == JsTokenKind.Identifier
+                    && CurrentSourceTextEquals("async")
+                    && !Peek().HasLineTerminatorBefore
+                    && Peek().Kind
+                        is not (
+                            JsTokenKind.LeftParen
+                            or JsTokenKind.Assign
+                            or JsTokenKind.Semicolon
+                            or JsTokenKind.RightBrace
+                        )
+                )
                 {
                     isAsyncMethod = true;
                     Next();
@@ -77,9 +101,13 @@ internal sealed partial class JsParser
                 var isComputedKey = parsedKey.IsComputed;
                 var isPrivateKey = parsedKey.IsPrivate;
 
-                if (!isGeneratorMethod && !isComputedKey && (key == "get" || key == "set") &&
-                    !current.HasLineTerminatorBefore &&
-                    current.Kind != JsTokenKind.LeftParen)
+                if (
+                    !isGeneratorMethod
+                    && !isComputedKey
+                    && (key == "get" || key == "set")
+                    && !current.HasLineTerminatorBefore
+                    && current.Kind != JsTokenKind.LeftParen
+                )
                 {
                     var parsedAccessorKey = ParsePropertyName(true, true);
                     var accessorKey = parsedAccessorKey.Key ?? string.Empty;
@@ -106,8 +134,10 @@ internal sealed partial class JsParser
                         accessorParameterPositions = parsedAccessorParams.ParameterPositions;
                         accessorParameterBindingKinds = parsedAccessorParams.ParameterBindingKinds;
                         accessorFunctionLength = parsedAccessorParams.FunctionLength;
-                        accessorHasSimpleParameterList = parsedAccessorParams.HasSimpleParameterList;
-                        accessorHasDuplicateParameters = parsedAccessorParams.HasDuplicateParameters;
+                        accessorHasSimpleParameterList =
+                            parsedAccessorParams.HasSimpleParameterList;
+                        accessorHasDuplicateParameters =
+                            parsedAccessorParams.HasDuplicateParameters;
                         if (accessorParameters.Count != 0)
                             throw Error("Getter must not have parameters", current.Position);
                     }
@@ -121,16 +151,26 @@ internal sealed partial class JsParser
                         accessorParameterPositions = parsedAccessorParams.ParameterPositions;
                         accessorParameterBindingKinds = parsedAccessorParams.ParameterBindingKinds;
                         accessorFunctionLength = parsedAccessorParams.FunctionLength;
-                        accessorHasSimpleParameterList = parsedAccessorParams.HasSimpleParameterList;
-                        accessorHasDuplicateParameters = parsedAccessorParams.HasDuplicateParameters;
-                        if (accessorParameters.Count != 1) throw Error("Expected setter parameter", current.Position);
+                        accessorHasSimpleParameterList =
+                            parsedAccessorParams.HasSimpleParameterList;
+                        accessorHasDuplicateParameters =
+                            parsedAccessorParams.HasDuplicateParameters;
+                        if (accessorParameters.Count != 1)
+                            throw Error("Expected setter parameter", current.Position);
 
                         var setterParamName = accessorParameters[0];
                         var setterParamId = accessorParameterIds[0];
                         var setterParamPosition = accessorParameterPositions[0];
-                        EnsureIdentifierAllowedInCurrentMode(setterParamName, setterParamId, setterParamPosition);
+                        EnsureIdentifierAllowedInCurrentMode(
+                            setterParamName,
+                            setterParamId,
+                            setterParamPosition
+                        );
                         if (strictMode && IsEvalOrArguments(setterParamName, setterParamId))
-                            throw Error("Unexpected eval or arguments in strict mode", setterParamPosition);
+                            throw Error(
+                                "Unexpected eval or arguments in strict mode",
+                                setterParamPosition
+                            );
                     }
 
                     var allowSuperPropertyBeforeBody = allowSuperProperty;
@@ -140,26 +180,37 @@ internal sealed partial class JsParser
                     var accessorBody = ParseBlockStatement(true);
                     allowSuperProperty = allowSuperPropertyBeforeBody;
                     allowSuperCall = allowSuperCallBeforeBody;
-                    var accessorFunction = At(new JsFunctionExpression(
-                        null,
-                        accessorParameters,
-                        accessorBody,
-                        parameterInitializers: accessorInitializers,
-                        parameterPatterns: accessorParameterPatterns,
-                        parameterPositions: accessorParameterPositions,
-                        parameterBindingKinds: accessorParameterBindingKinds,
-                        functionLength: accessorFunctionLength,
-                        hasSimpleParameterList: accessorHasSimpleParameterList,
-                        hasDuplicateParameters: accessorHasDuplicateParameters,
-                        parameterIds: accessorParameterIds), functionStart);
-                    elements.Add(At(new JsClassElement(
-                            accessorKey,
-                            key == "get" ? JsClassElementKind.Getter : JsClassElementKind.Setter,
-                            accessorFunction,
-                            isStatic,
-                            accessorComputedKey,
-                            isPrivate: accessorIsPrivate),
-                        elementStart));
+                    var accessorFunction = At(
+                        new JsFunctionExpression(
+                            null,
+                            accessorParameters,
+                            accessorBody,
+                            parameterInitializers: accessorInitializers,
+                            parameterPatterns: accessorParameterPatterns,
+                            parameterPositions: accessorParameterPositions,
+                            parameterBindingKinds: accessorParameterBindingKinds,
+                            functionLength: accessorFunctionLength,
+                            hasSimpleParameterList: accessorHasSimpleParameterList,
+                            hasDuplicateParameters: accessorHasDuplicateParameters,
+                            parameterIds: accessorParameterIds
+                        ),
+                        functionStart
+                    );
+                    elements.Add(
+                        At(
+                            new JsClassElement(
+                                accessorKey,
+                                key == "get"
+                                    ? JsClassElementKind.Getter
+                                    : JsClassElementKind.Setter,
+                                accessorFunction,
+                                isStatic,
+                                accessorComputedKey,
+                                isPrivate: accessorIsPrivate
+                            ),
+                            elementStart
+                        )
+                    );
                 }
                 else
                 {
@@ -180,24 +231,29 @@ internal sealed partial class JsParser
                             }
                         }
 
-                        elements.Add(At(new JsClassElement(
-                                key,
-                                JsClassElementKind.Field,
-                                null,
-                                isStatic,
-                                computedKey,
-                                fieldInitializer,
-                                isPrivate: isPrivateKey),
-                            elementStart));
+                        elements.Add(
+                            At(
+                                new JsClassElement(
+                                    key,
+                                    JsClassElementKind.Field,
+                                    null,
+                                    isStatic,
+                                    computedKey,
+                                    fieldInitializer,
+                                    isPrivate: isPrivateKey
+                                ),
+                                elementStart
+                            )
+                        );
                         _ = Match(JsTokenKind.Semicolon);
                         continue;
                     }
 
                     Expect(JsTokenKind.LeftParen);
                     var isDerivedConstructor =
-                        !isStatic &&
-                        string.Equals(key, "constructor", StringComparison.Ordinal) &&
-                        hasExtends;
+                        !isStatic
+                        && string.Equals(key, "constructor", StringComparison.Ordinal)
+                        && hasExtends;
                     var allowSuperPropertyBeforeParameters = allowSuperProperty;
                     var allowSuperCallBeforeParameters = allowSuperCall;
                     allowSuperProperty = true;
@@ -228,7 +284,9 @@ internal sealed partial class JsParser
                     var asyncLevelBeforeMethodBody = asyncFunctionLevel;
                     allowSuperProperty = true;
                     allowSuperCall = isDerivedConstructor;
-                    generatorFunctionLevel = isGeneratorMethod ? generatorLevelBeforeMethodBody + 1 : 0;
+                    generatorFunctionLevel = isGeneratorMethod
+                        ? generatorLevelBeforeMethodBody + 1
+                        : 0;
                     asyncFunctionLevel = isAsyncMethod ? asyncLevelBeforeMethodBody + 1 : 0;
                     var body = ParseBlockStatement(true);
                     allowSuperProperty = allowSuperPropertyBeforeBody;
@@ -237,38 +295,64 @@ internal sealed partial class JsParser
                     asyncFunctionLevel = asyncLevelBeforeMethodBody;
                     for (var i = 0; i < parameters.Count; i++)
                         if (IsEvalOrArguments(parameters[i], parameterIds[i]))
-                            throw Error("Unexpected eval or arguments in strict mode", parameterPositions[i]);
+                            throw Error(
+                                "Unexpected eval or arguments in strict mode",
+                                parameterPositions[i]
+                            );
 
                     var kind = JsClassElementKind.Method;
-                    if (!isComputedKey && !isStatic && string.Equals(key, "constructor", StringComparison.Ordinal))
+                    if (
+                        !isComputedKey
+                        && !isStatic
+                        && string.Equals(key, "constructor", StringComparison.Ordinal)
+                    )
                     {
                         kind = JsClassElementKind.Constructor;
                         constructorCount++;
-                        if (constructorCount > 1) throw Error("Duplicate constructor in class", elementStart);
+                        if (constructorCount > 1)
+                            throw Error("Duplicate constructor in class", elementStart);
                     }
 
-                    if (isGeneratorMethod && !isComputedKey && !isStatic &&
-                        string.Equals(key, "constructor", StringComparison.Ordinal))
+                    if (
+                        isGeneratorMethod
+                        && !isComputedKey
+                        && !isStatic
+                        && string.Equals(key, "constructor", StringComparison.Ordinal)
+                    )
                         throw Error("Class constructor may not be a generator", elementStart);
 
-                    var function = At(new JsFunctionExpression(
-                        null,
-                        parameters,
-                        body,
-                        isGeneratorMethod,
-                        isAsyncMethod,
-                        parameterInitializers: parameterInitializers,
-                        parameterPatterns: parameterPatterns,
-                        parameterPositions: parameterPositions,
-                        parameterBindingKinds: parsedParams.ParameterBindingKinds,
-                        functionLength: functionLength,
-                        hasSimpleParameterList: hasSimpleParameterList,
-                        hasDuplicateParameters: hasDuplicateParameters,
-                        restParameterIndex: restParameterIndex,
-                        parameterIds: parameterIds), functionStart);
-                    elements.Add(At(
-                        new JsClassElement(key, kind, function, isStatic, computedKey, isPrivate: isPrivateKey),
-                        elementStart));
+                    var function = At(
+                        new JsFunctionExpression(
+                            null,
+                            parameters,
+                            body,
+                            isGeneratorMethod,
+                            isAsyncMethod,
+                            parameterInitializers: parameterInitializers,
+                            parameterPatterns: parameterPatterns,
+                            parameterPositions: parameterPositions,
+                            parameterBindingKinds: parsedParams.ParameterBindingKinds,
+                            functionLength: functionLength,
+                            hasSimpleParameterList: hasSimpleParameterList,
+                            hasDuplicateParameters: hasDuplicateParameters,
+                            restParameterIndex: restParameterIndex,
+                            parameterIds: parameterIds
+                        ),
+                        functionStart
+                    );
+                    elements.Add(
+                        At(
+                            new JsClassElement(
+                                key,
+                                kind,
+                                function,
+                                isStatic,
+                                computedKey,
+                                isPrivate: isPrivateKey
+                            ),
+                            elementStart
+                        )
+                    );
                 }
 
                 _ = Match(JsTokenKind.Semicolon);
@@ -276,8 +360,10 @@ internal sealed partial class JsParser
 
             var endPosition = current.Position + 1;
             Expect(JsTokenKind.RightBrace);
-            var classExpression = At(new JsClassExpression(name, elements, decorators, hasExtends, extendsExpr, nameId),
-                start);
+            var classExpression = At(
+                new JsClassExpression(name, elements, decorators, hasExtends, extendsExpr, nameId),
+                start
+            );
             classExpression.EndPosition = endPosition;
             return classExpression;
         }

@@ -5,8 +5,7 @@ namespace Okojo.Tests;
 
 public class EcmaRegExpEngineTests
 {
-    private static JsRuntime CreateRuntime() =>
-        JsRuntime.Create();
+    private static JsRuntime CreateRuntime() => JsRuntime.Create();
 
     [Test]
     public void CompilesAndExecutesBasicPattern()
@@ -107,20 +106,34 @@ public class EcmaRegExpEngineTests
     {
         var realm = CreateRuntime().DefaultRealm;
 
-        Assert.That(realm.Eval("""
-                               const m = /(?<x>a)(b)?/d.exec("za");
-                               Array.isArray(m.indices)
-                                 && m.indices[0][0] === 1
-                                 && m.indices[0][1] === 2
-                                 && m.indices.groups.x[0] === 1
-                                 && m.indices.groups.x[1] === 2
-                                 && m.indices[2] === undefined;
-                               """).IsTrue, Is.True);
+        Assert.That(
+            realm
+                .Eval(
+                    """
+                    const m = /(?<x>a)(b)?/d.exec("za");
+                    Array.isArray(m.indices)
+                      && m.indices[0][0] === 1
+                      && m.indices[0][1] === 2
+                      && m.indices.groups.x[0] === 1
+                      && m.indices.groups.x[1] === 2
+                      && m.indices[2] === undefined;
+                    """
+                )
+                .IsTrue,
+            Is.True
+        );
 
-        Assert.That(realm.Eval("""
-                               const m = "abcdef".match(/(?<=(\w{2}))def/);
-                               m && m[0] === "def" && m[1] === "bc";
-                               """).IsTrue, Is.True);
+        Assert.That(
+            realm
+                .Eval(
+                    """
+                    const m = "abcdef".match(/(?<=(\w{2}))def/);
+                    m && m[0] === "def" && m[1] === "bc";
+                    """
+                )
+                .IsTrue,
+            Is.True
+        );
     }
 
     [Test]
@@ -128,14 +141,21 @@ public class EcmaRegExpEngineTests
     {
         var realm = CreateRuntime().DefaultRealm;
 
-        Assert.That(realm.Eval("""
-                               const re = new RegExp("a+", "g");
-                               const m1 = re.exec("baaa");
-                               const li1 = re.lastIndex;
-                               const m2 = re.exec("baaa");
-                               const li2 = re.lastIndex;
-                               m1[0] === "aaa" && li1 === 4 && m2 === null && li2 === 0;
-                               """).IsTrue, Is.True);
+        Assert.That(
+            realm
+                .Eval(
+                    """
+                    const re = new RegExp("a+", "g");
+                    const m1 = re.exec("baaa");
+                    const li1 = re.lastIndex;
+                    const m2 = re.exec("baaa");
+                    const li2 = re.lastIndex;
+                    m1[0] === "aaa" && li1 === 4 && m2 === null && li2 === 0;
+                    """
+                )
+                .IsTrue,
+            Is.True
+        );
     }
 
     [Test]
@@ -143,11 +163,18 @@ public class EcmaRegExpEngineTests
     {
         var realm = CreateRuntime().DefaultRealm;
 
-        Assert.That(realm.Eval("""
-                               /^[[0-9]&&\d]+$/v.test("4") &&
-                               /^[_--\q{0|2|4|9\uFE0F\u20E3}]+$/v.test("_") &&
-                               /^\p{Emoji_Keycap_Sequence}+$/v.test("0\uFE0F\u20E3");
-                               """).IsTrue, Is.True);
+        Assert.That(
+            realm
+                .Eval(
+                    """
+                    /^[[0-9]&&\d]+$/v.test("4") &&
+                    /^[_--\q{0|2|4|9\uFE0F\u20E3}]+$/v.test("_") &&
+                    /^\p{Emoji_Keycap_Sequence}+$/v.test("0\uFE0F\u20E3");
+                    """
+                )
+                .IsTrue,
+            Is.True
+        );
     }
 
     [Test]
@@ -157,7 +184,10 @@ public class EcmaRegExpEngineTests
 
         Assert.That(engine.Exec(engine.Compile(@"\p{AHex}+", "u"), "A9f", 0), Is.Not.Null);
         Assert.That(engine.Exec(engine.Compile(@"\p{Assigned}+", "u"), "\uDFFF", 0), Is.Not.Null);
-        Assert.That(engine.Exec(engine.Compile(@"\p{Script=Adlm}+", "u"), "\ud83a\udd00", 0), Is.Not.Null);
+        Assert.That(
+            engine.Exec(engine.Compile(@"\p{Script=Adlm}+", "u"), "\ud83a\udd00", 0),
+            Is.Not.Null
+        );
         Assert.That(engine.Exec(engine.Compile(@"\P{Bidi_M}+", "u"), "ABC", 0), Is.Not.Null);
     }
 

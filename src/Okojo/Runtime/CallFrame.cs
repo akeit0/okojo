@@ -8,15 +8,23 @@ public readonly struct CallFrame
     internal readonly JsValue Value1;
     internal readonly JsValue ThisValue;
 
-    internal CallFrame(JsFunction func, int callerFp, int argCount, int callerPc, JsContext? context,
-        JsValue thisValue, CallFrameKind frameKind = CallFrameKind.FunctionFrame,
-        CallFrameFlag flags = CallFrameFlag.None)
+    internal CallFrame(
+        JsFunction func,
+        int callerFp,
+        int argCount,
+        int callerPc,
+        JsContext? context,
+        JsValue thisValue,
+        CallFrameKind frameKind = CallFrameKind.FunctionFrame,
+        CallFrameFlag flags = CallFrameFlag.None
+    )
     {
-        Value0 =
-            new(
-                ((ulong)callerFp << FrameLayout.BitOffsetCallerFp) |
-                ((ulong)argCount << FrameLayout.BitOffsetArgCount) |
-                (uint)callerPc, func);
+        Value0 = new(
+            ((ulong)callerFp << FrameLayout.BitOffsetCallerFp)
+                | ((ulong)argCount << FrameLayout.BitOffsetArgCount)
+                | (uint)callerPc,
+            func
+        );
         var meta = ((ulong)flags << FrameLayout.BitOffsetFrameFlags) | (uint)frameKind;
         Value1 = new(meta, context);
         ThisValue = thisValue;

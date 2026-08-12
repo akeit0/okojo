@@ -4,7 +4,8 @@ public sealed class JsPromiseObject : JsObject
 {
     private List<Reaction>? reactions;
 
-    internal JsPromiseObject(JsRealm realm) : base(realm)
+    internal JsPromiseObject(JsRealm realm)
+        : base(realm)
     {
         Prototype = realm.Intrinsics.ObjectPrototype;
     }
@@ -73,7 +74,7 @@ public sealed class JsPromiseObject : JsObject
     {
         Pending = 0,
         Fulfilled = 1,
-        Rejected = 2
+        Rejected = 2,
     }
 
     internal sealed class Reaction
@@ -125,7 +126,8 @@ public sealed class JsPromiseObject : JsObject
             Data = data;
         }
 
-        public PromiseCapability? Capability => Kind == ReactionKind.UserHandlers ? (PromiseCapability?)Data : null;
+        public PromiseCapability? Capability =>
+            Kind == ReactionKind.UserHandlers ? (PromiseCapability?)Data : null;
 
         public JsPromiseObject? TargetPromise =>
             Kind == ReactionKind.AssimilateToPromise ? (JsPromiseObject?)Data : null;
@@ -147,7 +149,9 @@ public sealed class JsPromiseObject : JsObject
                 : null;
 
         public AsyncGeneratorYieldValueResolution? AsyncGeneratorYieldValueResolution =>
-            Kind == ReactionKind.AwaitAsyncGeneratorYieldValue ? (AsyncGeneratorYieldValueResolution?)Data : null;
+            Kind == ReactionKind.AwaitAsyncGeneratorYieldValue
+                ? (AsyncGeneratorYieldValueResolution?)Data
+                : null;
 
         public static Reaction CreateAsyncGeneratorReturn(JsGeneratorObject generator)
         {
@@ -155,17 +159,22 @@ public sealed class JsPromiseObject : JsObject
         }
 
         public static Reaction CreateAsyncGeneratorYieldDelegate(
-            AsyncGeneratorYieldDelegateAwaitState state)
+            AsyncGeneratorYieldDelegateAwaitState state
+        )
         {
             return new(ReactionKind.ResumeAsyncGeneratorYieldDelegate, state);
         }
 
-        public static Reaction CreateAsyncFromSyncIteratorResult(Intrinsics.AsyncFromSyncIteratorResolution resolution)
+        public static Reaction CreateAsyncFromSyncIteratorResult(
+            Intrinsics.AsyncFromSyncIteratorResolution resolution
+        )
         {
             return new(ReactionKind.CompleteAsyncFromSyncIteratorResult, resolution);
         }
 
-        public static Reaction CreateAsyncGeneratorYieldValue(AsyncGeneratorYieldValueResolution resolution)
+        public static Reaction CreateAsyncGeneratorYieldValue(
+            AsyncGeneratorYieldValueResolution resolution
+        )
         {
             return new(ReactionKind.AwaitAsyncGeneratorYieldValue, resolution);
         }
@@ -179,7 +188,7 @@ public sealed class JsPromiseObject : JsObject
             ResumeAsyncGeneratorReturn = 4,
             ResumeAsyncGeneratorYieldDelegate = 5,
             CompleteAsyncFromSyncIteratorResult = 6,
-            AwaitAsyncGeneratorYieldValue = 7
+            AwaitAsyncGeneratorYieldValue = 7,
         }
     }
 }

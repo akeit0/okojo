@@ -178,7 +178,7 @@ public sealed class JsAgentOptions
             ExecutionTimeout = ExecutionTimeout,
             ExecutionCancellationToken = ExecutionCancellationToken,
             ExecutionCheckpointHooks = ExecutionCheckpointHooks,
-            DebuggerSession = DebuggerSession
+            DebuggerSession = DebuggerSession,
         };
         clone.constraints.AddRange(constraints);
         return clone.ApplyRealm(Realm.Clone());

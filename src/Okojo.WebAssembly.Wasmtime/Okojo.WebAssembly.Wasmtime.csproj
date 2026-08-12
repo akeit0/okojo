@@ -14,13 +14,13 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\Okojo.WebAssembly\Okojo.WebAssembly.csproj"/>
+        <ProjectReference Include="..\Okojo.WebAssembly\Okojo.WebAssembly.csproj" />
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Wasmtime" Version="34.0.2"/>
+        <PackageReference Include="Wasmtime" Version="34.0.2" />
     </ItemGroup>
     <ItemGroup>
-        <None Include="README.md" Pack="true" PackagePath="\"/>
+        <None Include="README.md" Pack="true" PackagePath="\" />
     </ItemGroup>
 </Project>

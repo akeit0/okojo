@@ -1,12 +1,12 @@
 namespace Okojo.SourceMaps;
 
-public sealed class SourceMapModuleSourceLoader(IModuleSourceLoader inner, SourceMapScriptLoader sourceMapLoader)
-    : IModuleSourceLoader
+public sealed class SourceMapModuleSourceLoader(
+    IModuleSourceLoader inner,
+    SourceMapScriptLoader sourceMapLoader
+) : IModuleSourceLoader
 {
     public SourceMapModuleSourceLoader(IModuleSourceLoader inner, SourceMapRegistry registry)
-        : this(inner, new SourceMapScriptLoader(registry))
-    {
-    }
+        : this(inner, new SourceMapScriptLoader(registry)) { }
 
     public string ResolveSpecifier(string specifier, string? referrer)
     {

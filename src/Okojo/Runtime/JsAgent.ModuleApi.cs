@@ -4,7 +4,11 @@ public sealed partial class JsAgent
 {
     public JsAgentModuleApi Modules => field ??= new(this);
 
-    internal JsModuleLoadResult LoadModuleResult(JsRealm realm, string specifier, string? referrer = null)
+    internal JsModuleLoadResult LoadModuleResult(
+        JsRealm realm,
+        string specifier,
+        string? referrer = null
+    )
     {
         ArgumentNullException.ThrowIfNull(realm);
         var resolvedId = ResolveModuleSpecifierOrThrow(specifier, referrer);
@@ -13,32 +17,50 @@ public sealed partial class JsAgent
             throw new InvalidOperationException("Module namespace object was not returned.");
 
         var moduleNamespace = new JsModuleNamespace(realm, resolvedId, ns);
-        var isCompleted = !TryGetPendingModuleEvaluationPromise(specifier, referrer, out var pendingPromise);
+        var isCompleted = !TryGetPendingModuleEvaluationPromise(
+            specifier,
+            referrer,
+            out var pendingPromise
+        );
         var completionValue = isCompleted
             ? value
             : CreateModuleCompletionValue(realm, pendingPromise, value);
         return new(moduleNamespace, completionValue, isCompleted);
     }
 
-    private static JsValue CreateModuleCompletionValue(JsRealm realm, JsPromiseObject pendingPromise,
-        JsValue namespaceValue)
+    private static JsValue CreateModuleCompletionValue(
+        JsRealm realm,
+        JsPromiseObject pendingPromise,
+        JsValue namespaceValue
+    )
     {
         var capability = realm.CreatePromiseCapability(realm.PromiseConstructor);
-        var onFulfilled = new JsHostFunction(realm, (in info) =>
-        {
-            info.Realm.ResolvePromiseCapability(capability, namespaceValue);
-            return JsValue.Undefined;
-        }, string.Empty, 0);
-        var onRejected = new JsHostFunction(realm, (in info) =>
-        {
-            var reason = info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0];
-            info.Realm.RejectPromiseCapability(capability, reason);
-            return JsValue.Undefined;
-        }, string.Empty, 1);
+        var onFulfilled = new JsHostFunction(
+            realm,
+            (in info) =>
+            {
+                info.Realm.ResolvePromiseCapability(capability, namespaceValue);
+                return JsValue.Undefined;
+            },
+            string.Empty,
+            0
+        );
+        var onRejected = new JsHostFunction(
+            realm,
+            (in info) =>
+            {
+                var reason = info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0];
+                info.Realm.RejectPromiseCapability(capability, reason);
+                return JsValue.Undefined;
+            },
+            string.Empty,
+            1
+        );
         _ = realm.PromiseThen(
             pendingPromise,
             JsValue.FromObject(onFulfilled),
-            JsValue.FromObject(onRejected));
+            JsValue.FromObject(onRejected)
+        );
         return JsValue.FromObject(capability.Promise);
     }
 
@@ -49,7 +71,7 @@ public sealed partial class JsAgent
         {
             Self = 0,
             Importers = 1 << 0,
-            Dependencies = 1 << 1
+            Dependencies = 1 << 1,
         }
 
         public enum ModuleStateKind
@@ -58,7 +80,7 @@ public sealed partial class JsAgent
             Instantiating = 1,
             Evaluating = 2,
             Evaluated = 3,
-            Failed = 4
+            Failed = 4,
         }
 
         private readonly JsAgent agent;
@@ -142,18 +164,21 @@ public sealed partial class JsAgent
             ModuleStateKind State,
             bool HasLinkPlan,
             bool HasSourceCache,
-            ModuleErrorSnapshot? LastError);
+            ModuleErrorSnapshot? LastError
+        );
 
         public readonly record struct ModuleErrorSnapshot(
             string? DetailCode,
             string Message,
             string ExceptionType,
-            string? InnerExceptionType);
+            string? InnerExceptionType
+        );
 
         public readonly record struct ModuleInvalidationResult(
             string RootResolvedId,
             ModuleInvalidationScope Scope,
             int RemovedCount,
-            IReadOnlyList<string> ResolvedIds);
+            IReadOnlyList<string> ResolvedIds
+        );
     }
 }

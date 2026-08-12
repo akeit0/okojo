@@ -16,7 +16,6 @@ internal static class Program
         if (args.Length != 0)
             return Path.GetFullPath(args[0]);
 
-
         return Path.Combine(GetBaseDirectory(), "scripts", "main.js");
     }
 

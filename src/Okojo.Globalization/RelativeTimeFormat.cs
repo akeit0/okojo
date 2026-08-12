@@ -8,7 +8,9 @@ namespace Okojo.Globalization;
 /// </summary>
 public sealed class RelativeTimeFormat
 {
-    private static readonly Dictionary<string, string[]> EnglishLongUnits = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, string[]> EnglishLongUnits = new(
+        StringComparer.Ordinal
+    )
     {
         ["second"] = ["second", "seconds"],
         ["minute"] = ["minute", "minutes"],
@@ -17,10 +19,12 @@ public sealed class RelativeTimeFormat
         ["week"] = ["week", "weeks"],
         ["month"] = ["month", "months"],
         ["quarter"] = ["quarter", "quarters"],
-        ["year"] = ["year", "years"]
+        ["year"] = ["year", "years"],
     };
 
-    private static readonly Dictionary<string, string[]> EnglishShortUnits = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, string[]> EnglishShortUnits = new(
+        StringComparer.Ordinal
+    )
     {
         ["second"] = ["sec."],
         ["minute"] = ["min."],
@@ -29,10 +33,12 @@ public sealed class RelativeTimeFormat
         ["week"] = ["wk."],
         ["month"] = ["mo."],
         ["quarter"] = ["qtr.", "qtrs."],
-        ["year"] = ["yr."]
+        ["year"] = ["yr."],
     };
 
-    private static readonly Dictionary<string, string[]> EnglishNarrowUnits = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, string[]> EnglishNarrowUnits = new(
+        StringComparer.Ordinal
+    )
     {
         ["second"] = ["sec."],
         ["minute"] = ["min."],
@@ -41,75 +47,201 @@ public sealed class RelativeTimeFormat
         ["week"] = ["wk."],
         ["month"] = ["mo."],
         ["quarter"] = ["qtr.", "qtrs."],
-        ["year"] = ["yr."]
+        ["year"] = ["yr."],
     };
 
-    private static readonly Dictionary<string, Dictionary<string, string>> PolishLongUnits = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, Dictionary<string, string>> PolishLongUnits = new(
+        StringComparer.Ordinal
+    )
     {
         ["second"] = new(StringComparer.Ordinal)
-        { ["many"] = "sekund", ["few"] = "sekundy", ["one"] = "sekundę", ["other"] = "sekundy" },
+        {
+            ["many"] = "sekund",
+            ["few"] = "sekundy",
+            ["one"] = "sekundę",
+            ["other"] = "sekundy",
+        },
         ["minute"] = new(StringComparer.Ordinal)
-        { ["many"] = "minut", ["few"] = "minuty", ["one"] = "minutę", ["other"] = "minuty" },
+        {
+            ["many"] = "minut",
+            ["few"] = "minuty",
+            ["one"] = "minutę",
+            ["other"] = "minuty",
+        },
         ["hour"] = new(StringComparer.Ordinal)
-        { ["many"] = "godzin", ["few"] = "godziny", ["one"] = "godzinę", ["other"] = "godziny" },
+        {
+            ["many"] = "godzin",
+            ["few"] = "godziny",
+            ["one"] = "godzinę",
+            ["other"] = "godziny",
+        },
         ["day"] = new(StringComparer.Ordinal)
-        { ["many"] = "dni", ["few"] = "dni", ["one"] = "dzień", ["other"] = "dnia" },
+        {
+            ["many"] = "dni",
+            ["few"] = "dni",
+            ["one"] = "dzień",
+            ["other"] = "dnia",
+        },
         ["week"] = new(StringComparer.Ordinal)
-        { ["many"] = "tygodni", ["few"] = "tygodnie", ["one"] = "tydzień", ["other"] = "tygodnia" },
+        {
+            ["many"] = "tygodni",
+            ["few"] = "tygodnie",
+            ["one"] = "tydzień",
+            ["other"] = "tygodnia",
+        },
         ["month"] = new(StringComparer.Ordinal)
-        { ["many"] = "miesięcy", ["few"] = "miesiące", ["one"] = "miesiąc", ["other"] = "miesiąca" },
+        {
+            ["many"] = "miesięcy",
+            ["few"] = "miesiące",
+            ["one"] = "miesiąc",
+            ["other"] = "miesiąca",
+        },
         ["quarter"] = new(StringComparer.Ordinal)
-        { ["many"] = "kwartałów", ["few"] = "kwartały", ["one"] = "kwartał", ["other"] = "kwartału" },
+        {
+            ["many"] = "kwartałów",
+            ["few"] = "kwartały",
+            ["one"] = "kwartał",
+            ["other"] = "kwartału",
+        },
         ["year"] = new(StringComparer.Ordinal)
-        { ["many"] = "lat", ["few"] = "lata", ["one"] = "rok", ["other"] = "roku" }
+        {
+            ["many"] = "lat",
+            ["few"] = "lata",
+            ["one"] = "rok",
+            ["other"] = "roku",
+        },
     };
 
-    private static readonly Dictionary<string, Dictionary<string, string>> PolishShortUnits =
-        new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, Dictionary<string, string>> PolishShortUnits = new(
+        StringComparer.Ordinal
+    )
+    {
+        ["second"] = new(StringComparer.Ordinal)
         {
-            ["second"] = new(StringComparer.Ordinal)
-            { ["many"] = "sek.", ["few"] = "sek.", ["one"] = "sek.", ["other"] = "sek." },
-            ["minute"] = new(StringComparer.Ordinal)
-            { ["many"] = "min", ["few"] = "min", ["one"] = "min", ["other"] = "min" },
-            ["hour"] = new(StringComparer.Ordinal)
-            { ["many"] = "godz.", ["few"] = "godz.", ["one"] = "godz.", ["other"] = "godz." },
-            ["day"] = new(StringComparer.Ordinal)
-            { ["many"] = "dni", ["few"] = "dni", ["one"] = "dzień", ["other"] = "dnia" },
-            ["week"] = new(StringComparer.Ordinal)
-            { ["many"] = "tyg.", ["few"] = "tyg.", ["one"] = "tydz.", ["other"] = "tyg." },
-            ["month"] = new(StringComparer.Ordinal)
-            { ["many"] = "mies.", ["few"] = "mies.", ["one"] = "mies.", ["other"] = "mies." },
-            ["quarter"] = new(StringComparer.Ordinal)
-            { ["many"] = "kw.", ["few"] = "kw.", ["one"] = "kw.", ["other"] = "kw." },
-            ["year"] = new(StringComparer.Ordinal)
-            { ["many"] = "lat", ["few"] = "lata", ["one"] = "rok", ["other"] = "roku" }
-        };
+            ["many"] = "sek.",
+            ["few"] = "sek.",
+            ["one"] = "sek.",
+            ["other"] = "sek.",
+        },
+        ["minute"] = new(StringComparer.Ordinal)
+        {
+            ["many"] = "min",
+            ["few"] = "min",
+            ["one"] = "min",
+            ["other"] = "min",
+        },
+        ["hour"] = new(StringComparer.Ordinal)
+        {
+            ["many"] = "godz.",
+            ["few"] = "godz.",
+            ["one"] = "godz.",
+            ["other"] = "godz.",
+        },
+        ["day"] = new(StringComparer.Ordinal)
+        {
+            ["many"] = "dni",
+            ["few"] = "dni",
+            ["one"] = "dzień",
+            ["other"] = "dnia",
+        },
+        ["week"] = new(StringComparer.Ordinal)
+        {
+            ["many"] = "tyg.",
+            ["few"] = "tyg.",
+            ["one"] = "tydz.",
+            ["other"] = "tyg.",
+        },
+        ["month"] = new(StringComparer.Ordinal)
+        {
+            ["many"] = "mies.",
+            ["few"] = "mies.",
+            ["one"] = "mies.",
+            ["other"] = "mies.",
+        },
+        ["quarter"] = new(StringComparer.Ordinal)
+        {
+            ["many"] = "kw.",
+            ["few"] = "kw.",
+            ["one"] = "kw.",
+            ["other"] = "kw.",
+        },
+        ["year"] = new(StringComparer.Ordinal)
+        {
+            ["many"] = "lat",
+            ["few"] = "lata",
+            ["one"] = "rok",
+            ["other"] = "roku",
+        },
+    };
 
-    private static readonly Dictionary<string, Dictionary<string, string>> PolishNarrowUnits =
-        new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, Dictionary<string, string>> PolishNarrowUnits = new(
+        StringComparer.Ordinal
+    )
+    {
+        ["second"] = new(StringComparer.Ordinal)
         {
-            ["second"] = new(StringComparer.Ordinal) { ["many"] = "s", ["few"] = "s", ["one"] = "s", ["other"] = "s" },
-            ["minute"] = new(StringComparer.Ordinal)
-            { ["many"] = "min", ["few"] = "min", ["one"] = "min", ["other"] = "min" },
-            ["hour"] =
-                new(StringComparer.Ordinal) { ["many"] = "g.", ["few"] = "g.", ["one"] = "g.", ["other"] = "g." },
-            ["day"] = new(StringComparer.Ordinal)
-            { ["many"] = "dni", ["few"] = "dni", ["one"] = "dzień", ["other"] = "dnia" },
-            ["week"] = new(StringComparer.Ordinal)
-            { ["many"] = "tyg.", ["few"] = "tyg.", ["one"] = "tydz.", ["other"] = "tyg." },
-            ["month"] = new(StringComparer.Ordinal)
-            { ["many"] = "mies.", ["few"] = "mies.", ["one"] = "mies.", ["other"] = "mies." },
-            ["quarter"] = new(StringComparer.Ordinal)
-            { ["many"] = "kw.", ["few"] = "kw.", ["one"] = "kw.", ["other"] = "kw." },
-            ["year"] = new(StringComparer.Ordinal)
-            { ["many"] = "lat", ["few"] = "lata", ["one"] = "rok", ["other"] = "roku" }
-        };
+            ["many"] = "s",
+            ["few"] = "s",
+            ["one"] = "s",
+            ["other"] = "s",
+        },
+        ["minute"] = new(StringComparer.Ordinal)
+        {
+            ["many"] = "min",
+            ["few"] = "min",
+            ["one"] = "min",
+            ["other"] = "min",
+        },
+        ["hour"] = new(StringComparer.Ordinal)
+        {
+            ["many"] = "g.",
+            ["few"] = "g.",
+            ["one"] = "g.",
+            ["other"] = "g.",
+        },
+        ["day"] = new(StringComparer.Ordinal)
+        {
+            ["many"] = "dni",
+            ["few"] = "dni",
+            ["one"] = "dzień",
+            ["other"] = "dnia",
+        },
+        ["week"] = new(StringComparer.Ordinal)
+        {
+            ["many"] = "tyg.",
+            ["few"] = "tyg.",
+            ["one"] = "tydz.",
+            ["other"] = "tyg.",
+        },
+        ["month"] = new(StringComparer.Ordinal)
+        {
+            ["many"] = "mies.",
+            ["few"] = "mies.",
+            ["one"] = "mies.",
+            ["other"] = "mies.",
+        },
+        ["quarter"] = new(StringComparer.Ordinal)
+        {
+            ["many"] = "kw.",
+            ["few"] = "kw.",
+            ["one"] = "kw.",
+            ["other"] = "kw.",
+        },
+        ["year"] = new(StringComparer.Ordinal)
+        {
+            ["many"] = "lat",
+            ["few"] = "lata",
+            ["one"] = "rok",
+            ["other"] = "roku",
+        },
+    };
 
     /// <summary>Creates a relative time formatter for a locale.</summary>
     public RelativeTimeFormat(
         string locale,
         RelativeTimeFormatOptions? options = null,
-        CultureInfo? cultureInfo = null)
+        CultureInfo? cultureInfo = null
+    )
     {
         ArgumentNullException.ThrowIfNull(locale);
         options ??= new();
@@ -126,15 +258,18 @@ public sealed class RelativeTimeFormat
         string numberingSystem,
         string style,
         string numeric,
-        CultureInfo cultureInfo)
-        : this(locale, new RelativeTimeFormatOptions
-        {
-            NumberingSystem = numberingSystem,
-            Style = style,
-            Numeric = numeric
-        }, cultureInfo)
-    {
-    }
+        CultureInfo cultureInfo
+    )
+        : this(
+            locale,
+            new RelativeTimeFormatOptions
+            {
+                NumberingSystem = numberingSystem,
+                Style = style,
+                Numeric = numeric,
+            },
+            cultureInfo
+        ) { }
 
     /// <summary>The locale tag.</summary>
     public string Locale { get; }
@@ -168,7 +303,9 @@ public sealed class RelativeTimeFormat
         var formattedNumber = FormatNumber(absValue);
 
         if (IsPolishLocale())
-            return isPast ? $"{formattedNumber} {unitName} temu" : $"za {formattedNumber} {unitName}";
+            return isPast
+                ? $"{formattedNumber} {unitName} temu"
+                : $"za {formattedNumber} {unitName}";
 
         return isPast ? $"{formattedNumber} {unitName} ago" : $"in {formattedNumber} {unitName}";
     }
@@ -237,7 +374,7 @@ public sealed class RelativeTimeFormat
                 "month" => "this month",
                 "quarter" => "this quarter",
                 "year" => "this year",
-                _ => null
+                _ => null,
             };
 
         if (absoluteRounded != 1)
@@ -251,7 +388,7 @@ public sealed class RelativeTimeFormat
                 "month" => "last month",
                 "quarter" => "last quarter",
                 "year" => "last year",
-                _ => null
+                _ => null,
             }
             : unit switch
             {
@@ -260,7 +397,7 @@ public sealed class RelativeTimeFormat
                 "month" => "next month",
                 "quarter" => "next quarter",
                 "year" => "next year",
-                _ => null
+                _ => null,
             };
     }
 
@@ -278,7 +415,12 @@ public sealed class RelativeTimeFormat
             var mod100 = i % 100;
             if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14))
                 return "few";
-            if (mod10 == 0 || mod10 == 1 || (mod10 >= 5 && mod10 <= 9) || (mod100 >= 12 && mod100 <= 14))
+            if (
+                mod10 == 0
+                || mod10 == 1
+                || (mod10 >= 5 && mod10 <= 9)
+                || (mod100 >= 12 && mod100 <= 14)
+            )
                 return "many";
             return "other";
         }
@@ -315,7 +457,7 @@ public sealed class RelativeTimeFormat
             {
                 "short" => PolishShortUnits,
                 "narrow" => PolishNarrowUnits,
-                _ => PolishLongUnits
+                _ => PolishLongUnits,
             };
             var unitMap = unitSource[unit];
             return unitMap.TryGetValue(pluralForm, out var value) ? value : unitMap["many"];
@@ -325,7 +467,7 @@ public sealed class RelativeTimeFormat
         {
             "short" => EnglishShortUnits,
             "narrow" => EnglishNarrowUnits,
-            _ => EnglishLongUnits
+            _ => EnglishLongUnits,
         };
         var forms = unitSourceEnglish[unit];
         if (forms.Length == 1)
@@ -349,8 +491,10 @@ public sealed class RelativeTimeFormat
         if (string.IsNullOrEmpty(groupSeparator))
             groupSeparator = IsPolishLocale() ? "\u00A0" : ",";
         groupSeparator = NumberingSystemData.GetGroupSeparator(NumberingSystem, groupSeparator);
-        var decimalSeparator = NumberingSystemData.GetDecimalSeparator(NumberingSystem,
-            CultureInfo.NumberFormat.NumberDecimalSeparator);
+        var decimalSeparator = NumberingSystemData.GetDecimalSeparator(
+            NumberingSystem,
+            CultureInfo.NumberFormat.NumberDecimalSeparator
+        );
         var useGrouping = ShouldGroupDigits(integerPart.Length);
         var groups = useGrouping ? SplitIntegerGroups(integerPart) : [integerPart];
         for (var i = 0; i < groups.Count; i++)
@@ -358,8 +502,9 @@ public sealed class RelativeTimeFormat
 
         var result = string.Join(groupSeparator, groups);
         if (!string.IsNullOrEmpty(fractionPart))
-            result += decimalSeparator +
-                      NumberingSystemData.TransliterateDigits(fractionPart, NumberingSystem);
+            result +=
+                decimalSeparator
+                + NumberingSystemData.TransliterateDigits(fractionPart, NumberingSystem);
 
         return result;
     }
@@ -385,15 +530,20 @@ public sealed class RelativeTimeFormat
         if (string.IsNullOrEmpty(groupSeparator))
             groupSeparator = IsPolishLocale() ? "\u00A0" : ",";
         groupSeparator = NumberingSystemData.GetGroupSeparator(NumberingSystem, groupSeparator);
-        var decimalSeparator = NumberingSystemData.GetDecimalSeparator(NumberingSystem,
-            CultureInfo.NumberFormat.NumberDecimalSeparator);
+        var decimalSeparator = NumberingSystemData.GetDecimalSeparator(
+            NumberingSystem,
+            CultureInfo.NumberFormat.NumberDecimalSeparator
+        );
         var useGrouping = ShouldGroupDigits(integerPart.Length);
         var groups = useGrouping ? SplitIntegerGroups(integerPart) : [integerPart];
 
         for (var i = 0; i < groups.Count; i++)
         {
-            yield return new IntlPart("integer",
-                NumberingSystemData.TransliterateDigits(groups[i], NumberingSystem), unit);
+            yield return new IntlPart(
+                "integer",
+                NumberingSystemData.TransliterateDigits(groups[i], NumberingSystem),
+                unit
+            );
             if (i + 1 < groups.Count)
                 yield return new IntlPart("group", groupSeparator, unit);
         }
@@ -401,8 +551,11 @@ public sealed class RelativeTimeFormat
         if (!string.IsNullOrEmpty(fractionPart))
         {
             yield return new IntlPart("decimal", decimalSeparator, unit);
-            yield return new IntlPart("fraction",
-                NumberingSystemData.TransliterateDigits(fractionPart, NumberingSystem), unit);
+            yield return new IntlPart(
+                "fraction",
+                NumberingSystemData.TransliterateDigits(fractionPart, NumberingSystem),
+                unit
+            );
         }
     }
 

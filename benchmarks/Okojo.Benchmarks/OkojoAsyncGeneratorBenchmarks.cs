@@ -18,7 +18,8 @@ public class OkojoAsyncGeneratorBenchmarks
     private double sink;
     private string source = string.Empty;
 
-    [Params("ag-retq", "ag-retq-core")] public string Scenario { get; set; } = "ag-retq";
+    [Params("ag-retq", "ag-retq-core")]
+    public string Scenario { get; set; } = "ag-retq";
 
     [GlobalSetup]
     public void Setup()
@@ -58,10 +59,12 @@ public class OkojoAsyncGeneratorBenchmarks
         double sum = 0;
         for (uint i = 0; i < promises.Length; i++)
         {
-            if (!promises.TryGetElement(i, out var promiseValue) ||
-                !promiseValue.TryGetObject(out var promiseObj) ||
-                promiseObj is not JsPromiseObject promise ||
-                !promise.IsFulfilled)
+            if (
+                !promises.TryGetElement(i, out var promiseValue)
+                || !promiseValue.TryGetObject(out var promiseObj)
+                || promiseObj is not JsPromiseObject promise
+                || !promise.IsFulfilled
+            )
                 continue;
 
             var settled = promise.SettledResult;

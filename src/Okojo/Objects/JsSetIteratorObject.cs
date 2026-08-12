@@ -8,7 +8,8 @@ internal sealed class JsSetIteratorObject : JsObject
     private int cursor;
     private bool exhausted;
 
-    internal JsSetIteratorObject(JsRealm realm, JsSetObject set, IterationKind kind) : base(realm)
+    internal JsSetIteratorObject(JsRealm realm, JsSetObject set, IterationKind kind)
+        : base(realm)
     {
         this.set = set;
         this.kind = kind;
@@ -27,8 +28,12 @@ internal sealed class JsSetIteratorObject : JsObject
 
         return kind switch
         {
-            IterationKind.Values => JsValue.FromObject(Realm.CreateIteratorResultObject(value, false)),
-            _ => JsValue.FromObject(Realm.CreateIteratorResultObject(CreateEntryPair(value), false))
+            IterationKind.Values => JsValue.FromObject(
+                Realm.CreateIteratorResultObject(value, false)
+            ),
+            _ => JsValue.FromObject(
+                Realm.CreateIteratorResultObject(CreateEntryPair(value), false)
+            ),
         };
     }
 
@@ -48,6 +53,6 @@ internal sealed class JsSetIteratorObject : JsObject
     internal enum IterationKind : byte
     {
         Values,
-        Entries
+        Entries,
     }
 }

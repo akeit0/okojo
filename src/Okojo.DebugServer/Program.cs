@@ -10,12 +10,14 @@ using Okojo.SourceMaps;
 var options = DebugServerOptions.Parse(args);
 WriteVersionBanner();
 
-if (!string.IsNullOrWhiteSpace(options.Cwd)) Directory.SetCurrentDirectory(Path.GetFullPath(options.Cwd));
+if (!string.IsNullOrWhiteSpace(options.Cwd))
+    Directory.SetCurrentDirectory(Path.GetFullPath(options.Cwd));
 
 if (string.IsNullOrWhiteSpace(options.ScriptPath))
 {
     Console.Error.WriteLine(
-        "Usage: Okojo.DebugServer --script <file.js|file.mjs> [--cwd <dir>] [--module-entry|--script-entry] [--break <source:line>] [--check-interval <n>] [--enable-source-maps] [--stop-entry] [--stop-debugger|--no-stop-debugger] [--stop-breakpoint|--no-stop-breakpoint] [--stop-call] [--stop-return] [--stop-pump] [--stop-suspend] [--stop-resume] [--stop-periodic]");
+        "Usage: Okojo.DebugServer --script <file.js|file.mjs> [--cwd <dir>] [--module-entry|--script-entry] [--break <source:line>] [--check-interval <n>] [--enable-source-maps] [--stop-entry] [--stop-debugger|--no-stop-debugger] [--stop-breakpoint|--no-stop-breakpoint] [--stop-call] [--stop-return] [--stop-pump] [--stop-suspend] [--stop-resume] [--stop-periodic]"
+    );
     return 2;
 }
 
@@ -44,7 +46,7 @@ ApplyBreakpoints(runtime.MainAgent, session, options);
 var commandThread = new Thread(session.RunCommandLoop)
 {
     IsBackground = true,
-    Name = "Okojo.DebugServer.CommandLoop"
+    Name = "Okojo.DebugServer.CommandLoop",
 };
 commandThread.Start();
 
@@ -57,8 +59,9 @@ try
             return 0;
         }
 
-    var runAsModule = options.RunAsModule ??
-                      string.Equals(Path.GetExtension(scriptPath), ".mjs", StringComparison.OrdinalIgnoreCase);
+    var runAsModule =
+        options.RunAsModule
+        ?? string.Equals(Path.GetExtension(scriptPath), ".mjs", StringComparison.OrdinalIgnoreCase);
     if (runAsModule)
     {
         _ = runtime.LoadModule(scriptPath);
@@ -135,9 +138,7 @@ void ApplyBreakpoints(JsAgent agent, DebuggerSession session, DebugServerOptions
 IModuleSourceLoader CreateModuleSourceLoader(SourceMapRegistry? registry)
 {
     var fileLoader = new FileModuleSourceLoader();
-    return registry is null
-        ? fileLoader
-        : new SourceMapModuleSourceLoader(fileLoader, registry);
+    return registry is null ? fileLoader : new SourceMapModuleSourceLoader(fileLoader, registry);
 }
 
 void PreloadSourceMaps(string rootScriptPath, SourceMapRegistry registry)
@@ -146,7 +147,13 @@ void PreloadSourceMaps(string rootScriptPath, SourceMapRegistry registry)
     if (string.IsNullOrEmpty(rootDirectory) || !Directory.Exists(rootDirectory))
         return;
 
-    foreach (var sourceMapPath in Directory.EnumerateFiles(rootDirectory, "*.map", SearchOption.AllDirectories))
+    foreach (
+        var sourceMapPath in Directory.EnumerateFiles(
+            rootDirectory,
+            "*.map",
+            SearchOption.AllDirectories
+        )
+    )
     {
         var generatedPath = sourceMapPath.EndsWith(".map", StringComparison.OrdinalIgnoreCase)
             ? sourceMapPath[..^4]
@@ -156,20 +163,14 @@ void PreloadSourceMaps(string rootScriptPath, SourceMapRegistry registry)
 
         try
         {
-            registry.Register(SourceMapParser.Parse(File.ReadAllText(sourceMapPath), generatedPath, sourceMapPath));
+            registry.Register(
+                SourceMapParser.Parse(File.ReadAllText(sourceMapPath), generatedPath, sourceMapPath)
+            );
         }
-        catch (IOException)
-        {
-        }
-        catch (UnauthorizedAccessException)
-        {
-        }
-        catch (FormatException)
-        {
-        }
-        catch (JsonException)
-        {
-        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
+        catch (FormatException) { }
+        catch (JsonException) { }
     }
 }
 
@@ -186,8 +187,9 @@ string NormalizePath(string path, string? cwd)
 void WriteVersionBanner()
 {
     var assembly = Assembly.GetExecutingAssembly();
-    var info = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
-               ?? assembly.GetName().Version?.ToString()
-               ?? "unknown";
+    var info =
+        assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+        ?? assembly.GetName().Version?.ToString()
+        ?? "unknown";
     Console.Error.WriteLine($"[okojo] debug server {info}");
 }

@@ -36,9 +36,11 @@ public sealed partial class JsCompiler
             case JsObjectExpression obj:
                 foreach (var prop in obj.Properties)
                 {
-                    if (prop.IsComputed &&
-                        prop.ComputedKey is not null &&
-                        ExpressionRequiresStableCallState(prop.ComputedKey))
+                    if (
+                        prop.IsComputed
+                        && prop.ComputedKey is not null
+                        && ExpressionRequiresStableCallState(prop.ComputedKey)
+                    )
                         return true;
 
                     if (prop.Value is not null && ExpressionRequiresStableCallState(prop.Value))
@@ -53,9 +55,9 @@ public sealed partial class JsCompiler
 
                 return false;
             case JsConditionalExpression conditional:
-                return ExpressionRequiresStableCallState(conditional.Test) ||
-                       ExpressionRequiresStableCallState(conditional.Consequent) ||
-                       ExpressionRequiresStableCallState(conditional.Alternate);
+                return ExpressionRequiresStableCallState(conditional.Test)
+                    || ExpressionRequiresStableCallState(conditional.Consequent)
+                    || ExpressionRequiresStableCallState(conditional.Alternate);
             default:
                 return true;
         }
@@ -66,7 +68,11 @@ public sealed partial class JsCompiler
         return AllocateTemporaryRegister();
     }
 
-    private int PreserveRegisterForCallState(int sourceRegister, string prefix, bool preserveAcrossArgumentEvaluation)
+    private int PreserveRegisterForCallState(
+        int sourceRegister,
+        string prefix,
+        bool preserveAcrossArgumentEvaluation
+    )
     {
         if (!preserveAcrossArgumentEvaluation)
             return sourceRegister;

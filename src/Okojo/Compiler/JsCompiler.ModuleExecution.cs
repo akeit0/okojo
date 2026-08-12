@@ -5,7 +5,8 @@ namespace Okojo.Compiler;
 
 internal readonly record struct ModuleExecutionEnvironment(
     int SlotCount,
-    JsValue[] InitialSlotValues);
+    JsValue[] InitialSlotValues
+);
 
 public sealed partial class JsCompiler
 {
@@ -13,7 +14,8 @@ public sealed partial class JsCompiler
         ModuleExecutionPlan executionPlan,
         string? moduleSourceText = null,
         string? moduleSourcePath = null,
-        JsIdentifierTable? moduleIdentifierTable = null)
+        JsIdentifierTable? moduleIdentifierTable = null
+    )
     {
         strictDeclared = true;
         sourceCode = new(moduleSourceText, moduleSourcePath);
@@ -25,10 +27,12 @@ public sealed partial class JsCompiler
         return script;
     }
 
-    internal JsScript CompileModuleExecutionAsync(ModuleExecutionPlan executionPlan,
+    internal JsScript CompileModuleExecutionAsync(
+        ModuleExecutionPlan executionPlan,
         string? moduleSourceText = null,
         string? moduleSourcePath = null,
-        JsIdentifierTable? moduleIdentifierTable = null)
+        JsIdentifierTable? moduleIdentifierTable = null
+    )
     {
         strictDeclared = true;
         sourceCode = new(moduleSourceText, moduleSourcePath);
@@ -43,17 +47,25 @@ public sealed partial class JsCompiler
         EmitStarRegister(funcReg);
         EmitCallUndefinedReceiver(funcReg, 0, 0);
         EmitRaw(JsOpCode.Return);
-        var script = builder.ToScript() with { SourcePath = CurrentSourcePath, SourceCode = sourceCode };
+        var script = builder.ToScript() with
+        {
+            SourcePath = CurrentSourcePath,
+            SourceCode = sourceCode,
+        };
         script.BindAgent(Vm.Agent);
         return script;
     }
 
-    private JsBytecodeFunction CompileModuleExecutionFunction(ModuleExecutionPlan executionPlan, bool isAsync)
+    private JsBytecodeFunction CompileModuleExecutionFunction(
+        ModuleExecutionPlan executionPlan,
+        bool isAsync
+    )
     {
         using var funcCompiler = new JsCompiler(
             this,
             isAsync ? JsBytecodeFunctionKind.Async : JsBytecodeFunctionKind.Normal,
-            forceModuleFunctionContext: forceModuleFunctionContext);
+            forceModuleFunctionContext: forceModuleFunctionContext
+        );
 
         var script = funcCompiler.CompileModuleExecutionOpsCore(executionPlan);
         return new(
@@ -68,21 +80,24 @@ public sealed partial class JsCompiler
             hasSimpleParameterList: true,
             isClassConstructor: false,
             isDerivedConstructor: false,
-            expectedArgumentCount: 0);
+            expectedArgumentCount: 0
+        );
     }
 
     internal JsBytecodeFunction CompileHoistedFunctionTemplate(
         JsFunctionDeclaration declaration,
         string? functionSourceText = null,
         string? functionSourcePath = null,
-        JsIdentifierTable? functionIdentifierTable = null)
+        JsIdentifierTable? functionIdentifierTable = null
+    )
     {
         var nextSourceText = functionSourceText ?? CurrentSourceText;
         var nextSourcePath = functionSourcePath ?? CurrentSourcePath;
-        sourceCode = ReferenceEquals(nextSourceText, CurrentSourceText) &&
-                     string.Equals(nextSourcePath, CurrentSourcePath, StringComparison.Ordinal)
-            ? sourceCode
-            : new(nextSourceText, nextSourcePath);
+        sourceCode =
+            ReferenceEquals(nextSourceText, CurrentSourceText)
+            && string.Equals(nextSourcePath, CurrentSourcePath, StringComparison.Ordinal)
+                ? sourceCode
+                : new(nextSourceText, nextSourcePath);
         identifierTable = functionIdentifierTable ?? identifierTable;
         builder.SetSourceText(nextSourceText);
 
@@ -92,7 +107,8 @@ public sealed partial class JsCompiler
             parameterPlan,
             declaration.Body,
             CreateFunctionShape(declaration.IsGenerator, declaration.IsAsync),
-            sourceStartPosition: declaration.Position);
+            sourceStartPosition: declaration.Position
+        );
     }
 
     internal JsBytecodeFunction CompileHoistedFunctionTemplate(
@@ -100,14 +116,16 @@ public sealed partial class JsCompiler
         string compiledName,
         string? functionSourceText = null,
         string? functionSourcePath = null,
-        JsIdentifierTable? functionIdentifierTable = null)
+        JsIdentifierTable? functionIdentifierTable = null
+    )
     {
         var nextSourceText = functionSourceText ?? CurrentSourceText;
         var nextSourcePath = functionSourcePath ?? CurrentSourcePath;
-        sourceCode = ReferenceEquals(nextSourceText, CurrentSourceText) &&
-                     string.Equals(nextSourcePath, CurrentSourcePath, StringComparison.Ordinal)
-            ? sourceCode
-            : new(nextSourceText, nextSourcePath);
+        sourceCode =
+            ReferenceEquals(nextSourceText, CurrentSourceText)
+            && string.Equals(nextSourcePath, CurrentSourcePath, StringComparison.Ordinal)
+                ? sourceCode
+                : new(nextSourceText, nextSourcePath);
         identifierTable = functionIdentifierTable ?? identifierTable;
         builder.SetSourceText(nextSourceText);
 
@@ -117,7 +135,8 @@ public sealed partial class JsCompiler
             parameterPlan,
             expression.Body,
             CreateFunctionShape(expression.IsGenerator, expression.IsAsync),
-            sourceStartPosition: expression.Position);
+            sourceStartPosition: expression.Position
+        );
     }
 
     private JsScript CompileModuleExecutionOpsCore(ModuleExecutionPlan executionPlan)
@@ -147,8 +166,10 @@ public sealed partial class JsCompiler
             EmitFunctionContextPrologueIfNeeded();
 
             foreach (var statement in executeStatements)
-                if (statement is JsFunctionDeclaration decl &&
-                    !ShouldDeferModuleFunctionHoistToInstantiation(decl))
+                if (
+                    statement is JsFunctionDeclaration decl
+                    && !ShouldDeferModuleFunctionHoistToInstantiation(decl)
+                )
                     HoistFunction(decl);
         }
         finally
@@ -179,29 +200,42 @@ public sealed partial class JsCompiler
                     {
                         case ModuleExecutionOpKind.ExecuteStatement:
                             if (op.Statement is null)
-                                throw new InvalidOperationException("Module execution op missing statement.");
+                                throw new InvalidOperationException(
+                                    "Module execution op missing statement."
+                                );
                             VisitStatement(op.Statement);
-                            if (StatementAlwaysReturns(op.Statement) || StatementNeverCompletesNormally(op.Statement))
+                            if (
+                                StatementAlwaysReturns(op.Statement)
+                                || StatementNeverCompletesNormally(op.Statement)
+                            )
                                 alwaysReturns = true;
                             break;
                         case ModuleExecutionOpKind.ExportDefaultExpression:
                             if (op.Expression is null)
                             {
                                 throw new InvalidOperationException(
-                                    "Module execution op missing default-export expression.");
+                                    "Module execution op missing default-export expression."
+                                );
                             }
                             if (string.IsNullOrEmpty(op.ExportLocalName))
                             {
                                 throw new InvalidOperationException(
-                                    "Module execution default-export op missing local export name.");
+                                    "Module execution default-export op missing local export name."
+                                );
                             }
-                            EmitExportDefaultOperation(op.Expression, op.ExportLocalName, op.SetDefaultName);
+                            EmitExportDefaultOperation(
+                                op.Expression,
+                                op.ExportLocalName,
+                                op.SetDefaultName
+                            );
                             break;
                         case ModuleExecutionOpKind.InitializeHoistedDefaultExport:
                             EmitLdaTheHole();
                             break;
                         default:
-                            throw new InvalidOperationException("Unknown module execution op kind.");
+                            throw new InvalidOperationException(
+                                "Unknown module execution op kind."
+                            );
                     }
 
                     if (alwaysReturns)
@@ -210,7 +244,10 @@ public sealed partial class JsCompiler
             }
 
             if (executionPlan.HasTopLevelUsingLike)
-                EmitModuleTopLevelExplicitResourceScope(EmitModuleExecutionOps, executionPlan.HasTopLevelAwaitUsingLike);
+                EmitModuleTopLevelExplicitResourceScope(
+                    EmitModuleExecutionOps,
+                    executionPlan.HasTopLevelAwaitUsingLike
+                );
             else
                 EmitModuleExecutionOps();
         }
@@ -226,20 +263,23 @@ public sealed partial class JsCompiler
         if (functionKind != JsBytecodeFunctionKind.Normal)
             PatchGeneratorSwitchTable();
 
-        return builder.ToScript() with { SourcePath = CurrentSourcePath, SourceCode = sourceCode };
+        return builder.ToScript() with
+        {
+            SourcePath = CurrentSourcePath,
+            SourceCode = sourceCode,
+        };
     }
 
     internal ModuleExecutionEnvironment DescribeModuleExecutionEnvironment(
         ModuleExecutionPlan executionPlan,
-        JsIdentifierTable? moduleIdentifierTable = null)
+        JsIdentifierTable? moduleIdentifierTable = null
+    )
     {
         identifierTable = moduleIdentifierTable ?? identifierTable;
         var executeStatements = PrepareModuleExecutionEnvironmentCore(executionPlan);
         try
         {
-            return new(
-                currentContextSlotById.Count,
-                GetCurrentContextInitialValues());
+            return new(currentContextSlotById.Count, GetCurrentContextInitialValues());
         }
         finally
         {
@@ -250,10 +290,13 @@ public sealed partial class JsCompiler
 
     private bool ShouldDeferModuleFunctionHoistToInstantiation(JsFunctionDeclaration declaration)
     {
-        return moduleVariableBindings is not null && moduleVariableBindings.ContainsKey(declaration.Name);
+        return moduleVariableBindings is not null
+            && moduleVariableBindings.ContainsKey(declaration.Name);
     }
 
-    private List<JsStatement> PrepareModuleExecutionEnvironmentCore(ModuleExecutionPlan executionPlan)
+    private List<JsStatement> PrepareModuleExecutionEnvironmentCore(
+        ModuleExecutionPlan executionPlan
+    )
     {
         var executeStatements = Vm.RentCompileList<JsStatement>(executionPlan.Operations.Count);
         for (var i = 0; i < executionPlan.Operations.Count; i++)
@@ -273,8 +316,7 @@ public sealed partial class JsCompiler
             var op = executionPlan.Operations[i];
             switch (op.Kind)
             {
-                case ModuleExecutionOpKind.ExportDefaultExpression
-                    when op.Expression is not null:
+                case ModuleExecutionOpKind.ExportDefaultExpression when op.Expression is not null:
                 case ModuleExecutionOpKind.InitializeHoistedDefaultExport
                     when op.Expression is not null:
                     ScanForDirectNestedFunctionCapturesInExpression(op.Expression);
@@ -309,7 +351,11 @@ public sealed partial class JsCompiler
         return initialValues;
     }
 
-    private void EmitExportDefaultOperation(JsExpression expression, string exportLocalName, bool setDefaultName)
+    private void EmitExportDefaultOperation(
+        JsExpression expression,
+        string exportLocalName,
+        bool setDefaultName
+    )
     {
         var tempScope = BeginTemporaryRegisterScope();
         try

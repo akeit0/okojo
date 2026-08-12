@@ -48,7 +48,8 @@ public abstract class NamedPropertyLayout(JsRealm owner, NamedPropertyLayoutKind
                 hint = -1;
                 return UnsafeStaticMap!.TryGetSlotInfo(Entries, atom, out slotInfo);
             case NamedPropertyLayoutKind.DynamicMap:
-                return Unsafe.As<DynamicNamedPropertyLayout>(this)
+                return Unsafe
+                    .As<DynamicNamedPropertyLayout>(this)
                     .TryGetMapSlotInfoCore(atom, out slotInfo, out hint);
             default:
                 hint = -1;
@@ -61,13 +62,19 @@ public abstract class NamedPropertyLayout(JsRealm owner, NamedPropertyLayoutKind
     {
         return Kind switch
         {
-            NamedPropertyLayoutKind.DynamicMap =>
-                Unsafe.As<DynamicNamedPropertyLayout>(this).EnumerateMapSlotInfosCore(),
-            _ => EnumerateEntries()
+            NamedPropertyLayoutKind.DynamicMap => Unsafe
+                .As<DynamicNamedPropertyLayout>(this)
+                .EnumerateMapSlotInfosCore(),
+            _ => EnumerateEntries(),
         };
     }
 
-    protected static bool TryGetLinearSlotInfo(Entry[] entries, int liveCount, int atom, out SlotInfo slotInfo)
+    protected static bool TryGetLinearSlotInfo(
+        Entry[] entries,
+        int liveCount,
+        int atom,
+        out SlotInfo slotInfo
+    )
     {
         for (var i = 0; i < liveCount; i++)
             if (entries[i].Atom == atom)
@@ -80,16 +87,21 @@ public abstract class NamedPropertyLayout(JsRealm owner, NamedPropertyLayoutKind
         return false;
     }
 
-    protected static IEnumerable<KeyValuePair<int, SlotInfo>> EnumerateLinearEntries(Entry[] entries, int liveCount)
+    protected static IEnumerable<KeyValuePair<int, SlotInfo>> EnumerateLinearEntries(
+        Entry[] entries,
+        int liveCount
+    )
     {
-        for (var i = 0; i < liveCount; i++) yield return new(entries[i].Atom, entries[i].SlotInfo);
+        for (var i = 0; i < liveCount; i++)
+            yield return new(entries[i].Atom, entries[i].SlotInfo);
     }
 
     protected static Entry[] CreateLinearEntries(Dictionary<int, SlotInfo> slotInfoByAtom)
     {
         var entries = new Entry[slotInfoByAtom.Count];
         var index = 0;
-        foreach (var entry in slotInfoByAtom) entries[index++] = new(entry.Key, entry.Value);
+        foreach (var entry in slotInfoByAtom)
+            entries[index++] = new(entry.Key, entry.Value);
 
         return entries;
     }
@@ -97,7 +109,8 @@ public abstract class NamedPropertyLayout(JsRealm owner, NamedPropertyLayoutKind
     protected static int ComputeSwissCapacity(int entryCount)
     {
         var capacity = 16;
-        while (entryCount * 4 >= capacity * 3) capacity <<= 1;
+        while (entryCount * 4 >= capacity * 3)
+            capacity <<= 1;
 
         return capacity;
     }
@@ -110,14 +123,25 @@ public abstract class NamedPropertyLayout(JsRealm owner, NamedPropertyLayoutKind
             InsertSwissEntry(entries, control, entryIndexes, entryIndex);
     }
 
-    protected static bool TryFindSwissEntry(Entry[] entries, byte[] control, int[] entryIndexes, int atom,
-        out int entryIndex)
+    protected static bool TryFindSwissEntry(
+        Entry[] entries,
+        byte[] control,
+        int[] entryIndexes,
+        int atom,
+        out int entryIndex
+    )
     {
         return TryFindSwissEntry(entries, control, entryIndexes, atom, out entryIndex, out _);
     }
 
-    protected static bool TryFindSwissEntry(Entry[] entries, byte[] control, int[] entryIndexes, int atom,
-        out int entryIndex, out int tableIndex)
+    protected static bool TryFindSwissEntry(
+        Entry[] entries,
+        byte[] control,
+        int[] entryIndexes,
+        int atom,
+        out int entryIndex,
+        out int tableIndex
+    )
     {
         if (control.Length == 0)
         {
@@ -202,7 +226,8 @@ public abstract class NamedPropertyLayout(JsRealm owner, NamedPropertyLayoutKind
         int[] entryIndexes,
         int atom,
         out int entryIndex,
-        out int insertionIndex)
+        out int insertionIndex
+    )
     {
         if (control.Length == 0)
         {
@@ -313,9 +338,11 @@ public abstract class NamedPropertyLayout(JsRealm owner, NamedPropertyLayoutKind
             for (var tableIndex = index; tableIndex < groupEnd; tableIndex++)
             {
                 var marker = control[tableIndex];
-                if (marker == SwissEmpty) return firstDeleted >= 0 ? firstDeleted : tableIndex;
+                if (marker == SwissEmpty)
+                    return firstDeleted >= 0 ? firstDeleted : tableIndex;
 
-                if (marker == SwissDeleted && firstDeleted < 0) firstDeleted = tableIndex;
+                if (marker == SwissDeleted && firstDeleted < 0)
+                    firstDeleted = tableIndex;
             }
 
             if (contiguous == SwissProbeGroupSize)
@@ -330,16 +357,23 @@ public abstract class NamedPropertyLayout(JsRealm owner, NamedPropertyLayoutKind
             for (var tableIndex = 0; tableIndex < wrappedCount; tableIndex++)
             {
                 var marker = control[tableIndex];
-                if (marker == SwissEmpty) return firstDeleted >= 0 ? firstDeleted : tableIndex;
+                if (marker == SwissEmpty)
+                    return firstDeleted >= 0 ? firstDeleted : tableIndex;
 
-                if (marker == SwissDeleted && firstDeleted < 0) firstDeleted = tableIndex;
+                if (marker == SwissDeleted && firstDeleted < 0)
+                    firstDeleted = tableIndex;
             }
 
             index = wrappedCount;
         }
     }
 
-    protected static void InsertSwissEntry(Entry[] entries, byte[] control, int[] entryIndexes, int entryIndex)
+    protected static void InsertSwissEntry(
+        Entry[] entries,
+        byte[] control,
+        int[] entryIndexes,
+        int entryIndex
+    )
     {
         var atom = entries[entryIndex].Atom;
         var slot = FindSwissInsertIndex(control, atom);

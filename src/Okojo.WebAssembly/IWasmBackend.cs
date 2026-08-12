@@ -6,9 +6,7 @@ public interface IWasmBackend
 
     IWasmCompiledModule Compile(ReadOnlySpan<byte> wasm);
 
-    IWasmInstance Instantiate(
-        IWasmCompiledModule module,
-        IWasmImportResolver imports);
+    IWasmInstance Instantiate(IWasmCompiledModule module, IWasmImportResolver imports);
 
     IWasmFunction CreateFunction(WasmFunctionType type, WasmHostFunctionCallback callback);
     IWasmMemory CreateMemory(WasmMemoryType type);

@@ -5,7 +5,8 @@ internal sealed class ModuleVariableSlot(
     string? resolvedDependencyId = null,
     string? importedName = null,
     bool isReadOnly = false,
-    string? importType = null)
+    string? importType = null
+)
 {
     public ModuleVariableSlotKind Kind { get; } = kind;
     public string? ResolvedDependencyId { get; } = resolvedDependencyId;

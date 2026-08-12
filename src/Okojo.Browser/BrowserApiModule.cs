@@ -1,9 +1,9 @@
+using System.Runtime.CompilerServices;
 using Okojo.Hosting;
 using Okojo.Objects;
 using Okojo.Runtime;
 using Okojo.Values;
 using Okojo.WebPlatform;
-using System.Runtime.CompilerServices;
 
 namespace Okojo.Browser;
 
@@ -35,17 +35,20 @@ public sealed class BrowserApiModule : IRealmApiModule
 
     private readonly ConditionalWeakTable<JsRealm, RealmBrowserState> realmStates = new();
 
-    public static BrowserApiModule Shared { get; } = new(
-        static realm => new TimeProviderDelayScheduler(realm.Engine.TimeProvider),
-        WebTaskQueueKeys.Timers,
-        WebTaskQueueKeys.Rendering,
-        TimeSpan.FromMilliseconds(16));
+    public static BrowserApiModule Shared { get; } =
+        new(
+            static realm => new TimeProviderDelayScheduler(realm.Engine.TimeProvider),
+            WebTaskQueueKeys.Timers,
+            WebTaskQueueKeys.Rendering,
+            TimeSpan.FromMilliseconds(16)
+        );
 
     public BrowserApiModule(
         Func<JsRealm, IHostDelayScheduler> delaySchedulerFactory,
         HostTaskQueueKey timerQueueKey,
         HostTaskQueueKey animationFrameQueueKey,
-        TimeSpan animationFrameInterval)
+        TimeSpan animationFrameInterval
+    )
     {
         if (animationFrameInterval <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(animationFrameInterval));
@@ -64,45 +67,64 @@ public sealed class BrowserApiModule : IRealmApiModule
         if (!realm.Global.TryGetValue("self", out _))
             realm.Global["self"] = global;
         if (!realm.Global.TryGetValue("requestAnimationFrame", out _))
-            realm.Global["requestAnimationFrame"] = JsValue.FromObject(CreateRequestAnimationFrameFunction(realm));
+            realm.Global["requestAnimationFrame"] = JsValue.FromObject(
+                CreateRequestAnimationFrameFunction(realm)
+            );
         if (!realm.Global.TryGetValue("cancelAnimationFrame", out _))
-            realm.Global["cancelAnimationFrame"] = JsValue.FromObject(CreateCancelAnimationFrameFunction(realm));
+            realm.Global["cancelAnimationFrame"] = JsValue.FromObject(
+                CreateCancelAnimationFrameFunction(realm)
+            );
     }
 
     private RealmBrowserState GetState(JsRealm realm)
     {
-        return realmStates.GetValue(realm, static key => new RealmBrowserState
-        {
-            TimeOrigin = key.Engine.TimeProvider.GetUtcNow()
-        });
+        return realmStates.GetValue(
+            realm,
+            static key => new RealmBrowserState { TimeOrigin = key.Engine.TimeProvider.GetUtcNow() }
+        );
     }
 
     private JsHostFunction CreateRequestAnimationFrameFunction(JsRealm realm)
     {
-        return new JsHostFunction(realm, "requestAnimationFrame", 1, (in CallInfo info) =>
-        {
-            if (info.Arguments.Length == 0 ||
-                !info.Arguments[0].TryGetObject(out var callbackObj) ||
-                callbackObj is not JsFunction callback)
+        return new JsHostFunction(
+            realm,
+            "requestAnimationFrame",
+            1,
+            (in CallInfo info) =>
             {
-                throw new JsRuntimeException(
-                    JsErrorKind.TypeError,
-                    "requestAnimationFrame callback is not a function",
-                    "REQUEST_ANIMATION_FRAME_CALLBACK_NOT_FUNCTION");
-            }
+                if (
+                    info.Arguments.Length == 0
+                    || !info.Arguments[0].TryGetObject(out var callbackObj)
+                    || callbackObj is not JsFunction callback
+                )
+                {
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "requestAnimationFrame callback is not a function",
+                        "REQUEST_ANIMATION_FRAME_CALLBACK_NOT_FUNCTION"
+                    );
+                }
 
-            return JsValue.FromInt32(CreateAnimationFrameRequest(info.Realm, callback));
-        }, isConstructor: false);
+                return JsValue.FromInt32(CreateAnimationFrameRequest(info.Realm, callback));
+            },
+            isConstructor: false
+        );
     }
 
     private JsHostFunction CreateCancelAnimationFrameFunction(JsRealm realm)
     {
-        return new JsHostFunction(realm, "cancelAnimationFrame", 1, (in CallInfo info) =>
-        {
-            if (info.Arguments.Length != 0)
-                CancelAnimationFrameRequest(info.Realm, ToAnimationFrameId(info.Arguments[0]));
-            return JsValue.Undefined;
-        }, isConstructor: false);
+        return new JsHostFunction(
+            realm,
+            "cancelAnimationFrame",
+            1,
+            (in CallInfo info) =>
+            {
+                if (info.Arguments.Length != 0)
+                    CancelAnimationFrameRequest(info.Realm, ToAnimationFrameId(info.Arguments[0]));
+                return JsValue.Undefined;
+            },
+            isConstructor: false
+        );
     }
 
     private int CreateAnimationFrameRequest(JsRealm realm, JsFunction callback)
@@ -111,14 +133,17 @@ public sealed class BrowserApiModule : IRealmApiModule
         lock (state.Gate)
         {
             int requestId = ++state.NextAnimationFrameId;
-            state.AnimationFrameRequests.Add(requestId, new AnimationFrameRequestState
-            {
-                OwnerState = state,
-                Realm = realm,
-                PublicRequestId = requestId,
-                Callback = callback,
-                AnimationFrameQueueKey = animationFrameQueueKey
-            });
+            state.AnimationFrameRequests.Add(
+                requestId,
+                new AnimationFrameRequestState
+                {
+                    OwnerState = state,
+                    Realm = realm,
+                    PublicRequestId = requestId,
+                    Callback = callback,
+                    AnimationFrameQueueKey = animationFrameQueueKey,
+                }
+            );
             EnsureAnimationFrameScheduled(state, realm);
             return requestId;
         }
@@ -156,14 +181,16 @@ public sealed class BrowserApiModule : IRealmApiModule
                 animationFrameInterval,
                 animationFrameQueueKey,
                 static queuedState => ProcessAnimationFrame((AnimationFrameDueState)queuedState!),
-                new AnimationFrameDueState(state, realm));
+                new AnimationFrameDueState(state, realm)
+            );
             return;
         }
 
         state.ScheduledAnimationFrame = scheduler.ScheduleDelayed(
             animationFrameInterval,
             static queuedState => ProcessAnimationFrame((AnimationFrameDueState)queuedState!),
-            new AnimationFrameDueState(state, realm));
+            new AnimationFrameDueState(state, realm)
+        );
     }
 
     private static void ProcessAnimationFrame(AnimationFrameDueState dueState)
@@ -178,7 +205,9 @@ public sealed class BrowserApiModule : IRealmApiModule
 
             requests = dueState.State.AnimationFrameRequests.Values.ToArray();
             dueState.State.AnimationFrameRequests.Clear();
-            timestamp = (dueState.Realm.Engine.TimeProvider.GetUtcNow() - dueState.State.TimeOrigin).TotalMilliseconds;
+            timestamp = (
+                dueState.Realm.Engine.TimeProvider.GetUtcNow() - dueState.State.TimeOrigin
+            ).TotalMilliseconds;
         }
 
         for (int i = 0; i < requests.Length; i++)
@@ -191,7 +220,8 @@ public sealed class BrowserApiModule : IRealmApiModule
             request.Realm.QueueHostTask(
                 request.AnimationFrameQueueKey,
                 request.Callback,
-                [new JsValue(timestamp)]);
+                [new JsValue(timestamp)]
+            );
         }
     }
 

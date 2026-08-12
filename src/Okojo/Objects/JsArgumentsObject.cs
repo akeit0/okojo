@@ -23,30 +23,48 @@ public sealed class JsArgumentsObject : JsObject
         ReadOnlySpan<JsValue> args,
         bool mapped,
         int[]? mappedSlots,
-        JsContext? context)
+        JsContext? context
+    )
         : base(realm)
     {
         values = args.ToArray();
         argumentCount = (uint)values.Length;
-        lengthValue = values.Length <= int.MaxValue ? JsValue.FromInt32(values.Length) : new(values.Length);
+        lengthValue =
+            values.Length <= int.MaxValue ? JsValue.FromInt32(values.Length) : new(values.Length);
         this.mapped = mapped;
         this.mappedSlots = mappedSlots;
         this.context = context;
         Prototype = realm.ObjectPrototype;
-        DefineDataPropertyAtom(realm, IdSymbolIterator, JsValue.FromObject(realm.ArrayPrototypeValuesFunction),
-            JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable);
+        DefineDataPropertyAtom(
+            realm,
+            IdSymbolIterator,
+            JsValue.FromObject(realm.ArrayPrototypeValuesFunction),
+            JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable
+        );
         if (!mapped)
         {
             var calleeAtom = realm.Atoms.InternNoCheck("callee");
-            _ = DefineOwnAccessorPropertyExact(realm, calleeAtom, realm.ThrowTypeErrorIntrinsic,
+            _ = DefineOwnAccessorPropertyExact(
+                realm,
+                calleeAtom,
                 realm.ThrowTypeErrorIntrinsic,
-                JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter);
+                realm.ThrowTypeErrorIntrinsic,
+                JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter
+            );
         }
     }
 
-    internal override bool TryGetElementWithReceiver(JsRealm realm, JsObject receiver, uint index, out JsValue value)
+    internal override bool TryGetElementWithReceiver(
+        JsRealm realm,
+        JsObject receiver,
+        uint index,
+        out JsValue value
+    )
     {
-        if (IndexedProperties is not null && IndexedProperties.TryGetValue(index, out var descriptor))
+        if (
+            IndexedProperties is not null
+            && IndexedProperties.TryGetValue(index, out var descriptor)
+        )
         {
             if (descriptor.IsAccessor)
             {
@@ -57,13 +75,16 @@ public sealed class JsArgumentsObject : JsObject
                     return true;
                 }
 
-                value = InvokeAccessorFunction(realm, receiver, getter, ReadOnlySpan<JsValue>.Empty);
+                value = InvokeAccessorFunction(
+                    realm,
+                    receiver,
+                    getter,
+                    ReadOnlySpan<JsValue>.Empty
+                );
                 return true;
             }
 
-            value = IsMappedIndex(index)
-                ? GetMappedIndexValue(index)
-                : descriptor.Value;
+            value = IsMappedIndex(index) ? GetMappedIndexValue(index) : descriptor.Value;
             return true;
         }
 
@@ -95,12 +116,20 @@ public sealed class JsArgumentsObject : JsObject
         return false;
     }
 
-    internal override bool SetElementWithReceiver(JsRealm realm, JsObject receiver, uint index, JsValue value)
+    internal override bool SetElementWithReceiver(
+        JsRealm realm,
+        JsObject receiver,
+        uint index,
+        JsValue value
+    )
     {
         if (!ReferenceEquals(this, receiver))
             return base.SetElementWithReceiver(realm, receiver, index, value);
 
-        if (IndexedProperties is not null && IndexedProperties.TryGetValue(index, out var existingDescriptor))
+        if (
+            IndexedProperties is not null
+            && IndexedProperties.TryGetValue(index, out var existingDescriptor)
+        )
         {
             if (existingDescriptor.IsAccessor)
             {
@@ -140,9 +169,12 @@ public sealed class JsArgumentsObject : JsObject
         return true;
     }
 
-    internal override bool TryGetOwnNamedPropertyDescriptorAtom(JsRealm realm, int atom,
+    internal override bool TryGetOwnNamedPropertyDescriptorAtom(
+        JsRealm realm,
+        int atom,
         out PropertyDescriptor descriptor,
-        bool needDescriptor = true)
+        bool needDescriptor = true
+    )
     {
         if (atom == IdLength && hasLengthProperty)
         {
@@ -152,15 +184,30 @@ public sealed class JsArgumentsObject : JsObject
                 return true;
             }
 
-            descriptor = PropertyDescriptor.Data(lengthValue, lengthWritable, lengthEnumerable, lengthConfigurable);
+            descriptor = PropertyDescriptor.Data(
+                lengthValue,
+                lengthWritable,
+                lengthEnumerable,
+                lengthConfigurable
+            );
             return true;
         }
 
-        return base.TryGetOwnNamedPropertyDescriptorAtom(realm, atom, out descriptor, needDescriptor);
+        return base.TryGetOwnNamedPropertyDescriptorAtom(
+            realm,
+            atom,
+            out descriptor,
+            needDescriptor
+        );
     }
 
-    internal override bool TryGetPropertyAtomWithReceiverValue(JsRealm realm, in JsValue receiverValue, int atom,
-        out JsValue value, out SlotInfo slotInfo)
+    internal override bool TryGetPropertyAtomWithReceiverValue(
+        JsRealm realm,
+        in JsValue receiverValue,
+        int atom,
+        out JsValue value,
+        out SlotInfo slotInfo
+    )
     {
         if (atom == IdLength && hasLengthProperty)
         {
@@ -169,12 +216,21 @@ public sealed class JsArgumentsObject : JsObject
             return true;
         }
 
-        return base.TryGetPropertyAtomWithReceiverValue(realm, receiverValue, atom, out value, out slotInfo);
+        return base.TryGetPropertyAtomWithReceiverValue(
+            realm,
+            receiverValue,
+            atom,
+            out value,
+            out slotInfo
+        );
     }
 
     internal override bool TrySetOwnElement(uint index, JsValue value, out bool hadOwnElement)
     {
-        if (IndexedProperties is not null && IndexedProperties.TryGetValue(index, out var existingDescriptor))
+        if (
+            IndexedProperties is not null
+            && IndexedProperties.TryGetValue(index, out var existingDescriptor)
+        )
         {
             hadOwnElement = true;
             if (existingDescriptor.IsAccessor)
@@ -223,8 +279,13 @@ public sealed class JsArgumentsObject : JsObject
         return true;
     }
 
-    internal override bool SetPropertyAtomWithReceiver(JsRealm realm, JsObject receiver, int atom, JsValue value,
-        out SlotInfo slotInfo)
+    internal override bool SetPropertyAtomWithReceiver(
+        JsRealm realm,
+        JsObject receiver,
+        int atom,
+        JsValue value,
+        out SlotInfo slotInfo
+    )
     {
         if (atom == IdLength)
         {
@@ -251,7 +312,8 @@ public sealed class JsArgumentsObject : JsObject
         bool requestedEnumerable,
         bool hasConfigurable,
         bool requestedConfigurable,
-        out bool isRangeError)
+        out bool isRangeError
+    )
     {
         isRangeError = false;
         hasLengthProperty = true;
@@ -307,7 +369,10 @@ public sealed class JsArgumentsObject : JsObject
 
     public override bool DeleteElement(uint index)
     {
-        if (IndexedProperties is not null && IndexedProperties.TryGetValue(index, out var descriptor))
+        if (
+            IndexedProperties is not null
+            && IndexedProperties.TryGetValue(index, out var descriptor)
+        )
         {
             if (!descriptor.Configurable)
                 return false;
@@ -337,11 +402,13 @@ public sealed class JsArgumentsObject : JsObject
                 ctx.Slots[mappedSlots![(int)index]] = descriptor.Value;
         }
 
-        var shouldUnmap = wasMapped &&
-                          (descriptor.IsAccessor || !descriptor.Writable);
+        var shouldUnmap = wasMapped && (descriptor.IsAccessor || !descriptor.Writable);
 
-        var openData = !descriptor.IsAccessor && descriptor.Writable && descriptor.Enumerable &&
-                       descriptor.Configurable;
+        var openData =
+            !descriptor.IsAccessor
+            && descriptor.Writable
+            && descriptor.Enumerable
+            && descriptor.Configurable;
         var canStayMappedOpenData = openData && IsMappedIndex(index) && !IsVirtualDeleted(index);
 
         if (canStayMappedOpenData)
@@ -373,7 +440,11 @@ public sealed class JsArgumentsObject : JsObject
             argumentCount = next;
     }
 
-    internal override void CollectOwnNamedPropertyAtoms(JsRealm realm, List<int> atomsOut, bool enumerableOnly)
+    internal override void CollectOwnNamedPropertyAtoms(
+        JsRealm realm,
+        List<int> atomsOut,
+        bool enumerableOnly
+    )
     {
         if (hasLengthProperty && (!enumerableOnly || lengthEnumerable))
             atomsOut.Add(IdLength);
@@ -398,7 +469,10 @@ public sealed class JsArgumentsObject : JsObject
         var seen = new HashSet<uint>();
         for (uint i = 0; i < argumentCount && i < (uint)values.Length; i++)
         {
-            if (IndexedProperties is not null && IndexedProperties.TryGetValue(i, out var indexedDescriptor))
+            if (
+                IndexedProperties is not null
+                && IndexedProperties.TryGetValue(i, out var indexedDescriptor)
+            )
             {
                 if ((!enumerableOnly || indexedDescriptor.Enumerable) && seen.Add(i))
                     indicesOut.Add(i);
@@ -426,11 +500,15 @@ public sealed class JsArgumentsObject : JsObject
     internal override void CollectForInEnumerableStringAtomKeys(
         JsRealm realm,
         HashSet<string> visited,
-        List<string> enumerableKeysOut)
+        List<string> enumerableKeysOut
+    )
     {
         for (uint i = 0; i < argumentCount && i < (uint)values.Length; i++)
         {
-            if (IndexedProperties is not null && IndexedProperties.TryGetValue(i, out var indexedDescriptor))
+            if (
+                IndexedProperties is not null
+                && IndexedProperties.TryGetValue(i, out var indexedDescriptor)
+            )
             {
                 if (!indexedDescriptor.Enumerable)
                     continue;
@@ -489,8 +567,7 @@ public sealed class JsArgumentsObject : JsObject
                 v = values[i];
             }
 
-            (IndexedProperties ??= new())[i] =
-                PropertyDescriptor.Data(v, false, true);
+            (IndexedProperties ??= new())[i] = PropertyDescriptor.Data(v, false, true);
             (deletedElements ??= new()).Add(i);
             if (IsMappedIndex(i))
                 (unmappedElements ??= new()).Add(i);
@@ -525,7 +602,12 @@ public sealed class JsArgumentsObject : JsObject
 
     private bool IsMappedIndex(uint index)
     {
-        if (!mapped || mappedSlots is null || index >= (uint)mappedSlots.Length || mappedSlots[(int)index] < 0)
+        if (
+            !mapped
+            || mappedSlots is null
+            || index >= (uint)mappedSlots.Length
+            || mappedSlots[(int)index] < 0
+        )
             return false;
         return unmappedElements is null || !unmappedElements.Contains(index);
     }

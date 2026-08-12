@@ -16,7 +16,8 @@ internal sealed class JsRegExpObject : JsObject
         bool multiline,
         bool sticky,
         bool unicode,
-        bool dotAll)
+        bool dotAll
+    )
         : base(realm)
     {
         Prototype = realm.RegExpPrototype;
@@ -33,8 +34,14 @@ internal sealed class JsRegExpObject : JsObject
         SetNamedSlotUnchecked(JsRealm.RegExpOwnSourceSlot, JsValue.FromString(pattern));
         SetNamedSlotUnchecked(JsRealm.RegExpOwnFlagsSlot, JsValue.FromString(flags));
         SetNamedSlotUnchecked(JsRealm.RegExpOwnGlobalSlot, isGlobal ? JsValue.True : JsValue.False);
-        SetNamedSlotUnchecked(JsRealm.RegExpOwnIgnoreCaseSlot, ignoreCase ? JsValue.True : JsValue.False);
-        SetNamedSlotUnchecked(JsRealm.RegExpOwnMultilineSlot, multiline ? JsValue.True : JsValue.False);
+        SetNamedSlotUnchecked(
+            JsRealm.RegExpOwnIgnoreCaseSlot,
+            ignoreCase ? JsValue.True : JsValue.False
+        );
+        SetNamedSlotUnchecked(
+            JsRealm.RegExpOwnMultilineSlot,
+            multiline ? JsValue.True : JsValue.False
+        );
         SetNamedSlotUnchecked(JsRealm.RegExpOwnLastIndexSlot, JsValue.FromInt32(0));
         SetNamedSlotUnchecked(JsRealm.RegExpOwnStickySlot, sticky ? JsValue.True : JsValue.False);
         SetNamedSlotUnchecked(JsRealm.RegExpOwnUnicodeSlot, unicode ? JsValue.True : JsValue.False);
@@ -61,32 +68,52 @@ internal sealed class JsRegExpObject : JsObject
         }
         catch (ArgumentException ex)
         {
-            throw new JsRuntimeException(JsErrorKind.SyntaxError, ex.Message, "REGEXP_INVALID_PATTERN");
+            throw new JsRuntimeException(
+                JsErrorKind.SyntaxError,
+                ex.Message,
+                "REGEXP_INVALID_PATTERN"
+            );
         }
     }
 
-    private static bool IsHiddenRegExpOwnAtom(int atom)    {
-        return atom is IdSource or IdFlags or IdGlobal or IdIgnoreCase or
-            IdMultiline or IdSticky or IdUnicode or IdDotAll;
+    private static bool IsHiddenRegExpOwnAtom(int atom)
+    {
+        return atom
+            is IdSource
+                or IdFlags
+                or IdGlobal
+                or IdIgnoreCase
+                or IdMultiline
+                or IdSticky
+                or IdUnicode
+                or IdDotAll;
     }
 
     private bool HasShadowedHiddenOwnProperty(int atom)
     {
-        return shadowedHiddenOwnProperties is not null && shadowedHiddenOwnProperties.ContainsKey(atom);
+        return shadowedHiddenOwnProperties is not null
+            && shadowedHiddenOwnProperties.ContainsKey(atom);
     }
 
     private bool TryGetShadowedHiddenOwnProperty(int atom, out PropertyDescriptor descriptor)
     {
-        if (shadowedHiddenOwnProperties is not null &&
-            shadowedHiddenOwnProperties.TryGetValue(atom, out descriptor))
+        if (
+            shadowedHiddenOwnProperties is not null
+            && shadowedHiddenOwnProperties.TryGetValue(atom, out descriptor)
+        )
             return true;
 
         descriptor = default;
         return false;
     }
 
-    internal override bool TryGetPropertyAtomWithReceiverValue(JsRealm realm, in JsValue receiverValue, int atom,
-        out JsValue value, out SlotInfo slotInfo)
+    internal override bool TryGetPropertyAtomWithReceiverValue(
+        JsRealm realm,
+        in JsValue receiverValue,
+        int atom,
+        out JsValue value,
+        out SlotInfo slotInfo
+    )
     {
         if (TryGetShadowedHiddenOwnProperty(atom, out var descriptor))
         {
@@ -99,7 +126,12 @@ internal sealed class JsRegExpObject : JsObject
                     return true;
                 }
 
-                value = InvokeAccessorFunction(realm, receiverValue, descriptor.Getter, ReadOnlySpan<JsValue>.Empty);
+                value = InvokeAccessorFunction(
+                    realm,
+                    receiverValue,
+                    descriptor.Getter,
+                    ReadOnlySpan<JsValue>.Empty
+                );
                 return true;
             }
 
@@ -111,7 +143,13 @@ internal sealed class JsRegExpObject : JsObject
         {
             if (Prototype is not null && Prototype != this)
             {
-                var found = Prototype.TryGetPropertyAtomWithReceiverValue(realm, receiverValue, atom, out value, out _);
+                var found = Prototype.TryGetPropertyAtomWithReceiverValue(
+                    realm,
+                    receiverValue,
+                    atom,
+                    out value,
+                    out _
+                );
                 slotInfo = SlotInfo.Invalid;
                 return found;
             }
@@ -121,12 +159,21 @@ internal sealed class JsRegExpObject : JsObject
             return false;
         }
 
-        return base.TryGetPropertyAtomWithReceiverValue(realm, receiverValue, atom, out value, out slotInfo);
+        return base.TryGetPropertyAtomWithReceiverValue(
+            realm,
+            receiverValue,
+            atom,
+            out value,
+            out slotInfo
+        );
     }
 
-    internal override bool TryGetOwnNamedPropertyDescriptorAtom(JsRealm realm, int atom,
+    internal override bool TryGetOwnNamedPropertyDescriptorAtom(
+        JsRealm realm,
+        int atom,
         out PropertyDescriptor descriptor,
-        bool needDescriptor = true)
+        bool needDescriptor = true
+    )
     {
         if (TryGetShadowedHiddenOwnProperty(atom, out descriptor))
         {
@@ -141,10 +188,19 @@ internal sealed class JsRegExpObject : JsObject
             return false;
         }
 
-        return base.TryGetOwnNamedPropertyDescriptorAtom(realm, atom, out descriptor, needDescriptor);
+        return base.TryGetOwnNamedPropertyDescriptorAtom(
+            realm,
+            atom,
+            out descriptor,
+            needDescriptor
+        );
     }
 
-    internal override void CollectOwnNamedPropertyAtoms(JsRealm realm, List<int> atomsOut, bool enumerableOnly)
+    internal override void CollectOwnNamedPropertyAtoms(
+        JsRealm realm,
+        List<int> atomsOut,
+        bool enumerableOnly
+    )
     {
         var scratch = new List<int>(8);
         base.CollectOwnNamedPropertyAtoms(realm, scratch, enumerableOnly);
@@ -163,7 +219,12 @@ internal sealed class JsRegExpObject : JsObject
                 atomsOut.Add(pair.Key);
     }
 
-    internal override void DefineDataPropertyAtom(JsRealm realm, int atom, JsValue value, JsShapePropertyFlags flags)
+    internal override void DefineDataPropertyAtom(
+        JsRealm realm,
+        int atom,
+        JsValue value,
+        JsShapePropertyFlags flags
+    )
     {
         if (IsHiddenRegExpOwnAtom(atom))
         {
@@ -174,8 +235,12 @@ internal sealed class JsRegExpObject : JsObject
         base.DefineDataPropertyAtom(realm, atom, value, flags);
     }
 
-    internal override bool DefineOwnDataPropertyExact(JsRealm realm, int atom, JsValue value,
-        JsShapePropertyFlags flags)
+    internal override bool DefineOwnDataPropertyExact(
+        JsRealm realm,
+        int atom,
+        JsValue value,
+        JsShapePropertyFlags flags
+    )
     {
         if (IsHiddenRegExpOwnAtom(atom))
         {
@@ -186,26 +251,39 @@ internal sealed class JsRegExpObject : JsObject
         return base.DefineOwnDataPropertyExact(realm, atom, value, flags);
     }
 
-    internal override bool DefineOwnAccessorPropertyExact(JsRealm realm, int atom, JsFunction? getter,
-        JsFunction? setter, JsShapePropertyFlags flags)
+    internal override bool DefineOwnAccessorPropertyExact(
+        JsRealm realm,
+        int atom,
+        JsFunction? getter,
+        JsFunction? setter,
+        JsShapePropertyFlags flags
+    )
     {
         if (IsHiddenRegExpOwnAtom(atom))
         {
             (shadowedHiddenOwnProperties ??= [])[atom] = new(
                 getter is null ? JsValue.Undefined : JsValue.FromObject(getter),
                 setter,
-                flags);
+                flags
+            );
             return true;
         }
 
         return base.DefineOwnAccessorPropertyExact(realm, atom, getter, setter, flags);
     }
 
-    internal override bool SetPropertyAtomWithReceiver(JsRealm realm, JsObject receiver, int atom, JsValue value,
-        out SlotInfo slotInfo)
+    internal override bool SetPropertyAtomWithReceiver(
+        JsRealm realm,
+        JsObject receiver,
+        int atom,
+        JsValue value,
+        out SlotInfo slotInfo
+    )
     {
-        if (shadowedHiddenOwnProperties is not null &&
-            shadowedHiddenOwnProperties.TryGetValue(atom, out var descriptor))
+        if (
+            shadowedHiddenOwnProperties is not null
+            && shadowedHiddenOwnProperties.TryGetValue(atom, out var descriptor)
+        )
         {
             slotInfo = SlotInfo.Invalid;
             if (descriptor.IsAccessor)
@@ -222,7 +300,12 @@ internal sealed class JsRegExpObject : JsObject
                 return false;
 
             if (!ReferenceEquals(this, receiver))
-                return receiver.DefineOwnDataPropertyExact(realm, atom, value, JsShapePropertyFlags.Open);
+                return receiver.DefineOwnDataPropertyExact(
+                    realm,
+                    atom,
+                    value,
+                    JsShapePropertyFlags.Open
+                );
 
             shadowedHiddenOwnProperties[atom] = new(value, null, descriptor.Flags);
             return true;
@@ -233,8 +316,10 @@ internal sealed class JsRegExpObject : JsObject
 
     internal override bool DeletePropertyAtom(JsRealm realm, int atom)
     {
-        if (shadowedHiddenOwnProperties is not null &&
-            shadowedHiddenOwnProperties.TryGetValue(atom, out var descriptor))
+        if (
+            shadowedHiddenOwnProperties is not null
+            && shadowedHiddenOwnProperties.TryGetValue(atom, out var descriptor)
+        )
         {
             if (!descriptor.Configurable)
                 return false;

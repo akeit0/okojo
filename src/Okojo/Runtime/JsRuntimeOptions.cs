@@ -83,13 +83,17 @@ public sealed class JsRuntimeOptions
         return this;
     }
 
-    public JsRuntimeOptions DecorateModuleSourceLoader(Func<IModuleSourceLoader, IModuleSourceLoader> decorator)
+    public JsRuntimeOptions DecorateModuleSourceLoader(
+        Func<IModuleSourceLoader, IModuleSourceLoader> decorator
+    )
     {
         Host.DecorateModuleSourceLoader(decorator);
         return this;
     }
 
-    public JsRuntimeOptions UseWorkerScriptSourceLoader(IWorkerScriptSourceLoader workerScriptLoader)
+    public JsRuntimeOptions UseWorkerScriptSourceLoader(
+        IWorkerScriptSourceLoader workerScriptLoader
+    )
     {
         Host.UseWorkerScriptSourceLoader(workerScriptLoader);
         return this;
@@ -141,7 +145,9 @@ public sealed class JsRuntimeOptions
         return this;
     }
 
-    internal JsRuntimeOptions UseSharedWaiterControllerFactory(ISharedWaiterControllerFactory controllerFactory)
+    internal JsRuntimeOptions UseSharedWaiterControllerFactory(
+        ISharedWaiterControllerFactory controllerFactory
+    )
     {
         ArgumentNullException.ThrowIfNull(controllerFactory);
         SharedWaiterControllerFactory = controllerFactory;

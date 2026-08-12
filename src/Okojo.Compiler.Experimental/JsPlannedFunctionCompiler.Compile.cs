@@ -12,11 +12,18 @@ internal sealed partial class JsPlannedFunctionCompiler
         string? name,
         FunctionParameterPlan parameterPlan,
         JsBlockStatement body,
-        bool hasSelfBinding = false)
+        bool hasSelfBinding = false
+    )
     {
         builder.SetStrictDeclared(body.StrictDeclared);
         InitializeParameterRegisterMap(parameterPlan);
-        using var collected = CompilerBindingCollector.CollectFunction(name, -1, parameterPlan, body, hasSelfBinding);
+        using var collected = CompilerBindingCollector.CollectFunction(
+            name,
+            -1,
+            parameterPlan,
+            body,
+            hasSelfBinding
+        );
         using var plan = CompilerStoragePlanner.Plan(collected);
         InitializePlanIndexes(collected, plan);
         InitializeRootBindings();
@@ -30,7 +37,7 @@ internal sealed partial class JsPlannedFunctionCompiler
         var script = builder.ToScript() with
         {
             SourceCode = null,
-            StrictDeclared = body.StrictDeclared
+            StrictDeclared = body.StrictDeclared,
         };
         script.BindAgent(Vm.Agent);
         return new JsBytecodeFunction(
@@ -48,7 +55,8 @@ internal sealed partial class JsPlannedFunctionCompiler
             isClassConstructor: false,
             isDerivedConstructor: false,
             hasEagerGeneratorParameterBinding: false,
-            expectedArgumentCount: parameterPlan.FunctionLength);
+            expectedArgumentCount: parameterPlan.FunctionLength
+        );
     }
 
     private void InitializeParameterRegisterMap(FunctionParameterPlan parameterPlan)

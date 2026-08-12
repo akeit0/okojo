@@ -11,12 +11,14 @@ public class TaskInteropTests
         using var runtime = JsRuntime.Create();
         var realm = runtime.MainRealm;
 
-        var promise = realm.Eval("""
-                                 globalThis.resolvePending = undefined;
-                                 new Promise(resolve => {
-                                   globalThis.resolvePending = resolve;
-                                 });
-                                 """);
+        var promise = realm.Eval(
+            """
+            globalThis.resolvePending = undefined;
+            new Promise(resolve => {
+              globalThis.resolvePending = resolve;
+            });
+            """
+        );
 
         var task = realm.ToValueTask<int>(promise);
         Assert.That(task.IsCompleted, Is.False);
@@ -34,11 +36,13 @@ public class TaskInteropTests
         using var runtime = JsRuntime.Create();
         var realm = runtime.MainRealm;
 
-        var promise = realm.Eval("""
-                                 new Promise(resolve => {
-                                   Promise.resolve().then(() => resolve(9));
-                                 });
-                                 """);
+        var promise = realm.Eval(
+            """
+            new Promise(resolve => {
+              Promise.resolve().then(() => resolve(9));
+            });
+            """
+        );
 
         var task = realm.ToPumpedValueTask<int>(promise);
         var result = await task;

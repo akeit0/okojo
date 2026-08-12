@@ -12,5 +12,5 @@ public enum Tag
     JsTagObject = 7,
     JsTagUninitialized = 8,
     JsTagContext = 9,
-    JsTagBigInt = 10
+    JsTagBigInt = 10,
 }

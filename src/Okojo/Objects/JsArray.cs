@@ -13,7 +13,8 @@ public sealed class JsArray : JsObject
     internal JsValue[]? Dense;
     private bool lengthWritable = true;
 
-    public JsArray(JsRealm realm) : base(realm)
+    public JsArray(JsRealm realm)
+        : base(realm)
     {
         Dense = Array.Empty<JsValue>();
         Length = 0;
@@ -21,9 +22,11 @@ public sealed class JsArray : JsObject
         Prototype = realm.Intrinsics is null ? realm.ObjectPrototype : realm.ArrayPrototype;
     }
 
-    public ReadOnlySpan<JsValue> AsReadOnlySpan() => Dense is not null ? Dense.AsSpan(0, (int)Length) : [];
+    public ReadOnlySpan<JsValue> AsReadOnlySpan() =>
+        Dense is not null ? Dense.AsSpan(0, (int)Length) : [];
 
-    public Span<JsValue> AsSpan() => Dense is not null && IsExtensibleFlag ? Dense.AsSpan(0, (int)Length) : [];
+    public Span<JsValue> AsSpan() =>
+        Dense is not null && IsExtensibleFlag ? Dense.AsSpan(0, (int)Length) : [];
 
     public uint Length { get; private set; }
 
@@ -39,7 +42,12 @@ public sealed class JsArray : JsObject
         return Dense;
     }
 
-    internal override bool SetElementWithReceiver(JsRealm realm, JsObject receiver, uint index, JsValue value)
+    internal override bool SetElementWithReceiver(
+        JsRealm realm,
+        JsObject receiver,
+        uint index,
+        JsValue value
+    )
     {
         if (!ReferenceEquals(this, receiver))
             return base.SetElementWithReceiver(realm, receiver, index, value);
@@ -50,7 +58,10 @@ public sealed class JsArray : JsObject
         if (!IsExtensible && !HasOwnElement(index))
             return false;
 
-        if (IndexedProperties is not null && IndexedProperties.TryGetValue(index, out var existingDescriptor))
+        if (
+            IndexedProperties is not null
+            && IndexedProperties.TryGetValue(index, out var existingDescriptor)
+        )
         {
             if (existingDescriptor.IsAccessor)
             {
@@ -73,8 +84,16 @@ public sealed class JsArray : JsObject
             return true;
         }
 
-        if (Prototype is not null &&
-            TrySetInheritedElementDescriptor(Shape.Owner, this, index, value, out var inheritedHandled))
+        if (
+            Prototype is not null
+            && TrySetInheritedElementDescriptor(
+                Shape.Owner,
+                this,
+                index,
+                value,
+                out var inheritedHandled
+            )
+        )
             return inheritedHandled;
 
         if (Dense is not null)
@@ -90,7 +109,8 @@ public sealed class JsArray : JsObject
             }
         }
 
-        if (Dense is null) (IndexedProperties ??= new())[index] = PropertyDescriptor.OpenData(value);
+        if (Dense is null)
+            (IndexedProperties ??= new())[index] = PropertyDescriptor.OpenData(value);
 
         var next = index + 1;
         if (next > Length)
@@ -100,7 +120,10 @@ public sealed class JsArray : JsObject
 
     internal override bool TrySetOwnElement(uint index, JsValue value, out bool hadOwnElement)
     {
-        if (IndexedProperties is not null && IndexedProperties.TryGetValue(index, out var existingDescriptor))
+        if (
+            IndexedProperties is not null
+            && IndexedProperties.TryGetValue(index, out var existingDescriptor)
+        )
         {
             hadOwnElement = true;
             if (existingDescriptor.IsAccessor)
@@ -151,9 +174,17 @@ public sealed class JsArray : JsObject
         return true;
     }
 
-    internal override bool TryGetElementWithReceiver(JsRealm realm, JsObject receiver, uint index, out JsValue value)
+    internal override bool TryGetElementWithReceiver(
+        JsRealm realm,
+        JsObject receiver,
+        uint index,
+        out JsValue value
+    )
     {
-        if (IndexedProperties is not null && IndexedProperties.TryGetValue(index, out var descriptor))
+        if (
+            IndexedProperties is not null
+            && IndexedProperties.TryGetValue(index, out var descriptor)
+        )
         {
             if (descriptor.IsAccessor)
             {
@@ -164,7 +195,12 @@ public sealed class JsArray : JsObject
                     return true;
                 }
 
-                value = InvokeAccessorFunction(realm, receiver, getter, ReadOnlySpan<JsValue>.Empty);
+                value = InvokeAccessorFunction(
+                    realm,
+                    receiver,
+                    getter,
+                    ReadOnlySpan<JsValue>.Empty
+                );
                 return true;
             }
 
@@ -192,7 +228,10 @@ public sealed class JsArray : JsObject
 
     public override bool DeleteElement(uint index)
     {
-        if (IndexedProperties is not null && IndexedProperties.TryGetValue(index, out var descriptor))
+        if (
+            IndexedProperties is not null
+            && IndexedProperties.TryGetValue(index, out var descriptor)
+        )
         {
             if (!descriptor.Configurable)
                 return false;
@@ -209,8 +248,13 @@ public sealed class JsArray : JsObject
         return true;
     }
 
-    internal override bool TryGetPropertyAtomWithReceiverValue(JsRealm realm, in JsValue receiverValue, int atom,
-        out JsValue value, out SlotInfo slotInfo)
+    internal override bool TryGetPropertyAtomWithReceiverValue(
+        JsRealm realm,
+        in JsValue receiverValue,
+        int atom,
+        out JsValue value,
+        out SlotInfo slotInfo
+    )
     {
         if (atom == IdLength)
         {
@@ -219,12 +263,21 @@ public sealed class JsArray : JsObject
             return true;
         }
 
-        return base.TryGetPropertyAtomWithReceiverValue(realm, receiverValue, atom, out value, out slotInfo);
+        return base.TryGetPropertyAtomWithReceiverValue(
+            realm,
+            receiverValue,
+            atom,
+            out value,
+            out slotInfo
+        );
     }
 
-    internal override bool TryGetOwnNamedPropertyDescriptorAtom(JsRealm realm, int atom,
+    internal override bool TryGetOwnNamedPropertyDescriptorAtom(
+        JsRealm realm,
+        int atom,
         out PropertyDescriptor descriptor,
-        bool needDescriptor = true)
+        bool needDescriptor = true
+    )
     {
         if (atom == IdLength)
         {
@@ -236,11 +289,17 @@ public sealed class JsArray : JsObject
 
             descriptor = PropertyDescriptor.Data(
                 Length <= int.MaxValue ? JsValue.FromInt32((int)Length) : new((double)Length),
-                lengthWritable);
+                lengthWritable
+            );
             return true;
         }
 
-        return base.TryGetOwnNamedPropertyDescriptorAtom(realm, atom, out descriptor, needDescriptor);
+        return base.TryGetOwnNamedPropertyDescriptorAtom(
+            realm,
+            atom,
+            out descriptor,
+            needDescriptor
+        );
     }
 
     internal override bool DeletePropertyAtom(JsRealm realm, int atom)
@@ -251,8 +310,13 @@ public sealed class JsArray : JsObject
         return base.DeletePropertyAtom(realm, atom);
     }
 
-    internal override bool SetPropertyAtomWithReceiver(JsRealm realm, JsObject receiver, int atom, JsValue value,
-        out SlotInfo slotInfo)
+    internal override bool SetPropertyAtomWithReceiver(
+        JsRealm realm,
+        JsObject receiver,
+        int atom,
+        JsValue value,
+        out SlotInfo slotInfo
+    )
     {
         if (atom == IdLength && ReferenceEquals(this, receiver))
         {
@@ -260,15 +324,22 @@ public sealed class JsArray : JsObject
             if (!lengthWritable)
                 return false;
             if (!TryConvertToArrayLength(realm, value, out var newLength))
-                throw new JsRuntimeException(JsErrorKind.RangeError, "Invalid array length",
-                    "ARRAY_LENGTH_INVALID");
+                throw new JsRuntimeException(
+                    JsErrorKind.RangeError,
+                    "Invalid array length",
+                    "ARRAY_LENGTH_INVALID"
+                );
             return TrySetLengthCore(newLength, false);
         }
 
         return base.SetPropertyAtomWithReceiver(realm, receiver, atom, value, out slotInfo);
     }
 
-    internal override void CollectOwnNamedPropertyAtoms(JsRealm realm, List<int> atomsOut, bool enumerableOnly)
+    internal override void CollectOwnNamedPropertyAtoms(
+        JsRealm realm,
+        List<int> atomsOut,
+        bool enumerableOnly
+    )
     {
         if (!enumerableOnly)
             atomsOut.Add(IdLength);
@@ -277,8 +348,10 @@ public sealed class JsArray : JsObject
 
     public bool TryEnsureDenseCapacity(uint index)
     {
-        if (Dense is null || !IsExtensible || IndexedProperties is not null) return false;
-        if (index < (uint)Dense.Length) return true;
+        if (Dense is null || !IsExtensible || IndexedProperties is not null)
+            return false;
+        if (index < (uint)Dense.Length)
+            return true;
 
         var needed = (int)index + 1;
         var capacity = Dense.Length == 0 ? DenseInitialCapacity : Dense.Length;
@@ -301,7 +374,8 @@ public sealed class JsArray : JsObject
         bool requestedEnumerable,
         bool hasConfigurable,
         bool requestedConfigurable,
-        out bool isRangeError)
+        out bool isRangeError
+    )
     {
         isRangeError = false;
 
@@ -336,16 +410,20 @@ public sealed class JsArray : JsObject
 
     private bool ShouldFallbackToSparse(uint index)
     {
-        if (Dense is null) return false;
+        if (Dense is null)
+            return false;
         var denseLen = Dense.Length;
-        if (denseLen == 0) return index > DenseToSparseGapThreshold;
+        if (denseLen == 0)
+            return index > DenseToSparseGapThreshold;
         return index > (uint)(denseLen + DenseToSparseGapThreshold);
     }
 
     private void EnsureDenseCapacity(uint index)
     {
-        if (Dense is null || !IsExtensible) return;
-        if (index < (uint)Dense.Length) return;
+        if (Dense is null || !IsExtensible)
+            return;
+        if (index < (uint)Dense.Length)
+            return;
 
         var needed = (int)index + 1;
         var capacity = Dense.Length == 0 ? DenseInitialCapacity : Dense.Length;
@@ -360,7 +438,8 @@ public sealed class JsArray : JsObject
 
     private void ConvertDenseToSparse()
     {
-        if (Dense is null) return;
+        if (Dense is null)
+            return;
         IndexedProperties ??= new();
         for (uint i = 0; i < Dense.Length; i++)
         {
@@ -393,12 +472,14 @@ public sealed class JsArray : JsObject
 
     internal override void DefineElementDescriptor(uint index, in PropertyDescriptor descriptor)
     {
-        if (Dense is not null &&
-            !descriptor.IsAccessor &&
-            descriptor.Writable &&
-            descriptor.Enumerable &&
-            descriptor.Configurable &&
-            !ShouldFallbackToSparse(index))
+        if (
+            Dense is not null
+            && !descriptor.IsAccessor
+            && descriptor.Writable
+            && descriptor.Enumerable
+            && descriptor.Configurable
+            && !ShouldFallbackToSparse(index)
+        )
         {
             EnsureDenseCapacity(index);
             Dense[index] = descriptor.Value;
@@ -445,8 +526,7 @@ public sealed class JsArray : JsObject
         {
             if (Dense is not null && index < (uint)Dense.Length)
                 Dense[index] = JsValue.TheHole;
-            (IndexedProperties ??= new())[index] =
-                PropertyDescriptor.OpenData(value);
+            (IndexedProperties ??= new())[index] = PropertyDescriptor.OpenData(value);
         }
 
         var next = index + 1;
@@ -505,7 +585,7 @@ public sealed class JsArray : JsObject
         if (Dense is not null)
         {
             var upper = Math.Min(Length, (uint)Dense.Length);
-            for (var i = upper; i > newLength;)
+            for (var i = upper; i > newLength; )
             {
                 i--;
                 if (!Dense[i].IsTheHole)
@@ -563,10 +643,7 @@ public sealed class JsArray : JsObject
                 var v = Dense[i];
                 if (v.IsTheHole)
                     continue;
-                IndexedProperties[i] = PropertyDescriptor.Data(
-                    v,
-                    false,
-                    true);
+                IndexedProperties[i] = PropertyDescriptor.Data(v, false, true);
                 Dense[i] = JsValue.TheHole;
             }
         }
@@ -580,8 +657,11 @@ public sealed class JsArray : JsObject
         return !lengthWritable && base.AreAllOwnPropertiesFrozen();
     }
 
-    internal override void CollectForInEnumerableStringAtomKeys(JsRealm realm, HashSet<string> visited,
-        List<string> enumerableKeysOut)
+    internal override void CollectForInEnumerableStringAtomKeys(
+        JsRealm realm,
+        HashSet<string> visited,
+        List<string> enumerableKeysOut
+    )
     {
         if (Dense is not null && Dense.Length != 0)
             for (uint i = 0; i < Dense.Length; i++)

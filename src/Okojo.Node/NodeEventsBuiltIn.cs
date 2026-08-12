@@ -21,7 +21,10 @@ internal sealed class NodeEventsBuiltIn(NodeRuntime runtime)
     private const int PrototypeListenersSlot = 8;
     private const int PrototypeListenerCountSlot = 9;
 
-    private readonly ConditionalWeakTable<JsObject, JsUserDataObject<EventEmitterState>> emitterStates = new();
+    private readonly ConditionalWeakTable<
+        JsObject,
+        JsUserDataObject<EventEmitterState>
+    > emitterStates = new();
 
     private int atomAddListener = -1;
     private int atomEmit = -1;
@@ -48,7 +51,10 @@ internal sealed class NodeEventsBuiltIn(NodeRuntime runtime)
         var realm = runtime.MainRealm;
         var shape = moduleShape ??= CreateModuleShape(realm);
         var module = new JsPlainObject(shape);
-        module.SetNamedSlotUnchecked(ModuleEventEmitterSlot, JsValue.FromObject(GetEventEmitterConstructor()));
+        module.SetNamedSlotUnchecked(
+            ModuleEventEmitterSlot,
+            JsValue.FromObject(GetEventEmitterConstructor())
+        );
         moduleObject = module;
         return module;
     }
@@ -59,26 +65,37 @@ internal sealed class NodeEventsBuiltIn(NodeRuntime runtime)
             return constructorFunction;
 
         var realm = runtime.MainRealm;
-        var ctor = new JsHostFunction(realm, "EventEmitter", 0, static (in info) =>
-        {
-            if (!info.IsConstruct)
-                throw new JsRuntimeException(
-                    JsErrorKind.TypeError,
-                    "Class constructor EventEmitter cannot be invoked without 'new'");
-
-            var state = (ConstructorState)((JsHostFunction)info.Function).UserData!;
-            if (info.ThisValue.TryGetObject(out var thisObject))
+        var ctor = new JsHostFunction(
+            realm,
+            "EventEmitter",
+            0,
+            static (in info) =>
             {
-                state.Owner.InitializeEmitterReceiver(info.Realm, thisObject);
-                return info.ThisValue;
-            }
+                if (!info.IsConstruct)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Class constructor EventEmitter cannot be invoked without 'new'"
+                    );
 
-            return JsValue.FromObject(state.Owner.CreateEmitterInstance(info.Realm));
-        }, true)
+                var state = (ConstructorState)((JsHostFunction)info.Function).UserData!;
+                if (info.ThisValue.TryGetObject(out var thisObject))
+                {
+                    state.Owner.InitializeEmitterReceiver(info.Realm, thisObject);
+                    return info.ThisValue;
+                }
+
+                return JsValue.FromObject(state.Owner.CreateEmitterInstance(info.Realm));
+            },
+            true
+        )
         {
-            UserData = new ConstructorState(this)
+            UserData = new ConstructorState(this),
         };
-        ctor.DefineDataProperty("prototype", JsValue.FromObject(GetPrototypeObject()), JsShapePropertyFlags.Open);
+        ctor.DefineDataProperty(
+            "prototype",
+            JsValue.FromObject(GetPrototypeObject()),
+            JsShapePropertyFlags.Open
+        );
         constructorFunction = ctor;
         return ctor;
     }
@@ -94,12 +111,13 @@ internal sealed class NodeEventsBuiltIn(NodeRuntime runtime)
     internal void InitializeEmitterReceiver(JsRealm realm, JsObject receiver)
     {
         EnsureAtoms(realm);
-        if (emitterStates.TryGetValue(receiver, out _)) return;
+        if (emitterStates.TryGetValue(receiver, out _))
+            return;
 
         var stateBox = new JsUserDataObject<EventEmitterState>(realm, false)
         {
             UserData = new(),
-            Prototype = null
+            Prototype = null,
         };
 
         emitterStates.Add(receiver, stateBox);
@@ -113,20 +131,46 @@ internal sealed class NodeEventsBuiltIn(NodeRuntime runtime)
         var realm = runtime.MainRealm;
         var shape = prototypeShape ??= CreatePrototypeShape(realm);
         var prototype = new JsPlainObject(shape);
-        prototype.SetNamedSlotUnchecked(PrototypeOnSlot, JsValue.FromObject(CreateOnFunction(realm)));
-        prototype.SetNamedSlotUnchecked(PrototypeOnceSlot, JsValue.FromObject(CreateOnceFunction(realm)));
-        prototype.SetNamedSlotUnchecked(PrototypeOffSlot, JsValue.FromObject(CreateOffFunction(realm)));
-        prototype.SetNamedSlotUnchecked(PrototypeEmitSlot, JsValue.FromObject(CreateEmitFunction(realm)));
-        prototype.SetNamedSlotUnchecked(PrototypeAddListenerSlot, JsValue.FromObject(CreateAddListenerFunction(realm)));
-        prototype.SetNamedSlotUnchecked(PrototypeRemoveListenerSlot,
-            JsValue.FromObject(CreateRemoveListenerFunction(realm)));
-        prototype.SetNamedSlotUnchecked(PrototypeSetMaxListenersSlot,
-            JsValue.FromObject(CreateSetMaxListenersFunction(realm)));
-        prototype.SetNamedSlotUnchecked(PrototypeGetMaxListenersSlot,
-            JsValue.FromObject(CreateGetMaxListenersFunction(realm)));
-        prototype.SetNamedSlotUnchecked(PrototypeListenersSlot, JsValue.FromObject(CreateListenersFunction(realm)));
-        prototype.SetNamedSlotUnchecked(PrototypeListenerCountSlot,
-            JsValue.FromObject(CreateListenerCountFunction(realm)));
+        prototype.SetNamedSlotUnchecked(
+            PrototypeOnSlot,
+            JsValue.FromObject(CreateOnFunction(realm))
+        );
+        prototype.SetNamedSlotUnchecked(
+            PrototypeOnceSlot,
+            JsValue.FromObject(CreateOnceFunction(realm))
+        );
+        prototype.SetNamedSlotUnchecked(
+            PrototypeOffSlot,
+            JsValue.FromObject(CreateOffFunction(realm))
+        );
+        prototype.SetNamedSlotUnchecked(
+            PrototypeEmitSlot,
+            JsValue.FromObject(CreateEmitFunction(realm))
+        );
+        prototype.SetNamedSlotUnchecked(
+            PrototypeAddListenerSlot,
+            JsValue.FromObject(CreateAddListenerFunction(realm))
+        );
+        prototype.SetNamedSlotUnchecked(
+            PrototypeRemoveListenerSlot,
+            JsValue.FromObject(CreateRemoveListenerFunction(realm))
+        );
+        prototype.SetNamedSlotUnchecked(
+            PrototypeSetMaxListenersSlot,
+            JsValue.FromObject(CreateSetMaxListenersFunction(realm))
+        );
+        prototype.SetNamedSlotUnchecked(
+            PrototypeGetMaxListenersSlot,
+            JsValue.FromObject(CreateGetMaxListenersFunction(realm))
+        );
+        prototype.SetNamedSlotUnchecked(
+            PrototypeListenersSlot,
+            JsValue.FromObject(CreateListenersFunction(realm))
+        );
+        prototype.SetNamedSlotUnchecked(
+            PrototypeListenerCountSlot,
+            JsValue.FromObject(CreateListenerCountFunction(realm))
+        );
         prototypeObject = prototype;
         return prototype;
     }
@@ -134,8 +178,11 @@ internal sealed class NodeEventsBuiltIn(NodeRuntime runtime)
     private StaticNamedPropertyLayout CreateModuleShape(JsRealm realm)
     {
         EnsureAtoms(realm);
-        var shape = realm.EmptyShape.GetOrAddTransition(atomEventEmitter, JsShapePropertyFlags.Open,
-            out var eventEmitterInfo);
+        var shape = realm.EmptyShape.GetOrAddTransition(
+            atomEventEmitter,
+            JsShapePropertyFlags.Open,
+            out var eventEmitterInfo
+        );
         Debug.Assert(eventEmitterInfo.Slot == ModuleEventEmitterSlot);
         return shape;
     }
@@ -143,16 +190,44 @@ internal sealed class NodeEventsBuiltIn(NodeRuntime runtime)
     private StaticNamedPropertyLayout CreatePrototypeShape(JsRealm realm)
     {
         EnsureAtoms(realm);
-        var shape = realm.EmptyShape.GetOrAddTransition(atomOn, JsShapePropertyFlags.Open, out var onInfo);
+        var shape = realm.EmptyShape.GetOrAddTransition(
+            atomOn,
+            JsShapePropertyFlags.Open,
+            out var onInfo
+        );
         shape = shape.GetOrAddTransition(atomOnce, JsShapePropertyFlags.Open, out var onceInfo);
         shape = shape.GetOrAddTransition(atomOff, JsShapePropertyFlags.Open, out var offInfo);
         shape = shape.GetOrAddTransition(atomEmit, JsShapePropertyFlags.Open, out var emitInfo);
-        shape = shape.GetOrAddTransition(atomAddListener, JsShapePropertyFlags.Open, out var addInfo);
-        shape = shape.GetOrAddTransition(atomRemoveListener, JsShapePropertyFlags.Open, out var removeInfo);
-        shape = shape.GetOrAddTransition(atomSetMaxListeners, JsShapePropertyFlags.Open, out var setMaxListenersInfo);
-        shape = shape.GetOrAddTransition(atomGetMaxListeners, JsShapePropertyFlags.Open, out var getMaxListenersInfo);
-        shape = shape.GetOrAddTransition(atomListeners, JsShapePropertyFlags.Open, out var listenersInfo);
-        shape = shape.GetOrAddTransition(atomListenerCount, JsShapePropertyFlags.Open, out var listenerCountInfo);
+        shape = shape.GetOrAddTransition(
+            atomAddListener,
+            JsShapePropertyFlags.Open,
+            out var addInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomRemoveListener,
+            JsShapePropertyFlags.Open,
+            out var removeInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomSetMaxListeners,
+            JsShapePropertyFlags.Open,
+            out var setMaxListenersInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomGetMaxListeners,
+            JsShapePropertyFlags.Open,
+            out var getMaxListenersInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomListeners,
+            JsShapePropertyFlags.Open,
+            out var listenersInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomListenerCount,
+            JsShapePropertyFlags.Open,
+            out var listenerCountInfo
+        );
         Debug.Assert(onInfo.Slot == PrototypeOnSlot);
         Debug.Assert(onceInfo.Slot == PrototypeOnceSlot);
         Debug.Assert(offInfo.Slot == PrototypeOffSlot);
@@ -188,130 +263,202 @@ internal sealed class NodeEventsBuiltIn(NodeRuntime runtime)
 
     private JsHostFunction CreateOnFunction(JsRealm realm)
     {
-        return new(realm, "on", 2, (in info) =>
-        {
-            AddListener(info, false);
-            return info.ThisValue;
-        }, false);
+        return new(
+            realm,
+            "on",
+            2,
+            (in info) =>
+            {
+                AddListener(info, false);
+                return info.ThisValue;
+            },
+            false
+        );
     }
 
     private JsHostFunction CreateOnceFunction(JsRealm realm)
     {
-        return new(realm, "once", 2, (in info) =>
-        {
-            AddListener(info, true);
-            return info.ThisValue;
-        }, false);
+        return new(
+            realm,
+            "once",
+            2,
+            (in info) =>
+            {
+                AddListener(info, true);
+                return info.ThisValue;
+            },
+            false
+        );
     }
 
     private JsHostFunction CreateAddListenerFunction(JsRealm realm)
     {
-        return new(realm, "addListener", 2, (in info) =>
-        {
-            AddListener(info, false);
-            return info.ThisValue;
-        }, false);
+        return new(
+            realm,
+            "addListener",
+            2,
+            (in info) =>
+            {
+                AddListener(info, false);
+                return info.ThisValue;
+            },
+            false
+        );
     }
 
     private JsHostFunction CreateOffFunction(JsRealm realm)
     {
-        return new(realm, "off", 2, (in info) =>
-        {
-            RemoveListener(info);
-            return info.ThisValue;
-        }, false);
+        return new(
+            realm,
+            "off",
+            2,
+            (in info) =>
+            {
+                RemoveListener(info);
+                return info.ThisValue;
+            },
+            false
+        );
     }
 
     private JsHostFunction CreateRemoveListenerFunction(JsRealm realm)
     {
-        return new(realm, "removeListener", 2, (in info) =>
-        {
-            RemoveListener(info);
-            return info.ThisValue;
-        }, false);
+        return new(
+            realm,
+            "removeListener",
+            2,
+            (in info) =>
+            {
+                RemoveListener(info);
+                return info.ThisValue;
+            },
+            false
+        );
     }
 
     private JsHostFunction CreateEmitFunction(JsRealm realm)
     {
-        return new(realm, "emit", 1, (in info) =>
-        {
-            var emitter = GetEmitter(info);
-            var eventName = GetEventName(info);
-            if (!emitter.UserData!.Listeners.TryGetValue(eventName, out var listeners) || listeners.Count == 0)
-                return JsValue.False;
-
-            var snapshot = listeners.ToArray();
-            var args = info.Arguments.Length <= 1
-                ? []
-                : info.Arguments[1..].ToArray();
-            var invokedAny = false;
-            for (var i = 0; i < snapshot.Length; i++)
+        return new(
+            realm,
+            "emit",
+            1,
+            (in info) =>
             {
-                var listener = snapshot[i];
-                invokedAny = true;
-                _ = info.Realm.Call(listener.Callback, info.ThisValue, args);
-                if (listener.Once)
-                    RemoveListenerEntry(emitter.UserData!.Listeners, eventName, listener.Callback);
-            }
+                var emitter = GetEmitter(info);
+                var eventName = GetEventName(info);
+                if (
+                    !emitter.UserData!.Listeners.TryGetValue(eventName, out var listeners)
+                    || listeners.Count == 0
+                )
+                    return JsValue.False;
 
-            return invokedAny ? JsValue.True : JsValue.False;
-        }, false);
+                var snapshot = listeners.ToArray();
+                var args = info.Arguments.Length <= 1 ? [] : info.Arguments[1..].ToArray();
+                var invokedAny = false;
+                for (var i = 0; i < snapshot.Length; i++)
+                {
+                    var listener = snapshot[i];
+                    invokedAny = true;
+                    _ = info.Realm.Call(listener.Callback, info.ThisValue, args);
+                    if (listener.Once)
+                        RemoveListenerEntry(
+                            emitter.UserData!.Listeners,
+                            eventName,
+                            listener.Callback
+                        );
+                }
+
+                return invokedAny ? JsValue.True : JsValue.False;
+            },
+            false
+        );
     }
 
     private JsHostFunction CreateSetMaxListenersFunction(JsRealm realm)
     {
-        return new(realm, "setMaxListeners", 1, (in info) =>
-        {
-            var emitter = GetEmitter(info);
-            var maxListeners = info.Arguments.Length == 0
-                ? 10
-                : info.GetArgument(0).IsNumber
-                    ? info.GetArgument(0).NumberValue
+        return new(
+            realm,
+            "setMaxListeners",
+            1,
+            (in info) =>
+            {
+                var emitter = GetEmitter(info);
+                var maxListeners =
+                    info.Arguments.Length == 0 ? 10
+                    : info.GetArgument(0).IsNumber ? info.GetArgument(0).NumberValue
                     : info.Realm.ToNumber(info.GetArgument(0));
 
-            if (double.IsNaN(maxListeners) || maxListeners < 0)
-                throw new JsRuntimeException(JsErrorKind.RangeError, "The value of \"n\" is out of range.");
+                if (double.IsNaN(maxListeners) || maxListeners < 0)
+                    throw new JsRuntimeException(
+                        JsErrorKind.RangeError,
+                        "The value of \"n\" is out of range."
+                    );
 
-            emitter.UserData!.MaxListeners = maxListeners;
-            return info.ThisValue;
-        }, false);
+                emitter.UserData!.MaxListeners = maxListeners;
+                return info.ThisValue;
+            },
+            false
+        );
     }
 
     private JsHostFunction CreateGetMaxListenersFunction(JsRealm realm)
     {
-        return new(realm, "getMaxListeners", 0, (in info) =>
-        {
-            var emitter = GetEmitter(info);
-            return new(emitter.UserData!.MaxListeners);
-        }, false);
+        return new(
+            realm,
+            "getMaxListeners",
+            0,
+            (in info) =>
+            {
+                var emitter = GetEmitter(info);
+                return new(emitter.UserData!.MaxListeners);
+            },
+            false
+        );
     }
 
     private JsHostFunction CreateListenersFunction(JsRealm realm)
     {
-        return new(realm, "listeners", 1, (in info) =>
-        {
-            var emitter = GetEmitter(info);
-            var eventName = GetEventName(info);
-            if (!emitter.UserData!.Listeners.TryGetValue(eventName, out var listeners) || listeners.Count == 0)
-                return JsValue.FromObject(new JsArray(info.Realm));
+        return new(
+            realm,
+            "listeners",
+            1,
+            (in info) =>
+            {
+                var emitter = GetEmitter(info);
+                var eventName = GetEventName(info);
+                if (
+                    !emitter.UserData!.Listeners.TryGetValue(eventName, out var listeners)
+                    || listeners.Count == 0
+                )
+                    return JsValue.FromObject(new JsArray(info.Realm));
 
-            var result = new JsArray(info.Realm);
-            var dense = result.InitializeDenseElementsNoCollision(listeners.Count);
-            for (var i = 0; i < listeners.Count; i++)
-                dense[i] = JsValue.FromObject(listeners[i].Callback);
-            return JsValue.FromObject(result);
-        }, false);
+                var result = new JsArray(info.Realm);
+                var dense = result.InitializeDenseElementsNoCollision(listeners.Count);
+                for (var i = 0; i < listeners.Count; i++)
+                    dense[i] = JsValue.FromObject(listeners[i].Callback);
+                return JsValue.FromObject(result);
+            },
+            false
+        );
     }
 
     private JsHostFunction CreateListenerCountFunction(JsRealm realm)
     {
-        return new(realm, "listenerCount", 1, (in info) =>
-        {
-            var emitter = GetEmitter(info);
-            var eventName = GetEventName(info);
-            var count = emitter.UserData!.Listeners.TryGetValue(eventName, out var listeners) ? listeners.Count : 0;
-            return JsValue.FromInt32(count);
-        }, false);
+        return new(
+            realm,
+            "listenerCount",
+            1,
+            (in info) =>
+            {
+                var emitter = GetEmitter(info);
+                var eventName = GetEventName(info);
+                var count = emitter.UserData!.Listeners.TryGetValue(eventName, out var listeners)
+                    ? listeners.Count
+                    : 0;
+                return JsValue.FromInt32(count);
+            },
+            false
+        );
     }
 
     private void AddListener(in CallInfo info, bool once)
@@ -319,11 +466,20 @@ internal sealed class NodeEventsBuiltIn(NodeRuntime runtime)
         var emitter = GetEmitter(info);
         var eventName = GetEventName(info);
         var callbackValue = info.GetArgument(1);
-        if (!callbackValue.TryGetObject(out var callbackObject) || callbackObject is not JsFunction callback)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "EventEmitter listener must be callable");
+        if (
+            !callbackValue.TryGetObject(out var callbackObject)
+            || callbackObject is not JsFunction callback
+        )
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "EventEmitter listener must be callable"
+            );
 
-        ref var listeners =
-            ref CollectionsMarshal.GetValueRefOrAddDefault(emitter.UserData!.Listeners, eventName, out _);
+        ref var listeners = ref CollectionsMarshal.GetValueRefOrAddDefault(
+            emitter.UserData!.Listeners,
+            eventName,
+            out _
+        );
         listeners ??= [];
         listeners.Add(new(callback, once));
     }
@@ -333,8 +489,14 @@ internal sealed class NodeEventsBuiltIn(NodeRuntime runtime)
         var emitter = GetEmitter(info);
         var eventName = GetEventName(info);
         var callbackValue = info.GetArgument(1);
-        if (!callbackValue.TryGetObject(out var callbackObject) || callbackObject is not JsFunction callback)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "EventEmitter listener must be callable");
+        if (
+            !callbackValue.TryGetObject(out var callbackObject)
+            || callbackObject is not JsFunction callback
+        )
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "EventEmitter listener must be callable"
+            );
 
         RemoveListenerEntry(emitter.UserData!.Listeners, eventName, callback);
     }
@@ -342,7 +504,8 @@ internal sealed class NodeEventsBuiltIn(NodeRuntime runtime)
     private static void RemoveListenerEntry(
         Dictionary<string, List<ListenerEntry>> listenersByEvent,
         string eventName,
-        JsFunction callback)
+        JsFunction callback
+    )
     {
         if (!listenersByEvent.TryGetValue(eventName, out var listeners) || listeners.Count == 0)
             return;
@@ -357,28 +520,39 @@ internal sealed class NodeEventsBuiltIn(NodeRuntime runtime)
 
     private JsUserDataObject<EventEmitterState> GetEmitter(in CallInfo info)
     {
-        if (info.ThisValue.TryGetObject(out var thisObj) &&
-            thisObj is JsUserDataObject<EventEmitterState> directEmitter &&
-            directEmitter.UserData is not null)
+        if (
+            info.ThisValue.TryGetObject(out var thisObj)
+            && thisObj is JsUserDataObject<EventEmitterState> directEmitter
+            && directEmitter.UserData is not null
+        )
             return directEmitter;
 
-        if (info.ThisValue.TryGetObject(out thisObj) &&
-            emitterStates.TryGetValue(thisObj, out var emitter) &&
-            emitter.UserData is not null)
+        if (
+            info.ThisValue.TryGetObject(out thisObj)
+            && emitterStates.TryGetValue(thisObj, out var emitter)
+            && emitter.UserData is not null
+        )
             return emitter;
 
-        throw new JsRuntimeException(JsErrorKind.TypeError, "EventEmitter method called on incompatible receiver");
+        throw new JsRuntimeException(
+            JsErrorKind.TypeError,
+            "EventEmitter method called on incompatible receiver"
+        );
     }
 
     private static string GetEventName(in CallInfo info)
     {
         var eventValue = info.GetArgument(0);
-        return eventValue.IsString ? eventValue.AsString() : info.Realm.ToJsStringSlowPath(eventValue);
+        return eventValue.IsString
+            ? eventValue.AsString()
+            : info.Realm.ToJsStringSlowPath(eventValue);
     }
 
     internal sealed class EventEmitterState
     {
-        public readonly Dictionary<string, List<ListenerEntry>> Listeners = new(StringComparer.Ordinal);
+        public readonly Dictionary<string, List<ListenerEntry>> Listeners = new(
+            StringComparer.Ordinal
+        );
         public double MaxListeners { get; set; } = 10;
     }
 

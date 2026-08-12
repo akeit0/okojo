@@ -10,10 +10,14 @@ public class DotNetModuleCacheTests
         var layout = DotNetFileBasedAppCacheLayout.Create(
             @"C:\Users\akito",
             @"C:\temp",
-            @"D:\nuget-cache");
+            @"D:\nuget-cache"
+        );
 
         Assert.That(layout.GlobalPackagesRoot, Is.EqualTo(Path.GetFullPath(@"D:\nuget-cache")));
-        Assert.That(layout.RunFileCacheRoot, Is.EqualTo(Path.GetFullPath(@"C:\temp\dotnet\runfile")));
+        Assert.That(
+            layout.RunFileCacheRoot,
+            Is.EqualTo(Path.GetFullPath(@"C:\temp\dotnet\runfile"))
+        );
     }
 
     [Test]
@@ -23,17 +27,15 @@ public class DotNetModuleCacheTests
         {
             DotNetModuleReference.Project("../Shared/Shared.csproj"),
             DotNetModuleReference.Package("Newtonsoft.Json", "13.0.3"),
-            DotNetModuleReference.AssemblyFile(@".\packages\Interop.dll")
+            DotNetModuleReference.AssemblyFile(@".\packages\Interop.dll"),
         };
 
-        var left = DotNetFileBasedAppCacheKey.Create(
-            @"C:\apps\hello.cs",
-            references,
-            "10.0.100");
+        var left = DotNetFileBasedAppCacheKey.Create(@"C:\apps\hello.cs", references, "10.0.100");
         var right = DotNetFileBasedAppCacheKey.Create(
             @"C:\elsewhere\hello.cs",
             references.Reverse(),
-            "10.0.100");
+            "10.0.100"
+        );
 
         Assert.That(left.ApplicationName, Is.EqualTo("hello"));
         Assert.That(right.ApplicationName, Is.EqualTo("hello"));

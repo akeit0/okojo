@@ -7,6 +7,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\src\Okojo\Okojo.csproj"/>
+        <ProjectReference Include="..\..\src\Okojo\Okojo.csproj" />
     </ItemGroup>
 </Project>

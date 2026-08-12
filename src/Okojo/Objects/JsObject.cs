@@ -135,21 +135,34 @@ public class JsObject
         return TryGetPropertyAtomWithReceiverValue(Realm, this, atom, out value, out _);
     }
 
-    internal bool TryGetPropertyAtom(JsRealm realm, int atom, out JsValue value, out SlotInfo slotInfo)
+    internal bool TryGetPropertyAtom(
+        JsRealm realm,
+        int atom,
+        out JsValue value,
+        out SlotInfo slotInfo
+    )
     {
         return TryGetPropertyAtomWithReceiverValue(realm, this, atom, out value, out slotInfo);
     }
 
-    internal bool TryGetPropertyAtomWithReceiver(JsRealm realm, JsObject receiver, int atom,
+    internal bool TryGetPropertyAtomWithReceiver(
+        JsRealm realm,
+        JsObject receiver,
+        int atom,
         out JsValue value,
-        out SlotInfo slotInfo)
+        out SlotInfo slotInfo
+    )
     {
         return TryGetPropertyAtomWithReceiverValue(realm, receiver, atom, out value, out slotInfo);
     }
 
-    internal virtual bool TryGetPropertyAtomWithReceiverValue(JsRealm realm, in JsValue receiverValue, int atom,
+    internal virtual bool TryGetPropertyAtomWithReceiverValue(
+        JsRealm realm,
+        in JsValue receiverValue,
+        int atom,
         out JsValue value,
-        out SlotInfo slotInfo)
+        out SlotInfo slotInfo
+    )
     {
         slotInfo = SlotInfo.Invalid;
         if (NamedPropertyLayout.TryGetSlotInfo(atom, out var foundInfo))
@@ -181,7 +194,13 @@ public class JsObject
         }
 
         if (Prototype != null && Prototype != this)
-            return Prototype.TryGetPropertyAtomWithReceiverValue(realm, receiverValue, atom, out value, out _);
+            return Prototype.TryGetPropertyAtomWithReceiverValue(
+                realm,
+                receiverValue,
+                atom,
+                out value,
+                out _
+            );
 
         value = JsValue.Undefined;
         return false;
@@ -192,7 +211,12 @@ public class JsObject
         return TryGetElementWithReceiver(NamedPropertyLayout.Owner, this, index, out value);
     }
 
-    internal virtual bool TryGetElementWithReceiver(JsRealm realm, JsObject receiver, uint index, out JsValue value)
+    internal virtual bool TryGetElementWithReceiver(
+        JsRealm realm,
+        JsObject receiver,
+        uint index,
+        out JsValue value
+    )
     {
         if (TryGetOwnElementDescriptor(index, out var descriptor))
         {
@@ -205,7 +229,12 @@ public class JsObject
                     return true;
                 }
 
-                value = InvokeAccessorFunction(realm, receiver, getter, ReadOnlySpan<JsValue>.Empty);
+                value = InvokeAccessorFunction(
+                    realm,
+                    receiver,
+                    getter,
+                    ReadOnlySpan<JsValue>.Empty
+                );
                 return true;
             }
 
@@ -265,19 +294,34 @@ public class JsObject
         return SetPropertyAtomWithReceiver(realm, this, atom, value, out _);
     }
 
-    internal virtual bool SetElementWithReceiver(JsRealm realm, JsObject receiver, uint index, JsValue value)
+    internal virtual bool SetElementWithReceiver(
+        JsRealm realm,
+        JsObject receiver,
+        uint index,
+        JsValue value
+    )
     {
         return SetElementCore(realm, receiver, index, value);
     }
 
-    internal virtual bool SetPropertyAtomWithReceiver(JsRealm realm, JsObject receiver, int atom, JsValue value,
-        out SlotInfo slotInfo)
+    internal virtual bool SetPropertyAtomWithReceiver(
+        JsRealm realm,
+        JsObject receiver,
+        int atom,
+        JsValue value,
+        out SlotInfo slotInfo
+    )
     {
         return SetPropertyAtomCore(realm, receiver, atom, value, out slotInfo);
     }
 
-    private bool SetPropertyAtomCore(JsRealm realm, JsObject receiver, int atom, JsValue value,
-        out SlotInfo slotInfo)
+    private bool SetPropertyAtomCore(
+        JsRealm realm,
+        JsObject receiver,
+        int atom,
+        JsValue value,
+        out SlotInfo slotInfo
+    )
     {
         slotInfo = SlotInfo.Invalid;
         if (NamedPropertyLayout.TryGetSlotInfo(atom, out var foundInfo, out var hint))
@@ -288,7 +332,10 @@ public class JsObject
             if ((flags & JsShapePropertyFlags.HasSetter) != 0)
                 return TryInvokeAccessorSetter(realm, receiver, value, foundInfo);
 
-            if ((flags & JsShapePropertyFlags.HasGetter) != 0 || (flags & JsShapePropertyFlags.Writable) == 0)
+            if (
+                (flags & JsShapePropertyFlags.HasGetter) != 0
+                || (flags & JsShapePropertyFlags.Writable) == 0
+            )
             {
                 // getter-only accessor in non-strict mode: ignore assignment
                 slotInfo = SlotInfo.Invalid;
@@ -310,8 +357,11 @@ public class JsObject
             return true;
         }
 
-        if (Prototype is not null && Prototype != this &&
-            TrySetInheritedDescriptor(realm, receiver, atom, value, out var inheritedHandled))
+        if (
+            Prototype is not null
+            && Prototype != this
+            && TrySetInheritedDescriptor(realm, receiver, atom, value, out var inheritedHandled)
+        )
         {
             slotInfo = SlotInfo.Invalid;
             return inheritedHandled;
@@ -344,10 +394,13 @@ public class JsObject
         return true;
     }
 
-    private void Transit(int atom, JsValue value,
-        out SlotInfo slotInfo)
+    private void Transit(int atom, JsValue value, out SlotInfo slotInfo)
     {
-        var shape = StaticNamedPropertyLayout.GetOrAddTransition(atom, JsShapePropertyFlags.Open, out slotInfo);
+        var shape = StaticNamedPropertyLayout.GetOrAddTransition(
+            atom,
+            JsShapePropertyFlags.Open,
+            out slotInfo
+        );
         NamedPropertyLayout = shape;
         var required = shape.StorageSlotCount;
         if (required > SlotsArray.Length)
@@ -374,7 +427,12 @@ public class JsObject
                 if (existing.Setter is not null)
                 {
                     var arg = MemoryMarshal.CreateReadOnlySpan(in value, 1);
-                    _ = InvokeAccessorFunction(NamedPropertyLayout.Owner, this, existing.Setter, arg);
+                    _ = InvokeAccessorFunction(
+                        NamedPropertyLayout.Owner,
+                        this,
+                        existing.Setter,
+                        arg
+                    );
                 }
 
                 return existing.Setter is not null;
@@ -394,8 +452,16 @@ public class JsObject
             return true;
         }
 
-        if (Prototype is not null &&
-            TrySetInheritedElementDescriptor(realm, receiver, index, value, out var inheritedHandled))
+        if (
+            Prototype is not null
+            && TrySetInheritedElementDescriptor(
+                realm,
+                receiver,
+                index,
+                value,
+                out var inheritedHandled
+            )
+        )
             return inheritedHandled;
 
         if (TryGetOwnElementDescriptor(index, out var ownElementDescriptor))
@@ -405,7 +471,12 @@ public class JsObject
                 if (ownElementDescriptor.Setter is not null)
                 {
                     var arg = MemoryMarshal.CreateReadOnlySpan(in value, 1);
-                    _ = InvokeAccessorFunction(NamedPropertyLayout.Owner, receiver, ownElementDescriptor.Setter, arg);
+                    _ = InvokeAccessorFunction(
+                        NamedPropertyLayout.Owner,
+                        receiver,
+                        ownElementDescriptor.Setter,
+                        arg
+                    );
                     return true;
                 }
 
@@ -439,7 +510,10 @@ public class JsObject
 
     public virtual bool DeleteElement(uint index)
     {
-        if (IndexedProperties is not null && IndexedProperties.TryGetValue(index, out var descriptor))
+        if (
+            IndexedProperties is not null
+            && IndexedProperties.TryGetValue(index, out var descriptor)
+        )
         {
             if (!descriptor.Configurable)
                 return false;
@@ -471,9 +545,10 @@ public class JsObject
         var currentEntries = shape.UnsafeEntries;
         var nextShape = shape.RebuildExcluding(atom);
         var nextEntries = nextShape.UnsafeEntries;
-        var nextSlots = nextShape.StorageSlotCount == 0
-            ? Array.Empty<JsValue>()
-            : new JsValue[nextShape.StorageSlotCount];
+        var nextSlots =
+            nextShape.StorageSlotCount == 0
+                ? Array.Empty<JsValue>()
+                : new JsValue[nextShape.StorageSlotCount];
         var nextIndex = 0;
         for (var i = 0; i < currentEntries.Length; i++)
         {
@@ -494,7 +569,8 @@ public class JsObject
     internal virtual void CollectForInEnumerableStringAtomKeys(
         JsRealm realm,
         HashSet<string> visited,
-        List<string> enumerableKeysOut)
+        List<string> enumerableKeysOut
+    )
     {
         if (IndexedProperties is not null && IndexedProperties.Count != 0)
         {
@@ -543,8 +619,10 @@ public class JsObject
 
     internal bool TryGetOwnNamedDataSlotIndex(int atom, out int slot)
     {
-        if (NamedPropertyLayout.TryGetSlotInfo(atom, out var info) &&
-            (info.Flags & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter)) == 0)
+        if (
+            NamedPropertyLayout.TryGetSlotInfo(atom, out var info)
+            && (info.Flags & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter)) == 0
+        )
         {
             slot = info.Slot;
             return true;
@@ -627,24 +705,36 @@ public class JsObject
         return TryGetOwnNamedPropertyDescriptorAtom(realm, atom, out _, false);
     }
 
-    internal virtual bool TryGetOwnNamedPropertyDescriptorAtom(JsRealm realm, int atom,
-        out PropertyDescriptor descriptor, bool needDescriptor = true)
+    internal virtual bool TryGetOwnNamedPropertyDescriptorAtom(
+        JsRealm realm,
+        int atom,
+        out PropertyDescriptor descriptor,
+        bool needDescriptor = true
+    )
     {
         return TryGetOwnNamedPropertyDescriptorFromLayout(atom, out descriptor, needDescriptor);
     }
 
-    internal virtual void CollectOwnNamedPropertyAtoms(JsRealm realm, List<int> atomsOut, bool enumerableOnly)
+    internal virtual void CollectOwnNamedPropertyAtoms(
+        JsRealm realm,
+        List<int> atomsOut,
+        bool enumerableOnly
+    )
     {
         _ = realm;
         foreach (var entry in NamedPropertyLayout.EnumerateSlotInfos())
         {
-            if (enumerableOnly && (entry.Value.Flags & JsShapePropertyFlags.Enumerable) == 0) continue;
+            if (enumerableOnly && (entry.Value.Flags & JsShapePropertyFlags.Enumerable) == 0)
+                continue;
 
             atomsOut.Add(entry.Key);
         }
     }
 
-    internal virtual void DefineNewPropertiesNoCollision(JsRealm realm, ReadOnlySpan<PropertyDefinition> definitions)
+    internal virtual void DefineNewPropertiesNoCollision(
+        JsRealm realm,
+        ReadOnlySpan<PropertyDefinition> definitions
+    )
     {
         _ = RequireCompatibleRealm(realm);
 
@@ -655,9 +745,10 @@ public class JsObject
         var nextShape = prevShape.AppendNoCollision(definitions);
         var prevEntries = prevShape.UnsafeEntries;
         var nextEntries = nextShape.UnsafeEntries;
-        var nextSlots = nextShape.StorageSlotCount == 0
-            ? Array.Empty<JsValue>()
-            : new JsValue[nextShape.StorageSlotCount];
+        var nextSlots =
+            nextShape.StorageSlotCount == 0
+                ? Array.Empty<JsValue>()
+                : new JsValue[nextShape.StorageSlotCount];
 
         for (var i = 0; i < prevEntries.Length; i++)
             CopyExistingSlots(nextSlots, nextEntries[i].SlotInfo, prevEntries[i].SlotInfo);
@@ -670,8 +761,9 @@ public class JsObject
             if (def.HasTwoValues)
             {
                 nextSlots[slotInfo.Slot] = def.Getter is null ? JsValue.Undefined : def.Getter;
-                nextSlots[slotInfo.AccessorSetterSlot] =
-                    def.Setter is null ? JsValue.Undefined : def.Setter;
+                nextSlots[slotInfo.AccessorSetterSlot] = def.Setter is null
+                    ? JsValue.Undefined
+                    : def.Setter;
                 continue;
             }
 
@@ -703,21 +795,27 @@ public class JsObject
     internal void InitializeDynamicOpenDataPropertiesNoCollision(
         JsRealm realm,
         ReadOnlySpan<int> atoms,
-        ReadOnlySpan<JsValue> values)
+        ReadOnlySpan<JsValue> values
+    )
     {
         var ownerRealm = RequireCompatibleRealm(realm);
         if (!UsesDynamicNamedProperties)
             throw new InvalidOperationException(
-                "Dynamic open-data initialization requires dynamic named-property layout.");
+                "Dynamic open-data initialization requires dynamic named-property layout."
+            );
         if (atoms.Length != values.Length)
             throw new ArgumentException("Atom and value counts must match.");
         if (atoms.Length == 0)
             return;
         if (SlotsArray.Length != 0)
             throw new InvalidOperationException(
-                "Dynamic open-data initialization requires no existing named properties.");
+                "Dynamic open-data initialization requires no existing named properties."
+            );
 
-        NamedPropertyLayout = DynamicNamedPropertyLayout.CreateOpenDataNoCollision(ownerRealm, atoms);
+        NamedPropertyLayout = DynamicNamedPropertyLayout.CreateOpenDataNoCollision(
+            ownerRealm,
+            atoms
+        );
         SlotsArray = new JsValue[values.Length];
         values.CopyTo(SlotsArray);
     }
@@ -729,9 +827,16 @@ public class JsObject
 
     internal bool HasOwnPropertyKey(JsRealm realm, in JsValue key)
     {
-        if (this is JsTypedArrayObject typedArray &&
-            Intrinsics.TryHasTypedArrayIntegerIndexedElement(realm, typedArray, key, out var typedArrayHasProperty,
-                out var typedArrayHandled))
+        if (
+            this is JsTypedArrayObject typedArray
+            && Intrinsics.TryHasTypedArrayIntegerIndexedElement(
+                realm,
+                typedArray,
+                key,
+                out var typedArrayHasProperty,
+                out var typedArrayHandled
+            )
+        )
             return typedArrayHandled && typedArrayHasProperty;
 
         if (key.IsString)
@@ -775,7 +880,11 @@ public class JsObject
         return SetNamedValueBySlotInfo(realm, this, slotInfo, value);
     }
 
-    private protected JsValue GetNamedValueBySlotInfo(JsRealm realm, in JsValue receiverValue, in SlotInfo slotInfo)
+    private protected JsValue GetNamedValueBySlotInfo(
+        JsRealm realm,
+        in JsValue receiverValue,
+        in SlotInfo slotInfo
+    )
     {
         var flags = slotInfo.Flags;
         if ((flags & JsShapePropertyFlags.HasGetter) != 0)
@@ -785,8 +894,12 @@ public class JsObject
         return JsValue.Undefined;
     }
 
-    private protected bool SetNamedValueBySlotInfo(JsRealm realm, JsObject receiver, in SlotInfo slotInfo,
-        in JsValue value)
+    private protected bool SetNamedValueBySlotInfo(
+        JsRealm realm,
+        JsObject receiver,
+        in SlotInfo slotInfo,
+        in JsValue value
+    )
     {
         var flags = slotInfo.Flags;
         if ((flags & JsShapePropertyFlags.HasSetter) != 0)
@@ -802,21 +915,29 @@ public class JsObject
 
     private protected PropertyDescriptor BuildNamedDescriptorBySlotInfo(in SlotInfo slotInfo)
     {
-        if ((slotInfo.Flags & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter)) != 0)
+        if (
+            (slotInfo.Flags & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter))
+            != 0
+        )
         {
-            var getterValue = (slotInfo.Flags & JsShapePropertyFlags.HasGetter) != 0
-                ? SlotsArray[slotInfo.Slot]
-                : JsValue.Undefined;
+            var getterValue =
+                (slotInfo.Flags & JsShapePropertyFlags.HasGetter) != 0
+                    ? SlotsArray[slotInfo.Slot]
+                    : JsValue.Undefined;
             JsFunction? setter = null;
             if ((slotInfo.Flags & JsShapePropertyFlags.HasSetter) != 0)
             {
-                var setterSlot = (slotInfo.Flags & JsShapePropertyFlags.BothAccessor) ==
-                                 JsShapePropertyFlags.BothAccessor
-                    ? slotInfo.AccessorSetterSlot
-                    : slotInfo.Slot;
+                var setterSlot =
+                    (slotInfo.Flags & JsShapePropertyFlags.BothAccessor)
+                    == JsShapePropertyFlags.BothAccessor
+                        ? slotInfo.AccessorSetterSlot
+                        : slotInfo.Slot;
                 var setterValue = SlotsArray[setterSlot];
-                if (!setterValue.IsUndefined && setterValue.TryGetObject(out var setterObj) &&
-                    setterObj is JsFunction setterFn)
+                if (
+                    !setterValue.IsUndefined
+                    && setterValue.TryGetObject(out var setterObj)
+                    && setterObj is JsFunction setterFn
+                )
                     setter = setterFn;
             }
 
@@ -833,7 +954,11 @@ public class JsObject
         return TryGetOwnPropertyFlagsAtom(realm, atom, out flags);
     }
 
-    internal virtual bool TryGetOwnPropertyFlagsAtom(JsRealm realm, int atom, out JsShapePropertyFlags flags)
+    internal virtual bool TryGetOwnPropertyFlagsAtom(
+        JsRealm realm,
+        int atom,
+        out JsShapePropertyFlags flags
+    )
     {
         if (TryGetOwnNamedPropertyDescriptorAtom(realm, atom, out var descriptor))
         {
@@ -852,7 +977,12 @@ public class JsObject
         DefineDataPropertyAtom(realm, atom, value, flags);
     }
 
-    internal virtual void DefineDataPropertyAtom(JsRealm realm, int atom, JsValue value, JsShapePropertyFlags flags)
+    internal virtual void DefineDataPropertyAtom(
+        JsRealm realm,
+        int atom,
+        JsValue value,
+        JsShapePropertyFlags flags
+    )
     {
         if (NamedPropertyLayout.TryGetSlotInfo(atom, out var existing))
         {
@@ -873,8 +1003,12 @@ public class JsObject
         DefineDataPropertyAtomStaticAddNoInlining(atom, value, flags);
     }
 
-    internal virtual bool DefineOwnDataPropertyExact(JsRealm realm, int atom, JsValue value,
-        JsShapePropertyFlags flags)
+    internal virtual bool DefineOwnDataPropertyExact(
+        JsRealm realm,
+        int atom,
+        JsValue value,
+        JsShapePropertyFlags flags
+    )
     {
         var ownerRealm = RequireCompatibleRealm(realm);
 
@@ -890,24 +1024,37 @@ public class JsObject
         return DefineOwnDataPropertyExactStaticSlow(atom, value, flags);
     }
 
-    public void DefineAccessorProperty(string name, JsFunction? getter, JsFunction? setter,
-        JsShapePropertyFlags flags = JsShapePropertyFlags.Enumerable | JsShapePropertyFlags.Configurable)
+    public void DefineAccessorProperty(
+        string name,
+        JsFunction? getter,
+        JsFunction? setter,
+        JsShapePropertyFlags flags =
+            JsShapePropertyFlags.Enumerable | JsShapePropertyFlags.Configurable
+    )
     {
         var realm = NamedPropertyLayout.Owner;
         var atom = realm.Atoms.InternNoCheck(name);
         DefineAccessorPropertyAtom(realm, atom, getter, setter, flags);
     }
 
-    internal virtual void DefineAccessorPropertyAtom(JsRealm realm, int atom, JsFunction? getter,
+    internal virtual void DefineAccessorPropertyAtom(
+        JsRealm realm,
+        int atom,
+        JsFunction? getter,
         JsFunction? setter,
-        JsShapePropertyFlags flags)
+        JsShapePropertyFlags flags
+    )
     {
         if (getter is null && setter is null)
             throw new InvalidOperationException("Accessor property requires getter and/or setter.");
         if (getter is null != ((flags & JsShapePropertyFlags.HasGetter) == 0))
-            flags = getter is null ? flags & ~JsShapePropertyFlags.HasGetter : flags | JsShapePropertyFlags.HasGetter;
+            flags = getter is null
+                ? flags & ~JsShapePropertyFlags.HasGetter
+                : flags | JsShapePropertyFlags.HasGetter;
         if (setter is null != ((flags & JsShapePropertyFlags.HasSetter) == 0))
-            flags = setter is null ? flags & ~JsShapePropertyFlags.HasSetter : flags | JsShapePropertyFlags.HasSetter;
+            flags = setter is null
+                ? flags & ~JsShapePropertyFlags.HasSetter
+                : flags | JsShapePropertyFlags.HasSetter;
 
         if (UsesDynamicNamedProperties)
             DefineAccessorPropertyAtomDynamicSlow(atom, getter, setter, flags);
@@ -915,9 +1062,13 @@ public class JsObject
             DefineAccessorPropertyAtomStaticSlow(atom, getter, setter, flags);
     }
 
-    internal virtual bool DefineOwnAccessorPropertyExact(JsRealm realm, int atom, JsFunction? getter,
+    internal virtual bool DefineOwnAccessorPropertyExact(
+        JsRealm realm,
+        int atom,
+        JsFunction? getter,
         JsFunction? setter,
-        JsShapePropertyFlags flags)
+        JsShapePropertyFlags flags
+    )
     {
         var ownerRealm = RequireCompatibleRealm(realm);
 
@@ -927,7 +1078,14 @@ public class JsObject
             return false;
 
         if (UsesDynamicNamedProperties)
-            return DefineOwnAccessorPropertyExactDynamicSlow(atom, getter, setter, flags, hasGetter, hasSetter);
+            return DefineOwnAccessorPropertyExactDynamicSlow(
+                atom,
+                getter,
+                setter,
+                flags,
+                hasGetter,
+                hasSetter
+            );
 
         if (ShouldPromoteForOwnAccessorRedefine(ownerRealm, atom, flags))
         {
@@ -935,7 +1093,14 @@ public class JsObject
             return DefineOwnAccessorPropertyExact(realm, atom, getter, setter, flags);
         }
 
-        return DefineOwnAccessorPropertyExactStaticSlow(atom, getter, setter, flags, hasGetter, hasSetter);
+        return DefineOwnAccessorPropertyExactStaticSlow(
+            atom,
+            getter,
+            setter,
+            flags,
+            hasGetter,
+            hasSetter
+        );
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -944,17 +1109,25 @@ public class JsObject
         var ownerRealm = NamedPropertyLayout.Owner ?? realm;
         if (!ReferenceEquals(ownerRealm.Agent, realm.Agent))
             throw new InvalidOperationException(
-                "OkojoObject cannot be used across different OkojoVirtualMachine instances.");
+                "OkojoObject cannot be used across different OkojoVirtualMachine instances."
+            );
         return ownerRealm;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private bool DefineOwnDataPropertyExactDynamicSlow(int atom, JsValue value, JsShapePropertyFlags flags)
+    private bool DefineOwnDataPropertyExactDynamicSlow(
+        int atom,
+        JsValue value,
+        JsShapePropertyFlags flags
+    )
     {
         if (DynamicNamedPropertyLayout.TryGetSlotInfo(atom, out var dynamicExisting))
         {
             var existingAccessor =
-                (dynamicExisting.Flags & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter)) != 0;
+                (
+                    dynamicExisting.Flags
+                    & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter)
+                ) != 0;
             if (existingAccessor)
             {
                 RebuildDynamicLayoutReplacingProperty(atom, flags, value, JsValue.Undefined);
@@ -974,12 +1147,17 @@ public class JsObject
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private bool DefineOwnDataPropertyExactStaticSlow(int atom, JsValue value, JsShapePropertyFlags flags)
+    private bool DefineOwnDataPropertyExactStaticSlow(
+        int atom,
+        JsValue value,
+        JsShapePropertyFlags flags
+    )
     {
         if (StaticNamedPropertyLayout.TryGetSlotInfo(atom, out var existing))
         {
             var existingAccessor =
-                (existing.Flags & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter)) != 0;
+                (existing.Flags & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter))
+                != 0;
             if (existingAccessor)
             {
                 RebuildShapeReplacingProperty(atom, flags, value, JsValue.Undefined);
@@ -1003,66 +1181,95 @@ public class JsObject
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private void DefineAccessorPropertyAtomDynamicSlow(int atom, JsFunction? getter, JsFunction? setter,
-        JsShapePropertyFlags flags)
+    private void DefineAccessorPropertyAtomDynamicSlow(
+        int atom,
+        JsFunction? getter,
+        JsFunction? setter,
+        JsShapePropertyFlags flags
+    )
     {
         if (DynamicNamedPropertyLayout.TryGetSlotInfo(atom, out var dynamicExisting))
         {
             var existingAccessor =
-                (dynamicExisting.Flags & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter)) != 0;
+                (
+                    dynamicExisting.Flags
+                    & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter)
+                ) != 0;
             if (!existingAccessor)
             {
                 RebuildDynamicLayoutReplacingProperty(
                     atom,
                     flags,
                     getter is null ? JsValue.Undefined : getter,
-                    setter is null ? JsValue.Undefined : setter);
+                    setter is null ? JsValue.Undefined : setter
+                );
                 return;
             }
 
             var existingEnumerable = (dynamicExisting.Flags & JsShapePropertyFlags.Enumerable) != 0;
-            var existingConfigurable = (dynamicExisting.Flags & JsShapePropertyFlags.Configurable) != 0;
+            var existingConfigurable =
+                (dynamicExisting.Flags & JsShapePropertyFlags.Configurable) != 0;
             var incomingEnumerable = (flags & JsShapePropertyFlags.Enumerable) != 0;
             var incomingConfigurable = (flags & JsShapePropertyFlags.Configurable) != 0;
-            if (existingEnumerable != incomingEnumerable || existingConfigurable != incomingConfigurable)
+            if (
+                existingEnumerable != incomingEnumerable
+                || existingConfigurable != incomingConfigurable
+            )
                 throw new NotSupportedException(
-                    "Accessor descriptor redefinition with different flags is not supported yet.");
+                    "Accessor descriptor redefinition with different flags is not supported yet."
+                );
 
             var mergedGetter = getter;
             var mergedSetter = setter;
-            if (mergedGetter is null && (dynamicExisting.Flags & JsShapePropertyFlags.HasGetter) != 0)
+            if (
+                mergedGetter is null
+                && (dynamicExisting.Flags & JsShapePropertyFlags.HasGetter) != 0
+            )
             {
                 var getterValue = SlotsArray[dynamicExisting.Slot];
-                if (!getterValue.IsUndefined &&
-                    getterValue.TryGetObject(out var getterObj) &&
-                    getterObj is JsFunction getterFn)
+                if (
+                    !getterValue.IsUndefined
+                    && getterValue.TryGetObject(out var getterObj)
+                    && getterObj is JsFunction getterFn
+                )
                     mergedGetter = getterFn;
             }
 
-            if (mergedSetter is null && (dynamicExisting.Flags & JsShapePropertyFlags.HasSetter) != 0)
+            if (
+                mergedSetter is null
+                && (dynamicExisting.Flags & JsShapePropertyFlags.HasSetter) != 0
+            )
             {
-                var setterSlot = (dynamicExisting.Flags & JsShapePropertyFlags.BothAccessor) ==
-                                 JsShapePropertyFlags.BothAccessor
-                    ? dynamicExisting.AccessorSetterSlot
-                    : dynamicExisting.Slot;
+                var setterSlot =
+                    (dynamicExisting.Flags & JsShapePropertyFlags.BothAccessor)
+                    == JsShapePropertyFlags.BothAccessor
+                        ? dynamicExisting.AccessorSetterSlot
+                        : dynamicExisting.Slot;
                 var setterValue = SlotsArray[setterSlot];
-                if (!setterValue.IsUndefined &&
-                    setterValue.TryGetObject(out var setterObj) &&
-                    setterObj is JsFunction setterFn)
+                if (
+                    !setterValue.IsUndefined
+                    && setterValue.TryGetObject(out var setterObj)
+                    && setterObj is JsFunction setterFn
+                )
                     mergedSetter = setterFn;
             }
 
             var includeGetter = mergedGetter is not null;
             var includeSetter = mergedSetter is not null;
             var mergedFlags = DescriptorUtilities.BuildAccessorFlags(
-                existingEnumerable, existingConfigurable, includeGetter, includeSetter);
+                existingEnumerable,
+                existingConfigurable,
+                includeGetter,
+                includeSetter
+            );
             if (mergedFlags != dynamicExisting.Flags)
             {
                 RebuildDynamicLayoutReplacingProperty(
                     atom,
                     mergedFlags,
                     mergedGetter is null ? JsValue.Undefined : mergedGetter,
-                    mergedSetter is null ? JsValue.Undefined : mergedSetter);
+                    mergedSetter is null ? JsValue.Undefined : mergedSetter
+                );
                 return;
             }
 
@@ -1077,21 +1284,27 @@ public class JsObject
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private void DefineAccessorPropertyAtomStaticSlow(int atom, JsFunction? getter, JsFunction? setter,
-        JsShapePropertyFlags flags)
+    private void DefineAccessorPropertyAtomStaticSlow(
+        int atom,
+        JsFunction? getter,
+        JsFunction? setter,
+        JsShapePropertyFlags flags
+    )
     {
         var shape = StaticNamedPropertyLayout;
         if (shape.TryGetSlotInfo(atom, out var existing))
         {
             var existingAccessor =
-                (existing.Flags & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter)) != 0;
+                (existing.Flags & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter))
+                != 0;
             if (!existingAccessor)
             {
                 RebuildShapeReplacingProperty(
                     atom,
                     flags,
                     getter is null ? JsValue.Undefined : getter,
-                    setter is null ? JsValue.Undefined : setter);
+                    setter is null ? JsValue.Undefined : setter
+                );
                 return;
             }
 
@@ -1099,9 +1312,13 @@ public class JsObject
             var existingConfigurable = (existing.Flags & JsShapePropertyFlags.Configurable) != 0;
             var incomingEnumerable = (flags & JsShapePropertyFlags.Enumerable) != 0;
             var incomingConfigurable = (flags & JsShapePropertyFlags.Configurable) != 0;
-            if (existingEnumerable != incomingEnumerable || existingConfigurable != incomingConfigurable)
+            if (
+                existingEnumerable != incomingEnumerable
+                || existingConfigurable != incomingConfigurable
+            )
                 throw new NotSupportedException(
-                    "Accessor descriptor redefinition with different flags is not supported yet.");
+                    "Accessor descriptor redefinition with different flags is not supported yet."
+                );
 
             var existingHasGetter = (existing.Flags & JsShapePropertyFlags.HasGetter) != 0;
             var existingHasSetter = (existing.Flags & JsShapePropertyFlags.HasSetter) != 0;
@@ -1115,34 +1332,44 @@ public class JsObject
             if (mergedGetter is null && existingHasGetter)
             {
                 var getterValue = SlotsArray[existing.Slot];
-                if (!getterValue.IsUndefined &&
-                    getterValue.TryGetObject(out var getterObj) &&
-                    getterObj is JsFunction getterFn)
+                if (
+                    !getterValue.IsUndefined
+                    && getterValue.TryGetObject(out var getterObj)
+                    && getterObj is JsFunction getterFn
+                )
                     mergedGetter = getterFn;
             }
 
             if (mergedSetter is null && existingHasSetter)
             {
-                var existingSetterSlot = (existing.Flags & JsShapePropertyFlags.BothAccessor) ==
-                                         JsShapePropertyFlags.BothAccessor
-                    ? existing.AccessorSetterSlot
-                    : existing.Slot;
+                var existingSetterSlot =
+                    (existing.Flags & JsShapePropertyFlags.BothAccessor)
+                    == JsShapePropertyFlags.BothAccessor
+                        ? existing.AccessorSetterSlot
+                        : existing.Slot;
                 var setterValue = SlotsArray[existingSetterSlot];
-                if (!setterValue.IsUndefined &&
-                    setterValue.TryGetObject(out var setterObj) &&
-                    setterObj is JsFunction setterFn)
+                if (
+                    !setterValue.IsUndefined
+                    && setterValue.TryGetObject(out var setterObj)
+                    && setterObj is JsFunction setterFn
+                )
                     mergedSetter = setterFn;
             }
 
             var mergedFlags = DescriptorUtilities.BuildAccessorFlags(
-                existingEnumerable, existingConfigurable, mergedHasGetter, mergedHasSetter);
+                existingEnumerable,
+                existingConfigurable,
+                mergedHasGetter,
+                mergedHasSetter
+            );
             if (mergedFlags != existing.Flags)
             {
                 RebuildShapeReplacingProperty(
                     atom,
                     mergedFlags,
                     mergedGetter is null ? JsValue.Undefined : mergedGetter,
-                    mergedSetter is null ? JsValue.Undefined : mergedSetter);
+                    mergedSetter is null ? JsValue.Undefined : mergedSetter
+                );
                 return;
             }
 
@@ -1161,13 +1388,22 @@ public class JsObject
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private bool DefineOwnAccessorPropertyExactDynamicSlow(int atom, JsFunction? getter, JsFunction? setter,
-        JsShapePropertyFlags flags, bool hasGetter, bool hasSetter)
+    private bool DefineOwnAccessorPropertyExactDynamicSlow(
+        int atom,
+        JsFunction? getter,
+        JsFunction? setter,
+        JsShapePropertyFlags flags,
+        bool hasGetter,
+        bool hasSetter
+    )
     {
         if (DynamicNamedPropertyLayout.TryGetSlotInfo(atom, out var dynamicExisting))
         {
             var existingAccessor =
-                (dynamicExisting.Flags & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter)) != 0;
+                (
+                    dynamicExisting.Flags
+                    & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter)
+                ) != 0;
             var getterValue = getter is null ? JsValue.Undefined : getter;
             var setterValue = setter is null ? JsValue.Undefined : setter;
             if (!existingAccessor)
@@ -1210,13 +1446,20 @@ public class JsObject
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private bool DefineOwnAccessorPropertyExactStaticSlow(int atom, JsFunction? getter, JsFunction? setter,
-        JsShapePropertyFlags flags, bool hasGetter, bool hasSetter)
+    private bool DefineOwnAccessorPropertyExactStaticSlow(
+        int atom,
+        JsFunction? getter,
+        JsFunction? setter,
+        JsShapePropertyFlags flags,
+        bool hasGetter,
+        bool hasSetter
+    )
     {
         if (StaticNamedPropertyLayout.TryGetSlotInfo(atom, out var existing))
         {
             var existingAccessor =
-                (existing.Flags & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter)) != 0;
+                (existing.Flags & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter))
+                != 0;
             var getterValue = getter is null ? JsValue.Undefined : getter;
             var setterValue = setter is null ? JsValue.Undefined : setter;
             if (!existingAccessor)
@@ -1262,7 +1505,12 @@ public class JsObject
         return true;
     }
 
-    internal void DefineClassAccessorPropertyAtom(JsRealm realm, int atom, JsFunction? getter, JsFunction? setter)
+    internal void DefineClassAccessorPropertyAtom(
+        JsRealm realm,
+        int atom,
+        JsFunction? getter,
+        JsFunction? setter
+    )
     {
         var mergedGetter = getter;
         var mergedSetter = setter;
@@ -1272,18 +1520,25 @@ public class JsObject
             if ((existing.Flags & JsShapePropertyFlags.HasGetter) != 0 && mergedGetter is null)
             {
                 var existingGetter = SlotsArray[existing.Slot];
-                if (existingGetter.TryGetObject(out var existingGetterObj) && existingGetterObj is JsFunction fn)
+                if (
+                    existingGetter.TryGetObject(out var existingGetterObj)
+                    && existingGetterObj is JsFunction fn
+                )
                     mergedGetter = fn;
             }
 
             if ((existing.Flags & JsShapePropertyFlags.HasSetter) != 0 && mergedSetter is null)
             {
-                var existingSetterSlot = (existing.Flags & JsShapePropertyFlags.BothAccessor) ==
-                                         JsShapePropertyFlags.BothAccessor
-                    ? existing.AccessorSetterSlot
-                    : existing.Slot;
+                var existingSetterSlot =
+                    (existing.Flags & JsShapePropertyFlags.BothAccessor)
+                    == JsShapePropertyFlags.BothAccessor
+                        ? existing.AccessorSetterSlot
+                        : existing.Slot;
                 var existingSetter = SlotsArray[existingSetterSlot];
-                if (existingSetter.TryGetObject(out var existingSetterObj) && existingSetterObj is JsFunction fn)
+                if (
+                    existingSetter.TryGetObject(out var existingSetterObj)
+                    && existingSetterObj is JsFunction fn
+                )
                     mergedSetter = fn;
             }
         }
@@ -1292,7 +1547,8 @@ public class JsObject
             false,
             true,
             mergedGetter is not null,
-            mergedSetter is not null);
+            mergedSetter is not null
+        );
         _ = DefineOwnAccessorPropertyExact(realm, atom, mergedGetter, mergedSetter, flags);
     }
 
@@ -1308,7 +1564,8 @@ public class JsObject
                 IndexedProperties[index] = new(
                     descriptor.Value,
                     descriptor.SetterFunction,
-                    descriptor.Flags & ~JsShapePropertyFlags.Configurable);
+                    descriptor.Flags & ~JsShapePropertyFlags.Configurable
+                );
             }
         }
 
@@ -1318,7 +1575,8 @@ public class JsObject
                 RewriteDynamicNamedPropertyFlags(
                     entry.Key,
                     static (existingFlags, _) => existingFlags & ~JsShapePropertyFlags.Configurable,
-                    JsShapePropertyFlags.None);
+                    JsShapePropertyFlags.None
+                );
 
             return;
         }
@@ -1336,12 +1594,14 @@ public class JsObject
                 var index = keys[i];
                 var descriptor = IndexedProperties[index];
                 var flags = descriptor.Flags & ~JsShapePropertyFlags.Configurable;
-                if ((descriptor.Flags & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter)) == 0)
+                if (
+                    (
+                        descriptor.Flags
+                        & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter)
+                    ) == 0
+                )
                     flags &= ~JsShapePropertyFlags.Writable;
-                IndexedProperties[index] = new(
-                    descriptor.Value,
-                    descriptor.SetterFunction,
-                    flags);
+                IndexedProperties[index] = new(descriptor.Value, descriptor.SetterFunction, flags);
             }
         }
 
@@ -1350,9 +1610,18 @@ public class JsObject
             foreach (var entry in EnumerateDynamicSlotInfos().ToArray())
             {
                 var flags = entry.Value.Flags & ~JsShapePropertyFlags.Configurable;
-                if ((entry.Value.Flags & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter)) == 0)
+                if (
+                    (
+                        entry.Value.Flags
+                        & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter)
+                    ) == 0
+                )
                     flags &= ~JsShapePropertyFlags.Writable;
-                RewriteDynamicNamedPropertyFlags(entry.Key, static (_, newFlags) => newFlags, flags);
+                RewriteDynamicNamedPropertyFlags(
+                    entry.Key,
+                    static (_, newFlags) => newFlags,
+                    flags
+                );
             }
 
             return;
@@ -1388,7 +1657,10 @@ public class JsObject
             {
                 if ((descriptor.Flags & JsShapePropertyFlags.Configurable) != 0)
                     return false;
-                if (!descriptor.IsAccessor && (descriptor.Flags & JsShapePropertyFlags.Writable) != 0)
+                if (
+                    !descriptor.IsAccessor
+                    && (descriptor.Flags & JsShapePropertyFlags.Writable) != 0
+                )
                     return false;
             }
 
@@ -1397,7 +1669,8 @@ public class JsObject
             var flags = entry.Value.Flags;
             if ((flags & JsShapePropertyFlags.Configurable) != 0)
                 return false;
-            var isAccessor = (flags & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter)) != 0;
+            var isAccessor =
+                (flags & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter)) != 0;
             if (!isAccessor && (flags & JsShapePropertyFlags.Writable) != 0)
                 return false;
         }
@@ -1441,7 +1714,11 @@ public class JsObject
             PromoteFastNamedPropertiesToDynamic(realm);
     }
 
-    private bool ShouldPromoteForOwnDataRedefine(JsRealm realm, int atom, JsShapePropertyFlags flags)
+    private bool ShouldPromoteForOwnDataRedefine(
+        JsRealm realm,
+        int atom,
+        JsShapePropertyFlags flags
+    )
     {
         if (!TryGetOwnNamedPropertyDescriptorAtomFromShape(atom, out var existing))
             return false;
@@ -1455,7 +1732,11 @@ public class JsObject
         return redefineChurn >= RedefineChurnPromotionThreshold;
     }
 
-    private bool ShouldPromoteForOwnAccessorRedefine(JsRealm realm, int atom, JsShapePropertyFlags flags)
+    private bool ShouldPromoteForOwnAccessorRedefine(
+        JsRealm realm,
+        int atom,
+        JsShapePropertyFlags flags
+    )
     {
         if (!TryGetOwnNamedPropertyDescriptorAtomFromShape(atom, out var existing))
             return false;
@@ -1469,7 +1750,10 @@ public class JsObject
         return redefineChurn >= RedefineChurnPromotionThreshold;
     }
 
-    private bool TryGetOwnNamedPropertyDescriptorAtomFromShape(int atom, out PropertyDescriptor descriptor)
+    private bool TryGetOwnNamedPropertyDescriptorAtomFromShape(
+        int atom,
+        out PropertyDescriptor descriptor
+    )
     {
         if (StaticNamedPropertyLayout.TryGetSlotInfo(atom, out var info))
         {
@@ -1481,14 +1765,19 @@ public class JsObject
         return false;
     }
 
-    private bool TrySetInheritedDescriptor(JsRealm realm, JsObject receiver, int atom, JsValue value,
-        out bool handled)
+    private bool TrySetInheritedDescriptor(
+        JsRealm realm,
+        JsObject receiver,
+        int atom,
+        JsValue value,
+        out bool handled
+    )
     {
         var atomText = atom >= 0 ? realm.Atoms.AtomToString(atom) : null;
         double numericIndex = default;
-        var hasCanonicalNumericIndex = atomText is not null &&
-                                       Intrinsics.TryGetCanonicalNumericIndexString(realm, atomText,
-                                           out numericIndex);
+        var hasCanonicalNumericIndex =
+            atomText is not null
+            && Intrinsics.TryGetCanonicalNumericIndexString(realm, atomText, out numericIndex);
         for (var cursor = Prototype; cursor is not null; cursor = cursor.Prototype)
         {
             if (cursor is IProxyObject)
@@ -1501,7 +1790,11 @@ public class JsObject
             {
                 if (ReferenceEquals(cursor, receiver))
                 {
-                    handled = Intrinsics.SetCanonicalNumericIndexOnTypedArrayForSet(typedArray, numericIndex, value);
+                    handled = Intrinsics.SetCanonicalNumericIndexOnTypedArrayForSet(
+                        typedArray,
+                        numericIndex,
+                        value
+                    );
                     return true;
                 }
 
@@ -1544,8 +1837,13 @@ public class JsObject
         return false;
     }
 
-    protected bool TrySetInheritedElementDescriptor(JsRealm realm, JsObject receiver, uint index, JsValue value,
-        out bool handled)
+    protected bool TrySetInheritedElementDescriptor(
+        JsRealm realm,
+        JsObject receiver,
+        uint index,
+        JsValue value,
+        out bool handled
+    )
     {
         for (var cursor = Prototype; cursor is not null; cursor = cursor.Prototype)
         {
@@ -1559,7 +1857,11 @@ public class JsObject
             {
                 if (ReferenceEquals(cursor, receiver))
                 {
-                    handled = Intrinsics.SetCanonicalNumericIndexOnTypedArrayForSet(typedArray, index, value);
+                    handled = Intrinsics.SetCanonicalNumericIndexOnTypedArrayForSet(
+                        typedArray,
+                        index,
+                        value
+                    );
                     return true;
                 }
 
@@ -1607,8 +1909,11 @@ public class JsObject
         return NamedPropertyLayout.TryGetSlotInfo(atom, out info);
     }
 
-    private bool TryGetOwnNamedPropertyDescriptorFromLayout(int atom, out PropertyDescriptor descriptor,
-        bool needDescriptor)
+    private bool TryGetOwnNamedPropertyDescriptorFromLayout(
+        int atom,
+        out PropertyDescriptor descriptor,
+        bool needDescriptor
+    )
     {
         if (!TryGetOwnNamedPropertySlotInfoAny(atom, out var info))
         {
@@ -1630,19 +1935,24 @@ public class JsObject
     {
         if ((info.Flags & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter)) != 0)
         {
-            var getterValue = (info.Flags & JsShapePropertyFlags.HasGetter) != 0
-                ? GetSlotValueMaterialized(atom, info.Slot)
-                : JsValue.Undefined;
+            var getterValue =
+                (info.Flags & JsShapePropertyFlags.HasGetter) != 0
+                    ? GetSlotValueMaterialized(atom, info.Slot)
+                    : JsValue.Undefined;
             JsFunction? setter = null;
             if ((info.Flags & JsShapePropertyFlags.HasSetter) != 0)
             {
-                var setterSlot = (info.Flags & JsShapePropertyFlags.BothAccessor) == JsShapePropertyFlags.BothAccessor
-                    ? info.AccessorSetterSlot
-                    : info.Slot;
+                var setterSlot =
+                    (info.Flags & JsShapePropertyFlags.BothAccessor)
+                    == JsShapePropertyFlags.BothAccessor
+                        ? info.AccessorSetterSlot
+                        : info.Slot;
                 var setterValue = GetSlotValueMaterialized(atom, setterSlot);
-                if (!setterValue.IsUndefined &&
-                    setterValue.TryGetObject(out var setterObj) &&
-                    setterObj is JsFunction setterFn)
+                if (
+                    !setterValue.IsUndefined
+                    && setterValue.TryGetObject(out var setterObj)
+                    && setterObj is JsFunction setterFn
+                )
                     setter = setterFn;
             }
 
@@ -1673,20 +1983,33 @@ public class JsObject
         return NamedPropertyLayout.EnumerateSlotInfos();
     }
 
-    private void AddDynamicDataProperty(int atom, JsValue value, JsShapePropertyFlags flags, int hint = -1)
+    private void AddDynamicDataProperty(
+        int atom,
+        JsValue value,
+        JsShapePropertyFlags flags,
+        int hint = -1
+    )
     {
         var dynamicLayout = Unsafe.As<DynamicNamedPropertyLayout>(NamedPropertyLayout);
         var slot = dynamicLayout.StorageSlotCount;
-        if (SlotsArray.Length <= slot + 1) ResizeNamedSlotCapacity(slot + 1);
+        if (SlotsArray.Length <= slot + 1)
+            ResizeNamedSlotCapacity(slot + 1);
 
         SlotsArray[slot] = value;
         dynamicLayout.AddNewSlotInfoUnchecked(atom, new(slot, flags), hint);
     }
 
-    private void AddDynamicAccessorProperty(int atom, JsFunction? getter, JsFunction? setter,
-        JsShapePropertyFlags flags)
+    private void AddDynamicAccessorProperty(
+        int atom,
+        JsFunction? getter,
+        JsFunction? setter,
+        JsShapePropertyFlags flags
+    )
     {
-        var width = (flags & JsShapePropertyFlags.BothAccessor) == JsShapePropertyFlags.BothAccessor ? 2 : 1;
+        var width =
+            (flags & JsShapePropertyFlags.BothAccessor) == JsShapePropertyFlags.BothAccessor
+                ? 2
+                : 1;
         var slot = DynamicNamedPropertyLayout.StorageSlotCount;
         EnsureNamedSlotCapacity(slot + width);
         var slotInfo = new SlotInfo(slot, flags);
@@ -1718,10 +2041,18 @@ public class JsObject
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private bool SetPropertyAtomFallbackNoInlining(JsRealm realm, JsObject receiver, int atom, JsValue value,
-        out SlotInfo slotInfo)
+    private bool SetPropertyAtomFallbackNoInlining(
+        JsRealm realm,
+        JsObject receiver,
+        int atom,
+        JsValue value,
+        out SlotInfo slotInfo
+    )
     {
-        if (Prototype is not null && TrySetInheritedDescriptor(realm, receiver, atom, value, out var inheritedHandled))
+        if (
+            Prototype is not null
+            && TrySetInheritedDescriptor(realm, receiver, atom, value, out var inheritedHandled)
+        )
         {
             slotInfo = SlotInfo.Invalid;
             return inheritedHandled;
@@ -1740,7 +2071,11 @@ public class JsObject
             return true;
         }
 
-        var shape = StaticNamedPropertyLayout.GetOrAddTransition(atom, JsShapePropertyFlags.Open, out slotInfo);
+        var shape = StaticNamedPropertyLayout.GetOrAddTransition(
+            atom,
+            JsShapePropertyFlags.Open,
+            out slotInfo
+        );
         NamedPropertyLayout = shape;
         var required = shape.StorageSlotCount;
         if (required > SlotsArray.Length)
@@ -1750,13 +2085,21 @@ public class JsObject
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private void DefineDataPropertyAtomDynamicAddNoInlining(int atom, JsValue value, JsShapePropertyFlags flags)
+    private void DefineDataPropertyAtomDynamicAddNoInlining(
+        int atom,
+        JsValue value,
+        JsShapePropertyFlags flags
+    )
     {
         AddDynamicDataProperty(atom, value, flags);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private void DefineDataPropertyAtomStaticAddNoInlining(int atom, JsValue value, JsShapePropertyFlags flags)
+    private void DefineDataPropertyAtomStaticAddNoInlining(
+        int atom,
+        JsValue value,
+        JsShapePropertyFlags flags
+    )
     {
         var shape = StaticNamedPropertyLayout.GetOrAddTransition(atom, flags, out var slotInfo);
         NamedPropertyLayout = shape;
@@ -1766,9 +2109,11 @@ public class JsObject
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private void RewriteDynamicNamedPropertyFlags(int atom,
+    private void RewriteDynamicNamedPropertyFlags(
+        int atom,
         Func<JsShapePropertyFlags, JsShapePropertyFlags, JsShapePropertyFlags> mapFlags,
-        JsShapePropertyFlags newFlags)
+        JsShapePropertyFlags newFlags
+    )
     {
         NamedPropertyLayout = DynamicNamedPropertyLayout.RewriteFlags(atom, mapFlags, newFlags);
     }
@@ -1780,9 +2125,10 @@ public class JsObject
         var currentEntries = shape.CopyLiveEntries();
         var nextShape = shape.RebuildExcluding(excludedAtom);
         var nextEntries = nextShape.UnsafeEntries;
-        var nextSlots = nextShape.StorageSlotCount == 0
-            ? Array.Empty<JsValue>()
-            : new JsValue[nextShape.StorageSlotCount];
+        var nextSlots =
+            nextShape.StorageSlotCount == 0
+                ? Array.Empty<JsValue>()
+                : new JsValue[nextShape.StorageSlotCount];
         var nextIndex = 0;
         for (var i = 0; i < currentEntries.Length; i++)
         {
@@ -1799,24 +2145,34 @@ public class JsObject
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private void RebuildDynamicLayoutReplacingProperty(int targetAtom, JsShapePropertyFlags targetFlags,
+    private void RebuildDynamicLayoutReplacingProperty(
+        int targetAtom,
+        JsShapePropertyFlags targetFlags,
         in JsValue targetPrimary,
-        in JsValue targetSecondary)
+        in JsValue targetSecondary
+    )
     {
         var shape = DynamicNamedPropertyLayout;
         var currentEntries = shape.CopyLiveEntries();
         var nextShape = shape.RebuildReplacingProperty(targetAtom, targetFlags);
         var nextEntries = nextShape.UnsafeEntries;
-        var nextSlots = nextShape.StorageSlotCount == 0
-            ? Array.Empty<JsValue>()
-            : new JsValue[nextShape.StorageSlotCount];
+        var nextSlots =
+            nextShape.StorageSlotCount == 0
+                ? Array.Empty<JsValue>()
+                : new JsValue[nextShape.StorageSlotCount];
         for (var i = 0; i < currentEntries.Length; i++)
         {
             ref readonly var oldEntry = ref currentEntries[i];
             ref readonly var newEntry = ref nextEntries[i];
             if (oldEntry.Atom == targetAtom)
             {
-                WriteSlotsForFlags(nextSlots, newEntry.SlotInfo, targetFlags, targetPrimary, targetSecondary);
+                WriteSlotsForFlags(
+                    nextSlots,
+                    newEntry.SlotInfo,
+                    targetFlags,
+                    targetPrimary,
+                    targetSecondary
+                );
                 continue;
             }
 
@@ -1828,40 +2184,54 @@ public class JsObject
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private void RewriteOwnNamedPropertyFlags(Func<JsShapePropertyFlags, JsShapePropertyFlags> mapFlags)
+    private void RewriteOwnNamedPropertyFlags(
+        Func<JsShapePropertyFlags, JsShapePropertyFlags> mapFlags
+    )
     {
         var shape = StaticNamedPropertyLayout;
         NamedPropertyLayout = shape.RewriteFlags(mapFlags);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private void RewriteOwnNamedPropertyFlags(int atom,
+    private void RewriteOwnNamedPropertyFlags(
+        int atom,
         Func<JsShapePropertyFlags, JsShapePropertyFlags, JsShapePropertyFlags> mapFlags,
-        JsShapePropertyFlags newFlags)
+        JsShapePropertyFlags newFlags
+    )
     {
         var shape = StaticNamedPropertyLayout;
         NamedPropertyLayout = shape.RewriteFlags(atom, mapFlags, newFlags);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private void RebuildShapeReplacingProperty(int targetAtom, JsShapePropertyFlags targetFlags,
+    private void RebuildShapeReplacingProperty(
+        int targetAtom,
+        JsShapePropertyFlags targetFlags,
         in JsValue targetPrimary,
-        in JsValue targetSecondary)
+        in JsValue targetSecondary
+    )
     {
         var shape = StaticNamedPropertyLayout;
         var currentEntries = shape.UnsafeEntries;
         var nextShape = shape.RebuildReplacingProperty(targetAtom, targetFlags);
         var nextEntries = nextShape.UnsafeEntries;
-        var nextSlots = nextShape.StorageSlotCount == 0
-            ? Array.Empty<JsValue>()
-            : new JsValue[nextShape.StorageSlotCount];
+        var nextSlots =
+            nextShape.StorageSlotCount == 0
+                ? Array.Empty<JsValue>()
+                : new JsValue[nextShape.StorageSlotCount];
         for (var i = 0; i < currentEntries.Length; i++)
         {
             ref readonly var oldEntry = ref currentEntries[i];
             ref readonly var newEntry = ref nextEntries[i];
             if (oldEntry.Atom == targetAtom)
             {
-                WriteSlotsForFlags(nextSlots, newEntry.SlotInfo, targetFlags, targetPrimary, targetSecondary);
+                WriteSlotsForFlags(
+                    nextSlots,
+                    newEntry.SlotInfo,
+                    targetFlags,
+                    targetPrimary,
+                    targetSecondary
+                );
                 continue;
             }
 
@@ -1872,20 +2242,34 @@ public class JsObject
         SlotsArray = nextSlots;
     }
 
-    private void CopyExistingSlots(JsValue[] destination, in SlotInfo destinationInfo, in SlotInfo sourceInfo)
+    private void CopyExistingSlots(
+        JsValue[] destination,
+        in SlotInfo destinationInfo,
+        in SlotInfo sourceInfo
+    )
     {
-        if ((sourceInfo.Flags & JsShapePropertyFlags.BothAccessor) == JsShapePropertyFlags.BothAccessor)
+        if (
+            (sourceInfo.Flags & JsShapePropertyFlags.BothAccessor)
+            == JsShapePropertyFlags.BothAccessor
+        )
         {
             destination[destinationInfo.Slot] = SlotsArray[sourceInfo.Slot];
-            destination[destinationInfo.AccessorSetterSlot] = SlotsArray[sourceInfo.AccessorSetterSlot];
+            destination[destinationInfo.AccessorSetterSlot] = SlotsArray[
+                sourceInfo.AccessorSetterSlot
+            ];
             return;
         }
 
         destination[destinationInfo.Slot] = SlotsArray[sourceInfo.Slot];
     }
 
-    private static void WriteSlotsForFlags(JsValue[] destination, in SlotInfo slotInfo, JsShapePropertyFlags flags,
-        in JsValue primary, in JsValue secondary)
+    private static void WriteSlotsForFlags(
+        JsValue[] destination,
+        in SlotInfo slotInfo,
+        JsShapePropertyFlags flags,
+        in JsValue primary,
+        in JsValue secondary
+    )
     {
         var hasGetter = (flags & JsShapePropertyFlags.HasGetter) != 0;
         var hasSetter = (flags & JsShapePropertyFlags.HasSetter) != 0;
@@ -1913,18 +2297,24 @@ public class JsObject
 
     private void WriteAccessorSlots(in SlotInfo slotInfo, JsFunction? getter, JsFunction? setter)
     {
-        if ((slotInfo.Flags & JsShapePropertyFlags.BothAccessor) == JsShapePropertyFlags.BothAccessor)
+        if (
+            (slotInfo.Flags & JsShapePropertyFlags.BothAccessor)
+            == JsShapePropertyFlags.BothAccessor
+        )
         {
             SlotsArray[slotInfo.Slot] = getter is null ? JsValue.Undefined : getter;
             SlotsArray[slotInfo.AccessorSetterSlot] = setter is null ? JsValue.Undefined : setter;
             return;
         }
 
-        SlotsArray[slotInfo.Slot] = (slotInfo.Flags & JsShapePropertyFlags.HasGetter) != 0
-            ? getter is null ? JsValue.Undefined : getter
-            : setter is null
-                ? JsValue.Undefined
-                : setter;
+        SlotsArray[slotInfo.Slot] =
+            (slotInfo.Flags & JsShapePropertyFlags.HasGetter) != 0
+                ? getter is null
+                    ? JsValue.Undefined
+                    : getter
+                : setter is null
+                    ? JsValue.Undefined
+                    : setter;
     }
 
     private JsValue InvokeAccessorGetter(JsRealm realm, JsObject receiver, in SlotInfo slotInfo)
@@ -1935,7 +2325,11 @@ public class JsObject
         return InvokeAccessorFunction(realm, receiver, fn, ReadOnlySpan<JsValue>.Empty);
     }
 
-    private JsValue InvokeAccessorGetter(JsRealm realm, in JsValue receiverValue, in SlotInfo slotInfo)
+    private JsValue InvokeAccessorGetter(
+        JsRealm realm,
+        in JsValue receiverValue,
+        in SlotInfo slotInfo
+    )
     {
         var fnVal = GetSlotValueMaterialized(slotInfo.Slot);
         if (!fnVal.TryGetObject(out var fnObj) || fnObj is not JsFunction fn)
@@ -1950,41 +2344,67 @@ public class JsObject
         return InvokeAccessorFunction(realm, receiverValue, fn, ReadOnlySpan<JsValue>.Empty);
     }
 
-    private void InvokeAccessorSetter(JsRealm realm, JsObject receiver, in JsValue value, SlotInfo slotInfo)
+    private void InvokeAccessorSetter(
+        JsRealm realm,
+        JsObject receiver,
+        in JsValue value,
+        SlotInfo slotInfo
+    )
     {
-        var setterSlot = (slotInfo.Flags & JsShapePropertyFlags.BothAccessor) == JsShapePropertyFlags.BothAccessor
-            ? slotInfo.AccessorSetterSlot
-            : slotInfo.Slot;
+        var setterSlot =
+            (slotInfo.Flags & JsShapePropertyFlags.BothAccessor)
+            == JsShapePropertyFlags.BothAccessor
+                ? slotInfo.AccessorSetterSlot
+                : slotInfo.Slot;
         var fnVal = SlotsArray[setterSlot];
         var fn = (JsFunction)fnVal.Obj!;
         var arg = MemoryMarshal.CreateReadOnlySpan(in value, 1);
         _ = InvokeAccessorFunction(realm, receiver, fn, arg);
     }
 
-    private bool TryInvokeAccessorSetter(JsRealm realm, JsObject receiver, in JsValue value, SlotInfo slotInfo)
+    private bool TryInvokeAccessorSetter(
+        JsRealm realm,
+        JsObject receiver,
+        in JsValue value,
+        SlotInfo slotInfo
+    )
     {
-        var setterSlot = (slotInfo.Flags & JsShapePropertyFlags.BothAccessor) == JsShapePropertyFlags.BothAccessor
-            ? slotInfo.AccessorSetterSlot
-            : slotInfo.Slot;
+        var setterSlot =
+            (slotInfo.Flags & JsShapePropertyFlags.BothAccessor)
+            == JsShapePropertyFlags.BothAccessor
+                ? slotInfo.AccessorSetterSlot
+                : slotInfo.Slot;
         var fnVal = SlotsArray[setterSlot];
         if (fnVal.IsUndefined)
             return false;
         if (!fnVal.TryGetObject(out var fnObj) || fnObj is not JsFunction fn)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Setter must be callable", "SETTER_NOT_CALLABLE");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Setter must be callable",
+                "SETTER_NOT_CALLABLE"
+            );
 
         var arg = MemoryMarshal.CreateReadOnlySpan(in value, 1);
         _ = InvokeAccessorFunction(realm, receiver, fn, arg);
         return true;
     }
 
-    protected static JsValue InvokeAccessorFunction(JsRealm realm, JsObject receiver, JsFunction fn,
-        ReadOnlySpan<JsValue> args)
+    protected static JsValue InvokeAccessorFunction(
+        JsRealm realm,
+        JsObject receiver,
+        JsFunction fn,
+        ReadOnlySpan<JsValue> args
+    )
     {
         return realm.InvokeFunction(fn, JsValue.FromObject(receiver), args);
     }
 
-    protected static JsValue InvokeAccessorFunction(JsRealm realm, in JsValue receiverValue, JsFunction fn,
-        ReadOnlySpan<JsValue> args)
+    protected static JsValue InvokeAccessorFunction(
+        JsRealm realm,
+        in JsValue receiverValue,
+        JsFunction fn,
+        ReadOnlySpan<JsValue> args
+    )
     {
         return realm.InvokeFunction(fn, receiverValue, args);
     }
@@ -2016,7 +2436,11 @@ public class JsObject
         return FormatOwnEnumerablePropertiesForDisplay(null, 0, null);
     }
 
-    protected string FormatOwnEnumerablePropertiesForDisplay(int? indentSize, int depth, HashSet<JsObject>? visited)
+    protected string FormatOwnEnumerablePropertiesForDisplay(
+        int? indentSize,
+        int depth,
+        HashSet<JsObject>? visited
+    )
     {
         var realm = NamedPropertyLayout.Owner;
         var multiline = indentSize is > 0;
@@ -2099,7 +2523,12 @@ public class JsObject
         return sb.ToString();
     }
 
-    private string FormatDisplayValue(in SlotInfo info, int? indentSize, int depth, HashSet<JsObject>? visited)
+    private string FormatDisplayValue(
+        in SlotInfo info,
+        int? indentSize,
+        int depth,
+        HashSet<JsObject>? visited
+    )
     {
         var hasGetter = (info.Flags & JsShapePropertyFlags.HasGetter) != 0;
         var hasSetter = (info.Flags & JsShapePropertyFlags.HasSetter) != 0;
@@ -2112,7 +2541,12 @@ public class JsObject
         return FormatDisplayValue(SlotsArray[info.Slot], indentSize, depth, visited);
     }
 
-    private string FormatDisplayValue(in JsValue value, int? indentSize, int depth, HashSet<JsObject>? visited)
+    private string FormatDisplayValue(
+        in JsValue value,
+        int? indentSize,
+        int depth,
+        HashSet<JsObject>? visited
+    )
     {
         if (value.IsString)
             return $"'{value.AsString()}'";

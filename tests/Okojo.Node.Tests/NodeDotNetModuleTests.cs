@@ -8,23 +8,40 @@ public class NodeDotNetModuleTests
     [Test]
     public void RunMainModule_NuGetImport_Can_Load_Into_ClrNamespace()
     {
-        var tempRoot = Path.Combine(Path.GetTempPath(), "okojo-node-dotnet-modules-" + Guid.NewGuid().ToString("N"));
+        var tempRoot = Path.Combine(
+            Path.GetTempPath(),
+            "okojo-node-dotnet-modules-" + Guid.NewGuid().ToString("N")
+        );
         Directory.CreateDirectory(tempRoot);
         try
         {
-            var packageDllPath = Path.Combine(tempRoot, "sample.uri", "1.0.0", "lib", "net10.0", "sample.uri.dll");
+            var packageDllPath = Path.Combine(
+                tempRoot,
+                "sample.uri",
+                "1.0.0",
+                "lib",
+                "net10.0",
+                "sample.uri.dll"
+            );
             Directory.CreateDirectory(Path.GetDirectoryName(packageDllPath)!);
             File.Copy(typeof(Uri).Assembly.Location, packageDllPath);
 
-            using var runtime = NodeRuntime.CreateBuilder()
-                .UseModuleSourceLoader(new InMemoryModuleLoader(new(StringComparer.Ordinal)
-                {
-                    ["/app/main.mjs"] = """
-                                        import "nuget:sample.uri@1.0.0";
-                                        export default new clr.System.Uri("https://example.com/node").Host;
-                                        """
-                }))
-                .ConfigureRuntime(builder => builder.UseDotNetModuleImports(options => options.GlobalPackagesRoot = tempRoot))
+            using var runtime = NodeRuntime
+                .CreateBuilder()
+                .UseModuleSourceLoader(
+                    new InMemoryModuleLoader(
+                        new(StringComparer.Ordinal)
+                        {
+                            ["/app/main.mjs"] = """
+                            import "nuget:sample.uri@1.0.0";
+                            export default new clr.System.Uri("https://example.com/node").Host;
+                            """,
+                        }
+                    )
+                )
+                .ConfigureRuntime(builder =>
+                    builder.UseDotNetModuleImports(options => options.GlobalPackagesRoot = tempRoot)
+                )
                 .Build();
 
             var result = runtime.RunMainModule("/app/main.mjs");
@@ -40,7 +57,8 @@ public class NodeDotNetModuleTests
         }
     }
 
-    private sealed class InMemoryModuleLoader(Dictionary<string, string> modules) : IModuleSourceLoader
+    private sealed class InMemoryModuleLoader(Dictionary<string, string> modules)
+        : IModuleSourceLoader
     {
         public string ResolveSpecifier(string specifier, string? referrer)
         {

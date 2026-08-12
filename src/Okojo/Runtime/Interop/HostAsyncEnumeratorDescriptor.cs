@@ -6,7 +6,8 @@ internal sealed class HostAsyncEnumeratorAdapter(
     object enumerator,
     Func<object, ValueTask<bool>> moveNextAsync,
     Func<object, object?> getCurrent,
-    Func<object, ValueTask>? disposeAsync)
+    Func<object, ValueTask>? disposeAsync
+)
 {
     internal object Enumerator { get; } =
         enumerator ?? throw new InvalidOperationException("GetAsyncEnumerator returned null.");

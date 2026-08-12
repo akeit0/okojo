@@ -20,14 +20,15 @@ internal enum OverloadParameterMatchKind : byte
     SpanNumeric,
     SpanJsObject,
     SpanObject,
-    SpanReference
+    SpanReference,
 }
 
 internal sealed class OverloadParameterSpec(
     ITypeSymbol type,
     bool hasDefaultValue,
     bool isTrailingSpan,
-    OverloadParameterMatchKind matchKind)
+    OverloadParameterMatchKind matchKind
+)
 {
     public ITypeSymbol Type { get; } = type;
     public bool HasDefaultValue { get; } = hasDefaultValue;
@@ -42,7 +43,8 @@ internal sealed class AnalyzedOverload<TMethod, TParameter>(
     IReadOnlyList<TParameter> parameters,
     IReadOnlyList<OverloadParameterSpec> parameterSpecs,
     int requiredCount,
-    int maxCount)
+    int maxCount
+)
 {
     public int Index { get; } = index;
     public TMethod Method { get; } = method;
@@ -69,7 +71,8 @@ internal sealed class AnalyzedOverload<TMethod, TParameter>(
 
 internal sealed class OverloadCountBucket<TMethod, TParameter>(
     int exactCount,
-    IReadOnlyList<AnalyzedOverload<TMethod, TParameter>> candidates)
+    IReadOnlyList<AnalyzedOverload<TMethod, TParameter>> candidates
+)
 {
     public int ExactCount { get; } = exactCount;
     public IReadOnlyList<AnalyzedOverload<TMethod, TParameter>> Candidates { get; } = candidates;
@@ -86,24 +89,31 @@ internal sealed class AnalyzedOverloadSet<TMethod, TParameter>(
     IReadOnlyList<AnalyzedOverload<TMethod, TParameter>> overloads,
     IReadOnlyList<OverloadCountBucket<TMethod, TParameter>> exactCountBuckets,
     IReadOnlyList<AnalyzedOverload<TMethod, TParameter>> openEndedCandidates,
-    IReadOnlyList<OverloadDiagnosticInfo> diagnostics)
+    IReadOnlyList<OverloadDiagnosticInfo> diagnostics
+)
 {
     public string Name { get; } = name;
     public IReadOnlyList<AnalyzedOverload<TMethod, TParameter>> Overloads { get; } = overloads;
-    public IReadOnlyList<OverloadCountBucket<TMethod, TParameter>> ExactCountBuckets { get; } = exactCountBuckets;
-    public IReadOnlyList<AnalyzedOverload<TMethod, TParameter>> OpenEndedCandidates { get; } = openEndedCandidates;
+    public IReadOnlyList<OverloadCountBucket<TMethod, TParameter>> ExactCountBuckets { get; } =
+        exactCountBuckets;
+    public IReadOnlyList<AnalyzedOverload<TMethod, TParameter>> OpenEndedCandidates { get; } =
+        openEndedCandidates;
     public IReadOnlyList<OverloadDiagnosticInfo> Diagnostics { get; } = diagnostics;
 }
 
 internal static class OverloadDispatchAnalysis
 {
-    public static IReadOnlyList<AnalyzedOverloadSet<TMethod, TParameter>> AnalyzeByName<TMethod, TParameter>(
+    public static IReadOnlyList<AnalyzedOverloadSet<TMethod, TParameter>> AnalyzeByName<
+        TMethod,
+        TParameter
+    >(
         IReadOnlyList<TMethod> methods,
         Func<TMethod, string> getName,
         Func<TMethod, IMethodSymbol> getMethod,
         Func<TMethod, IReadOnlyList<TParameter>> getParameters,
         Func<TParameter, ITypeSymbol> getParameterType,
-        Func<TParameter, bool> hasDefaultValue)
+        Func<TParameter, bool> hasDefaultValue
+    )
     {
         var names = new List<string>();
         var groups = new List<List<TMethod>>();
@@ -111,7 +121,9 @@ internal static class OverloadDispatchAnalysis
         {
             var method = methods[i];
             var name = getName(method);
-            var index = names.FindIndex(existing => string.Equals(existing, name, StringComparison.Ordinal));
+            var index = names.FindIndex(existing =>
+                string.Equals(existing, name, StringComparison.Ordinal)
+            );
             if (index < 0)
             {
                 names.Add(name);
@@ -125,7 +137,16 @@ internal static class OverloadDispatchAnalysis
 
         var result = new List<AnalyzedOverloadSet<TMethod, TParameter>>(groups.Count);
         for (var i = 0; i < groups.Count; i++)
-            result.Add(AnalyzeSet(names[i], groups[i], getMethod, getParameters, getParameterType, hasDefaultValue));
+            result.Add(
+                AnalyzeSet(
+                    names[i],
+                    groups[i],
+                    getMethod,
+                    getParameters,
+                    getParameterType,
+                    hasDefaultValue
+                )
+            );
         return result;
     }
 
@@ -135,7 +156,8 @@ internal static class OverloadDispatchAnalysis
         Func<TMethod, IMethodSymbol> getMethod,
         Func<TMethod, IReadOnlyList<TParameter>> getParameters,
         Func<TParameter, ITypeSymbol> getParameterType,
-        Func<TParameter, bool> hasDefaultValue)
+        Func<TParameter, bool> hasDefaultValue
+    )
     {
         var overloads = new List<AnalyzedOverload<TMethod, TParameter>>(methods.Count);
         var openEnded = new List<AnalyzedOverload<TMethod, TParameter>>();
@@ -153,23 +175,36 @@ internal static class OverloadDispatchAnalysis
             {
                 var parameterType = getParameterType(parameters[p]);
                 ITypeSymbol? spanElementType = null;
-                var isTrailingSpan = p == parameters.Count - 1 &&
-                                     ParameterTypeSupport.TryGetReadOnlySpanElementType(parameterType,
-                                         out spanElementType);
+                var isTrailingSpan =
+                    p == parameters.Count - 1
+                    && ParameterTypeSupport.TryGetReadOnlySpanElementType(
+                        parameterType,
+                        out spanElementType
+                    );
                 if (isTrailingSpan)
                     parameterType = spanElementType!;
                 hasTrailingSpan |= isTrailingSpan;
-                specs.Add(new(
-                    parameterType,
-                    hasDefaultValue(parameters[p]),
-                    isTrailingSpan,
-                    GetMatchKind(parameterType, isTrailingSpan)));
+                specs.Add(
+                    new(
+                        parameterType,
+                        hasDefaultValue(parameters[p]),
+                        isTrailingSpan,
+                        GetMatchKind(parameterType, isTrailingSpan)
+                    )
+                );
             }
 
             var requiredCount = ParameterTypeSupport.ComputeFunctionLength(symbol.Parameters, true);
             var maxCount = hasTrailingSpan ? int.MaxValue : parameters.Count;
-            var overload =
-                new AnalyzedOverload<TMethod, TParameter>(i, method, symbol, parameters, specs, requiredCount, maxCount);
+            var overload = new AnalyzedOverload<TMethod, TParameter>(
+                i,
+                method,
+                symbol,
+                parameters,
+                specs,
+                requiredCount,
+                maxCount
+            );
             overloads.Add(overload);
             if (overload.HasOpenEndedCount)
                 openEnded.Add(overload);
@@ -190,9 +225,9 @@ internal static class OverloadDispatchAnalysis
         }
 
         for (var i = 0; i < overloads.Count; i++)
-            for (var j = i + 1; j < overloads.Count; j++)
-                if (TryCreateAmbiguityDiagnostic(name, overloads[i], overloads[j], out var diagnostic))
-                    diagnostics.Add(diagnostic);
+        for (var j = i + 1; j < overloads.Count; j++)
+            if (TryCreateAmbiguityDiagnostic(name, overloads[i], overloads[j], out var diagnostic))
+                diagnostics.Add(diagnostic);
 
         return new(name, overloads, exactBuckets, openEnded, diagnostics);
     }
@@ -201,7 +236,8 @@ internal static class OverloadDispatchAnalysis
         string name,
         AnalyzedOverload<TMethod, TParameter> left,
         AnalyzedOverload<TMethod, TParameter> right,
-        out OverloadDiagnosticInfo diagnostic)
+        out OverloadDiagnosticInfo diagnostic
+    )
     {
         var minCount = Math.Max(left.RequiredCount, right.RequiredCount);
         var maxCount = Math.Min(left.MaxCount, right.MaxCount);
@@ -221,7 +257,8 @@ internal static class OverloadDispatchAnalysis
 
             diagnostic = new(
                 $"Ambiguous generated overloads for export '{name}'. '{left.Symbol.ToDisplayString()}' and '{right.Symbol.ToDisplayString()}' can tie for {count} argument(s).",
-                right.Symbol.Locations.FirstOrDefault(static x => x.IsInSource));
+                right.Symbol.Locations.FirstOrDefault(static x => x.IsInSource)
+            );
             return true;
         }
 
@@ -232,23 +269,33 @@ internal static class OverloadDispatchAnalysis
     private static bool CouldTieAtCount<TMethod, TParameter>(
         AnalyzedOverload<TMethod, TParameter> left,
         AnalyzedOverload<TMethod, TParameter> right,
-        int count)
+        int count
+    )
     {
         for (var i = 0; i < count; i++)
-            if (!CanKindsTie(left.GetParameterAtArgumentIndex(i).MatchKind,
-                    right.GetParameterAtArgumentIndex(i).MatchKind))
+            if (
+                !CanKindsTie(
+                    left.GetParameterAtArgumentIndex(i).MatchKind,
+                    right.GetParameterAtArgumentIndex(i).MatchKind
+                )
+            )
                 return false;
 
         return true;
     }
 
-    private static bool CanKindsTie(OverloadParameterMatchKind left, OverloadParameterMatchKind right)
+    private static bool CanKindsTie(
+        OverloadParameterMatchKind left,
+        OverloadParameterMatchKind right
+    )
     {
         if (left == right)
             return true;
 
-        if (left is OverloadParameterMatchKind.JsValue or OverloadParameterMatchKind.SpanJsValue ||
-            right is OverloadParameterMatchKind.JsValue or OverloadParameterMatchKind.SpanJsValue)
+        if (
+            left is OverloadParameterMatchKind.JsValue or OverloadParameterMatchKind.SpanJsValue
+            || right is OverloadParameterMatchKind.JsValue or OverloadParameterMatchKind.SpanJsValue
+        )
             return true;
 
         if (IsNumeric(left) && IsNumeric(right))
@@ -260,21 +307,36 @@ internal static class OverloadDispatchAnalysis
     private static OverloadParameterMatchKind GetMatchKind(ITypeSymbol type, bool isSpanElement)
     {
         OverloadParameterMatchKind kind;
-        if (type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::Okojo.JsValue")
+        if (
+            type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
+            == "global::Okojo.JsValue"
+        )
             kind = OverloadParameterMatchKind.JsValue;
         else if (type.SpecialType == SpecialType.System_String)
             kind = OverloadParameterMatchKind.String;
         else if (type.SpecialType == SpecialType.System_Boolean)
             kind = OverloadParameterMatchKind.Boolean;
-        else if (type.SpecialType is SpecialType.System_Byte or SpecialType.System_SByte or SpecialType.System_Int16 or
-                 SpecialType.System_UInt16 or SpecialType.System_Int32 or SpecialType.System_UInt32
-                 or SpecialType.System_Int64 or
-                 SpecialType.System_UInt64 or SpecialType.System_Single or SpecialType.System_Double
-                 or SpecialType.System_Decimal)
+        else if (
+            type.SpecialType
+            is SpecialType.System_Byte
+                or SpecialType.System_SByte
+                or SpecialType.System_Int16
+                or SpecialType.System_UInt16
+                or SpecialType.System_Int32
+                or SpecialType.System_UInt32
+                or SpecialType.System_Int64
+                or SpecialType.System_UInt64
+                or SpecialType.System_Single
+                or SpecialType.System_Double
+                or SpecialType.System_Decimal
+        )
             kind = OverloadParameterMatchKind.Numeric;
         else if (ParameterTypeSupport.IsTaskLike(type))
             kind = OverloadParameterMatchKind.TaskLike;
-        else if (type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::Okojo.Objects.JsObject")
+        else if (
+            type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
+            == "global::Okojo.Objects.JsObject"
+        )
             kind = OverloadParameterMatchKind.JsObject;
         else if (type.SpecialType == SpecialType.System_Object)
             kind = OverloadParameterMatchKind.Object;
@@ -295,7 +357,7 @@ internal static class OverloadDispatchAnalysis
             OverloadParameterMatchKind.JsObject => OverloadParameterMatchKind.SpanJsObject,
             OverloadParameterMatchKind.Object => OverloadParameterMatchKind.SpanObject,
             OverloadParameterMatchKind.Reference => OverloadParameterMatchKind.SpanReference,
-            _ => OverloadParameterMatchKind.SpanOther
+            _ => OverloadParameterMatchKind.SpanOther,
         };
     }
 

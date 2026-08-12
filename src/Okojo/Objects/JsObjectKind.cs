@@ -38,6 +38,6 @@ internal enum JsObjectKind : byte
     ArrayBuffer,
     SharedArrayBuffer,
 
-    Promise
+    Promise,
     // TODO: more kinds.
 }

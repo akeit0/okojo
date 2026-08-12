@@ -6,17 +6,26 @@ namespace Okojo.Node.Cli;
 
 internal static class NodeCliBytecodePrinter
 {
-    public static void PrintCompiledScript(JsScript script, string unitName, string unitKind = "script")
+    public static void PrintCompiledScript(
+        JsScript script,
+        string unitName,
+        string unitKind = "script"
+    )
     {
         ArgumentNullException.ThrowIfNull(script);
         ArgumentException.ThrowIfNullOrWhiteSpace(unitName);
 
-        Console.Out.WriteLine(Disassembler.Dump(script, new()
-        {
-            UnitKind = unitKind,
-            UnitName = unitName,
-            ContextSlots = 0
-        }));
+        Console.Out.WriteLine(
+            Disassembler.Dump(
+                script,
+                new()
+                {
+                    UnitKind = unitKind,
+                    UnitName = unitName,
+                    ContextSlots = 0,
+                }
+            )
+        );
     }
 
     public static void PrintRegisteredScripts(JsAgent agent, string sourcePath)
@@ -29,7 +38,11 @@ internal static class NodeCliBytecodePrinter
         if (scripts.Length == 0)
             return;
 
-        var unitKind = string.Equals(Path.GetExtension(normalizedPath), ".mjs", StringComparison.OrdinalIgnoreCase)
+        var unitKind = string.Equals(
+            Path.GetExtension(normalizedPath),
+            ".mjs",
+            StringComparison.OrdinalIgnoreCase
+        )
             ? "module"
             : "script";
 
@@ -38,9 +51,7 @@ internal static class NodeCliBytecodePrinter
             if (i != 0)
                 Console.Out.WriteLine();
 
-            var unitName = scripts.Length == 1
-                ? normalizedPath
-                : $"{normalizedPath}#{i + 1}";
+            var unitName = scripts.Length == 1 ? normalizedPath : $"{normalizedPath}#{i + 1}";
             PrintCompiledScript(scripts[i], unitName, unitKind);
         }
     }

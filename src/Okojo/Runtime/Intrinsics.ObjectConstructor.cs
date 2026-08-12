@@ -21,7 +21,8 @@ public partial class Intrinsics
         in JsValue value,
         in JsValue writable,
         in JsValue enumerable,
-        in JsValue configurable)
+        in JsValue configurable
+    )
     {
         var shape = ownDataDescriptorShape ??= CreateOwnDataDescriptorShape();
         var result = new JsPlainObject(shape);
@@ -36,7 +37,8 @@ public partial class Intrinsics
         in JsValue getter,
         in JsValue setter,
         in JsValue enumerable,
-        in JsValue configurable)
+        in JsValue configurable
+    )
     {
         var shape = ownAccessorDescriptorShape ??= CreateOwnAccessorDescriptorShape();
         var result = new JsPlainObject(shape);
@@ -49,10 +51,26 @@ public partial class Intrinsics
 
     private StaticNamedPropertyLayout CreateOwnDataDescriptorShape()
     {
-        var shape = Realm.EmptyShape.GetOrAddTransition(IdValue, JsShapePropertyFlags.Open, out var valueInfo);
-        shape = shape.GetOrAddTransition(IdWritable, JsShapePropertyFlags.Open, out var writableInfo);
-        shape = shape.GetOrAddTransition(IdEnumerable, JsShapePropertyFlags.Open, out var enumerableInfo);
-        shape = shape.GetOrAddTransition(IdConfigurable, JsShapePropertyFlags.Open, out var configurableInfo);
+        var shape = Realm.EmptyShape.GetOrAddTransition(
+            IdValue,
+            JsShapePropertyFlags.Open,
+            out var valueInfo
+        );
+        shape = shape.GetOrAddTransition(
+            IdWritable,
+            JsShapePropertyFlags.Open,
+            out var writableInfo
+        );
+        shape = shape.GetOrAddTransition(
+            IdEnumerable,
+            JsShapePropertyFlags.Open,
+            out var enumerableInfo
+        );
+        shape = shape.GetOrAddTransition(
+            IdConfigurable,
+            JsShapePropertyFlags.Open,
+            out var configurableInfo
+        );
         Debug.Assert(valueInfo.Slot == OwnDataDescriptorValueSlot);
         Debug.Assert(writableInfo.Slot == OwnDataDescriptorWritableSlot);
         Debug.Assert(enumerableInfo.Slot == OwnDataDescriptorEnumerableSlot);
@@ -62,10 +80,22 @@ public partial class Intrinsics
 
     private StaticNamedPropertyLayout CreateOwnAccessorDescriptorShape()
     {
-        var shape = Realm.EmptyShape.GetOrAddTransition(IdGet, JsShapePropertyFlags.Open, out var getInfo);
+        var shape = Realm.EmptyShape.GetOrAddTransition(
+            IdGet,
+            JsShapePropertyFlags.Open,
+            out var getInfo
+        );
         shape = shape.GetOrAddTransition(IdSet, JsShapePropertyFlags.Open, out var setInfo);
-        shape = shape.GetOrAddTransition(IdEnumerable, JsShapePropertyFlags.Open, out var enumerableInfo);
-        shape = shape.GetOrAddTransition(IdConfigurable, JsShapePropertyFlags.Open, out var configurableInfo);
+        shape = shape.GetOrAddTransition(
+            IdEnumerable,
+            JsShapePropertyFlags.Open,
+            out var enumerableInfo
+        );
+        shape = shape.GetOrAddTransition(
+            IdConfigurable,
+            JsShapePropertyFlags.Open,
+            out var configurableInfo
+        );
         Debug.Assert(getInfo.Slot == OwnAccessorDescriptorGetSlot);
         Debug.Assert(setInfo.Slot == OwnAccessorDescriptorSetSlot);
         Debug.Assert(enumerableInfo.Slot == OwnAccessorDescriptorEnumerableSlot);
@@ -75,287 +105,418 @@ public partial class Intrinsics
 
     private void InstallObjectConstructorBuiltins()
     {
-        var createFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            if (args.Length == 0)
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Object.create prototype must be object or null");
-
-            JsObject? proto;
-            if (args[0].IsNull) proto = null;
-            else if (args[0].TryGetObject(out var protoObj)) proto = protoObj;
-            else
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Object.create prototype must be object or null");
-
-            var obj = new JsPlainObject(realm, false) { Prototype = proto };
-            if (args.Length > 1 && !args[1].IsUndefined)
+        var createFn = new JsHostFunction(
+            Realm,
+            (in info) =>
             {
-                if (!realm.TryToObject(args[1], out var props))
-                    throw new JsRuntimeException(JsErrorKind.TypeError,
-                        "Object.create properties must not be null or undefined");
-                ApplyPropertyDescriptorsFromObject(realm, obj, props);
-            }
+                var realm = info.Realm;
+                var args = info.Arguments;
+                if (args.Length == 0)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Object.create prototype must be object or null"
+                    );
 
-            return obj;
-        }, "create", 2);
-        var getPrototypeOfFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            if (args.Length == 0 || !realm.TryToObject(args[0], out var target))
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Object.getPrototypeOf target must not be null or undefined");
-            return target.GetPrototypeOf(realm) ?? JsValue.Null;
-        }, "getPrototypeOf", 1);
-        var setPrototypeOfFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var args = info.Arguments;
-            if (args.Length < 2)
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Object.setPrototypeOf requires target and prototype");
+                JsObject? proto;
+                if (args[0].IsNull)
+                    proto = null;
+                else if (args[0].TryGetObject(out var protoObj))
+                    proto = protoObj;
+                else
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Object.create prototype must be object or null"
+                    );
 
-            var targetValue = args[0];
-            if (targetValue.IsNull || targetValue.IsUndefined)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Object.setPrototypeOf target must be object");
-
-            JsObject? proto;
-            if (args[1].IsNull) proto = null;
-            else if (args[1].TryGetObject(out var p)) proto = p;
-            else
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Object.setPrototypeOf prototype must be object or null");
-
-            if (!targetValue.TryGetObject(out var target))
-                return targetValue;
-
-            var ok = ProxyCore.SetPrototypeOnTarget(info.Realm, target, proto);
-
-            if (!ok)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Object.setPrototypeOf failed");
-            return targetValue;
-        }, "setPrototypeOf", 2);
-        var preventExtensionsFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var args = info.Arguments;
-            if (args.Length == 0 || !args[0].TryGetObject(out var target))
-                return args.Length == 0 ? JsValue.Undefined : args[0];
-
-            ProxyCore.PreventExtensionsOnTarget(info.Realm, target);
-            if (target is not IProxyObject && target.IsExtensible)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Object.preventExtensions failed");
-            return args[0];
-        }, "preventExtensions", 1);
-        var isExtensibleFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var args = info.Arguments;
-            if (args.Length == 0 || !args[0].TryGetObject(out var target))
-                return JsValue.False;
-
-            return ProxyCore.QueryIsExtensible(info.Realm, target) ? JsValue.True : JsValue.False;
-        }, "isExtensible", 1);
-        var sealFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var args = info.Arguments;
-            if (args.Length == 0 || !args[0].TryGetObject(out var target))
-                return args[0];
-
-            target.SealDataProperties();
-            target.PreventExtensions();
-            if (target.IsExtensible)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Object.seal failed");
-            return args[0];
-        }, "seal", 1);
-        var freezeFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var args = info.Arguments;
-            if (args.Length == 0 || !args[0].TryGetObject(out var target))
-                return args[0];
-
-            target.FreezeDataProperties();
-            target.PreventExtensions();
-            if (target.IsExtensible)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Object.freeze failed");
-            return args[0];
-        }, "freeze", 1);
-        var isSealedFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            if (args.Length == 0 || !args[0].TryGetObject(out var target))
-                return JsValue.False;
-
-            return !QueryIsExtensibleForIntegrityLevel(realm, target) &&
-                   AreAllOwnPropertiesSealedForIntegrityLevel(realm, target)
-                ? JsValue.True
-                : JsValue.False;
-        }, "isSealed", 1);
-        var isFrozenFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            if (args.Length == 0 || !args[0].TryGetObject(out var target))
-                return JsValue.False;
-
-            return !QueryIsExtensibleForIntegrityLevel(realm, target) &&
-                   AreAllOwnPropertiesFrozenForIntegrityLevel(realm, target)
-                ? JsValue.True
-                : JsValue.False;
-        }, "isFrozen", 1);
-        var getOwnPropertyDescriptorFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            if (args.Length < 2 || !realm.TryToObject(args[0], out var target))
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Object.getOwnPropertyDescriptor target must not be null or undefined");
-
-            return GetOwnPropertyDescriptorByKey(realm, target, JsRealm.NormalizePropertyKey(realm, args[1]));
-        }, "getOwnPropertyDescriptor", 2);
-        var definePropertyFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            if (args.Length < 3 || !args[0].TryGetObject(out var target))
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Object.defineProperty target must be object");
-
-            DefinePropertyFromDescriptorValue(realm, target, args[1], args[2]);
-            return args[0];
-        }, "defineProperty", 3);
-        var definePropertiesFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            if (args.Length < 2 || !args[0].TryGetObject(out var target))
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Object.defineProperties target must be object");
-
-            if (!realm.TryToObject(args[1], out var props))
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Object.defineProperties descriptors must not be null or undefined");
-            ApplyPropertyDescriptorsFromObject(realm, target, props);
-
-            return args[0];
-        }, "defineProperties", 2);
-        var assignFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            if (IsCurrentCallConstruct(realm))
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Object.assign is not a constructor");
-
-            if (args.Length == 0 || !realm.TryToObject(args[0], out var to))
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Cannot convert undefined or null to object");
-
-            if (args.Length == 1)
-                return to;
-
-            var elementIndices = Realm.RentScratchList<uint>(8);
-            var enumerableNamedAtoms = Realm.RentScratchList<int>(8);
-            try
-            {
-                for (var srcIndex = 1; srcIndex < args.Length; srcIndex++)
+                var obj = new JsPlainObject(realm, false) { Prototype = proto };
+                if (args.Length > 1 && !args[1].IsUndefined)
                 {
-                    var nextSource = args[srcIndex];
-                    if (nextSource.IsNull || nextSource.IsUndefined)
-                        continue;
-                    if (!realm.TryToObject(nextSource, out var from))
-                        continue;
+                    if (!realm.TryToObject(args[1], out var props))
+                        throw new JsRuntimeException(
+                            JsErrorKind.TypeError,
+                            "Object.create properties must not be null or undefined"
+                        );
+                    ApplyPropertyDescriptorsFromObject(realm, obj, props);
+                }
 
-                    if (TryAssignFromProxySource(realm, from, to))
-                        continue;
+                return obj;
+            },
+            "create",
+            2
+        );
+        var getPrototypeOfFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                if (args.Length == 0 || !realm.TryToObject(args[0], out var target))
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Object.getPrototypeOf target must not be null or undefined"
+                    );
+                return target.GetPrototypeOf(realm) ?? JsValue.Null;
+            },
+            "getPrototypeOf",
+            1
+        );
+        var setPrototypeOfFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var args = info.Arguments;
+                if (args.Length < 2)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Object.setPrototypeOf requires target and prototype"
+                    );
 
-                    if (from is JsStringObject stringSource)
+                var targetValue = args[0];
+                if (targetValue.IsNull || targetValue.IsUndefined)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Object.setPrototypeOf target must be object"
+                    );
+
+                JsObject? proto;
+                if (args[1].IsNull)
+                    proto = null;
+                else if (args[1].TryGetObject(out var p))
+                    proto = p;
+                else
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Object.setPrototypeOf prototype must be object or null"
+                    );
+
+                if (!targetValue.TryGetObject(out var target))
+                    return targetValue;
+
+                var ok = ProxyCore.SetPrototypeOnTarget(info.Realm, target, proto);
+
+                if (!ok)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Object.setPrototypeOf failed"
+                    );
+                return targetValue;
+            },
+            "setPrototypeOf",
+            2
+        );
+        var preventExtensionsFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var args = info.Arguments;
+                if (args.Length == 0 || !args[0].TryGetObject(out var target))
+                    return args.Length == 0 ? JsValue.Undefined : args[0];
+
+                ProxyCore.PreventExtensionsOnTarget(info.Realm, target);
+                if (target is not IProxyObject && target.IsExtensible)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Object.preventExtensions failed"
+                    );
+                return args[0];
+            },
+            "preventExtensions",
+            1
+        );
+        var isExtensibleFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var args = info.Arguments;
+                if (args.Length == 0 || !args[0].TryGetObject(out var target))
+                    return JsValue.False;
+
+                return ProxyCore.QueryIsExtensible(info.Realm, target)
+                    ? JsValue.True
+                    : JsValue.False;
+            },
+            "isExtensible",
+            1
+        );
+        var sealFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var args = info.Arguments;
+                if (args.Length == 0 || !args[0].TryGetObject(out var target))
+                    return args[0];
+
+                target.SealDataProperties();
+                target.PreventExtensions();
+                if (target.IsExtensible)
+                    throw new JsRuntimeException(JsErrorKind.TypeError, "Object.seal failed");
+                return args[0];
+            },
+            "seal",
+            1
+        );
+        var freezeFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var args = info.Arguments;
+                if (args.Length == 0 || !args[0].TryGetObject(out var target))
+                    return args[0];
+
+                target.FreezeDataProperties();
+                target.PreventExtensions();
+                if (target.IsExtensible)
+                    throw new JsRuntimeException(JsErrorKind.TypeError, "Object.freeze failed");
+                return args[0];
+            },
+            "freeze",
+            1
+        );
+        var isSealedFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                if (args.Length == 0 || !args[0].TryGetObject(out var target))
+                    return JsValue.False;
+
+                return
+                    !QueryIsExtensibleForIntegrityLevel(realm, target)
+                    && AreAllOwnPropertiesSealedForIntegrityLevel(realm, target)
+                    ? JsValue.True
+                    : JsValue.False;
+            },
+            "isSealed",
+            1
+        );
+        var isFrozenFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                if (args.Length == 0 || !args[0].TryGetObject(out var target))
+                    return JsValue.False;
+
+                return
+                    !QueryIsExtensibleForIntegrityLevel(realm, target)
+                    && AreAllOwnPropertiesFrozenForIntegrityLevel(realm, target)
+                    ? JsValue.True
+                    : JsValue.False;
+            },
+            "isFrozen",
+            1
+        );
+        var getOwnPropertyDescriptorFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                if (args.Length < 2 || !realm.TryToObject(args[0], out var target))
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Object.getOwnPropertyDescriptor target must not be null or undefined"
+                    );
+
+                return GetOwnPropertyDescriptorByKey(
+                    realm,
+                    target,
+                    JsRealm.NormalizePropertyKey(realm, args[1])
+                );
+            },
+            "getOwnPropertyDescriptor",
+            2
+        );
+        var definePropertyFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                if (args.Length < 3 || !args[0].TryGetObject(out var target))
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Object.defineProperty target must be object"
+                    );
+
+                DefinePropertyFromDescriptorValue(realm, target, args[1], args[2]);
+                return args[0];
+            },
+            "defineProperty",
+            3
+        );
+        var definePropertiesFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                if (args.Length < 2 || !args[0].TryGetObject(out var target))
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Object.defineProperties target must be object"
+                    );
+
+                if (!realm.TryToObject(args[1], out var props))
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Object.defineProperties descriptors must not be null or undefined"
+                    );
+                ApplyPropertyDescriptorsFromObject(realm, target, props);
+
+                return args[0];
+            },
+            "defineProperties",
+            2
+        );
+        var assignFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                if (IsCurrentCallConstruct(realm))
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Object.assign is not a constructor"
+                    );
+
+                if (args.Length == 0 || !realm.TryToObject(args[0], out var to))
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Cannot convert undefined or null to object"
+                    );
+
+                if (args.Length == 1)
+                    return to;
+
+                var elementIndices = Realm.RentScratchList<uint>(8);
+                var enumerableNamedAtoms = Realm.RentScratchList<int>(8);
+                try
+                {
+                    for (var srcIndex = 1; srcIndex < args.Length; srcIndex++)
                     {
-                        for (uint key = 0; key < (uint)stringSource.Value.Length; key++)
+                        var nextSource = args[srcIndex];
+                        if (nextSource.IsNull || nextSource.IsUndefined)
+                            continue;
+                        if (!realm.TryToObject(nextSource, out var from))
+                            continue;
+
+                        if (TryAssignFromProxySource(realm, from, to))
+                            continue;
+
+                        if (from is JsStringObject stringSource)
                         {
-                            _ = from.TryGetElement(key, out var propValue);
-                            if (!to.TrySetElement(key, propValue))
-                                throw new JsRuntimeException(JsErrorKind.TypeError,
-                                    "Cannot assign to read only property");
+                            for (uint key = 0; key < (uint)stringSource.Value.Length; key++)
+                            {
+                                _ = from.TryGetElement(key, out var propValue);
+                                if (!to.TrySetElement(key, propValue))
+                                    throw new JsRuntimeException(
+                                        JsErrorKind.TypeError,
+                                        "Cannot assign to read only property"
+                                    );
+                            }
                         }
-                    }
-                    else if (from is JsArray arraySource)
-                    {
-                        for (uint key = 0; key < arraySource.Length; key++)
+                        else if (from is JsArray arraySource)
                         {
-                            if (!from.TryGetOwnElementDescriptor(key, out var desc) || !desc.Enumerable)
-                                continue;
-                            _ = from.TryGetElement(key, out var propValue);
-                            if (!to.TrySetElement(key, propValue))
-                                throw new JsRuntimeException(JsErrorKind.TypeError,
-                                    "Cannot assign to read only property");
+                            for (uint key = 0; key < arraySource.Length; key++)
+                            {
+                                if (
+                                    !from.TryGetOwnElementDescriptor(key, out var desc)
+                                    || !desc.Enumerable
+                                )
+                                    continue;
+                                _ = from.TryGetElement(key, out var propValue);
+                                if (!to.TrySetElement(key, propValue))
+                                    throw new JsRuntimeException(
+                                        JsErrorKind.TypeError,
+                                        "Cannot assign to read only property"
+                                    );
+                            }
                         }
-                    }
-                    else
-                    {
-                        elementIndices.Clear();
-                        from.CollectOwnElementIndices(elementIndices, false);
-                        if (elementIndices.Count != 0)
-                            elementIndices.Sort();
-                        for (var i = 0; i < elementIndices.Count; i++)
+                        else
                         {
-                            var key = elementIndices[i];
-                            if (!from.TryGetOwnElementDescriptor(key, out var desc) || !desc.Enumerable)
-                                continue;
-                            _ = from.TryGetElement(key, out var propValue);
-                            if (!to.TrySetElement(key, propValue))
-                                throw new JsRuntimeException(JsErrorKind.TypeError,
-                                    "Cannot assign to read only property");
+                            elementIndices.Clear();
+                            from.CollectOwnElementIndices(elementIndices, false);
+                            if (elementIndices.Count != 0)
+                                elementIndices.Sort();
+                            for (var i = 0; i < elementIndices.Count; i++)
+                            {
+                                var key = elementIndices[i];
+                                if (
+                                    !from.TryGetOwnElementDescriptor(key, out var desc)
+                                    || !desc.Enumerable
+                                )
+                                    continue;
+                                _ = from.TryGetElement(key, out var propValue);
+                                if (!to.TrySetElement(key, propValue))
+                                    throw new JsRuntimeException(
+                                        JsErrorKind.TypeError,
+                                        "Cannot assign to read only property"
+                                    );
+                            }
                         }
-                    }
 
-                    enumerableNamedAtoms.Clear();
-                    from.CollectOwnNamedPropertyAtoms(realm, enumerableNamedAtoms, true);
-                    for (var i = 0; i < enumerableNamedAtoms.Count; i++)
-                    {
-                        var atom = enumerableNamedAtoms[i];
-                        if (atom < 0)
-                            continue;
-                        if (!from.TryGetPropertyAtom(realm, atom, out var propValue, out _))
-                            continue;
-                        if (!to.TrySetPropertyAtom(realm, atom, propValue, out _))
-                            throw new JsRuntimeException(JsErrorKind.TypeError,
-                                "Cannot assign to read only property");
-                    }
-
-                    for (var i = 0; i < enumerableNamedAtoms.Count; i++)
-                    {
-                        var atom = enumerableNamedAtoms[i];
-                        if (atom >= 0)
-                            continue;
-                        if (!from.TryGetPropertyAtom(realm, atom, out var propValue, out _))
-                            continue;
-                        if (!to.TrySetPropertyAtom(realm, atom, propValue, out _))
-                            throw new JsRuntimeException(JsErrorKind.TypeError,
-                                "Cannot assign to read only property");
-                    }
-
-                    if (from is JsGlobalObject globalSource)
-                        foreach (var pair in globalSource.EnumerateNamedGlobalDescriptors())
+                        enumerableNamedAtoms.Clear();
+                        from.CollectOwnNamedPropertyAtoms(realm, enumerableNamedAtoms, true);
+                        for (var i = 0; i < enumerableNamedAtoms.Count; i++)
                         {
-                            var atom = pair.Key;
-                            var desc = pair.Value;
-                            if (!desc.Enumerable)
+                            var atom = enumerableNamedAtoms[i];
+                            if (atom < 0)
                                 continue;
                             if (!from.TryGetPropertyAtom(realm, atom, out var propValue, out _))
                                 continue;
                             if (!to.TrySetPropertyAtom(realm, atom, propValue, out _))
-                                throw new JsRuntimeException(JsErrorKind.TypeError,
-                                    "Cannot assign to read only property");
+                                throw new JsRuntimeException(
+                                    JsErrorKind.TypeError,
+                                    "Cannot assign to read only property"
+                                );
                         }
-                }
-            }
-            finally
-            {
-                Realm.ReturnScratchList(enumerableNamedAtoms);
-                Realm.ReturnScratchList(elementIndices);
-            }
 
-            return to;
-        }, "assign", 2);
+                        for (var i = 0; i < enumerableNamedAtoms.Count; i++)
+                        {
+                            var atom = enumerableNamedAtoms[i];
+                            if (atom >= 0)
+                                continue;
+                            if (!from.TryGetPropertyAtom(realm, atom, out var propValue, out _))
+                                continue;
+                            if (!to.TrySetPropertyAtom(realm, atom, propValue, out _))
+                                throw new JsRuntimeException(
+                                    JsErrorKind.TypeError,
+                                    "Cannot assign to read only property"
+                                );
+                        }
+
+                        if (from is JsGlobalObject globalSource)
+                            foreach (var pair in globalSource.EnumerateNamedGlobalDescriptors())
+                            {
+                                var atom = pair.Key;
+                                var desc = pair.Value;
+                                if (!desc.Enumerable)
+                                    continue;
+                                if (!from.TryGetPropertyAtom(realm, atom, out var propValue, out _))
+                                    continue;
+                                if (!to.TrySetPropertyAtom(realm, atom, propValue, out _))
+                                    throw new JsRuntimeException(
+                                        JsErrorKind.TypeError,
+                                        "Cannot assign to read only property"
+                                    );
+                            }
+                    }
+                }
+                finally
+                {
+                    Realm.ReturnScratchList(enumerableNamedAtoms);
+                    Realm.ReturnScratchList(elementIndices);
+                }
+
+                return to;
+            },
+            "assign",
+            2
+        );
 
         static bool IsCurrentCallConstruct(JsRealm realm)
         {
@@ -365,8 +526,9 @@ public partial class Intrinsics
         static bool TryAssignFromProxySource(JsRealm realm, JsObject from, JsObject to)
         {
             JsObject? proxyTarget = null;
-            var isProxy = from.TryGetOwnKeysTrapKeys(realm, out var trapKeys) ||
-                          from.TryGetProxyTarget(out proxyTarget);
+            var isProxy =
+                from.TryGetOwnKeysTrapKeys(realm, out var trapKeys)
+                || from.TryGetProxyTarget(out proxyTarget);
 
             if (!isProxy)
                 return false;
@@ -403,8 +565,12 @@ public partial class Intrinsics
             }
         }
 
-        static void CollectOwnPropertyKeysForProxyFallback(JsRealm realm, JsObject source, List<JsValue> keysOut,
-            bool includeSymbols)
+        static void CollectOwnPropertyKeysForProxyFallback(
+            JsRealm realm,
+            JsObject source,
+            List<JsValue> keysOut,
+            bool includeSymbols
+        )
         {
             var elementIndices = realm.RentScratchList<uint>(8);
             var seenStringAtoms = realm.RentScratchHashSet<int>();
@@ -416,7 +582,9 @@ public partial class Intrinsics
                 if (elementIndices.Count != 0)
                     elementIndices.Sort();
                 for (var i = 0; i < elementIndices.Count; i++)
-                    keysOut.Add(JsValue.FromString(elementIndices[i].ToString(CultureInfo.InvariantCulture)));
+                    keysOut.Add(
+                        JsValue.FromString(elementIndices[i].ToString(CultureInfo.InvariantCulture))
+                    );
 
                 source.CollectOwnNamedPropertyAtoms(realm, namedAtoms, false);
                 for (var i = 0; i < namedAtoms.Count; i++)
@@ -469,8 +637,12 @@ public partial class Intrinsics
             }
         }
 
-        static bool TryGetOwnEnumerableForAssign(JsRealm realm, JsObject source, in JsValue key,
-            out bool enumerable)
+        static bool TryGetOwnEnumerableForAssign(
+            JsRealm realm,
+            JsObject source,
+            in JsValue key,
+            out bool enumerable
+        )
         {
             return TryGetOwnEnumerableCore(realm, source, key, out enumerable);
         }
@@ -482,319 +654,456 @@ public partial class Intrinsics
             {
                 _ = from.TryGetElement(index, out var indexValue);
                 if (!to.TrySetElement(index, indexValue))
-                    throw new JsRuntimeException(JsErrorKind.TypeError, "Cannot assign to read only property");
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Cannot assign to read only property"
+                    );
                 return;
             }
 
             if (!from.TryGetPropertyAtom(realm, atom, out var propValue, out _))
                 return;
             if (!to.TrySetPropertyAtom(realm, atom, propValue, out _))
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Cannot assign to read only property");
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Cannot assign to read only property"
+                );
         }
 
-        var entriesFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            if (args.Length == 0 || !realm.TryToObject(args[0], out var from))
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Object.entries target must not be null or undefined");
-
-            var keys = realm.RentScratchList<JsValue>(8);
-            try
+        var entriesFn = new JsHostFunction(
+            Realm,
+            (in info) =>
             {
-                CollectOwnPropertyKeysForDefineProperties(realm, from, keys);
+                var realm = info.Realm;
+                var args = info.Arguments;
+                if (args.Length == 0 || !realm.TryToObject(args[0], out var from))
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Object.entries target must not be null or undefined"
+                    );
 
+                var keys = realm.RentScratchList<JsValue>(8);
+                try
+                {
+                    CollectOwnPropertyKeysForDefineProperties(realm, from, keys);
+
+                    var result = realm.CreateArrayObject();
+                    uint outIndex = 0;
+                    for (var i = 0; i < keys.Count; i++)
+                    {
+                        var key = keys[i];
+                        if (!key.IsString)
+                            continue;
+
+                        if (
+                            !TryGetOwnEnumerableForAssign(realm, from, key, out var enumerable)
+                            || !enumerable
+                        )
+                            continue;
+
+                        var isIndex = realm.TryResolvePropertyKey(key, out var index, out var atom);
+
+                        JsValue value;
+                        if (isIndex)
+                            _ = from.TryGetElement(index, out value);
+                        else
+                            _ = from.TryGetPropertyAtom(realm, atom, out value, out _);
+
+                        var pair = realm.CreateArrayObject();
+                        FreshArrayOperations.DefineElement(pair, 0, key);
+                        FreshArrayOperations.DefineElement(pair, 1, value);
+                        FreshArrayOperations.DefineElement(
+                            result,
+                            outIndex++,
+                            JsValue.FromObject(pair)
+                        );
+                    }
+
+                    return result;
+                }
+                finally
+                {
+                    realm.ReturnScratchList(keys);
+                }
+            },
+            "entries",
+            1
+        );
+        var fromEntriesFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                if (args.Length == 0 || !realm.TryToObject(args[0], out var iterable))
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Object.fromEntries iterable must not be null or undefined"
+                    );
+
+                var result = new JsPlainObject(realm);
+                if (iterable is JsArray array)
+                {
+                    for (uint i = 0; i < array.Length; i++)
+                    {
+                        if (!array.TryGetElement(i, out var entryValue))
+                            continue;
+                        AddEntryToObjectFromEntries(realm, result, entryValue);
+                    }
+
+                    return result;
+                }
+
+                var iterator = GetIteratorObjectForFromEntries(realm, iterable);
+                try
+                {
+                    while (true)
+                    {
+                        var nextResult = StepIteratorForFromEntries(realm, iterator, out var done);
+                        if (done)
+                            break;
+
+                        AddEntryToObjectFromEntries(realm, result, nextResult);
+                    }
+                }
+                catch
+                {
+                    realm.BestEffortIteratorCloseOnThrow(iterator);
+                    throw;
+                }
+
+                return result;
+            },
+            "fromEntries",
+            1
+        );
+        var getOwnPropertyDescriptorsFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                if (args.Length < 1 || !realm.TryToObject(args[0], out var target))
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Object.getOwnPropertyDescriptors target must not be null or undefined"
+                    );
+
+                var outObj = new JsPlainObject(realm);
+                var keys = OwnKeysHelpers.CollectForProxy(realm, target);
+                for (var i = 0; i < keys.Count; i++)
+                {
+                    var key = keys[i];
+                    var descriptor = GetOwnPropertyDescriptorByKey(realm, target, key);
+                    if (descriptor.IsUndefined)
+                        continue;
+
+                    if (key.IsSymbol)
+                    {
+                        outObj.DefineDataPropertyAtom(
+                            realm,
+                            key.AsSymbol().Atom,
+                            descriptor,
+                            JsShapePropertyFlags.Open
+                        );
+                        continue;
+                    }
+
+                    if (realm.TryResolvePropertyKey(key, out var index, out var atom))
+                        outObj.SetElement(index, descriptor);
+                    else
+                        outObj.DefineDataPropertyAtom(
+                            realm,
+                            atom,
+                            descriptor,
+                            JsShapePropertyFlags.Open
+                        );
+                }
+
+                return outObj;
+            },
+            "getOwnPropertyDescriptors",
+            1
+        );
+        var getOwnPropertySymbolsFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                if (args.Length < 1 || !realm.TryToObject(args[0], out var target))
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Object.getOwnPropertySymbols target must not be null or undefined"
+                    );
+
+                var keys = OwnKeysHelpers.CollectForProxy(realm, target);
                 var result = realm.CreateArrayObject();
                 uint outIndex = 0;
                 for (var i = 0; i < keys.Count; i++)
                 {
                     var key = keys[i];
-                    if (!key.IsString)
-                        continue;
-
-                    if (!TryGetOwnEnumerableForAssign(realm, from, key, out var enumerable) || !enumerable)
-                        continue;
-
-                    var isIndex = realm.TryResolvePropertyKey(key, out var index, out var atom);
-
-                    JsValue value;
-                    if (isIndex)
-                        _ = from.TryGetElement(index, out value);
-                    else
-                        _ = from.TryGetPropertyAtom(realm, atom, out value, out _);
-
-                    var pair = realm.CreateArrayObject();
-                    FreshArrayOperations.DefineElement(pair, 0, key);
-                    FreshArrayOperations.DefineElement(pair, 1, value);
-                    FreshArrayOperations.DefineElement(result, outIndex++, JsValue.FromObject(pair));
+                    if (key.IsSymbol)
+                        FreshArrayOperations.DefineElement(result, outIndex++, key);
                 }
 
                 return result;
-            }
-            finally
+            },
+            "getOwnPropertySymbols",
+            1
+        );
+        var groupByFn = new JsHostFunction(
+            Realm,
+            (in info) =>
             {
-                realm.ReturnScratchList(keys);
-            }
-        }, "entries", 1);
-        var fromEntriesFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            if (args.Length == 0 || !realm.TryToObject(args[0], out var iterable))
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Object.fromEntries iterable must not be null or undefined");
+                var realm = info.Realm;
+                var args = info.Arguments;
+                if (args.Length == 0 || !realm.TryToObject(args[0], out var items))
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Object.groupBy items must not be null or undefined"
+                    );
 
-            var result = new JsPlainObject(realm);
-            if (iterable is JsArray array)
-            {
-                for (uint i = 0; i < array.Length; i++)
+                if (
+                    args.Length < 2
+                    || !args[1].TryGetObject(out var callbackObj)
+                    || callbackObj is not JsFunction callbackFn
+                )
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Object.groupBy callback must be a function"
+                    );
+
+                var result = new JsPlainObject(realm, false) { Prototype = null };
+
+                if (items is JsArray array)
                 {
-                    if (!array.TryGetElement(i, out var entryValue))
-                        continue;
-                    AddEntryToObjectFromEntries(realm, result, entryValue);
+                    for (uint i = 0; i < array.Length; i++)
+                    {
+                        var value = array.TryGetElement(i, out var existingValue)
+                            ? existingValue
+                            : JsValue.Undefined;
+                        AppendObjectGroupByValueForCallback(realm, result, callbackFn, value, i);
+                    }
                 }
-
-                return result;
-            }
-
-            var iterator = GetIteratorObjectForFromEntries(realm, iterable);
-            try
-            {
-                while (true)
+                else if (items is JsStringObject stringObject)
                 {
-                    var nextResult = StepIteratorForFromEntries(realm, iterator, out var done);
-                    if (done)
-                        break;
-
-                    AddEntryToObjectFromEntries(realm, result, nextResult);
+                    long index = 0;
+                    foreach (var codePoint in stringObject.Value.EnumerateRunes())
+                    {
+                        AppendObjectGroupByValueForCallback(
+                            realm,
+                            result,
+                            callbackFn,
+                            JsValue.FromString(codePoint.ToString()),
+                            index
+                        );
+                        index++;
+                    }
                 }
-            }
-            catch
-            {
-                realm.BestEffortIteratorCloseOnThrow(iterator);
-                throw;
-            }
-
-            return result;
-        }, "fromEntries", 1);
-        var getOwnPropertyDescriptorsFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            if (args.Length < 1 || !realm.TryToObject(args[0], out var target))
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Object.getOwnPropertyDescriptors target must not be null or undefined");
-
-            var outObj = new JsPlainObject(realm);
-            var keys = OwnKeysHelpers.CollectForProxy(realm, target);
-            for (var i = 0; i < keys.Count; i++)
-            {
-                var key = keys[i];
-                var descriptor = GetOwnPropertyDescriptorByKey(realm, target, key);
-                if (descriptor.IsUndefined)
-                    continue;
-
-                if (key.IsSymbol)
-                {
-                    outObj.DefineDataPropertyAtom(realm, key.AsSymbol().Atom, descriptor, JsShapePropertyFlags.Open);
-                    continue;
-                }
-
-                if (realm.TryResolvePropertyKey(key, out var index, out var atom))
-                    outObj.SetElement(index, descriptor);
                 else
-                    outObj.DefineDataPropertyAtom(realm, atom, descriptor, JsShapePropertyFlags.Open);
-            }
-
-            return outObj;
-        }, "getOwnPropertyDescriptors", 1);
-        var getOwnPropertySymbolsFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            if (args.Length < 1 || !realm.TryToObject(args[0], out var target))
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Object.getOwnPropertySymbols target must not be null or undefined");
-
-            var keys = OwnKeysHelpers.CollectForProxy(realm, target);
-            var result = realm.CreateArrayObject();
-            uint outIndex = 0;
-            for (var i = 0; i < keys.Count; i++)
-            {
-                var key = keys[i];
-                if (key.IsSymbol)
-                    FreshArrayOperations.DefineElement(result, outIndex++, key);
-            }
-
-            return result;
-        }, "getOwnPropertySymbols", 1);
-        var groupByFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            if (args.Length == 0 || !realm.TryToObject(args[0], out var items))
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Object.groupBy items must not be null or undefined");
-
-            if (args.Length < 2 || !args[1].TryGetObject(out var callbackObj) ||
-                callbackObj is not JsFunction callbackFn)
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Object.groupBy callback must be a function");
-
-            var result = new JsPlainObject(realm, false) { Prototype = null };
-
-            if (items is JsArray array)
-            {
-                for (uint i = 0; i < array.Length; i++)
                 {
-                    var value = array.TryGetElement(i, out var existingValue) ? existingValue : JsValue.Undefined;
-                    AppendObjectGroupByValueForCallback(realm, result, callbackFn, value, i);
-                }
-            }
-            else if (items is JsStringObject stringObject)
-            {
-                long index = 0;
-                foreach (var codePoint in stringObject.Value.EnumerateRunes())
-                {
-                    AppendObjectGroupByValueForCallback(realm, result, callbackFn,
-                        JsValue.FromString(codePoint.ToString()), index);
-                    index++;
-                }
-            }
-            else
-            {
-                var iterator = GetIteratorObjectForObjectGroupBy(realm, items);
-                long index = 0;
-                while (true)
-                {
-                    var nextValue = StepIteratorForObjectGroupBy(realm, iterator, out var done);
-                    if (done)
-                        break;
+                    var iterator = GetIteratorObjectForObjectGroupBy(realm, items);
+                    long index = 0;
+                    while (true)
+                    {
+                        var nextValue = StepIteratorForObjectGroupBy(realm, iterator, out var done);
+                        if (done)
+                            break;
 
-                    AppendObjectGroupByValueForCallback(realm, result, callbackFn, nextValue, index);
-                    index++;
-                }
-            }
-
-            return result;
-        }, "groupBy", 2);
-        var hasOwnFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            if (args.Length == 0 || !realm.TryToObject(args[0], out var target))
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Object.hasOwn target must not be null or undefined");
-
-            var key = JsRealm.NormalizePropertyKey(realm, args.Length > 1 ? args[1] : JsValue.Undefined);
-            return GetOwnPropertyDescriptorByKey(realm, target, key).IsUndefined ? JsValue.False : JsValue.True;
-        }, "hasOwn", 2);
-        var isFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var args = info.Arguments;
-            if (args.Length < 2) return args.Length == 0 || args[0].IsUndefined ? JsValue.True : JsValue.False;
-
-            var x = args[0];
-            var y = args[1];
-            return JsValue.SameValue(x, y) ? JsValue.True : JsValue.False;
-        }, "is", 2);
-        var valuesFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            if (args.Length == 0 || !realm.TryToObject(args[0], out var from))
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Object.values target must not be null or undefined");
-
-            var keys = Realm.RentScratchList<JsValue>(8);
-            try
-            {
-                CollectOwnPropertyKeysForDefineProperties(realm, from, keys);
-
-                var result = realm.CreateArrayObject();
-                uint outIndex = 0;
-                for (var i = 0; i < keys.Count; i++)
-                {
-                    var key = keys[i];
-                    if (!key.IsString)
-                        continue;
-
-                    if (!TryGetOwnEnumerableForAssign(realm, from, key, out var enumerable) || !enumerable)
-                        continue;
-
-                    var isIndex = realm.TryResolvePropertyKey(key, out var index, out var atom);
-                    JsValue value;
-                    if (isIndex)
-                        _ = from.TryGetElement(index, out value);
-                    else
-                        _ = from.TryGetPropertyAtom(realm, atom, out value, out _);
-
-                    FreshArrayOperations.DefineElement(result, outIndex++, value);
+                        AppendObjectGroupByValueForCallback(
+                            realm,
+                            result,
+                            callbackFn,
+                            nextValue,
+                            index
+                        );
+                        index++;
+                    }
                 }
 
                 return result;
-            }
-            finally
+            },
+            "groupBy",
+            2
+        );
+        var hasOwnFn = new JsHostFunction(
+            Realm,
+            (in info) =>
             {
-                Realm.ReturnScratchList(keys);
-            }
-        }, "values", 1);
+                var realm = info.Realm;
+                var args = info.Arguments;
+                if (args.Length == 0 || !realm.TryToObject(args[0], out var target))
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Object.hasOwn target must not be null or undefined"
+                    );
+
+                var key = JsRealm.NormalizePropertyKey(
+                    realm,
+                    args.Length > 1 ? args[1] : JsValue.Undefined
+                );
+                return GetOwnPropertyDescriptorByKey(realm, target, key).IsUndefined
+                    ? JsValue.False
+                    : JsValue.True;
+            },
+            "hasOwn",
+            2
+        );
+        var isFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var args = info.Arguments;
+                if (args.Length < 2)
+                    return args.Length == 0 || args[0].IsUndefined ? JsValue.True : JsValue.False;
+
+                var x = args[0];
+                var y = args[1];
+                return JsValue.SameValue(x, y) ? JsValue.True : JsValue.False;
+            },
+            "is",
+            2
+        );
+        var valuesFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                if (args.Length == 0 || !realm.TryToObject(args[0], out var from))
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Object.values target must not be null or undefined"
+                    );
+
+                var keys = Realm.RentScratchList<JsValue>(8);
+                try
+                {
+                    CollectOwnPropertyKeysForDefineProperties(realm, from, keys);
+
+                    var result = realm.CreateArrayObject();
+                    uint outIndex = 0;
+                    for (var i = 0; i < keys.Count; i++)
+                    {
+                        var key = keys[i];
+                        if (!key.IsString)
+                            continue;
+
+                        if (
+                            !TryGetOwnEnumerableForAssign(realm, from, key, out var enumerable)
+                            || !enumerable
+                        )
+                            continue;
+
+                        var isIndex = realm.TryResolvePropertyKey(key, out var index, out var atom);
+                        JsValue value;
+                        if (isIndex)
+                            _ = from.TryGetElement(index, out value);
+                        else
+                            _ = from.TryGetPropertyAtom(realm, atom, out value, out _);
+
+                        FreshArrayOperations.DefineElement(result, outIndex++, value);
+                    }
+
+                    return result;
+                }
+                finally
+                {
+                    Realm.ReturnScratchList(keys);
+                }
+            },
+            "values",
+            1
+        );
 
         static JsValue CreateDescriptorObject(JsRealm realm, in PropertyDescriptor descriptor)
         {
             var result = new JsPlainObject(realm);
             if (descriptor.IsAccessor)
             {
-                result.DefineDataPropertyAtom(realm, IdGet,
+                result.DefineDataPropertyAtom(
+                    realm,
+                    IdGet,
                     descriptor.Getter ?? JsValue.Undefined,
-                    JsShapePropertyFlags.Open);
-                result.DefineDataPropertyAtom(realm, IdSet,
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    realm,
+                    IdSet,
                     descriptor.Setter ?? JsValue.Undefined,
-                    JsShapePropertyFlags.Open);
+                    JsShapePropertyFlags.Open
+                );
             }
             else
             {
-                result.DefineDataPropertyAtom(realm, IdValue, descriptor.Value, JsShapePropertyFlags.Open);
-                result.DefineDataPropertyAtom(realm, IdWritable, new(descriptor.Writable),
-                    JsShapePropertyFlags.Open);
+                result.DefineDataPropertyAtom(
+                    realm,
+                    IdValue,
+                    descriptor.Value,
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    realm,
+                    IdWritable,
+                    new(descriptor.Writable),
+                    JsShapePropertyFlags.Open
+                );
             }
 
-            result.DefineDataPropertyAtom(realm, IdEnumerable, new(descriptor.Enumerable),
-                JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(realm, IdConfigurable, new(descriptor.Configurable),
-                JsShapePropertyFlags.Open);
+            result.DefineDataPropertyAtom(
+                realm,
+                IdEnumerable,
+                new(descriptor.Enumerable),
+                JsShapePropertyFlags.Open
+            );
+            result.DefineDataPropertyAtom(
+                realm,
+                IdConfigurable,
+                new(descriptor.Configurable),
+                JsShapePropertyFlags.Open
+            );
             return result;
         }
 
         static JsObject GetIteratorObjectForFromEntries(JsRealm realm, JsObject iterable)
         {
-            return realm.GetIteratorObjectForIterable(iterable,
+            return realm.GetIteratorObjectForIterable(
+                iterable,
                 "Object.fromEntries value is not iterable",
-                "Object.fromEntries iterator result must be object");
+                "Object.fromEntries iterator result must be object"
+            );
         }
 
         static JsValue StepIteratorForFromEntries(JsRealm realm, JsObject iterator, out bool done)
         {
-            return JsRealm.StepIteratorForIterable(realm, iterator,
+            return JsRealm.StepIteratorForIterable(
+                realm,
+                iterator,
                 "Object.fromEntries iterator.next is not a function",
                 "Object.fromEntries iterator result must be object",
-                out done);
+                out done
+            );
         }
 
         static JsObject GetIteratorObjectForObjectGroupBy(JsRealm realm, JsObject iterable)
         {
-            return realm.GetIteratorObjectForIterable(iterable,
+            return realm.GetIteratorObjectForIterable(
+                iterable,
                 "Object.groupBy value is not iterable",
-                "Object.groupBy iterator result must be object");
+                "Object.groupBy iterator result must be object"
+            );
         }
 
         static JsValue StepIteratorForObjectGroupBy(JsRealm realm, JsObject iterator, out bool done)
         {
-            return JsRealm.StepIteratorForIterable(realm, iterator,
+            return JsRealm.StepIteratorForIterable(
+                realm,
+                iterator,
                 "Object.groupBy iterator.next is not a function",
                 "Object.groupBy iterator result must be object",
-                out done);
+                out done
+            );
         }
 
         static JsValue NormalizeObjectGroupByKey(JsRealm realm, in JsValue key)
@@ -814,28 +1123,38 @@ public partial class Intrinsics
             JsPlainObject result,
             JsFunction callbackFn,
             in JsValue value,
-            long index)
+            long index
+        )
         {
             var callbackArgs = new InlineJsValueArray2
             {
                 Item0 = value,
-                Item1 = index <= int.MaxValue ? JsValue.FromInt32((int)index) : new(index)
+                Item1 = index <= int.MaxValue ? JsValue.FromInt32((int)index) : new(index),
             };
             var rawKey = realm.InvokeFunction(callbackFn, JsValue.Undefined, callbackArgs.AsSpan());
             var normalizedKey = NormalizeObjectGroupByKey(realm, rawKey);
             AppendObjectGroupByValue(realm, result, normalizedKey, value);
         }
 
-        static void AppendObjectGroupByValue(JsRealm realm, JsPlainObject result, in JsValue key, in JsValue value)
+        static void AppendObjectGroupByValue(
+            JsRealm realm,
+            JsPlainObject result,
+            in JsValue key,
+            in JsValue value
+        )
         {
             if (realm.TryResolvePropertyKey(key, out var index, out var atom))
             {
                 if (result.TryGetElement(index, out var existingIndexGroup))
                 {
-                    if (!existingIndexGroup.TryGetObject(out var existingIndexGroupObj) ||
-                        existingIndexGroupObj is not JsArray existingIndexArray)
-                        throw new JsRuntimeException(JsErrorKind.TypeError,
-                            "Object.groupBy internal group must be an array");
+                    if (
+                        !existingIndexGroup.TryGetObject(out var existingIndexGroupObj)
+                        || existingIndexGroupObj is not JsArray existingIndexArray
+                    )
+                        throw new JsRuntimeException(
+                            JsErrorKind.TypeError,
+                            "Object.groupBy internal group must be an array"
+                        );
                     existingIndexArray.SetElement(existingIndexArray.Length, value);
                     return;
                 }
@@ -848,24 +1167,39 @@ public partial class Intrinsics
 
             if (result.TryGetPropertyAtom(realm, atom, out var existingGroup, out _))
             {
-                if (!existingGroup.TryGetObject(out var existingGroupObj) ||
-                    existingGroupObj is not JsArray existingArray)
-                    throw new JsRuntimeException(JsErrorKind.TypeError,
-                        "Object.groupBy internal group must be an array");
+                if (
+                    !existingGroup.TryGetObject(out var existingGroupObj)
+                    || existingGroupObj is not JsArray existingArray
+                )
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Object.groupBy internal group must be an array"
+                    );
                 existingArray.SetElement(existingArray.Length, value);
                 return;
             }
 
             var newGroupArray = realm.CreateArrayObject();
             newGroupArray.SetElement(0, value);
-            result.DefineDataPropertyAtom(realm, atom, JsValue.FromObject(newGroupArray), JsShapePropertyFlags.Open);
+            result.DefineDataPropertyAtom(
+                realm,
+                atom,
+                JsValue.FromObject(newGroupArray),
+                JsShapePropertyFlags.Open
+            );
         }
 
-        static void AddEntryToObjectFromEntries(JsRealm realm, JsPlainObject target, in JsValue entryValue)
+        static void AddEntryToObjectFromEntries(
+            JsRealm realm,
+            JsPlainObject target,
+            in JsValue entryValue
+        )
         {
             if (!entryValue.TryGetObject(out var entry))
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Object.fromEntries iterator value must be an object");
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Object.fromEntries iterator value must be an object"
+                );
 
             var key = entry.TryGetElement(0, out var keyValue) ? keyValue : JsValue.Undefined;
             var value = entry.TryGetElement(1, out var valueValue) ? valueValue : JsValue.Undefined;
@@ -894,10 +1228,18 @@ public partial class Intrinsics
                 if (descriptor.IsUndefined)
                     continue;
                 if (!descriptor.TryGetObject(out var descriptorObj))
-                    throw new JsRuntimeException(JsErrorKind.TypeError,
-                        "Object.isSealed descriptor must be object");
-                if (!descriptorObj.TryGetPropertyAtom(realm, IdConfigurable, out var configurableValue, out _) ||
-                    DescriptorUtilities.ToBooleanForDescriptor(configurableValue))
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Object.isSealed descriptor must be object"
+                    );
+                if (
+                    !descriptorObj.TryGetPropertyAtom(
+                        realm,
+                        IdConfigurable,
+                        out var configurableValue,
+                        out _
+                    ) || DescriptorUtilities.ToBooleanForDescriptor(configurableValue)
+                )
                     allSealed = false;
             }
 
@@ -917,24 +1259,44 @@ public partial class Intrinsics
                 if (descriptor.IsUndefined)
                     continue;
                 if (!descriptor.TryGetObject(out var descriptorObj))
-                    throw new JsRuntimeException(JsErrorKind.TypeError,
-                        "Object.isFrozen descriptor must be object");
-                if (!descriptorObj.TryGetPropertyAtom(realm, IdConfigurable, out var configurableValue, out _) ||
-                    DescriptorUtilities.ToBooleanForDescriptor(configurableValue))
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Object.isFrozen descriptor must be object"
+                    );
+                if (
+                    !descriptorObj.TryGetPropertyAtom(
+                        realm,
+                        IdConfigurable,
+                        out var configurableValue,
+                        out _
+                    ) || DescriptorUtilities.ToBooleanForDescriptor(configurableValue)
+                )
                     allFrozen = false;
 
-                var isAccessor = descriptorObj.TryGetPropertyAtom(realm, IdGet, out _, out _) ||
-                                 descriptorObj.TryGetPropertyAtom(realm, IdSet, out _, out _);
-                if (!isAccessor &&
-                    descriptorObj.TryGetPropertyAtom(realm, IdWritable, out var writableValue, out _) &&
-                    DescriptorUtilities.ToBooleanForDescriptor(writableValue))
+                var isAccessor =
+                    descriptorObj.TryGetPropertyAtom(realm, IdGet, out _, out _)
+                    || descriptorObj.TryGetPropertyAtom(realm, IdSet, out _, out _);
+                if (
+                    !isAccessor
+                    && descriptorObj.TryGetPropertyAtom(
+                        realm,
+                        IdWritable,
+                        out var writableValue,
+                        out _
+                    )
+                    && DescriptorUtilities.ToBooleanForDescriptor(writableValue)
+                )
                     allFrozen = false;
             }
 
             return allFrozen;
         }
 
-        static void ApplyPropertyDescriptorsFromObject(JsRealm realm, JsObject target, JsObject props)
+        static void ApplyPropertyDescriptorsFromObject(
+            JsRealm realm,
+            JsObject target,
+            JsObject props
+        )
         {
             var keys = realm.RentScratchList<JsValue>(8);
             try
@@ -962,9 +1324,16 @@ public partial class Intrinsics
                             continue;
                     }
 
-                    if (!descriptorValue.TryGetObject(out _) &&
-                        props.TryGetOwnEnumerableDescriptorViaTrap(realm, key, out var hasDescriptorFromTrap, out _) &&
-                        !hasDescriptorFromTrap)
+                    if (
+                        !descriptorValue.TryGetObject(out _)
+                        && props.TryGetOwnEnumerableDescriptorViaTrap(
+                            realm,
+                            key,
+                            out var hasDescriptorFromTrap,
+                            out _
+                        )
+                        && !hasDescriptorFromTrap
+                    )
                         continue;
 
                     DefinePropertyFromDescriptorValue(realm, target, key, descriptorValue);
@@ -976,12 +1345,17 @@ public partial class Intrinsics
             }
         }
 
-        static void CollectOwnPropertyKeysForDefineProperties(JsRealm realm, JsObject props, List<JsValue> keys)
+        static void CollectOwnPropertyKeysForDefineProperties(
+            JsRealm realm,
+            JsObject props,
+            List<JsValue> keys
+        )
         {
             List<JsValue>? trapKeys = null;
             JsObject? proxyTarget = null;
-            var isProxy = props.TryGetOwnKeysTrapKeys(realm, out trapKeys) ||
-                          props.TryGetProxyTarget(out proxyTarget);
+            var isProxy =
+                props.TryGetOwnKeysTrapKeys(realm, out trapKeys)
+                || props.TryGetProxyTarget(out proxyTarget);
 
             if (isProxy)
             {
@@ -998,34 +1372,55 @@ public partial class Intrinsics
             CollectOwnPropertyKeysForProxyFallback(realm, props, keys, true);
         }
 
-        static void DefinePropertyFromDescriptorValue(JsRealm realm, JsObject target, in JsValue keyValue,
-            in JsValue descriptorValue)
+        static void DefinePropertyFromDescriptorValue(
+            JsRealm realm,
+            JsObject target,
+            in JsValue keyValue,
+            in JsValue descriptorValue
+        )
         {
             if (!descriptorValue.TryGetObject(out var descriptor))
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Property description must be an object");
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Property description must be an object"
+                );
 
             var spec = ReadDescriptorSnapshot(realm, descriptor);
 
-            if (target.DefinePropertyFromDescriptorObject(realm, keyValue,
-                    BuildDescriptorObjectFromSnapshot(realm, spec)))
+            if (
+                target.DefinePropertyFromDescriptorObject(
+                    realm,
+                    keyValue,
+                    BuildDescriptorObjectFromSnapshot(realm, spec)
+                )
+            )
                 return;
 
             if (target is JsTypedArrayObject typedArray)
             {
                 var typedArrayDefineResult = TryDefineTypedArrayIntegerIndexedProperty(
-                    realm, typedArray, keyValue, spec, out var typedArrayHandled);
+                    realm,
+                    typedArray,
+                    keyValue,
+                    spec,
+                    out var typedArrayHandled
+                );
                 if (typedArrayHandled)
                 {
                     if (!typedArrayDefineResult)
-                        throw new JsRuntimeException(JsErrorKind.TypeError,
-                            "Cannot define typed array index property");
+                        throw new JsRuntimeException(
+                            JsErrorKind.TypeError,
+                            "Cannot define typed array index property"
+                        );
                     return;
                 }
             }
 
             if (spec is { IsAccessorDescriptor: true, IsDataDescriptor: true })
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Invalid property descriptor. Cannot both specify accessors and a value or writable attribute");
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Invalid property descriptor. Cannot both specify accessors and a value or writable attribute"
+                );
 
             if (realm.TryResolvePropertyKey(keyValue, out var index, out var atom))
             {
@@ -1033,10 +1428,19 @@ public partial class Intrinsics
                 return;
             }
 
-            if (target is JsModuleNamespaceObject moduleNamespace &&
-                !TryDefineModuleNamespaceNamedPropertyFromSnapshot(realm, moduleNamespace, atom, spec))
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    $"Cannot redefine property: {realm.Atoms.AtomToString(atom)}");
+            if (
+                target is JsModuleNamespaceObject moduleNamespace
+                && !TryDefineModuleNamespaceNamedPropertyFromSnapshot(
+                    realm,
+                    moduleNamespace,
+                    atom,
+                    spec
+                )
+            )
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    $"Cannot redefine property: {realm.Atoms.AtomToString(atom)}"
+                );
 
             if (target is JsModuleNamespaceObject)
                 return;
@@ -1044,24 +1448,54 @@ public partial class Intrinsics
             ApplyNamedPropertyDescriptorFromSnapshot(realm, target, atom, spec);
         }
 
-        static JsPlainObject BuildDescriptorObjectFromSnapshot(JsRealm realm, in DescriptorSnapshot spec)
+        static JsPlainObject BuildDescriptorObjectFromSnapshot(
+            JsRealm realm,
+            in DescriptorSnapshot spec
+        )
         {
             var descriptorObject = new JsPlainObject(realm);
             if (spec.HasValue)
-                descriptorObject.DefineDataPropertyAtom(realm, IdValue, spec.Value, JsShapePropertyFlags.Open);
+                descriptorObject.DefineDataPropertyAtom(
+                    realm,
+                    IdValue,
+                    spec.Value,
+                    JsShapePropertyFlags.Open
+                );
             if (spec.HasWritable)
-                descriptorObject.DefineDataPropertyAtom(realm, IdWritable, spec.WritableValue,
-                    JsShapePropertyFlags.Open);
+                descriptorObject.DefineDataPropertyAtom(
+                    realm,
+                    IdWritable,
+                    spec.WritableValue,
+                    JsShapePropertyFlags.Open
+                );
             if (spec.HasEnumerable)
-                descriptorObject.DefineDataPropertyAtom(realm, IdEnumerable, spec.EnumerableValue,
-                    JsShapePropertyFlags.Open);
+                descriptorObject.DefineDataPropertyAtom(
+                    realm,
+                    IdEnumerable,
+                    spec.EnumerableValue,
+                    JsShapePropertyFlags.Open
+                );
             if (spec.HasConfigurable)
-                descriptorObject.DefineDataPropertyAtom(realm, IdConfigurable, spec.ConfigurableValue,
-                    JsShapePropertyFlags.Open);
+                descriptorObject.DefineDataPropertyAtom(
+                    realm,
+                    IdConfigurable,
+                    spec.ConfigurableValue,
+                    JsShapePropertyFlags.Open
+                );
             if (spec.HasGet)
-                descriptorObject.DefineDataPropertyAtom(realm, IdGet, spec.GetValue, JsShapePropertyFlags.Open);
+                descriptorObject.DefineDataPropertyAtom(
+                    realm,
+                    IdGet,
+                    spec.GetValue,
+                    JsShapePropertyFlags.Open
+                );
             if (spec.HasSet)
-                descriptorObject.DefineDataPropertyAtom(realm, IdSet, spec.SetValue, JsShapePropertyFlags.Open);
+                descriptorObject.DefineDataPropertyAtom(
+                    realm,
+                    IdSet,
+                    spec.SetValue,
+                    JsShapePropertyFlags.Open
+                );
             return descriptorObject;
         }
 
@@ -1069,7 +1503,8 @@ public partial class Intrinsics
             JsRealm realm,
             JsModuleNamespaceObject target,
             int atom,
-            in DescriptorSnapshot spec)
+            in DescriptorSnapshot spec
+        )
         {
             if (atom == IdSymbolToStringTag)
             {
@@ -1090,7 +1525,10 @@ public partial class Intrinsics
                     : existing.Writable;
                 var requestedValue = spec.HasValue ? spec.Value : existing.Value;
 
-                if (requestedEnumerable != existing.Enumerable || requestedConfigurable != existing.Configurable)
+                if (
+                    requestedEnumerable != existing.Enumerable
+                    || requestedConfigurable != existing.Configurable
+                )
                     return false;
                 if (requestedWritable && !existing.Writable)
                     return false;
@@ -1105,9 +1543,15 @@ public partial class Intrinsics
                 return false;
             if (spec.IsAccessorDescriptor)
                 return false;
-            if (spec.HasConfigurable && DescriptorUtilities.ToBooleanForDescriptor(spec.ConfigurableValue))
+            if (
+                spec.HasConfigurable
+                && DescriptorUtilities.ToBooleanForDescriptor(spec.ConfigurableValue)
+            )
                 return false;
-            if (spec.HasEnumerable && !DescriptorUtilities.ToBooleanForDescriptor(spec.EnumerableValue))
+            if (
+                spec.HasEnumerable
+                && !DescriptorUtilities.ToBooleanForDescriptor(spec.EnumerableValue)
+            )
                 return false;
             if (spec.HasWritable && !DescriptorUtilities.ToBooleanForDescriptor(spec.WritableValue))
                 return false;
@@ -1132,22 +1576,42 @@ public partial class Intrinsics
         }
 
         static void ApplyIndexedPropertyDescriptorFromSnapshot(
-            JsRealm realm, JsObject target, uint index, in DescriptorSnapshot spec)
+            JsRealm realm,
+            JsObject target,
+            uint index,
+            in DescriptorSnapshot spec
+        )
         {
-            var hasExistingElement = target.TryGetOwnElementDescriptor(index, out var existingElement);
+            var hasExistingElement = target.TryGetOwnElementDescriptor(
+                index,
+                out var existingElement
+            );
             if (!target.IsExtensible && !hasExistingElement)
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Cannot define property on non-extensible object");
-            if (target is JsArray arrayTargetForIndex && !hasExistingElement &&
-                !arrayTargetForIndex.CanDefineElementAtIndex(index))
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    $"Cannot define property {index}, object is not extensible");
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Cannot define property on non-extensible object"
+                );
+            if (
+                target is JsArray arrayTargetForIndex
+                && !hasExistingElement
+                && !arrayTargetForIndex.CanDefineElementAtIndex(index)
+            )
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    $"Cannot define property {index}, object is not extensible"
+                );
 
-            var defineAccessor = spec.IsAccessorDescriptor ||
-                                 (spec.IsGenericDescriptor && hasExistingElement && existingElement.IsAccessor);
-            var requestedEnumerable = DescriptorUtilities.IsRequestedTrue(spec.HasEnumerable, spec.EnumerableValue);
-            var requestedConfigurable =
-                DescriptorUtilities.IsRequestedTrue(spec.HasConfigurable, spec.ConfigurableValue);
+            var defineAccessor =
+                spec.IsAccessorDescriptor
+                || (spec.IsGenericDescriptor && hasExistingElement && existingElement.IsAccessor);
+            var requestedEnumerable = DescriptorUtilities.IsRequestedTrue(
+                spec.HasEnumerable,
+                spec.EnumerableValue
+            );
+            var requestedConfigurable = DescriptorUtilities.IsRequestedTrue(
+                spec.HasConfigurable,
+                spec.ConfigurableValue
+            );
 
             if (hasExistingElement && !existingElement.Configurable)
             {
@@ -1162,27 +1626,42 @@ public partial class Intrinsics
             if (defineAccessor)
             {
                 var existingGetter =
-                    hasExistingElement && existingElement.IsAccessor ? existingElement.Getter : null;
+                    hasExistingElement && existingElement.IsAccessor
+                        ? existingElement.Getter
+                        : null;
                 var existingSetter =
-                    hasExistingElement && existingElement.IsAccessor ? existingElement.Setter : null;
+                    hasExistingElement && existingElement.IsAccessor
+                        ? existingElement.Setter
+                        : null;
                 var getter = existingGetter;
                 var setter = existingSetter;
-                var includeGetter = hasExistingElement && existingElement is { IsAccessor: true, HasGetter: true };
-                var includeSetter = hasExistingElement && existingElement is { IsAccessor: true, HasSetter: true };
+                var includeGetter =
+                    hasExistingElement && existingElement is { IsAccessor: true, HasGetter: true };
+                var includeSetter =
+                    hasExistingElement && existingElement is { IsAccessor: true, HasSetter: true };
 
                 if (spec.HasGet)
                 {
                     includeGetter = true;
-                    getter = ToDescriptorAccessorFunction(spec.GetValue, "Getter must be a function or undefined");
+                    getter = ToDescriptorAccessorFunction(
+                        spec.GetValue,
+                        "Getter must be a function or undefined"
+                    );
                 }
 
                 if (spec.HasSet)
                 {
                     includeSetter = true;
-                    setter = ToDescriptorAccessorFunction(spec.SetValue, "Setter must be a function or undefined");
+                    setter = ToDescriptorAccessorFunction(
+                        spec.SetValue,
+                        "Setter must be a function or undefined"
+                    );
                 }
 
-                if (hasExistingElement && existingElement is { IsAccessor: true, Configurable: false })
+                if (
+                    hasExistingElement
+                    && existingElement is { IsAccessor: true, Configurable: false }
+                )
                 {
                     if (spec.HasGet && !SameValueAccessorFunction(existingGetter, getter))
                         ThrowCannotRedefineIndex(index);
@@ -1196,17 +1675,23 @@ public partial class Intrinsics
                 var finalConfigurable = spec.HasConfigurable
                     ? requestedConfigurable
                     : hasExistingElement && existingElement.Configurable;
-                var flags = DescriptorUtilities.BuildAccessorFlags(finalEnumerable, finalConfigurable,
-                    includeGetter, includeSetter);
+                var flags = DescriptorUtilities.BuildAccessorFlags(
+                    finalEnumerable,
+                    finalConfigurable,
+                    includeGetter,
+                    includeSetter
+                );
 
-                var descriptor = includeGetter && includeSetter
-                    ? new(getter ?? JsValue.Undefined, setter, flags)
-                    : includeGetter
-                        ? new(getter ?? JsValue.Undefined, null, flags)
-                        : includeSetter
-                            ? new(JsValue.Undefined, setter, flags)
-                            : PropertyDescriptor.Data(JsValue.Undefined, false, finalEnumerable,
-                                finalConfigurable);
+                var descriptor =
+                    includeGetter && includeSetter ? new(getter ?? JsValue.Undefined, setter, flags)
+                    : includeGetter ? new(getter ?? JsValue.Undefined, null, flags)
+                    : includeSetter ? new(JsValue.Undefined, setter, flags)
+                    : PropertyDescriptor.Data(
+                        JsValue.Undefined,
+                        false,
+                        finalEnumerable,
+                        finalConfigurable
+                    );
                 target.DefineElementDescriptor(index, descriptor);
                 return;
             }
@@ -1214,11 +1699,10 @@ public partial class Intrinsics
             var finalWritable = spec.HasWritable
                 ? DescriptorUtilities.ToBooleanForDescriptor(spec.WritableValue)
                 : hasExistingElement && existingElement is { IsAccessor: false, Writable: true };
-            var finalValue = spec.HasValue
-                ? spec.Value
-                : hasExistingElement && !existingElement.IsAccessor
-                    ? existingElement.Value
-                    : JsValue.Undefined;
+            var finalValue =
+                spec.HasValue ? spec.Value
+                : hasExistingElement && !existingElement.IsAccessor ? existingElement.Value
+                : JsValue.Undefined;
             var finalEnumerableData = spec.HasEnumerable
                 ? requestedEnumerable
                 : hasExistingElement && existingElement.Enumerable;
@@ -1226,7 +1710,10 @@ public partial class Intrinsics
                 ? requestedConfigurable
                 : hasExistingElement && existingElement.Configurable;
 
-            if (hasExistingElement && existingElement is { IsAccessor: false, Configurable: false, Writable: false })
+            if (
+                hasExistingElement
+                && existingElement is { IsAccessor: false, Configurable: false, Writable: false }
+            )
             {
                 if (spec.HasWritable && finalWritable)
                     ThrowCannotRedefineIndex(index);
@@ -1234,29 +1721,68 @@ public partial class Intrinsics
                     ThrowCannotRedefineIndex(index);
             }
 
-            target.DefineElementDescriptor(index,
-                PropertyDescriptor.Data(finalValue, finalWritable, finalEnumerableData, finalConfigurableData));
+            target.DefineElementDescriptor(
+                index,
+                PropertyDescriptor.Data(
+                    finalValue,
+                    finalWritable,
+                    finalEnumerableData,
+                    finalConfigurableData
+                )
+            );
         }
 
         static void ApplyNamedPropertyDescriptorFromSnapshot(
-            JsRealm realm, JsObject target, int atom, in DescriptorSnapshot spec)
+            JsRealm realm,
+            JsObject target,
+            int atom,
+            in DescriptorSnapshot spec
+        )
         {
-            if (!target.IsExtensible && !target.TryGetOwnNamedPropertyDescriptorAtom(realm, atom, out _))
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Cannot define property on non-extensible object");
+            if (
+                !target.IsExtensible
+                && !target.TryGetOwnNamedPropertyDescriptorAtom(realm, atom, out _)
+            )
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Cannot define property on non-extensible object"
+                );
 
-            var requestedEnumerable = DescriptorUtilities.IsRequestedTrue(spec.HasEnumerable, spec.EnumerableValue);
-            var requestedConfigurable =
-                DescriptorUtilities.IsRequestedTrue(spec.HasConfigurable, spec.ConfigurableValue);
+            var requestedEnumerable = DescriptorUtilities.IsRequestedTrue(
+                spec.HasEnumerable,
+                spec.EnumerableValue
+            );
+            var requestedConfigurable = DescriptorUtilities.IsRequestedTrue(
+                spec.HasConfigurable,
+                spec.ConfigurableValue
+            );
 
-            if (target is JsGlobalObject globalTarget &&
-                globalTarget.TryGetNamedGlobalDescriptorAtom(atom, out var existingGlobalDescriptor))
+            if (
+                target is JsGlobalObject globalTarget
+                && globalTarget.TryGetNamedGlobalDescriptorAtom(
+                    atom,
+                    out var existingGlobalDescriptor
+                )
+            )
             {
                 var globalDescriptor = BuildGlobalOwnDescriptor(
-                    realm, atom, existingGlobalDescriptor,
-                    spec.HasValue, spec.Value, spec.HasWritable, spec.WritableValue,
-                    spec.HasEnumerable, spec.EnumerableValue, spec.HasConfigurable, spec.ConfigurableValue,
-                    spec.IsAccessorDescriptor, spec.HasGet, spec.GetValue, spec.HasSet, spec.SetValue);
+                    realm,
+                    atom,
+                    existingGlobalDescriptor,
+                    spec.HasValue,
+                    spec.Value,
+                    spec.HasWritable,
+                    spec.WritableValue,
+                    spec.HasEnumerable,
+                    spec.EnumerableValue,
+                    spec.HasConfigurable,
+                    spec.ConfigurableValue,
+                    spec.IsAccessorDescriptor,
+                    spec.HasGet,
+                    spec.GetValue,
+                    spec.HasSet,
+                    spec.SetValue
+                );
                 if (!globalTarget.TrySetOwnGlobalDescriptorAtom(atom, globalDescriptor))
                     throw new JsRuntimeException(JsErrorKind.TypeError, "Cannot redefine property");
                 return;
@@ -1265,21 +1791,41 @@ public partial class Intrinsics
             if (target is JsArray arrayTarget && atom == IdLength)
             {
                 if (spec.IsAccessorDescriptor)
-                    throw new JsRuntimeException(JsErrorKind.TypeError, "Invalid property descriptor for length");
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Invalid property descriptor for length"
+                    );
                 var requested = DescriptorUtilities.ReadRequestedBooleans(
-                    spec.HasWritable, spec.WritableValue,
-                    spec.HasEnumerable, spec.EnumerableValue,
-                    spec.HasConfigurable, spec.ConfigurableValue);
-                if (!arrayTarget.TryDefineLengthDescriptor(
-                        spec.HasValue, spec.Value,
-                        spec.HasWritable, requested.Writable,
-                        spec.HasEnumerable, requested.Enumerable,
-                        spec.HasConfigurable, requested.Configurable,
-                        out var isRangeError))
+                    spec.HasWritable,
+                    spec.WritableValue,
+                    spec.HasEnumerable,
+                    spec.EnumerableValue,
+                    spec.HasConfigurable,
+                    spec.ConfigurableValue
+                );
+                if (
+                    !arrayTarget.TryDefineLengthDescriptor(
+                        spec.HasValue,
+                        spec.Value,
+                        spec.HasWritable,
+                        requested.Writable,
+                        spec.HasEnumerable,
+                        requested.Enumerable,
+                        spec.HasConfigurable,
+                        requested.Configurable,
+                        out var isRangeError
+                    )
+                )
                 {
                     if (isRangeError)
-                        throw new JsRuntimeException(JsErrorKind.RangeError, "Invalid array length");
-                    throw new JsRuntimeException(JsErrorKind.TypeError, "Cannot redefine property: length");
+                        throw new JsRuntimeException(
+                            JsErrorKind.RangeError,
+                            "Invalid array length"
+                        );
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Cannot redefine property: length"
+                    );
                 }
 
                 return;
@@ -1288,21 +1834,38 @@ public partial class Intrinsics
             if (target is JsArgumentsObject argumentsTarget && atom == IdLength)
             {
                 if (spec.IsAccessorDescriptor)
-                    throw new JsRuntimeException(JsErrorKind.TypeError, "Invalid property descriptor for length");
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Invalid property descriptor for length"
+                    );
                 var requested = DescriptorUtilities.ReadRequestedBooleans(
-                    spec.HasWritable, spec.WritableValue,
-                    spec.HasEnumerable, spec.EnumerableValue,
-                    spec.HasConfigurable, spec.ConfigurableValue);
-                if (!argumentsTarget.TryDefineLengthDescriptor(
-                        spec.HasValue, spec.Value,
-                        spec.HasWritable, requested.Writable,
-                        spec.HasEnumerable, requested.Enumerable,
-                        spec.HasConfigurable, requested.Configurable,
-                        out var isRangeError))
+                    spec.HasWritable,
+                    spec.WritableValue,
+                    spec.HasEnumerable,
+                    spec.EnumerableValue,
+                    spec.HasConfigurable,
+                    spec.ConfigurableValue
+                );
+                if (
+                    !argumentsTarget.TryDefineLengthDescriptor(
+                        spec.HasValue,
+                        spec.Value,
+                        spec.HasWritable,
+                        requested.Writable,
+                        spec.HasEnumerable,
+                        requested.Enumerable,
+                        spec.HasConfigurable,
+                        requested.Configurable,
+                        out var isRangeError
+                    )
+                )
                 {
                     if (isRangeError)
                         throw new JsRuntimeException(JsErrorKind.RangeError, "Invalid length");
-                    throw new JsRuntimeException(JsErrorKind.TypeError, "Cannot redefine property: length");
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Cannot redefine property: length"
+                    );
                 }
 
                 return;
@@ -1310,8 +1873,11 @@ public partial class Intrinsics
 
             var defineAccessor = spec.IsAccessorDescriptor;
             var isGenericDescriptor = spec.IsGenericDescriptor;
-            var existingHasOwnNamed =
-                target.TryGetOwnNamedPropertyDescriptorAtom(realm, atom, out var existingDescriptor);
+            var existingHasOwnNamed = target.TryGetOwnNamedPropertyDescriptorAtom(
+                realm,
+                atom,
+                out var existingDescriptor
+            );
             var existingIsAccessor = false;
             var existingWritable = false;
             var existingEnumerable = false;
@@ -1363,13 +1929,19 @@ public partial class Intrinsics
                 if (spec.HasGet)
                 {
                     includeGetter = true;
-                    getter = ToDescriptorAccessorFunction(spec.GetValue, "Getter must be a function or undefined");
+                    getter = ToDescriptorAccessorFunction(
+                        spec.GetValue,
+                        "Getter must be a function or undefined"
+                    );
                 }
 
                 if (spec.HasSet)
                 {
                     includeSetter = true;
-                    setter = ToDescriptorAccessorFunction(spec.SetValue, "Setter must be a function or undefined");
+                    setter = ToDescriptorAccessorFunction(
+                        spec.SetValue,
+                        "Setter must be a function or undefined"
+                    );
                 }
 
                 if (existingHasOwnNamed && existingIsAccessor && !existingConfigurable)
@@ -1380,34 +1952,46 @@ public partial class Intrinsics
                         ThrowCannotRedefine(realm, atom);
                 }
 
-                var finalEnumerable =
-                    spec.HasEnumerable ? requestedEnumerable : existingHasOwnNamed && existingEnumerable;
+                var finalEnumerable = spec.HasEnumerable
+                    ? requestedEnumerable
+                    : existingHasOwnNamed && existingEnumerable;
                 var finalConfigurable = spec.HasConfigurable
                     ? requestedConfigurable
                     : existingHasOwnNamed && existingConfigurable;
-                var flags = DescriptorUtilities.BuildAccessorFlags(finalEnumerable, finalConfigurable, includeGetter,
-                    includeSetter);
+                var flags = DescriptorUtilities.BuildAccessorFlags(
+                    finalEnumerable,
+                    finalConfigurable,
+                    includeGetter,
+                    includeSetter
+                );
                 if (!target.DefineOwnAccessorPropertyExact(realm, atom, getter, setter, flags))
-                    throw new JsRuntimeException(JsErrorKind.TypeError,
-                        $"Cannot redefine property: {realm.Atoms.AtomToString(atom)}");
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        $"Cannot redefine property: {realm.Atoms.AtomToString(atom)}"
+                    );
                 return;
             }
 
             var finalWritable = spec.HasWritable
                 ? DescriptorUtilities.ToBooleanForDescriptor(spec.WritableValue)
                 : existingHasOwnNamed && !existingIsAccessor && existingWritable;
-            var finalValue = spec.HasValue
-                ? spec.Value
-                : existingHasOwnNamed && !existingIsAccessor
-                    ? existingValue
-                    : JsValue.Undefined;
-            var finalEnumerableData =
-                spec.HasEnumerable ? requestedEnumerable : existingHasOwnNamed && existingEnumerable;
+            var finalValue =
+                spec.HasValue ? spec.Value
+                : existingHasOwnNamed && !existingIsAccessor ? existingValue
+                : JsValue.Undefined;
+            var finalEnumerableData = spec.HasEnumerable
+                ? requestedEnumerable
+                : existingHasOwnNamed && existingEnumerable;
             var finalConfigurableData = spec.HasConfigurable
                 ? requestedConfigurable
                 : existingHasOwnNamed && existingConfigurable;
 
-            if (existingHasOwnNamed && !existingIsAccessor && !existingConfigurable && !existingWritable)
+            if (
+                existingHasOwnNamed
+                && !existingIsAccessor
+                && !existingConfigurable
+                && !existingWritable
+            )
             {
                 if (spec.HasWritable && finalWritable)
                     ThrowCannotRedefine(realm, atom);
@@ -1415,30 +1999,55 @@ public partial class Intrinsics
                     ThrowCannotRedefine(realm, atom);
             }
 
-            var dataFlags =
-                DescriptorUtilities.BuildDataFlags(finalWritable, finalEnumerableData, finalConfigurableData);
+            var dataFlags = DescriptorUtilities.BuildDataFlags(
+                finalWritable,
+                finalEnumerableData,
+                finalConfigurableData
+            );
             if (!target.DefineOwnDataPropertyExact(realm, atom, finalValue, dataFlags))
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    $"Cannot redefine property: {realm.Atoms.AtomToString(atom)}");
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    $"Cannot redefine property: {realm.Atoms.AtomToString(atom)}"
+                );
         }
 
         static DescriptorSnapshot ReadDescriptorSnapshot(JsRealm realm, JsObject descriptor)
         {
             var hasValue = descriptor.TryGetPropertyAtom(realm, IdValue, out var value, out _);
-            var hasWritable = descriptor.TryGetPropertyAtom(realm, IdWritable, out var writableValue, out _);
-            var hasEnumerable =
-                descriptor.TryGetPropertyAtom(realm, IdEnumerable, out var enumerableValue, out _);
-            var hasConfigurable =
-                descriptor.TryGetPropertyAtom(realm, IdConfigurable, out var configurableValue, out _);
+            var hasWritable = descriptor.TryGetPropertyAtom(
+                realm,
+                IdWritable,
+                out var writableValue,
+                out _
+            );
+            var hasEnumerable = descriptor.TryGetPropertyAtom(
+                realm,
+                IdEnumerable,
+                out var enumerableValue,
+                out _
+            );
+            var hasConfigurable = descriptor.TryGetPropertyAtom(
+                realm,
+                IdConfigurable,
+                out var configurableValue,
+                out _
+            );
             var hasGet = descriptor.TryGetPropertyAtom(realm, IdGet, out var getValue, out _);
             var hasSet = descriptor.TryGetPropertyAtom(realm, IdSet, out var setValue, out _);
             return new(
-                hasValue, value,
-                hasWritable, writableValue,
-                hasEnumerable, enumerableValue,
-                hasConfigurable, configurableValue,
-                hasGet, getValue,
-                hasSet, setValue);
+                hasValue,
+                value,
+                hasWritable,
+                writableValue,
+                hasEnumerable,
+                enumerableValue,
+                hasConfigurable,
+                configurableValue,
+                hasGet,
+                getValue,
+                hasSet,
+                setValue
+            );
         }
 
         static JsFunction? ToDescriptorAccessorFunction(in JsValue value, string errorMessage)
@@ -1454,19 +2063,27 @@ public partial class Intrinsics
             JsRealm realm,
             int atom,
             in PropertyDescriptor existing,
-            bool hasValue, in JsValue value,
-            bool hasWritable, in JsValue writableValue,
-            bool hasEnumerable, in JsValue enumerableValue,
-            bool hasConfigurable, in JsValue configurableValue,
+            bool hasValue,
+            in JsValue value,
+            bool hasWritable,
+            in JsValue writableValue,
+            bool hasEnumerable,
+            in JsValue enumerableValue,
+            bool hasConfigurable,
+            in JsValue configurableValue,
             bool accessorDescriptor,
-            bool hasGet, in JsValue getValue,
-            bool hasSet, in JsValue setValue)
+            bool hasGet,
+            in JsValue getValue,
+            bool hasSet,
+            in JsValue setValue
+        )
         {
             var requestedEnumerable = hasEnumerable
                 ? DescriptorUtilities.ToBooleanForDescriptor(enumerableValue)
                 : existing.Enumerable;
-            var requestedConfigurable =
-                hasConfigurable ? DescriptorUtilities.ToBooleanForDescriptor(configurableValue) : existing.Configurable;
+            var requestedConfigurable = hasConfigurable
+                ? DescriptorUtilities.ToBooleanForDescriptor(configurableValue)
+                : existing.Configurable;
 
             if (!existing.Configurable)
             {
@@ -1496,9 +2113,14 @@ public partial class Intrinsics
                     }
                     else
                     {
-                        if (!getValue.TryGetObject(out var getterObj) || getterObj is not JsFunction getterFn)
-                            throw new JsRuntimeException(JsErrorKind.TypeError,
-                                "Getter must be a function or undefined");
+                        if (
+                            !getValue.TryGetObject(out var getterObj)
+                            || getterObj is not JsFunction getterFn
+                        )
+                            throw new JsRuntimeException(
+                                JsErrorKind.TypeError,
+                                "Getter must be a function or undefined"
+                            );
                         requestedGetter = getterFn;
                     }
                 }
@@ -1512,9 +2134,14 @@ public partial class Intrinsics
                     }
                     else
                     {
-                        if (!setValue.TryGetObject(out var setterObj) || setterObj is not JsFunction setterFn)
-                            throw new JsRuntimeException(JsErrorKind.TypeError,
-                                "Setter must be a function or undefined");
+                        if (
+                            !setValue.TryGetObject(out var setterObj)
+                            || setterObj is not JsFunction setterFn
+                        )
+                            throw new JsRuntimeException(
+                                JsErrorKind.TypeError,
+                                "Setter must be a function or undefined"
+                            );
                         requestedSetter = setterFn;
                     }
                 }
@@ -1531,30 +2158,31 @@ public partial class Intrinsics
                     requestedEnumerable,
                     requestedConfigurable,
                     includeGetter,
-                    includeSetter);
+                    includeSetter
+                );
 
                 if (includeGetter && includeSetter)
                     return new(
                         requestedGetter ?? JsValue.Undefined,
                         requestedSetter,
-                        accessorFlags);
+                        accessorFlags
+                    );
                 if (includeGetter)
-                    return new(
-                        requestedGetter ?? JsValue.Undefined,
-                        null,
-                        accessorFlags);
+                    return new(requestedGetter ?? JsValue.Undefined, null, accessorFlags);
                 if (includeSetter)
-                    return new(
-                        JsValue.Undefined,
-                        requestedSetter,
-                        accessorFlags);
+                    return new(JsValue.Undefined, requestedSetter, accessorFlags);
 
-                return PropertyDescriptor.Data(JsValue.Undefined, false, requestedEnumerable,
-                    requestedConfigurable);
+                return PropertyDescriptor.Data(
+                    JsValue.Undefined,
+                    false,
+                    requestedEnumerable,
+                    requestedConfigurable
+                );
             }
 
-            var requestedWritable =
-                hasWritable ? DescriptorUtilities.ToBooleanForDescriptor(writableValue) : existing.Writable;
+            var requestedWritable = hasWritable
+                ? DescriptorUtilities.ToBooleanForDescriptor(writableValue)
+                : existing.Writable;
             var requestedValue = hasValue ? value : existing.Value;
 
             if (existing is { IsAccessor: false, Configurable: false, Writable: false })
@@ -1565,8 +2193,12 @@ public partial class Intrinsics
                     ThrowCannotRedefine(realm, atom);
             }
 
-            return PropertyDescriptor.Data(requestedValue, requestedWritable, requestedEnumerable,
-                requestedConfigurable);
+            return PropertyDescriptor.Data(
+                requestedValue,
+                requestedWritable,
+                requestedEnumerable,
+                requestedConfigurable
+            );
         }
 
         static bool SameValueAccessorFunction(JsFunction? a, JsFunction? b)
@@ -1583,7 +2215,8 @@ public partial class Intrinsics
             throw new JsRuntimeException(
                 JsErrorKind.TypeError,
                 $"Cannot redefine property: {realm.Atoms.AtomToString(atom)}",
-                "DEFINE_PROPERTY_REDEFINE");
+                "DEFINE_PROPERTY_REDEFINE"
+            );
         }
 
         static void ThrowCannotRedefineIndex(uint index)
@@ -1591,21 +2224,29 @@ public partial class Intrinsics
             throw new JsRuntimeException(
                 JsErrorKind.TypeError,
                 $"Cannot redefine property: {index}",
-                "DEFINE_PROPERTY_REDEFINE");
+                "DEFINE_PROPERTY_REDEFINE"
+            );
         }
 
         static JsValue GetOwnPropertyDescriptorByAtom(JsRealm realm, JsObject target, int atom)
         {
             if (target is JsModuleNamespaceObject moduleNs)
             {
-                if (!moduleNs.TryGetOwnNamedPropertyDescriptorAtom(realm, atom, out var moduleDescriptor))
+                if (
+                    !moduleNs.TryGetOwnNamedPropertyDescriptorAtom(
+                        realm,
+                        atom,
+                        out var moduleDescriptor
+                    )
+                )
                     return JsValue.Undefined;
 
                 return realm.Intrinsics.CreateOwnDataDescriptorObject(
                     moduleDescriptor.Value,
                     moduleDescriptor.Writable ? JsValue.True : JsValue.False,
                     moduleDescriptor.Enumerable ? JsValue.True : JsValue.False,
-                    moduleDescriptor.Configurable ? JsValue.True : JsValue.False);
+                    moduleDescriptor.Configurable ? JsValue.True : JsValue.False
+                );
             }
 
             if (target.TryGetOwnNamedPropertyDescriptorAtom(realm, atom, out var descriptor))
@@ -1615,25 +2256,29 @@ public partial class Intrinsics
 
                 if (descriptor.IsAccessor)
                 {
-                    var getterValue = descriptor.HasGetter && descriptor.Getter is not null
-                        ? JsValue.FromObject(descriptor.Getter)
-                        : JsValue.Undefined;
-                    var setterValue = descriptor.HasSetter && descriptor.Setter is not null
-                        ? JsValue.FromObject(descriptor.Setter)
-                        : JsValue.Undefined;
+                    var getterValue =
+                        descriptor.HasGetter && descriptor.Getter is not null
+                            ? JsValue.FromObject(descriptor.Getter)
+                            : JsValue.Undefined;
+                    var setterValue =
+                        descriptor.HasSetter && descriptor.Setter is not null
+                            ? JsValue.FromObject(descriptor.Setter)
+                            : JsValue.Undefined;
 
                     return realm.Intrinsics.CreateOwnAccessorDescriptorObject(
                         getterValue,
                         setterValue,
                         new(enumerable),
-                        new(configurable));
+                        new(configurable)
+                    );
                 }
 
                 return realm.Intrinsics.CreateOwnDataDescriptorObject(
                     descriptor.Value,
                     new(descriptor.Writable),
                     new(enumerable),
-                    new(configurable));
+                    new(configurable)
+                );
             }
 
             if (target.TryGetOwnNamedPropertyDescriptorAtom(realm, atom, out var virtualDescriptor))
@@ -1641,15 +2286,19 @@ public partial class Intrinsics
                     virtualDescriptor.Value,
                     new(virtualDescriptor.Writable),
                     new(virtualDescriptor.Enumerable),
-                    new(virtualDescriptor.Configurable));
+                    new(virtualDescriptor.Configurable)
+                );
 
-            if (target is JsGlobalObject globalTarget &&
-                globalTarget.TryGetOwnGlobalDescriptorAtom(atom, out var globalDescriptor))
+            if (
+                target is JsGlobalObject globalTarget
+                && globalTarget.TryGetOwnGlobalDescriptorAtom(atom, out var globalDescriptor)
+            )
                 return realm.Intrinsics.CreateOwnDataDescriptorObject(
                     globalDescriptor.Value,
                     new(globalDescriptor.Writable),
                     new(globalDescriptor.Enumerable),
-                    new(globalDescriptor.Configurable));
+                    new(globalDescriptor.Configurable)
+                );
 
             return JsValue.Undefined;
         }
@@ -1659,10 +2308,19 @@ public partial class Intrinsics
             if (target.TryGetOwnPropertyDescriptorViaTrap(realm, key, out var trapDescriptor))
                 return trapDescriptor;
 
-            var descriptorTarget = target.TryGetProxyTarget(out var proxyTarget) ? proxyTarget : target;
-            if (descriptorTarget is JsTypedArrayObject typedArray &&
-                TryGetTypedArrayOwnPropertyDescriptorByKey(realm, typedArray, key, out var typedArrayDescriptor,
-                    out var typedArrayHandled))
+            var descriptorTarget = target.TryGetProxyTarget(out var proxyTarget)
+                ? proxyTarget
+                : target;
+            if (
+                descriptorTarget is JsTypedArrayObject typedArray
+                && TryGetTypedArrayOwnPropertyDescriptorByKey(
+                    realm,
+                    typedArray,
+                    key,
+                    out var typedArrayDescriptor,
+                    out var typedArrayHandled
+                )
+            )
                 if (typedArrayHandled)
                     return typedArrayDescriptor;
 
@@ -1676,14 +2334,19 @@ public partial class Intrinsics
             return GetOwnPropertyDescriptorByAtom(realm, descriptorTarget, atom);
         }
 
-        var getOwnPropertyNamesFn = new JsHostFunction(Realm, "getOwnPropertyNames", 1,
+        var getOwnPropertyNamesFn = new JsHostFunction(
+            Realm,
+            "getOwnPropertyNames",
+            1,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var args = info.Arguments;
                 if (args.Length == 0 || !realm.TryToObject(args[0], out var target))
-                    throw new JsRuntimeException(JsErrorKind.TypeError,
-                        "Object.getOwnPropertyNames target must not be null or undefined");
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Object.getOwnPropertyNames target must not be null or undefined"
+                    );
 
                 var outArr = realm.CreateArrayObject();
                 var keys = OwnKeysHelpers.CollectForProxy(realm, target);
@@ -1696,7 +2359,9 @@ public partial class Intrinsics
                 }
 
                 return outArr;
-            }, false);
+            },
+            false
+        );
         const int atomKeys = IdKeys;
         const int atomPreventExtensions = IdPreventExtensions;
         const int atomIsExtensible = IdIsExtensible;
@@ -1715,37 +2380,51 @@ public partial class Intrinsics
         const int atomHasOwn = IdHasOwn;
         const int atomIs = IdIs;
         const int atomValues = IdValues;
-        var keysFn = new JsHostFunction(Realm, "keys", 1, static (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            if (args.Length == 0 || !realm.TryToObject(args[0], out var target))
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Object.keys target must not be null or undefined");
-
-            var keys = OwnKeysHelpers.CollectForProxy(realm, target);
-            var outArr = realm.CreateArrayObject();
-            uint outIndex = 0;
-            for (var i = 0; i < keys.Count; i++)
+        var keysFn = new JsHostFunction(
+            Realm,
+            "keys",
+            1,
+            static (in info) =>
             {
-                var key = keys[i];
-                if (!key.IsString)
-                    continue;
-                if (!TryGetOwnEnumerableForCopyDataProperties(realm, target, key, out var enumerable) || !enumerable)
-                    continue;
-                FreshArrayOperations.DefineElement(outArr, outIndex++, key);
-            }
+                var realm = info.Realm;
+                var args = info.Arguments;
+                if (args.Length == 0 || !realm.TryToObject(args[0], out var target))
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Object.keys target must not be null or undefined"
+                    );
 
-            return outArr;
-        }, false);
+                var keys = OwnKeysHelpers.CollectForProxy(realm, target);
+                var outArr = realm.CreateArrayObject();
+                uint outIndex = 0;
+                for (var i = 0; i < keys.Count; i++)
+                {
+                    var key = keys[i];
+                    if (!key.IsString)
+                        continue;
+                    if (
+                        !TryGetOwnEnumerableForCopyDataProperties(
+                            realm,
+                            target,
+                            key,
+                            out var enumerable
+                        ) || !enumerable
+                    )
+                        continue;
+                    FreshArrayOperations.DefineElement(outArr, outIndex++, key);
+                }
+
+                return outArr;
+            },
+            false
+        );
 
         Span<PropertyDefinition> defs =
         [
             PropertyDefinition.Mutable(IdCreate, createFn),
             PropertyDefinition.Mutable(IdGetPrototypeOf, getPrototypeOfFn),
             PropertyDefinition.Mutable(IdSetPrototypeOf, setPrototypeOfFn),
-            PropertyDefinition.Mutable(IdGetOwnPropertyDescriptor,
-                getOwnPropertyDescriptorFn),
+            PropertyDefinition.Mutable(IdGetOwnPropertyDescriptor, getOwnPropertyDescriptorFn),
             PropertyDefinition.Mutable(atomDefineProperty, definePropertyFn),
             PropertyDefinition.Mutable(atomDefineProperties, definePropertiesFn),
             PropertyDefinition.Mutable(atomAssign, assignFn),
@@ -1764,7 +2443,7 @@ public partial class Intrinsics
             PropertyDefinition.Mutable(atomIsSealed, isSealedFn),
             PropertyDefinition.Mutable(atomIsFrozen, isFrozenFn),
             PropertyDefinition.Mutable(atomValues, valuesFn),
-            PropertyDefinition.Mutable(atomKeys, keysFn)
+            PropertyDefinition.Mutable(atomKeys, keysFn),
         ];
         ObjectConstructor.InitializePrototypeProperty(ObjectPrototype);
         ObjectConstructor.DefineNewPropertiesNoCollision(Realm, defs);
@@ -1827,7 +2506,12 @@ public partial class Intrinsics
                     continue;
                 if (!source.TryGetPropertyAtom(Realm, atom, out var propValue, out _))
                     continue;
-                target.DefineOwnDataPropertyExact(Realm, atom, propValue, JsShapePropertyFlags.Open);
+                target.DefineOwnDataPropertyExact(
+                    Realm,
+                    atom,
+                    propValue,
+                    JsShapePropertyFlags.Open
+                );
             }
 
             for (var i = 0; i < enumerableNamedAtoms.Count; i++)
@@ -1837,7 +2521,12 @@ public partial class Intrinsics
                     continue;
                 if (!source.TryGetPropertyAtom(Realm, atom, out var propValue, out _))
                     continue;
-                target.DefineOwnDataPropertyExact(Realm, atom, propValue, JsShapePropertyFlags.Open);
+                target.DefineOwnDataPropertyExact(
+                    Realm,
+                    atom,
+                    propValue,
+                    JsShapePropertyFlags.Open
+                );
             }
 
             if (source is JsGlobalObject globalSource)
@@ -1849,7 +2538,12 @@ public partial class Intrinsics
                         continue;
                     if (!source.TryGetPropertyAtom(Realm, atom, out var propValue, out _))
                         continue;
-                    target.DefineOwnDataPropertyExact(Realm, atom, propValue, JsShapePropertyFlags.Open);
+                    target.DefineOwnDataPropertyExact(
+                        Realm,
+                        atom,
+                        propValue,
+                        JsShapePropertyFlags.Open
+                    );
                 }
         }
         finally
@@ -1862,7 +2556,8 @@ public partial class Intrinsics
     internal void CopyDataPropertiesOntoObjectExcluding(
         JsObject target,
         in JsValue sourceValue,
-        ReadOnlySpan<JsValue> excludedKeys)
+        ReadOnlySpan<JsValue> excludedKeys
+    )
     {
         var realm = Realm;
         if (sourceValue.IsNullOrUndefined)
@@ -1872,8 +2567,9 @@ public partial class Intrinsics
 
         List<JsValue>? trapKeys;
         JsObject? proxyTarget = null;
-        var isProxy = source.TryGetOwnKeysTrapKeys(realm, out trapKeys) ||
-                      source.TryGetProxyTarget(out proxyTarget);
+        var isProxy =
+            source.TryGetOwnKeysTrapKeys(realm, out trapKeys)
+            || source.TryGetProxyTarget(out proxyTarget);
 
         if (isProxy)
         {
@@ -1891,8 +2587,14 @@ public partial class Intrinsics
                     var key = keys[i];
                     if (IsCopyDataPropertiesExcludedKey(realm, key, excludedKeys))
                         continue;
-                    if (!TryGetOwnEnumerableForCopyDataProperties(realm, source, key, out var enumerable) ||
-                        !enumerable)
+                    if (
+                        !TryGetOwnEnumerableForCopyDataProperties(
+                            realm,
+                            source,
+                            key,
+                            out var enumerable
+                        ) || !enumerable
+                    )
                         continue;
 
                     CopyValueForCopyDataPropertiesKey(realm, source, target, key);
@@ -1966,7 +2668,12 @@ public partial class Intrinsics
                     continue;
                 if (!source.TryGetPropertyAtom(realm, atom, out var propValue, out _))
                     continue;
-                target.DefineOwnDataPropertyExact(Realm, atom, propValue, JsShapePropertyFlags.Open);
+                target.DefineOwnDataPropertyExact(
+                    Realm,
+                    atom,
+                    propValue,
+                    JsShapePropertyFlags.Open
+                );
             }
 
             for (var i = 0; i < enumerableNamedAtoms.Count; i++)
@@ -1982,7 +2689,12 @@ public partial class Intrinsics
                     continue;
                 if (!source.TryGetPropertyAtom(realm, atom, out var propValue, out _))
                     continue;
-                target.DefineOwnDataPropertyExact(Realm, atom, propValue, JsShapePropertyFlags.Open);
+                target.DefineOwnDataPropertyExact(
+                    Realm,
+                    atom,
+                    propValue,
+                    JsShapePropertyFlags.Open
+                );
             }
 
             if (source is JsGlobalObject globalSource)
@@ -1992,16 +2704,24 @@ public partial class Intrinsics
                     var desc = pair.Value;
                     if (!desc.Enumerable)
                         continue;
-                    var key = atom >= 0
-                        ? JsValue.FromString(Atoms.AtomToString(atom))
-                        : JsValue.FromSymbol(Atoms.TryGetSymbolByAtom(atom, out var existing)
-                            ? existing
-                            : new(atom, Atoms.AtomToString(atom)));
+                    var key =
+                        atom >= 0
+                            ? JsValue.FromString(Atoms.AtomToString(atom))
+                            : JsValue.FromSymbol(
+                                Atoms.TryGetSymbolByAtom(atom, out var existing)
+                                    ? existing
+                                    : new(atom, Atoms.AtomToString(atom))
+                            );
                     if (IsCopyDataPropertiesExcludedKey(realm, key, excludedKeys))
                         continue;
                     if (!source.TryGetPropertyAtom(realm, atom, out var propValue, out _))
                         continue;
-                    target.DefineOwnDataPropertyExact(Realm, atom, propValue, JsShapePropertyFlags.Open);
+                    target.DefineOwnDataPropertyExact(
+                        Realm,
+                        atom,
+                        propValue,
+                        JsShapePropertyFlags.Open
+                    );
                 }
         }
         finally
@@ -2011,11 +2731,16 @@ public partial class Intrinsics
         }
     }
 
-    private static bool TryCopyDataPropertiesFromProxySource(JsRealm realm, JsObject source, JsObject target)
+    private static bool TryCopyDataPropertiesFromProxySource(
+        JsRealm realm,
+        JsObject source,
+        JsObject target
+    )
     {
         JsObject? proxyTarget = null;
-        var isProxy = source.TryGetOwnKeysTrapKeys(realm, out var trapKeys) ||
-                      source.TryGetProxyTarget(out proxyTarget);
+        var isProxy =
+            source.TryGetOwnKeysTrapKeys(realm, out var trapKeys)
+            || source.TryGetProxyTarget(out proxyTarget);
 
         if (!isProxy)
             return false;
@@ -2032,7 +2757,14 @@ public partial class Intrinsics
             for (var i = 0; i < keys.Count; i++)
             {
                 var key = keys[i];
-                if (!TryGetOwnEnumerableForCopyDataProperties(realm, source, key, out var enumerable) || !enumerable)
+                if (
+                    !TryGetOwnEnumerableForCopyDataProperties(
+                        realm,
+                        source,
+                        key,
+                        out var enumerable
+                    ) || !enumerable
+                )
                     continue;
 
                 CopyValueForCopyDataPropertiesKey(realm, source, target, key);
@@ -2047,8 +2779,11 @@ public partial class Intrinsics
         }
     }
 
-    private static void CollectOwnPropertyKeysForCopyDataProperties(JsRealm realm, JsObject source,
-        List<JsValue> keysOut)
+    private static void CollectOwnPropertyKeysForCopyDataProperties(
+        JsRealm realm,
+        JsObject source,
+        List<JsValue> keysOut
+    )
     {
         var elementIndices = realm.RentScratchList<uint>(8);
         var seenStringAtoms = realm.RentScratchHashSet<int>();
@@ -2060,7 +2795,9 @@ public partial class Intrinsics
             if (elementIndices.Count != 0)
                 elementIndices.Sort();
             for (var i = 0; i < elementIndices.Count; i++)
-                keysOut.Add(JsValue.FromString(elementIndices[i].ToString(CultureInfo.InvariantCulture)));
+                keysOut.Add(
+                    JsValue.FromString(elementIndices[i].ToString(CultureInfo.InvariantCulture))
+                );
 
             source.CollectOwnNamedPropertyAtoms(realm, namedAtoms, false);
             for (var i = 0; i < namedAtoms.Count; i++)
@@ -2107,19 +2844,31 @@ public partial class Intrinsics
         }
     }
 
-    private static bool TryGetOwnEnumerableForCopyDataProperties(JsRealm realm, JsObject source, in JsValue key,
-        out bool enumerable)
+    private static bool TryGetOwnEnumerableForCopyDataProperties(
+        JsRealm realm,
+        JsObject source,
+        in JsValue key,
+        out bool enumerable
+    )
     {
         return TryGetOwnEnumerableCore(realm, source, key, out enumerable);
     }
 
-    private static bool TryGetOwnEnumerableCore(JsRealm realm, JsObject source, in JsValue key,
-        out bool enumerable)
+    private static bool TryGetOwnEnumerableCore(
+        JsRealm realm,
+        JsObject source,
+        in JsValue key,
+        out bool enumerable
+    )
     {
         var trapHasDescriptor = false;
         var trapEnumerable = false;
-        var trapUsed =
-            source.TryGetOwnEnumerableDescriptorViaTrap(realm, key, out trapHasDescriptor, out trapEnumerable);
+        var trapUsed = source.TryGetOwnEnumerableDescriptorViaTrap(
+            realm,
+            key,
+            out trapHasDescriptor,
+            out trapEnumerable
+        );
 
         if (trapUsed)
         {
@@ -2141,8 +2890,10 @@ public partial class Intrinsics
             return true;
         }
 
-        if (source is JsGlobalObject globalObject &&
-            globalObject.TryGetNamedGlobalDescriptorAtom(atom, out var globalDescriptor))
+        if (
+            source is JsGlobalObject globalObject
+            && globalObject.TryGetNamedGlobalDescriptorAtom(atom, out var globalDescriptor)
+        )
         {
             enumerable = globalDescriptor.Enumerable;
             return true;
@@ -2152,8 +2903,12 @@ public partial class Intrinsics
         return false;
     }
 
-    private static void CopyValueForCopyDataPropertiesKey(JsRealm realm, JsObject source, JsObject target,
-        in JsValue key)
+    private static void CopyValueForCopyDataPropertiesKey(
+        JsRealm realm,
+        JsObject source,
+        JsObject target,
+        in JsValue key
+    )
     {
         var isIndex = realm.TryResolvePropertyKey(key, out var index, out var atom);
         if (isIndex)
@@ -2172,7 +2927,8 @@ public partial class Intrinsics
     private static bool IsCopyDataPropertiesExcludedKey(
         JsRealm realm,
         in JsValue key,
-        ReadOnlySpan<JsValue> excludedKeys)
+        ReadOnlySpan<JsValue> excludedKeys
+    )
     {
         for (var i = 0; i < excludedKeys.Length; i++)
         {
@@ -2184,14 +2940,20 @@ public partial class Intrinsics
         return false;
     }
 
-    private static bool SameValueForCopyDataPropertiesKey(JsRealm realm, in JsValue left, in JsValue right)
+    private static bool SameValueForCopyDataPropertiesKey(
+        JsRealm realm,
+        in JsValue left,
+        in JsValue right
+    )
     {
         if (left.IsString && right.IsString)
             return left.AsJsString().Equals(right.AsJsString());
         if (left.IsSymbol && right.IsSymbol)
             return ReferenceEquals(left.AsSymbol(), right.AsSymbol());
-        if (realm.TryResolvePropertyKey(left, out var leftIndex, out var leftAtom) &&
-            realm.TryResolvePropertyKey(right, out var rightIndex, out var rightAtom))
+        if (
+            realm.TryResolvePropertyKey(left, out var leftIndex, out var leftAtom)
+            && realm.TryResolvePropertyKey(right, out var rightIndex, out var rightAtom)
+        )
             return leftIndex == rightIndex && leftAtom == rightAtom;
 
         return JsValue.SameValue(left, right);
@@ -2213,12 +2975,19 @@ public partial class Intrinsics
         internal readonly JsValue SetValue;
 
         internal DescriptorSnapshot(
-            bool hasValue, in JsValue value,
-            bool hasWritable, in JsValue writableValue,
-            bool hasEnumerable, in JsValue enumerableValue,
-            bool hasConfigurable, in JsValue configurableValue,
-            bool hasGet, in JsValue getValue,
-            bool hasSet, in JsValue setValue)
+            bool hasValue,
+            in JsValue value,
+            bool hasWritable,
+            in JsValue writableValue,
+            bool hasEnumerable,
+            in JsValue enumerableValue,
+            bool hasConfigurable,
+            in JsValue configurableValue,
+            bool hasGet,
+            in JsValue getValue,
+            bool hasSet,
+            in JsValue setValue
+        )
         {
             HasValue = hasValue;
             Value = value;

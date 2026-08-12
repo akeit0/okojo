@@ -7,14 +7,22 @@ public sealed partial class JsRealm
         JsObject iterator,
         string nextNotFunctionMessage,
         string resultNotObjectMessage,
-        out bool done)
+        out bool done
+    )
     {
         if (!iterator.TryGetPropertyAtom(realm, IdNext, out var nextMethod, out _))
             throw new JsRuntimeException(JsErrorKind.TypeError, nextNotFunctionMessage);
-        if (!nextMethod.TryGetObject(out var nextMethodObj) || nextMethodObj is not JsFunction nextFn)
+        if (
+            !nextMethod.TryGetObject(out var nextMethodObj)
+            || nextMethodObj is not JsFunction nextFn
+        )
             throw new JsRuntimeException(JsErrorKind.TypeError, nextNotFunctionMessage);
 
-        var stepResult = realm.InvokeFunction(nextFn, JsValue.FromObject(iterator), ReadOnlySpan<JsValue>.Empty);
+        var stepResult = realm.InvokeFunction(
+            nextFn,
+            JsValue.FromObject(iterator),
+            ReadOnlySpan<JsValue>.Empty
+        );
         if (!stepResult.TryGetObject(out var resultObj))
             throw new JsRuntimeException(JsErrorKind.TypeError, resultNotObjectMessage);
 

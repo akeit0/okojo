@@ -10,8 +10,16 @@ internal sealed partial class JsDurationFormatObject : JsObject
 {
     private static readonly string[] DurationUnits =
     [
-        "years", "months", "weeks", "days", "hours", "minutes", "seconds", "milliseconds", "microseconds",
-        "nanoseconds"
+        "years",
+        "months",
+        "weeks",
+        "days",
+        "hours",
+        "minutes",
+        "seconds",
+        "milliseconds",
+        "microseconds",
+        "nanoseconds",
     ];
 
     internal JsDurationFormatObject(
@@ -41,7 +49,9 @@ internal sealed partial class JsDurationFormatObject : JsObject
         string millisecondsDisplay,
         string microsecondsDisplay,
         string nanosecondsDisplay,
-        int? fractionalDigits) : base(realm)
+        int? fractionalDigits
+    )
+        : base(realm)
     {
         Prototype = prototype;
         Locale = locale;
@@ -99,7 +109,9 @@ internal sealed partial class JsDurationFormatObject : JsObject
 
     [GeneratedRegex(
         @"^([+-])?P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)W)?(?:(\d+)D)?(?:T(?:(\d+)(?:[.,](\d{1,9}))?H)?(?:(\d+)(?:[.,](\d{1,9}))?M)?(?:(\d+)(?:[.,](\d{1,9}))?S)?)?$",
-        RegexOptions.CultureInvariant | RegexOptions.IgnoreCase, 100)]
+        RegexOptions.CultureInvariant | RegexOptions.IgnoreCase,
+        100
+    )]
     private static partial Regex DurationPatternRegex();
 
     internal string Format(DurationRecord duration)
@@ -113,7 +125,10 @@ internal sealed partial class JsDurationFormatObject : JsObject
         var result = Realm.CreateArrayObject();
         uint index = 0;
         foreach (var part in Partition(duration))
-            result.SetElement(index++, JsValue.FromObject(CreatePartObject(part.Type, part.Value, part.Unit)));
+            result.SetElement(
+                index++,
+                JsValue.FromObject(CreatePartObject(part.Type, part.Value, part.Unit))
+            );
         return result;
     }
 
@@ -188,8 +203,14 @@ internal sealed partial class JsDurationFormatObject : JsObject
                 if (match.Groups[11].Success)
                 {
                     var fraction = match.Groups[11].Value.PadRight(9, '0');
-                    milliseconds = double.Parse(fraction.AsSpan(0, 3), CultureInfo.InvariantCulture);
-                    microseconds = double.Parse(fraction.AsSpan(3, 3), CultureInfo.InvariantCulture);
+                    milliseconds = double.Parse(
+                        fraction.AsSpan(0, 3),
+                        CultureInfo.InvariantCulture
+                    );
+                    microseconds = double.Parse(
+                        fraction.AsSpan(3, 3),
+                        CultureInfo.InvariantCulture
+                    );
                     nanoseconds = double.Parse(fraction.AsSpan(6, 3), CultureInfo.InvariantCulture);
                 }
             }
@@ -205,7 +226,8 @@ internal sealed partial class JsDurationFormatObject : JsObject
             NoNegativeZero(sign * seconds),
             NoNegativeZero(sign * milliseconds),
             NoNegativeZero(sign * microseconds),
-            NoNegativeZero(sign * nanoseconds));
+            NoNegativeZero(sign * nanoseconds)
+        );
         return true;
     }
 
@@ -239,21 +261,32 @@ internal sealed partial class JsDurationFormatObject : JsObject
                     {
                         "seconds" => 9,
                         "milliseconds" => 6,
-                        _ => 3
+                        _ => 3,
                     };
-                    formatValue = JsValue.FromString(DurationToFractionalString(duration, exponent));
+                    formatValue = JsValue.FromString(
+                        DurationToFractionalString(duration, exponent)
+                    );
                     done = true;
                 }
             }
 
             var numericLike = style is "numeric" or "2-digit";
-            var displayRequired = unit == "minutes" &&
-                                  (needSeparator ||
-                                   (string.Equals(Style, "digital", StringComparison.Ordinal) &&
-                                    (duration.IsPresent("minutes") || duration.IsPresent("hours")))) &&
-                                  (string.Equals(SecondsDisplay, "always", StringComparison.Ordinal) ||
-                                   duration.Seconds != 0 || duration.Milliseconds != 0 || duration.Microseconds != 0 ||
-                                   duration.Nanoseconds != 0);
+            var displayRequired =
+                unit == "minutes"
+                && (
+                    needSeparator
+                    || (
+                        string.Equals(Style, "digital", StringComparison.Ordinal)
+                        && (duration.IsPresent("minutes") || duration.IsPresent("hours"))
+                    )
+                )
+                && (
+                    string.Equals(SecondsDisplay, "always", StringComparison.Ordinal)
+                    || duration.Seconds != 0
+                    || duration.Milliseconds != 0
+                    || duration.Microseconds != 0
+                    || duration.Nanoseconds != 0
+                );
             var shouldDisplay = ShouldDisplayValue(formatValue, display) || displayRequired;
 
             if (shouldDisplay)
@@ -275,7 +308,8 @@ internal sealed partial class JsDurationFormatObject : JsObject
                     GetMinimumIntegerDigits(unit, style, needSeparator),
                     done ? FractionalDigits ?? 0 : null,
                     done ? FractionalDigits ?? 9 : null,
-                    done ? "trunc" : null);
+                    done ? "trunc" : null
+                );
 
                 List<DurationPart> list;
                 if (!needSeparator)
@@ -288,7 +322,9 @@ internal sealed partial class JsDurationFormatObject : JsObject
                     list.Add(new("literal", ":", null));
                 }
 
-                foreach (var numberPart in BuildNumberParts(numberFormat, formatValue, singularUnit))
+                foreach (
+                    var numberPart in BuildNumberParts(numberFormat, formatValue, singularUnit)
+                )
                     list.Add(numberPart);
 
                 if (!needSeparator)
@@ -304,14 +340,25 @@ internal sealed partial class JsDurationFormatObject : JsObject
         }
 
         var listStyle = string.Equals(Style, "digital", StringComparison.Ordinal) ? "short" : Style;
-        var listFormat = new JsListFormatObject(Realm, Realm.ObjectPrototype, Locale, "unit", listStyle);
-        var strings = result.Select(static parts => string.Concat(parts.Select(static part => part.Value))).ToList();
+        var listFormat = new JsListFormatObject(
+            Realm,
+            Realm.ObjectPrototype,
+            Locale,
+            "unit",
+            listStyle
+        );
+        var strings = result
+            .Select(static parts => string.Concat(parts.Select(static part => part.Value)))
+            .ToList();
         var listParts = listFormat.FormatToParts(strings);
         var flattened = new List<DurationPart>();
         var elementIndex = 0;
         for (uint i = 0; i < listParts.Length; i++)
         {
-            if (!listParts.TryGetElement(i, out var partValue) || !partValue.TryGetObject(out var partObject))
+            if (
+                !listParts.TryGetElement(i, out var partValue)
+                || !partValue.TryGetObject(out var partObject)
+            )
                 continue;
 
             partObject.TryGetPropertyByAtom(IdType, out var typeValue);
@@ -334,7 +381,8 @@ internal sealed partial class JsDurationFormatObject : JsObject
         int minimumIntegerDigits,
         int? minimumFractionDigits,
         int? maximumFractionDigits,
-        string? roundingMode)
+        string? roundingMode
+    )
     {
         var numericLike = style is "numeric" or "2-digit";
         return new(
@@ -363,7 +411,8 @@ internal sealed partial class JsDurationFormatObject : JsObject
             "auto",
             1,
             "auto",
-            CultureInfo);
+            CultureInfo
+        );
     }
 
     private int GetMinimumIntegerDigits(string unit, string style, bool needSeparator)
@@ -384,24 +433,41 @@ internal sealed partial class JsDurationFormatObject : JsObject
         return 1;
     }
 
-    private List<DurationPart> BuildNumberParts(JsNumberFormatObject numberFormat, in JsValue value, string unit)
+    private List<DurationPart> BuildNumberParts(
+        JsNumberFormatObject numberFormat,
+        in JsValue value,
+        string unit
+    )
     {
-        if (value.IsString &&
-            string.Equals(numberFormat.Style, "decimal", StringComparison.Ordinal))
+        if (
+            value.IsString && string.Equals(numberFormat.Style, "decimal", StringComparison.Ordinal)
+        )
         {
             var raw = value.AsString();
             if (CanPreserveExactDecimal(raw))
                 return BuildExactDecimalParts(numberFormat, raw, unit);
-            if (double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedExact))
+            if (
+                double.TryParse(
+                    raw,
+                    NumberStyles.Float,
+                    CultureInfo.InvariantCulture,
+                    out var parsedExact
+                )
+            )
                 return BuildNumberParts(numberFormat, new(parsedExact), unit);
         }
 
-        var number = value.IsString ? double.Parse(value.AsString(), CultureInfo.InvariantCulture) : value.NumberValue;
+        var number = value.IsString
+            ? double.Parse(value.AsString(), CultureInfo.InvariantCulture)
+            : value.NumberValue;
         var partsArray = numberFormat.FormatToParts(number);
         var parts = new List<DurationPart>();
         for (uint i = 0; i < partsArray.Length; i++)
         {
-            if (!partsArray.TryGetElement(i, out var partValue) || !partValue.TryGetObject(out var partObject))
+            if (
+                !partsArray.TryGetElement(i, out var partValue)
+                || !partValue.TryGetObject(out var partObject)
+            )
                 continue;
 
             partObject.TryGetPropertyByAtom(IdType, out var typeValue);
@@ -416,20 +482,27 @@ internal sealed partial class JsDurationFormatObject : JsObject
 
     private static bool CanPreserveExactDecimal(string raw)
     {
-        var start = raw.StartsWith("-", StringComparison.Ordinal) || raw.StartsWith("+", StringComparison.Ordinal)
-            ? 1
-            : 0;
+        var start =
+            raw.StartsWith("-", StringComparison.Ordinal)
+            || raw.StartsWith("+", StringComparison.Ordinal)
+                ? 1
+                : 0;
         var unsigned = raw[start..];
         var dotIndex = unsigned.IndexOf('.');
         var integerPart = dotIndex >= 0 ? unsigned[..dotIndex] : unsigned;
         var fractionPart = dotIndex >= 0 ? unsigned[(dotIndex + 1)..] : string.Empty;
         integerPart = integerPart.TrimStart('0');
         fractionPart = fractionPart.TrimEnd('0');
-        var significantDigits = (integerPart.Length == 0 ? 1 : integerPart.Length) + fractionPart.Length;
+        var significantDigits =
+            (integerPart.Length == 0 ? 1 : integerPart.Length) + fractionPart.Length;
         return significantDigits <= 15;
     }
 
-    private List<DurationPart> BuildExactDecimalParts(JsNumberFormatObject numberFormat, string raw, string unit)
+    private List<DurationPart> BuildExactDecimalParts(
+        JsNumberFormatObject numberFormat,
+        string raw,
+        string unit
+    )
     {
         var parts = new List<DurationPart>();
         var negative = raw.StartsWith("-", StringComparison.Ordinal);
@@ -451,12 +524,18 @@ internal sealed partial class JsDurationFormatObject : JsObject
             fractionPart = fractionPart.PadRight(minFractionDigits, '0');
         integerPart = integerPart.PadLeft(numberFormat.MinimumIntegerDigits, '0');
 
-        var decimalSeparator = NumberingSystemData.GetDecimalSeparator(numberFormat.NumberingSystem,
-            numberFormat.CultureInfo.NumberFormat.NumberDecimalSeparator);
-        var renderedInteger =
-            NumberingSystemData.TransliterateDigits(integerPart, numberFormat.NumberingSystem);
-        var renderedFraction =
-            NumberingSystemData.TransliterateDigits(fractionPart, numberFormat.NumberingSystem);
+        var decimalSeparator = NumberingSystemData.GetDecimalSeparator(
+            numberFormat.NumberingSystem,
+            numberFormat.CultureInfo.NumberFormat.NumberDecimalSeparator
+        );
+        var renderedInteger = NumberingSystemData.TransliterateDigits(
+            integerPart,
+            numberFormat.NumberingSystem
+        );
+        var renderedFraction = NumberingSystemData.TransliterateDigits(
+            fractionPart,
+            numberFormat.NumberingSystem
+        );
 
         if (negative && !string.Equals(numberFormat.SignDisplay, "never", StringComparison.Ordinal))
             parts.Add(new("minusSign", "-", unit));
@@ -471,20 +550,28 @@ internal sealed partial class JsDurationFormatObject : JsObject
         return parts;
     }
 
-
     private JsPlainObject CreatePartObject(string type, string value, string? unit)
     {
-        var obj = new JsPlainObject(Realm)
-        {
-            Prototype = Realm.ObjectPrototype
-        };
-        obj.DefineDataPropertyAtom(Realm, Realm.Atoms.InternNoCheck("type"), JsValue.FromString(type),
-            JsShapePropertyFlags.Open);
-        obj.DefineDataPropertyAtom(Realm, Realm.Atoms.InternNoCheck("value"), JsValue.FromString(value),
-            JsShapePropertyFlags.Open);
+        var obj = new JsPlainObject(Realm) { Prototype = Realm.ObjectPrototype };
+        obj.DefineDataPropertyAtom(
+            Realm,
+            Realm.Atoms.InternNoCheck("type"),
+            JsValue.FromString(type),
+            JsShapePropertyFlags.Open
+        );
+        obj.DefineDataPropertyAtom(
+            Realm,
+            Realm.Atoms.InternNoCheck("value"),
+            JsValue.FromString(value),
+            JsShapePropertyFlags.Open
+        );
         if (unit is not null)
-            obj.DefineDataPropertyAtom(Realm, Realm.Atoms.InternNoCheck("unit"), JsValue.FromString(unit),
-                JsShapePropertyFlags.Open);
+            obj.DefineDataPropertyAtom(
+                Realm,
+                Realm.Atoms.InternNoCheck("unit"),
+                JsValue.FromString(unit),
+                JsShapePropertyFlags.Open
+            );
         return obj;
     }
 
@@ -501,7 +588,7 @@ internal sealed partial class JsDurationFormatObject : JsObject
             "seconds" => SecondsStyle,
             "milliseconds" => MillisecondsStyle,
             "microseconds" => MicrosecondsStyle,
-            _ => NanosecondsStyle
+            _ => NanosecondsStyle,
         };
     }
 
@@ -518,7 +605,7 @@ internal sealed partial class JsDurationFormatObject : JsObject
             "seconds" => SecondsDisplay,
             "milliseconds" => MillisecondsDisplay,
             "microseconds" => MicrosecondsDisplay,
-            _ => NanosecondsDisplay
+            _ => NanosecondsDisplay,
         };
     }
 
@@ -556,7 +643,12 @@ internal sealed partial class JsDurationFormatObject : JsObject
 
     private static string DurationToFractionalString(DurationRecord duration, int exponent)
     {
-        if (exponent == 9 && duration.Milliseconds == 0 && duration.Microseconds == 0 && duration.Nanoseconds == 0)
+        if (
+            exponent == 9
+            && duration.Milliseconds == 0
+            && duration.Microseconds == 0
+            && duration.Nanoseconds == 0
+        )
             return IntegerString(duration.Seconds);
         if (exponent == 6 && duration.Microseconds == 0 && duration.Nanoseconds == 0)
             return IntegerString(duration.Milliseconds);
@@ -605,7 +697,9 @@ internal sealed partial class JsDurationFormatObject : JsObject
     {
         if (string.IsNullOrEmpty(value))
             return 0d;
-        if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var result))
+        if (
+            double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var result)
+        )
             return result;
         return double.PositiveInfinity;
     }
@@ -624,11 +718,20 @@ internal sealed partial class JsDurationFormatObject : JsObject
         double Milliseconds,
         double Microseconds,
         double Nanoseconds,
-        ulong PresentMask = 0)
+        ulong PresentMask = 0
+    )
     {
         internal bool HasNegativeComponent =>
-            Years < 0 || Months < 0 || Weeks < 0 || Days < 0 || Hours < 0 || Minutes < 0 || Seconds < 0 ||
-            Milliseconds < 0 || Microseconds < 0 || Nanoseconds < 0;
+            Years < 0
+            || Months < 0
+            || Weeks < 0
+            || Days < 0
+            || Hours < 0
+            || Minutes < 0
+            || Seconds < 0
+            || Milliseconds < 0
+            || Microseconds < 0
+            || Nanoseconds < 0;
 
         internal bool IsPresent(string unit)
         {
@@ -648,7 +751,7 @@ internal sealed partial class JsDurationFormatObject : JsObject
                 "seconds" => Seconds,
                 "milliseconds" => Milliseconds,
                 "microseconds" => Microseconds,
-                _ => Nanoseconds
+                _ => Nanoseconds,
             };
         }
 
@@ -665,7 +768,7 @@ internal sealed partial class JsDurationFormatObject : JsObject
                 "seconds" => 1UL << 6,
                 "milliseconds" => 1UL << 7,
                 "microseconds" => 1UL << 8,
-                _ => 1UL << 9
+                _ => 1UL << 9,
             };
         }
     }

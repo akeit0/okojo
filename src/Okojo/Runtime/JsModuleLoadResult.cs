@@ -2,7 +2,11 @@ namespace Okojo.Runtime;
 
 public sealed class JsModuleLoadResult
 {
-    internal JsModuleLoadResult(JsModuleNamespace moduleNamespace, JsValue completionValue, bool isCompleted)
+    internal JsModuleLoadResult(
+        JsModuleNamespace moduleNamespace,
+        JsValue completionValue,
+        bool isCompleted
+    )
     {
         Namespace = moduleNamespace;
         CompletionValue = completionValue;

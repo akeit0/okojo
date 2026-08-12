@@ -3,7 +3,8 @@ namespace Okojo.DotNet.Modules;
 public readonly record struct DotNetModuleReference(
     DotNetModuleReferenceKind Kind,
     string Specifier,
-    string? Version = null)
+    string? Version = null
+)
 {
     public static DotNetModuleReference Package(string packageId, string? version = null)
     {

@@ -16,14 +16,19 @@ internal sealed partial class JsPlannedFunctionCompiler
     private readonly Dictionary<string, int> parameterRegisterByName;
     private int rootContextSlotCount;
 
-    public JsPlannedFunctionCompiler(JsRealm realm, IReadOnlyDictionary<string, CapturedBindingAccess>? inheritedCaptures = null)
+    public JsPlannedFunctionCompiler(
+        JsRealm realm,
+        IReadOnlyDictionary<string, CapturedBindingAccess>? inheritedCaptures = null
+    )
     {
         Vm = realm;
         builder = new BytecodeBuilder(realm);
         plannedBindingsByScopeId = new();
         scopesByParentScopeId = new();
         activeScopes = new();
-        this.inheritedCaptures = inheritedCaptures ?? new Dictionary<string, CapturedBindingAccess>(StringComparer.Ordinal);
+        this.inheritedCaptures =
+            inheritedCaptures
+            ?? new Dictionary<string, CapturedBindingAccess>(StringComparer.Ordinal);
         parameterRegisterByName = new(StringComparer.Ordinal);
     }
 

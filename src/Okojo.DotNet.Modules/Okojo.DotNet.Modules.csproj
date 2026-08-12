@@ -16,11 +16,11 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\Okojo\Okojo.csproj"/>
-        <ProjectReference Include="..\Okojo.Reflection\Okojo.Reflection.csproj"/>
+        <ProjectReference Include="..\Okojo\Okojo.csproj" />
+        <ProjectReference Include="..\Okojo.Reflection\Okojo.Reflection.csproj" />
     </ItemGroup>
 
     <ItemGroup>
-        <None Include="README.md" Pack="true" PackagePath="\"/>
+        <None Include="README.md" Pack="true" PackagePath="\" />
     </ItemGroup>
 </Project>

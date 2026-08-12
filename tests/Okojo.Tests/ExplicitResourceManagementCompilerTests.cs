@@ -10,7 +10,8 @@ public class ExplicitResourceManagementCompilerTests
     public void Using_Block_Disposes_On_Normal_Exit()
     {
         using var runtime = JsRuntime.Create();
-        var result = runtime.DefaultRealm.EvaluateInFunctionScope("""
+        var result = runtime.DefaultRealm.EvaluateInFunctionScope(
+            """
             const order = [];
             {
               using resource = {
@@ -21,7 +22,8 @@ public class ExplicitResourceManagementCompilerTests
               order.push("body");
             }
             return order.join(",") === "body,dispose";
-            """);
+            """
+        );
 
         Assert.That(result.IsTrue, Is.True);
     }
@@ -30,7 +32,8 @@ public class ExplicitResourceManagementCompilerTests
     public void Using_Return_Disposes_Before_Function_Leaves()
     {
         using var runtime = JsRuntime.Create();
-        var result = runtime.DefaultRealm.EvaluateInFunctionScope("""
+        var result = runtime.DefaultRealm.EvaluateInFunctionScope(
+            """
             const order = [];
             function run() {
               using resource = {
@@ -41,7 +44,8 @@ public class ExplicitResourceManagementCompilerTests
               return 42;
             }
             return run() === 42 && order.join(",") === "dispose";
-            """);
+            """
+        );
 
         Assert.That(result.IsTrue, Is.True);
     }
@@ -50,7 +54,8 @@ public class ExplicitResourceManagementCompilerTests
     public void Using_Throw_Path_Creates_SuppressedError()
     {
         using var runtime = JsRuntime.Create();
-        var result = runtime.DefaultRealm.EvaluateInFunctionScope("""
+        var result = runtime.DefaultRealm.EvaluateInFunctionScope(
+            """
             const bodyError = new Error("body");
             const disposeError = new Error("dispose");
             try {
@@ -65,7 +70,8 @@ public class ExplicitResourceManagementCompilerTests
                 e.error === disposeError &&
                 e.suppressed === bodyError;
             }
-            """);
+            """
+        );
 
         Assert.That(result.IsTrue, Is.True);
     }
@@ -75,7 +81,8 @@ public class ExplicitResourceManagementCompilerTests
     {
         using var runtime = JsRuntime.Create();
         var realm = runtime.DefaultRealm;
-        var result = await realm.EvaluateAsync("""
+        var result = await realm.EvaluateAsync(
+            """
             const order = [];
             async function run() {
               await using resource = {
@@ -89,7 +96,8 @@ public class ExplicitResourceManagementCompilerTests
             }
             await run();
             order;
-            """);
+            """
+        );
 
         var array = result.AsObject() as JsArray;
         Assert.That(array, Is.Not.Null);
@@ -106,19 +114,23 @@ public class ExplicitResourceManagementCompilerTests
     {
         using var runtime = JsRuntime.Create();
         var realm = runtime.DefaultRealm;
-        var ex = Assert.ThrowsAsync<PromiseRejectedException>(async () => await realm.EvaluateAsync("""
-            const marker = {};
-            globalThis.__ermMarker = marker;
-            async function run() {
-              await using resource = {
-                async [Symbol.asyncDispose]() {
-                  await 0;
-                  throw { marker, message: "dispose" };
+        var ex = Assert.ThrowsAsync<PromiseRejectedException>(async () =>
+            await realm.EvaluateAsync(
+                """
+                const marker = {};
+                globalThis.__ermMarker = marker;
+                async function run() {
+                  await using resource = {
+                    async [Symbol.asyncDispose]() {
+                      await 0;
+                      throw { marker, message: "dispose" };
+                    }
+                  };
                 }
-              };
-            }
-            await run();
-            """));
+                await run();
+                """
+            )
+        );
 
         Assert.That(ex, Is.Not.Null);
         var reason = ex!.Reason;
@@ -136,7 +148,8 @@ public class ExplicitResourceManagementCompilerTests
         using var runtime = JsRuntime.Create();
         var realm = runtime.DefaultRealm;
 
-        _ = realm.Evaluate("""
+        _ = realm.Evaluate(
+            """
             globalThis.isRunningInSameMicrotask = true;
             globalThis.wasRunningInSameMicrotask = false;
             globalThis.pending = (async function f() {
@@ -147,7 +160,8 @@ public class ExplicitResourceManagementCompilerTests
               globalThis.wasRunningInSameMicrotask = globalThis.isRunningInSameMicrotask;
             })();
             globalThis.isRunningInSameMicrotask = false;
-            """);
+            """
+        );
 
         await realm.ToPumpedValueTask(realm.Global["pending"]);
         Assert.That(realm.Global["wasRunningInSameMicrotask"].IsTrue, Is.True);
@@ -157,7 +171,8 @@ public class ExplicitResourceManagementCompilerTests
     public void Using_ForOf_Head_Disposes_Previous_Iteration_Before_Advancing()
     {
         using var runtime = JsRuntime.Create();
-        var result = runtime.DefaultRealm.Evaluate("""
+        var result = runtime.DefaultRealm.Evaluate(
+            """
             const states = [];
             const resources = [0, 1].map(index => ({
               disposed: false,
@@ -172,7 +187,8 @@ public class ExplicitResourceManagementCompilerTests
 
             states.push(resources.map(item => item.disposed).join(","));
             states.join("|") === "false,false|true,false|true,true";
-            """);
+            """
+        );
 
         Assert.That(result.IsTrue, Is.True);
     }

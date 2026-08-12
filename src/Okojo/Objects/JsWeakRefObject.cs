@@ -5,7 +5,8 @@ internal sealed class JsWeakRefObject : JsObject
     private WeakReference<JsObject>? objectTarget;
     private Symbol? symbolTarget;
 
-    internal JsWeakRefObject(JsRealm realm, JsObject target, JsObject prototype) : base(realm)
+    internal JsWeakRefObject(JsRealm realm, JsObject target, JsObject prototype)
+        : base(realm)
     {
         Prototype = prototype;
         objectTarget = new(target);
@@ -13,7 +14,8 @@ internal sealed class JsWeakRefObject : JsObject
         realm.Agent.TrackWeakRef(this);
     }
 
-    internal JsWeakRefObject(JsRealm realm, Symbol target, JsObject prototype) : base(realm)
+    internal JsWeakRefObject(JsRealm realm, Symbol target, JsObject prototype)
+        : base(realm)
     {
         Prototype = prototype;
         symbolTarget = target;
@@ -24,9 +26,12 @@ internal sealed class JsWeakRefObject : JsObject
     internal bool MatchesTarget(in JsValue target)
     {
         if (target.TryGetObject(out var obj))
-            return objectTarget is not null && objectTarget.TryGetTarget(out var current) &&
-                   ReferenceEquals(current, obj);
-        return target.IsSymbol && symbolTarget is not null && ReferenceEquals(symbolTarget, target.AsSymbol());
+            return objectTarget is not null
+                && objectTarget.TryGetTarget(out var current)
+                && ReferenceEquals(current, obj);
+        return target.IsSymbol
+            && symbolTarget is not null
+            && ReferenceEquals(symbolTarget, target.AsSymbol());
     }
 
     internal void ClearTarget()

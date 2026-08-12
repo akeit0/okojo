@@ -18,7 +18,8 @@ internal sealed class HostNamedMemberDescriptor
         JsHostFunctionBody? bindableGetterBody,
         JsHostFunctionBody? bindableSetterBody,
         JsHostFunctionBody? bindableMethodBody,
-        int bindableFunctionLength)
+        int bindableFunctionLength
+    )
     {
         Name = name;
         ReceiverType = receiverType;
@@ -52,14 +53,14 @@ internal sealed class HostNamedMemberDescriptor
     internal int BindableFunctionLength { get; }
 
     internal bool CanRead =>
-        Field is not null ||
-        (Property is not null && Property.CanRead) ||
-        BindableGetterBody is not null;
+        Field is not null
+        || (Property is not null && Property.CanRead)
+        || BindableGetterBody is not null;
 
     internal bool CanWrite =>
-        (Field is not null && !Field.IsInitOnly) ||
-        (Property is not null && Property.SetMethod is not null) ||
-        BindableSetterBody is not null;
+        (Field is not null && !Field.IsInitOnly)
+        || (Property is not null && Property.SetMethod is not null)
+        || BindableSetterBody is not null;
 
     internal int FunctionLength
     {
@@ -87,7 +88,9 @@ internal sealed class HostNamedMemberDescriptor
     {
         get
         {
-            var flags = Configurable ? JsShapePropertyFlags.Configurable : JsShapePropertyFlags.None;
+            var flags = Configurable
+                ? JsShapePropertyFlags.Configurable
+                : JsShapePropertyFlags.None;
             if (Enumerable)
                 flags |= JsShapePropertyFlags.Enumerable;
             if (Kind == HostNamedMemberKind.Method)
@@ -102,32 +105,89 @@ internal sealed class HostNamedMemberDescriptor
 
     internal static HostNamedMemberDescriptor CreateField(FieldInfo field)
     {
-        return new(field.Name, field.DeclaringType ?? field.FieldType, HostNamedMemberKind.Field, field.IsStatic,
+        return new(
+            field.Name,
+            field.DeclaringType ?? field.FieldType,
+            HostNamedMemberKind.Field,
+            field.IsStatic,
             false,
-            true, field, null, null, null, null, null, null, 0);
+            true,
+            field,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            0
+        );
     }
 
     internal static HostNamedMemberDescriptor CreateProperty(PropertyInfo property)
     {
-        return new(property.Name, property.DeclaringType ?? property.PropertyType, HostNamedMemberKind.Property,
+        return new(
+            property.Name,
+            property.DeclaringType ?? property.PropertyType,
+            HostNamedMemberKind.Property,
             property.GetMethod?.IsStatic == true || property.SetMethod?.IsStatic == true,
-            false, true, null, property, null, null, null, null, null, 0);
+            false,
+            true,
+            null,
+            property,
+            null,
+            null,
+            null,
+            null,
+            null,
+            0
+        );
     }
 
-    internal static HostNamedMemberDescriptor CreateMethod(string name, MethodInfo[] methods,
-        int? genericParameterCount = null)
+    internal static HostNamedMemberDescriptor CreateMethod(
+        string name,
+        MethodInfo[] methods,
+        int? genericParameterCount = null
+    )
     {
-        return new(name, methods[0].DeclaringType ?? methods[0].ReturnType, HostNamedMemberKind.Method,
+        return new(
+            name,
+            methods[0].DeclaringType ?? methods[0].ReturnType,
+            HostNamedMemberKind.Method,
             methods[0].IsStatic,
             false,
-            true, null, null, methods, genericParameterCount, null, null, null, 0);
+            true,
+            null,
+            null,
+            methods,
+            genericParameterCount,
+            null,
+            null,
+            null,
+            0
+        );
     }
 
-    internal static HostNamedMemberDescriptor CreateGenerated(HostMemberBinding binding, Type receiverType)
+    internal static HostNamedMemberDescriptor CreateGenerated(
+        HostMemberBinding binding,
+        Type receiverType
+    )
     {
-        return new(binding.Name, receiverType, (HostNamedMemberKind)binding.Kind, binding.IsStatic,
-            false, true, null, null, null, null,
-            binding.GetterBody, binding.SetterBody, binding.MethodBody, binding.FunctionLength);
+        return new(
+            binding.Name,
+            receiverType,
+            (HostNamedMemberKind)binding.Kind,
+            binding.IsStatic,
+            false,
+            true,
+            null,
+            null,
+            null,
+            null,
+            binding.GetterBody,
+            binding.SetterBody,
+            binding.MethodBody,
+            binding.FunctionLength
+        );
     }
 
     internal object? ReadValue(object? target)
@@ -143,13 +203,19 @@ internal sealed class HostNamedMemberDescriptor
     {
         if (Field is not null)
         {
-            Field.SetValue(target, HostValueConverter.ConvertFromJsValue(realm, value, Field.FieldType));
+            Field.SetValue(
+                target,
+                HostValueConverter.ConvertFromJsValue(realm, value, Field.FieldType)
+            );
             return;
         }
 
         if (Property is not null && Property.SetMethod is not null)
         {
-            Property.SetValue(target, HostValueConverter.ConvertFromJsValue(realm, value, Property.PropertyType));
+            Property.SetValue(
+                target,
+                HostValueConverter.ConvertFromJsValue(realm, value, Property.PropertyType)
+            );
             return;
         }
 
@@ -163,7 +229,13 @@ internal sealed class HostNamedMemberDescriptor
             throw new InvalidOperationException($"Member '{Name}' is not callable.");
 
         if (GenericParameterCount.HasValue)
-            return BindGenericMethod(realm, target, methods, arguments, GenericParameterCount.Value);
+            return BindGenericMethod(
+                realm,
+                target,
+                methods,
+                arguments,
+                GenericParameterCount.Value
+            );
 
         MethodInfo? bestMethod = null;
         var bestScore = int.MaxValue;
@@ -183,10 +255,23 @@ internal sealed class HostNamedMemberDescriptor
         }
 
         if (bestMethod is null)
-            throw new InvalidOperationException($"Could not resolve host method overload '{Name}'.");
+            throw new InvalidOperationException(
+                $"Could not resolve host method overload '{Name}'."
+            );
 
-        if (!TryBuildMethodArguments(realm, bestMethod, arguments, out var bestArgs, out _, out var bestByRefBindings))
-            throw new InvalidOperationException($"Could not bind resolved host method overload '{Name}'.");
+        if (
+            !TryBuildMethodArguments(
+                realm,
+                bestMethod,
+                arguments,
+                out var bestArgs,
+                out _,
+                out var bestByRefBindings
+            )
+        )
+            throw new InvalidOperationException(
+                $"Could not bind resolved host method overload '{Name}'."
+            );
 
         var result = bestMethod.Invoke(target, bestArgs);
         if (bestByRefBindings is not null)
@@ -202,16 +287,29 @@ internal sealed class HostNamedMemberDescriptor
         return HostValueConverter.ConvertToJsValue(realm, result);
     }
 
-    private JsValue BindGenericMethod(JsRealm realm, object? target, MethodInfo[] methods,
+    private JsValue BindGenericMethod(
+        JsRealm realm,
+        object? target,
+        MethodInfo[] methods,
         ReadOnlySpan<JsValue> typeArguments,
-        int genericParameterCount)
+        int genericParameterCount
+    )
     {
         if (realm.EngineHost.ClrAccessProvider is { } provider)
-            return provider.BindGenericMethod(realm, Name, target, methods, typeArguments, genericParameterCount);
+            return provider.BindGenericMethod(
+                realm,
+                Name,
+                target,
+                methods,
+                typeArguments,
+                genericParameterCount
+            );
 
-        throw new JsRuntimeException(JsErrorKind.TypeError,
+        throw new JsRuntimeException(
+            JsErrorKind.TypeError,
             $"CLR generic method '{Name}' requires Okojo.Reflection CLR access.",
-            "CLR_GENERIC_ARGUMENT");
+            "CLR_GENERIC_ARGUMENT"
+        );
     }
 
     private static int CountRequiredParameters(MethodInfo method)
@@ -229,8 +327,14 @@ internal sealed class HostNamedMemberDescriptor
         return required;
     }
 
-    private static bool TryBuildMethodArguments(JsRealm realm, MethodInfo method, ReadOnlySpan<JsValue> arguments,
-        out object?[] converted, out int score, out List<HostByRefBinding>? byRefBindings)
+    private static bool TryBuildMethodArguments(
+        JsRealm realm,
+        MethodInfo method,
+        ReadOnlySpan<JsValue> arguments,
+        out object?[] converted,
+        out int score,
+        out List<HostByRefBinding>? byRefBindings
+    )
     {
         var parameters = method.GetParameters();
         score = 0;
@@ -265,9 +369,17 @@ internal sealed class HostNamedMemberDescriptor
                 var parameterType = parameters[i].ParameterType;
                 if (parameterType.IsByRef)
                 {
-                    if (!TryBindByRefArgument(realm, parameters[i], arguments[i], i, out converted[i],
+                    if (
+                        !TryBindByRefArgument(
+                            realm,
+                            parameters[i],
+                            arguments[i],
+                            i,
+                            out converted[i],
                             out var byRefScore,
-                            out var binding))
+                            out var binding
+                        )
+                    )
                     {
                         converted = Array.Empty<object?>();
                         byRefBindings = null;
@@ -280,8 +392,15 @@ internal sealed class HostNamedMemberDescriptor
                     continue;
                 }
 
-                if (!HostValueConverter.TryConvertFromJsValue(realm, arguments[i], parameterType,
-                        out converted[i], out var argScore))
+                if (
+                    !HostValueConverter.TryConvertFromJsValue(
+                        realm,
+                        arguments[i],
+                        parameterType,
+                        out converted[i],
+                        out var argScore
+                    )
+                )
                 {
                     converted = Array.Empty<object?>();
                     byRefBindings = null;
@@ -311,8 +430,15 @@ internal sealed class HostNamedMemberDescriptor
         var paramsArray = CreateParamsArray(realm, elementType, varArgCount);
         for (var i = 0; i < varArgCount; i++)
         {
-            if (!HostValueConverter.TryConvertFromJsValue(realm, arguments[fixedCount + i], elementType,
-                    out var value, out var argScore))
+            if (
+                !HostValueConverter.TryConvertFromJsValue(
+                    realm,
+                    arguments[fixedCount + i],
+                    elementType,
+                    out var value,
+                    out var argScore
+                )
+            )
             {
                 converted = Array.Empty<object?>();
                 byRefBindings = null;
@@ -327,8 +453,12 @@ internal sealed class HostNamedMemberDescriptor
         return true;
     }
 
-    private static bool TryScoreMethodArguments(JsRealm realm, MethodInfo method, ReadOnlySpan<JsValue> arguments,
-        out int score)
+    private static bool TryScoreMethodArguments(
+        JsRealm realm,
+        MethodInfo method,
+        ReadOnlySpan<JsValue> arguments,
+        out int score
+    )
     {
         var parameters = method.GetParameters();
         score = 0;
@@ -352,14 +482,28 @@ internal sealed class HostNamedMemberDescriptor
                 var parameterType = parameters[i].ParameterType;
                 if (parameterType.IsByRef)
                 {
-                    if (!TryGetByRefArgumentScore(realm, parameters[i], arguments[i], out var byRefScore))
+                    if (
+                        !TryGetByRefArgumentScore(
+                            realm,
+                            parameters[i],
+                            arguments[i],
+                            out var byRefScore
+                        )
+                    )
                         return false;
 
                     score += byRefScore + 1;
                     continue;
                 }
 
-                if (!HostValueConverter.TryGetConversionScore(realm, arguments[i], parameterType, out var argScore))
+                if (
+                    !HostValueConverter.TryGetConversionScore(
+                        realm,
+                        arguments[i],
+                        parameterType,
+                        out var argScore
+                    )
+                )
                     return false;
 
                 score += argScore;
@@ -378,8 +522,14 @@ internal sealed class HostNamedMemberDescriptor
         var varArgCount = Math.Max(0, arguments.Length - fixedCount);
         for (var i = 0; i < varArgCount; i++)
         {
-            if (!HostValueConverter.TryGetConversionScore(realm, arguments[fixedCount + i], elementType,
-                    out var argScore))
+            if (
+                !HostValueConverter.TryGetConversionScore(
+                    realm,
+                    arguments[fixedCount + i],
+                    elementType,
+                    out var argScore
+                )
+            )
                 return false;
 
             score += argScore + 2;
@@ -424,12 +574,19 @@ internal sealed class HostNamedMemberDescriptor
             return provider.CreateParamsArray(elementType, length);
 
         throw new InvalidOperationException(
-            $"Cannot materialize params array for element type '{elementType}' without Okojo.Reflection CLR access.");
+            $"Cannot materialize params array for element type '{elementType}' without Okojo.Reflection CLR access."
+        );
     }
 
-    private static bool TryBindByRefArgument(JsRealm realm, ParameterInfo parameter, JsValue argument,
+    private static bool TryBindByRefArgument(
+        JsRealm realm,
+        ParameterInfo parameter,
+        JsValue argument,
         int argumentIndex,
-        out object? value, out int score, out HostByRefBinding binding)
+        out object? value,
+        out int score,
+        out HostByRefBinding binding
+    )
     {
         score = 0;
         binding = default;
@@ -440,7 +597,15 @@ internal sealed class HostNamedMemberDescriptor
         }
 
         var elementType = parameter.ParameterType.GetElementType()!;
-        if (!placeholder.TryPrepareByRefValue(realm, elementType, parameter.IsOut, out value, out score))
+        if (
+            !placeholder.TryPrepareByRefValue(
+                realm,
+                elementType,
+                parameter.IsOut,
+                out value,
+                out score
+            )
+        )
         {
             value = null;
             return false;
@@ -450,15 +615,22 @@ internal sealed class HostNamedMemberDescriptor
         return true;
     }
 
-    private static bool TryGetByRefArgumentScore(JsRealm realm, ParameterInfo parameter, JsValue argument,
-        out int score)
+    private static bool TryGetByRefArgumentScore(
+        JsRealm realm,
+        ParameterInfo parameter,
+        JsValue argument,
+        out int score
+    )
     {
         score = 0;
         if (!argument.TryGetObject(out var obj) || obj is not IClrByRefPlaceholder placeholder)
             return false;
 
         var elementType = parameter.ParameterType.GetElementType()!;
-        if (!elementType.IsAssignableFrom(placeholder.TargetType) && elementType != placeholder.TargetType)
+        if (
+            !elementType.IsAssignableFrom(placeholder.TargetType)
+            && elementType != placeholder.TargetType
+        )
             return false;
 
         if (!placeholder.HasValue && !parameter.IsOut)
@@ -468,10 +640,9 @@ internal sealed class HostNamedMemberDescriptor
         return true;
     }
 
-
     private static bool IsParamsParameter(ParameterInfo parameter)
     {
-        return parameter.GetCustomAttribute<ParamArrayAttribute>() is not null &&
-               parameter.ParameterType.IsArray;
+        return parameter.GetCustomAttribute<ParamArrayAttribute>() is not null
+            && parameter.ParameterType.IsArray;
     }
 }

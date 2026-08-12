@@ -14,7 +14,9 @@ internal sealed class JsRelativeTimeFormatObject : JsObject
         string numberingSystem,
         string style,
         string numeric,
-        CultureInfo cultureInfo) : base(realm)
+        CultureInfo cultureInfo
+    )
+        : base(realm)
     {
         Prototype = prototype;
         Locale = locale;
@@ -42,17 +44,26 @@ internal sealed class JsRelativeTimeFormatObject : JsObject
         uint index = 0;
         foreach (var part in core.FormatToParts(value, unit))
         {
-            var obj = new JsPlainObject(Realm)
-            {
-                Prototype = Realm.ObjectPrototype
-            };
-            obj.DefineDataPropertyAtom(Realm, Realm.Atoms.InternNoCheck("type"), JsValue.FromString(part.Type),
-                JsShapePropertyFlags.Open);
-            obj.DefineDataPropertyAtom(Realm, Realm.Atoms.InternNoCheck("value"), JsValue.FromString(part.Value),
-                JsShapePropertyFlags.Open);
+            var obj = new JsPlainObject(Realm) { Prototype = Realm.ObjectPrototype };
+            obj.DefineDataPropertyAtom(
+                Realm,
+                Realm.Atoms.InternNoCheck("type"),
+                JsValue.FromString(part.Type),
+                JsShapePropertyFlags.Open
+            );
+            obj.DefineDataPropertyAtom(
+                Realm,
+                Realm.Atoms.InternNoCheck("value"),
+                JsValue.FromString(part.Value),
+                JsShapePropertyFlags.Open
+            );
             if (part.Unit is not null)
-                obj.DefineDataPropertyAtom(Realm, Realm.Atoms.InternNoCheck("unit"), JsValue.FromString(part.Unit),
-                    JsShapePropertyFlags.Open);
+                obj.DefineDataPropertyAtom(
+                    Realm,
+                    Realm.Atoms.InternNoCheck("unit"),
+                    JsValue.FromString(part.Unit),
+                    JsShapePropertyFlags.Open
+                );
             result.SetElement(index++, JsValue.FromObject(obj));
         }
 

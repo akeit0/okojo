@@ -2,15 +2,21 @@ namespace Okojo.Runtime;
 
 public partial class Intrinsics
 {
-    private static string ToUint8ArrayBase64(JsRealm realm, JsTypedArrayObject target, string alphabet,
-        bool omitPadding)
+    private static string ToUint8ArrayBase64(
+        JsRealm realm,
+        JsTypedArrayObject target,
+        string alphabet,
+        bool omitPadding
+    )
     {
         var base64Url = alphabet switch
         {
             "base64" => false,
             "base64url" => true,
-            _ => throw new JsRuntimeException(JsErrorKind.TypeError,
-                "Uint8Array.prototype.toBase64 alphabet must be 'base64' or 'base64url'")
+            _ => throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Uint8Array.prototype.toBase64 alphabet must be 'base64' or 'base64url'"
+            ),
         };
 
         var bytes = ReadUint8ArrayBytes(target);
@@ -36,16 +42,27 @@ public partial class Intrinsics
 
         var bytes = new byte[length];
         for (var i = 0; i < length; i++)
-            bytes[i] = target.TryGetElement((uint)i, out var value) ? (byte)value.Int32Value : (byte)0;
+            bytes[i] = target.TryGetElement((uint)i, out var value)
+                ? (byte)value.Int32Value
+                : (byte)0;
         return bytes;
     }
 
     private static JsPlainObject CreateBase64SetResultObject(JsRealm realm, int read, int written)
     {
         var result = new JsPlainObject(realm);
-        result.DefineDataPropertyAtom(realm, IdRead, JsValue.FromInt32(read), JsShapePropertyFlags.Open);
-        result.DefineDataPropertyAtom(realm, IdWritten, JsValue.FromInt32(written),
-            JsShapePropertyFlags.Open);
+        result.DefineDataPropertyAtom(
+            realm,
+            IdRead,
+            JsValue.FromInt32(read),
+            JsShapePropertyFlags.Open
+        );
+        result.DefineDataPropertyAtom(
+            realm,
+            IdWritten,
+            JsValue.FromInt32(written),
+            JsShapePropertyFlags.Open
+        );
         return result;
     }
 
@@ -54,14 +71,17 @@ public partial class Intrinsics
         JsTypedArrayObject target,
         string source,
         string alphabet,
-        Base64LastChunkHandling lastChunkHandling)
+        Base64LastChunkHandling lastChunkHandling
+    )
     {
         var base64Url = alphabet switch
         {
             "base64" => false,
             "base64url" => true,
-            _ => throw new JsRuntimeException(JsErrorKind.TypeError,
-                "Uint8Array.fromBase64 alphabet must be 'base64' or 'base64url'")
+            _ => throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Uint8Array.fromBase64 alphabet must be 'base64' or 'base64url'"
+            ),
         };
 
         var targetLength = (int)target.Length;
@@ -98,11 +118,31 @@ public partial class Intrinsics
                     if (compactIndex + 4 != compactLength)
                         throw InvalidBase64Syntax();
 
-                    var produced = CountFinalPaddedBase64Bytes(a, b, c, d, base64Url, lastChunkHandling);
+                    var produced = CountFinalPaddedBase64Bytes(
+                        a,
+                        b,
+                        c,
+                        d,
+                        base64Url,
+                        lastChunkHandling
+                    );
                     if (written + produced > targetLength)
-                        return (GetBase64ReadCountBeforeChunk(originalOffsets, compactIndex), written);
+                        return (
+                            GetBase64ReadCountBeforeChunk(originalOffsets, compactIndex),
+                            written
+                        );
 
-                    WriteFinalPaddedBase64Bytes(realm, target, written, a, b, c, d, base64Url, lastChunkHandling);
+                    WriteFinalPaddedBase64Bytes(
+                        realm,
+                        target,
+                        written,
+                        a,
+                        b,
+                        c,
+                        d,
+                        base64Url,
+                        lastChunkHandling
+                    );
                     written += produced;
                     compactIndex += 4;
                     break;
@@ -128,13 +168,26 @@ public partial class Intrinsics
                 return (GetBase64ReadCountBeforeChunk(originalOffsets, compactIndex), written);
             }
 
-            var producedPartial =
-                CountFinalUnpaddedBase64Bytes(compact, compactIndex, remaining, base64Url, lastChunkHandling);
+            var producedPartial = CountFinalUnpaddedBase64Bytes(
+                compact,
+                compactIndex,
+                remaining,
+                base64Url,
+                lastChunkHandling
+            );
             if (written + producedPartial > targetLength)
                 return (GetBase64ReadCountBeforeChunk(originalOffsets, compactIndex), written);
 
-            WriteFinalUnpaddedBase64Bytes(realm, target, written, compact, compactIndex, remaining, base64Url,
-                lastChunkHandling);
+            WriteFinalUnpaddedBase64Bytes(
+                realm,
+                target,
+                written,
+                compact,
+                compactIndex,
+                remaining,
+                base64Url,
+                lastChunkHandling
+            );
             written += producedPartial;
             compactIndex = compactLength;
             break;
@@ -143,12 +196,19 @@ public partial class Intrinsics
         return (source.Length, written);
     }
 
-    private static void ValidateStopBeforePartialTail(char[] compact, int compactIndex, int remaining, bool base64Url)
+    private static void ValidateStopBeforePartialTail(
+        char[] compact,
+        int compactIndex,
+        int remaining,
+        bool base64Url
+    )
     {
         if (remaining == 2)
         {
-            if (DecodeBase64Sextet(compact[compactIndex], base64Url) < 0 ||
-                DecodeBase64Sextet(compact[compactIndex + 1], base64Url) < 0)
+            if (
+                DecodeBase64Sextet(compact[compactIndex], base64Url) < 0
+                || DecodeBase64Sextet(compact[compactIndex + 1], base64Url) < 0
+            )
                 throw InvalidBase64Syntax();
             return;
         }
@@ -162,7 +222,12 @@ public partial class Intrinsics
                 throw InvalidBase64Syntax();
             if (c == '=')
             {
-                if (((DecodeBase64Sextet(a, base64Url) << 2) | (DecodeBase64Sextet(b, base64Url) >> 4)) < 0)
+                if (
+                    (
+                        (DecodeBase64Sextet(a, base64Url) << 2)
+                        | (DecodeBase64Sextet(b, base64Url) >> 4)
+                    ) < 0
+                )
                     throw InvalidBase64Syntax();
                 return;
             }
@@ -180,7 +245,10 @@ public partial class Intrinsics
         }
     }
 
-    private static (int Read, int Written) SetUint8ArrayFromHex(JsTypedArrayObject target, string source)
+    private static (int Read, int Written) SetUint8ArrayFromHex(
+        JsTypedArrayObject target,
+        string source
+    )
     {
         if ((source.Length & 1) != 0)
             throw new JsRuntimeException(JsErrorKind.SyntaxError, "Invalid hex string");
@@ -209,8 +277,16 @@ public partial class Intrinsics
         return compactIndex == 0 ? 0 : originalOffsets[compactIndex - 1];
     }
 
-    private static void WriteBase64Triple(JsRealm realm, JsTypedArrayObject target, int written, char a, char b,
-        char c, char d, bool base64Url)
+    private static void WriteBase64Triple(
+        JsRealm realm,
+        JsTypedArrayObject target,
+        int written,
+        char a,
+        char b,
+        char c,
+        char d,
+        bool base64Url
+    )
     {
         var sa = DecodeBase64Sextet(a, base64Url);
         var sb = DecodeBase64Sextet(b, base64Url);
@@ -234,8 +310,14 @@ public partial class Intrinsics
             throw InvalidBase64Syntax();
     }
 
-    private static int CountFinalPaddedBase64Bytes(char a, char b, char c, char d, bool base64Url,
-        Base64LastChunkHandling lastChunkHandling)
+    private static int CountFinalPaddedBase64Bytes(
+        char a,
+        char b,
+        char c,
+        char d,
+        bool base64Url,
+        Base64LastChunkHandling lastChunkHandling
+    )
     {
         var sa = DecodeBase64Sextet(a, base64Url);
         var sb = DecodeBase64Sextet(b, base64Url);
@@ -268,8 +350,17 @@ public partial class Intrinsics
         return 3;
     }
 
-    private static void WriteFinalPaddedBase64Bytes(JsRealm realm, JsTypedArrayObject target, int written, char a,
-        char b, char c, char d, bool base64Url, Base64LastChunkHandling lastChunkHandling)
+    private static void WriteFinalPaddedBase64Bytes(
+        JsRealm realm,
+        JsTypedArrayObject target,
+        int written,
+        char a,
+        char b,
+        char c,
+        char d,
+        bool base64Url,
+        Base64LastChunkHandling lastChunkHandling
+    )
     {
         var sa = DecodeBase64Sextet(a, base64Url);
         var sb = DecodeBase64Sextet(b, base64Url);
@@ -303,48 +394,72 @@ public partial class Intrinsics
         target.SetElement((uint)(written + 2), JsValue.FromInt32(((sc & 0x03) << 6) | sd));
     }
 
-    private static int CountFinalUnpaddedBase64Bytes(char[] compact, int compactIndex, int remaining, bool base64Url,
-        Base64LastChunkHandling lastChunkHandling)
+    private static int CountFinalUnpaddedBase64Bytes(
+        char[] compact,
+        int compactIndex,
+        int remaining,
+        bool base64Url,
+        Base64LastChunkHandling lastChunkHandling
+    )
     {
         return remaining switch
         {
             1 => throw InvalidBase64Syntax(),
             2 => lastChunkHandling == Base64LastChunkHandling.Strict
                 ? throw InvalidBase64Syntax()
-                : ValidateFinalUnpaddedTwo(compact[compactIndex], compact[compactIndex + 1], base64Url),
+                : ValidateFinalUnpaddedTwo(
+                    compact[compactIndex],
+                    compact[compactIndex + 1],
+                    base64Url
+                ),
             3 => lastChunkHandling == Base64LastChunkHandling.Strict
                 ? throw InvalidBase64Syntax()
-                : ValidateFinalUnpaddedThree(compact[compactIndex], compact[compactIndex + 1],
-                    compact[compactIndex + 2], base64Url),
-            _ => throw InvalidBase64Syntax()
+                : ValidateFinalUnpaddedThree(
+                    compact[compactIndex],
+                    compact[compactIndex + 1],
+                    compact[compactIndex + 2],
+                    base64Url
+                ),
+            _ => throw InvalidBase64Syntax(),
         };
     }
 
-    private static void WriteFinalUnpaddedBase64Bytes(JsRealm realm, JsTypedArrayObject target, int written,
-        char[] compact, int compactIndex, int remaining, bool base64Url, Base64LastChunkHandling lastChunkHandling)
+    private static void WriteFinalUnpaddedBase64Bytes(
+        JsRealm realm,
+        JsTypedArrayObject target,
+        int written,
+        char[] compact,
+        int compactIndex,
+        int remaining,
+        bool base64Url,
+        Base64LastChunkHandling lastChunkHandling
+    )
     {
         switch (remaining)
         {
             case 2:
-                {
-                    var sa = DecodeBase64Sextet(compact[compactIndex], base64Url);
-                    var sb = DecodeBase64Sextet(compact[compactIndex + 1], base64Url);
-                    if ((sa | sb) < 0)
-                        throw InvalidBase64Syntax();
-                    target.SetElement((uint)written, JsValue.FromInt32((sa << 2) | (sb >> 4)));
-                    return;
-                }
+            {
+                var sa = DecodeBase64Sextet(compact[compactIndex], base64Url);
+                var sb = DecodeBase64Sextet(compact[compactIndex + 1], base64Url);
+                if ((sa | sb) < 0)
+                    throw InvalidBase64Syntax();
+                target.SetElement((uint)written, JsValue.FromInt32((sa << 2) | (sb >> 4)));
+                return;
+            }
             case 3:
-                {
-                    var sa = DecodeBase64Sextet(compact[compactIndex], base64Url);
-                    var sb = DecodeBase64Sextet(compact[compactIndex + 1], base64Url);
-                    var sc = DecodeBase64Sextet(compact[compactIndex + 2], base64Url);
-                    if ((sa | sb | sc) < 0)
-                        throw InvalidBase64Syntax();
-                    target.SetElement((uint)written, JsValue.FromInt32((sa << 2) | (sb >> 4)));
-                    target.SetElement((uint)(written + 1), JsValue.FromInt32(((sb & 0x0F) << 4) | (sc >> 2)));
-                    return;
-                }
+            {
+                var sa = DecodeBase64Sextet(compact[compactIndex], base64Url);
+                var sb = DecodeBase64Sextet(compact[compactIndex + 1], base64Url);
+                var sc = DecodeBase64Sextet(compact[compactIndex + 2], base64Url);
+                if ((sa | sb | sc) < 0)
+                    throw InvalidBase64Syntax();
+                target.SetElement((uint)written, JsValue.FromInt32((sa << 2) | (sb >> 4)));
+                target.SetElement(
+                    (uint)(written + 1),
+                    JsValue.FromInt32(((sb & 0x0F) << 4) | (sc >> 2))
+                );
+                return;
+            }
             default:
                 throw InvalidBase64Syntax();
         }

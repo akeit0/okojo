@@ -12,7 +12,8 @@ public class OkojoJsonObjectBenchmarks : OkojoNamedPropertyBenchmarkBase
     private string json = string.Empty;
     private JsonDocumentOptions options;
 
-    [Params(8, 24, 32)] public int PropertyCount { get; set; }
+    [Params(8, 24, 32)]
+    public int PropertyCount { get; set; }
 
     [GlobalSetup]
     public void Setup()
@@ -44,7 +45,8 @@ public class OkojoJsonDuplicateKeyBenchmarks : OkojoNamedPropertyBenchmarkBase
     private string json = string.Empty;
     private JsonDocumentOptions options;
 
-    [Params(8, 24, 32)] public int PropertyCount { get; set; }
+    [Params(8, 24, 32)]
+    public int PropertyCount { get; set; }
 
     [GlobalSetup]
     public void Setup()
@@ -76,9 +78,11 @@ public class OkojoNestedJsonBenchmarks : OkojoNamedPropertyBenchmarkBase
     private string json = string.Empty;
     private JsonDocumentOptions options;
 
-    [Params(8, 16)] public int Width { get; set; }
+    [Params(8, 16)]
+    public int Width { get; set; }
 
-    [Params(2, 3)] public int Depth { get; set; }
+    [Params(2, 3)]
+    public int Depth { get; set; }
 
     [GlobalSetup]
     public void Setup()

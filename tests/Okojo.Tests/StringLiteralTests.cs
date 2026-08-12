@@ -10,7 +10,10 @@ public class StringLiteralTests
     public void StringLiteral_Allows_Raw_LineSeparator()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("\"\u2028\" === \"\\u2028\";"));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript("\"\u2028\" === \"\\u2028\";")
+        );
 
         realm.Execute(script);
 
@@ -21,7 +24,10 @@ public class StringLiteralTests
     public void StringLiteral_Allows_Raw_ParagraphSeparator()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("\"\u2029\" === \"\\u2029\";"));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript("\"\u2029\" === \"\\u2029\";")
+        );
 
         realm.Execute(script);
 
@@ -32,7 +38,10 @@ public class StringLiteralTests
     public void Eval_Allows_Raw_LineSeparator_Inside_StringLiteral()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("eval(\"'\\u2028'\") === \"\\u2028\";"));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript("eval(\"'\\u2028'\") === \"\\u2028\";")
+        );
 
         realm.Execute(script);
 
@@ -43,13 +52,18 @@ public class StringLiteralTests
     public void StringLiteral_Legacy_Octal_Escapes_Match_Sloppy_JavaScript()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-                                                                   '\1' === '\x01' &&
-                                                                   '\11' === '\x09' &&
-                                                                   '\40' === '\x20' &&
-                                                                   '\400' === '\x200' &&
-                                                                   '\08' === '\x008';
-                                                                   """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                '\1' === '\x01' &&
+                '\11' === '\x09' &&
+                '\40' === '\x20' &&
+                '\400' === '\x200' &&
+                '\08' === '\x008';
+                """
+            )
+        );
 
         realm.Execute(script);
 

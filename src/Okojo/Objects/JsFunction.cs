@@ -5,8 +5,14 @@ public abstract class JsFunction : JsObject
     protected FunctionFlags Flags;
     private JsObject? prototypePropertyObject;
 
-    private protected JsFunction(JsRealm realm, string name,
-        int length, StaticNamedPropertyLayout shape, bool isConstructor = true) : base(shape)
+    private protected JsFunction(
+        JsRealm realm,
+        string name,
+        int length,
+        StaticNamedPropertyLayout shape,
+        bool isConstructor = true
+    )
+        : base(shape)
     {
         Prototype = realm.FunctionPrototype;
         Name = name ?? string.Empty;
@@ -16,12 +22,15 @@ public abstract class JsFunction : JsObject
             Flags |= FunctionFlags.IsConstructor;
     }
 
-    protected JsFunction(JsRealm realm, string name = "",
+    protected JsFunction(
+        JsRealm realm,
+        string name = "",
         bool assignFunctionPrototype = true,
         int length = 0,
         bool hasPrototypeProperty = false,
         bool prototypeHasConstructor = true,
-        bool isConstructor = true)
+        bool isConstructor = true
+    )
         : base(realm)
     {
         if (assignFunctionPrototype)
@@ -49,20 +58,37 @@ public abstract class JsFunction : JsObject
         return realm.InvokeFunction(this, thisValue, args);
     }
 
-    internal virtual JsValue InvokeNonBytecodeCall(JsRealm realm, JsValue thisValue, ReadOnlySpan<JsValue> args,
-        int callerPc)
+    internal virtual JsValue InvokeNonBytecodeCall(
+        JsRealm realm,
+        JsValue thisValue,
+        ReadOnlySpan<JsValue> args,
+        int callerPc
+    )
     {
         throw new InvalidOperationException("Function does not implement non-bytecode [[Call]].");
     }
 
-    internal virtual JsValue InvokeNonBytecodeConstruct(JsRealm realm, JsValue thisValue, ReadOnlySpan<JsValue> args,
-        JsValue newTarget, int callerPc, CallFrameFlag flags)
+    internal virtual JsValue InvokeNonBytecodeConstruct(
+        JsRealm realm,
+        JsValue thisValue,
+        ReadOnlySpan<JsValue> args,
+        JsValue newTarget,
+        int callerPc,
+        CallFrameFlag flags
+    )
     {
-        throw new InvalidOperationException("Function does not implement non-bytecode [[Construct]].");
+        throw new InvalidOperationException(
+            "Function does not implement non-bytecode [[Construct]]."
+        );
     }
 
-    internal override bool TryGetPropertyAtomWithReceiverValue(JsRealm realm, in JsValue receiverValue, int atom,
-        out JsValue value, out SlotInfo slotInfo)
+    internal override bool TryGetPropertyAtomWithReceiverValue(
+        JsRealm realm,
+        in JsValue receiverValue,
+        int atom,
+        out JsValue value,
+        out SlotInfo slotInfo
+    )
     {
         if (TryGetIntrinsicOwnDescriptor(atom, true, out var descriptor))
         {
@@ -71,19 +97,38 @@ public abstract class JsFunction : JsObject
             return true;
         }
 
-        return base.TryGetPropertyAtomWithReceiverValue(realm, receiverValue, atom, out value, out slotInfo);
+        return base.TryGetPropertyAtomWithReceiverValue(
+            realm,
+            receiverValue,
+            atom,
+            out value,
+            out slotInfo
+        );
     }
 
-    internal override bool TryGetOwnNamedPropertyDescriptorAtom(JsRealm realm, int atom,
-        out PropertyDescriptor descriptor, bool needDescriptor = true)
+    internal override bool TryGetOwnNamedPropertyDescriptorAtom(
+        JsRealm realm,
+        int atom,
+        out PropertyDescriptor descriptor,
+        bool needDescriptor = true
+    )
     {
         if (TryGetIntrinsicOwnDescriptor(atom, needDescriptor, out descriptor))
             return true;
 
-        return base.TryGetOwnNamedPropertyDescriptorAtom(realm, atom, out descriptor, needDescriptor);
+        return base.TryGetOwnNamedPropertyDescriptorAtom(
+            realm,
+            atom,
+            out descriptor,
+            needDescriptor
+        );
     }
 
-    internal override void CollectOwnNamedPropertyAtoms(JsRealm realm, List<int> atomsOut, bool enumerableOnly)
+    internal override void CollectOwnNamedPropertyAtoms(
+        JsRealm realm,
+        List<int> atomsOut,
+        bool enumerableOnly
+    )
     {
         AddOrderedFunctionOwnAtomIfVisible(realm, IdLength, atomsOut, enumerableOnly);
         AddOrderedFunctionOwnAtomIfVisible(realm, IdName, atomsOut, enumerableOnly);
@@ -100,8 +145,11 @@ public abstract class JsFunction : JsObject
         }
     }
 
-    internal override void CollectForInEnumerableStringAtomKeys(JsRealm realm, HashSet<string> visited,
-        List<string> enumerableKeysOut)
+    internal override void CollectForInEnumerableStringAtomKeys(
+        JsRealm realm,
+        HashSet<string> visited,
+        List<string> enumerableKeysOut
+    )
     {
         AddOrderedFunctionEnumerableKeyIfVisible(realm, IdLength, visited, enumerableKeysOut);
         AddOrderedFunctionEnumerableKeyIfVisible(realm, IdName, visited, enumerableKeysOut);
@@ -109,7 +157,10 @@ public abstract class JsFunction : JsObject
         base.CollectForInEnumerableStringAtomKeys(realm, visited, enumerableKeysOut);
     }
 
-    internal override void DefineNewPropertiesNoCollision(JsRealm realm, ReadOnlySpan<PropertyDefinition> definitions)
+    internal override void DefineNewPropertiesNoCollision(
+        JsRealm realm,
+        ReadOnlySpan<PropertyDefinition> definitions
+    )
     {
         for (var i = 0; i < definitions.Length; i++)
         {
@@ -126,8 +177,13 @@ public abstract class JsFunction : JsObject
         base.DefineNewPropertiesNoCollision(realm, definitions);
     }
 
-    internal override bool SetPropertyAtomWithReceiver(JsRealm realm, JsObject receiver, int atom, JsValue value,
-        out SlotInfo slotInfo)
+    internal override bool SetPropertyAtomWithReceiver(
+        JsRealm realm,
+        JsObject receiver,
+        int atom,
+        JsValue value,
+        out SlotInfo slotInfo
+    )
     {
         if (TryGetIntrinsicOwnDescriptor(atom, false, out _))
             return TrySetIntrinsicOwnProperty(realm, atom, receiver, value, out slotInfo);
@@ -152,7 +208,12 @@ public abstract class JsFunction : JsObject
         return result;
     }
 
-    internal override void DefineDataPropertyAtom(JsRealm realm, int atom, JsValue value, JsShapePropertyFlags flags)
+    internal override void DefineDataPropertyAtom(
+        JsRealm realm,
+        int atom,
+        JsValue value,
+        JsShapePropertyFlags flags
+    )
     {
         if (TryGetIntrinsicOwnDescriptor(atom, false, out _))
         {
@@ -165,8 +226,12 @@ public abstract class JsFunction : JsObject
             ApplyPrototypePropertyValue(value);
     }
 
-    internal override bool DefineOwnDataPropertyExact(JsRealm realm, int atom, JsValue value,
-        JsShapePropertyFlags flags)
+    internal override bool DefineOwnDataPropertyExact(
+        JsRealm realm,
+        int atom,
+        JsValue value,
+        JsShapePropertyFlags flags
+    )
     {
         if (TryGetIntrinsicOwnDescriptor(atom, false, out _))
         {
@@ -180,8 +245,13 @@ public abstract class JsFunction : JsObject
         return result;
     }
 
-    internal override void DefineAccessorPropertyAtom(JsRealm realm, int atom, JsFunction? getter,
-        JsFunction? setter, JsShapePropertyFlags flags)
+    internal override void DefineAccessorPropertyAtom(
+        JsRealm realm,
+        int atom,
+        JsFunction? getter,
+        JsFunction? setter,
+        JsShapePropertyFlags flags
+    )
     {
         if (TryGetIntrinsicOwnDescriptor(atom, false, out _))
         {
@@ -194,8 +264,13 @@ public abstract class JsFunction : JsObject
             prototypePropertyObject = null;
     }
 
-    internal override bool DefineOwnAccessorPropertyExact(JsRealm realm, int atom, JsFunction? getter,
-        JsFunction? setter, JsShapePropertyFlags flags)
+    internal override bool DefineOwnAccessorPropertyExact(
+        JsRealm realm,
+        int atom,
+        JsFunction? getter,
+        JsFunction? setter,
+        JsShapePropertyFlags flags
+    )
     {
         var hasGetter = getter is not null;
         var hasSetter = setter is not null;
@@ -217,25 +292,45 @@ public abstract class JsFunction : JsObject
     internal override void FreezeDataProperties()
     {
         if ((Flags & FunctionFlags.HasLengthProperty) != 0)
-            MaterializeIntrinsicDataProperty(Realm, IdLength, JsValue.FromInt32(Length),
-                JsShapePropertyFlags.None);
+            MaterializeIntrinsicDataProperty(
+                Realm,
+                IdLength,
+                JsValue.FromInt32(Length),
+                JsShapePropertyFlags.None
+            );
         if ((Flags & FunctionFlags.HasNameProperty) != 0)
-            MaterializeIntrinsicDataProperty(Realm, IdName, JsValue.FromString(Name),
-                JsShapePropertyFlags.None);
+            MaterializeIntrinsicDataProperty(
+                Realm,
+                IdName,
+                JsValue.FromString(Name),
+                JsShapePropertyFlags.None
+            );
         if ((Flags & FunctionFlags.HasPrototypeProperty) != 0)
-            MaterializeIntrinsicDataProperty(Realm, IdPrototype, EnsurePrototypePropertyValue(),
-                JsShapePropertyFlags.None);
+            MaterializeIntrinsicDataProperty(
+                Realm,
+                IdPrototype,
+                EnsurePrototypePropertyValue(),
+                JsShapePropertyFlags.None
+            );
         base.FreezeDataProperties();
     }
 
     internal override void SealDataProperties()
     {
         if ((Flags & FunctionFlags.HasLengthProperty) != 0)
-            MaterializeIntrinsicDataProperty(Realm, IdLength, JsValue.FromInt32(Length),
-                JsShapePropertyFlags.None);
+            MaterializeIntrinsicDataProperty(
+                Realm,
+                IdLength,
+                JsValue.FromInt32(Length),
+                JsShapePropertyFlags.None
+            );
         if ((Flags & FunctionFlags.HasNameProperty) != 0)
-            MaterializeIntrinsicDataProperty(Realm, IdName, JsValue.FromString(Name),
-                JsShapePropertyFlags.None);
+            MaterializeIntrinsicDataProperty(
+                Realm,
+                IdName,
+                JsValue.FromString(Name),
+                JsShapePropertyFlags.None
+            );
         base.SealDataProperties();
     }
 
@@ -249,8 +344,16 @@ public abstract class JsFunction : JsObject
 
     internal override bool AreAllOwnPropertiesFrozen()
     {
-        if ((Flags & (FunctionFlags.HasLengthProperty | FunctionFlags.HasNameProperty |
-                      FunctionFlags.HasPrototypeProperty)) != 0)
+        if (
+            (
+                Flags
+                & (
+                    FunctionFlags.HasLengthProperty
+                    | FunctionFlags.HasNameProperty
+                    | FunctionFlags.HasPrototypeProperty
+                )
+            ) != 0
+        )
             return false;
 
         return base.AreAllOwnPropertiesFrozen();
@@ -284,7 +387,11 @@ public abstract class JsFunction : JsObject
         return string.IsNullOrEmpty(Name) ? "[Function (anonymous)]" : $"[Function {Name}]";
     }
 
-    private bool TryGetIntrinsicOwnDescriptor(int atom, bool materializePrototype, out PropertyDescriptor descriptor)
+    private bool TryGetIntrinsicOwnDescriptor(
+        int atom,
+        bool materializePrototype,
+        out PropertyDescriptor descriptor
+    )
     {
         if (atom == IdLength && (Flags & FunctionFlags.HasLengthProperty) != 0)
         {
@@ -306,7 +413,8 @@ public abstract class JsFunction : JsObject
             descriptor = new(
                 materializePrototype ? EnsurePrototypePropertyValue() : JsValue.Undefined,
                 null,
-                flag);
+                flag
+            );
             return true;
         }
 
@@ -314,8 +422,13 @@ public abstract class JsFunction : JsObject
         return false;
     }
 
-    private bool TrySetIntrinsicOwnProperty(JsRealm realm, int atom, JsObject receiver, JsValue value,
-        out SlotInfo slotInfo)
+    private bool TrySetIntrinsicOwnProperty(
+        JsRealm realm,
+        int atom,
+        JsObject receiver,
+        JsValue value,
+        out SlotInfo slotInfo
+    )
     {
         slotInfo = SlotInfo.Invalid;
         if (atom != IdPrototype)
@@ -325,8 +438,12 @@ public abstract class JsFunction : JsObject
 
         if (!ReferenceEquals(this, receiver))
         {
-            MaterializeIntrinsicDataProperty(realm, atom, EnsurePrototypePropertyValue(),
-                JsShapePropertyFlags.Writable);
+            MaterializeIntrinsicDataProperty(
+                realm,
+                atom,
+                EnsurePrototypePropertyValue(),
+                JsShapePropertyFlags.Writable
+            );
             return base.SetPropertyAtomWithReceiver(realm, receiver, atom, value, out slotInfo);
         }
 
@@ -334,7 +451,12 @@ public abstract class JsFunction : JsObject
         return true;
     }
 
-    private void MaterializeIntrinsicDataProperty(JsRealm realm, int atom, JsValue value, JsShapePropertyFlags flags)
+    private void MaterializeIntrinsicDataProperty(
+        JsRealm realm,
+        int atom,
+        JsValue value,
+        JsShapePropertyFlags flags
+    )
     {
         ClearIntrinsicOwnProperty(atom);
         base.DefineDataPropertyAtom(realm, atom, value, flags);
@@ -342,8 +464,13 @@ public abstract class JsFunction : JsObject
             ApplyPrototypePropertyValue(value);
     }
 
-    private void MaterializeIntrinsicAccessorProperty(JsRealm realm, int atom, JsFunction? getter,
-        JsFunction? setter, JsShapePropertyFlags flags)
+    private void MaterializeIntrinsicAccessorProperty(
+        JsRealm realm,
+        int atom,
+        JsFunction? getter,
+        JsFunction? setter,
+        JsShapePropertyFlags flags
+    )
     {
         ClearIntrinsicOwnProperty(atom);
         base.DefineAccessorPropertyAtom(realm, atom, getter, setter, flags);
@@ -365,7 +492,6 @@ public abstract class JsFunction : JsObject
             return;
         }
 
-
         if (atom == IdPrototype)
         {
             Flags &= ~(FunctionFlags.HasPrototypeProperty | FunctionFlags.PrototypeValuePending);
@@ -373,21 +499,38 @@ public abstract class JsFunction : JsObject
         }
     }
 
-    private void AddOrderedFunctionOwnAtomIfVisible(JsRealm realm, int atom, List<int> atomsOut, bool enumerableOnly)
+    private void AddOrderedFunctionOwnAtomIfVisible(
+        JsRealm realm,
+        int atom,
+        List<int> atomsOut,
+        bool enumerableOnly
+    )
     {
-        if (!TryGetOrderedFunctionOwnDescriptor(realm, atom, enumerableOnly && atom == IdPrototype,
-                out var descriptor))
+        if (
+            !TryGetOrderedFunctionOwnDescriptor(
+                realm,
+                atom,
+                enumerableOnly && atom == IdPrototype,
+                out var descriptor
+            )
+        )
             return;
         if (enumerableOnly && !descriptor.Enumerable)
             return;
         atomsOut.Add(atom);
     }
 
-    private void AddOrderedFunctionEnumerableKeyIfVisible(JsRealm realm, int atom, HashSet<string> visited,
-        List<string> enumerableKeysOut)
+    private void AddOrderedFunctionEnumerableKeyIfVisible(
+        JsRealm realm,
+        int atom,
+        HashSet<string> visited,
+        List<string> enumerableKeysOut
+    )
     {
-        if (!TryGetOrderedFunctionOwnDescriptor(realm, atom, false, out var descriptor) ||
-            !descriptor.Enumerable)
+        if (
+            !TryGetOrderedFunctionOwnDescriptor(realm, atom, false, out var descriptor)
+            || !descriptor.Enumerable
+        )
             return;
 
         var key = realm.Atoms.AtomToString(atom);
@@ -395,8 +538,12 @@ public abstract class JsFunction : JsObject
             enumerableKeysOut.Add(key);
     }
 
-    private bool TryGetOrderedFunctionOwnDescriptor(JsRealm realm, int atom, bool materializePrototype,
-        out PropertyDescriptor descriptor)
+    private bool TryGetOrderedFunctionOwnDescriptor(
+        JsRealm realm,
+        int atom,
+        bool materializePrototype,
+        out PropertyDescriptor descriptor
+    )
     {
         if (TryGetIntrinsicOwnDescriptor(atom, materializePrototype, out descriptor))
             return true;
@@ -425,12 +572,17 @@ public abstract class JsFunction : JsObject
 
     private void ApplyPrototypePropertyValue(in JsValue value)
     {
-        prototypePropertyObject = value.TryGetObject(out var prototypeObject) ? prototypeObject : null;
+        prototypePropertyObject = value.TryGetObject(out var prototypeObject)
+            ? prototypeObject
+            : null;
     }
 
     private JsValue EnsurePrototypePropertyValue()
     {
-        if ((Flags & FunctionFlags.PrototypeValuePending) == 0 && prototypePropertyObject is not null)
+        if (
+            (Flags & FunctionFlags.PrototypeValuePending) == 0
+            && prototypePropertyObject is not null
+        )
             return JsValue.FromObject(prototypePropertyObject);
 
         if ((Flags & FunctionFlags.PrototypeValuePending) == 0)
@@ -439,18 +591,24 @@ public abstract class JsFunction : JsObject
         var realm = Realm;
         var functionPrototypeObject = new JsPlainObject(realm, false)
         {
-            Prototype = GetPrototypePropertyObjectPrototype(realm)
+            Prototype = GetPrototypePropertyObjectPrototype(realm),
         };
 
         if ((Flags & FunctionFlags.PrototypeHasConstructor) != 0)
         {
-            functionPrototypeObject.InitializeStorageFromCachedShape(realm.FunctionPrototypeObjectShape);
-            functionPrototypeObject.SetNamedSlotUnchecked(JsRealm.FunctionPrototypeConstructorSlot,
-                JsValue.FromObject(this));
+            functionPrototypeObject.InitializeStorageFromCachedShape(
+                realm.FunctionPrototypeObjectShape
+            );
+            functionPrototypeObject.SetNamedSlotUnchecked(
+                JsRealm.FunctionPrototypeConstructorSlot,
+                JsValue.FromObject(this)
+            );
         }
         else
         {
-            functionPrototypeObject.InitializeStorageFromCachedShape(realm.FunctionPrototypeObjectShapeNoConstructor);
+            functionPrototypeObject.InitializeStorageFromCachedShape(
+                realm.FunctionPrototypeObjectShapeNoConstructor
+            );
         }
 
         prototypePropertyObject = functionPrototypeObject;
@@ -468,6 +626,6 @@ public abstract class JsFunction : JsObject
         IsConstructor = 1 << 3,
         PrototypeHasConstructor = 1 << 4,
         PrototypeValuePending = 1 << 5,
-        IsPrototypePropertyConst = 1 << 6
+        IsPrototypePropertyConst = 1 << 6,
     }
 }

@@ -34,7 +34,10 @@ internal static class Program
         var moduleDisasm = false;
 
         var start = 0;
-        if (args.Length > 0 && string.Equals(args[0], "--compare", StringComparison.OrdinalIgnoreCase))
+        if (
+            args.Length > 0
+            && string.Equals(args[0], "--compare", StringComparison.OrdinalIgnoreCase)
+        )
         {
             mode = ToolMode.Compare;
             if (args.Length < 3)
@@ -48,7 +51,10 @@ internal static class Program
             compareRight = args[2];
             start = 3;
         }
-        else if (args.Length > 0 && string.Equals(args[0], "--cases-snapshot", StringComparison.OrdinalIgnoreCase))
+        else if (
+            args.Length > 0
+            && string.Equals(args[0], "--cases-snapshot", StringComparison.OrdinalIgnoreCase)
+        )
         {
             mode = ToolMode.CasesSnapshot;
             start = 1;
@@ -95,7 +101,9 @@ internal static class Program
                 case "--cases-dir" when i + 1 < args.Length:
                     if (mode != ToolMode.CasesSnapshot)
                     {
-                        Console.Error.WriteLine("--cases-dir is only supported with --cases-snapshot.");
+                        Console.Error.WriteLine(
+                            "--cases-dir is only supported with --cases-snapshot."
+                        );
                         return 1;
                     }
 
@@ -104,7 +112,9 @@ internal static class Program
                 case "--snapshots-root" when i + 1 < args.Length:
                     if (mode != ToolMode.CasesSnapshot)
                     {
-                        Console.Error.WriteLine("--snapshots-root is only supported with --cases-snapshot.");
+                        Console.Error.WriteLine(
+                            "--snapshots-root is only supported with --cases-snapshot."
+                        );
                         return 1;
                     }
 
@@ -113,7 +123,9 @@ internal static class Program
                 case "--opcodes":
                     if (mode == ToolMode.Disasm)
                     {
-                        Console.Error.WriteLine("--opcodes is only supported with --compare or --cases-snapshot.");
+                        Console.Error.WriteLine(
+                            "--opcodes is only supported with --compare or --cases-snapshot."
+                        );
                         return 1;
                     }
 
@@ -140,7 +152,9 @@ internal static class Program
                 case "--module-disasm":
                     if (mode != ToolMode.Disasm)
                     {
-                        Console.Error.WriteLine("--module-disasm is only supported in disasm mode.");
+                        Console.Error.WriteLine(
+                            "--module-disasm is only supported in disasm mode."
+                        );
                         return 1;
                     }
 
@@ -180,9 +194,7 @@ internal static class Program
                 return 0;
             }
 
-            var source = File.Exists(input!)
-                ? File.ReadAllText(input!, Encoding.UTF8)
-                : input!;
+            var source = File.Exists(input!) ? File.ReadAllText(input!, Encoding.UTF8) : input!;
 
             if (moduleInfo)
             {
@@ -270,31 +282,50 @@ internal static class Program
     {
         Console.WriteLine("Usage:");
         Console.WriteLine(
-            "  OkojoBytecodeTool <js-file-or-string> [--filter <function-name>] [--list] [--save <path>] [--snapshot <name>] [--help]");
+            "  OkojoBytecodeTool <js-file-or-string> [--filter <function-name>] [--list] [--save <path>] [--snapshot <name>] [--help]"
+        );
         Console.WriteLine(
-            "  OkojoBytecodeTool --compare <left-file-or-dir> <right-file-or-dir> [--save <path>] [--help]");
+            "  OkojoBytecodeTool --compare <left-file-or-dir> <right-file-or-dir> [--save <path>] [--help]"
+        );
         Console.WriteLine(
-            "  OkojoBytecodeTool --cases-snapshot [--cases-dir <path>] [--snapshots-root <path>] [--opcodes] [--save <path>] [--help]");
+            "  OkojoBytecodeTool --cases-snapshot [--cases-dir <path>] [--snapshots-root <path>] [--opcodes] [--save <path>] [--help]"
+        );
         Console.WriteLine("  --list           List discovered script/function units only");
-        Console.WriteLine("  --module-info    Parse as ES module and print imports/exports/TLA metadata");
         Console.WriteLine(
-            "  --module-disasm  Compile ES module execution and print Okojo disassembly (file input only)");
+            "  --module-info    Parse as ES module and print imports/exports/TLA metadata"
+        );
         Console.WriteLine(
-            "  --resolved       With --module-info, resolve/import-walk full module graph from file input");
+            "  --module-disasm  Compile ES module execution and print Okojo disassembly (file input only)"
+        );
+        Console.WriteLine(
+            "  --resolved       With --module-info, resolve/import-walk full module graph from file input"
+        );
         Console.WriteLine("  --filter <name>  Exact or substring match for unit name");
         Console.WriteLine("  --save <path>    Save rendered output to file");
         Console.WriteLine(
-            "  --snapshot <name> Save output to artifacts/okojobytecodetool/snapshots/<timestamp>/<name>.disasm.txt");
+            "  --snapshot <name> Save output to artifacts/okojobytecodetool/snapshots/<timestamp>/<name>.disasm.txt"
+        );
         Console.WriteLine("  --compare A B    Compare two disasm files or snapshot directories");
-        Console.WriteLine("  --cases-snapshot Snapshot all case JS files and compare with latest compatible snapshot");
-        Console.WriteLine("  --cases-dir      Override case JS directory (default: artifacts/okojobytecodetool/cases)");
         Console.WriteLine(
-            "  --snapshots-root Override snapshots root (default: artifacts/okojobytecodetool/snapshots)");
-        Console.WriteLine("  --opcodes        Include normalized opcode-sequence diff in compare outputs");
+            "  --cases-snapshot Snapshot all case JS files and compare with latest compatible snapshot"
+        );
+        Console.WriteLine(
+            "  --cases-dir      Override case JS directory (default: artifacts/okojobytecodetool/cases)"
+        );
+        Console.WriteLine(
+            "  --snapshots-root Override snapshots root (default: artifacts/okojobytecodetool/snapshots)"
+        );
+        Console.WriteLine(
+            "  --opcodes        Include normalized opcode-sequence diff in compare outputs"
+        );
         Console.WriteLine("  --help, -h       Show this help");
     }
 
-    private static string RenderModuleInfo(string source, string inputLabel, bool includeResolvedGraph)
+    private static string RenderModuleInfo(
+        string source,
+        string inputLabel,
+        bool includeResolvedGraph
+    )
     {
         var program = JavaScriptParser.ParseModule(source);
         var imports = new List<string>();
@@ -335,7 +366,9 @@ internal static class Program
                         for (var s = 0; s < named.Specifiers.Count; s++)
                         {
                             var spec = named.Specifiers[s];
-                            reexports.Add($"{spec.LocalName} as {spec.ExportedName} from {named.Source}");
+                            reexports.Add(
+                                $"{spec.LocalName} as {spec.ExportedName} from {named.Source}"
+                            );
                         }
 
                     break;
@@ -414,9 +447,11 @@ internal static class Program
         var compileBindings = BuildModuleVariableBindings(
             plan.ResolvedImportBindings,
             plan.ExecutionPlan.ExportLocalByName,
-            plan.ExecutionPlan.PreinitializedLocalExportNames);
+            plan.ExecutionPlan.PreinitializedLocalExportNames
+        );
 
-        using var engine = JsRuntime.CreateBuilder()
+        using var engine = JsRuntime
+            .CreateBuilder()
             .UseHost(host => host.UseModuleSourceLoader(loader))
             .Build();
         using var compiler = JsCompiler.CreateForModuleExecution(engine.MainRealm, compileBindings);
@@ -431,11 +466,14 @@ internal static class Program
     private static Dictionary<string, ModuleVariableBinding> BuildModuleVariableBindings(
         IReadOnlyList<JsResolvedImportBinding> importBindings,
         IReadOnlyDictionary<string, string> exportLocalByName,
-        IReadOnlySet<string> preinitializedLocalExportNames)
+        IReadOnlySet<string> preinitializedLocalExportNames
+    )
     {
         _ = preinitializedLocalExportNames;
-        var map = new Dictionary<string, ModuleVariableBinding>(importBindings.Count + exportLocalByName.Count,
-            StringComparer.Ordinal);
+        var map = new Dictionary<string, ModuleVariableBinding>(
+            importBindings.Count + exportLocalByName.Count,
+            StringComparer.Ordinal
+        );
         var importCount = 0;
 
         for (var i = 0; i < importBindings.Count; i++)
@@ -469,29 +507,38 @@ internal static class Program
         JsCompiler compiler,
         JsProgram program,
         string source,
-        string resolvedPath)
+        string resolvedPath
+    )
     {
         var seenScripts = new HashSet<JsScript>(functions.Select(static entry => entry.script));
 
         foreach (var statement in program.Statements)
         {
-            if (statement is not JsExportDeclarationStatement exportDeclaration ||
-                exportDeclaration.Declaration is not JsFunctionDeclaration functionDeclaration)
+            if (
+                statement is not JsExportDeclarationStatement exportDeclaration
+                || exportDeclaration.Declaration is not JsFunctionDeclaration functionDeclaration
+            )
                 continue;
 
             var hoisted = compiler.CompileHoistedFunctionTemplate(
                 functionDeclaration,
                 source,
                 resolvedPath,
-                program.IdentifierTable);
-            CollectOkojoFunctions(hoisted.Script, string.IsNullOrEmpty(hoisted.Name) ? "<anonymous>" : hoisted.Name,
-                functions, seenScripts);
+                program.IdentifierTable
+            );
+            CollectOkojoFunctions(
+                hoisted.Script,
+                string.IsNullOrEmpty(hoisted.Name) ? "<anonymous>" : hoisted.Name,
+                functions,
+                seenScripts
+            );
         }
     }
 
     private static List<(string ResolvedId, List<string> Dependencies)> BuildResolvedModuleGraph(
         IModuleSourceLoader loader,
-        string rootResolvedId)
+        string rootResolvedId
+    )
     {
         var result = new List<(string ResolvedId, List<string> Dependencies)>();
         var visited = new HashSet<string>(StringComparer.Ordinal);
@@ -517,7 +564,8 @@ internal static class Program
                     case JsImportDeclaration importDecl:
                         deps.Add(loader.ResolveSpecifier(importDecl.Source, resolvedId));
                         break;
-                    case JsExportNamedDeclaration exportNamed when !string.IsNullOrEmpty(exportNamed.Source):
+                    case JsExportNamedDeclaration exportNamed
+                        when !string.IsNullOrEmpty(exportNamed.Source):
                         deps.Add(loader.ResolveSpecifier(exportNamed.Source!, resolvedId));
                         break;
                     case JsExportAllDeclaration exportAll:
@@ -536,13 +584,18 @@ internal static class Program
     private static bool HasHelpOption(string[] args)
     {
         for (var i = 0; i < args.Length; i++)
-            if (string.Equals(args[i], "--help", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(args[i], "-h", StringComparison.OrdinalIgnoreCase))
+            if (
+                string.Equals(args[i], "--help", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(args[i], "-h", StringComparison.OrdinalIgnoreCase)
+            )
                 return true;
         return false;
     }
 
-    private static string RenderFunctionList(List<(string name, JsScript script)> functions, string? filter)
+    private static string RenderFunctionList(
+        List<(string name, JsScript script)> functions,
+        string? filter
+    )
     {
         var selected = SelectFunctions(functions, filter)
             .Select(x => x.name)
@@ -555,7 +608,10 @@ internal static class Program
         return string.Join(Environment.NewLine, selected);
     }
 
-    private static string RenderDisassembly(List<(string name, JsScript script)> functions, string? filter)
+    private static string RenderDisassembly(
+        List<(string name, JsScript script)> functions,
+        string? filter
+    )
     {
         var selected = SelectFunctions(functions, filter);
         if (selected.Count == 0)
@@ -569,11 +625,12 @@ internal static class Program
                 sb.AppendLine();
             first = false;
             sb.AppendLine(new('=', 80));
-            sb.Append(Disassembler.Dump(script, new()
-            {
-                UnitKind = name == "<script>" ? "script" : "function",
-                UnitName = name
-            }));
+            sb.Append(
+                Disassembler.Dump(
+                    script,
+                    new() { UnitKind = name == "<script>" ? "script" : "function", UnitName = name }
+                )
+            );
         }
 
         return sb.ToString();
@@ -581,12 +638,15 @@ internal static class Program
 
     private static List<(string name, JsScript script)> SelectFunctions(
         List<(string name, JsScript script)> functions,
-        string? filter)
+        string? filter
+    )
     {
         if (string.IsNullOrWhiteSpace(filter))
             return functions;
 
-        var exact = functions.Where(f => f.name.Equals(filter, StringComparison.OrdinalIgnoreCase)).ToList();
+        var exact = functions
+            .Where(f => f.name.Equals(filter, StringComparison.OrdinalIgnoreCase))
+            .ToList();
         if (exact.Count != 0)
             return exact;
 
@@ -607,7 +667,8 @@ internal static class Program
         JsScript root,
         string rootName,
         List<(string name, JsScript script)> result,
-        HashSet<JsScript> seen)
+        HashSet<JsScript> seen
+    )
     {
         if (!seen.Add(root))
             return;
@@ -615,7 +676,12 @@ internal static class Program
         result.Add((rootName, root));
         foreach (var obj in root.ObjectConstants)
             if (obj is JsBytecodeFunction fn)
-                CollectOkojoFunctions(fn.Script, string.IsNullOrEmpty(fn.Name) ? "<anonymous>" : fn.Name, result, seen);
+                CollectOkojoFunctions(
+                    fn.Script,
+                    string.IsNullOrEmpty(fn.Name) ? "<anonymous>" : fn.Name,
+                    result,
+                    seen
+                );
     }
 
     private static string SaveSnapshot(string output, string snapshotName)
@@ -655,16 +721,25 @@ internal static class Program
         if (leftIsDir && rightIsDir)
             return RenderDirectoryCompare(left, right, compareOpcodes);
 
-        throw new InvalidOperationException("Both compare paths must be files or both must be directories.");
+        throw new InvalidOperationException(
+            "Both compare paths must be files or both must be directories."
+        );
     }
 
     private static string RenderFileCompare(string leftFile, string rightFile, bool compareOpcodes)
     {
         var leftUnits = ParseUnitRegisters(File.ReadAllText(leftFile, Encoding.UTF8));
         var rightUnits = ParseUnitRegisters(File.ReadAllText(rightFile, Encoding.UTF8));
-        var leftOpcodes = compareOpcodes ? ParseUnitOpcodeSequences(File.ReadAllText(leftFile, Encoding.UTF8)) : null;
-        var rightOpcodes = compareOpcodes ? ParseUnitOpcodeSequences(File.ReadAllText(rightFile, Encoding.UTF8)) : null;
-        var keys = leftUnits.Keys.Union(rightUnits.Keys).OrderBy(x => x, StringComparer.Ordinal).ToList();
+        var leftOpcodes = compareOpcodes
+            ? ParseUnitOpcodeSequences(File.ReadAllText(leftFile, Encoding.UTF8))
+            : null;
+        var rightOpcodes = compareOpcodes
+            ? ParseUnitOpcodeSequences(File.ReadAllText(rightFile, Encoding.UTF8))
+            : null;
+        var keys = leftUnits
+            .Keys.Union(rightUnits.Keys)
+            .OrderBy(x => x, StringComparer.Ordinal)
+            .ToList();
 
         var sb = new StringBuilder();
         sb.AppendLine("# OkojoBytecodeTool Compare (file)");
@@ -688,17 +763,28 @@ internal static class Program
             var hasLeft = leftUnits.TryGetValue(key, out var l);
             var hasRight = rightUnits.TryGetValue(key, out var r);
             var delta = hasLeft && hasRight ? (r - l).ToString() : "-";
-            sb.Append("| ").Append(key).Append(" | ")
-                .Append(hasLeft ? l.ToString() : "missing").Append(" | ")
-                .Append(hasRight ? r.ToString() : "missing").Append(" | ")
-                .Append(delta).Append(" |");
+            sb.Append("| ")
+                .Append(key)
+                .Append(" | ")
+                .Append(hasLeft ? l.ToString() : "missing")
+                .Append(" | ")
+                .Append(hasRight ? r.ToString() : "missing")
+                .Append(" | ")
+                .Append(delta)
+                .Append(" |");
             if (compareOpcodes)
             {
                 var opcodeInfo = CompareOpcodeSequences(
                     leftOpcodes is not null && leftOpcodes.TryGetValue(key, out var lo) ? lo : null,
-                    rightOpcodes is not null && rightOpcodes.TryGetValue(key, out var ro) ? ro : null);
-                sb.Append(' ').Append(opcodeInfo.Status).Append(" | ")
-                    .Append(opcodeInfo.FirstDifference).AppendLine(" |");
+                    rightOpcodes is not null && rightOpcodes.TryGetValue(key, out var ro)
+                        ? ro
+                        : null
+                );
+                sb.Append(' ')
+                    .Append(opcodeInfo.Status)
+                    .Append(" | ")
+                    .Append(opcodeInfo.FirstDifference)
+                    .AppendLine(" |");
             }
             else
             {
@@ -709,11 +795,18 @@ internal static class Program
         return sb.ToString();
     }
 
-    private static string RenderDirectoryCompare(string leftDir, string rightDir, bool compareOpcodes)
+    private static string RenderDirectoryCompare(
+        string leftDir,
+        string rightDir,
+        bool compareOpcodes
+    )
     {
         var left = BuildFileMap(leftDir);
         var right = BuildFileMap(rightDir);
-        var names = left.Keys.Union(right.Keys).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
+        var names = left
+            .Keys.Union(right.Keys)
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
         var sb = new StringBuilder();
         sb.AppendLine("# OkojoBytecodeTool Compare (directory)");
@@ -734,20 +827,32 @@ internal static class Program
 
         foreach (var name in names)
         {
-            var l = left.TryGetValue(name, out var lPath) ? ExtractScriptRegisterCount(lPath) : null;
-            var r = right.TryGetValue(name, out var rPath) ? ExtractScriptRegisterCount(rPath) : null;
+            var l = left.TryGetValue(name, out var lPath)
+                ? ExtractScriptRegisterCount(lPath)
+                : null;
+            var r = right.TryGetValue(name, out var rPath)
+                ? ExtractScriptRegisterCount(rPath)
+                : null;
             var delta = l.HasValue && r.HasValue ? (r.Value - l.Value).ToString() : "-";
-            sb.Append("| ").Append(name).Append(" | ")
-                .Append(l.HasValue ? l.Value.ToString() : "missing").Append(" | ")
-                .Append(r.HasValue ? r.Value.ToString() : "missing").Append(" | ")
-                .Append(delta).Append(" |");
+            sb.Append("| ")
+                .Append(name)
+                .Append(" | ")
+                .Append(l.HasValue ? l.Value.ToString() : "missing")
+                .Append(" | ")
+                .Append(r.HasValue ? r.Value.ToString() : "missing")
+                .Append(" | ")
+                .Append(delta)
+                .Append(" |");
             if (compareOpcodes)
             {
                 var leftOps = lPath is null ? null : ExtractScriptOpcodeSequence(lPath);
                 var rightOps = rPath is null ? null : ExtractScriptOpcodeSequence(rPath);
                 var opcodeInfo = CompareOpcodeSequences(leftOps, rightOps);
-                sb.Append(' ').Append(opcodeInfo.Status).Append(" | ")
-                    .Append(opcodeInfo.FirstDifference).AppendLine(" |");
+                sb.Append(' ')
+                    .Append(opcodeInfo.Status)
+                    .Append(" | ")
+                    .Append(opcodeInfo.FirstDifference)
+                    .AppendLine(" |");
             }
             else
             {
@@ -815,8 +920,11 @@ internal static class Program
             if (line.StartsWith("; registers:", StringComparison.Ordinal))
             {
                 var regText = line["; registers:".Length..].Trim();
-                if (!string.IsNullOrEmpty(kind) && !string.IsNullOrEmpty(name) &&
-                    int.TryParse(regText, out var reg))
+                if (
+                    !string.IsNullOrEmpty(kind)
+                    && !string.IsNullOrEmpty(name)
+                    && int.TryParse(regText, out var reg)
+                )
                     map[$"{kind}:{name}"] = reg;
             }
         }
@@ -824,7 +932,11 @@ internal static class Program
         return map;
     }
 
-    private static string RunCasesSnapshot(string? casesDirArg, string? snapshotsRootArg, bool compareOpcodes)
+    private static string RunCasesSnapshot(
+        string? casesDirArg,
+        string? snapshotsRootArg,
+        bool compareOpcodes
+    )
     {
         var casesDir = string.IsNullOrWhiteSpace(casesDirArg)
             ? Path.Combine("artifacts", "okojobytecodetool", "cases")
@@ -834,13 +946,18 @@ internal static class Program
             : snapshotsRootArg!;
 
         if (!Directory.Exists(casesDir))
-            throw new InvalidOperationException($"Cases directory not found: {Path.GetFullPath(casesDir)}");
+            throw new InvalidOperationException(
+                $"Cases directory not found: {Path.GetFullPath(casesDir)}"
+            );
 
-        var caseFiles = Directory.GetFiles(casesDir, "*.js")
+        var caseFiles = Directory
+            .GetFiles(casesDir, "*.js")
             .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
             .ToList();
         if (caseFiles.Count == 0)
-            throw new InvalidOperationException($"No .js case files found in: {Path.GetFullPath(casesDir)}");
+            throw new InvalidOperationException(
+                $"No .js case files found in: {Path.GetFullPath(casesDir)}"
+            );
 
         Directory.CreateDirectory(snapshotsRoot);
         var ts = DateTime.Now.ToString("yyyyMMdd-HHmmss");
@@ -856,7 +973,10 @@ internal static class Program
             var script = JsCompiler.Compile(realm, program);
             var functions = CollectOkojoFunctions(script);
             var output = RenderDisassembly(functions, null);
-            var outFile = Path.Combine(currentSnapshotDir, Path.GetFileNameWithoutExtension(casePath) + ".disasm.txt");
+            var outFile = Path.Combine(
+                currentSnapshotDir,
+                Path.GetFileNameWithoutExtension(casePath) + ".disasm.txt"
+            );
             File.WriteAllText(outFile, output, Encoding.UTF8);
             Console.Error.WriteLine($"Saved output: {Path.GetFullPath(outFile)}");
         }
@@ -866,7 +986,11 @@ internal static class Program
             .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-        var previousCompatibleDir = FindLatestCompatibleSnapshotDirectory(snapshotsRoot, ts, expectedNames);
+        var previousCompatibleDir = FindLatestCompatibleSnapshotDirectory(
+            snapshotsRoot,
+            ts,
+            expectedNames
+        );
 
         var sb = new StringBuilder();
         sb.AppendLine($"Snapshot created: {Path.GetFullPath(currentSnapshotDir)}");
@@ -893,16 +1017,19 @@ internal static class Program
     private static string? FindLatestCompatibleSnapshotDirectory(
         string snapshotsRoot,
         string currentSnapshotName,
-        string[] expectedNames)
+        string[] expectedNames
+    )
     {
-        var dirs = Directory.GetDirectories(snapshotsRoot)
+        var dirs = Directory
+            .GetDirectories(snapshotsRoot)
             .Select(x => new DirectoryInfo(x))
             .Where(x => !x.Name.Equals(currentSnapshotName, StringComparison.OrdinalIgnoreCase))
             .OrderByDescending(x => x.Name, StringComparer.OrdinalIgnoreCase);
 
         foreach (var dir in dirs)
         {
-            var names = Directory.GetFiles(dir.FullName, "*.disasm.txt")
+            var names = Directory
+                .GetFiles(dir.FullName, "*.disasm.txt")
                 .Select(Path.GetFileName)
                 .Where(x => !string.IsNullOrEmpty(x))
                 .Cast<string>()
@@ -990,8 +1117,10 @@ internal static class Program
         return map;
     }
 
-    private static (string Status, string FirstDifference) CompareOpcodeSequences(List<string>? left,
-        List<string>? right)
+    private static (string Status, string FirstDifference) CompareOpcodeSequences(
+        List<string>? left,
+        List<string>? right
+    )
     {
         if (left is null && right is null)
             return ("missing", "-");
@@ -1011,6 +1140,6 @@ internal static class Program
     {
         Disasm,
         Compare,
-        CasesSnapshot
+        CasesSnapshot,
     }
 }

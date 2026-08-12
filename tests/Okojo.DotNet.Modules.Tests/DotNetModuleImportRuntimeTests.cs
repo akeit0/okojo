@@ -9,18 +9,18 @@ public class DotNetModuleImportRuntimeTests
     {
         var uriAssemblyPath = typeof(Uri).Assembly.Location;
         var escapedPath = EscapeJavaScriptStringLiteral(uriAssemblyPath);
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/main.js"] = $$"""
-                                 import Uri from "dll:{{escapedPath}}#System.Uri";
-                                 const value = new Uri("https://example.com/path");
-                                 export default value.Host;
-                                 """
-        });
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal)
+            {
+                ["/mods/main.js"] = $$"""
+                import Uri from "dll:{{escapedPath}}#System.Uri";
+                const value = new Uri("https://example.com/path");
+                export default value.Host;
+                """,
+            }
+        );
 
-        using var engine = JsRuntime.CreateBuilder()
-            .UseDotNetModuleImports(loader)
-            .Build();
+        using var engine = JsRuntime.CreateBuilder().UseDotNetModuleImports(loader).Build();
         var module = engine.MainRealm.LoadModule("/mods/main.js");
 
         Assert.That(module.Object.TryGetProperty("default", out var value), Is.True);
@@ -30,23 +30,36 @@ public class DotNetModuleImportRuntimeTests
     [Test]
     public void EvaluateModule_NuGetImport_Uses_Configured_GlobalPackagesRoot()
     {
-        var tempRoot = Path.Combine(Path.GetTempPath(), "okojo-dotnet-modules-" + Guid.NewGuid().ToString("N"));
+        var tempRoot = Path.Combine(
+            Path.GetTempPath(),
+            "okojo-dotnet-modules-" + Guid.NewGuid().ToString("N")
+        );
         Directory.CreateDirectory(tempRoot);
         try
         {
-            var packageDllPath = Path.Combine(tempRoot, "sample.uri", "1.0.0", "lib", "net10.0", "sample.uri.dll");
+            var packageDllPath = Path.Combine(
+                tempRoot,
+                "sample.uri",
+                "1.0.0",
+                "lib",
+                "net10.0",
+                "sample.uri.dll"
+            );
             Directory.CreateDirectory(Path.GetDirectoryName(packageDllPath)!);
             File.Copy(typeof(Uri).Assembly.Location, packageDllPath);
 
-            var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-            {
-                ["/mods/main.js"] = """
-                                    import Uri from "nuget:sample.uri@1.0.0#System.Uri";
-                                    export default new Uri("https://example.com/nuget").AbsolutePath;
-                                    """
-            });
+            var loader = new InMemoryModuleLoader(
+                new(StringComparer.Ordinal)
+                {
+                    ["/mods/main.js"] = """
+                    import Uri from "nuget:sample.uri@1.0.0#System.Uri";
+                    export default new Uri("https://example.com/nuget").AbsolutePath;
+                    """,
+                }
+            );
 
-            using var engine = JsRuntime.CreateBuilder()
+            using var engine = JsRuntime
+                .CreateBuilder()
                 .UseDotNetModuleImports(loader, options => options.GlobalPackagesRoot = tempRoot)
                 .Build();
             var module = engine.MainRealm.LoadModule("/mods/main.js");
@@ -66,17 +79,17 @@ public class DotNetModuleImportRuntimeTests
     {
         var uriAssemblyPath = typeof(Uri).Assembly.Location;
         var escapedPath = EscapeJavaScriptStringLiteral(uriAssemblyPath);
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/main.js"] = $$"""
-                                 import "dll:{{escapedPath}}";
-                                 export default new clr.System.Uri("https://example.com/from-clr").AbsolutePath;
-                                 """
-        });
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal)
+            {
+                ["/mods/main.js"] = $$"""
+                import "dll:{{escapedPath}}";
+                export default new clr.System.Uri("https://example.com/from-clr").AbsolutePath;
+                """,
+            }
+        );
 
-        using var engine = JsRuntime.CreateBuilder()
-            .UseDotNetModuleImports(loader)
-            .Build();
+        using var engine = JsRuntime.CreateBuilder().UseDotNetModuleImports(loader).Build();
         var module = engine.MainRealm.LoadModule("/mods/main.js");
 
         Assert.That(module.Object.TryGetProperty("default", out var value), Is.True);
@@ -92,7 +105,8 @@ public class DotNetModuleImportRuntimeTests
             .Replace("\n", "\\n", StringComparison.Ordinal);
     }
 
-    private sealed class InMemoryModuleLoader(Dictionary<string, string> modules) : IModuleSourceLoader
+    private sealed class InMemoryModuleLoader(Dictionary<string, string> modules)
+        : IModuleSourceLoader
     {
         public string ResolveSpecifier(string specifier, string? referrer)
         {

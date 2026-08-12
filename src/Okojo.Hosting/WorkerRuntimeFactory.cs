@@ -6,7 +6,8 @@ public static class WorkerRuntimeFactory
 {
     public static WorkerRuntime CreateWorkerRuntime(
         JsRuntime engine,
-        Action<WorkerRuntimeOptions>? configure = null)
+        Action<WorkerRuntimeOptions>? configure = null
+    )
     {
         ArgumentNullException.ThrowIfNull(engine);
         return CreateWorkerRuntimeCore(engine, configure);
@@ -14,19 +15,24 @@ public static class WorkerRuntimeFactory
 
     public static WorkerRuntime CreateWorkerRuntime(
         JsRealm ownerRealm,
-        Action<WorkerRuntimeOptions>? configure = null)
+        Action<WorkerRuntimeOptions>? configure = null
+    )
     {
         ArgumentNullException.ThrowIfNull(ownerRealm);
-        return CreateWorkerRuntimeCore((JsRuntime)ownerRealm.Engine, options =>
-        {
-            options.ModuleReferrer ??= ownerRealm.GetCurrentModuleResolvedIdOrNull();
-            configure?.Invoke(options);
-        });
+        return CreateWorkerRuntimeCore(
+            (JsRuntime)ownerRealm.Engine,
+            options =>
+            {
+                options.ModuleReferrer ??= ownerRealm.GetCurrentModuleResolvedIdOrNull();
+                configure?.Invoke(options);
+            }
+        );
     }
 
     private static WorkerRuntime CreateWorkerRuntimeCore(
         JsRuntime engine,
-        Action<WorkerRuntimeOptions>? configure)
+        Action<WorkerRuntimeOptions>? configure
+    )
     {
         var options = new WorkerRuntimeOptions();
         configure?.Invoke(options);

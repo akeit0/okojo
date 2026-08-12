@@ -30,7 +30,8 @@ public sealed record JsScript
         bool[]? TopLevelLexicalConstFlags = null,
         long[]? PrivateFieldDebugKeys = null,
         int[]? PrivateFieldDebugNameIndices = null,
-        JsLocalDebugInfo[]? LocalDebugInfos = null)
+        JsLocalDebugInfo[]? LocalDebugInfos = null
+    )
     {
         this.Bytecode = Bytecode;
         this.NumericConstants = NumericConstants;
@@ -47,7 +48,10 @@ public sealed record JsScript
         this.GlobalBindingIcEntries = GlobalBindingIcEntries;
         this.DebugPcOffsets = DebugPcOffsets;
         this.DebugSourceOffsets = DebugSourceOffsets;
-        SourceCode = SourceText is null && SourcePath is null ? null : new SourceCode(SourceText, SourcePath);
+        SourceCode =
+            SourceText is null && SourcePath is null
+                ? null
+                : new SourceCode(SourceText, SourcePath);
         functionSourceText = FunctionSourceText;
         this.GeneratorSwitchTargets = GeneratorSwitchTargets;
         this.SwitchOnSmiTargets = SwitchOnSmiTargets;
@@ -80,15 +84,21 @@ public sealed record JsScript
     public string? SourceText
     {
         get => SourceCode?.Source;
-        init => SourceCode = value is null && SourceCode?.Path is null ? null : new SourceCode(value, SourceCode?.Path);
+        init =>
+            SourceCode =
+                value is null && SourceCode?.Path is null
+                    ? null
+                    : new SourceCode(value, SourceCode?.Path);
     }
 
     public string? SourcePath
     {
         get => SourceCode?.Path;
-        init => SourceCode = value is null && SourceCode?.Source is null
-            ? null
-            : new SourceCode(SourceCode?.Source, value);
+        init =>
+            SourceCode =
+                value is null && SourceCode?.Source is null
+                    ? null
+                    : new SourceCode(SourceCode?.Source, value);
     }
 
     private FunctionSourceTextSegment functionSourceText;

@@ -5,8 +5,8 @@ namespace Okojo.WebAssembly.Wasmtime;
 internal sealed class WasmtimeInstanceWrapper(
     Store store,
     Instance instance,
-    IReadOnlyDictionary<string, IWasmExtern> exports)
-    : IWasmInstance
+    IReadOnlyDictionary<string, IWasmExtern> exports
+) : IWasmInstance
 {
     public Instance Instance { get; } = instance;
 

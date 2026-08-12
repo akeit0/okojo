@@ -12,12 +12,22 @@ internal static partial class Program
         return MakeDisplayPath(repoRoot, path, fullPath);
     }
 
-    private static bool TryExtractLineColumnFromMessage(string message, out int line, out int column)
+    private static bool TryExtractLineColumnFromMessage(
+        string message,
+        out int line,
+        out int column
+    )
     {
-        var match = Regex.Match(message, @"\sat\s.+:(\d+):(\d+)(?:\s|$)", RegexOptions.CultureInvariant);
-        if (match.Success &&
-            int.TryParse(match.Groups[1].Value, out line) &&
-            int.TryParse(match.Groups[2].Value, out column))
+        var match = Regex.Match(
+            message,
+            @"\sat\s.+:(\d+):(\d+)(?:\s|$)",
+            RegexOptions.CultureInvariant
+        );
+        if (
+            match.Success
+            && int.TryParse(match.Groups[1].Value, out line)
+            && int.TryParse(match.Groups[2].Value, out column)
+        )
             return true;
 
         line = 0;
@@ -25,14 +35,25 @@ internal static partial class Program
         return false;
     }
 
-    private static bool TryExtractManagedSourceLocation(Exception ex, string repoRoot, bool fullPath,
-        out string location)
+    private static bool TryExtractManagedSourceLocation(
+        Exception ex,
+        string repoRoot,
+        bool fullPath,
+        out string location
+    )
     {
         location = string.Empty;
         var current = ex;
         while (current is not null)
         {
-            if (TryExtractManagedSourceLocationFromStackTrace(current.StackTrace, repoRoot, fullPath, out location))
+            if (
+                TryExtractManagedSourceLocationFromStackTrace(
+                    current.StackTrace,
+                    repoRoot,
+                    fullPath,
+                    out location
+                )
+            )
                 return true;
             current = current.InnerException!;
         }
@@ -44,7 +65,8 @@ internal static partial class Program
         JsRuntimeException runtimeEx,
         string repoRoot,
         bool fullPath,
-        out string location)
+        out string location
+    )
     {
         location = string.Empty;
 
@@ -52,15 +74,26 @@ internal static partial class Program
         while (deepest?.InnerException is not null)
             deepest = deepest.InnerException;
 
-        if (deepest is not null &&
-            TryExtractManagedSourceLocationFromStackTrace(deepest.StackTrace, repoRoot, fullPath, out location))
+        if (
+            deepest is not null
+            && TryExtractManagedSourceLocationFromStackTrace(
+                deepest.StackTrace,
+                repoRoot,
+                fullPath,
+                out location
+            )
+        )
             return true;
 
         return TryExtractManagedSourceLocation(runtimeEx, repoRoot, fullPath, out location);
     }
 
-    private static bool TryExtractManagedSourceLocationFromStackTrace(string? stackTrace, string repoRoot,
-        bool fullPath, out string location)
+    private static bool TryExtractManagedSourceLocationFromStackTrace(
+        string? stackTrace,
+        string repoRoot,
+        bool fullPath,
+        out string location
+    )
     {
         location = string.Empty;
         if (string.IsNullOrEmpty(stackTrace))
@@ -69,7 +102,8 @@ internal static partial class Program
         var matches = Regex.Matches(
             stackTrace,
             @" in (?<path>[A-Za-z]:\\[^:\r\n]+?\.cs):line (?<line>\d+)",
-            RegexOptions.CultureInvariant);
+            RegexOptions.CultureInvariant
+        );
 
         for (var i = 0; i < matches.Count; i++)
         {
@@ -88,9 +122,11 @@ internal static partial class Program
 
     private static string FormatRuntimeExceptionMessage(JsRuntimeException runtimeEx)
     {
-        if (runtimeEx.DetailCode == "JS_THROW_VALUE" &&
-            runtimeEx.ThrownValue is { } thrownValue &&
-            TryFormatThrownValueMessage(thrownValue, out var thrownMessage))
+        if (
+            runtimeEx.DetailCode == "JS_THROW_VALUE"
+            && runtimeEx.ThrownValue is { } thrownValue
+            && TryFormatThrownValueMessage(thrownValue, out var thrownMessage)
+        )
             return $"JavaScript throw: {thrownMessage}";
 
         return $"JavaScript throw: {runtimeEx.Kind}: {runtimeEx.Message}";
@@ -109,11 +145,10 @@ internal static partial class Program
 
             if (!string.IsNullOrEmpty(name) || !string.IsNullOrEmpty(detail))
             {
-                message = string.IsNullOrEmpty(detail)
-                    ? name ?? "Error"
-                    : string.IsNullOrEmpty(name)
-                        ? detail
-                        : $"{name}: {detail}";
+                message =
+                    string.IsNullOrEmpty(detail) ? name ?? "Error"
+                    : string.IsNullOrEmpty(name) ? detail
+                    : $"{name}: {detail}";
                 return true;
             }
         }
@@ -127,7 +162,8 @@ internal static partial class Program
         string sourcePath,
         HarnessSourceBundle harnessSource,
         bool strict,
-        bool isModuleCase)
+        bool isModuleCase
+    )
     {
         var normalizedSourcePath = sourcePath.Replace('\\', '/');
         (string Path, int Line, int Column)? fallback = null;
@@ -141,15 +177,23 @@ internal static partial class Program
 
             var mapped = isModuleCase
                 ? (normalizedSourcePath, frame.SourceLine, frame.SourceColumn)
-                : MapSourceLocation(sourcePath, harnessSource, strict, frame.SourceLine, frame.SourceColumn);
+                : MapSourceLocation(
+                    sourcePath,
+                    harnessSource,
+                    strict,
+                    frame.SourceLine,
+                    frame.SourceColumn
+                );
             if (mapped is null)
                 continue;
 
             if (fallback is null)
                 fallback = mapped.Value;
 
-            if (runtimeEx.DetailCode == "JS_THROW_VALUE" &&
-                string.Equals(mapped.Value.Path, normalizedSourcePath, StringComparison.Ordinal))
+            if (
+                runtimeEx.DetailCode == "JS_THROW_VALUE"
+                && string.Equals(mapped.Value.Path, normalizedSourcePath, StringComparison.Ordinal)
+            )
                 return mapped.Value;
         }
 
@@ -158,7 +202,8 @@ internal static partial class Program
 
     private static int CountLinesWhenAppendedWithAppendLine(string text)
     {
-        if (string.IsNullOrEmpty(text)) return 1;
+        if (string.IsNullOrEmpty(text))
+            return 1;
 
         var count = 1; // AppendLine always appends one trailing newline.
         for (var i = 0; i < text.Length; i++)
@@ -170,13 +215,15 @@ internal static partial class Program
 
     private static string StripParseLocationSuffix(string message)
     {
-        if (string.IsNullOrEmpty(message)) return message;
+        if (string.IsNullOrEmpty(message))
+            return message;
 
         return Regex.Replace(
             message,
             @"\s+at line \d+,\s*column \d+\s*\(position \d+\)\.?$",
             string.Empty,
-            RegexOptions.CultureInvariant);
+            RegexOptions.CultureInvariant
+        );
     }
 
     private static (string Path, int Line, int Column)? MapSourceLocation(
@@ -184,7 +231,8 @@ internal static partial class Program
         HarnessSourceBundle harnessSource,
         bool strict,
         int fullLine,
-        int column)
+        int column
+    )
     {
         if (fullLine <= 0)
             return null;
@@ -201,7 +249,10 @@ internal static partial class Program
             for (var i = 0; i < harnessSource.Segments.Count; i++)
             {
                 var segment = harnessSource.Segments[i];
-                if (harnessRelativeLine < segment.StartLine || harnessRelativeLine > segment.EndLine)
+                if (
+                    harnessRelativeLine < segment.StartLine
+                    || harnessRelativeLine > segment.EndLine
+                )
                     continue;
 
                 var lineInSegment = harnessRelativeLine - segment.StartLine + 1;

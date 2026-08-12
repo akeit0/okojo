@@ -17,7 +17,8 @@ public readonly struct ExecutionCheckpoint(
     IReadOnlyList<StackFrameInfo>? stackFrames = null,
     IReadOnlyList<JsLocalDebugInfo>? locals = null,
     IReadOnlyList<PausedLocalValue>? localValues = null,
-    IReadOnlyList<PausedScopeSnapshot>? scopeChain = null)
+    IReadOnlyList<PausedScopeSnapshot>? scopeChain = null
+)
 {
     public ExecutionCheckpointKind Kind { get; } = kind;
     public ulong ExecutedInstructions { get; } = executedInstructions;
@@ -31,31 +32,49 @@ public readonly struct ExecutionCheckpoint(
     public IReadOnlyList<PausedLocalValue>? LocalValues { get; } = localValues;
     public IReadOnlyList<PausedScopeSnapshot>? ScopeChain { get; } = scopeChain;
 
-    public CheckpointSourceLocation? SourceLocation => CurrentFrameInfo.HasSourceLocation
-        ? new CheckpointSourceLocation(SourcePath, CurrentFrameInfo.SourceLine, CurrentFrameInfo.SourceColumn)
-        : null;
+    public CheckpointSourceLocation? SourceLocation =>
+        CurrentFrameInfo.HasSourceLocation
+            ? new CheckpointSourceLocation(
+                SourcePath,
+                CurrentFrameInfo.SourceLine,
+                CurrentFrameInfo.SourceColumn
+            )
+            : null;
 
-    public string KindLabel => Kind switch
-    {
-        ExecutionCheckpointKind.Periodic => "periodic",
-        ExecutionCheckpointKind.Call => "call",
-        ExecutionCheckpointKind.Return => "return",
-        ExecutionCheckpointKind.Pump => "pump",
-        ExecutionCheckpointKind.DebuggerStatement => "debugger-statement",
-        ExecutionCheckpointKind.SuspendGenerator => "suspend-generator",
-        ExecutionCheckpointKind.ResumeGenerator => "resume-generator",
-        ExecutionCheckpointKind.Breakpoint => "breakpoint",
-        ExecutionCheckpointKind.Step => "step",
-        ExecutionCheckpointKind.CaughtException => "caught-exception",
-        _ => Kind.ToString().ToLowerInvariant()
-    };
+    public string KindLabel =>
+        Kind switch
+        {
+            ExecutionCheckpointKind.Periodic => "periodic",
+            ExecutionCheckpointKind.Call => "call",
+            ExecutionCheckpointKind.Return => "return",
+            ExecutionCheckpointKind.Pump => "pump",
+            ExecutionCheckpointKind.DebuggerStatement => "debugger-statement",
+            ExecutionCheckpointKind.SuspendGenerator => "suspend-generator",
+            ExecutionCheckpointKind.ResumeGenerator => "resume-generator",
+            ExecutionCheckpointKind.Breakpoint => "breakpoint",
+            ExecutionCheckpointKind.Step => "step",
+            ExecutionCheckpointKind.CaughtException => "caught-exception",
+            _ => Kind.ToString().ToLowerInvariant(),
+        };
 
     public IReadOnlyList<StackFrameInfo> StackFrames => stackFrames ?? [CurrentFrameInfo];
 
     public ExecutionCheckpoint WithKind(ExecutionCheckpointKind kind)
     {
-        return new(kind, ExecutedInstructions, ProgramCounter, StackDepth, CurrentOpcode, CurrentFrameInfo,
-            SourcePath, Script, stackFrames, Locals, LocalValues, ScopeChain);
+        return new(
+            kind,
+            ExecutedInstructions,
+            ProgramCounter,
+            StackDepth,
+            CurrentOpcode,
+            CurrentFrameInfo,
+            SourcePath,
+            Script,
+            stackFrames,
+            Locals,
+            LocalValues,
+            ScopeChain
+        );
     }
 
     public PausedExecutionSnapshot ToPausedSnapshot()
@@ -74,7 +93,8 @@ public readonly struct ExecutionCheckpoint(
             StackFrames,
             Locals,
             LocalValues,
-            ScopeChain);
+            ScopeChain
+        );
     }
 
     public string GetDebuggerStopSummary()

@@ -27,9 +27,11 @@ public sealed class WebAssemblyBuilder
     {
         options.UseRealmSetup(realm =>
         {
-            var backendFactory = state.BackendFactory
-                                 ?? throw new InvalidOperationException(
-                                     "WebAssembly globals require a configured wasm backend. Call UseBackend(...) first.");
+            var backendFactory =
+                state.BackendFactory
+                ?? throw new InvalidOperationException(
+                    "WebAssembly globals require a configured wasm backend. Call UseBackend(...) first."
+                );
             WebAssemblyInstaller.Install(realm, backendFactory());
         });
 

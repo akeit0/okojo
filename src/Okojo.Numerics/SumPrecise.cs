@@ -42,7 +42,8 @@ public static class SumPrecise
     /// <summary>Computes the exact rounded sum of the given finite doubles (Shewchuk's algorithm).</summary>
     public static double Sum(ReadOnlySpan<double> array)
     {
-        double hi, lo;
+        double hi,
+            lo;
 
         using var partials = new PooledList<double>(8);
 
@@ -60,7 +61,8 @@ public static class SumPrecise
             {
                 var y = partials[j];
 
-                if (Math.Abs(x) < Math.Abs(y)) (y, x) = (x, y);
+                if (Math.Abs(x) < Math.Abs(y))
+                    (y, x) = (x, y);
 
                 (hi, lo) = TwoSum(x, y);
 
@@ -70,7 +72,8 @@ public static class SumPrecise
                     overflow += sign;
 
                     x = x - sign * Two1023 - sign * Two1023;
-                    if (Math.Abs(x) < Math.Abs(y)) (y, x) = (x, y);
+                    if (Math.Abs(x) < Math.Abs(y))
+                        (y, x) = (x, y);
 
                     var s2 = TwoSum(x, y);
                     hi = s2.Hi;
@@ -86,9 +89,11 @@ public static class SumPrecise
                 x = hi;
             }
 
-            while (partials.Count > actuallyUsedPartials) partials.RemoveLast();
+            while (partials.Count > actuallyUsedPartials)
+                partials.RemoveLast();
 
-            if (x != 0) partials.Add(x);
+            if (x != 0)
+                partials.Add(x);
         }
 
         // compute the exact sum of partials, stopping once we lose precision
@@ -116,12 +121,14 @@ public static class SumPrecise
                 // this is the same as the "handle rounding" case below, but there's only one potentially-finite case we need to worry about, so we just hardcode that one
                 if (hi > 0)
                 {
-                    if (hi == Two1023 && lo == -(MaxUlp / 2) && n >= 0 && partials[n] < 0) return MaxDouble;
+                    if (hi == Two1023 && lo == -(MaxUlp / 2) && n >= 0 && partials[n] < 0)
+                        return MaxDouble;
 
                     return double.PositiveInfinity;
                 }
 
-                if (hi == -Two1023 && lo == MaxUlp / 2 && n >= 0 && partials[n] > 0) return -MaxDouble;
+                if (hi == -Two1023 && lo == MaxUlp / 2 && n >= 0 && partials[n] > 0)
+                    return -MaxDouble;
 
                 return double.NegativeInfinity;
             }
@@ -143,7 +150,8 @@ public static class SumPrecise
             n -= 1;
             // assert: $abs(x1) > $abs(y1)
             (hi, lo) = TwoSum(x1, y1);
-            if (lo != 0) break; // eslint-disable-line no-restricted-syntax
+            if (lo != 0)
+                break; // eslint-disable-line no-restricted-syntax
         }
 
         // handle rounding
@@ -153,7 +161,8 @@ public static class SumPrecise
             var y2 = lo * 2.0;
             var x2 = hi + y2;
             var yr = x2 - hi;
-            if (y2 == yr) hi = x2;
+            if (y2 == yr)
+                hi = x2;
         }
 
         return hi;

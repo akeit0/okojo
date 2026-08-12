@@ -6,8 +6,13 @@ public sealed class JsBreakpointHandle : IDisposable
 {
     private readonly JsBreakpointRegistry registry;
 
-    internal JsBreakpointHandle(JsBreakpointRegistry registry, int handleId, string? sourcePath, int line,
-        int programCounter = -1)
+    internal JsBreakpointHandle(
+        JsBreakpointRegistry registry,
+        int handleId,
+        string? sourcePath,
+        int line,
+        int programCounter = -1
+    )
     {
         this.registry = registry;
         HandleId = handleId;
@@ -75,11 +80,14 @@ internal sealed class JsBreakpointRegistry
     private readonly Dictionary<int, HashSet<string>> patchedSourcePathsByHandle = new();
     private readonly Dictionary<int, List<BreakpointPatch>> patchesByHandle = new();
 
-    private readonly Dictionary<JsScript, List<BreakpointPatch>> patchesByScript =
-        new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<JsScript, List<BreakpointPatch>> patchesByScript = new(
+        ReferenceEqualityComparer.Instance
+    );
 
     private readonly Dictionary<int, PendingBreakpointRequest> pendingByHandle = new();
-    private readonly Dictionary<string, HashSet<int>> pendingHandlesBySourcePath = new(SourcePathComparer.Instance);
+    private readonly Dictionary<string, HashSet<int>> pendingHandlesBySourcePath = new(
+        SourcePathComparer.Instance
+    );
     private int nextHandleId = 1;
     private event Action<JsBreakpointHandle>? BreakpointResolved;
 
@@ -112,7 +120,9 @@ internal sealed class JsBreakpointRegistry
             patchesByHandle[handleId] = [];
             patchedSourcePathsByHandle[handleId] = new(SourcePathComparer.Instance);
             if (STraceBreakpoints)
-                Console.Error.WriteLine($"[okojo] breakpoint request {sourcePath}:{line} handle {handleId}");
+                Console.Error.WriteLine(
+                    $"[okojo] breakpoint request {sourcePath}:{line} handle {handleId}"
+                );
             ArmRegisteredScripts(agent, sourcePath, handleId, line, ref resolvedHandles);
         }
 
@@ -128,7 +138,9 @@ internal sealed class JsBreakpointRegistry
             throw new ArgumentOutOfRangeException(nameof(pc));
 
         if (!TryCreateExactPatch(script, pc, out var patch))
-            throw new InvalidOperationException("No breakpoint location found for the requested pc.");
+            throw new InvalidOperationException(
+                "No breakpoint location found for the requested pc."
+            );
 
         int handleId;
         JsBreakpointHandle handle;
@@ -160,7 +172,10 @@ internal sealed class JsBreakpointRegistry
                 ArmPatches(existingPatches);
 
             var sourcePath = script.SourcePath;
-            if (sourcePath is null || !pendingHandlesBySourcePath.TryGetValue(sourcePath, out var pendingHandles))
+            if (
+                sourcePath is null
+                || !pendingHandlesBySourcePath.TryGetValue(sourcePath, out var pendingHandles)
+            )
                 return;
 
             foreach (var handleId in pendingHandles)
@@ -168,18 +183,34 @@ internal sealed class JsBreakpointRegistry
                 if (!pendingByHandle.TryGetValue(handleId, out var request))
                     continue;
 
-                var hasExactLineMatch = agent.GetRegisteredScripts(sourcePath).Any(registeredScript =>
-                    JsScriptDebugInfo.HasExactSourceLine(registeredScript, request.Line));
-                var allowRelocation = !hasExactLineMatch || JsScriptDebugInfo.HasExactSourceLine(script, request.Line);
-                ArmScriptForRequest(script, handleId, request.Line, allowRelocation, ref resolvedHandles);
+                var hasExactLineMatch = agent
+                    .GetRegisteredScripts(sourcePath)
+                    .Any(registeredScript =>
+                        JsScriptDebugInfo.HasExactSourceLine(registeredScript, request.Line)
+                    );
+                var allowRelocation =
+                    !hasExactLineMatch
+                    || JsScriptDebugInfo.HasExactSourceLine(script, request.Line);
+                ArmScriptForRequest(
+                    script,
+                    handleId,
+                    request.Line,
+                    allowRelocation,
+                    ref resolvedHandles
+                );
             }
         }
 
         NotifyResolvedHandles(resolvedHandles);
     }
 
-    internal bool TryRestoreBreakpointForHit(JsScript script, int pc, out string? sourcePath, out int line,
-        out int column)
+    internal bool TryRestoreBreakpointForHit(
+        JsScript script,
+        int pc,
+        out string? sourcePath,
+        out int line,
+        out int column
+    )
     {
         lock (gate)
         {
@@ -204,7 +235,8 @@ internal sealed class JsBreakpointRegistry
                 column = patch.Column;
                 if (STraceBreakpoints)
                     Console.Error.WriteLine(
-                        $"[okojo] breakpoint hit {sourcePath ?? "<anonymous>"}:{line}:{column} pc {pc}");
+                        $"[okojo] breakpoint hit {sourcePath ?? "<anonymous>"}:{line}:{column} pc {pc}"
+                    );
                 return true;
             }
         }
@@ -215,7 +247,11 @@ internal sealed class JsBreakpointRegistry
         return false;
     }
 
-    internal bool TryGetOriginalInstruction(JsScript script, int pc, out OriginalInstructionInfo instruction)
+    internal bool TryGetOriginalInstruction(
+        JsScript script,
+        int pc,
+        out OriginalInstructionInfo instruction
+    )
     {
         lock (gate)
         {
@@ -248,8 +284,10 @@ internal sealed class JsBreakpointRegistry
             handlesById.Remove(handle.HandleId);
 
             pendingByHandle.Remove(handle.HandleId);
-            if (handle.SourcePath is { Length: > 0 } sourcePath &&
-                pendingHandlesBySourcePath.TryGetValue(sourcePath, out var pendingHandles))
+            if (
+                handle.SourcePath is { Length: > 0 } sourcePath
+                && pendingHandlesBySourcePath.TryGetValue(sourcePath, out var pendingHandles)
+            )
             {
                 pendingHandles.Remove(handle.HandleId);
                 if (pendingHandles.Count == 0)
@@ -273,20 +311,39 @@ internal sealed class JsBreakpointRegistry
             patch.Arm();
     }
 
-    private void ArmRegisteredScripts(JsAgent agent, string sourcePath, int handleId, int line,
-        ref List<JsBreakpointHandle>? resolvedHandles)
+    private void ArmRegisteredScripts(
+        JsAgent agent,
+        string sourcePath,
+        int handleId,
+        int line,
+        ref List<JsBreakpointHandle>? resolvedHandles
+    )
     {
         var registeredScripts = agent.GetRegisteredScripts(sourcePath);
-        var hasExactLineMatch = registeredScripts.Any(script => JsScriptDebugInfo.HasExactSourceLine(script, line));
+        var hasExactLineMatch = registeredScripts.Any(script =>
+            JsScriptDebugInfo.HasExactSourceLine(script, line)
+        );
         foreach (var registeredScript in registeredScripts)
         {
-            var allowRelocation = !hasExactLineMatch || JsScriptDebugInfo.HasExactSourceLine(registeredScript, line);
-            ArmScriptForRequest(registeredScript, handleId, line, allowRelocation, ref resolvedHandles);
+            var allowRelocation =
+                !hasExactLineMatch || JsScriptDebugInfo.HasExactSourceLine(registeredScript, line);
+            ArmScriptForRequest(
+                registeredScript,
+                handleId,
+                line,
+                allowRelocation,
+                ref resolvedHandles
+            );
         }
     }
 
-    private void ArmScriptForRequest(JsScript script, int handleId, int line, bool allowRelocation,
-        ref List<JsBreakpointHandle>? resolvedHandles)
+    private void ArmScriptForRequest(
+        JsScript script,
+        int handleId,
+        int line,
+        bool allowRelocation,
+        ref List<JsBreakpointHandle>? resolvedHandles
+    )
     {
         if (!patchesByHandle.TryGetValue(handleId, out var patches))
         {
@@ -317,9 +374,11 @@ internal sealed class JsBreakpointRegistry
             if (STraceBreakpoints && !HasPatchedSourcePath(patchedSourcePaths, script.SourcePath))
             {
                 Console.Error.WriteLine(
-                    $"[okojo] breakpoint miss {script.SourcePath ?? "<anonymous>"}:{line} no-pc");
+                    $"[okojo] breakpoint miss {script.SourcePath ?? "<anonymous>"}:{line} no-pc"
+                );
                 Console.Error.WriteLine(
-                    $"[okojo] breakpoint lines {script.SourcePath ?? "<anonymous>"} => [{string.Join(", ", GetExecutableLines(script))}]");
+                    $"[okojo] breakpoint lines {script.SourcePath ?? "<anonymous>"} => [{string.Join(", ", GetExecutableLines(script))}]"
+                );
             }
 
             return;
@@ -330,8 +389,15 @@ internal sealed class JsBreakpointRegistry
             patchedSourcePaths.Add(newPatchSourcePath);
         AddPatchesByScript([newPatch]);
         newPatch.Arm();
-        if (handlesById.TryGetValue(handleId, out var handle) &&
-            handle.TryUpdateResolution(newPatch.SourcePath, newPatch.Line, newPatch.Column, newPatch.Pc))
+        if (
+            handlesById.TryGetValue(handleId, out var handle)
+            && handle.TryUpdateResolution(
+                newPatch.SourcePath,
+                newPatch.Line,
+                newPatch.Column,
+                newPatch.Pc
+            )
+        )
         {
             resolvedHandles ??= new(2);
             resolvedHandles.Add(handle);
@@ -357,12 +423,30 @@ internal sealed class JsBreakpointRegistry
         BreakpointResolved -= handler;
     }
 
-    private static bool TryCreateLinePatch(JsScript script, int line, bool allowRelocation, out BreakpointPatch patch)
+    private static bool TryCreateLinePatch(
+        JsScript script,
+        int line,
+        bool allowRelocation,
+        out BreakpointPatch patch
+    )
     {
-        if (allowRelocation
-                ? JsScriptDebugInfo.TryFindFirstPcForSourceLine(script, line, out var pc, out var column,
-                    out var actualLine)
-                : JsScriptDebugInfo.TryFindFirstPcForExactSourceLine(script, line, out pc, out column, out actualLine))
+        if (
+            allowRelocation
+                ? JsScriptDebugInfo.TryFindFirstPcForSourceLine(
+                    script,
+                    line,
+                    out var pc,
+                    out var column,
+                    out var actualLine
+                )
+                : JsScriptDebugInfo.TryFindFirstPcForExactSourceLine(
+                    script,
+                    line,
+                    out pc,
+                    out column,
+                    out actualLine
+                )
+        )
         {
             var length = BytecodeInfo.GetInstructionLength(script.Bytecode, pc);
             patch = new(script, pc, length, script.SourcePath, actualLine, column);
@@ -370,7 +454,8 @@ internal sealed class JsBreakpointRegistry
             {
                 var suffix = actualLine == line ? string.Empty : $" relocated-from {line}";
                 Console.Error.WriteLine(
-                    $"[okojo] breakpoint map {script.SourcePath ?? "<anonymous>"}:{actualLine}:{column} -> pc {pc} len {length}{suffix}");
+                    $"[okojo] breakpoint map {script.SourcePath ?? "<anonymous>"}:{actualLine}:{column} -> pc {pc} len {length}{suffix}"
+                );
             }
 
             return true;
@@ -407,7 +492,10 @@ internal sealed class JsBreakpointRegistry
         var seen = new HashSet<int>();
         for (var pc = 0; pc < script.Bytecode.Length; pc++)
         {
-            if (!JsScriptDebugInfo.TryGetSourceLocation(script, pc, out var line, out _) || line <= 0)
+            if (
+                !JsScriptDebugInfo.TryGetSourceLocation(script, pc, out var line, out _)
+                || line <= 0
+            )
                 continue;
             if (seen.Add(line))
                 yield return line;
@@ -469,8 +557,14 @@ internal sealed class JsBreakpointRegistry
     {
         private readonly byte[] originalBytes;
 
-        internal BreakpointPatch(JsScript script, int pc, int length, string? sourcePath, int line,
-            int column)
+        internal BreakpointPatch(
+            JsScript script,
+            int pc,
+            int length,
+            string? sourcePath,
+            int line,
+            int column
+        )
         {
             Script = script;
             Pc = pc;
@@ -503,7 +597,8 @@ internal sealed class JsBreakpointRegistry
             IsArmed = true;
             if (STraceBreakpoints)
                 Console.Error.WriteLine(
-                    $"[okojo] patch arm {SourcePath ?? "<anonymous>"}:{Line}:{Column} pc {Pc} len {Length}");
+                    $"[okojo] patch arm {SourcePath ?? "<anonymous>"}:{Line}:{Column} pc {Pc} len {Length}"
+                );
         }
 
         internal void Restore()
@@ -512,7 +607,8 @@ internal sealed class JsBreakpointRegistry
             IsArmed = false;
             if (STraceBreakpoints)
                 Console.Error.WriteLine(
-                    $"[okojo] patch restore {SourcePath ?? "<anonymous>"}:{Line}:{Column} pc {Pc}");
+                    $"[okojo] patch restore {SourcePath ?? "<anonymous>"}:{Line}:{Column} pc {Pc}"
+                );
         }
     }
 

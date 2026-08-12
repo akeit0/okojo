@@ -21,8 +21,13 @@ public sealed partial class JsRealm
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private bool TryGetGlobalLexicalBindingValue(int atom, out JsValue value, out JsContext? context, out int slot,
-        out bool isConst)
+    private bool TryGetGlobalLexicalBindingValue(
+        int atom,
+        out JsValue value,
+        out JsContext? context,
+        out int slot,
+        out bool isConst
+    )
     {
         if (GlobalObject.TryGetLexicalBinding(atom, out context, out slot, out isConst))
         {
@@ -43,7 +48,9 @@ public sealed partial class JsRealm
         var globalBindingIcEntries = script.GlobalBindingIcEntries;
 #if DEBUG
         if (globalBindingIcEntries is null)
-            throw new InvalidOperationException("Global binding IC entries are required for IC-backed global loads.");
+            throw new InvalidOperationException(
+                "Global binding IC entries are required for IC-backed global loads."
+            );
         if ((uint)icSlot >= (uint)globalBindingIcEntries.Length)
             throw new InvalidOperationException("Global binding feedback slot is out of range.");
 #endif
@@ -67,10 +74,21 @@ public sealed partial class JsRealm
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private bool TryGetGlobalBindingByAtomSlow(ref GlobalBindingIcEntry entry, int atom, out JsValue value)
+    private bool TryGetGlobalBindingByAtomSlow(
+        ref GlobalBindingIcEntry entry,
+        int atom,
+        out JsValue value
+    )
     {
-        if (TryGetGlobalLexicalBindingValue(atom, out value, out var lexicalContext, out var lexicalSlot,
-                out var isConst))
+        if (
+            TryGetGlobalLexicalBindingValue(
+                atom,
+                out value,
+                out var lexicalContext,
+                out var lexicalSlot,
+                out var isConst
+            )
+        )
         {
             entry.Kind = isConst ? GlobalBindingIcKind.LexicalConst : GlobalBindingIcKind.Lexical;
             entry.NameAtom = atom;
@@ -80,10 +98,20 @@ public sealed partial class JsRealm
             return true;
         }
 
-        if (GlobalObject.TryGetPropertyAtomForGlobalCache(this, atom, out value, out var globalSlot,
-                out var globalVersion))
+        if (
+            GlobalObject.TryGetPropertyAtomForGlobalCache(
+                this,
+                atom,
+                out value,
+                out var globalSlot,
+                out var globalVersion
+            )
+        )
         {
-            entry.Kind = globalSlot >= 0 ? GlobalBindingIcKind.NonLexical : GlobalBindingIcKind.Uninitialized;
+            entry.Kind =
+                globalSlot >= 0
+                    ? GlobalBindingIcKind.NonLexical
+                    : GlobalBindingIcKind.Uninitialized;
             entry.NameAtom = atom;
             entry.LexicalContext = null;
             entry.Slot = globalSlot;
@@ -116,12 +144,15 @@ public sealed partial class JsRealm
         int atom,
         bool isInitializationStore,
         bool useFunctionDeclarationSemantics,
-        bool strict)
+        bool strict
+    )
     {
         var globalBindingIcEntries = script.GlobalBindingIcEntries;
 #if DEBUG
         if (globalBindingIcEntries is null)
-            throw new InvalidOperationException("Global binding IC entries are required for IC-backed global stores.");
+            throw new InvalidOperationException(
+                "Global binding IC entries are required for IC-backed global stores."
+            );
         if ((uint)icSlot >= (uint)globalBindingIcEntries.Length)
             throw new InvalidOperationException("Global binding feedback slot is out of range.");
 #endif
@@ -131,9 +162,11 @@ public sealed partial class JsRealm
         {
             if (entry.Kind is GlobalBindingIcKind.NonLexical)
             {
-                if (!isInitializationStore &&
-                    !useFunctionDeclarationSemantics &&
-                    GlobalObject.TrySetCachedGlobalValue(entry.Slot, entry.Version, acc))
+                if (
+                    !isInitializationStore
+                    && !useFunctionDeclarationSemantics
+                    && GlobalObject.TrySetCachedGlobalValue(entry.Slot, entry.Version, acc)
+                )
                     return;
             }
             else
@@ -146,7 +179,13 @@ public sealed partial class JsRealm
             }
         }
 
-        StoreGlobalByAtomSlow(ref entry, atom, isInitializationStore, useFunctionDeclarationSemantics, strict);
+        StoreGlobalByAtomSlow(
+            ref entry,
+            atom,
+            isInitializationStore,
+            useFunctionDeclarationSemantics,
+            strict
+        );
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -161,9 +200,17 @@ public sealed partial class JsRealm
         int atom,
         bool isInitializationStore,
         bool useFunctionDeclarationSemantics,
-        bool strict)
+        bool strict
+    )
     {
-        if (GlobalObject.TryGetLexicalBinding(atom, out var lexicalContext, out var lexicalSlot, out var isConst))
+        if (
+            GlobalObject.TryGetLexicalBinding(
+                atom,
+                out var lexicalContext,
+                out var lexicalSlot,
+                out var isConst
+            )
+        )
         {
             entry.Kind = isConst ? GlobalBindingIcKind.LexicalConst : GlobalBindingIcKind.Lexical;
             entry.NameAtom = atom;
@@ -181,9 +228,20 @@ public sealed partial class JsRealm
         entry.Kind = GlobalBindingIcKind.NonLexical;
         entry.NameAtom = atom;
         entry.LexicalContext = null;
-        StoreGlobalByAtomNonLexical(atom, isInitializationStore, useFunctionDeclarationSemantics, strict);
+        StoreGlobalByAtomNonLexical(
+            atom,
+            isInitializationStore,
+            useFunctionDeclarationSemantics,
+            strict
+        );
 
-        if (GlobalObject.TryGetOwnWritableDataGlobalSlot(atom, out var globalSlot, out var globalVersion))
+        if (
+            GlobalObject.TryGetOwnWritableDataGlobalSlot(
+                atom,
+                out var globalSlot,
+                out var globalVersion
+            )
+        )
         {
             entry.Slot = globalSlot;
             entry.Version = globalVersion;
@@ -197,8 +255,12 @@ public sealed partial class JsRealm
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void StoreGlobalByAtomNonLexical(int atom, bool isInitializationStore, bool useFunctionDeclarationSemantics,
-        bool strict)
+    private void StoreGlobalByAtomNonLexical(
+        int atom,
+        bool isInitializationStore,
+        bool useFunctionDeclarationSemantics,
+        bool strict
+    )
     {
         var result = GlobalObject.StoreGlobalAtom(
             this,
@@ -207,7 +269,8 @@ public sealed partial class JsRealm
             strict,
             isInitializationStore,
             useFunctionDeclarationSemantics,
-            indirectEvalGlobalBindingSemanticsDepth > 0);
+            indirectEvalGlobalBindingSemanticsDepth > 0
+        );
         if (result == GlobalStoreResult.Success)
             return;
 
@@ -223,7 +286,10 @@ public sealed partial class JsRealm
             if (result == GlobalStoreResult.Unresolvable)
                 ThrowReferenceError("GLOBAL_NOT_DEFINED", $"{name} is not defined");
             if (result == GlobalStoreResult.FunctionNotDefinable)
-                ThrowTypeError("GLOBAL_FUNCTION_NOT_DEFINABLE", $"Identifier '{name}' has already been declared");
+                ThrowTypeError(
+                    "GLOBAL_FUNCTION_NOT_DEFINABLE",
+                    $"Identifier '{name}' has already been declared"
+                );
             realm.ThrowConstAssignError(atom);
         }
     }

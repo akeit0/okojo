@@ -1,7 +1,7 @@
 using Okojo.Text.RegularExpressions;
-using EcmaRegexOptions = Okojo.Text.RegularExpressions.EcmaRegexOptions;
-using EcmaRegexFlagSet = Okojo.Text.RegularExpressions.EcmaRegexFlagSet;
 using EcmaCapture = Okojo.Text.RegularExpressions.EcmaCapture;
+using EcmaRegexFlagSet = Okojo.Text.RegularExpressions.EcmaRegexFlagSet;
+using EcmaRegexOptions = Okojo.Text.RegularExpressions.EcmaRegexOptions;
 
 namespace Okojo.RegExp;
 
@@ -27,16 +27,20 @@ internal sealed class RegExpEngine
             ecma.FlagsText,
             pattern,
             ToNamedGroupNames(ecma),
-            ToRuntimeFlags(ecma.Flags))
+            ToRuntimeFlags(ecma.Flags)
+        )
         {
-            EngineState = ecma
+            EngineState = ecma,
         };
     }
 
     public RegExpMatchResult? Exec(RegExpCompiledPattern compiled, string input, int startIndex)
     {
         if (compiled.EngineState is not EcmaRegex ecma)
-            throw new ArgumentException("Compiled pattern was not created by RegExpEngine.", nameof(compiled));
+            throw new ArgumentException(
+                "Compiled pattern was not created by RegExpEngine.",
+                nameof(compiled)
+            );
 
         var captures = new EcmaCapture[ecma.RequiredCaptureCount];
         if (!ecma.TryMatch(input, startIndex, captures, out _))
@@ -54,21 +58,24 @@ internal sealed class RegExpEngine
         return names;
     }
 
-    private static RegExpRuntimeFlags ToRuntimeFlags(EcmaRegexFlagSet flags) => new(
-        (flags & EcmaRegexFlagSet.Global) != 0,
-        (flags & EcmaRegexFlagSet.IgnoreCase) != 0,
-        (flags & EcmaRegexFlagSet.Multiline) != 0,
-        (flags & EcmaRegexFlagSet.HasIndices) != 0,
-        (flags & EcmaRegexFlagSet.Sticky) != 0,
-        (flags & (EcmaRegexFlagSet.Unicode | EcmaRegexFlagSet.UnicodeSets)) != 0,
-        (flags & EcmaRegexFlagSet.UnicodeSets) != 0,
-        (flags & EcmaRegexFlagSet.DotAll) != 0);
+    private static RegExpRuntimeFlags ToRuntimeFlags(EcmaRegexFlagSet flags) =>
+        new(
+            (flags & EcmaRegexFlagSet.Global) != 0,
+            (flags & EcmaRegexFlagSet.IgnoreCase) != 0,
+            (flags & EcmaRegexFlagSet.Multiline) != 0,
+            (flags & EcmaRegexFlagSet.HasIndices) != 0,
+            (flags & EcmaRegexFlagSet.Sticky) != 0,
+            (flags & (EcmaRegexFlagSet.Unicode | EcmaRegexFlagSet.UnicodeSets)) != 0,
+            (flags & EcmaRegexFlagSet.UnicodeSets) != 0,
+            (flags & EcmaRegexFlagSet.DotAll) != 0
+        );
 
     private static RegExpMatchResult BuildMatchResult(
         RegExpCompiledPattern compiled,
         EcmaRegex ecma,
         string input,
-        EcmaCapture[] captures)
+        EcmaCapture[] captures
+    )
     {
         var hasIndices = compiled.ParsedFlags.HasIndices;
         var groupCount = captures.Length;
@@ -127,6 +134,7 @@ internal sealed class RegExpEngine
             groups,
             namedGroups,
             groupIndices,
-            namedGroupIndices);
+            namedGroupIndices
+        );
     }
 }

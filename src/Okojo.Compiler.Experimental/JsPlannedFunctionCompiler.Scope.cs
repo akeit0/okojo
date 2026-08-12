@@ -7,7 +7,11 @@ internal sealed partial class JsPlannedFunctionCompiler
         return TryResolveBindingAccess(name, out binding, out _);
     }
 
-    private bool TryResolveBindingAccess(string name, out BindingStorage binding, out int contextDepth)
+    private bool TryResolveBindingAccess(
+        string name,
+        out BindingStorage binding,
+        out int contextDepth
+    )
     {
         contextDepth = 0;
         foreach (var scope in activeScopes)
@@ -29,10 +33,16 @@ internal sealed partial class JsPlannedFunctionCompiler
         return false;
     }
 
-    private CompilerCollectedScope FindChildScope(int parentScopeId, CompilerCollectedScopeKind kind, int position)
+    private CompilerCollectedScope FindChildScope(
+        int parentScopeId,
+        CompilerCollectedScopeKind kind,
+        int position
+    )
     {
         if (!scopesByParentScopeId.TryGetValue(parentScopeId, out var children))
-            throw new InvalidOperationException($"No child scopes found for parent scope {parentScopeId}.");
+            throw new InvalidOperationException(
+                $"No child scopes found for parent scope {parentScopeId}."
+            );
 
         for (var i = 0; i < children.Count; i++)
         {
@@ -41,7 +51,9 @@ internal sealed partial class JsPlannedFunctionCompiler
                 return child;
         }
 
-        throw new InvalidOperationException($"No child scope found for {kind} at position {position}.");
+        throw new InvalidOperationException(
+            $"No child scope found for {kind} at position {position}."
+        );
     }
 
     private void EnterScope(int scopeId)
@@ -62,7 +74,7 @@ internal sealed partial class JsPlannedFunctionCompiler
             {
                 CompilerPlannedStorageKind.ImportBinding => -1,
                 CompilerPlannedStorageKind.ContextSlot => -1,
-                _ => builder.AllocateTemporaryRegister()
+                _ => builder.AllocateTemporaryRegister(),
             };
             if (binding.StorageKind == CompilerPlannedStorageKind.ContextSlot)
             {
@@ -102,8 +114,10 @@ internal sealed partial class JsPlannedFunctionCompiler
                 var binding = scope.Bindings[i];
                 if (binding.Planned.StorageKind != CompilerPlannedStorageKind.ContextSlot)
                     continue;
-                captures.TryAdd(binding.Planned.Name,
-                    new CapturedBindingAccess(binding.Planned.StorageIndex, currentDepth));
+                captures.TryAdd(
+                    binding.Planned.Name,
+                    new CapturedBindingAccess(binding.Planned.StorageIndex, currentDepth)
+                );
             }
 
             if (scope.HasContext)
@@ -111,7 +125,10 @@ internal sealed partial class JsPlannedFunctionCompiler
         }
 
         foreach (var pair in inheritedCaptures)
-            captures.TryAdd(pair.Key, new CapturedBindingAccess(pair.Value.Slot, pair.Value.Depth + currentDepth));
+            captures.TryAdd(
+                pair.Key,
+                new CapturedBindingAccess(pair.Value.Slot, pair.Value.Depth + currentDepth)
+            );
 
         return captures;
     }
@@ -125,5 +142,9 @@ internal sealed partial class JsPlannedFunctionCompiler
         return inherited.Depth + currentDepth;
     }
 
-    private readonly record struct ActiveScope(int ScopeId, IReadOnlyList<BindingStorage> Bindings, bool HasContext);
+    private readonly record struct ActiveScope(
+        int ScopeId,
+        IReadOnlyList<BindingStorage> Bindings,
+        bool HasContext
+    );
 }

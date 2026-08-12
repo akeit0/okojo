@@ -33,7 +33,10 @@ internal sealed class PooledArrayBuilder<T> : IDisposable
     {
         var next = ArrayPool<T>.Shared.Rent(buffer.Length * 2);
         Array.Copy(buffer, next, Count);
-        ArrayPool<T>.Shared.Return(buffer, clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<T>());
+        ArrayPool<T>.Shared.Return(
+            buffer,
+            clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<T>()
+        );
         buffer = next;
     }
 
@@ -42,7 +45,10 @@ internal sealed class PooledArrayBuilder<T> : IDisposable
         if (disposed)
             return;
         disposed = true;
-        ArrayPool<T>.Shared.Return(buffer, clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<T>());
+        ArrayPool<T>.Shared.Return(
+            buffer,
+            clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<T>()
+        );
         buffer = Array.Empty<T>();
         Count = 0;
     }

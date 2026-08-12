@@ -4,9 +4,7 @@ internal sealed class JsDefaultHostMessageSerializer : IHostMessageSerializer
 {
     public static readonly JsDefaultHostMessageSerializer Shared = new();
 
-    private JsDefaultHostMessageSerializer()
-    {
-    }
+    private JsDefaultHostMessageSerializer() { }
 
     public object? CloneCrossAgentPayload(object? payload)
     {
@@ -30,7 +28,7 @@ internal sealed class JsDefaultHostMessageSerializer : IHostMessageSerializer
             object?[] arr => CloneArray(arr),
             List<object?> list => CloneList(list),
             Dictionary<string, object?> dict => CloneDictionary(dict),
-            _ => new UnsupportedMessagePayload(payload.GetType().FullName ?? "<unknown>")
+            _ => new UnsupportedMessagePayload(payload.GetType().FullName ?? "<unknown>"),
         };
     }
 
@@ -46,12 +44,17 @@ internal sealed class JsDefaultHostMessageSerializer : IHostMessageSerializer
             return value.Int32Value;
         if (value.IsFloat64)
             return value.Float64Value;
-        if (value.TryGetObject(out var obj) && obj is JsArrayBufferObject { IsShared: true } sharedBuffer)
+        if (
+            value.TryGetObject(out var obj)
+            && obj is JsArrayBufferObject { IsShared: true } sharedBuffer
+        )
             return sharedBuffer.GetSharedStorage();
 
-        throw new JsRuntimeException(JsErrorKind.TypeError,
+        throw new JsRuntimeException(
+            JsErrorKind.TypeError,
             "postMessage currently supports primitive payloads only",
-            "POSTMESSAGE_UNSUPPORTED_PAYLOAD");
+            "POSTMESSAGE_UNSUPPORTED_PAYLOAD"
+        );
     }
 
     public JsValue DeserializeIncoming(JsRealm realm, object? payload)
@@ -72,14 +75,18 @@ internal sealed class JsDefaultHostMessageSerializer : IHostMessageSerializer
             float n => new(n),
             double n => new(n),
             decimal n => new((double)n),
-            JsArrayBufferObject.SharedBufferStorage storage =>
-                JsValue.FromObject(new JsArrayBufferObject(realm, storage, realm.SharedArrayBufferPrototype)),
+            JsArrayBufferObject.SharedBufferStorage storage => JsValue.FromObject(
+                new JsArrayBufferObject(realm, storage, realm.SharedArrayBufferPrototype)
+            ),
             UnsupportedMessagePayload unsupported => throw new NotSupportedException(
-                $"Unsupported message payload type: {unsupported.TypeName}"),
+                $"Unsupported message payload type: {unsupported.TypeName}"
+            ),
             object?[] arr => JsValue.FromObject(FromHostArray(realm, arr)),
             List<object?> list => JsValue.FromObject(FromHostList(realm, list)),
             Dictionary<string, object?> dict => JsValue.FromObject(FromHostDictionary(realm, dict)),
-            _ => throw new NotSupportedException($"Unsupported message payload type: {payload.GetType().FullName}")
+            _ => throw new NotSupportedException(
+                $"Unsupported message payload type: {payload.GetType().FullName}"
+            ),
         };
     }
 
@@ -129,8 +136,12 @@ internal sealed class JsDefaultHostMessageSerializer : IHostMessageSerializer
         foreach (var pair in dict)
         {
             var atom = realm.Atoms.InternNoCheck(pair.Key);
-            obj.DefineDataPropertyAtom(realm, atom, Shared.DeserializeIncoming(realm, pair.Value),
-                JsShapePropertyFlags.Open);
+            obj.DefineDataPropertyAtom(
+                realm,
+                atom,
+                Shared.DeserializeIncoming(realm, pair.Value),
+                JsShapePropertyFlags.Open
+            );
         }
 
         return obj;

@@ -5,14 +5,14 @@ public enum GeneratorState : byte
     SuspendedStart = 0,
     SuspendedYield = 1,
     Executing = 2,
-    Completed = 3
+    Completed = 3,
 }
 
 public enum GeneratorResumeMode : byte
 {
     Next = 0,
     Return = 1,
-    Throw = 2
+    Throw = 2,
 }
 
 [Flags]
@@ -26,7 +26,7 @@ public enum GeneratorFlag : byte
     IsAsyncDriver = 1 << 4,
     IsAsyncGenerator = 1 << 5,
     AsyncGeneratorRequestActive = 1 << 6,
-    LastSuspendWasAwait = 1 << 7
+    LastSuspendWasAwait = 1 << 7,
 }
 
 public sealed class JsGeneratorObject : JsObject
@@ -36,7 +36,8 @@ public sealed class JsGeneratorObject : JsObject
         JsBytecodeFunction function,
         JsValue thisValue,
         ReadOnlySpan<JsValue> startArguments,
-        GeneratorObjectCore core)
+        GeneratorObjectCore core
+    )
         : base(realm)
     {
         Function = function;
@@ -147,7 +148,8 @@ public sealed class JsGeneratorObject : JsObject
         }
     }
 
-    public bool HasActiveDelegateIterator => (Core.Flags & GeneratorFlag.HasActiveDelegateIterator) != 0;
+    public bool HasActiveDelegateIterator =>
+        (Core.Flags & GeneratorFlag.HasActiveDelegateIterator) != 0;
 
     public JsObject? ActiveDelegateIterator
     {

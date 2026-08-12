@@ -26,7 +26,6 @@ internal ref struct PooledList<T>(int capacity)
         return ref array![index];
     }
 
-
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Add(T item)
     {
@@ -72,7 +71,11 @@ internal ref struct PooledList<T>(int capacity)
         if (count > Count)
             throw new ArgumentOutOfRangeException(nameof(count));
 
-        if (array is not null && RuntimeHelpers.IsReferenceOrContainsReferences<T>() && count < Count)
+        if (
+            array is not null
+            && RuntimeHelpers.IsReferenceOrContainsReferences<T>()
+            && count < Count
+        )
             Array.Clear(array, count, Count - count);
         Count = count;
     }

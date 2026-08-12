@@ -16,11 +16,17 @@ public sealed class HostEnumeratorBinding
         Func<object, object> getEnumerator,
         Func<object, bool> moveNext,
         Func<object, object?> getCurrent,
-        Action<object>? dispose = null)
+        Action<object>? dispose = null
+    )
     {
         ArgumentNullException.ThrowIfNull(getEnumerator);
         ArgumentNullException.ThrowIfNull(moveNext);
         ArgumentNullException.ThrowIfNull(getCurrent);
-        CreateEnumerator = target => new HostEnumeratorAdapter(getEnumerator(target), moveNext, getCurrent, dispose);
+        CreateEnumerator = target => new HostEnumeratorAdapter(
+            getEnumerator(target),
+            moveNext,
+            getCurrent,
+            dispose
+        );
     }
 }

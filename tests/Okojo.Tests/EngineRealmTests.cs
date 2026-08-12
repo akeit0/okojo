@@ -68,21 +68,27 @@ public class EngineRealmTests
         var realm1 = engine.MainRealm;
         var realm2 = engine.CreateRealm();
 
-        var thrower1 = realm1.Eval("""
-                                   Object.getOwnPropertyDescriptor((function() {
-                                     "use strict";
-                                     return arguments;
-                                   }()), "callee").get;
-                                   """);
-        var thrower1Again = realm1.Eval("""
-                                        Object.getOwnPropertyDescriptor(Function.prototype, "caller").get;
-                                        """);
-        var thrower2 = realm2.Eval("""
-                                   Object.getOwnPropertyDescriptor((function() {
-                                     "use strict";
-                                     return arguments;
-                                   }()), "callee").get;
-                                   """);
+        var thrower1 = realm1.Eval(
+            """
+            Object.getOwnPropertyDescriptor((function() {
+              "use strict";
+              return arguments;
+            }()), "callee").get;
+            """
+        );
+        var thrower1Again = realm1.Eval(
+            """
+            Object.getOwnPropertyDescriptor(Function.prototype, "caller").get;
+            """
+        );
+        var thrower2 = realm2.Eval(
+            """
+            Object.getOwnPropertyDescriptor((function() {
+              "use strict";
+              return arguments;
+            }()), "callee").get;
+            """
+        );
 
         Assert.That(thrower1.TryGetObject(out var thrower1Object), Is.True);
         Assert.That(thrower1Again.TryGetObject(out var thrower1AgainObject), Is.True);
@@ -98,36 +104,42 @@ public class EngineRealmTests
         var realm1 = engine.MainRealm;
         var realm2 = engine.CreateRealm();
 
-        var thrower = realm2.Eval("""
-                                  Object.getOwnPropertyDescriptor((function() {
-                                    "use strict";
-                                    return arguments;
-                                  }()), "callee").get;
-                                  """);
+        var thrower = realm2.Eval(
+            """
+            Object.getOwnPropertyDescriptor((function() {
+              "use strict";
+              return arguments;
+            }()), "callee").get;
+            """
+        );
         realm1.Global["otherThrowTypeError"] = thrower;
         realm2.Global["otherThrowTypeError"] = thrower;
 
-        var result = realm1.Eval("""
-                                 var ok;
-                                 try {
-                                   otherThrowTypeError();
-                                   ok = false;
-                                 } catch (e) {
-                                   ok = e instanceof TypeError;
-                                 }
-                                 ok;
-                                 """);
+        var result = realm1.Eval(
+            """
+            var ok;
+            try {
+              otherThrowTypeError();
+              ok = false;
+            } catch (e) {
+              ok = e instanceof TypeError;
+            }
+            ok;
+            """
+        );
 
-        var otherResult = realm2.Eval("""
-                                      var ok;
-                                      try {
-                                        otherThrowTypeError();
-                                        ok = false;
-                                      } catch (e) {
-                                        ok = e instanceof TypeError;
-                                      }
-                                      ok;
-                                      """);
+        var otherResult = realm2.Eval(
+            """
+            var ok;
+            try {
+              otherThrowTypeError();
+              ok = false;
+            } catch (e) {
+              ok = e instanceof TypeError;
+            }
+            ok;
+            """
+        );
 
         Assert.That(result.IsFalse, Is.True);
         Assert.That(otherResult.IsTrue, Is.True);

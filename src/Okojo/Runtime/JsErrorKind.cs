@@ -6,5 +6,5 @@ public enum JsErrorKind
     ReferenceError = 1,
     RangeError = 2,
     SyntaxError = 3,
-    InternalError = 4
+    InternalError = 4,
 }

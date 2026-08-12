@@ -88,7 +88,9 @@ public sealed partial class JsRealm
 
     private IClrAccessProvider GetClrAccessProvider()
     {
-        return EngineHost.ClrAccessProvider ?? throw new InvalidOperationException(
-            "CLR access is disabled. Configure JsRuntime with options => options.AllowClrAccess().");
+        return EngineHost.ClrAccessProvider
+            ?? throw new InvalidOperationException(
+                "CLR access is disabled. Configure JsRuntime with options => options.AllowClrAccess()."
+            );
     }
 }

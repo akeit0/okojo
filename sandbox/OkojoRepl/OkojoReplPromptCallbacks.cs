@@ -13,11 +13,47 @@ internal sealed class OkojoReplPromptCallbacks : PromptCallbacks
 
     private static readonly HashSet<string> Keywords = new(StringComparer.Ordinal)
     {
-        "true", "false", "null", "var", "let", "const", "if", "else", "return", "function",
-        "for", "while", "do", "break", "continue", "debugger", "typeof", "void", "delete",
-        "switch", "case", "default", "throw", "try", "catch", "finally", "with", "in",
-        "instanceof", "of", "new", "this", "class", "enum", "extends", "super", "export",
-        "import", "await", "async", "yield"
+        "true",
+        "false",
+        "null",
+        "var",
+        "let",
+        "const",
+        "if",
+        "else",
+        "return",
+        "function",
+        "for",
+        "while",
+        "do",
+        "break",
+        "continue",
+        "debugger",
+        "typeof",
+        "void",
+        "delete",
+        "switch",
+        "case",
+        "default",
+        "throw",
+        "try",
+        "catch",
+        "finally",
+        "with",
+        "in",
+        "instanceof",
+        "of",
+        "new",
+        "this",
+        "class",
+        "enum",
+        "extends",
+        "super",
+        "export",
+        "import",
+        "await",
+        "async",
+        "yield",
     };
 
     private static readonly IReadOnlyList<CompletionItem> ReplCommandItems =
@@ -25,7 +61,7 @@ internal sealed class OkojoReplPromptCallbacks : PromptCallbacks
         CreateCommandItem("help"),
         CreateCommandItem("q"),
         CreateCommandItem("quit"),
-        CreateCommandItem("exit")
+        CreateCommandItem("exit"),
     ];
 
     private readonly KeyBindings keyBindings;
@@ -39,28 +75,25 @@ internal sealed class OkojoReplPromptCallbacks : PromptCallbacks
 
     private static CompletionItem CreateCommandItem(string name)
     {
-        return new(
-            name,
-            new(name, new FormatSpan(0, name.Length, AnsiColor.Magenta)),
-            name);
+        return new(name, new(name, new FormatSpan(0, name.Length, AnsiColor.Magenta)), name);
     }
 
     protected override Task<KeyPress> TransformKeyPressAsync(
         string text,
         int caret,
         KeyPress keyPress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         if (keyBindings.NewLine.Matches(keyPress.ConsoleKeyInfo))
         {
             var indentation = GetIndentationString(text, caret);
-            return Task.FromResult(indentation.Length == 0
-                ? keyPress
-                : NewLineWithIndentation(indentation));
+            return Task.FromResult(
+                indentation.Length == 0 ? keyPress : NewLineWithIndentation(indentation)
+            );
         }
 
-        if (keyBindings.SubmitPrompt.Matches(keyPress.ConsoleKeyInfo) &&
-            !IsInputComplete(text))
+        if (keyBindings.SubmitPrompt.Matches(keyPress.ConsoleKeyInfo) && !IsInputComplete(text))
             return Task.FromResult(NewLineWithIndentation(GetIndentationString(text, caret)));
 
         return base.TransformKeyPressAsync(text, caret, keyPress, cancellationToken);
@@ -70,7 +103,8 @@ internal sealed class OkojoReplPromptCallbacks : PromptCallbacks
         string text,
         int caret,
         KeyPress keyPress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         if (keyPress.ConsoleKeyInfo.KeyChar != '}')
             return base.FormatInput(text, caret, keyPress, cancellationToken);
@@ -94,14 +128,17 @@ internal sealed class OkojoReplPromptCallbacks : PromptCallbacks
         string text,
         int caret,
         KeyPress keyPress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         if (!suggestionsEnabled)
             return Task.FromResult(false);
         if (char.IsControl(keyPress.ConsoleKeyInfo.KeyChar))
             return Task.FromResult(false);
-        if (char.IsLetterOrDigit(keyPress.ConsoleKeyInfo.KeyChar) ||
-            keyPress.ConsoleKeyInfo.KeyChar is '_' or '$' or ':')
+        if (
+            char.IsLetterOrDigit(keyPress.ConsoleKeyInfo.KeyChar)
+            || keyPress.ConsoleKeyInfo.KeyChar is '_' or '$' or ':'
+        )
             return Task.FromResult(true);
         return base.ShouldOpenCompletionWindowAsync(text, caret, keyPress, cancellationToken);
     }
@@ -109,7 +146,8 @@ internal sealed class OkojoReplPromptCallbacks : PromptCallbacks
     protected override Task<TextSpan> GetSpanToReplaceByCompletionAsync(
         string text,
         int caret,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         var start = caret;
         while (start > 0)
@@ -128,7 +166,8 @@ internal sealed class OkojoReplPromptCallbacks : PromptCallbacks
         string text,
         int caret,
         TextSpan spanToBeReplaced,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         if (!suggestionsEnabled)
             return Task.FromResult<IReadOnlyList<CompletionItem>>(Array.Empty<CompletionItem>());
@@ -141,10 +180,13 @@ internal sealed class OkojoReplPromptCallbacks : PromptCallbacks
         foreach (var keyword in Keywords)
         {
             var replacement = NeedsTrailingSpace(keyword) ? keyword + " " : keyword;
-            items.Add(new(
-                replacement,
-                new(keyword, new FormatSpan(0, keyword.Length, AnsiColor.BrightBlue)),
-                keyword));
+            items.Add(
+                new(
+                    replacement,
+                    new(keyword, new FormatSpan(0, keyword.Length, AnsiColor.BrightBlue)),
+                    keyword
+                )
+            );
         }
 
         return Task.FromResult<IReadOnlyList<CompletionItem>>(items);
@@ -152,7 +194,8 @@ internal sealed class OkojoReplPromptCallbacks : PromptCallbacks
 
     protected override Task<IReadOnlyCollection<FormatSpan>> HighlightCallbackAsync(
         string text,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         var spans = new List<FormatSpan>();
         var inString = false;
@@ -357,8 +400,10 @@ internal sealed class OkojoReplPromptCallbacks : PromptCallbacks
             else if (c == '}')
             {
                 openBraces--;
-                if (templateExpressionBraceStack.Count != 0 &&
-                    openBraces == templateExpressionBraceStack.Peek())
+                if (
+                    templateExpressionBraceStack.Count != 0
+                    && openBraces == templateExpressionBraceStack.Peek()
+                )
                 {
                     templateExpressionBraceStack.Pop();
                     inTemplateText = true;
@@ -384,10 +429,12 @@ internal sealed class OkojoReplPromptCallbacks : PromptCallbacks
         catch (JsParseException ex)
         {
             var msg = ex.Message;
-            if (msg.Contains("found Eof", StringComparison.OrdinalIgnoreCase) ||
-                msg.Contains("unexpected end of input", StringComparison.OrdinalIgnoreCase) ||
-                msg.Contains("unterminated", StringComparison.OrdinalIgnoreCase) ||
-                IsLikelyEndOfInputParse(ex, input))
+            if (
+                msg.Contains("found Eof", StringComparison.OrdinalIgnoreCase)
+                || msg.Contains("unexpected end of input", StringComparison.OrdinalIgnoreCase)
+                || msg.Contains("unterminated", StringComparison.OrdinalIgnoreCase)
+                || IsLikelyEndOfInputParse(ex, input)
+            )
                 return false;
             return true;
         }
@@ -504,8 +551,10 @@ internal sealed class OkojoReplPromptCallbacks : PromptCallbacks
                     brace--;
                     if (brace < 0)
                         return true;
-                    if (templateExpressionBraceStack.Count != 0 &&
-                        brace == templateExpressionBraceStack.Peek())
+                    if (
+                        templateExpressionBraceStack.Count != 0
+                        && brace == templateExpressionBraceStack.Peek()
+                    )
                     {
                         templateExpressionBraceStack.Pop();
                         inTemplateText = true;
@@ -523,29 +572,61 @@ internal sealed class OkojoReplPromptCallbacks : PromptCallbacks
             }
         }
 
-        return !inString && !inTemplateText && !inBlockComment && paren == 0 && brace == 0 && bracket == 0 &&
-               templateExpressionBraceStack.Count == 0;
+        return !inString
+            && !inTemplateText
+            && !inBlockComment
+            && paren == 0
+            && brace == 0
+            && bracket == 0
+            && templateExpressionBraceStack.Count == 0;
     }
 
     private static bool NeedsTrailingSpace(string keyword)
     {
-        return keyword is "var" or "let" or "const" or "if" or "else" or "return" or "function" or "for" or "while" or
-            "do" or "typeof" or "void" or "delete" or "switch" or "case" or "throw" or "try" or "catch" or "finally" or
-            "with" or "in" or "instanceof" or "of" or "new" or "class" or "enum" or "extends" or "export" or "import" or
-            "await" or "async" or "yield";
+        return keyword
+            is "var"
+                or "let"
+                or "const"
+                or "if"
+                or "else"
+                or "return"
+                or "function"
+                or "for"
+                or "while"
+                or "do"
+                or "typeof"
+                or "void"
+                or "delete"
+                or "switch"
+                or "case"
+                or "throw"
+                or "try"
+                or "catch"
+                or "finally"
+                or "with"
+                or "in"
+                or "instanceof"
+                or "of"
+                or "new"
+                or "class"
+                or "enum"
+                or "extends"
+                or "export"
+                or "import"
+                or "await"
+                or "async"
+                or "yield";
     }
 
     private static bool IsLikelyEndOfInputParse(JsParseException ex, string input)
     {
-        return ex.Position >= input.Length &&
-               ex.Message.Contains("Unexpected token", StringComparison.OrdinalIgnoreCase);
+        return ex.Position >= input.Length
+            && ex.Message.Contains("Unexpected token", StringComparison.OrdinalIgnoreCase);
     }
 
     private static KeyPress NewLineWithIndentation(string indentation)
     {
-        return new(
-            ConsoleKey.Insert.ToKeyInfo('\0', true),
-            "\n" + indentation);
+        return new(ConsoleKey.Insert.ToKeyInfo('\0', true), "\n" + indentation);
     }
 
     private static int GetLineStart(string text, int index)

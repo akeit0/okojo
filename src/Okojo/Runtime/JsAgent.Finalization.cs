@@ -19,7 +19,9 @@ public sealed partial class JsAgent
         }
     };
 
-    private readonly List<WeakReference<JsFinalizationRegistryObject>> trackedFinalizationRegistries = new();
+    private readonly List<
+        WeakReference<JsFinalizationRegistryObject>
+    > trackedFinalizationRegistries = new();
     private readonly List<WeakReference<JsWeakMapObject>> trackedWeakMaps = new();
     private readonly List<WeakReference<JsWeakRefObject>> trackedWeakRefs = new();
     private readonly List<WeakReference<JsWeakSetObject>> trackedWeakSets = new();
@@ -120,7 +122,9 @@ public sealed partial class JsAgent
         return changed;
     }
 
-    internal void HostEnqueueFinalizationRegistryCleanupJob(JsFinalizationRegistryObject finalizationRegistry)
+    internal void HostEnqueueFinalizationRegistryCleanupJob(
+        JsFinalizationRegistryObject finalizationRegistry
+    )
     {
         if (IsTerminated)
             return;

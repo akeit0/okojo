@@ -11,4 +11,5 @@ public readonly record struct StackFrameInfo(
     bool HasSourceLocation,
     int SourceLine,
     int SourceColumn,
-    string? SourcePath);
+    string? SourcePath
+);

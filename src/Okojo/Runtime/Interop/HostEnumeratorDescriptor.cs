@@ -6,9 +6,11 @@ internal sealed class HostEnumeratorAdapter(
     object enumerator,
     Func<object, bool> moveNext,
     Func<object, object?> getCurrent,
-    Action<object>? dispose)
+    Action<object>? dispose
+)
 {
-    internal object Enumerator { get; } = enumerator ?? throw new InvalidOperationException("GetEnumerator returned null.");
+    internal object Enumerator { get; } =
+        enumerator ?? throw new InvalidOperationException("GetEnumerator returned null.");
 
     internal bool MoveNext()
     {
@@ -27,13 +29,15 @@ internal sealed class HostEnumeratorAdapter(
 
     internal static HostEnumeratorAdapter FromInterface(IEnumerator enumerator)
     {
-        return new(enumerator,
+        return new(
+            enumerator,
             static state => ((IEnumerator)state).MoveNext(),
             static state => ((IEnumerator)state).Current,
             static state =>
             {
                 if (state is IDisposable disposable)
                     disposable.Dispose();
-            });
+            }
+        );
     }
 }

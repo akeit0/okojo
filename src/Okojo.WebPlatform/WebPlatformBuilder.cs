@@ -21,7 +21,9 @@ public sealed class WebPlatformBuilder
     {
         options.UseRealmSetup(realm =>
         {
-            var scheduler = state.WebRuntimeDelayScheduler ?? new TimeProviderDelayScheduler(realm.Engine.TimeProvider);
+            var scheduler =
+                state.WebRuntimeDelayScheduler
+                ?? new TimeProviderDelayScheduler(realm.Engine.TimeProvider);
             new WebRuntimeApiModule(_ => scheduler, state.WebRuntimeTimerQueueKey).Install(realm);
         });
         return this;
@@ -116,9 +118,7 @@ public sealed class WebPlatformBuilder
         ArgumentNullException.ThrowIfNull(workerHost);
         options.AddRealmApiModule(WebWorkerApiModule.Shared);
         options.UseLowLevelHost(host => host.UseWorkerMessageQueue(WebTaskQueueKeys.Messages));
-        options.UseHosting(hosting => hosting
-            .UseWorkerGlobals()
-            .UseJsWorkerHost(workerHost));
+        options.UseHosting(hosting => hosting.UseWorkerGlobals().UseJsWorkerHost(workerHost));
         return this;
     }
 

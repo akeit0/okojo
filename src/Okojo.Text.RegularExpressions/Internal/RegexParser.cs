@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text;
-
 using Okojo.Text.Unicode;
+
 namespace Okojo.Text.RegularExpressions.Internal;
 
 internal sealed class ParseResult

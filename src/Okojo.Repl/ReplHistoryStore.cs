@@ -27,14 +27,15 @@ public sealed class ReplHistoryStore : IDisposable
         {
             if (File.Exists(path))
             {
-                var loaded = JsonSerializer.Deserialize(File.ReadAllText(path), ReplJsonContext.Default.ListString) ??
-                             [];
+                var loaded =
+                    JsonSerializer.Deserialize(
+                        File.ReadAllText(path),
+                        ReplJsonContext.Default.ListString
+                    ) ?? [];
                 return new(path, loaded);
             }
         }
-        catch
-        {
-        }
+        catch { }
 
         return new(path, []);
     }
@@ -112,11 +113,12 @@ public sealed class ReplHistoryStore : IDisposable
             var directory = Path.GetDirectoryName(path);
             if (!string.IsNullOrEmpty(directory))
                 Directory.CreateDirectory(directory);
-            File.WriteAllText(path, JsonSerializer.Serialize(entries, ReplJsonContext.Default.ListString));
+            File.WriteAllText(
+                path,
+                JsonSerializer.Serialize(entries, ReplJsonContext.Default.ListString)
+            );
         }
-        catch
-        {
-        }
+        catch { }
     }
 
     private void ResetNavigation()

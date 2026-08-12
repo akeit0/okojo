@@ -12,7 +12,10 @@ public static class ClrAccessExtensions
 {
     private static readonly ClrInteropProvider SProvider = new();
 
-    public static JsRuntimeBuilder AllowClrAccess(this JsRuntimeBuilder builder, params Assembly[] assemblies)
+    public static JsRuntimeBuilder AllowClrAccess(
+        this JsRuntimeBuilder builder,
+        params Assembly[] assemblies
+    )
     {
         ArgumentNullException.ThrowIfNull(builder);
         builder.EnableClrAccess(SProvider);
@@ -21,7 +24,10 @@ public static class ClrAccessExtensions
         return builder;
     }
 
-    public static JsRuntimeOptions AllowClrAccess(this JsRuntimeOptions options, params Assembly[] assemblies)
+    public static JsRuntimeOptions AllowClrAccess(
+        this JsRuntimeOptions options,
+        params Assembly[] assemblies
+    )
     {
         ArgumentNullException.ThrowIfNull(options);
         options.EnableClrAccess(SProvider);
@@ -30,7 +36,10 @@ public static class ClrAccessExtensions
         return options;
     }
 
-    public static JsRuntimeCoreOptions AllowClrAccess(this JsRuntimeCoreOptions options, params Assembly[] assemblies)
+    public static JsRuntimeCoreOptions AllowClrAccess(
+        this JsRuntimeCoreOptions options,
+        params Assembly[] assemblies
+    )
     {
         ArgumentNullException.ThrowIfNull(options);
         options.EnableClrAccess(SProvider);

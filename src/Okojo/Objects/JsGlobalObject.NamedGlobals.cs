@@ -60,10 +60,15 @@ public sealed partial class JsGlobalObject
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private SlotInfo GetOrAddNamedDataSlot(int atom, JsShapePropertyFlags flags, out bool exists)
     {
-        ref var slotInfo = ref CollectionsMarshal.GetValueRefOrAddDefault(namedData, atom, out exists);
+        ref var slotInfo = ref CollectionsMarshal.GetValueRefOrAddDefault(
+            namedData,
+            atom,
+            out exists
+        );
         if (!exists)
             slotInfo = AllocateNamedDataSlot(flags);
-        else if (slotInfo.Flags != flags) slotInfo = new(slotInfo.Slot, flags);
+        else if (slotInfo.Flags != flags)
+            slotInfo = new(slotInfo.Slot, flags);
 
         return slotInfo;
     }
@@ -130,7 +135,8 @@ public sealed partial class JsGlobalObject
     internal bool TrySetCachedGlobalValue(int slot, int expectedVersion, in JsValue value)
     {
         ref var entry = ref globalValueEntries[slot];
-        if (entry.Version != expectedVersion) return false;
+        if (entry.Version != expectedVersion)
+            return false;
 
         entry.Value = value;
         return true;
@@ -173,7 +179,12 @@ public sealed partial class JsGlobalObject
         return !Unsafe.IsNullRef(ref GetLexicalBindingRef(atom));
     }
 
-    internal bool TryGetLexicalBinding(int atom, out JsContext? context, out int slot, out bool isConst)
+    internal bool TryGetLexicalBinding(
+        int atom,
+        out JsContext? context,
+        out int slot,
+        out bool isConst
+    )
     {
         ref var binding = ref GetLexicalBindingRef(atom);
         if (!Unsafe.IsNullRef(ref binding))
@@ -245,7 +256,8 @@ public sealed partial class JsGlobalObject
                 globalValueEntries[data.Slot].Value,
                 (data.Flags & JsShapePropertyFlags.Writable) != 0,
                 (data.Flags & JsShapePropertyFlags.Enumerable) != 0,
-                (data.Flags & JsShapePropertyFlags.Configurable) != 0);
+                (data.Flags & JsShapePropertyFlags.Configurable) != 0
+            );
             return true;
         }
 
@@ -262,7 +274,8 @@ public sealed partial class JsGlobalObject
                 GetNamedSlotUnchecked(info.Slot),
                 (info.Flags & JsShapePropertyFlags.Writable) != 0,
                 (info.Flags & JsShapePropertyFlags.Enumerable) != 0,
-                (info.Flags & JsShapePropertyFlags.Configurable) != 0);
+                (info.Flags & JsShapePropertyFlags.Configurable) != 0
+            );
             return true;
         }
 
@@ -279,7 +292,8 @@ public sealed partial class JsGlobalObject
                 globalValueEntries[data.Slot].Value,
                 (data.Flags & JsShapePropertyFlags.Writable) != 0,
                 (data.Flags & JsShapePropertyFlags.Enumerable) != 0,
-                (data.Flags & JsShapePropertyFlags.Configurable) != 0);
+                (data.Flags & JsShapePropertyFlags.Configurable) != 0
+            );
             return true;
         }
 
@@ -337,9 +351,15 @@ public sealed partial class JsGlobalObject
         }
 
         namedDescriptors?.Remove(atom);
-        var dataSlot = GetOrAddNamedDataSlot(atom,
-            DescriptorUtilities.BuildDataFlags(descriptor.Writable, descriptor.Enumerable, descriptor.Configurable),
-            out _);
+        var dataSlot = GetOrAddNamedDataSlot(
+            atom,
+            DescriptorUtilities.BuildDataFlags(
+                descriptor.Writable,
+                descriptor.Enumerable,
+                descriptor.Configurable
+            ),
+            out _
+        );
         SetGlobalValue(dataSlot, descriptor.Value);
         return true;
     }
@@ -347,12 +367,15 @@ public sealed partial class JsGlobalObject
     internal IEnumerable<KeyValuePair<int, PropertyDescriptor>> EnumerateNamedGlobalDescriptors()
     {
         foreach (var entry in namedData)
-            yield return new(entry.Key,
+            yield return new(
+                entry.Key,
                 PropertyDescriptor.Data(
                     globalValueEntries[entry.Value.Slot].Value,
                     (entry.Value.Flags & JsShapePropertyFlags.Writable) != 0,
                     (entry.Value.Flags & JsShapePropertyFlags.Enumerable) != 0,
-                    (entry.Value.Flags & JsShapePropertyFlags.Configurable) != 0));
+                    (entry.Value.Flags & JsShapePropertyFlags.Configurable) != 0
+                )
+            );
 
         if (namedDescriptors is null)
             yield break;

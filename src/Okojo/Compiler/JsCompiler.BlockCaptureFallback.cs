@@ -8,7 +8,10 @@ public sealed partial class JsCompiler
     {
         if (!block.BodyMayCreateNestedFunction)
             return;
-        if (!nestedBlockLexicals.TryGetValue(block.Position, out var bindings) || bindings.Count == 0)
+        if (
+            !nestedBlockLexicals.TryGetValue(block.Position, out var bindings)
+            || bindings.Count == 0
+        )
             return;
 
         for (var i = 0; i < bindings.Count; i++)

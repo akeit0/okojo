@@ -8,8 +8,13 @@ public class ModuleApiRefineTests
     [Test]
     public void Modules_Resolve_WhenResolverThrows_WrapsAsModuleResolveFailed()
     {
-        var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(new ThrowingResolveLoader()).Build();
-        var ex = Assert.Throws<JsRuntimeException>(() => _ = engine.MainAgent.Modules.Resolve("/mods/a.js"));
+        var engine = JsRuntime
+            .CreateBuilder()
+            .UseModuleSourceLoader(new ThrowingResolveLoader())
+            .Build();
+        var ex = Assert.Throws<JsRuntimeException>(() =>
+            _ = engine.MainAgent.Modules.Resolve("/mods/a.js")
+        );
         Assert.That(ex, Is.Not.Null);
         Assert.That(ex!.DetailCode, Is.EqualTo("MODULE_RESOLVE_FAILED"));
     }
@@ -17,8 +22,13 @@ public class ModuleApiRefineTests
     [Test]
     public void Modules_Link_WhenLoadThrows_WrapsAsModuleLoadFailed()
     {
-        var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(new ThrowingLoadLoader()).Build();
-        var ex = Assert.Throws<JsRuntimeException>(() => _ = engine.MainAgent.Modules.Link("/mods/a.js"));
+        var engine = JsRuntime
+            .CreateBuilder()
+            .UseModuleSourceLoader(new ThrowingLoadLoader())
+            .Build();
+        var ex = Assert.Throws<JsRuntimeException>(() =>
+            _ = engine.MainAgent.Modules.Link("/mods/a.js")
+        );
         Assert.That(ex, Is.Not.Null);
         Assert.That(ex!.DetailCode, Is.EqualTo("MODULE_LOAD_FAILED"));
     }
@@ -26,12 +36,13 @@ public class ModuleApiRefineTests
     [Test]
     public void Modules_Link_WhenParseThrows_WrapsAsModuleParseFailed()
     {
-        var loader = new CountingModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/a.js"] = "export { ;"
-        });
+        var loader = new CountingModuleLoader(
+            new(StringComparer.Ordinal) { ["/mods/a.js"] = "export { ;" }
+        );
         var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
-        var ex = Assert.Throws<JsRuntimeException>(() => _ = engine.MainAgent.Modules.Link("/mods/a.js"));
+        var ex = Assert.Throws<JsRuntimeException>(() =>
+            _ = engine.MainAgent.Modules.Link("/mods/a.js")
+        );
         Assert.That(ex, Is.Not.Null);
         Assert.That(ex!.DetailCode, Is.EqualTo("MODULE_PARSE_FAILED"));
     }
@@ -39,13 +50,17 @@ public class ModuleApiRefineTests
     [Test]
     public void Modules_EvaluateNamespace_WhenLinkFails_WrapsAsModuleLinkFailed()
     {
-        var loader = new CountingModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/dep.js"] = "export const ok = 1;",
-            ["/mods/a.js"] = "import { missing } from './dep.js'; export const y = missing;"
-        });
+        var loader = new CountingModuleLoader(
+            new(StringComparer.Ordinal)
+            {
+                ["/mods/dep.js"] = "export const ok = 1;",
+                ["/mods/a.js"] = "import { missing } from './dep.js'; export const y = missing;",
+            }
+        );
         var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
-        var ex = Assert.Throws<JsRuntimeException>(() => _ = engine.MainAgent.Modules.EvaluateNamespace("/mods/a.js"));
+        var ex = Assert.Throws<JsRuntimeException>(() =>
+            _ = engine.MainAgent.Modules.EvaluateNamespace("/mods/a.js")
+        );
         Assert.That(ex, Is.Not.Null);
         Assert.That(ex!.DetailCode, Is.EqualTo("MODULE_LINK_FAILED"));
     }
@@ -53,10 +68,9 @@ public class ModuleApiRefineTests
     [Test]
     public void Modules_TryGetCachedNamespace_ReturnsFalse_WhenNotCached_ThenTrueAfterEvaluate()
     {
-        var loader = new CountingModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/a.js"] = "export const a = 1;"
-        });
+        var loader = new CountingModuleLoader(
+            new(StringComparer.Ordinal) { ["/mods/a.js"] = "export const a = 1;" }
+        );
         var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var modules = engine.MainAgent.Modules;
 
@@ -74,10 +88,9 @@ public class ModuleApiRefineTests
     [Test]
     public void Modules_GetState_Tracks_Link_And_Evaluate()
     {
-        var loader = new CountingModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/a.js"] = "export const a = 1;"
-        });
+        var loader = new CountingModuleLoader(
+            new(StringComparer.Ordinal) { ["/mods/a.js"] = "export const a = 1;" }
+        );
         var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var modules = engine.MainAgent.Modules;
 
@@ -89,21 +102,26 @@ public class ModuleApiRefineTests
         var linked = modules.GetState("/mods/a.js");
         Assert.That(linked.Exists, Is.True);
         Assert.That(linked.HasLinkPlan, Is.True);
-        Assert.That(linked.State, Is.EqualTo(JsAgent.JsAgentModuleApi.ModuleStateKind.Uninitialized));
+        Assert.That(
+            linked.State,
+            Is.EqualTo(JsAgent.JsAgentModuleApi.ModuleStateKind.Uninitialized)
+        );
 
         _ = modules.Evaluate("/mods/a.js");
         var evaluated = modules.GetState("/mods/a.js");
         Assert.That(evaluated.Exists, Is.True);
-        Assert.That(evaluated.State, Is.EqualTo(JsAgent.JsAgentModuleApi.ModuleStateKind.Evaluated));
+        Assert.That(
+            evaluated.State,
+            Is.EqualTo(JsAgent.JsAgentModuleApi.ModuleStateKind.Evaluated)
+        );
     }
 
     [Test]
     public void Modules_Invalidate_RemovesCachedModule_AndForcesReload()
     {
-        var loader = new CountingModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/a.js"] = "export const a = 1;"
-        });
+        var loader = new CountingModuleLoader(
+            new(StringComparer.Ordinal) { ["/mods/a.js"] = "export const a = 1;" }
+        );
         var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var modules = engine.MainAgent.Modules;
 
@@ -121,12 +139,14 @@ public class ModuleApiRefineTests
     [Test]
     public void Modules_Invalidate_WithImportersScope_RemovesImporterClosure_AndForcesReload()
     {
-        var loader = new CountingModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/c.js"] = "export const value = 1;",
-            ["/mods/b.js"] = "import { value } from './c.js'; export const middle = value + 1;",
-            ["/mods/a.js"] = "import { middle } from './b.js'; export const top = middle + 1;"
-        });
+        var loader = new CountingModuleLoader(
+            new(StringComparer.Ordinal)
+            {
+                ["/mods/c.js"] = "export const value = 1;",
+                ["/mods/b.js"] = "import { value } from './c.js'; export const middle = value + 1;",
+                ["/mods/a.js"] = "import { middle } from './b.js'; export const top = middle + 1;",
+            }
+        );
         var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var modules = engine.MainAgent.Modules;
 
@@ -137,9 +157,13 @@ public class ModuleApiRefineTests
 
         var result = modules.Invalidate(
             "/mods/c.js",
-            JsAgent.JsAgentModuleApi.ModuleInvalidationScope.Importers);
+            JsAgent.JsAgentModuleApi.ModuleInvalidationScope.Importers
+        );
 
-        Assert.That(result.ResolvedIds, Is.EqualTo(new[] { "/mods/a.js", "/mods/b.js", "/mods/c.js" }));
+        Assert.That(
+            result.ResolvedIds,
+            Is.EqualTo(new[] { "/mods/a.js", "/mods/b.js", "/mods/c.js" })
+        );
         Assert.That(modules.GetState("/mods/a.js").Exists, Is.False);
         Assert.That(modules.GetState("/mods/b.js").Exists, Is.False);
         Assert.That(modules.GetState("/mods/c.js").Exists, Is.False);
@@ -153,11 +177,13 @@ public class ModuleApiRefineTests
     [Test]
     public void Modules_Clear_RemovesAllCachedModules_AndForcesReload()
     {
-        var loader = new CountingModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/a.js"] = "export const a = 1;",
-            ["/mods/b.js"] = "export const b = 2;"
-        });
+        var loader = new CountingModuleLoader(
+            new(StringComparer.Ordinal)
+            {
+                ["/mods/a.js"] = "export const a = 1;",
+                ["/mods/b.js"] = "export const b = 2;",
+            }
+        );
         var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var modules = engine.MainAgent.Modules;
 
@@ -180,16 +206,26 @@ public class ModuleApiRefineTests
     [Test]
     public void Modules_GetState_WithIncludeError_ReturnsLastFailureDiagnostic()
     {
-        var loader = new CountingModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/a.js"] = "boom(); export const x = 1;"
-        });
+        var loader = new CountingModuleLoader(
+            new(StringComparer.Ordinal) { ["/mods/a.js"] = "boom(); export const x = 1;" }
+        );
         var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var realm = engine.MainRealm;
-        realm.Global["boom"] = JsValue.FromObject(new JsHostFunction(realm, "boom", 0,
-            static (in info) => { throw new InvalidOperationException("boom exploded"); }));
+        realm.Global["boom"] = JsValue.FromObject(
+            new JsHostFunction(
+                realm,
+                "boom",
+                0,
+                static (in info) =>
+                {
+                    throw new InvalidOperationException("boom exploded");
+                }
+            )
+        );
 
-        _ = Assert.Throws<JsRuntimeException>(() => _ = engine.MainAgent.Modules.Evaluate("/mods/a.js"));
+        _ = Assert.Throws<JsRuntimeException>(() =>
+            _ = engine.MainAgent.Modules.Evaluate("/mods/a.js")
+        );
 
         var state = engine.MainAgent.Modules.GetState("/mods/a.js", true);
         Assert.That(state.Exists, Is.True);
@@ -197,23 +233,36 @@ public class ModuleApiRefineTests
         Assert.That(state.LastError, Is.Not.Null);
         Assert.That(state.LastError!.Value.DetailCode, Is.EqualTo("MODULE_EXEC_FAILED"));
         Assert.That(state.LastError.Value.ExceptionType, Does.Contain("JsRuntimeException"));
-        Assert.That(state.LastError.Value.InnerExceptionType, Does.Contain("InvalidOperationException"));
+        Assert.That(
+            state.LastError.Value.InnerExceptionType,
+            Does.Contain("InvalidOperationException")
+        );
         Assert.That(state.LastError.Value.Message, Does.Contain("/mods/a.js"));
     }
 
     [Test]
     public void Modules_GetState_Default_DoesNotIncludeFailureDiagnostic()
     {
-        var loader = new CountingModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/a.js"] = "boom(); export const x = 1;"
-        });
+        var loader = new CountingModuleLoader(
+            new(StringComparer.Ordinal) { ["/mods/a.js"] = "boom(); export const x = 1;" }
+        );
         var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var realm = engine.MainRealm;
-        realm.Global["boom"] = JsValue.FromObject(new JsHostFunction(realm, "boom", 0,
-            static (in info) => { throw new InvalidOperationException("boom exploded"); }));
+        realm.Global["boom"] = JsValue.FromObject(
+            new JsHostFunction(
+                realm,
+                "boom",
+                0,
+                static (in info) =>
+                {
+                    throw new InvalidOperationException("boom exploded");
+                }
+            )
+        );
 
-        _ = Assert.Throws<JsRuntimeException>(() => _ = engine.MainAgent.Modules.Evaluate("/mods/a.js"));
+        _ = Assert.Throws<JsRuntimeException>(() =>
+            _ = engine.MainAgent.Modules.Evaluate("/mods/a.js")
+        );
 
         var state = engine.MainAgent.Modules.GetState("/mods/a.js");
         Assert.That(state.Exists, Is.True);
@@ -221,7 +270,8 @@ public class ModuleApiRefineTests
         Assert.That(state.LastError, Is.Null);
     }
 
-    private sealed class CountingModuleLoader(Dictionary<string, string> modules) : IModuleSourceLoader
+    private sealed class CountingModuleLoader(Dictionary<string, string> modules)
+        : IModuleSourceLoader
     {
         private readonly Dictionary<string, int> loadCounts = new(StringComparer.Ordinal);
         private readonly Dictionary<string, string> modules = modules;

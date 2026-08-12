@@ -1,11 +1,12 @@
 using System.Text;
-
 using Okojo.Text.Unicode;
+
 namespace Okojo.Text.RegularExpressions.Internal;
 
 internal static class RegexCompiler
 {
-    internal static RegexProgram Compile(       RegexNode root,
+    internal static RegexProgram Compile(
+        RegexNode root,
         int captureCount,
         EcmaRegexFlagSet flags,
         EcmaRegexOptions options
@@ -507,9 +508,12 @@ internal static class SearchAnalyzer
         }
     }
 
-    private static readonly CharSet s_lineTerminators = new(
-        [new CodePointRange('\n', '\n'), new CodePointRange('\r', '\r'), new CodePointRange(0x2028, 0x2028), new CodePointRange(0x2029, 0x2029)]
-    );
+    private static readonly CharSet s_lineTerminators = new([
+        new CodePointRange('\n', '\n'),
+        new CodePointRange('\r', '\r'),
+        new CodePointRange(0x2028, 0x2028),
+        new CodePointRange(0x2029, 0x2029),
+    ]);
 
     private static SearchAnchor FindAnchor(RegexNode node)
     {
@@ -602,7 +606,10 @@ internal static class StringTrieBuilder
     /// <summary>Builds a code-point trie over the given strings (each of at least two code points).</summary>
     internal static StringTrie Build(string[] strings)
     {
-        List<List<(int CodePoint, int Next)>> children = [[]];
+        List<List<(int CodePoint, int Next)>> children =
+        [
+            [],
+        ];
         List<int> terminals = [-1];
 
         foreach (string value in strings)

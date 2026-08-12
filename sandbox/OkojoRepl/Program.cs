@@ -15,13 +15,16 @@ var cli = CliArgumentParser.Parse(args);
 if (cli is null)
     return;
 
-var vm = JsRuntime.Create(options =>
-{
-    options.AllowClrAccess()
-        .AddClrAssembly(typeof(Console).Assembly)
-        .AddClrAssembly(typeof(int).Assembly)
-        .AddClrAssembly(typeof(Enumerable).Assembly);
-}).DefaultRealm;
+var vm = JsRuntime
+    .Create(options =>
+    {
+        options
+            .AllowClrAccess()
+            .AddClrAssembly(typeof(Console).Assembly)
+            .AddClrAssembly(typeof(int).Assembly)
+            .AddClrAssembly(typeof(Enumerable).Assembly);
+    })
+    .DefaultRealm;
 InstallConsole(vm);
 
 var topLevelLexicalNames = new HashSet<string>(StringComparer.Ordinal);
@@ -30,7 +33,7 @@ var compileContext = new JsCompilerContext
 {
     IsRepl = true,
     ReplTopLevelLexicalNames = topLevelLexicalNames,
-    ReplTopLevelConstNames = topLevelConstNames
+    ReplTopLevelConstNames = topLevelConstNames,
 };
 
 if (cli.Expressions.Count != 0)
@@ -38,8 +41,14 @@ if (cli.Expressions.Count != 0)
     foreach (var expr in cli.Expressions)
         try
         {
-            await ExecuteAndPrintAsync(vm, compileContext, topLevelLexicalNames, topLevelConstNames, expr,
-                cli.StrictMode);
+            await ExecuteAndPrintAsync(
+                vm,
+                compileContext,
+                topLevelLexicalNames,
+                topLevelConstNames,
+                expr,
+                cli.StrictMode
+            );
         }
         catch (JsRuntimeException runtimeException)
         {
@@ -59,19 +68,22 @@ if (cli.Expressions.Count != 0)
 Console.WriteLine("Okojo REPL");
 Console.WriteLine("Type :help for commands.");
 Console.WriteLine("Shift+Enter for multi-line input.");
-Console.WriteLine(cli.StrictMode switch
-{
-    ReplStrictMode.Strict => "Mode: strict",
-    ReplStrictMode.Sloppy => "Mode: sloppy",
-    _ => "Mode: auto"
-});
+Console.WriteLine(
+    cli.StrictMode switch
+    {
+        ReplStrictMode.Strict => "Mode: strict",
+        ReplStrictMode.Sloppy => "Mode: sloppy",
+        _ => "Mode: auto",
+    }
+);
 Console.WriteLine(cli.NoSuggestions ? "Suggestions: off" : "Suggestions: on");
 
 var keyBindings = new KeyBindings();
 var promptConfiguration = CreatePromptConfiguration(keyBindings);
 var prompt = new Prompt(
     callbacks: new OkojoReplPromptCallbacks(keyBindings, !cli.NoSuggestions),
-    configuration: promptConfiguration);
+    configuration: promptConfiguration
+);
 
 while (true)
 {
@@ -102,7 +114,14 @@ while (true)
 
     try
     {
-        await ExecuteAndPrintAsync(vm, compileContext, topLevelLexicalNames, topLevelConstNames, line, cli.StrictMode);
+        await ExecuteAndPrintAsync(
+            vm,
+            compileContext,
+            topLevelLexicalNames,
+            topLevelConstNames,
+            line,
+            cli.StrictMode
+        );
     }
     catch (JsRuntimeException runtimeException)
     {
@@ -121,7 +140,8 @@ static async Task ExecuteAndPrintAsync(
     HashSet<string> topLevelLexicalNames,
     HashSet<string> topLevelConstNames,
     string source,
-    int strictMode)
+    int strictMode
+)
 {
     var adjustedSource = ApplyStrictMode(source, strictMode);
     var program = JavaScriptParser.ParseScript(adjustedSource);
@@ -142,7 +162,7 @@ static string ApplyStrictMode(string source, int strictMode)
     {
         ReplStrictMode.Strict => "'use strict';\n" + source,
         ReplStrictMode.Sloppy => "void 0;\n" + source,
-        _ => source
+        _ => source,
     };
 }
 
@@ -171,22 +191,27 @@ static async Task<JsValue> AwaitIfPromiseAsync(JsRealm vm, JsValue value, int ti
 static void InstallConsole(JsRealm vm)
 {
     var console = new JsPlainObject(vm);
-    var log = new JsHostFunction(vm, static (in info) =>
-    {
-        var realm = info.Realm;
-        var args = info.Arguments;
-        if (args.Length == 0)
+    var log = new JsHostFunction(
+        vm,
+        static (in info) =>
         {
-            Console.WriteLine();
-            return JsValue.Undefined;
-        }
+            var realm = info.Realm;
+            var args = info.Arguments;
+            if (args.Length == 0)
+            {
+                Console.WriteLine();
+                return JsValue.Undefined;
+            }
 
-        var parts = new string[args.Length];
-        for (var i = 0; i < args.Length; i++)
-            parts[i] = new ReplFormatter(realm).Format(args[i]);
-        Console.WriteLine(string.Join(" ", parts));
-        return JsValue.Undefined;
-    }, "log", 1);
+            var parts = new string[args.Length];
+            for (var i = 0; i < args.Length; i++)
+                parts[i] = new ReplFormatter(realm).Format(args[i]);
+            Console.WriteLine(string.Join(" ", parts));
+            return JsValue.Undefined;
+        },
+        "log",
+        1
+    );
 
     console.SetProperty("log", JsValue.FromObject(log));
     vm.Global["console"] = JsValue.FromObject(console);
@@ -194,22 +219,26 @@ static void InstallConsole(JsRealm vm)
 
 static PromptConfiguration CreatePromptConfiguration(KeyBindings keyBindings)
 {
-    return new(
-        keyBindings,
-        new FormattedString("> "));
+    return new(keyBindings, new FormattedString("> "));
 }
 
-static void ValidateReplTopLevelLexicalRedeclaration(JsProgram program, HashSet<string> existingLexicalNames)
+static void ValidateReplTopLevelLexicalRedeclaration(
+    JsProgram program,
+    HashSet<string> existingLexicalNames
+)
 {
     foreach (var name in EnumerateTopLevelLexicalNames(program))
         if (existingLexicalNames.Contains(name))
-            throw new InvalidOperationException($"SyntaxError: Identifier '{name}' has already been declared");
+            throw new InvalidOperationException(
+                $"SyntaxError: Identifier '{name}' has already been declared"
+            );
 }
 
 static void RegisterTopLevelLexicalDeclarations(
     JsProgram program,
     HashSet<string> lexicalNames,
-    HashSet<string> constNames)
+    HashSet<string> constNames
+)
 {
     foreach (var stmt in program.Statements)
     {
@@ -241,9 +270,14 @@ static IEnumerable<string> EnumerateTopLevelLexicalNames(JsProgram program)
     }
 }
 
-internal sealed record CliOptions(IReadOnlyList<string> Expressions, int StrictMode, bool NoSuggestions)
+internal sealed record CliOptions(
+    IReadOnlyList<string> Expressions,
+    int StrictMode,
+    bool NoSuggestions
+)
 {
-    internal static CliOptions Default { get; } = new(Array.Empty<string>(), ReplStrictMode.Auto, false);
+    internal static CliOptions Default { get; } =
+        new(Array.Empty<string>(), ReplStrictMode.Auto, false);
 }
 
 internal sealed class CliArgumentParser
@@ -264,15 +298,23 @@ internal sealed class CliArgumentParser
     /// <param name="strict">Force strict mode for input.</param>
     /// <param name="noStrict">Force sloppy mode for input.</param>
     /// <param name="noSuggestions">Disable PrettyPrompt suggestions and completion popups.</param>
-    public void ParseCore(string[]? eval = null, bool strict = false, bool noStrict = false, bool noSuggestions = false)
+    public void ParseCore(
+        string[]? eval = null,
+        bool strict = false,
+        bool noStrict = false,
+        bool noSuggestions = false
+    )
     {
         if (strict && noStrict)
             throw new InvalidOperationException("Cannot combine --strict and --no-strict");
 
         parsed = new(
             eval ?? Array.Empty<string>(),
-            strict ? ReplStrictMode.Strict : noStrict ? ReplStrictMode.Sloppy : ReplStrictMode.Auto,
-            noSuggestions);
+            strict ? ReplStrictMode.Strict
+                : noStrict ? ReplStrictMode.Sloppy
+                : ReplStrictMode.Auto,
+            noSuggestions
+        );
     }
 }
 

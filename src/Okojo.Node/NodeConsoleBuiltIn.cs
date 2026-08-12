@@ -28,7 +28,7 @@ internal sealed class NodeConsoleBuiltIn(NodeRuntime runtime, NodeTtyBuiltIn tty
         "timeEnd",
         "timeLog",
         "trace",
-        "warn"
+        "warn",
     ];
 
     private readonly ConditionalWeakTable<JsObject, ConsoleInstanceState> states = [];
@@ -47,8 +47,13 @@ internal sealed class NodeConsoleBuiltIn(NodeRuntime runtime, NodeTtyBuiltIn tty
             realm,
             ttyBuiltIn.GetStdoutObject(),
             ttyBuiltIn.GetStderrObject(),
-            true);
-        console.DefineDataProperty("Console", JsValue.FromObject(GetConsoleConstructor()), JsShapePropertyFlags.Open);
+            true
+        );
+        console.DefineDataProperty(
+            "Console",
+            JsValue.FromObject(GetConsoleConstructor()),
+            JsShapePropertyFlags.Open
+        );
         globalConsoleObject = console;
         return console;
     }
@@ -64,26 +69,38 @@ internal sealed class NodeConsoleBuiltIn(NodeRuntime runtime, NodeTtyBuiltIn tty
             return consoleConstructor;
 
         var realm = runtime.MainRealm;
-        var ctor = new JsHostFunction(realm, "Console", 1, static (in info) =>
-        {
-            var state = (ConstructorState)((JsHostFunction)info.Function).UserData!;
-            var owner = state.Owner;
-            var stdout = owner.GetRequiredStream(info, 0, "stdout");
-            var stderr = owner.GetOptionalStream(info, 1) ?? stdout;
-            var ignoreErrors = info.GetArgumentOrDefault(2, JsValue.True).ToBoolean();
-
-            if (info.IsConstruct && info.ThisValue.TryGetObject(out var receiver))
+        var ctor = new JsHostFunction(
+            realm,
+            "Console",
+            1,
+            static (in info) =>
             {
-                owner.InitializeConsoleReceiver(receiver, stdout, stderr, ignoreErrors, true);
-                return info.ThisValue;
-            }
+                var state = (ConstructorState)((JsHostFunction)info.Function).UserData!;
+                var owner = state.Owner;
+                var stdout = owner.GetRequiredStream(info, 0, "stdout");
+                var stderr = owner.GetOptionalStream(info, 1) ?? stdout;
+                var ignoreErrors = info.GetArgumentOrDefault(2, JsValue.True).ToBoolean();
 
-            return JsValue.FromObject(owner.CreateConsoleInstance(info.Realm, stdout, stderr, ignoreErrors));
-        }, true)
+                if (info.IsConstruct && info.ThisValue.TryGetObject(out var receiver))
+                {
+                    owner.InitializeConsoleReceiver(receiver, stdout, stderr, ignoreErrors, true);
+                    return info.ThisValue;
+                }
+
+                return JsValue.FromObject(
+                    owner.CreateConsoleInstance(info.Realm, stdout, stderr, ignoreErrors)
+                );
+            },
+            true
+        )
         {
-            UserData = new ConstructorState(this)
+            UserData = new ConstructorState(this),
         };
-        ctor.DefineDataProperty("prototype", JsValue.FromObject(GetConsolePrototype()), JsShapePropertyFlags.Open);
+        ctor.DefineDataProperty(
+            "prototype",
+            JsValue.FromObject(GetConsolePrototype()),
+            JsShapePropertyFlags.Open
+        );
         consoleConstructor = ctor;
         return ctor;
     }
@@ -97,7 +114,12 @@ internal sealed class NodeConsoleBuiltIn(NodeRuntime runtime, NodeTtyBuiltIn tty
         return consolePrototype;
     }
 
-    private JsPlainObject CreateConsoleInstance(JsRealm realm, JsObject stdout, JsObject stderr, bool ignoreErrors)
+    private JsPlainObject CreateConsoleInstance(
+        JsRealm realm,
+        JsObject stdout,
+        JsObject stderr,
+        bool ignoreErrors
+    )
     {
         var console = new JsPlainObject(realm, useDictionaryMode: true);
         console.Prototype = GetConsolePrototype();
@@ -110,7 +132,8 @@ internal sealed class NodeConsoleBuiltIn(NodeRuntime runtime, NodeTtyBuiltIn tty
         JsObject stdout,
         JsObject stderr,
         bool ignoreErrors,
-        bool preservePrototype)
+        bool preservePrototype
+    )
     {
         if (!preservePrototype)
             receiver.Prototype = GetConsolePrototype();
@@ -120,19 +143,32 @@ internal sealed class NodeConsoleBuiltIn(NodeRuntime runtime, NodeTtyBuiltIn tty
         states.Add(receiver, state);
 
         foreach (var methodName in ConsoleMethods)
-            receiver.DefineDataProperty(methodName,
-                JsValue.FromObject(CreateMethodFunction(receiver.Realm, methodName, state)), JsShapePropertyFlags.Open);
+            receiver.DefineDataProperty(
+                methodName,
+                JsValue.FromObject(CreateMethodFunction(receiver.Realm, methodName, state)),
+                JsShapePropertyFlags.Open
+            );
     }
 
-    private JsHostFunction CreateMethodFunction(JsRealm realm, string name, ConsoleInstanceState state)
+    private JsHostFunction CreateMethodFunction(
+        JsRealm realm,
+        string name,
+        ConsoleInstanceState state
+    )
     {
-        return new(realm, name, 0, static (in info) =>
+        return new(
+            realm,
+            name,
+            0,
+            static (in info) =>
+            {
+                var methodState = (ConsoleMethodState)((JsHostFunction)info.Function).UserData!;
+                return methodState.Owner.InvokeMethod(info, methodState.Instance, methodState.Name);
+            },
+            false
+        )
         {
-            var methodState = (ConsoleMethodState)((JsHostFunction)info.Function).UserData!;
-            return methodState.Owner.InvokeMethod(info, methodState.Instance, methodState.Name);
-        }, false)
-        {
-            UserData = new ConsoleMethodState(this, state, name)
+            UserData = new ConsoleMethodState(this, state, name),
         };
     }
 
@@ -146,11 +182,20 @@ internal sealed class NodeConsoleBuiltIn(NodeRuntime runtime, NodeTtyBuiltIn tty
             "time" => InvokeTime(info, state),
             "timeEnd" => InvokeTimeEnd(info, state),
             "timeLog" => InvokeTimeLog(info, state),
-            "error" or "warn" => WriteLine(info.Realm, state.Stderr, state,
-                FormatArguments(info.Realm, info.Arguments)),
+            "error" or "warn" => WriteLine(
+                info.Realm,
+                state.Stderr,
+                state,
+                FormatArguments(info.Realm, info.Arguments)
+            ),
             "clear" => JsValue.Undefined,
             "groupEnd" => JsValue.Undefined,
-            _ => WriteLine(info.Realm, state.Stdout, state, FormatArguments(info.Realm, info.Arguments))
+            _ => WriteLine(
+                info.Realm,
+                state.Stdout,
+                state,
+                FormatArguments(info.Realm, info.Arguments)
+            ),
         };
     }
 
@@ -159,9 +204,10 @@ internal sealed class NodeConsoleBuiltIn(NodeRuntime runtime, NodeTtyBuiltIn tty
         if (info.ArgumentCount > 0 && info.GetArgument(0).ToBoolean())
             return JsValue.Undefined;
 
-        var message = info.ArgumentCount <= 1
-            ? "Assertion failed"
-            : "Assertion failed: " + FormatArguments(info.Realm, info.Arguments[1..]);
+        var message =
+            info.ArgumentCount <= 1
+                ? "Assertion failed"
+                : "Assertion failed: " + FormatArguments(info.Realm, info.Arguments[1..]);
         return WriteLine(info.Realm, state.Stderr, state, message);
     }
 
@@ -202,16 +248,27 @@ internal sealed class NodeConsoleBuiltIn(NodeRuntime runtime, NodeTtyBuiltIn tty
             return JsValue.Undefined;
 
         var elapsedMs = (DateTimeOffset.UtcNow - startedAt).TotalMilliseconds;
-        var suffix = info.ArgumentCount <= 1 ? string.Empty : " " + FormatArguments(info.Realm, info.Arguments[1..]);
+        var suffix =
+            info.ArgumentCount <= 1
+                ? string.Empty
+                : " " + FormatArguments(info.Realm, info.Arguments[1..]);
         return WriteLine(info.Realm, state.Stdout, state, $"{label}: {elapsedMs:0.###}ms{suffix}");
     }
 
-    private JsValue WriteLine(JsRealm realm, JsObject stream, ConsoleInstanceState state, string text)
+    private JsValue WriteLine(
+        JsRealm realm,
+        JsObject stream,
+        ConsoleInstanceState state,
+        string text
+    )
     {
         try
         {
             if (!stream.TryGetProperty("write", out var writeValue))
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Console stream must provide a write method.");
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Console stream must provide a write method."
+                );
 
             _ = realm.Call(writeValue, JsValue.FromObject(stream), JsValue.FromString(text + "\n"));
             return JsValue.Undefined;
@@ -225,8 +282,10 @@ internal sealed class NodeConsoleBuiltIn(NodeRuntime runtime, NodeTtyBuiltIn tty
     private JsObject GetRequiredStream(in CallInfo info, int argumentIndex, string parameterName)
     {
         if (!info.GetArgument(argumentIndex).TryGetObject(out var stream))
-            throw new JsRuntimeException(JsErrorKind.TypeError,
-                $"Console constructor requires a {parameterName} stream object.");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                $"Console constructor requires a {parameterName} stream object."
+            );
 
         return stream;
     }
@@ -274,7 +333,11 @@ internal sealed class NodeConsoleBuiltIn(NodeRuntime runtime, NodeTtyBuiltIn tty
         public Dictionary<string, DateTimeOffset> Timers { get; } = new(StringComparer.Ordinal);
     }
 
-    private sealed class ConsoleMethodState(NodeConsoleBuiltIn owner, ConsoleInstanceState instance, string name)
+    private sealed class ConsoleMethodState(
+        NodeConsoleBuiltIn owner,
+        ConsoleInstanceState instance,
+        string name
+    )
     {
         public NodeConsoleBuiltIn Owner { get; } = owner;
         public ConsoleInstanceState Instance { get; } = instance;

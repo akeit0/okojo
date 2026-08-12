@@ -9,7 +9,12 @@ internal sealed class JsModuleNamespaceObject : JsObject
     {
         // Module namespace exotic objects have null [[Prototype]].
         Prototype = null;
-        DefineDataPropertyAtom(realm, IdSymbolToStringTag, JsValue.FromString("Module"), JsShapePropertyFlags.None);
+        DefineDataPropertyAtom(
+            realm,
+            IdSymbolToStringTag,
+            JsValue.FromString("Module"),
+            JsShapePropertyFlags.None
+        );
     }
 
     internal void LockForRuntimeMutation()
@@ -18,8 +23,13 @@ internal sealed class JsModuleNamespaceObject : JsObject
         PreventExtensions();
     }
 
-    internal override bool SetPropertyAtomWithReceiver(JsRealm realm, JsObject receiver, int atom, JsValue value,
-        out SlotInfo slotInfo)
+    internal override bool SetPropertyAtomWithReceiver(
+        JsRealm realm,
+        JsObject receiver,
+        int atom,
+        JsValue value,
+        out SlotInfo slotInfo
+    )
     {
         if (isLocked)
         {
@@ -32,7 +42,12 @@ internal sealed class JsModuleNamespaceObject : JsObject
         return base.SetPropertyAtomWithReceiver(realm, receiver, atom, value, out slotInfo);
     }
 
-    internal override bool SetElementWithReceiver(JsRealm realm, JsObject receiver, uint index, JsValue value)
+    internal override bool SetElementWithReceiver(
+        JsRealm realm,
+        JsObject receiver,
+        uint index,
+        JsValue value
+    )
     {
         if (isLocked)
         {
@@ -43,8 +58,12 @@ internal sealed class JsModuleNamespaceObject : JsObject
         return base.SetElementWithReceiver(realm, receiver, index, value);
     }
 
-    internal override bool TryGetOwnNamedPropertyDescriptorAtom(JsRealm realm, int atom,
-        out PropertyDescriptor descriptor, bool needDescriptor = true)
+    internal override bool TryGetOwnNamedPropertyDescriptorAtom(
+        JsRealm realm,
+        int atom,
+        out PropertyDescriptor descriptor,
+        bool needDescriptor = true
+    )
     {
         if (atom >= 0 && base.TryGetOwnNamedPropertyDescriptorAtom(realm, atom, out _, false))
         {
@@ -64,10 +83,19 @@ internal sealed class JsModuleNamespaceObject : JsObject
             return true;
         }
 
-        return base.TryGetOwnNamedPropertyDescriptorAtom(realm, atom, out descriptor, needDescriptor);
+        return base.TryGetOwnNamedPropertyDescriptorAtom(
+            realm,
+            atom,
+            out descriptor,
+            needDescriptor
+        );
     }
 
-    internal override void CollectOwnNamedPropertyAtoms(JsRealm realm, List<int> atomsOut, bool enumerableOnly)
+    internal override void CollectOwnNamedPropertyAtoms(
+        JsRealm realm,
+        List<int> atomsOut,
+        bool enumerableOnly
+    )
     {
         var stringAtoms = new List<int>();
         var symbolAtoms = new List<int>();
@@ -83,8 +111,13 @@ internal sealed class JsModuleNamespaceObject : JsObject
                 stringAtoms.Add(entry.Key);
         }
 
-        stringAtoms.Sort((left, right) =>
-            string.CompareOrdinal(realm.Atoms.AtomToString(left), realm.Atoms.AtomToString(right)));
+        stringAtoms.Sort(
+            (left, right) =>
+                string.CompareOrdinal(
+                    realm.Atoms.AtomToString(left),
+                    realm.Atoms.AtomToString(right)
+                )
+        );
 
         atomsOut.AddRange(stringAtoms);
         atomsOut.AddRange(symbolAtoms);
@@ -96,7 +129,6 @@ internal sealed class JsModuleNamespaceObject : JsObject
             return !HasOwnElement(index);
         return base.DeleteElement(index);
     }
-
 
     internal override bool DeletePropertyAtom(JsRealm realm, int atom)
     {
@@ -119,14 +151,20 @@ internal sealed class JsModuleNamespaceObject : JsObject
             if (atom < 0 || atom == IdSymbolToStringTag)
                 continue;
 
-            if ((entry.Value.Flags & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter)) == 0)
+            if (
+                (
+                    entry.Value.Flags
+                    & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter)
+                ) == 0
+            )
                 continue;
 
             throw new JsRuntimeException(
                 JsErrorKind.TypeError,
                 $"Cannot redefine property: {Realm.Atoms.AtomToString(atom)}",
                 "DEFINE_PROPERTY_REDEFINE",
-                errorRealm: Realm);
+                errorRealm: Realm
+            );
         }
 
         base.FreezeDataProperties();
@@ -141,9 +179,11 @@ internal sealed class JsModuleNamespaceObject : JsObject
             if ((flags & JsShapePropertyFlags.Configurable) != 0)
                 return false;
 
-            if (atom >= 0 &&
-                atom != IdSymbolToStringTag &&
-                (flags & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter)) != 0)
+            if (
+                atom >= 0
+                && atom != IdSymbolToStringTag
+                && (flags & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter)) != 0
+            )
                 return false;
         }
 

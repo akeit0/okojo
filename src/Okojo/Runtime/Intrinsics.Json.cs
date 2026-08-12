@@ -23,79 +23,131 @@ public partial class Intrinsics
         const int rawJsonAtom = IdRawJson;
         var isRawJsonAtom = Atoms.InternNoCheck("isRawJSON");
 
-        var parseFn = new JsHostFunction(Realm, static (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            if (args.Length == 0)
-                throw new JsRuntimeException(JsErrorKind.SyntaxError, "Unexpected end of JSON input");
-            var text = realm.ToJsStringSlowPath(args[0]);
-            JsFunction? reviver = null;
-            if (args.Length > 1 && args[1].TryGetObject(out var reviverObj) && reviverObj is JsFunction reviverFn)
-                reviver = reviverFn;
-            try
+        var parseFn = new JsHostFunction(
+            Realm,
+            static (in info) =>
             {
-                using var doc = JsonDocument.Parse(text);
-                if (reviver is null)
-                    return ConvertJsonElement(realm, doc.RootElement);
+                var realm = info.Realm;
+                var args = info.Arguments;
+                if (args.Length == 0)
+                    throw new JsRuntimeException(
+                        JsErrorKind.SyntaxError,
+                        "Unexpected end of JSON input"
+                    );
+                var text = realm.ToJsStringSlowPath(args[0]);
+                JsFunction? reviver = null;
+                if (
+                    args.Length > 1
+                    && args[1].TryGetObject(out var reviverObj)
+                    && reviverObj is JsFunction reviverFn
+                )
+                    reviver = reviverFn;
+                try
+                {
+                    using var doc = JsonDocument.Parse(text);
+                    if (reviver is null)
+                        return ConvertJsonElement(realm, doc.RootElement);
 
-                var holder = new JsPlainObject(realm);
-                holder.DefineDataProperty(string.Empty, ConvertJsonElement(realm, doc.RootElement),
-                    JsShapePropertyFlags.Open);
-                return InternalizeJsonProperty(realm, holder, string.Empty, doc.RootElement, reviver);
-            }
-            catch (JsonException ex)
+                    var holder = new JsPlainObject(realm);
+                    holder.DefineDataProperty(
+                        string.Empty,
+                        ConvertJsonElement(realm, doc.RootElement),
+                        JsShapePropertyFlags.Open
+                    );
+                    return InternalizeJsonProperty(
+                        realm,
+                        holder,
+                        string.Empty,
+                        doc.RootElement,
+                        reviver
+                    );
+                }
+                catch (JsonException ex)
+                {
+                    throw new JsRuntimeException(
+                        JsErrorKind.SyntaxError,
+                        ex.Message,
+                        innerException: ex
+                    );
+                }
+            },
+            "parse",
+            2
+        );
+
+        var stringifyFn = new JsHostFunction(
+            Realm,
+            static (in info) =>
             {
-                throw new JsRuntimeException(JsErrorKind.SyntaxError, ex.Message, innerException: ex);
-            }
-        }, "parse", 2);
+                var realm = info.Realm;
+                var args = info.Arguments;
+                var value = args.Length > 0 ? args[0] : JsValue.Undefined;
+                JsFunction? replacer = null;
+                string[]? propertyList = null;
+                if (args.Length > 1 && args[1].TryGetObject(out var replacerObj))
+                {
+                    if (replacerObj is JsFunction replacerFn)
+                        replacer = replacerFn;
+                    else if (IsArrayObject(realm, replacerObj))
+                        propertyList = JsonStringifyBuildPropertyList(realm, replacerObj);
+                }
 
-        var stringifyFn = new JsHostFunction(Realm, static (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            var value = args.Length > 0 ? args[0] : JsValue.Undefined;
-            JsFunction? replacer = null;
-            string[]? propertyList = null;
-            if (args.Length > 1 && args[1].TryGetObject(out var replacerObj))
+                var gap = args.Length > 2 ? JsonStringifyComputeGap(realm, args[2]) : string.Empty;
+
+                var visited = new HashSet<JsObject>();
+                var serialized = JsonStringifyTopLevel(
+                    realm,
+                    value,
+                    replacer,
+                    propertyList,
+                    gap,
+                    visited
+                );
+                return serialized is null ? JsValue.Undefined : serialized;
+            },
+            "stringify",
+            3
+        );
+
+        var rawJsonFn = new JsHostFunction(
+            Realm,
+            static (in info) =>
             {
-                if (replacerObj is JsFunction replacerFn)
-                    replacer = replacerFn;
-                else if (IsArrayObject(realm, replacerObj))
-                    propertyList = JsonStringifyBuildPropertyList(realm, replacerObj);
-            }
+                var realm = info.Realm;
+                var args = info.Arguments;
+                var text = args.Length == 0 ? string.Empty : realm.ToJsStringSlowPath(args[0]);
+                ValidateRawJsonText(text);
+                return new JsRawJsonObject(realm, text);
+            },
+            "rawJSON",
+            1
+        );
 
-            var gap = args.Length > 2 ? JsonStringifyComputeGap(realm, args[2]) : string.Empty;
-
-            var visited = new HashSet<JsObject>();
-            var serialized = JsonStringifyTopLevel(realm, value, replacer, propertyList, gap, visited);
-            return serialized is null ? JsValue.Undefined : serialized;
-        }, "stringify", 3);
-
-        var rawJsonFn = new JsHostFunction(Realm, static (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            var text = args.Length == 0 ? string.Empty : realm.ToJsStringSlowPath(args[0]);
-            ValidateRawJsonText(text);
-            return new JsRawJsonObject(realm, text);
-        }, "rawJSON", 1);
-
-        var isRawJsonFn = new JsHostFunction(Realm, static (in info) =>
-        {
-            var args = info.Arguments;
-            return args.Length > 0 && args[0].TryGetObject(out var obj) && obj is JsRawJsonObject
-                ? JsValue.True
-                : JsValue.False;
-        }, "isRawJSON", 1);
+        var isRawJsonFn = new JsHostFunction(
+            Realm,
+            static (in info) =>
+            {
+                var args = info.Arguments;
+                return
+                    args.Length > 0 && args[0].TryGetObject(out var obj) && obj is JsRawJsonObject
+                    ? JsValue.True
+                    : JsValue.False;
+            },
+            "isRawJSON",
+            1
+        );
 
         var builtinFlags = JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable;
         json.DefineDataPropertyAtom(Realm, parseAtom, parseFn, builtinFlags);
         json.DefineDataPropertyAtom(Realm, stringifyAtom, stringifyFn, builtinFlags);
         json.DefineDataPropertyAtom(Realm, rawJsonAtom, rawJsonFn, builtinFlags);
         json.DefineDataPropertyAtom(Realm, isRawJsonAtom, isRawJsonFn, builtinFlags);
-        json.DefineDataPropertyAtom(Realm, IdSymbolToStringTag, "JSON",
-            JsShapePropertyFlags.Configurable);
+        json.DefineDataPropertyAtom(
+            Realm,
+            IdSymbolToStringTag,
+            "JSON",
+            JsShapePropertyFlags.Configurable
+        );
         return json;
     }
 
@@ -112,7 +164,11 @@ public partial class Intrinsics
         }
     }
 
-    private static JsValue ConvertJsonElement(JsRealm realm, JsonElement element, JsonConversionBuffers buffers)
+    private static JsValue ConvertJsonElement(
+        JsRealm realm,
+        JsonElement element,
+        JsonConversionBuffers buffers
+    )
     {
         switch (element.ValueKind)
         {
@@ -134,61 +190,69 @@ public partial class Intrinsics
             case JsonValueKind.String:
                 return element.GetString() ?? string.Empty;
             case JsonValueKind.Array:
+            {
+                var array = realm.CreateArrayObject();
+                var length = element.GetArrayLength();
+                if (length != 0)
                 {
-                    var array = realm.CreateArrayObject();
-                    var length = element.GetArrayLength();
-                    if (length != 0)
-                    {
-                        var dense = array.InitializeDenseElementsNoCollision(length);
-                        var idx = 0;
-                        foreach (var item in element.EnumerateArray())
-                            dense[idx++] = ConvertJsonElement(realm, item, buffers);
-                    }
-
-                    return array;
+                    var dense = array.InitializeDenseElementsNoCollision(length);
+                    var idx = 0;
+                    foreach (var item in element.EnumerateArray())
+                        dense[idx++] = ConvertJsonElement(realm, item, buffers);
                 }
+
+                return array;
+            }
             case JsonValueKind.Object:
+            {
+                var obj = new JsPlainObject(realm, useDictionaryMode: true);
+                var staging = buffers.AcquireObjectStaging();
+                var usedGenericNamedPath = false;
+                try
                 {
-                    var obj = new JsPlainObject(realm, useDictionaryMode: true);
-                    var staging = buffers.AcquireObjectStaging();
-                    var usedGenericNamedPath = false;
-                    try
+                    foreach (var prop in element.EnumerateObject())
                     {
-                        foreach (var prop in element.EnumerateObject())
+                        var propValue = ConvertJsonElement(realm, prop.Value, buffers);
+                        if (TryGetArrayIndexFromCanonicalString(prop.Name, out var index))
                         {
-                            var propValue = ConvertJsonElement(realm, prop.Value, buffers);
-                            if (TryGetArrayIndexFromCanonicalString(prop.Name, out var index))
-                            {
-                                obj.SetElement(index, propValue);
-                                continue;
-                            }
+                            obj.SetElement(index, propValue);
+                            continue;
+                        }
 
-                            var atom = realm.Atoms.InternNoCheck(prop.Name);
-                            if (!usedGenericNamedPath && !staging.ContainsAtom(atom))
-                            {
-                                staging.Add(atom, propValue);
-                                continue;
-                            }
-
-                            if (!usedGenericNamedPath && staging.Count != 0)
-                            {
-                                obj.InitializeDynamicOpenDataPropertiesNoCollision(realm, staging.Atoms, staging.Values);
-                                usedGenericNamedPath = true;
-                            }
-
-                            obj.SetPropertyAtom(realm, atom, propValue, out _);
+                        var atom = realm.Atoms.InternNoCheck(prop.Name);
+                        if (!usedGenericNamedPath && !staging.ContainsAtom(atom))
+                        {
+                            staging.Add(atom, propValue);
+                            continue;
                         }
 
                         if (!usedGenericNamedPath && staging.Count != 0)
-                            obj.InitializeDynamicOpenDataPropertiesNoCollision(realm, staging.Atoms, staging.Values);
-                    }
-                    finally
-                    {
-                        staging.Release();
+                        {
+                            obj.InitializeDynamicOpenDataPropertiesNoCollision(
+                                realm,
+                                staging.Atoms,
+                                staging.Values
+                            );
+                            usedGenericNamedPath = true;
+                        }
+
+                        obj.SetPropertyAtom(realm, atom, propValue, out _);
                     }
 
-                    return obj;
+                    if (!usedGenericNamedPath && staging.Count != 0)
+                        obj.InitializeDynamicOpenDataPropertiesNoCollision(
+                            realm,
+                            staging.Atoms,
+                            staging.Values
+                        );
                 }
+                finally
+                {
+                    staging.Release();
+                }
+
+                return obj;
+            }
             default:
                 return JsValue.Undefined;
         }
@@ -208,14 +272,22 @@ public partial class Intrinsics
         }
         catch (JsonException ex)
         {
-            throw new JsRuntimeException(JsErrorKind.TypeError, ex.Message, "MODULE_JSON_PARSE_FAILED",
-                innerException: ex);
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                ex.Message,
+                "MODULE_JSON_PARSE_FAILED",
+                innerException: ex
+            );
         }
     }
 
-    private static JsValue InternalizeJsonProperty(JsRealm realm, JsObject holder, string key,
+    private static JsValue InternalizeJsonProperty(
+        JsRealm realm,
+        JsObject holder,
+        string key,
         JsonElement? sourceElement,
-        JsFunction reviver)
+        JsFunction reviver
+    )
     {
         if (!TryGetJsonPropertyByStringKey(realm, holder, key, out var value))
             value = JsValue.Undefined;
@@ -228,11 +300,15 @@ public partial class Intrinsics
                 for (long i = 0; i < length; i++)
                 {
                     var indexKey = i.ToString(CultureInfo.InvariantCulture);
-                    var revived = InternalizeJsonProperty(realm, obj, indexKey,
+                    var revived = InternalizeJsonProperty(
+                        realm,
+                        obj,
+                        indexKey,
                         TryGetJsonArraySourceElement(sourceElement, i, out var childArrayElement)
                             ? childArrayElement
                             : null,
-                        reviver);
+                        reviver
+                    );
                     if (revived.IsUndefined)
                         DeleteJsonPropertyForReviver(realm, obj, indexKey);
                     else
@@ -245,11 +321,19 @@ public partial class Intrinsics
                 for (var i = 0; i < keys.Length; i++)
                 {
                     var propertyKey = keys[i];
-                    var revived = InternalizeJsonProperty(realm, obj, propertyKey,
-                        TryGetJsonObjectSourceElement(sourceElement, propertyKey, out var childObjectElement)
+                    var revived = InternalizeJsonProperty(
+                        realm,
+                        obj,
+                        propertyKey,
+                        TryGetJsonObjectSourceElement(
+                            sourceElement,
+                            propertyKey,
+                            out var childObjectElement
+                        )
                             ? childObjectElement
                             : null,
-                        reviver);
+                        reviver
+                    );
                     if (revived.IsUndefined)
                         DeleteJsonPropertyForReviver(realm, obj, propertyKey);
                     else
@@ -260,19 +344,26 @@ public partial class Intrinsics
 
         var sourceContext = new JsPlainObject(realm);
         if (ShouldExposeJsonSourceContext(realm, value, sourceElement))
-            sourceContext.DefineDataPropertyAtom(realm, IdSource, sourceElement!.Value.GetRawText(),
-                JsShapePropertyFlags.Open);
+            sourceContext.DefineDataPropertyAtom(
+                realm,
+                IdSource,
+                sourceElement!.Value.GetRawText(),
+                JsShapePropertyFlags.Open
+            );
 
         var args = new InlineJsValueArray3
         {
             Item0 = key,
             Item1 = value,
-            Item2 = sourceContext
+            Item2 = sourceContext,
         };
         return realm.InvokeFunction(reviver, holder, args.AsSpan());
     }
 
-    private static string[] CollectEnumerableOwnStringKeysForJsonInternalize(JsRealm realm, JsObject target)
+    private static string[] CollectEnumerableOwnStringKeysForJsonInternalize(
+        JsRealm realm,
+        JsObject target
+    )
     {
         var indexNames = realm.RentScratchList<(uint Index, string Name)>(4);
         var stringNames = realm.RentScratchList<string>(8);
@@ -282,8 +373,9 @@ public partial class Intrinsics
         JsObject? proxyTarget = null;
         try
         {
-            var isProxy = target.TryGetOwnKeysTrapKeys(realm, out var trapKeys) ||
-                          target.TryGetProxyTarget(out proxyTarget);
+            var isProxy =
+                target.TryGetOwnKeysTrapKeys(realm, out var trapKeys)
+                || target.TryGetProxyTarget(out proxyTarget);
             if (isProxy)
             {
                 var proxyKeys = trapKeys ?? OwnKeysHelpers.CollectForProxy(realm, proxyTarget!);
@@ -292,7 +384,14 @@ public partial class Intrinsics
                     var key = proxyKeys[i];
                     if (!key.IsString)
                         continue;
-                    if (!TryGetOwnEnumerableForJsonInternalize(realm, target, key, out var enumerable) || !enumerable)
+                    if (
+                        !TryGetOwnEnumerableForJsonInternalize(
+                            realm,
+                            target,
+                            key,
+                            out var enumerable
+                        ) || !enumerable
+                    )
                         continue;
 
                     var name = key.AsString();
@@ -351,11 +450,19 @@ public partial class Intrinsics
         }
     }
 
-    private static bool TryGetOwnEnumerableForJsonInternalize(JsRealm realm, JsObject source, in JsValue key,
-        out bool enumerable)
+    private static bool TryGetOwnEnumerableForJsonInternalize(
+        JsRealm realm,
+        JsObject source,
+        in JsValue key,
+        out bool enumerable
+    )
     {
-        var trapUsed =
-            source.TryGetOwnEnumerableDescriptorViaTrap(realm, key, out var trapHasDescriptor, out var trapEnumerable);
+        var trapUsed = source.TryGetOwnEnumerableDescriptorViaTrap(
+            realm,
+            key,
+            out var trapHasDescriptor,
+            out var trapEnumerable
+        );
         if (trapUsed)
         {
             enumerable = trapHasDescriptor && trapEnumerable;
@@ -378,8 +485,10 @@ public partial class Intrinsics
             return true;
         }
 
-        if (source is JsGlobalObject globalObject &&
-            globalObject.TryGetNamedGlobalDescriptorAtom(atom, out var globalDescriptor))
+        if (
+            source is JsGlobalObject globalObject
+            && globalObject.TryGetNamedGlobalDescriptorAtom(atom, out var globalDescriptor)
+        )
         {
             enumerable = globalDescriptor.Enumerable;
             return true;
@@ -389,7 +498,11 @@ public partial class Intrinsics
         return false;
     }
 
-    private static bool TryGetJsonObjectSourceElement(JsonElement? parent, string key, out JsonElement child)
+    private static bool TryGetJsonObjectSourceElement(
+        JsonElement? parent,
+        string key,
+        out JsonElement child
+    )
     {
         if (!parent.HasValue || parent.Value.ValueKind != JsonValueKind.Object)
         {
@@ -410,7 +523,11 @@ public partial class Intrinsics
         return found;
     }
 
-    private static bool TryGetJsonArraySourceElement(JsonElement? parent, long index, out JsonElement child)
+    private static bool TryGetJsonArraySourceElement(
+        JsonElement? parent,
+        long index,
+        out JsonElement child
+    )
     {
         if (!parent.HasValue || parent.Value.ValueKind != JsonValueKind.Array || index < 0)
         {
@@ -434,10 +551,16 @@ public partial class Intrinsics
         return false;
     }
 
-    private static bool ShouldExposeJsonSourceContext(JsRealm realm, in JsValue currentValue,
-        JsonElement? sourceElement)
+    private static bool ShouldExposeJsonSourceContext(
+        JsRealm realm,
+        in JsValue currentValue,
+        JsonElement? sourceElement
+    )
     {
-        if (!sourceElement.HasValue || sourceElement.Value.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
+        if (
+            !sourceElement.HasValue
+            || sourceElement.Value.ValueKind is JsonValueKind.Object or JsonValueKind.Array
+        )
             return false;
 
         var originalValue = ConvertJsonElement(realm, sourceElement.Value);
@@ -456,54 +579,78 @@ public partial class Intrinsics
         _ = target.DeletePropertyAtom(realm, atom);
     }
 
-    private static void CreateJsonDataPropertyForReviver(JsRealm realm, JsObject target, string key, JsValue value)
+    private static void CreateJsonDataPropertyForReviver(
+        JsRealm realm,
+        JsObject target,
+        string key,
+        JsValue value
+    )
     {
         var descriptor = new JsPlainObject(realm);
-        descriptor.DefineNewPropertiesNoCollision(realm,
-        [
-            PropertyDefinition.OpenData(IdValue, value),
-            PropertyDefinition.OpenData(IdWritable, JsValue.True),
-            PropertyDefinition.OpenData(IdEnumerable, JsValue.True),
-            PropertyDefinition.OpenData(IdConfigurable, JsValue.True)
-        ]);
+        descriptor.DefineNewPropertiesNoCollision(
+            realm,
+            [
+                PropertyDefinition.OpenData(IdValue, value),
+                PropertyDefinition.OpenData(IdWritable, JsValue.True),
+                PropertyDefinition.OpenData(IdEnumerable, JsValue.True),
+                PropertyDefinition.OpenData(IdConfigurable, JsValue.True),
+            ]
+        );
 
         Span<JsValue> defineArgs =
         [
             JsValue.FromObject(target),
             JsValue.FromString(key),
-            JsValue.FromObject(descriptor)
+            JsValue.FromObject(descriptor),
         ];
 
         try
         {
             _ = realm.InvokeObjectConstructorMethod("defineProperty", defineArgs);
         }
-        catch (JsRuntimeException ex) when (ex.Kind == JsErrorKind.TypeError)
-        {
-        }
+        catch (JsRuntimeException ex) when (ex.Kind == JsErrorKind.TypeError) { }
     }
 
-    private static string? JsonStringifyTopLevel(JsRealm realm, in JsValue value, JsFunction? replacer,
-        string[]? propertyList, string gap, HashSet<JsObject> visited)
+    private static string? JsonStringifyTopLevel(
+        JsRealm realm,
+        in JsValue value,
+        JsFunction? replacer,
+        string[]? propertyList,
+        string gap,
+        HashSet<JsObject> visited
+    )
     {
         var holder = new JsPlainObject(realm);
         holder.DefineDataProperty(string.Empty, value, JsShapePropertyFlags.Open);
-        return JsonStringifyProperty(realm, holder, string.Empty, value, replacer, propertyList, gap, visited,
-            string.Empty);
+        return JsonStringifyProperty(
+            realm,
+            holder,
+            string.Empty,
+            value,
+            replacer,
+            propertyList,
+            gap,
+            visited,
+            string.Empty
+        );
     }
 
-    private static string? JsonStringifyProperty(JsRealm realm, JsObject holder, string keyString,
-        in JsValue inputValue, JsFunction? replacer, string[]? propertyList, string gap, HashSet<JsObject> visited,
-        string currentIndent)
+    private static string? JsonStringifyProperty(
+        JsRealm realm,
+        JsObject holder,
+        string keyString,
+        in JsValue inputValue,
+        JsFunction? replacer,
+        string[]? propertyList,
+        string gap,
+        HashSet<JsObject> visited,
+        string currentIndent
+    )
     {
         var value = ApplyJsonToJson(realm, keyString, inputValue);
         if (replacer is not null)
         {
-            var args = new InlineJsValueArray2
-            {
-                Item0 = keyString,
-                Item1 = value
-            };
+            var args = new InlineJsValueArray2 { Item0 = keyString, Item1 = value };
             value = realm.InvokeFunction(replacer, holder, args.AsSpan());
         }
 
@@ -519,12 +666,17 @@ public partial class Intrinsics
 
         if (value.TryGetObject(out var objectValue))
         {
-            if (objectValue.TryGetPropertyAtom(realm, atomToJson, out var toJsonValue, out _) &&
-                toJsonValue.TryGetObject(out var toJsonObject) && toJsonObject is JsFunction toJsonFunction)
+            if (
+                objectValue.TryGetPropertyAtom(realm, atomToJson, out var toJsonValue, out _)
+                && toJsonValue.TryGetObject(out var toJsonObject)
+                && toJsonObject is JsFunction toJsonFunction
+            )
                 toJson = toJsonFunction;
         }
-        else if (value.IsBigInt &&
-                 TryGetJsonMethodOnBigIntPrimitive(realm, value, atomToJson, out var primitiveToJson))
+        else if (
+            value.IsBigInt
+            && TryGetJsonMethodOnBigIntPrimitive(realm, value, atomToJson, out var primitiveToJson)
+        )
         {
             toJson = primitiveToJson;
         }
@@ -532,25 +684,37 @@ public partial class Intrinsics
         if (toJson is null)
             return value;
 
-        var args = new InlineJsValueArray1
-        {
-            Item0 = keyString
-        };
+        var args = new InlineJsValueArray1 { Item0 = keyString };
         return realm.InvokeFunction(toJson, receiver, args.AsSpan());
     }
 
-    private static bool TryGetJsonMethodOnBigIntPrimitive(JsRealm realm, in JsValue receiver, int atomToJson,
-        out JsFunction function)
+    private static bool TryGetJsonMethodOnBigIntPrimitive(
+        JsRealm realm,
+        in JsValue receiver,
+        int atomToJson,
+        out JsFunction function
+    )
     {
-        for (JsObject? current = realm.Intrinsics.BigIntPrototype; current is not null; current = current.Prototype)
+        for (
+            JsObject? current = realm.Intrinsics.BigIntPrototype;
+            current is not null;
+            current = current.Prototype
+        )
             if (current.TryGetOwnNamedPropertyDescriptorAtom(realm, atomToJson, out var descriptor))
             {
                 if (descriptor.IsAccessor)
                 {
                     if (descriptor.Getter is null)
                         break;
-                    var getterResult = realm.InvokeFunction(descriptor.Getter, receiver, ReadOnlySpan<JsValue>.Empty);
-                    if (getterResult.TryGetObject(out var getterObject) && getterObject is JsFunction getterFunction)
+                    var getterResult = realm.InvokeFunction(
+                        descriptor.Getter,
+                        receiver,
+                        ReadOnlySpan<JsValue>.Empty
+                    );
+                    if (
+                        getterResult.TryGetObject(out var getterObject)
+                        && getterObject is JsFunction getterFunction
+                    )
                     {
                         function = getterFunction;
                         return true;
@@ -559,8 +723,10 @@ public partial class Intrinsics
                     break;
                 }
 
-                if (descriptor.Value.TryGetObject(out var functionObject) &&
-                    functionObject is JsFunction directFunction)
+                if (
+                    descriptor.Value.TryGetObject(out var functionObject)
+                    && functionObject is JsFunction directFunction
+                )
                 {
                     function = directFunction;
                     return true;
@@ -573,13 +739,23 @@ public partial class Intrinsics
         return false;
     }
 
-    private static string? JsonStringifyCore(JsRealm realm, in JsValue value, JsFunction? replacer,
-        string[]? propertyList, string gap, HashSet<JsObject> visited, string currentIndent)
+    private static string? JsonStringifyCore(
+        JsRealm realm,
+        in JsValue value,
+        JsFunction? replacer,
+        string[]? propertyList,
+        string gap,
+        HashSet<JsObject> visited,
+        string currentIndent
+    )
     {
         if (value.IsUndefined || value.IsSymbol)
             return null;
         if (value.IsBigInt)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Do not know how to serialize a BigInt");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Do not know how to serialize a BigInt"
+            );
         if (value.IsNull)
             return "null";
         if (value.IsTrue)
@@ -604,22 +780,49 @@ public partial class Intrinsics
         if (obj is JsFunction)
             return null;
         if (obj is JsNumberObject)
-            return JsonStringifyCore(realm, new(realm.ToNumberSlowPath(value)), replacer, propertyList, gap, visited,
-                currentIndent);
+            return JsonStringifyCore(
+                realm,
+                new(realm.ToNumberSlowPath(value)),
+                replacer,
+                propertyList,
+                gap,
+                visited,
+                currentIndent
+            );
         if (obj is JsStringObject)
-            return JsonStringifyCore(realm, JsValue.FromString(realm.ToJsStringSlowPath(value)), replacer, propertyList,
-                gap, visited, currentIndent);
+            return JsonStringifyCore(
+                realm,
+                JsValue.FromString(realm.ToJsStringSlowPath(value)),
+                replacer,
+                propertyList,
+                gap,
+                visited,
+                currentIndent
+            );
         if (obj is JsBooleanObject boxedBoolean)
-            return JsonStringifyCore(realm, boxedBoolean.Value ? JsValue.True : JsValue.False, replacer, propertyList,
-                gap, visited, currentIndent);
+            return JsonStringifyCore(
+                realm,
+                boxedBoolean.Value ? JsValue.True : JsValue.False,
+                replacer,
+                propertyList,
+                gap,
+                visited,
+                currentIndent
+            );
         if (obj is JsBigIntObject)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Do not know how to serialize a BigInt");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Do not know how to serialize a BigInt"
+            );
 
         if (obj is JsRawJsonObject rawJsonObject)
             return rawJsonObject.RawJson;
 
         if (!visited.Add(obj))
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Converting circular structure to JSON");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Converting circular structure to JSON"
+            );
 
         try
         {
@@ -630,12 +833,27 @@ public partial class Intrinsics
                 using var parts = new PooledList<string>((int)Math.Min(length, int.MaxValue));
                 for (long i = 0; i < length; i++)
                 {
-                    if (!TryGetJsonPropertyByStringKey(realm, obj, i.ToString(CultureInfo.InvariantCulture),
-                            out var elementValue))
+                    if (
+                        !TryGetJsonPropertyByStringKey(
+                            realm,
+                            obj,
+                            i.ToString(CultureInfo.InvariantCulture),
+                            out var elementValue
+                        )
+                    )
                         elementValue = JsValue.Undefined;
 
-                    var part = JsonStringifyProperty(realm, obj, i.ToString(CultureInfo.InvariantCulture),
-                        elementValue, replacer, propertyList, gap, visited, nextIndent);
+                    var part = JsonStringifyProperty(
+                        realm,
+                        obj,
+                        i.ToString(CultureInfo.InvariantCulture),
+                        elementValue,
+                        replacer,
+                        propertyList,
+                        gap,
+                        visited,
+                        nextIndent
+                    );
                     parts.Add(part ?? "null");
                 }
 
@@ -649,8 +867,17 @@ public partial class Intrinsics
                 {
                     if (!TryGetJsonPropertyByStringKey(realm, obj, key, out var propertyValue))
                         propertyValue = JsValue.Undefined;
-                    var serialized = JsonStringifyProperty(realm, obj, key, propertyValue, replacer, propertyList, gap,
-                        visited, nextIndent);
+                    var serialized = JsonStringifyProperty(
+                        realm,
+                        obj,
+                        key,
+                        propertyValue,
+                        replacer,
+                        propertyList,
+                        gap,
+                        visited,
+                        nextIndent
+                    );
                     if (serialized is null)
                         continue;
                     members.Add(BuildJsonMember(key, serialized, gap));
@@ -664,8 +891,17 @@ public partial class Intrinsics
                     var key = keys[i];
                     if (!TryGetJsonPropertyByStringKey(realm, obj, key, out var propertyValue))
                         propertyValue = JsValue.Undefined;
-                    var serialized = JsonStringifyProperty(realm, obj, key, propertyValue, replacer, propertyList, gap,
-                        visited, nextIndent);
+                    var serialized = JsonStringifyProperty(
+                        realm,
+                        obj,
+                        key,
+                        propertyValue,
+                        replacer,
+                        propertyList,
+                        gap,
+                        visited,
+                        nextIndent
+                    );
                     if (serialized is null)
                         continue;
                     members.Add(BuildJsonMember(key, serialized, gap));
@@ -769,7 +1005,12 @@ public partial class Intrinsics
         return string.Empty;
     }
 
-    private static bool TryGetJsonPropertyByStringKey(JsRealm realm, JsObject obj, string key, out JsValue value)
+    private static bool TryGetJsonPropertyByStringKey(
+        JsRealm realm,
+        JsObject obj,
+        string key,
+        out JsValue value
+    )
     {
         if (key.Length == 0)
         {
@@ -797,8 +1038,12 @@ public partial class Intrinsics
         return JsonStringEncoding.Escape(key) + ": " + serializedValue;
     }
 
-    private static string BuildJsonArray(ReadOnlySpan<string> parts, string gap, string currentIndent,
-        string nextIndent)
+    private static string BuildJsonArray(
+        ReadOnlySpan<string> parts,
+        string gap,
+        string currentIndent,
+        string nextIndent
+    )
     {
         if (parts.IsEmpty)
             return "[]";
@@ -828,8 +1073,12 @@ public partial class Intrinsics
         return builderIndented.ToString();
     }
 
-    private static string BuildJsonObject(ReadOnlySpan<string> members, string gap, string currentIndent,
-        string nextIndent)
+    private static string BuildJsonObject(
+        ReadOnlySpan<string> members,
+        string gap,
+        string currentIndent,
+        string nextIndent
+    )
     {
         if (members.IsEmpty)
             return "{}";
@@ -861,7 +1110,11 @@ public partial class Intrinsics
 
     private static void ValidateRawJsonText(string text)
     {
-        if (text.Length == 0 || IsJsonRawBoundaryWhitespace(text[0]) || IsJsonRawBoundaryWhitespace(text[^1]))
+        if (
+            text.Length == 0
+            || IsJsonRawBoundaryWhitespace(text[0])
+            || IsJsonRawBoundaryWhitespace(text[^1])
+        )
             throw new JsRuntimeException(JsErrorKind.SyntaxError, "Invalid raw JSON text");
 
         try

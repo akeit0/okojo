@@ -10,7 +10,8 @@ internal sealed partial class GeneratedGlobalInstallerSample
 {
     public int WidthValue { get; set; } = 320;
 
-    [JsMember] public int Width => WidthValue;
+    [JsMember]
+    public int Width => WidthValue;
 
     [JsMember]
     [JsGlobalProperty(Writable = true)]
@@ -86,7 +87,8 @@ public class GeneratedGlobalInstallerTests
     public void Generated_Global_Installer_Exposes_Typed_Function_And_Properties()
     {
         var sample = new GeneratedGlobalInstallerSample();
-        using var runtime = JsRuntime.CreateBuilder()
+        using var runtime = JsRuntime
+            .CreateBuilder()
             .UseGlobals(sample.InstallGeneratedGlobals)
             .Build();
         var realm = runtime.MainRealm;

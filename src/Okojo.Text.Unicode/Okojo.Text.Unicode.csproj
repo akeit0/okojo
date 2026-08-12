@@ -12,7 +12,7 @@
         <PackageTags>javascript;ecmascript;unicode;text;dotnet</PackageTags>
     </PropertyGroup>
     <ItemGroup>
-        <InternalsVisibleTo Include="Okojo"/>
-        <InternalsVisibleTo Include="Okojo.Text.RegularExpressions"/>
+        <InternalsVisibleTo Include="Okojo" />
+        <InternalsVisibleTo Include="Okojo.Text.RegularExpressions" />
     </ItemGroup>
 </Project>

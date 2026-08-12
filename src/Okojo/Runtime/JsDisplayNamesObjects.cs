@@ -7,7 +7,9 @@ internal sealed class JsDisplayNamesObject : JsObject
     private static readonly HashSet<string> SupportedCurrencyCodes = BuildSupportedCurrencyCodes();
 
     private static readonly string[] SupportedCurrencyCodesOrdered =
-        [.. SupportedCurrencyCodes.OrderBy(static value => value, StringComparer.Ordinal)];
+    [
+        .. SupportedCurrencyCodes.OrderBy(static value => value, StringComparer.Ordinal),
+    ];
 
     private static readonly Dictionary<string, string> ScriptNames = new(StringComparer.Ordinal)
     {
@@ -20,7 +22,7 @@ internal sealed class JsDisplayNamesObject : JsObject
         ["Hebr"] = "Hebrew",
         ["Jpan"] = "Japanese",
         ["Kore"] = "Korean",
-        ["Latn"] = "Latin"
+        ["Latn"] = "Latin",
     };
 
     private static readonly Dictionary<string, string> CalendarNames = new(StringComparer.Ordinal)
@@ -43,10 +45,12 @@ internal sealed class JsDisplayNamesObject : JsObject
         ["iso8601"] = "ISO-8601 Calendar",
         ["japanese"] = "Japanese Calendar",
         ["persian"] = "Persian Calendar",
-        ["roc"] = "Minguo Calendar"
+        ["roc"] = "Minguo Calendar",
     };
 
-    private static readonly Dictionary<string, string> DateTimeFieldNames = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, string> DateTimeFieldNames = new(
+        StringComparer.Ordinal
+    )
     {
         ["era"] = "era",
         ["year"] = "year",
@@ -59,7 +63,7 @@ internal sealed class JsDisplayNamesObject : JsObject
         ["hour"] = "hour",
         ["minute"] = "minute",
         ["second"] = "second",
-        ["timeZoneName"] = "time zone"
+        ["timeZoneName"] = "time zone",
     };
 
     internal JsDisplayNamesObject(
@@ -70,7 +74,9 @@ internal sealed class JsDisplayNamesObject : JsObject
         string style,
         string fallback,
         string? languageDisplay,
-        CultureInfo cultureInfo) : base(realm)
+        CultureInfo cultureInfo
+    )
+        : base(realm)
     {
         Prototype = prototype;
         Locale = locale;
@@ -94,13 +100,17 @@ internal sealed class JsDisplayNamesObject : JsObject
         {
             "language" => GetLanguageDisplayName(code),
             "region" => GetRegionDisplayName(code),
-            "script" => ScriptNames.TryGetValue(code, out var scriptName) ? scriptName : GetFallbackValue(code),
+            "script" => ScriptNames.TryGetValue(code, out var scriptName)
+                ? scriptName
+                : GetFallbackValue(code),
             "currency" => SupportedCurrencyCodes.Contains(code) ? code : GetFallbackValue(code),
-            "calendar" => CalendarNames.TryGetValue(code, out var calendarName) ? calendarName : GetFallbackValue(code),
+            "calendar" => CalendarNames.TryGetValue(code, out var calendarName)
+                ? calendarName
+                : GetFallbackValue(code),
             "dateTimeField" => DateTimeFieldNames.TryGetValue(code, out var fieldName)
                 ? fieldName
                 : GetFallbackValue(code),
-            _ => GetFallbackValue(code)
+            _ => GetFallbackValue(code),
         };
     }
 
@@ -123,9 +133,7 @@ internal sealed class JsDisplayNamesObject : JsObject
                 if (region.ISOCurrencySymbol.Length == 3)
                     result.Add(region.ISOCurrencySymbol.ToUpperInvariant());
             }
-            catch (ArgumentException)
-            {
-            }
+            catch (ArgumentException) { }
         }
 
         result.Add("EUR");

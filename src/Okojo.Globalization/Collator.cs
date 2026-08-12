@@ -13,7 +13,8 @@ public sealed class Collator
         string locale,
         CollatorOptions? options = null,
         CompareInfo? compareInfo = null,
-        CompareOptions compareOptions = CompareOptions.None)
+        CompareOptions compareOptions = CompareOptions.None
+    )
     {
         ArgumentNullException.ThrowIfNull(locale);
         options ??= new();
@@ -38,18 +39,22 @@ public sealed class Collator
         bool numeric,
         string caseFirst,
         CompareInfo compareInfo,
-        CompareOptions compareOptions)
-        : this(locale, new CollatorOptions
-        {
-            Usage = usage,
-            Sensitivity = sensitivity,
-            IgnorePunctuation = ignorePunctuation,
-            Collation = collation,
-            Numeric = numeric,
-            CaseFirst = caseFirst
-        }, compareInfo, compareOptions)
-    {
-    }
+        CompareOptions compareOptions
+    )
+        : this(
+            locale,
+            new CollatorOptions
+            {
+                Usage = usage,
+                Sensitivity = sensitivity,
+                IgnorePunctuation = ignorePunctuation,
+                Collation = collation,
+                Numeric = numeric,
+                CaseFirst = caseFirst,
+            },
+            compareInfo,
+            compareOptions
+        ) { }
 
     /// <summary>The locale tag.</summary>
     public string Locale { get; }
@@ -93,12 +98,16 @@ public sealed class Collator
             normalizedSearchY = NormalizeSearchValue(y);
             if (string.Equals(normalizedSearchX, normalizedSearchY, StringComparison.Ordinal))
             {
-                if (!string.Equals(CaseFirst, "false", StringComparison.Ordinal) &&
-                    string.Equals(x, y, StringComparison.OrdinalIgnoreCase) &&
-                    !string.Equals(x, y, StringComparison.Ordinal))
+                if (
+                    !string.Equals(CaseFirst, "false", StringComparison.Ordinal)
+                    && string.Equals(x, y, StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(x, y, StringComparison.Ordinal)
+                )
                 {
                     var caseFirstResult = CompareCaseFirst(x, y);
-                    return caseFirstResult < 0 ? -1 : caseFirstResult > 0 ? 1 : 0;
+                    return caseFirstResult < 0 ? -1
+                        : caseFirstResult > 0 ? 1
+                        : 0;
                 }
 
                 return 0;
@@ -109,11 +118,13 @@ public sealed class Collator
             ? NaturalStringCompare(x, y)
             : CompareInfo.Compare(x, y, CompareOptions);
 
-        if (string.Equals(Usage, "search", StringComparison.Ordinal) &&
-            result == 0 &&
-            normalizedSearchX is not null &&
-            normalizedSearchY is not null &&
-            !string.Equals(normalizedSearchX, normalizedSearchY, StringComparison.Ordinal))
+        if (
+            string.Equals(Usage, "search", StringComparison.Ordinal)
+            && result == 0
+            && normalizedSearchX is not null
+            && normalizedSearchY is not null
+            && !string.Equals(normalizedSearchX, normalizedSearchY, StringComparison.Ordinal)
+        )
             result = string.CompareOrdinal(x, y);
 
         if (result == 0 && !IgnorePunctuation && !string.Equals(x, y, StringComparison.Ordinal))
@@ -124,13 +135,17 @@ public sealed class Collator
                 result = string.CompareOrdinal(x, y);
         }
 
-        if (result == 0 &&
-            !string.Equals(CaseFirst, "false", StringComparison.Ordinal) &&
-            string.Equals(x, y, StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(x, y, StringComparison.Ordinal))
+        if (
+            result == 0
+            && !string.Equals(CaseFirst, "false", StringComparison.Ordinal)
+            && string.Equals(x, y, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(x, y, StringComparison.Ordinal)
+        )
             result = CompareCaseFirst(x, y);
 
-        return result < 0 ? -1 : result > 0 ? 1 : 0;
+        return result < 0 ? -1
+            : result > 0 ? 1
+            : 0;
     }
 
     private void ApplyLocaleSensitiveTransforms(ref string x, ref string y)
@@ -138,8 +153,10 @@ public sealed class Collator
         if (!Locale.StartsWith("de", StringComparison.OrdinalIgnoreCase))
             return;
 
-        if (string.Equals(Collation, "phonebk", StringComparison.Ordinal) ||
-            string.Equals(Usage, "search", StringComparison.Ordinal))
+        if (
+            string.Equals(Collation, "phonebk", StringComparison.Ordinal)
+            || string.Equals(Usage, "search", StringComparison.Ordinal)
+        )
         {
             x = FoldGermanPhonebook(x);
             y = FoldGermanPhonebook(y);
@@ -163,17 +180,22 @@ public sealed class Collator
                 while (yi < y.Length && char.IsDigit(y[yi]))
                     yi++;
 
-                var numericCompare = CompareDigitRuns(x.AsSpan(xStart, xi - xStart), y.AsSpan(yStart, yi - yStart));
+                var numericCompare = CompareDigitRuns(
+                    x.AsSpan(xStart, xi - xStart),
+                    y.AsSpan(yStart, yi - yStart)
+                );
                 if (numericCompare != 0)
                     return numericCompare;
                 continue;
             }
 
             var charCompare = CompareInfo.Compare(x, xi, 1, y, yi, 1, CompareOptions);
-            if (charCompare == 0 &&
-                !string.Equals(CaseFirst, "false", StringComparison.Ordinal) &&
-                char.ToUpperInvariant(x[xi]) == char.ToUpperInvariant(y[yi]) &&
-                x[xi] != y[yi])
+            if (
+                charCompare == 0
+                && !string.Equals(CaseFirst, "false", StringComparison.Ordinal)
+                && char.ToUpperInvariant(x[xi]) == char.ToUpperInvariant(y[yi])
+                && x[xi] != y[yi]
+            )
                 charCompare = CompareCaseFirst(x[xi].ToString(), y[yi].ToString());
 
             if (charCompare != 0)
@@ -187,7 +209,7 @@ public sealed class Collator
         {
             < 0 => -1,
             > 0 => 1,
-            _ => 0
+            _ => 0,
         };
     }
 
@@ -267,12 +289,16 @@ public sealed class Collator
     private string NormalizeSearchValue(string value)
     {
         var candidate = value;
-        if (string.Equals(Sensitivity, "base", StringComparison.Ordinal) ||
-            string.Equals(Sensitivity, "case", StringComparison.Ordinal))
+        if (
+            string.Equals(Sensitivity, "base", StringComparison.Ordinal)
+            || string.Equals(Sensitivity, "case", StringComparison.Ordinal)
+        )
             candidate = RemoveDiacritics(candidate);
 
-        if (string.Equals(Sensitivity, "base", StringComparison.Ordinal) ||
-            string.Equals(Sensitivity, "accent", StringComparison.Ordinal))
+        if (
+            string.Equals(Sensitivity, "base", StringComparison.Ordinal)
+            || string.Equals(Sensitivity, "accent", StringComparison.Ordinal)
+        )
             candidate = candidate.ToUpperInvariant();
 
         return candidate;

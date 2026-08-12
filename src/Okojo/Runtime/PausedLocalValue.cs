@@ -7,7 +7,8 @@ public readonly record struct PausedLocalValue(
     JsValue Value,
     int StartPc,
     int EndPc,
-    JsLocalDebugFlags Flags)
+    JsLocalDebugFlags Flags
+)
 {
     public bool IsLiveAt(int pc)
     {

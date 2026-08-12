@@ -16,28 +16,39 @@ public readonly record struct PausedExecutionSnapshot(
     IReadOnlyList<StackFrameInfo> StackFrames,
     IReadOnlyList<JsLocalDebugInfo>? Locals,
     IReadOnlyList<PausedLocalValue>? LocalValues,
-    IReadOnlyList<PausedScopeSnapshot>? ScopeChain)
+    IReadOnlyList<PausedScopeSnapshot>? ScopeChain
+)
 {
     public bool MatchesStep(DebuggerStepMode mode, int startStackDepth)
     {
         return MatchesStep(mode, startStackDepth, null);
     }
 
-    public bool MatchesStep(DebuggerStepMode mode, int startStackDepth, CheckpointSourceLocation? startLocation)
+    public bool MatchesStep(
+        DebuggerStepMode mode,
+        int startStackDepth,
+        CheckpointSourceLocation? startLocation
+    )
     {
         return mode switch
         {
             DebuggerStepMode.Into => MatchesLineStep(startLocation),
-            DebuggerStepMode.Over => StackDepth <= startStackDepth && !IsCallLikeOpcode(CurrentOpcode),
+            DebuggerStepMode.Over => StackDepth <= startStackDepth
+                && !IsCallLikeOpcode(CurrentOpcode),
             DebuggerStepMode.Out => StackDepth < startStackDepth,
-            _ => false
+            _ => false,
         };
     }
 
     private static bool IsCallLikeOpcode(JsOpCode? opcode)
     {
-        return opcode is JsOpCode.CallAny or JsOpCode.CallProperty or JsOpCode.CallUndefinedReceiver or
-            JsOpCode.CallRuntime or JsOpCode.InvokeIntrinsic or JsOpCode.Construct;
+        return opcode
+            is JsOpCode.CallAny
+                or JsOpCode.CallProperty
+                or JsOpCode.CallUndefinedReceiver
+                or JsOpCode.CallRuntime
+                or JsOpCode.InvokeIntrinsic
+                or JsOpCode.Construct;
     }
 
     private bool MatchesLineStep(CheckpointSourceLocation? startLocation)
@@ -47,8 +58,8 @@ public readonly record struct PausedExecutionSnapshot(
 
         var current = SourceLocation.Value;
         var start = startLocation.Value;
-        return !string.Equals(start.SourcePath, current.SourcePath, SourcePathComparer.Comparison) ||
-               start.Line != current.Line;
+        return !string.Equals(start.SourcePath, current.SourcePath, SourcePathComparer.Comparison)
+            || start.Line != current.Line;
     }
 
     public PausedExecutionSnapshot WithKind(ExecutionCheckpointKind kind)
@@ -67,7 +78,7 @@ public readonly record struct PausedExecutionSnapshot(
                 ExecutionCheckpointKind.Breakpoint => "breakpoint",
                 ExecutionCheckpointKind.Step => "step",
                 ExecutionCheckpointKind.CaughtException => "caught-exception",
-                _ => kind.ToString().ToLowerInvariant()
+                _ => kind.ToString().ToLowerInvariant(),
             },
             ExecutedInstructions,
             ProgramCounter,
@@ -80,7 +91,8 @@ public readonly record struct PausedExecutionSnapshot(
             StackFrames,
             Locals,
             LocalValues,
-            ScopeChain);
+            ScopeChain
+        );
     }
 
     public string GetDebuggerStopSummary()
@@ -95,8 +107,7 @@ public readonly record struct PausedExecutionSnapshot(
         var generatorSuffix = CurrentFrameInfo.HasGeneratorState
             ? $" gen:{CurrentFrameInfo.GeneratorState} suspend:{CurrentFrameInfo.GeneratorSuspendId}"
             : string.Empty;
-        return
-            $"{KindLabel} at {CurrentFrameInfo.FunctionName}{locationSuffix} (pc:{CurrentFrameInfo.ProgramCounter}, kind:{CurrentFrameInfo.FrameKind}{generatorSuffix})";
+        return $"{KindLabel} at {CurrentFrameInfo.FunctionName}{locationSuffix} (pc:{CurrentFrameInfo.ProgramCounter}, kind:{CurrentFrameInfo.FrameKind}{generatorSuffix})";
     }
 
     public bool TryGetLocalValue(string name, out PausedLocalValue value)

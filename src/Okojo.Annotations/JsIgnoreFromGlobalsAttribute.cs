@@ -1,6 +1,7 @@
 namespace Okojo.Annotations;
 
-[AttributeUsage(AttributeTargets.Method | AttributeTargets.Property | AttributeTargets.Field, Inherited = false)]
-public sealed class JsIgnoreFromGlobalsAttribute : Attribute
-{
-}
+[AttributeUsage(
+    AttributeTargets.Method | AttributeTargets.Property | AttributeTargets.Field,
+    Inherited = false
+)]
+public sealed class JsIgnoreFromGlobalsAttribute : Attribute { }

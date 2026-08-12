@@ -2,7 +2,9 @@ namespace Okojo.Globalization;
 
 public static class TimeZoneData
 {
-    private static readonly Dictionary<string, string> CanonicalTimeZones = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, string> CanonicalTimeZones = new(
+        StringComparer.OrdinalIgnoreCase
+    )
     {
         ["Africa/Abidjan"] = "Africa/Abidjan",
         ["Africa/Algiers"] = "Africa/Algiers",
@@ -598,7 +600,7 @@ public static class TimeZoneData
         ["UTC"] = "UTC",
         ["Universal"] = "Universal",
         ["W-SU"] = "W-SU",
-        ["Zulu"] = "Zulu"
+        ["Zulu"] = "Zulu",
     };
 
     /// <summary>Maps a time-zone identifier to its canonical identifier, returning false for unknown zones.</summary>

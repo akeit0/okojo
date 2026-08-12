@@ -6,8 +6,8 @@ public class JsRuntimeException(
     string? detailCode = null,
     JsValue? thrownValue = null,
     Exception? innerException = null,
-    JsRealm? errorRealm = null)
-    : Exception(message, innerException)
+    JsRealm? errorRealm = null
+) : Exception(message, innerException)
 {
     private string? resolvedMessage;
     private IReadOnlyList<StackFrameInfo>? stackFrames;
@@ -39,8 +39,7 @@ public class JsRuntimeException(
             return Message;
 
         if (InnerException is not null)
-            return
-                $"{Message}{Environment.NewLine}Inner exception: {InnerException}{Environment.NewLine}Stack trace:{Environment.NewLine}{FormatOkojoStackTrace()}";
+            return $"{Message}{Environment.NewLine}Inner exception: {InnerException}{Environment.NewLine}Stack trace:{Environment.NewLine}{FormatOkojoStackTrace()}";
 
         return $"{Message}{Environment.NewLine}Stack trace:{Environment.NewLine}{FormatOkojoStackTrace()}";
     }
@@ -51,8 +50,7 @@ public class JsRuntimeException(
             return base.ToString();
 
         if (InnerException is not null)
-            return
-                $"{base.ToString()}{Environment.NewLine}Inner exception: {InnerException}{Environment.NewLine}Stack trace:{Environment.NewLine}{FormatOkojoStackTrace()}";
+            return $"{base.ToString()}{Environment.NewLine}Inner exception: {InnerException}{Environment.NewLine}Stack trace:{Environment.NewLine}{FormatOkojoStackTrace()}";
 
         return $"{base.ToString()}{Environment.NewLine}Stack trace:{Environment.NewLine}{FormatOkojoStackTrace()}";
     }

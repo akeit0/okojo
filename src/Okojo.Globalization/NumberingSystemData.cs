@@ -5,7 +5,9 @@ namespace Okojo.Globalization;
 
 public static class NumberingSystemData
 {
-    private static readonly Dictionary<string, string> Digits = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, string> Digits = new(
+        StringComparer.OrdinalIgnoreCase
+    )
     {
         ["adlm"] =
             "\uD83A\uDD50\uD83A\uDD51\uD83A\uDD52\uD83A\uDD53\uD83A\uDD54\uD83A\uDD55\uD83A\uDD56\uD83A\uDD57\uD83A\uDD58\uD83A\uDD59",
@@ -124,19 +126,23 @@ public static class NumberingSystemData
         ["wara"] =
             "\uD806\uDCE0\uD806\uDCE1\uD806\uDCE2\uD806\uDCE3\uD806\uDCE4\uD806\uDCE5\uD806\uDCE6\uD806\uDCE7\uD806\uDCE8\uD806\uDCE9",
         ["wcho"] =
-            "\uD838\uDEF0\uD838\uDEF1\uD838\uDEF2\uD838\uDEF3\uD838\uDEF4\uD838\uDEF5\uD838\uDEF6\uD838\uDEF7\uD838\uDEF8\uD838\uDEF9"
+            "\uD838\uDEF0\uD838\uDEF1\uD838\uDEF2\uD838\uDEF3\uD838\uDEF4\uD838\uDEF5\uD838\uDEF6\uD838\uDEF7\uD838\uDEF8\uD838\uDEF9",
     };
 
-    private static readonly Dictionary<string, string> DecimalSeparators = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, string> DecimalSeparators = new(
+        StringComparer.OrdinalIgnoreCase
+    )
     {
         ["arab"] = "\u066B",
-        ["arabext"] = "\u066B"
+        ["arabext"] = "\u066B",
     };
 
-    private static readonly Dictionary<string, string> GroupSeparators = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, string> GroupSeparators = new(
+        StringComparer.OrdinalIgnoreCase
+    )
     {
         ["arab"] = "\u066C",
-        ["arabext"] = "\u066C"
+        ["arabext"] = "\u066C",
     };
 
     /// <summary>Returns true if the numbering system is supported.</summary>
@@ -145,7 +151,10 @@ public static class NumberingSystemData
         return Digits.ContainsKey(numberingSystem);
     }
 
-    private static readonly string[] SupportedNumberingSystems = [.. Digits.Keys.OrderBy(static k => k, StringComparer.Ordinal)];
+    private static readonly string[] SupportedNumberingSystems =
+    [
+        .. Digits.Keys.OrderBy(static k => k, StringComparer.Ordinal),
+    ];
 
     /// <summary>Returns the sorted supported numbering systems.</summary>
     public static string[] GetSupportedNumberingSystems()
@@ -195,12 +204,20 @@ public static class NumberingSystemData
         {
             if (currentIndex == index)
             {
-                if (char.IsHighSurrogate(digits[i]) && i + 1 < digits.Length && char.IsLowSurrogate(digits[i + 1]))
+                if (
+                    char.IsHighSurrogate(digits[i])
+                    && i + 1 < digits.Length
+                    && char.IsLowSurrogate(digits[i + 1])
+                )
                     return digits.Substring(i, 2);
                 return digits[i].ToString();
             }
 
-            if (char.IsHighSurrogate(digits[i]) && i + 1 < digits.Length && char.IsLowSurrogate(digits[i + 1]))
+            if (
+                char.IsHighSurrogate(digits[i])
+                && i + 1 < digits.Length
+                && char.IsLowSurrogate(digits[i + 1])
+            )
                 i += 2;
             else
                 i++;

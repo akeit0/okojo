@@ -10,11 +10,22 @@ internal interface IClrAccessProvider
 
     bool TryConvertTaskObjectToJsValue(JsRealm realm, object value, out JsValue jsValue);
 
-    bool TryConvertJsValueToTaskObject(JsRealm realm, JsValue value, Type targetType, out object? result,
-        out int score);
+    bool TryConvertJsValueToTaskObject(
+        JsRealm realm,
+        JsValue value,
+        Type targetType,
+        out object? result,
+        out int score
+    );
 
-    JsValue BindGenericMethod(JsRealm realm, string memberName, object? target, MethodInfo[] methods,
-        ReadOnlySpan<JsValue> typeArguments, int genericParameterCount);
+    JsValue BindGenericMethod(
+        JsRealm realm,
+        string memberName,
+        object? target,
+        MethodInfo[] methods,
+        ReadOnlySpan<JsValue> typeArguments,
+        int genericParameterCount
+    );
 
     Array CreateParamsArray(Type elementType, int length);
 

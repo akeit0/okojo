@@ -20,8 +20,12 @@ internal sealed class PromiseValueTaskSource : IValueTaskSource
         return core.GetStatus(token);
     }
 
-    public void OnCompleted(Action<object?> continuation, object? state, short token,
-        ValueTaskSourceOnCompletedFlags flags)
+    public void OnCompleted(
+        Action<object?> continuation,
+        object? state,
+        short token,
+        ValueTaskSourceOnCompletedFlags flags
+    )
     {
         core.OnCompleted(continuation, state, token, flags);
     }
@@ -34,11 +38,17 @@ internal sealed class PromiseValueTaskSource : IValueTaskSource
     public void RegisterCancellation(CancellationToken cancellationToken)
     {
         if (cancellationToken.CanBeCanceled)
-            cancellationRegistration = cancellationToken.Register(static state =>
-            {
-                var registration = (CancellationRegistrationState<PromiseValueTaskSource>)state!;
-                registration.Owner.TrySetException(new OperationCanceledException(registration.Token));
-            }, new CancellationRegistrationState<PromiseValueTaskSource>(this, cancellationToken));
+            cancellationRegistration = cancellationToken.Register(
+                static state =>
+                {
+                    var registration =
+                        (CancellationRegistrationState<PromiseValueTaskSource>)state!;
+                    registration.Owner.TrySetException(
+                        new OperationCanceledException(registration.Token)
+                    );
+                },
+                new CancellationRegistrationState<PromiseValueTaskSource>(this, cancellationToken)
+            );
     }
 
     public void TrySetResult()
@@ -78,8 +88,12 @@ internal sealed class PromiseValueTaskSource<T> : IValueTaskSource<T>
         return core.GetStatus(token);
     }
 
-    public void OnCompleted(Action<object?> continuation, object? state, short token,
-        ValueTaskSourceOnCompletedFlags flags)
+    public void OnCompleted(
+        Action<object?> continuation,
+        object? state,
+        short token,
+        ValueTaskSourceOnCompletedFlags flags
+    )
     {
         core.OnCompleted(continuation, state, token, flags);
     }
@@ -92,11 +106,20 @@ internal sealed class PromiseValueTaskSource<T> : IValueTaskSource<T>
     public void RegisterCancellation(CancellationToken cancellationToken)
     {
         if (cancellationToken.CanBeCanceled)
-            cancellationRegistration = cancellationToken.Register(static state =>
-            {
-                var registration = (CancellationRegistrationState<PromiseValueTaskSource<T>>)state!;
-                registration.Owner.TrySetException(new OperationCanceledException(registration.Token));
-            }, new CancellationRegistrationState<PromiseValueTaskSource<T>>(this, cancellationToken));
+            cancellationRegistration = cancellationToken.Register(
+                static state =>
+                {
+                    var registration =
+                        (CancellationRegistrationState<PromiseValueTaskSource<T>>)state!;
+                    registration.Owner.TrySetException(
+                        new OperationCanceledException(registration.Token)
+                    );
+                },
+                new CancellationRegistrationState<PromiseValueTaskSource<T>>(
+                    this,
+                    cancellationToken
+                )
+            );
     }
 
     public void TrySetResult(T result)
@@ -118,7 +141,10 @@ internal sealed class PromiseValueTaskSource<T> : IValueTaskSource<T>
     }
 }
 
-internal readonly record struct CancellationRegistrationState<TOwner>(TOwner Owner, CancellationToken Token)
+internal readonly record struct CancellationRegistrationState<TOwner>(
+    TOwner Owner,
+    CancellationToken Token
+)
     where TOwner : class;
 
 internal sealed class PumpedPromiseValueTaskSource<T> : IValueTaskSource<T>
@@ -134,7 +160,12 @@ internal sealed class PumpedPromiseValueTaskSource<T> : IValueTaskSource<T>
         this.cancellationToken = cancellationToken;
         core.RunContinuationsAsynchronously = true;
         realm.Engine.Options.HostServices.BackgroundScheduler.Queue(
-            static state => { ((PumpedPromiseValueTaskSource<T>)state!).RunPumpLoop(); }, this);
+            static state =>
+            {
+                ((PumpedPromiseValueTaskSource<T>)state!).RunPumpLoop();
+            },
+            this
+        );
     }
 
     public short Version => core.Version;
@@ -144,8 +175,12 @@ internal sealed class PumpedPromiseValueTaskSource<T> : IValueTaskSource<T>
         return core.GetStatus(token);
     }
 
-    public void OnCompleted(Action<object?> continuation, object? state, short token,
-        ValueTaskSourceOnCompletedFlags flags)
+    public void OnCompleted(
+        Action<object?> continuation,
+        object? state,
+        short token,
+        ValueTaskSourceOnCompletedFlags flags
+    )
     {
         core.OnCompleted(continuation, state, token, flags);
     }
@@ -210,9 +245,7 @@ internal sealed class PumpedPromiseValueTaskSource<T> : IValueTaskSource<T>
                 }
             }
         }
-        catch (ObjectDisposedException)
-        {
-        }
+        catch (ObjectDisposedException) { }
         catch (Exception ex)
         {
             TrySetException(ex);

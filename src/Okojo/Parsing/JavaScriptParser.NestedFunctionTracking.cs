@@ -29,9 +29,10 @@ internal sealed partial class JsParser
 
     private bool EndNestedFunctionSyntaxTracking(int depth)
     {
-        var sawNestedFunctionSyntax = depth >= sizeof(ulong) * 8
-            ? nestedFunctionTrackingMask != 0
-            : (nestedFunctionTrackingMask & (1UL << depth)) != 0;
+        var sawNestedFunctionSyntax =
+            depth >= sizeof(ulong) * 8
+                ? nestedFunctionTrackingMask != 0
+                : (nestedFunctionTrackingMask & (1UL << depth)) != 0;
 
         if (depth < sizeof(ulong) * 8)
             nestedFunctionTrackingMask &= ~(1UL << depth);

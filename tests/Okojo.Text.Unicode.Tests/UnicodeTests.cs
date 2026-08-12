@@ -39,7 +39,10 @@ public class Utf16Tests
     public void TryReadForward_HandlesSurrogatePair()
     {
         var input = "a😀b";
-        Assert.That(Utf16.TryReadForward(input, 1, unicode: true, out var cp, out var width), Is.True);
+        Assert.That(
+            Utf16.TryReadForward(input, 1, unicode: true, out var cp, out var width),
+            Is.True
+        );
         Assert.Multiple(() =>
         {
             Assert.That(cp, Is.EqualTo(0x1F600));
@@ -51,7 +54,10 @@ public class Utf16Tests
     public void TryReadForward_NonUnicode_ReadsSingleUnit()
     {
         var input = "a😀b";
-        Assert.That(Utf16.TryReadForward(input, 1, unicode: false, out var cp, out var width), Is.True);
+        Assert.That(
+            Utf16.TryReadForward(input, 1, unicode: false, out var cp, out var width),
+            Is.True
+        );
         Assert.Multiple(() =>
         {
             Assert.That(cp, Is.EqualTo(0xD83D));
@@ -63,7 +69,10 @@ public class Utf16Tests
     public void TryReadBackward_HandlesSurrogatePair()
     {
         var input = "a😀b";
-        Assert.That(Utf16.TryReadBackward(input, 3, unicode: true, out var cp, out var width), Is.True);
+        Assert.That(
+            Utf16.TryReadBackward(input, 3, unicode: true, out var cp, out var width),
+            Is.True
+        );
         Assert.Multiple(() =>
         {
             Assert.That(cp, Is.EqualTo(0x1F600));

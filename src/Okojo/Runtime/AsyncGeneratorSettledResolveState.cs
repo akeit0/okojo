@@ -6,7 +6,8 @@ internal sealed class AsyncGeneratorSettledResolveState(
     JsPromiseObject requestPromise,
     JsPromiseObject.PromiseState settledState,
     JsValue settledResult,
-    bool done)
+    bool done
+)
 {
     public readonly bool Done = done;
     public readonly JsGeneratorObject Generator = generator;

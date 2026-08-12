@@ -8,17 +8,21 @@ namespace Okojo.Runtime;
 
 public partial class Intrinsics
 {
-    private static readonly ConcurrentDictionary<string, CultureInfo?> IntlCultureInfoCache =
-        new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<string, CultureInfo?> IntlCultureInfoCache = new(
+        StringComparer.OrdinalIgnoreCase
+    );
 
-    private static readonly ConcurrentDictionary<string, bool> IntlSupportedLocaleCache =
-        new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<string, bool> IntlSupportedLocaleCache = new(
+        StringComparer.OrdinalIgnoreCase
+    );
 
-    private static readonly ConcurrentDictionary<string, bool> IntlSupportedLocaleBaseCache =
-        new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<string, bool> IntlSupportedLocaleBaseCache = new(
+        StringComparer.OrdinalIgnoreCase
+    );
 
-    private static readonly ConcurrentDictionary<string, string> IntlResolvedLocaleCache =
-        new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<string, string> IntlResolvedLocaleCache = new(
+        StringComparer.OrdinalIgnoreCase
+    );
 
     private static readonly ConcurrentDictionary<string, byte> IntlAvailableCultureNames =
         BuildIntlAvailableCultureNames();
@@ -32,92 +36,262 @@ public partial class Intrinsics
 
     private static readonly string[] IntlLocaleMatcherValues = ["lookup", "best fit"];
     private static readonly string[] IntlCollatorUsageValues = ["sort", "search"];
-    private static readonly string[] IntlCollatorSensitivityValues = ["base", "accent", "case", "variant"];
+    private static readonly string[] IntlCollatorSensitivityValues =
+    [
+        "base",
+        "accent",
+        "case",
+        "variant",
+    ];
     private static readonly string[] IntlCollatorCaseFirstValues = ["upper", "lower", "false"];
 
     private static readonly Dictionary<string, HashSet<string>> IntlCollatorLocaleCollationSupport =
         new(StringComparer.OrdinalIgnoreCase)
         {
             ["de"] = new(StringComparer.Ordinal) { "default", "phonebk", "eor" },
-            ["en"] = new(StringComparer.Ordinal) { "default", "ducet", "emoji", "eor" }
+            ["en"] = new(StringComparer.Ordinal) { "default", "ducet", "emoji", "eor" },
         };
 
-    private static readonly string[] IntlSegmenterGranularityValues = ["grapheme", "word", "sentence"];
-    private static readonly string[] IntlDurationFormatStyleValues = ["long", "short", "narrow", "digital"];
-    private static readonly string[] IntlDurationFormatUnitStyleValues = ["long", "short", "narrow"];
+    private static readonly string[] IntlSegmenterGranularityValues =
+    [
+        "grapheme",
+        "word",
+        "sentence",
+    ];
+    private static readonly string[] IntlDurationFormatStyleValues =
+    [
+        "long",
+        "short",
+        "narrow",
+        "digital",
+    ];
+    private static readonly string[] IntlDurationFormatUnitStyleValues =
+    [
+        "long",
+        "short",
+        "narrow",
+    ];
 
     private static readonly string[] IntlDurationFormatUnitStyleWithNumericValues =
-        ["long", "short", "narrow", "numeric", "2-digit"];
+    [
+        "long",
+        "short",
+        "narrow",
+        "numeric",
+        "2-digit",
+    ];
 
-    private static readonly string[] IntlDurationFormatSubSecondStyleValues = ["long", "short", "narrow", "numeric"];
+    private static readonly string[] IntlDurationFormatSubSecondStyleValues =
+    [
+        "long",
+        "short",
+        "narrow",
+        "numeric",
+    ];
     private static readonly string[] IntlDurationFormatDisplayValues = ["auto", "always"];
-    private static readonly string[] IntlNumberFormatStyleValues = ["decimal", "percent", "currency", "unit"];
-    private static readonly string[] IntlNumberFormatCurrencyDisplayValues = ["code", "symbol", "narrowSymbol", "name"];
-    private static readonly string[] IntlNumberFormatCurrencySignValues = ["standard", "accounting"];
+    private static readonly string[] IntlNumberFormatStyleValues =
+    [
+        "decimal",
+        "percent",
+        "currency",
+        "unit",
+    ];
+    private static readonly string[] IntlNumberFormatCurrencyDisplayValues =
+    [
+        "code",
+        "symbol",
+        "narrowSymbol",
+        "name",
+    ];
+    private static readonly string[] IntlNumberFormatCurrencySignValues =
+    [
+        "standard",
+        "accounting",
+    ];
 
     private static readonly string[] IntlNumberFormatSignDisplayValues =
-        ["auto", "never", "always", "exceptZero", "negative"];
+    [
+        "auto",
+        "never",
+        "always",
+        "exceptZero",
+        "negative",
+    ];
 
-    private static readonly string[] IntlNumberFormatUseGroupingStringValues = ["auto", "always", "min2"];
-    private static readonly string[] IntlNumberFormatUnitDisplayValues = ["short", "narrow", "long"];
+    private static readonly string[] IntlNumberFormatUseGroupingStringValues =
+    [
+        "auto",
+        "always",
+        "min2",
+    ];
+    private static readonly string[] IntlNumberFormatUnitDisplayValues =
+    [
+        "short",
+        "narrow",
+        "long",
+    ];
 
     private static readonly string[] IntlNumberFormatNotationValues =
-        ["standard", "scientific", "engineering", "compact"];
+    [
+        "standard",
+        "scientific",
+        "engineering",
+        "compact",
+    ];
 
     private static readonly string[] IntlNumberFormatCompactDisplayValues = ["short", "long"];
 
     private static readonly string[] IntlNumberFormatRoundingModeValues =
-        ["ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor", "halfExpand", "halfTrunc", "halfEven"];
+    [
+        "ceil",
+        "floor",
+        "expand",
+        "trunc",
+        "halfCeil",
+        "halfFloor",
+        "halfExpand",
+        "halfTrunc",
+        "halfEven",
+    ];
 
     private static readonly string[] IntlNumberFormatRoundingPriorityValues =
-        ["auto", "morePrecision", "lessPrecision"];
+    [
+        "auto",
+        "morePrecision",
+        "lessPrecision",
+    ];
 
-    private static readonly string[] IntlNumberFormatTrailingZeroDisplayValues = ["auto", "stripIfInteger"];
-    private static readonly string[] IntlDateTimeFormatHourCycleValues = ["h11", "h12", "h23", "h24"];
+    private static readonly string[] IntlNumberFormatTrailingZeroDisplayValues =
+    [
+        "auto",
+        "stripIfInteger",
+    ];
+    private static readonly string[] IntlDateTimeFormatHourCycleValues =
+    [
+        "h11",
+        "h12",
+        "h23",
+        "h24",
+    ];
     private static readonly string[] IntlDateTimeFormatWeekdayValues = ["narrow", "short", "long"];
     private static readonly string[] IntlDateTimeFormatEraValues = ["narrow", "short", "long"];
     private static readonly string[] IntlDateTimeFormatYearValues = ["2-digit", "numeric"];
-    private static readonly string[] IntlDateTimeFormatMonthValues = ["2-digit", "numeric", "narrow", "short", "long"];
+    private static readonly string[] IntlDateTimeFormatMonthValues =
+    [
+        "2-digit",
+        "numeric",
+        "narrow",
+        "short",
+        "long",
+    ];
     private static readonly string[] IntlDateTimeFormatDayValues = ["2-digit", "numeric"];
-    private static readonly string[] IntlDateTimeFormatDayPeriodValues = ["narrow", "short", "long"];
+    private static readonly string[] IntlDateTimeFormatDayPeriodValues =
+    [
+        "narrow",
+        "short",
+        "long",
+    ];
     private static readonly string[] IntlDateTimeFormatHourValues = ["2-digit", "numeric"];
     private static readonly string[] IntlDateTimeFormatMinuteValues = ["2-digit", "numeric"];
     private static readonly string[] IntlDateTimeFormatSecondValues = ["2-digit", "numeric"];
 
     private static readonly string[] IntlDateTimeFormatTimeZoneNameValues =
-        ["short", "long", "shortOffset", "longOffset", "shortGeneric", "longGeneric"];
+    [
+        "short",
+        "long",
+        "shortOffset",
+        "longOffset",
+        "shortGeneric",
+        "longGeneric",
+    ];
 
     private static readonly string[] IntlDateTimeFormatFormatMatcherValues = ["basic", "best fit"];
-    private static readonly string[] IntlDateTimeFormatStyleValues = ["full", "long", "medium", "short"];
+    private static readonly string[] IntlDateTimeFormatStyleValues =
+    [
+        "full",
+        "long",
+        "medium",
+        "short",
+    ];
     private static readonly string[] IntlPluralRulesTypeValues = ["cardinal", "ordinal"];
 
     private static readonly string[] IntlPluralRulesNotationValues =
-        ["standard", "scientific", "engineering", "compact"];
+    [
+        "standard",
+        "scientific",
+        "engineering",
+        "compact",
+    ];
 
-    private static readonly string[] IntlRelativeTimeFormatStyleValues = ["long", "short", "narrow"];
+    private static readonly string[] IntlRelativeTimeFormatStyleValues =
+    [
+        "long",
+        "short",
+        "narrow",
+    ];
     private static readonly string[] IntlRelativeTimeFormatNumericValues = ["always", "auto"];
 
     private static readonly string[] IntlDisplayNamesTypeValues =
-        ["language", "region", "script", "currency", "calendar", "dateTimeField"];
+    [
+        "language",
+        "region",
+        "script",
+        "currency",
+        "calendar",
+        "dateTimeField",
+    ];
 
     private static readonly string[] IntlDisplayNamesStyleValues = ["long", "short", "narrow"];
     private static readonly string[] IntlDisplayNamesFallbackValues = ["code", "none"];
-    private static readonly string[] IntlDisplayNamesLanguageDisplayValues = ["dialect", "standard"];
+    private static readonly string[] IntlDisplayNamesLanguageDisplayValues =
+    [
+        "dialect",
+        "standard",
+    ];
 
     private static readonly string[] IntlSupportedValueTimeZones =
     [
-        "Etc/GMT+1", "Etc/GMT+10", "Etc/GMT+11", "Etc/GMT+12",
-        "Etc/GMT+2", "Etc/GMT+3", "Etc/GMT+4", "Etc/GMT+5", "Etc/GMT+6",
-        "Etc/GMT+7", "Etc/GMT+8", "Etc/GMT+9", "Etc/GMT-1", "Etc/GMT-10",
-        "Etc/GMT-11", "Etc/GMT-12", "Etc/GMT-13", "Etc/GMT-14", "Etc/GMT-2",
-        "Etc/GMT-3", "Etc/GMT-4", "Etc/GMT-5", "Etc/GMT-6", "Etc/GMT-7",
-        "Etc/GMT-8", "Etc/GMT-9", "UTC"
+        "Etc/GMT+1",
+        "Etc/GMT+10",
+        "Etc/GMT+11",
+        "Etc/GMT+12",
+        "Etc/GMT+2",
+        "Etc/GMT+3",
+        "Etc/GMT+4",
+        "Etc/GMT+5",
+        "Etc/GMT+6",
+        "Etc/GMT+7",
+        "Etc/GMT+8",
+        "Etc/GMT+9",
+        "Etc/GMT-1",
+        "Etc/GMT-10",
+        "Etc/GMT-11",
+        "Etc/GMT-12",
+        "Etc/GMT-13",
+        "Etc/GMT-14",
+        "Etc/GMT-2",
+        "Etc/GMT-3",
+        "Etc/GMT-4",
+        "Etc/GMT-5",
+        "Etc/GMT-6",
+        "Etc/GMT-7",
+        "Etc/GMT-8",
+        "Etc/GMT-9",
+        "UTC",
     ];
 
     private static readonly string[] IntlDurationRecordProperties =
     [
-        "years", "months", "weeks", "days", "hours", "minutes", "seconds", "milliseconds", "microseconds",
-        "nanoseconds"
+        "years",
+        "months",
+        "weeks",
+        "days",
+        "hours",
+        "minutes",
+        "seconds",
+        "milliseconds",
+        "microseconds",
+        "nanoseconds",
     ];
 
     private void InstallIntlBuiltins()
@@ -127,135 +301,148 @@ public partial class Intrinsics
 
     private JsPlainObject CreateIntlObject()
     {
-        var intl = new JsPlainObject(Realm, false)
-        {
-            Prototype = ObjectPrototype
-        };
+        var intl = new JsPlainObject(Realm, false) { Prototype = ObjectPrototype };
 
-        var localePrototype = new JsPlainObject(Realm, false)
-        {
-            Prototype = ObjectPrototype
-        };
+        var localePrototype = new JsPlainObject(Realm, false) { Prototype = ObjectPrototype };
         var localeConstructor = CreateLocaleConstructor(localePrototype);
         InstallLocalePrototypeBuiltins(localePrototype, localeConstructor);
 
-        var segmenterPrototype = new JsPlainObject(Realm, false)
-        {
-            Prototype = ObjectPrototype
-        };
-        var segmentsPrototype = new JsPlainObject(Realm, false)
-        {
-            Prototype = ObjectPrototype
-        };
+        var segmenterPrototype = new JsPlainObject(Realm, false) { Prototype = ObjectPrototype };
+        var segmentsPrototype = new JsPlainObject(Realm, false) { Prototype = ObjectPrototype };
         var segmentIteratorPrototype = new JsPlainObject(Realm, false)
         {
-            Prototype = IteratorPrototype
+            Prototype = IteratorPrototype,
         };
         var segmenterConstructor = CreateSegmenterConstructor(segmenterPrototype);
         InstallSegmentIteratorPrototypeBuiltins(segmentIteratorPrototype);
         InstallSegmentsPrototypeBuiltins(segmentsPrototype, segmentIteratorPrototype);
-        InstallSegmenterPrototypeBuiltins(segmenterPrototype, segmenterConstructor, segmentsPrototype,
-            segmentIteratorPrototype);
+        InstallSegmenterPrototypeBuiltins(
+            segmenterPrototype,
+            segmenterConstructor,
+            segmentsPrototype,
+            segmentIteratorPrototype
+        );
 
         var relativeTimeFormatPrototype = new JsPlainObject(Realm, false)
         {
-            Prototype = ObjectPrototype
+            Prototype = ObjectPrototype,
         };
-        var relativeTimeFormatConstructor = CreateRelativeTimeFormatConstructor(relativeTimeFormatPrototype);
-        InstallRelativeTimeFormatPrototypeBuiltins(relativeTimeFormatPrototype, relativeTimeFormatConstructor);
+        var relativeTimeFormatConstructor = CreateRelativeTimeFormatConstructor(
+            relativeTimeFormatPrototype
+        );
+        InstallRelativeTimeFormatPrototypeBuiltins(
+            relativeTimeFormatPrototype,
+            relativeTimeFormatConstructor
+        );
 
         var durationFormatPrototype = new JsPlainObject(Realm, false)
         {
-            Prototype = ObjectPrototype
+            Prototype = ObjectPrototype,
         };
         var durationFormatConstructor = CreateDurationFormatConstructor(durationFormatPrototype);
         InstallDurationFormatPrototypeBuiltins(durationFormatPrototype, durationFormatConstructor);
 
-        var displayNamesPrototype = new JsPlainObject(Realm, false)
-        {
-            Prototype = ObjectPrototype
-        };
+        var displayNamesPrototype = new JsPlainObject(Realm, false) { Prototype = ObjectPrototype };
         var displayNamesConstructor = CreateDisplayNamesConstructor(displayNamesPrototype);
         InstallDisplayNamesPrototypeBuiltins(displayNamesPrototype, displayNamesConstructor);
 
-        var listFormatPrototype = new JsPlainObject(Realm, false)
-        {
-            Prototype = ObjectPrototype
-        };
+        var listFormatPrototype = new JsPlainObject(Realm, false) { Prototype = ObjectPrototype };
         var listFormatConstructor = CreateListFormatConstructor(listFormatPrototype);
         InstallListFormatPrototypeBuiltins(listFormatPrototype, listFormatConstructor);
 
-        var collatorPrototype = new JsPlainObject(Realm, false)
-        {
-            Prototype = ObjectPrototype
-        };
+        var collatorPrototype = new JsPlainObject(Realm, false) { Prototype = ObjectPrototype };
         var collatorConstructor = CreateCollatorConstructor(collatorPrototype);
         InstallCollatorPrototypeBuiltins(collatorPrototype, collatorConstructor);
 
         var dateTimeFormatPrototype = new JsPlainObject(Realm, false)
         {
-            Prototype = ObjectPrototype
+            Prototype = ObjectPrototype,
         };
         var dateTimeFormatConstructor = CreateDateTimeFormatConstructor(dateTimeFormatPrototype);
         InstallDateTimeFormatPrototypeBuiltins(dateTimeFormatPrototype, dateTimeFormatConstructor);
 
-        var numberFormatPrototype = new JsPlainObject(Realm, false)
-        {
-            Prototype = ObjectPrototype
-        };
+        var numberFormatPrototype = new JsPlainObject(Realm, false) { Prototype = ObjectPrototype };
         var numberFormatConstructor = CreateNumberFormatConstructor(numberFormatPrototype);
         InstallNumberFormatPrototypeBuiltins(numberFormatPrototype, numberFormatConstructor);
 
-        var pluralRulesPrototype = new JsPlainObject(Realm, false)
-        {
-            Prototype = ObjectPrototype
-        };
+        var pluralRulesPrototype = new JsPlainObject(Realm, false) { Prototype = ObjectPrototype };
         var pluralRulesConstructor = CreatePluralRulesConstructor(pluralRulesPrototype);
         InstallPluralRulesPrototypeBuiltins(pluralRulesPrototype, pluralRulesConstructor);
 
-        var getCanonicalLocalesFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            var locales = args.Length == 0 ? JsValue.Undefined : args[0];
-            var canonicalized = CanonicalizeLocaleList(realm, locales);
-            return CreateStringArray(realm, canonicalized);
-        }, "getCanonicalLocales", 1);
-        var supportedValuesOfFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            var key = realm.ToJsStringSlowPath(args.Length == 0 ? JsValue.Undefined : args[0]);
-            var values = key switch
+        var getCanonicalLocalesFn = new JsHostFunction(
+            Realm,
+            (in info) =>
             {
-                "calendar" => GetSupportedValuesOfCalendars(),
-                "collation" => GetSupportedValuesOfCollations(),
-                "currency" => GetSupportedValuesOfCurrencies(),
-                "numberingSystem" => GetSupportedValuesOfNumberingSystems(),
-                "timeZone" => GetSupportedValuesOfTimeZones(),
-                "unit" => GetSupportedValuesOfUnits(),
-                _ => throw new JsRuntimeException(JsErrorKind.RangeError, $"Invalid key: {key}")
-            };
+                var realm = info.Realm;
+                var args = info.Arguments;
+                var locales = args.Length == 0 ? JsValue.Undefined : args[0];
+                var canonicalized = CanonicalizeLocaleList(realm, locales);
+                return CreateStringArray(realm, canonicalized);
+            },
+            "getCanonicalLocales",
+            1
+        );
+        var supportedValuesOfFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                var key = realm.ToJsStringSlowPath(args.Length == 0 ? JsValue.Undefined : args[0]);
+                var values = key switch
+                {
+                    "calendar" => GetSupportedValuesOfCalendars(),
+                    "collation" => GetSupportedValuesOfCollations(),
+                    "currency" => GetSupportedValuesOfCurrencies(),
+                    "numberingSystem" => GetSupportedValuesOfNumberingSystems(),
+                    "timeZone" => GetSupportedValuesOfTimeZones(),
+                    "unit" => GetSupportedValuesOfUnits(),
+                    _ => throw new JsRuntimeException(
+                        JsErrorKind.RangeError,
+                        $"Invalid key: {key}"
+                    ),
+                };
 
-            return CreateStringArray(realm, values);
-        }, "supportedValuesOf", 1);
+                return CreateStringArray(realm, values);
+            },
+            "supportedValuesOf",
+            1
+        );
 
         Span<PropertyDefinition> defs =
         [
-            PropertyDefinition.Mutable(IdGetCanonicalLocales, JsValue.FromObject(getCanonicalLocalesFn)),
-            PropertyDefinition.Mutable(IdSupportedValuesOf, JsValue.FromObject(supportedValuesOfFn)),
+            PropertyDefinition.Mutable(
+                IdGetCanonicalLocales,
+                JsValue.FromObject(getCanonicalLocalesFn)
+            ),
+            PropertyDefinition.Mutable(
+                IdSupportedValuesOf,
+                JsValue.FromObject(supportedValuesOfFn)
+            ),
             PropertyDefinition.Mutable(IdLocale, JsValue.FromObject(localeConstructor)),
             PropertyDefinition.Mutable(IdSegmenter, JsValue.FromObject(segmenterConstructor)),
-            PropertyDefinition.Mutable(IdRelativeTimeFormat,
-                JsValue.FromObject(relativeTimeFormatConstructor)),
-            PropertyDefinition.Mutable(IdDurationFormat, JsValue.FromObject(durationFormatConstructor)),
+            PropertyDefinition.Mutable(
+                IdRelativeTimeFormat,
+                JsValue.FromObject(relativeTimeFormatConstructor)
+            ),
+            PropertyDefinition.Mutable(
+                IdDurationFormat,
+                JsValue.FromObject(durationFormatConstructor)
+            ),
             PropertyDefinition.Mutable(IdDisplayNames, JsValue.FromObject(displayNamesConstructor)),
             PropertyDefinition.Mutable(IdListFormat, JsValue.FromObject(listFormatConstructor)),
             PropertyDefinition.Mutable(IdCollator, JsValue.FromObject(collatorConstructor)),
-            PropertyDefinition.Mutable(IdDateTimeFormat, JsValue.FromObject(dateTimeFormatConstructor)),
+            PropertyDefinition.Mutable(
+                IdDateTimeFormat,
+                JsValue.FromObject(dateTimeFormatConstructor)
+            ),
             PropertyDefinition.Mutable(IdNumberFormat, JsValue.FromObject(numberFormatConstructor)),
             PropertyDefinition.Mutable(IdPluralRules, JsValue.FromObject(pluralRulesConstructor)),
-            PropertyDefinition.Data(IdSymbolToStringTag, JsValue.FromString("Intl"), configurable: true)
+            PropertyDefinition.Data(
+                IdSymbolToStringTag,
+                JsValue.FromString("Intl"),
+                configurable: true
+            ),
         ];
         intl.DefineNewPropertiesNoCollision(Realm, defs);
         return intl;
@@ -269,7 +456,10 @@ public partial class Intrinsics
         var seen = new List<string>();
         var seenSet = new HashSet<string>(StringComparer.Ordinal);
         if (locales.IsNull)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Locales argument must not be null");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Locales argument must not be null"
+            );
 
         if (locales.IsString)
         {
@@ -327,19 +517,19 @@ public partial class Intrinsics
 
     private static string[] GetSupportedValuesOfCollations()
     {
-        return intlSupportedValuesOfCollationsCache ??=
-        [
-            .. IntlCollatorLocaleCollationSupport.Values
-                .SelectMany(static values => values)
+        return intlSupportedValuesOfCollationsCache ??= [
+            .. IntlCollatorLocaleCollationSupport
+                .Values.SelectMany(static values => values)
                 .Where(static value => !string.Equals(value, "default", StringComparison.Ordinal))
                 .Distinct(StringComparer.Ordinal)
-                .OrderBy(static value => value, StringComparer.Ordinal)
+                .OrderBy(static value => value, StringComparer.Ordinal),
         ];
     }
 
     private static string[] GetSupportedValuesOfCurrencies()
     {
-        return intlSupportedValuesOfCurrenciesCache ??= JsDisplayNamesObject.GetSupportedCurrencyCodes();
+        return intlSupportedValuesOfCurrenciesCache ??=
+            JsDisplayNamesObject.GetSupportedCurrencyCodes();
     }
 
     private static string[] GetSupportedValuesOfNumberingSystems()
@@ -350,8 +540,9 @@ public partial class Intrinsics
 
     private static string[] GetSupportedValuesOfTimeZones()
     {
-        return intlSupportedValuesOfTimeZonesCache ??=
-            [.. IntlSupportedValueTimeZones.OrderBy(static value => value, StringComparer.Ordinal)];
+        return intlSupportedValuesOfTimeZonesCache ??= [
+            .. IntlSupportedValueTimeZones.OrderBy(static value => value, StringComparer.Ordinal),
+        ];
     }
 
     private static string[] GetSupportedValuesOfUnits()
@@ -359,7 +550,10 @@ public partial class Intrinsics
         return intlSupportedValuesOfUnitsCache ??= UnitData.GetSupportedValues();
     }
 
-    internal static CultureInfo ResolveRequestedLocaleCulture(JsRealm realm, ReadOnlySpan<JsValue> args)
+    internal static CultureInfo ResolveRequestedLocaleCulture(
+        JsRealm realm,
+        ReadOnlySpan<JsValue> args
+    )
     {
         if (args.Length == 0)
             return CultureInfo.InvariantCulture;
@@ -395,9 +589,7 @@ public partial class Intrinsics
                 IntlAvailableCultureNames.TryAdd(candidate, 0);
                 break;
             }
-            catch (CultureNotFoundException)
-            {
-            }
+            catch (CultureNotFoundException) { }
 
             var hyphenIndex = candidate.LastIndexOf('-');
             if (hyphenIndex <= 0)
@@ -412,7 +604,11 @@ public partial class Intrinsics
     private static ConcurrentDictionary<string, byte> BuildIntlAvailableCultureNames()
     {
         var names = new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase);
-        foreach (var culture in CultureInfo.GetCultures(CultureTypes.NeutralCultures | CultureTypes.SpecificCultures))
+        foreach (
+            var culture in CultureInfo.GetCultures(
+                CultureTypes.NeutralCultures | CultureTypes.SpecificCultures
+            )
+        )
         {
             if (string.IsNullOrEmpty(culture.Name))
                 continue;
@@ -423,16 +619,20 @@ public partial class Intrinsics
         return names;
     }
 
-    private static string RemoveUnicodeExtensions(string locale) => Locale.RemoveUnicodeExtensions(locale);
+    private static string RemoveUnicodeExtensions(string locale) =>
+        Locale.RemoveUnicodeExtensions(locale);
 
-    private static bool ContainsUnicodeExtension(string locale) => Locale.ContainsUnicodeExtension(locale);
+    private static bool ContainsUnicodeExtension(string locale) =>
+        Locale.ContainsUnicodeExtension(locale);
 
     private static bool TryGetValidatedCanonicalLocale(string locale, out string canonicalized) =>
         Locale.TryGetValidatedCanonicalLocale(locale, out canonicalized);
 
-    private static bool IsStructurallyValidLanguageTag(string locale) => Locale.IsStructurallyValidLanguageTag(locale);
+    private static bool IsStructurallyValidLanguageTag(string locale) =>
+        Locale.IsStructurallyValidLanguageTag(locale);
 
-    private static string CanonicalizeUnicodeLocaleId(string locale) => Locale.CanonicalizeUnicodeLocaleId(locale);
+    private static string CanonicalizeUnicodeLocaleId(string locale) =>
+        Locale.CanonicalizeUnicodeLocaleId(locale);
 
     private static ParsedLanguageTag ParseLanguageTag(string tag) => Locale.ParseLanguageTag(tag);
 
@@ -465,13 +665,23 @@ public partial class Intrinsics
         return separatorIndex < 0 ? locale : locale[..separatorIndex];
     }
 
-    private static void AddCanonicalizedLocale(JsRealm realm, List<string> seen, HashSet<string> seenSet,
-        in JsValue value)
+    private static void AddCanonicalizedLocale(
+        JsRealm realm,
+        List<string> seen,
+        HashSet<string> seenSet,
+        in JsValue value
+    )
     {
         if (!value.IsString && !value.IsObject)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Locale should be a string or object");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Locale should be a string or object"
+            );
         if (value.IsNull)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Locale should be a string or object");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Locale should be a string or object"
+            );
 
         if (value.TryGetObject(out var localeObj) && localeObj is JsLocaleObject locale)
         {
@@ -490,30 +700,55 @@ public partial class Intrinsics
     private JsHostFunction CreateLocaleConstructor(JsPlainObject localePrototype)
     {
         JsHostFunction localeConstructor = null!;
-        localeConstructor = new(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            if (!info.IsConstruct)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Intl.Locale must be called with new");
+        localeConstructor = new(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                if (!info.IsConstruct)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Intl.Locale must be called with new"
+                    );
 
-            var tagValue = args.Length == 0 ? JsValue.Undefined : args[0];
-            if (!tagValue.IsString && !tagValue.IsObject)
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "First argument to Intl.Locale must be a string or Locale object");
+                var tagValue = args.Length == 0 ? JsValue.Undefined : args[0];
+                if (!tagValue.IsString && !tagValue.IsObject)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "First argument to Intl.Locale must be a string or Locale object"
+                    );
 
-            var tag = tagValue.TryGetObject(out var tagObject) && tagObject is JsLocaleObject localeArg
-                ? localeArg.Locale
-                : realm.ToJsStringSlowPath(tagValue);
+                var tag =
+                    tagValue.TryGetObject(out var tagObject)
+                    && tagObject is JsLocaleObject localeArg
+                        ? localeArg.Locale
+                        : realm.ToJsStringSlowPath(tagValue);
 
-            if (!IsStructurallyValidLanguageTag(tag))
-                throw new JsRuntimeException(JsErrorKind.RangeError, $"Invalid language tag: {tag}");
+                if (!IsStructurallyValidLanguageTag(tag))
+                    throw new JsRuntimeException(
+                        JsErrorKind.RangeError,
+                        $"Invalid language tag: {tag}"
+                    );
 
-            var prototype = GetIntlPrototypeFromConstructor(realm, info.NewTarget, localeConstructor,
-                localePrototype, "Locale");
-            return CreateLocaleObject(realm, prototype, CanonicalizeUnicodeLocaleId(tag),
-                args.Length > 1 ? args[1] : JsValue.Undefined);
-        }, "Locale", 1, true);
+                var prototype = GetIntlPrototypeFromConstructor(
+                    realm,
+                    info.NewTarget,
+                    localeConstructor,
+                    localePrototype,
+                    "Locale"
+                );
+                return CreateLocaleObject(
+                    realm,
+                    prototype,
+                    CanonicalizeUnicodeLocaleId(tag),
+                    args.Length > 1 ? args[1] : JsValue.Undefined
+                );
+            },
+            "Locale",
+            1,
+            true
+        );
 
         localeConstructor.InitializePrototypeProperty(localePrototype);
         return localeConstructor;
@@ -521,131 +756,279 @@ public partial class Intrinsics
 
     private JsHostFunction CreateSegmenterConstructor(JsPlainObject segmenterPrototype)
     {
-        var supportedLocalesOfFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            var requestedLocales = CanonicalizeLocaleList(realm, args.Length == 0 ? JsValue.Undefined : args[0]);
-            var options = GetIntlOptionsObject(realm, args.Length > 1 ? args[1] : JsValue.Undefined,
-                "Intl.Segmenter.supportedLocalesOf options must be an object");
-            _ = GetIntlStringOption(realm, options, "localeMatcher", IntlLocaleMatcherValues, "best fit");
+        var supportedLocalesOfFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                var requestedLocales = CanonicalizeLocaleList(
+                    realm,
+                    args.Length == 0 ? JsValue.Undefined : args[0]
+                );
+                var options = GetIntlOptionsObject(
+                    realm,
+                    args.Length > 1 ? args[1] : JsValue.Undefined,
+                    "Intl.Segmenter.supportedLocalesOf options must be an object"
+                );
+                _ = GetIntlStringOption(
+                    realm,
+                    options,
+                    "localeMatcher",
+                    IntlLocaleMatcherValues,
+                    "best fit"
+                );
 
-            return CreateSupportedLocalesArray(realm, requestedLocales);
-        }, "supportedLocalesOf", 1);
+                return CreateSupportedLocalesArray(realm, requestedLocales);
+            },
+            "supportedLocalesOf",
+            1
+        );
 
         JsHostFunction segmenterConstructor = null!;
-        segmenterConstructor = new(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            if (!info.IsConstruct)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Intl.Segmenter must be called with new");
+        segmenterConstructor = new(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                if (!info.IsConstruct)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Intl.Segmenter must be called with new"
+                    );
 
-            var options = GetIntlOptionsObject(realm, args.Length > 1 ? args[1] : JsValue.Undefined,
-                "Intl.Segmenter options must be an object");
-            _ = GetIntlStringOption(realm, options, "localeMatcher", IntlLocaleMatcherValues, "best fit");
-            var granularity =
-                GetIntlStringOption(realm, options, "granularity", IntlSegmenterGranularityValues, "grapheme");
+                var options = GetIntlOptionsObject(
+                    realm,
+                    args.Length > 1 ? args[1] : JsValue.Undefined,
+                    "Intl.Segmenter options must be an object"
+                );
+                _ = GetIntlStringOption(
+                    realm,
+                    options,
+                    "localeMatcher",
+                    IntlLocaleMatcherValues,
+                    "best fit"
+                );
+                var granularity = GetIntlStringOption(
+                    realm,
+                    options,
+                    "granularity",
+                    IntlSegmenterGranularityValues,
+                    "grapheme"
+                );
 
-            var requestedLocales = CanonicalizeLocaleList(realm, args.Length == 0 ? JsValue.Undefined : args[0]);
-            var resolvedLocale = ResolveIntlLocale(requestedLocales);
-            var cultureInfo = GetCultureInfo(resolvedLocale) ?? CultureInfo.InvariantCulture;
-            var prototype = GetIntlPrototypeFromConstructor(realm, info.NewTarget, segmenterConstructor,
-                segmenterPrototype, "Segmenter");
-            return new JsSegmenterObject(realm, prototype, resolvedLocale, granularity, cultureInfo);
-        }, "Segmenter", 0, true);
+                var requestedLocales = CanonicalizeLocaleList(
+                    realm,
+                    args.Length == 0 ? JsValue.Undefined : args[0]
+                );
+                var resolvedLocale = ResolveIntlLocale(requestedLocales);
+                var cultureInfo = GetCultureInfo(resolvedLocale) ?? CultureInfo.InvariantCulture;
+                var prototype = GetIntlPrototypeFromConstructor(
+                    realm,
+                    info.NewTarget,
+                    segmenterConstructor,
+                    segmenterPrototype,
+                    "Segmenter"
+                );
+                return new JsSegmenterObject(
+                    realm,
+                    prototype,
+                    resolvedLocale,
+                    granularity,
+                    cultureInfo
+                );
+            },
+            "Segmenter",
+            0,
+            true
+        );
 
         segmenterConstructor.InitializePrototypeProperty(segmenterPrototype);
-        segmenterConstructor.DefineDataPropertyAtom(Realm, IdSupportedLocalesOf, supportedLocalesOfFn,
-            JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable);
+        segmenterConstructor.DefineDataPropertyAtom(
+            Realm,
+            IdSupportedLocalesOf,
+            supportedLocalesOfFn,
+            JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable
+        );
         return segmenterConstructor;
     }
 
-    private JsHostFunction CreateRelativeTimeFormatConstructor(JsPlainObject relativeTimeFormatPrototype)
+    private JsHostFunction CreateRelativeTimeFormatConstructor(
+        JsPlainObject relativeTimeFormatPrototype
+    )
     {
-        var supportedLocalesOfFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            var requestedLocales = CanonicalizeLocaleList(realm, args.Length == 0 ? JsValue.Undefined : args[0]);
-            var options = GetIntlOptionsObject(realm, args.Length > 1 ? args[1] : JsValue.Undefined,
-                "Intl.RelativeTimeFormat.supportedLocalesOf options must be an object");
-            _ = GetIntlStringOption(realm, options, "localeMatcher", IntlLocaleMatcherValues, "best fit");
+        var supportedLocalesOfFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                var requestedLocales = CanonicalizeLocaleList(
+                    realm,
+                    args.Length == 0 ? JsValue.Undefined : args[0]
+                );
+                var options = GetIntlOptionsObject(
+                    realm,
+                    args.Length > 1 ? args[1] : JsValue.Undefined,
+                    "Intl.RelativeTimeFormat.supportedLocalesOf options must be an object"
+                );
+                _ = GetIntlStringOption(
+                    realm,
+                    options,
+                    "localeMatcher",
+                    IntlLocaleMatcherValues,
+                    "best fit"
+                );
 
-            return CreateSupportedLocalesArray(realm, requestedLocales);
-        }, "supportedLocalesOf", 1);
+                return CreateSupportedLocalesArray(realm, requestedLocales);
+            },
+            "supportedLocalesOf",
+            1
+        );
 
         JsHostFunction relativeTimeFormatConstructor = null!;
-        relativeTimeFormatConstructor = new(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            if (!info.IsConstruct)
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Intl.RelativeTimeFormat must be called with new");
-
-            var options = GetIntlConstructorOptionsObject(realm, args.Length > 1 ? args[1] : JsValue.Undefined,
-                "Intl.RelativeTimeFormat options must be an object");
-            _ = GetIntlStringOption(realm, options, "localeMatcher", IntlLocaleMatcherValues, "best fit");
-
-            string? numberingSystemOption = null;
-            if (options.TryGetProperty("numberingSystem", out var numberingSystemValue) &&
-                !numberingSystemValue.IsUndefined)
+        relativeTimeFormatConstructor = new(
+            Realm,
+            (in info) =>
             {
-                numberingSystemOption = realm.ToJsStringSlowPath(numberingSystemValue);
-                if (!IsWellFormedNumberingSystem(numberingSystemOption))
-                    throw new JsRuntimeException(JsErrorKind.RangeError,
-                        $"Invalid numberingSystem: {numberingSystemOption}");
-            }
+                var realm = info.Realm;
+                var args = info.Arguments;
+                if (!info.IsConstruct)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Intl.RelativeTimeFormat must be called with new"
+                    );
 
-            var style = GetIntlStringOption(realm, options, "style", IntlRelativeTimeFormatStyleValues, "long");
-            var numeric =
-                GetIntlStringOption(realm, options, "numeric", IntlRelativeTimeFormatNumericValues, "always");
+                var options = GetIntlConstructorOptionsObject(
+                    realm,
+                    args.Length > 1 ? args[1] : JsValue.Undefined,
+                    "Intl.RelativeTimeFormat options must be an object"
+                );
+                _ = GetIntlStringOption(
+                    realm,
+                    options,
+                    "localeMatcher",
+                    IntlLocaleMatcherValues,
+                    "best fit"
+                );
 
-            var requestedLocales = CanonicalizeLocaleList(realm, args.Length == 0 ? JsValue.Undefined : args[0]);
-            var resolvedLocale = ResolveIntlLocale(requestedLocales);
-            var localeNumberingSystem = GetRequestedLocaleNumberingSystem(requestedLocales);
+                string? numberingSystemOption = null;
+                if (
+                    options.TryGetProperty("numberingSystem", out var numberingSystemValue)
+                    && !numberingSystemValue.IsUndefined
+                )
+                {
+                    numberingSystemOption = realm.ToJsStringSlowPath(numberingSystemValue);
+                    if (!IsWellFormedNumberingSystem(numberingSystemOption))
+                        throw new JsRuntimeException(
+                            JsErrorKind.RangeError,
+                            $"Invalid numberingSystem: {numberingSystemOption}"
+                        );
+                }
 
-            string resolvedNumberingSystem;
-            if (numberingSystemOption is not null && NumberingSystemData.IsSupported(numberingSystemOption))
-                resolvedNumberingSystem = numberingSystemOption.ToLowerInvariant();
-            else if (localeNumberingSystem is not null &&
-                     NumberingSystemData.IsSupported(localeNumberingSystem))
-                resolvedNumberingSystem = localeNumberingSystem.ToLowerInvariant();
-            else
-                resolvedNumberingSystem = "latn";
+                var style = GetIntlStringOption(
+                    realm,
+                    options,
+                    "style",
+                    IntlRelativeTimeFormatStyleValues,
+                    "long"
+                );
+                var numeric = GetIntlStringOption(
+                    realm,
+                    options,
+                    "numeric",
+                    IntlRelativeTimeFormatNumericValues,
+                    "always"
+                );
 
-            var finalResolvedLocale = resolvedLocale;
-            var numberingSystemFromOptions = numberingSystemOption is not null &&
-                                             NumberingSystemData.IsSupported(numberingSystemOption);
-            if (numberingSystemFromOptions)
-            {
-                if (localeNumberingSystem is not null &&
-                    string.Equals(numberingSystemOption, localeNumberingSystem, StringComparison.OrdinalIgnoreCase))
-                    finalResolvedLocale = EnsureNumberingSystemInLocale(resolvedLocale, resolvedNumberingSystem);
+                var requestedLocales = CanonicalizeLocaleList(
+                    realm,
+                    args.Length == 0 ? JsValue.Undefined : args[0]
+                );
+                var resolvedLocale = ResolveIntlLocale(requestedLocales);
+                var localeNumberingSystem = GetRequestedLocaleNumberingSystem(requestedLocales);
+
+                string resolvedNumberingSystem;
+                if (
+                    numberingSystemOption is not null
+                    && NumberingSystemData.IsSupported(numberingSystemOption)
+                )
+                    resolvedNumberingSystem = numberingSystemOption.ToLowerInvariant();
+                else if (
+                    localeNumberingSystem is not null
+                    && NumberingSystemData.IsSupported(localeNumberingSystem)
+                )
+                    resolvedNumberingSystem = localeNumberingSystem.ToLowerInvariant();
                 else
-                    finalResolvedLocale = RemoveNumberingSystemFromLocale(resolvedLocale);
-            }
-            else if (localeNumberingSystem is not null &&
-                     NumberingSystemData.IsSupported(localeNumberingSystem))
-            {
-                finalResolvedLocale = EnsureNumberingSystemInLocale(resolvedLocale, resolvedNumberingSystem);
-            }
-            else
-            {
-                finalResolvedLocale = RemoveNumberingSystemFromLocale(resolvedLocale);
-            }
+                    resolvedNumberingSystem = "latn";
 
-            var cultureInfo = GetCultureInfo(finalResolvedLocale) ?? CultureInfo.InvariantCulture;
-            var prototype = GetIntlPrototypeFromConstructor(realm, info.NewTarget, relativeTimeFormatConstructor,
-                relativeTimeFormatPrototype, "RelativeTimeFormat");
-            return new JsRelativeTimeFormatObject(realm, prototype, finalResolvedLocale, resolvedNumberingSystem,
-                style, numeric, cultureInfo);
-        }, "RelativeTimeFormat", 0, true);
+                var finalResolvedLocale = resolvedLocale;
+                var numberingSystemFromOptions =
+                    numberingSystemOption is not null
+                    && NumberingSystemData.IsSupported(numberingSystemOption);
+                if (numberingSystemFromOptions)
+                {
+                    if (
+                        localeNumberingSystem is not null
+                        && string.Equals(
+                            numberingSystemOption,
+                            localeNumberingSystem,
+                            StringComparison.OrdinalIgnoreCase
+                        )
+                    )
+                        finalResolvedLocale = EnsureNumberingSystemInLocale(
+                            resolvedLocale,
+                            resolvedNumberingSystem
+                        );
+                    else
+                        finalResolvedLocale = RemoveNumberingSystemFromLocale(resolvedLocale);
+                }
+                else if (
+                    localeNumberingSystem is not null
+                    && NumberingSystemData.IsSupported(localeNumberingSystem)
+                )
+                {
+                    finalResolvedLocale = EnsureNumberingSystemInLocale(
+                        resolvedLocale,
+                        resolvedNumberingSystem
+                    );
+                }
+                else
+                {
+                    finalResolvedLocale = RemoveNumberingSystemFromLocale(resolvedLocale);
+                }
+
+                var cultureInfo =
+                    GetCultureInfo(finalResolvedLocale) ?? CultureInfo.InvariantCulture;
+                var prototype = GetIntlPrototypeFromConstructor(
+                    realm,
+                    info.NewTarget,
+                    relativeTimeFormatConstructor,
+                    relativeTimeFormatPrototype,
+                    "RelativeTimeFormat"
+                );
+                return new JsRelativeTimeFormatObject(
+                    realm,
+                    prototype,
+                    finalResolvedLocale,
+                    resolvedNumberingSystem,
+                    style,
+                    numeric,
+                    cultureInfo
+                );
+            },
+            "RelativeTimeFormat",
+            0,
+            true
+        );
 
         Span<PropertyDefinition> defs =
         [
-            PropertyDefinition.Mutable(IdSupportedLocalesOf, JsValue.FromObject(supportedLocalesOfFn))
+            PropertyDefinition.Mutable(
+                IdSupportedLocalesOf,
+                JsValue.FromObject(supportedLocalesOfFn)
+            ),
         ];
         relativeTimeFormatConstructor.InitializePrototypeProperty(relativeTimeFormatPrototype);
         relativeTimeFormatConstructor.DefineNewPropertiesNoCollision(Realm, defs);
@@ -654,219 +1037,452 @@ public partial class Intrinsics
 
     private JsHostFunction CreateDurationFormatConstructor(JsPlainObject durationFormatPrototype)
     {
-        var supportedLocalesOfFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            var requestedLocales = CanonicalizeLocaleList(realm, args.Length == 0 ? JsValue.Undefined : args[0]);
-            var options = GetIntlOptionsObject(realm, args.Length > 1 ? args[1] : JsValue.Undefined,
-                "Intl.DurationFormat.supportedLocalesOf options must be an object");
-            _ = GetIntlStringOption(realm, options, "localeMatcher", IntlLocaleMatcherValues, "best fit");
+        var supportedLocalesOfFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                var requestedLocales = CanonicalizeLocaleList(
+                    realm,
+                    args.Length == 0 ? JsValue.Undefined : args[0]
+                );
+                var options = GetIntlOptionsObject(
+                    realm,
+                    args.Length > 1 ? args[1] : JsValue.Undefined,
+                    "Intl.DurationFormat.supportedLocalesOf options must be an object"
+                );
+                _ = GetIntlStringOption(
+                    realm,
+                    options,
+                    "localeMatcher",
+                    IntlLocaleMatcherValues,
+                    "best fit"
+                );
 
-            return CreateSupportedLocalesArray(realm, requestedLocales);
-        }, "supportedLocalesOf", 1);
+                return CreateSupportedLocalesArray(realm, requestedLocales);
+            },
+            "supportedLocalesOf",
+            1
+        );
 
         JsHostFunction durationFormatConstructor = null!;
-        durationFormatConstructor = new(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            if (!info.IsConstruct)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Intl.DurationFormat must be called with new");
-
-            var options = GetIntlConstructorOptionsObject(realm, args.Length > 1 ? args[1] : JsValue.Undefined,
-                "Intl.DurationFormat options must be an object");
-            _ = GetIntlStringOption(realm, options, "localeMatcher", IntlLocaleMatcherValues, "best fit");
-
-            string? numberingSystemOption = null;
-            if (options.TryGetProperty("numberingSystem", out var numberingSystemValue) &&
-                !numberingSystemValue.IsUndefined)
+        durationFormatConstructor = new(
+            Realm,
+            (in info) =>
             {
-                numberingSystemOption = realm.ToJsStringSlowPath(numberingSystemValue);
-                if (!IsWellFormedNumberingSystem(numberingSystemOption))
-                    throw new JsRuntimeException(JsErrorKind.RangeError,
-                        $"Invalid numberingSystem: {numberingSystemOption}");
-            }
+                var realm = info.Realm;
+                var args = info.Arguments;
+                if (!info.IsConstruct)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Intl.DurationFormat must be called with new"
+                    );
 
-            var style = GetIntlStringOption(realm, options, "style", IntlDurationFormatStyleValues, "short");
-            var baseStyle = string.Equals(style, "digital", StringComparison.Ordinal) ? "short" : style;
-            var baseTimeStyle = style switch
-            {
-                "long" => "long",
-                "short" => "short",
-                "narrow" => "narrow",
-                "digital" => "numeric",
-                _ => "short"
-            };
+                var options = GetIntlConstructorOptionsObject(
+                    realm,
+                    args.Length > 1 ? args[1] : JsValue.Undefined,
+                    "Intl.DurationFormat options must be an object"
+                );
+                _ = GetIntlStringOption(
+                    realm,
+                    options,
+                    "localeMatcher",
+                    IntlLocaleMatcherValues,
+                    "best fit"
+                );
 
-            static bool IsNumericLike(string value)
-            {
-                return value is "numeric" or "2-digit";
-            }
-
-            static string GetDurationUnitStyleOption(JsRealm realm, JsObject options, string name,
-                string[] allowedValues,
-                string fallback, out bool wasDefined)
-            {
-                if (!options.TryGetProperty(name, out var value) || value.IsUndefined)
+                string? numberingSystemOption = null;
+                if (
+                    options.TryGetProperty("numberingSystem", out var numberingSystemValue)
+                    && !numberingSystemValue.IsUndefined
+                )
                 {
-                    wasDefined = false;
-                    return fallback;
+                    numberingSystemOption = realm.ToJsStringSlowPath(numberingSystemValue);
+                    if (!IsWellFormedNumberingSystem(numberingSystemOption))
+                        throw new JsRuntimeException(
+                            JsErrorKind.RangeError,
+                            $"Invalid numberingSystem: {numberingSystemOption}"
+                        );
                 }
 
-                wasDefined = true;
-                var stringValue = realm.ToJsStringSlowPath(value);
-                if (!allowedValues.Contains(stringValue, StringComparer.Ordinal))
-                    throw new JsRuntimeException(JsErrorKind.RangeError,
-                        $"Invalid value for {name}: {stringValue}");
-                return stringValue;
-            }
+                var style = GetIntlStringOption(
+                    realm,
+                    options,
+                    "style",
+                    IntlDurationFormatStyleValues,
+                    "short"
+                );
+                var baseStyle = string.Equals(style, "digital", StringComparison.Ordinal)
+                    ? "short"
+                    : style;
+                var baseTimeStyle = style switch
+                {
+                    "long" => "long",
+                    "short" => "short",
+                    "narrow" => "narrow",
+                    "digital" => "numeric",
+                    _ => "short",
+                };
 
-            static string GetDurationDisplayFallback(bool isExplicitStyle)
-            {
-                return isExplicitStyle ? "always" : "auto";
-            }
+                static bool IsNumericLike(string value)
+                {
+                    return value is "numeric" or "2-digit";
+                }
 
-            var yearsStyle = GetDurationUnitStyleOption(realm, options, "years", IntlDurationFormatUnitStyleValues,
-                baseStyle,
-                out var yearsStyleDefined);
-            var yearsDisplay = GetIntlStringOption(realm, options, "yearsDisplay", IntlDurationFormatDisplayValues,
-                GetDurationDisplayFallback(yearsStyleDefined));
-            var monthsStyle = GetDurationUnitStyleOption(realm, options, "months", IntlDurationFormatUnitStyleValues,
-                baseStyle,
-                out var monthsStyleDefined);
-            var monthsDisplay = GetIntlStringOption(realm, options, "monthsDisplay", IntlDurationFormatDisplayValues,
-                GetDurationDisplayFallback(monthsStyleDefined));
-            var weeksStyle = GetDurationUnitStyleOption(realm, options, "weeks", IntlDurationFormatUnitStyleValues,
-                baseStyle,
-                out var weeksStyleDefined);
-            var weeksDisplay = GetIntlStringOption(realm, options, "weeksDisplay", IntlDurationFormatDisplayValues,
-                GetDurationDisplayFallback(weeksStyleDefined));
-            var daysStyle = GetDurationUnitStyleOption(realm, options, "days", IntlDurationFormatUnitStyleValues,
-                baseStyle,
-                out var daysStyleDefined);
-            var daysDisplay = GetIntlStringOption(realm, options, "daysDisplay", IntlDurationFormatDisplayValues,
-                GetDurationDisplayFallback(daysStyleDefined));
+                static string GetDurationUnitStyleOption(
+                    JsRealm realm,
+                    JsObject options,
+                    string name,
+                    string[] allowedValues,
+                    string fallback,
+                    out bool wasDefined
+                )
+                {
+                    if (!options.TryGetProperty(name, out var value) || value.IsUndefined)
+                    {
+                        wasDefined = false;
+                        return fallback;
+                    }
 
-            var hoursDefault = string.Equals(style, "digital", StringComparison.Ordinal) ? "numeric" : baseTimeStyle;
-            var hoursStyle = GetDurationUnitStyleOption(realm, options, "hours",
-                IntlDurationFormatUnitStyleWithNumericValues,
-                hoursDefault, out var hoursStyleDefined);
-            var hoursDisplay = GetIntlStringOption(realm, options, "hoursDisplay", IntlDurationFormatDisplayValues,
-                GetDurationDisplayFallback(hoursStyleDefined));
+                    wasDefined = true;
+                    var stringValue = realm.ToJsStringSlowPath(value);
+                    if (!allowedValues.Contains(stringValue, StringComparer.Ordinal))
+                        throw new JsRuntimeException(
+                            JsErrorKind.RangeError,
+                            $"Invalid value for {name}: {stringValue}"
+                        );
+                    return stringValue;
+                }
 
-            var minutesDefault = IsNumericLike(hoursStyle) ? "2-digit" : baseTimeStyle;
-            var minutesStyle = GetDurationUnitStyleOption(realm, options, "minutes",
-                IntlDurationFormatUnitStyleWithNumericValues,
-                minutesDefault, out var minutesStyleDefined);
-            var minutesDisplay = GetIntlStringOption(realm, options, "minutesDisplay",
-                IntlDurationFormatDisplayValues,
-                GetDurationDisplayFallback(minutesStyleDefined));
-            if (IsNumericLike(hoursStyle) && !IsNumericLike(minutesStyle))
-                throw new JsRuntimeException(JsErrorKind.RangeError,
-                    "minutes style must be numeric or 2-digit when hours uses numeric or 2-digit");
+                static string GetDurationDisplayFallback(bool isExplicitStyle)
+                {
+                    return isExplicitStyle ? "always" : "auto";
+                }
 
-            var secondsDefault = IsNumericLike(minutesStyle) ? "2-digit" : baseTimeStyle;
-            var secondsStyle = GetDurationUnitStyleOption(realm, options, "seconds",
-                IntlDurationFormatUnitStyleWithNumericValues,
-                secondsDefault, out var secondsStyleDefined);
-            var secondsDisplay = GetIntlStringOption(realm, options, "secondsDisplay",
-                IntlDurationFormatDisplayValues,
-                GetDurationDisplayFallback(secondsStyleDefined));
-            if (IsNumericLike(minutesStyle) && !IsNumericLike(secondsStyle))
-                throw new JsRuntimeException(JsErrorKind.RangeError,
-                    "seconds style must be numeric or 2-digit when minutes uses numeric or 2-digit");
+                var yearsStyle = GetDurationUnitStyleOption(
+                    realm,
+                    options,
+                    "years",
+                    IntlDurationFormatUnitStyleValues,
+                    baseStyle,
+                    out var yearsStyleDefined
+                );
+                var yearsDisplay = GetIntlStringOption(
+                    realm,
+                    options,
+                    "yearsDisplay",
+                    IntlDurationFormatDisplayValues,
+                    GetDurationDisplayFallback(yearsStyleDefined)
+                );
+                var monthsStyle = GetDurationUnitStyleOption(
+                    realm,
+                    options,
+                    "months",
+                    IntlDurationFormatUnitStyleValues,
+                    baseStyle,
+                    out var monthsStyleDefined
+                );
+                var monthsDisplay = GetIntlStringOption(
+                    realm,
+                    options,
+                    "monthsDisplay",
+                    IntlDurationFormatDisplayValues,
+                    GetDurationDisplayFallback(monthsStyleDefined)
+                );
+                var weeksStyle = GetDurationUnitStyleOption(
+                    realm,
+                    options,
+                    "weeks",
+                    IntlDurationFormatUnitStyleValues,
+                    baseStyle,
+                    out var weeksStyleDefined
+                );
+                var weeksDisplay = GetIntlStringOption(
+                    realm,
+                    options,
+                    "weeksDisplay",
+                    IntlDurationFormatDisplayValues,
+                    GetDurationDisplayFallback(weeksStyleDefined)
+                );
+                var daysStyle = GetDurationUnitStyleOption(
+                    realm,
+                    options,
+                    "days",
+                    IntlDurationFormatUnitStyleValues,
+                    baseStyle,
+                    out var daysStyleDefined
+                );
+                var daysDisplay = GetIntlStringOption(
+                    realm,
+                    options,
+                    "daysDisplay",
+                    IntlDurationFormatDisplayValues,
+                    GetDurationDisplayFallback(daysStyleDefined)
+                );
 
-            var millisecondsDefault = IsNumericLike(secondsStyle) ? "numeric" : baseTimeStyle;
-            var millisecondsStyle = GetDurationUnitStyleOption(realm, options, "milliseconds",
-                IntlDurationFormatSubSecondStyleValues,
-                millisecondsDefault, out var millisecondsStyleDefined);
-            var millisecondsDisplay = GetIntlStringOption(realm, options, "millisecondsDisplay",
-                IntlDurationFormatDisplayValues,
-                GetDurationDisplayFallback(millisecondsStyleDefined));
-            if (IsNumericLike(secondsStyle) && !string.Equals(millisecondsStyle, "numeric", StringComparison.Ordinal))
-                throw new JsRuntimeException(JsErrorKind.RangeError,
-                    "milliseconds style must be numeric when seconds uses numeric or 2-digit");
+                var hoursDefault = string.Equals(style, "digital", StringComparison.Ordinal)
+                    ? "numeric"
+                    : baseTimeStyle;
+                var hoursStyle = GetDurationUnitStyleOption(
+                    realm,
+                    options,
+                    "hours",
+                    IntlDurationFormatUnitStyleWithNumericValues,
+                    hoursDefault,
+                    out var hoursStyleDefined
+                );
+                var hoursDisplay = GetIntlStringOption(
+                    realm,
+                    options,
+                    "hoursDisplay",
+                    IntlDurationFormatDisplayValues,
+                    GetDurationDisplayFallback(hoursStyleDefined)
+                );
 
-            var microsecondsDefault = string.Equals(millisecondsStyle, "numeric", StringComparison.Ordinal)
-                ? "numeric"
-                : baseTimeStyle;
-            var microsecondsStyle = GetDurationUnitStyleOption(realm, options, "microseconds",
-                IntlDurationFormatSubSecondStyleValues,
-                microsecondsDefault, out var microsecondsStyleDefined);
-            var microsecondsDisplay = GetIntlStringOption(realm, options, "microsecondsDisplay",
-                IntlDurationFormatDisplayValues,
-                GetDurationDisplayFallback(microsecondsStyleDefined));
-            if (string.Equals(millisecondsStyle, "numeric", StringComparison.Ordinal) &&
-                !string.Equals(microsecondsStyle, "numeric", StringComparison.Ordinal))
-                throw new JsRuntimeException(JsErrorKind.RangeError,
-                    "microseconds style must be numeric when milliseconds uses numeric");
+                var minutesDefault = IsNumericLike(hoursStyle) ? "2-digit" : baseTimeStyle;
+                var minutesStyle = GetDurationUnitStyleOption(
+                    realm,
+                    options,
+                    "minutes",
+                    IntlDurationFormatUnitStyleWithNumericValues,
+                    minutesDefault,
+                    out var minutesStyleDefined
+                );
+                var minutesDisplay = GetIntlStringOption(
+                    realm,
+                    options,
+                    "minutesDisplay",
+                    IntlDurationFormatDisplayValues,
+                    GetDurationDisplayFallback(minutesStyleDefined)
+                );
+                if (IsNumericLike(hoursStyle) && !IsNumericLike(minutesStyle))
+                    throw new JsRuntimeException(
+                        JsErrorKind.RangeError,
+                        "minutes style must be numeric or 2-digit when hours uses numeric or 2-digit"
+                    );
 
-            var nanosecondsDefault = string.Equals(microsecondsStyle, "numeric", StringComparison.Ordinal)
-                ? "numeric"
-                : baseTimeStyle;
-            var nanosecondsStyle = GetDurationUnitStyleOption(realm, options, "nanoseconds",
-                IntlDurationFormatSubSecondStyleValues,
-                nanosecondsDefault, out var nanosecondsStyleDefined);
-            var nanosecondsDisplay = GetIntlStringOption(realm, options, "nanosecondsDisplay",
-                IntlDurationFormatDisplayValues,
-                GetDurationDisplayFallback(nanosecondsStyleDefined));
-            if (string.Equals(microsecondsStyle, "numeric", StringComparison.Ordinal) &&
-                !string.Equals(nanosecondsStyle, "numeric", StringComparison.Ordinal))
-                throw new JsRuntimeException(JsErrorKind.RangeError,
-                    "nanoseconds style must be numeric when microseconds uses numeric");
+                var secondsDefault = IsNumericLike(minutesStyle) ? "2-digit" : baseTimeStyle;
+                var secondsStyle = GetDurationUnitStyleOption(
+                    realm,
+                    options,
+                    "seconds",
+                    IntlDurationFormatUnitStyleWithNumericValues,
+                    secondsDefault,
+                    out var secondsStyleDefined
+                );
+                var secondsDisplay = GetIntlStringOption(
+                    realm,
+                    options,
+                    "secondsDisplay",
+                    IntlDurationFormatDisplayValues,
+                    GetDurationDisplayFallback(secondsStyleDefined)
+                );
+                if (IsNumericLike(minutesStyle) && !IsNumericLike(secondsStyle))
+                    throw new JsRuntimeException(
+                        JsErrorKind.RangeError,
+                        "seconds style must be numeric or 2-digit when minutes uses numeric or 2-digit"
+                    );
 
-            int? fractionalDigits = null;
-            if (options.TryGetProperty("fractionalDigits", out var fractionalDigitsValue) &&
-                !fractionalDigitsValue.IsUndefined)
-            {
-                var digits = realm.ToNumberSlowPath(fractionalDigitsValue);
-                if (double.IsNaN(digits) || digits < 0 || digits > 9)
-                    throw new JsRuntimeException(JsErrorKind.RangeError,
-                        "fractionalDigits must be between 0 and 9");
-                fractionalDigits = (int)Math.Floor(digits);
-            }
+                var millisecondsDefault = IsNumericLike(secondsStyle) ? "numeric" : baseTimeStyle;
+                var millisecondsStyle = GetDurationUnitStyleOption(
+                    realm,
+                    options,
+                    "milliseconds",
+                    IntlDurationFormatSubSecondStyleValues,
+                    millisecondsDefault,
+                    out var millisecondsStyleDefined
+                );
+                var millisecondsDisplay = GetIntlStringOption(
+                    realm,
+                    options,
+                    "millisecondsDisplay",
+                    IntlDurationFormatDisplayValues,
+                    GetDurationDisplayFallback(millisecondsStyleDefined)
+                );
+                if (
+                    IsNumericLike(secondsStyle)
+                    && !string.Equals(millisecondsStyle, "numeric", StringComparison.Ordinal)
+                )
+                    throw new JsRuntimeException(
+                        JsErrorKind.RangeError,
+                        "milliseconds style must be numeric when seconds uses numeric or 2-digit"
+                    );
 
-            var requestedLocales = CanonicalizeLocaleList(realm, args.Length == 0 ? JsValue.Undefined : args[0]);
-            var resolvedLocale = ResolveIntlLocale(requestedLocales);
-            var localeNumberingSystem = GetRequestedLocaleNumberingSystem(requestedLocales);
+                var microsecondsDefault = string.Equals(
+                    millisecondsStyle,
+                    "numeric",
+                    StringComparison.Ordinal
+                )
+                    ? "numeric"
+                    : baseTimeStyle;
+                var microsecondsStyle = GetDurationUnitStyleOption(
+                    realm,
+                    options,
+                    "microseconds",
+                    IntlDurationFormatSubSecondStyleValues,
+                    microsecondsDefault,
+                    out var microsecondsStyleDefined
+                );
+                var microsecondsDisplay = GetIntlStringOption(
+                    realm,
+                    options,
+                    "microsecondsDisplay",
+                    IntlDurationFormatDisplayValues,
+                    GetDurationDisplayFallback(microsecondsStyleDefined)
+                );
+                if (
+                    string.Equals(millisecondsStyle, "numeric", StringComparison.Ordinal)
+                    && !string.Equals(microsecondsStyle, "numeric", StringComparison.Ordinal)
+                )
+                    throw new JsRuntimeException(
+                        JsErrorKind.RangeError,
+                        "microseconds style must be numeric when milliseconds uses numeric"
+                    );
 
-            string resolvedNumberingSystem;
-            if (numberingSystemOption is not null && NumberingSystemData.IsSupported(numberingSystemOption))
-                resolvedNumberingSystem = numberingSystemOption.ToLowerInvariant();
-            else if (localeNumberingSystem is not null &&
-                     NumberingSystemData.IsSupported(localeNumberingSystem))
-                resolvedNumberingSystem = localeNumberingSystem.ToLowerInvariant();
-            else
-                resolvedNumberingSystem = "latn";
+                var nanosecondsDefault = string.Equals(
+                    microsecondsStyle,
+                    "numeric",
+                    StringComparison.Ordinal
+                )
+                    ? "numeric"
+                    : baseTimeStyle;
+                var nanosecondsStyle = GetDurationUnitStyleOption(
+                    realm,
+                    options,
+                    "nanoseconds",
+                    IntlDurationFormatSubSecondStyleValues,
+                    nanosecondsDefault,
+                    out var nanosecondsStyleDefined
+                );
+                var nanosecondsDisplay = GetIntlStringOption(
+                    realm,
+                    options,
+                    "nanosecondsDisplay",
+                    IntlDurationFormatDisplayValues,
+                    GetDurationDisplayFallback(nanosecondsStyleDefined)
+                );
+                if (
+                    string.Equals(microsecondsStyle, "numeric", StringComparison.Ordinal)
+                    && !string.Equals(nanosecondsStyle, "numeric", StringComparison.Ordinal)
+                )
+                    throw new JsRuntimeException(
+                        JsErrorKind.RangeError,
+                        "nanoseconds style must be numeric when microseconds uses numeric"
+                    );
 
-            var finalResolvedLocale = resolvedLocale;
-            if (numberingSystemOption is not null && NumberingSystemData.IsSupported(numberingSystemOption))
-                finalResolvedLocale = localeNumberingSystem is not null &&
-                                      string.Equals(localeNumberingSystem, numberingSystemOption,
-                                          StringComparison.OrdinalIgnoreCase)
-                    ? EnsureNumberingSystemInLocale(resolvedLocale, resolvedNumberingSystem)
-                    : RemoveNumberingSystemFromLocale(resolvedLocale);
-            else if (localeNumberingSystem is not null &&
-                     NumberingSystemData.IsSupported(localeNumberingSystem))
-                finalResolvedLocale = EnsureNumberingSystemInLocale(resolvedLocale, resolvedNumberingSystem);
-            else if (localeNumberingSystem is not null)
-                finalResolvedLocale = RemoveNumberingSystemFromLocale(resolvedLocale);
+                int? fractionalDigits = null;
+                if (
+                    options.TryGetProperty("fractionalDigits", out var fractionalDigitsValue)
+                    && !fractionalDigitsValue.IsUndefined
+                )
+                {
+                    var digits = realm.ToNumberSlowPath(fractionalDigitsValue);
+                    if (double.IsNaN(digits) || digits < 0 || digits > 9)
+                        throw new JsRuntimeException(
+                            JsErrorKind.RangeError,
+                            "fractionalDigits must be between 0 and 9"
+                        );
+                    fractionalDigits = (int)Math.Floor(digits);
+                }
 
-            var cultureInfo = GetCultureInfo(finalResolvedLocale) ?? CultureInfo.InvariantCulture;
-            var prototype = GetIntlPrototypeFromConstructor(realm, info.NewTarget, durationFormatConstructor,
-                durationFormatPrototype, "DurationFormat");
-            return new JsDurationFormatObject(realm, prototype, finalResolvedLocale, style, resolvedNumberingSystem,
-                cultureInfo, yearsStyle, monthsStyle, weeksStyle, daysStyle, hoursStyle, minutesStyle, secondsStyle,
-                millisecondsStyle, microsecondsStyle, nanosecondsStyle, yearsDisplay, monthsDisplay, weeksDisplay,
-                daysDisplay, hoursDisplay, minutesDisplay, secondsDisplay, millisecondsDisplay, microsecondsDisplay,
-                nanosecondsDisplay, fractionalDigits);
-        }, "DurationFormat", 0, true);
+                var requestedLocales = CanonicalizeLocaleList(
+                    realm,
+                    args.Length == 0 ? JsValue.Undefined : args[0]
+                );
+                var resolvedLocale = ResolveIntlLocale(requestedLocales);
+                var localeNumberingSystem = GetRequestedLocaleNumberingSystem(requestedLocales);
+
+                string resolvedNumberingSystem;
+                if (
+                    numberingSystemOption is not null
+                    && NumberingSystemData.IsSupported(numberingSystemOption)
+                )
+                    resolvedNumberingSystem = numberingSystemOption.ToLowerInvariant();
+                else if (
+                    localeNumberingSystem is not null
+                    && NumberingSystemData.IsSupported(localeNumberingSystem)
+                )
+                    resolvedNumberingSystem = localeNumberingSystem.ToLowerInvariant();
+                else
+                    resolvedNumberingSystem = "latn";
+
+                var finalResolvedLocale = resolvedLocale;
+                if (
+                    numberingSystemOption is not null
+                    && NumberingSystemData.IsSupported(numberingSystemOption)
+                )
+                    finalResolvedLocale =
+                        localeNumberingSystem is not null
+                        && string.Equals(
+                            localeNumberingSystem,
+                            numberingSystemOption,
+                            StringComparison.OrdinalIgnoreCase
+                        )
+                            ? EnsureNumberingSystemInLocale(resolvedLocale, resolvedNumberingSystem)
+                            : RemoveNumberingSystemFromLocale(resolvedLocale);
+                else if (
+                    localeNumberingSystem is not null
+                    && NumberingSystemData.IsSupported(localeNumberingSystem)
+                )
+                    finalResolvedLocale = EnsureNumberingSystemInLocale(
+                        resolvedLocale,
+                        resolvedNumberingSystem
+                    );
+                else if (localeNumberingSystem is not null)
+                    finalResolvedLocale = RemoveNumberingSystemFromLocale(resolvedLocale);
+
+                var cultureInfo =
+                    GetCultureInfo(finalResolvedLocale) ?? CultureInfo.InvariantCulture;
+                var prototype = GetIntlPrototypeFromConstructor(
+                    realm,
+                    info.NewTarget,
+                    durationFormatConstructor,
+                    durationFormatPrototype,
+                    "DurationFormat"
+                );
+                return new JsDurationFormatObject(
+                    realm,
+                    prototype,
+                    finalResolvedLocale,
+                    style,
+                    resolvedNumberingSystem,
+                    cultureInfo,
+                    yearsStyle,
+                    monthsStyle,
+                    weeksStyle,
+                    daysStyle,
+                    hoursStyle,
+                    minutesStyle,
+                    secondsStyle,
+                    millisecondsStyle,
+                    microsecondsStyle,
+                    nanosecondsStyle,
+                    yearsDisplay,
+                    monthsDisplay,
+                    weeksDisplay,
+                    daysDisplay,
+                    hoursDisplay,
+                    minutesDisplay,
+                    secondsDisplay,
+                    millisecondsDisplay,
+                    microsecondsDisplay,
+                    nanosecondsDisplay,
+                    fractionalDigits
+                );
+            },
+            "DurationFormat",
+            0,
+            true
+        );
 
         Span<PropertyDefinition> defs =
         [
             PropertyDefinition.Const(IdLength, JsValue.FromInt32(0), configurable: true),
-            PropertyDefinition.Mutable(IdSupportedLocalesOf, JsValue.FromObject(supportedLocalesOfFn))
+            PropertyDefinition.Mutable(
+                IdSupportedLocalesOf,
+                JsValue.FromObject(supportedLocalesOfFn)
+            ),
         ];
         durationFormatConstructor.InitializePrototypeProperty(durationFormatPrototype);
         durationFormatConstructor.DefineNewPropertiesNoCollision(Realm, defs);
@@ -875,809 +1491,1861 @@ public partial class Intrinsics
 
     private JsHostFunction CreateNumberFormatConstructor(JsPlainObject numberFormatPrototype)
     {
-        var supportedLocalesOfFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            var requestedLocales = CanonicalizeLocaleList(realm, args.Length == 0 ? JsValue.Undefined : args[0]);
-            var options = GetIntlOptionsObject(realm, args.Length > 1 ? args[1] : JsValue.Undefined,
-                "Intl.NumberFormat.supportedLocalesOf options must be an object");
-            _ = GetIntlStringOption(realm, options, "localeMatcher", IntlLocaleMatcherValues, "best fit");
+        var supportedLocalesOfFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                var requestedLocales = CanonicalizeLocaleList(
+                    realm,
+                    args.Length == 0 ? JsValue.Undefined : args[0]
+                );
+                var options = GetIntlOptionsObject(
+                    realm,
+                    args.Length > 1 ? args[1] : JsValue.Undefined,
+                    "Intl.NumberFormat.supportedLocalesOf options must be an object"
+                );
+                _ = GetIntlStringOption(
+                    realm,
+                    options,
+                    "localeMatcher",
+                    IntlLocaleMatcherValues,
+                    "best fit"
+                );
 
-            return CreateSupportedLocalesArray(realm, requestedLocales);
-        }, "supportedLocalesOf", 1);
+                return CreateSupportedLocalesArray(realm, requestedLocales);
+            },
+            "supportedLocalesOf",
+            1
+        );
 
         JsHostFunction numberFormatConstructor = null!;
-        numberFormatConstructor = new(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-
-            var options = GetIntlConstructorOptionsObject(realm, args.Length > 1 ? args[1] : JsValue.Undefined,
-                "Intl.NumberFormat options must be an object");
-            _ = GetIntlStringOption(realm, options, "localeMatcher", IntlLocaleMatcherValues, "best fit");
-
-            string? numberingSystemOption = null;
-            if (options.TryGetProperty("numberingSystem", out var numberingSystemValue) &&
-                !numberingSystemValue.IsUndefined)
+        numberFormatConstructor = new(
+            Realm,
+            (in info) =>
             {
-                numberingSystemOption = realm.ToJsStringSlowPath(numberingSystemValue);
-                if (!IsWellFormedNumberingSystem(numberingSystemOption))
-                    throw new JsRuntimeException(JsErrorKind.RangeError,
-                        $"Invalid numberingSystem: {numberingSystemOption}");
-            }
+                var realm = info.Realm;
+                var args = info.Arguments;
 
-            var style = GetIntlStringOption(realm, options, "style", IntlNumberFormatStyleValues, "decimal");
+                var options = GetIntlConstructorOptionsObject(
+                    realm,
+                    args.Length > 1 ? args[1] : JsValue.Undefined,
+                    "Intl.NumberFormat options must be an object"
+                );
+                _ = GetIntlStringOption(
+                    realm,
+                    options,
+                    "localeMatcher",
+                    IntlLocaleMatcherValues,
+                    "best fit"
+                );
 
-            string? currencyOption = null;
-            if (options.TryGetProperty("currency", out var currencyValue) && !currencyValue.IsUndefined)
-            {
-                currencyOption = realm.ToJsStringSlowPath(currencyValue).ToUpperInvariant();
-                if (!IsWellFormedCurrencyCode(currencyOption))
-                    throw new JsRuntimeException(JsErrorKind.RangeError,
-                        $"Invalid currency code: {currencyOption}");
-            }
+                string? numberingSystemOption = null;
+                if (
+                    options.TryGetProperty("numberingSystem", out var numberingSystemValue)
+                    && !numberingSystemValue.IsUndefined
+                )
+                {
+                    numberingSystemOption = realm.ToJsStringSlowPath(numberingSystemValue);
+                    if (!IsWellFormedNumberingSystem(numberingSystemOption))
+                        throw new JsRuntimeException(
+                            JsErrorKind.RangeError,
+                            $"Invalid numberingSystem: {numberingSystemOption}"
+                        );
+                }
 
-            var currencyDisplay = GetIntlStringOption(realm, options, "currencyDisplay",
-                IntlNumberFormatCurrencyDisplayValues, "symbol");
-            var currencySign = GetIntlStringOption(realm, options, "currencySign",
-                IntlNumberFormatCurrencySignValues, "standard");
+                var style = GetIntlStringOption(
+                    realm,
+                    options,
+                    "style",
+                    IntlNumberFormatStyleValues,
+                    "decimal"
+                );
 
-            string? unitOption = null;
-            if (options.TryGetProperty("unit", out var unitValue) && !unitValue.IsUndefined)
-                unitOption = realm.ToJsStringSlowPath(unitValue);
+                string? currencyOption = null;
+                if (
+                    options.TryGetProperty("currency", out var currencyValue)
+                    && !currencyValue.IsUndefined
+                )
+                {
+                    currencyOption = realm.ToJsStringSlowPath(currencyValue).ToUpperInvariant();
+                    if (!IsWellFormedCurrencyCode(currencyOption))
+                        throw new JsRuntimeException(
+                            JsErrorKind.RangeError,
+                            $"Invalid currency code: {currencyOption}"
+                        );
+                }
 
-            var unitDisplay =
-                GetIntlStringOption(realm, options, "unitDisplay", IntlNumberFormatUnitDisplayValues, "short");
-            var notation =
-                GetIntlStringOption(realm, options, "notation", IntlNumberFormatNotationValues, "standard");
+                var currencyDisplay = GetIntlStringOption(
+                    realm,
+                    options,
+                    "currencyDisplay",
+                    IntlNumberFormatCurrencyDisplayValues,
+                    "symbol"
+                );
+                var currencySign = GetIntlStringOption(
+                    realm,
+                    options,
+                    "currencySign",
+                    IntlNumberFormatCurrencySignValues,
+                    "standard"
+                );
 
-            var isCurrency = string.Equals(style, "currency", StringComparison.Ordinal);
-            var isUnit = string.Equals(style, "unit", StringComparison.Ordinal);
-            var isPercent = string.Equals(style, "percent", StringComparison.Ordinal);
-            var isCompact = string.Equals(notation, "compact", StringComparison.Ordinal);
-            var isStandardNotation = string.Equals(notation, "standard", StringComparison.Ordinal);
+                string? unitOption = null;
+                if (options.TryGetProperty("unit", out var unitValue) && !unitValue.IsUndefined)
+                    unitOption = realm.ToJsStringSlowPath(unitValue);
 
-            if (isCurrency && currencyOption is null)
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Currency code is required with currency style");
-            if (unitOption is not null && !IsWellFormedUnitIdentifier(unitOption))
-                throw new JsRuntimeException(JsErrorKind.RangeError, $"Invalid unit identifier: {unitOption}");
-            if (isUnit && unitOption is null)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Unit is required with unit style");
+                var unitDisplay = GetIntlStringOption(
+                    realm,
+                    options,
+                    "unitDisplay",
+                    IntlNumberFormatUnitDisplayValues,
+                    "short"
+                );
+                var notation = GetIntlStringOption(
+                    realm,
+                    options,
+                    "notation",
+                    IntlNumberFormatNotationValues,
+                    "standard"
+                );
 
-            var currency = isCurrency ? currencyOption : null;
-            var unit = isUnit ? unitOption : null;
+                var isCurrency = string.Equals(style, "currency", StringComparison.Ordinal);
+                var isUnit = string.Equals(style, "unit", StringComparison.Ordinal);
+                var isPercent = string.Equals(style, "percent", StringComparison.Ordinal);
+                var isCompact = string.Equals(notation, "compact", StringComparison.Ordinal);
+                var isStandardNotation = string.Equals(
+                    notation,
+                    "standard",
+                    StringComparison.Ordinal
+                );
 
-            var minimumIntegerDigits = GetIntlNumberOption(realm, options, "minimumIntegerDigits", 1, 21, 1);
-            var defaultCurrencyDigits = isCurrency && currency is not null && isStandardNotation
-                ? GetCurrencyDigits(currency)
-                : 2;
-            var defaultMinFractionDigits = isCurrency && isStandardNotation ? defaultCurrencyDigits : 0;
-            var defaultMaxFractionDigits = isCurrency && isStandardNotation ? defaultCurrencyDigits :
-                isPercent ? 0 :
-                isCompact ? 0 : 3;
+                if (isCurrency && currencyOption is null)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Currency code is required with currency style"
+                    );
+                if (unitOption is not null && !IsWellFormedUnitIdentifier(unitOption))
+                    throw new JsRuntimeException(
+                        JsErrorKind.RangeError,
+                        $"Invalid unit identifier: {unitOption}"
+                    );
+                if (isUnit && unitOption is null)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Unit is required with unit style"
+                    );
 
-            var minFracValue = options.TryGetProperty("minimumFractionDigits", out var minFracRaw)
-                ? minFracRaw
-                : JsValue.Undefined;
-            var maxFracValue = options.TryGetProperty("maximumFractionDigits", out var maxFracRaw)
-                ? maxFracRaw
-                : JsValue.Undefined;
-            var minSigValue = options.TryGetProperty("minimumSignificantDigits", out var minSigRaw)
-                ? minSigRaw
-                : JsValue.Undefined;
-            var maxSigValue = options.TryGetProperty("maximumSignificantDigits", out var maxSigRaw)
-                ? maxSigRaw
-                : JsValue.Undefined;
+                var currency = isCurrency ? currencyOption : null;
+                var unit = isUnit ? unitOption : null;
 
-            var minimumFractionDigits = minFracValue.IsUndefined
-                ? defaultMinFractionDigits
-                : GetIntlNumberOptionValue(realm, minFracValue, "minimumFractionDigits", 0, 100);
-            var maxFractionMinimum = minFracValue.IsUndefined ? 0 : minimumFractionDigits;
-            var maximumFractionDigits = maxFracValue.IsUndefined
-                ? Math.Max(minimumFractionDigits, defaultMaxFractionDigits)
-                : GetIntlNumberOptionValue(realm, maxFracValue, "maximumFractionDigits", maxFractionMinimum, 100);
-            if (minimumFractionDigits > maximumFractionDigits)
-                minimumFractionDigits = maximumFractionDigits;
+                var minimumIntegerDigits = GetIntlNumberOption(
+                    realm,
+                    options,
+                    "minimumIntegerDigits",
+                    1,
+                    21,
+                    1
+                );
+                var defaultCurrencyDigits =
+                    isCurrency && currency is not null && isStandardNotation
+                        ? GetCurrencyDigits(currency)
+                        : 2;
+                var defaultMinFractionDigits =
+                    isCurrency && isStandardNotation ? defaultCurrencyDigits : 0;
+                var defaultMaxFractionDigits =
+                    isCurrency && isStandardNotation ? defaultCurrencyDigits
+                    : isPercent ? 0
+                    : isCompact ? 0
+                    : 3;
 
-            int? minimumSignificantDigits = null;
-            int? maximumSignificantDigits = null;
-            var minimumSignificantDigitsExplicit = !minSigValue.IsUndefined;
-            var maximumSignificantDigitsExplicit = !maxSigValue.IsUndefined;
-            if (minimumSignificantDigitsExplicit)
-                minimumSignificantDigits =
-                    GetIntlNumberOptionValue(realm, minSigValue, "minimumSignificantDigits", 1, 21);
-            if (maximumSignificantDigitsExplicit)
-                maximumSignificantDigits = GetIntlNumberOptionValue(realm, maxSigValue, "maximumSignificantDigits",
-                    minimumSignificantDigits ?? 1, 21);
-            if (!minimumSignificantDigitsExplicit && maximumSignificantDigitsExplicit)
-                minimumSignificantDigits = 1;
-            if (minimumSignificantDigits is not null && maximumSignificantDigits is not null &&
-                minimumSignificantDigits > maximumSignificantDigits)
-                throw new JsRuntimeException(JsErrorKind.RangeError,
-                    "minimumSignificantDigits must not be greater than maximumSignificantDigits");
+                var minFracValue = options.TryGetProperty(
+                    "minimumFractionDigits",
+                    out var minFracRaw
+                )
+                    ? minFracRaw
+                    : JsValue.Undefined;
+                var maxFracValue = options.TryGetProperty(
+                    "maximumFractionDigits",
+                    out var maxFracRaw
+                )
+                    ? maxFracRaw
+                    : JsValue.Undefined;
+                var minSigValue = options.TryGetProperty(
+                    "minimumSignificantDigits",
+                    out var minSigRaw
+                )
+                    ? minSigRaw
+                    : JsValue.Undefined;
+                var maxSigValue = options.TryGetProperty(
+                    "maximumSignificantDigits",
+                    out var maxSigRaw
+                )
+                    ? maxSigRaw
+                    : JsValue.Undefined;
 
-            var roundingIncrement = GetIntlRoundingIncrementOption(realm, options);
-            var roundingMode = GetIntlStringOption(realm, options, "roundingMode",
-                IntlNumberFormatRoundingModeValues, "halfExpand");
-            var roundingPriority = GetIntlStringOption(realm, options, "roundingPriority",
-                IntlNumberFormatRoundingPriorityValues, "auto");
-            var trailingZeroDisplay = GetIntlStringOption(realm, options, "trailingZeroDisplay",
-                IntlNumberFormatTrailingZeroDisplayValues, "auto");
-            if (roundingIncrement != 1)
-            {
-                if (!string.Equals(roundingPriority, "auto", StringComparison.Ordinal) ||
-                    minimumSignificantDigitsExplicit || maximumSignificantDigitsExplicit)
-                    throw new JsRuntimeException(JsErrorKind.TypeError,
-                        "roundingIncrement is incompatible with significant-digits or roundingPriority options");
+                var minimumFractionDigits = minFracValue.IsUndefined
+                    ? defaultMinFractionDigits
+                    : GetIntlNumberOptionValue(
+                        realm,
+                        minFracValue,
+                        "minimumFractionDigits",
+                        0,
+                        100
+                    );
+                var maxFractionMinimum = minFracValue.IsUndefined ? 0 : minimumFractionDigits;
+                var maximumFractionDigits = maxFracValue.IsUndefined
+                    ? Math.Max(minimumFractionDigits, defaultMaxFractionDigits)
+                    : GetIntlNumberOptionValue(
+                        realm,
+                        maxFracValue,
+                        "maximumFractionDigits",
+                        maxFractionMinimum,
+                        100
+                    );
+                if (minimumFractionDigits > maximumFractionDigits)
+                    minimumFractionDigits = maximumFractionDigits;
 
-                if (minimumFractionDigits != maximumFractionDigits)
-                    throw new JsRuntimeException(JsErrorKind.RangeError,
-                        "roundingIncrement requires matching fraction digit bounds");
-            }
+                int? minimumSignificantDigits = null;
+                int? maximumSignificantDigits = null;
+                var minimumSignificantDigitsExplicit = !minSigValue.IsUndefined;
+                var maximumSignificantDigitsExplicit = !maxSigValue.IsUndefined;
+                if (minimumSignificantDigitsExplicit)
+                    minimumSignificantDigits = GetIntlNumberOptionValue(
+                        realm,
+                        minSigValue,
+                        "minimumSignificantDigits",
+                        1,
+                        21
+                    );
+                if (maximumSignificantDigitsExplicit)
+                    maximumSignificantDigits = GetIntlNumberOptionValue(
+                        realm,
+                        maxSigValue,
+                        "maximumSignificantDigits",
+                        minimumSignificantDigits ?? 1,
+                        21
+                    );
+                if (!minimumSignificantDigitsExplicit && maximumSignificantDigitsExplicit)
+                    minimumSignificantDigits = 1;
+                if (
+                    minimumSignificantDigits is not null
+                    && maximumSignificantDigits is not null
+                    && minimumSignificantDigits > maximumSignificantDigits
+                )
+                    throw new JsRuntimeException(
+                        JsErrorKind.RangeError,
+                        "minimumSignificantDigits must not be greater than maximumSignificantDigits"
+                    );
 
-            var compactDisplay = GetIntlStringOption(realm, options, "compactDisplay",
-                IntlNumberFormatCompactDisplayValues, "short");
-            var useGrouping = GetIntlUseGroupingOption(realm, options, notation);
-            var signDisplay =
-                GetIntlStringOption(realm, options, "signDisplay", IntlNumberFormatSignDisplayValues, "auto");
+                var roundingIncrement = GetIntlRoundingIncrementOption(realm, options);
+                var roundingMode = GetIntlStringOption(
+                    realm,
+                    options,
+                    "roundingMode",
+                    IntlNumberFormatRoundingModeValues,
+                    "halfExpand"
+                );
+                var roundingPriority = GetIntlStringOption(
+                    realm,
+                    options,
+                    "roundingPriority",
+                    IntlNumberFormatRoundingPriorityValues,
+                    "auto"
+                );
+                var trailingZeroDisplay = GetIntlStringOption(
+                    realm,
+                    options,
+                    "trailingZeroDisplay",
+                    IntlNumberFormatTrailingZeroDisplayValues,
+                    "auto"
+                );
+                if (roundingIncrement != 1)
+                {
+                    if (
+                        !string.Equals(roundingPriority, "auto", StringComparison.Ordinal)
+                        || minimumSignificantDigitsExplicit
+                        || maximumSignificantDigitsExplicit
+                    )
+                        throw new JsRuntimeException(
+                            JsErrorKind.TypeError,
+                            "roundingIncrement is incompatible with significant-digits or roundingPriority options"
+                        );
 
-            var requestedLocales = CanonicalizeLocaleList(realm, args.Length == 0 ? JsValue.Undefined : args[0]);
-            var resolvedLocale = RemoveUnsupportedNumberFormatLocaleExtensions(ResolveIntlLocale(requestedLocales));
-            var localeNumberingSystem = GetRequestedLocaleNumberingSystem(requestedLocales);
+                    if (minimumFractionDigits != maximumFractionDigits)
+                        throw new JsRuntimeException(
+                            JsErrorKind.RangeError,
+                            "roundingIncrement requires matching fraction digit bounds"
+                        );
+                }
 
-            string resolvedNumberingSystem;
-            if (numberingSystemOption is not null && NumberingSystemData.IsSupported(numberingSystemOption))
-                resolvedNumberingSystem = numberingSystemOption.ToLowerInvariant();
-            else if (localeNumberingSystem is not null &&
-                     NumberingSystemData.IsSupported(localeNumberingSystem))
-                resolvedNumberingSystem = localeNumberingSystem.ToLowerInvariant();
-            else
-                resolvedNumberingSystem = "latn";
+                var compactDisplay = GetIntlStringOption(
+                    realm,
+                    options,
+                    "compactDisplay",
+                    IntlNumberFormatCompactDisplayValues,
+                    "short"
+                );
+                var useGrouping = GetIntlUseGroupingOption(realm, options, notation);
+                var signDisplay = GetIntlStringOption(
+                    realm,
+                    options,
+                    "signDisplay",
+                    IntlNumberFormatSignDisplayValues,
+                    "auto"
+                );
 
-            var finalResolvedLocale = resolvedLocale;
-            if (numberingSystemOption is not null && NumberingSystemData.IsSupported(numberingSystemOption))
-                finalResolvedLocale = localeNumberingSystem is not null &&
-                                      string.Equals(localeNumberingSystem, numberingSystemOption,
-                                          StringComparison.OrdinalIgnoreCase)
-                    ? EnsureNumberingSystemInLocale(resolvedLocale, resolvedNumberingSystem)
-                    : RemoveNumberingSystemFromLocale(resolvedLocale);
-            else if (localeNumberingSystem is not null &&
-                     NumberingSystemData.IsSupported(localeNumberingSystem))
-                finalResolvedLocale = EnsureNumberingSystemInLocale(resolvedLocale, resolvedNumberingSystem);
-            else if (localeNumberingSystem is not null)
-                finalResolvedLocale = RemoveNumberingSystemFromLocale(resolvedLocale);
+                var requestedLocales = CanonicalizeLocaleList(
+                    realm,
+                    args.Length == 0 ? JsValue.Undefined : args[0]
+                );
+                var resolvedLocale = RemoveUnsupportedNumberFormatLocaleExtensions(
+                    ResolveIntlLocale(requestedLocales)
+                );
+                var localeNumberingSystem = GetRequestedLocaleNumberingSystem(requestedLocales);
 
-            var cultureInfo = GetCultureInfo(finalResolvedLocale) ?? CultureInfo.InvariantCulture;
-            var prototype = GetIntlPrototypeFromConstructor(realm, info.NewTarget, numberFormatConstructor,
-                numberFormatPrototype, "NumberFormat");
-            return new JsNumberFormatObject(realm, prototype, finalResolvedLocale, resolvedNumberingSystem, style,
-                currency, currencyDisplay, currencySign, unit, unitDisplay, notation, compactDisplay,
-                minimumIntegerDigits, minimumFractionDigits, maximumFractionDigits,
-                minimumSignificantDigits, maximumSignificantDigits,
-                minimumSignificantDigitsExplicit, maximumSignificantDigitsExplicit,
-                useGrouping, signDisplay, roundingMode, roundingPriority, roundingIncrement, trailingZeroDisplay,
-                cultureInfo);
-        }, "NumberFormat", 0, true);
+                string resolvedNumberingSystem;
+                if (
+                    numberingSystemOption is not null
+                    && NumberingSystemData.IsSupported(numberingSystemOption)
+                )
+                    resolvedNumberingSystem = numberingSystemOption.ToLowerInvariant();
+                else if (
+                    localeNumberingSystem is not null
+                    && NumberingSystemData.IsSupported(localeNumberingSystem)
+                )
+                    resolvedNumberingSystem = localeNumberingSystem.ToLowerInvariant();
+                else
+                    resolvedNumberingSystem = "latn";
+
+                var finalResolvedLocale = resolvedLocale;
+                if (
+                    numberingSystemOption is not null
+                    && NumberingSystemData.IsSupported(numberingSystemOption)
+                )
+                    finalResolvedLocale =
+                        localeNumberingSystem is not null
+                        && string.Equals(
+                            localeNumberingSystem,
+                            numberingSystemOption,
+                            StringComparison.OrdinalIgnoreCase
+                        )
+                            ? EnsureNumberingSystemInLocale(resolvedLocale, resolvedNumberingSystem)
+                            : RemoveNumberingSystemFromLocale(resolvedLocale);
+                else if (
+                    localeNumberingSystem is not null
+                    && NumberingSystemData.IsSupported(localeNumberingSystem)
+                )
+                    finalResolvedLocale = EnsureNumberingSystemInLocale(
+                        resolvedLocale,
+                        resolvedNumberingSystem
+                    );
+                else if (localeNumberingSystem is not null)
+                    finalResolvedLocale = RemoveNumberingSystemFromLocale(resolvedLocale);
+
+                var cultureInfo =
+                    GetCultureInfo(finalResolvedLocale) ?? CultureInfo.InvariantCulture;
+                var prototype = GetIntlPrototypeFromConstructor(
+                    realm,
+                    info.NewTarget,
+                    numberFormatConstructor,
+                    numberFormatPrototype,
+                    "NumberFormat"
+                );
+                return new JsNumberFormatObject(
+                    realm,
+                    prototype,
+                    finalResolvedLocale,
+                    resolvedNumberingSystem,
+                    style,
+                    currency,
+                    currencyDisplay,
+                    currencySign,
+                    unit,
+                    unitDisplay,
+                    notation,
+                    compactDisplay,
+                    minimumIntegerDigits,
+                    minimumFractionDigits,
+                    maximumFractionDigits,
+                    minimumSignificantDigits,
+                    maximumSignificantDigits,
+                    minimumSignificantDigitsExplicit,
+                    maximumSignificantDigitsExplicit,
+                    useGrouping,
+                    signDisplay,
+                    roundingMode,
+                    roundingPriority,
+                    roundingIncrement,
+                    trailingZeroDisplay,
+                    cultureInfo
+                );
+            },
+            "NumberFormat",
+            0,
+            true
+        );
 
         numberFormatConstructor.InitializePrototypeProperty(numberFormatPrototype);
-        numberFormatConstructor.DefineDataPropertyAtom(Realm, IdSupportedLocalesOf, supportedLocalesOfFn,
-            JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable);
+        numberFormatConstructor.DefineDataPropertyAtom(
+            Realm,
+            IdSupportedLocalesOf,
+            supportedLocalesOfFn,
+            JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable
+        );
         return numberFormatConstructor;
     }
 
     private JsHostFunction CreateListFormatConstructor(JsPlainObject listFormatPrototype)
     {
-        var supportedLocalesOfFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            var requestedLocales = CanonicalizeLocaleList(realm, args.Length == 0 ? JsValue.Undefined : args[0]);
-            var options = GetIntlOptionsObject(realm, args.Length > 1 ? args[1] : JsValue.Undefined,
-                "Intl.ListFormat.supportedLocalesOf options must be an object");
-            _ = GetIntlStringOption(realm, options, "localeMatcher", IntlLocaleMatcherValues, "best fit");
+        var supportedLocalesOfFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                var requestedLocales = CanonicalizeLocaleList(
+                    realm,
+                    args.Length == 0 ? JsValue.Undefined : args[0]
+                );
+                var options = GetIntlOptionsObject(
+                    realm,
+                    args.Length > 1 ? args[1] : JsValue.Undefined,
+                    "Intl.ListFormat.supportedLocalesOf options must be an object"
+                );
+                _ = GetIntlStringOption(
+                    realm,
+                    options,
+                    "localeMatcher",
+                    IntlLocaleMatcherValues,
+                    "best fit"
+                );
 
-            return CreateSupportedLocalesArray(realm, requestedLocales);
-        }, "supportedLocalesOf", 1);
+                return CreateSupportedLocalesArray(realm, requestedLocales);
+            },
+            "supportedLocalesOf",
+            1
+        );
 
         JsHostFunction listFormatConstructor = null!;
-        listFormatConstructor = new(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            if (!info.IsConstruct)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Intl.ListFormat must be called with new");
+        listFormatConstructor = new(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                if (!info.IsConstruct)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Intl.ListFormat must be called with new"
+                    );
 
-            var options = GetIntlObjectOnlyOptionsObject(realm, args.Length > 1 ? args[1] : JsValue.Undefined,
-                "Intl.ListFormat options must be an object");
-            _ = GetIntlStringOption(realm, options, "localeMatcher", IntlLocaleMatcherValues, "best fit");
-            var type = GetIntlStringOption(realm, options, "type", ["conjunction", "disjunction", "unit"],
-                "conjunction");
-            var style = GetIntlStringOption(realm, options, "style", ["long", "short", "narrow"], "long");
+                var options = GetIntlObjectOnlyOptionsObject(
+                    realm,
+                    args.Length > 1 ? args[1] : JsValue.Undefined,
+                    "Intl.ListFormat options must be an object"
+                );
+                _ = GetIntlStringOption(
+                    realm,
+                    options,
+                    "localeMatcher",
+                    IntlLocaleMatcherValues,
+                    "best fit"
+                );
+                var type = GetIntlStringOption(
+                    realm,
+                    options,
+                    "type",
+                    ["conjunction", "disjunction", "unit"],
+                    "conjunction"
+                );
+                var style = GetIntlStringOption(
+                    realm,
+                    options,
+                    "style",
+                    ["long", "short", "narrow"],
+                    "long"
+                );
 
-            var requestedLocales = CanonicalizeLocaleList(realm, args.Length == 0 ? JsValue.Undefined : args[0]);
-            var resolvedLocale = ResolveIntlLocale(requestedLocales);
-            var prototype = GetIntlPrototypeFromConstructor(realm, info.NewTarget, listFormatConstructor,
-                listFormatPrototype, "ListFormat");
-            return new JsListFormatObject(realm, prototype, resolvedLocale, type, style);
-        }, "ListFormat", 0, true);
+                var requestedLocales = CanonicalizeLocaleList(
+                    realm,
+                    args.Length == 0 ? JsValue.Undefined : args[0]
+                );
+                var resolvedLocale = ResolveIntlLocale(requestedLocales);
+                var prototype = GetIntlPrototypeFromConstructor(
+                    realm,
+                    info.NewTarget,
+                    listFormatConstructor,
+                    listFormatPrototype,
+                    "ListFormat"
+                );
+                return new JsListFormatObject(realm, prototype, resolvedLocale, type, style);
+            },
+            "ListFormat",
+            0,
+            true
+        );
 
         listFormatConstructor.InitializePrototypeProperty(listFormatPrototype);
-        listFormatConstructor.DefineDataPropertyAtom(Realm, IdSupportedLocalesOf, supportedLocalesOfFn,
-            JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable);
+        listFormatConstructor.DefineDataPropertyAtom(
+            Realm,
+            IdSupportedLocalesOf,
+            supportedLocalesOfFn,
+            JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable
+        );
         return listFormatConstructor;
     }
 
     private JsHostFunction CreateDisplayNamesConstructor(JsPlainObject displayNamesPrototype)
     {
-        var supportedLocalesOfFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            var requestedLocales = CanonicalizeLocaleList(realm, args.Length == 0 ? JsValue.Undefined : args[0]);
-            var options = GetIntlOptionsObject(realm, args.Length > 1 ? args[1] : JsValue.Undefined,
-                "Intl.DisplayNames.supportedLocalesOf options must be an object");
-            _ = GetIntlStringOption(realm, options, "localeMatcher", IntlLocaleMatcherValues, "best fit");
+        var supportedLocalesOfFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                var requestedLocales = CanonicalizeLocaleList(
+                    realm,
+                    args.Length == 0 ? JsValue.Undefined : args[0]
+                );
+                var options = GetIntlOptionsObject(
+                    realm,
+                    args.Length > 1 ? args[1] : JsValue.Undefined,
+                    "Intl.DisplayNames.supportedLocalesOf options must be an object"
+                );
+                _ = GetIntlStringOption(
+                    realm,
+                    options,
+                    "localeMatcher",
+                    IntlLocaleMatcherValues,
+                    "best fit"
+                );
 
-            return CreateSupportedLocalesArray(realm, requestedLocales);
-        }, "supportedLocalesOf", 1);
+                return CreateSupportedLocalesArray(realm, requestedLocales);
+            },
+            "supportedLocalesOf",
+            1
+        );
 
         JsHostFunction displayNamesConstructor = null!;
-        displayNamesConstructor = new(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            if (!info.IsConstruct)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Intl.DisplayNames must be called with new");
+        displayNamesConstructor = new(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                if (!info.IsConstruct)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Intl.DisplayNames must be called with new"
+                    );
 
-            var prototype = GetIntlPrototypeFromConstructor(realm, info.NewTarget, displayNamesConstructor,
-                displayNamesPrototype, "DisplayNames");
-            var requestedLocales = CanonicalizeLocaleList(realm, args.Length == 0 ? JsValue.Undefined : args[0]);
+                var prototype = GetIntlPrototypeFromConstructor(
+                    realm,
+                    info.NewTarget,
+                    displayNamesConstructor,
+                    displayNamesPrototype,
+                    "DisplayNames"
+                );
+                var requestedLocales = CanonicalizeLocaleList(
+                    realm,
+                    args.Length == 0 ? JsValue.Undefined : args[0]
+                );
 
-            var optionsValue = args.Length > 1 ? args[1] : JsValue.Undefined;
-            if (!optionsValue.TryGetObject(out var options))
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Intl.DisplayNames options must be an object");
+                var optionsValue = args.Length > 1 ? args[1] : JsValue.Undefined;
+                if (!optionsValue.TryGetObject(out var options))
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Intl.DisplayNames options must be an object"
+                    );
 
-            _ = GetIntlStringOption(realm, options, "localeMatcher", IntlLocaleMatcherValues, "best fit");
-            var style = GetIntlStringOption(realm, options, "style", IntlDisplayNamesStyleValues, "long");
-            if (!options.TryGetPropertyByAtom(IdType, out var typeValue) || typeValue.IsUndefined)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Intl.DisplayNames requires a type option");
+                _ = GetIntlStringOption(
+                    realm,
+                    options,
+                    "localeMatcher",
+                    IntlLocaleMatcherValues,
+                    "best fit"
+                );
+                var style = GetIntlStringOption(
+                    realm,
+                    options,
+                    "style",
+                    IntlDisplayNamesStyleValues,
+                    "long"
+                );
+                if (
+                    !options.TryGetPropertyByAtom(IdType, out var typeValue)
+                    || typeValue.IsUndefined
+                )
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Intl.DisplayNames requires a type option"
+                    );
 
-            var type = GetIntlStringOptionValue(realm, typeValue, "type", IntlDisplayNamesTypeValues);
-            var fallback = GetIntlStringOption(realm, options, "fallback", IntlDisplayNamesFallbackValues, "code");
-            var languageDisplay = GetIntlStringOption(realm, options, "languageDisplay",
-                IntlDisplayNamesLanguageDisplayValues, "dialect");
+                var type = GetIntlStringOptionValue(
+                    realm,
+                    typeValue,
+                    "type",
+                    IntlDisplayNamesTypeValues
+                );
+                var fallback = GetIntlStringOption(
+                    realm,
+                    options,
+                    "fallback",
+                    IntlDisplayNamesFallbackValues,
+                    "code"
+                );
+                var languageDisplay = GetIntlStringOption(
+                    realm,
+                    options,
+                    "languageDisplay",
+                    IntlDisplayNamesLanguageDisplayValues,
+                    "dialect"
+                );
 
-            var resolvedLocale = ResolveIntlLocale(requestedLocales);
-            var finalResolvedLocale = CanonicalizeUnicodeLocaleId(RemoveUnicodeExtensions(resolvedLocale));
-            var cultureInfo = GetCultureInfo(finalResolvedLocale) ?? CultureInfo.InvariantCulture;
-            return new JsDisplayNamesObject(realm, prototype, finalResolvedLocale, type, style, fallback,
-                string.Equals(type, "language", StringComparison.Ordinal) ? languageDisplay : null, cultureInfo);
-        }, "DisplayNames", 2, true);
+                var resolvedLocale = ResolveIntlLocale(requestedLocales);
+                var finalResolvedLocale = CanonicalizeUnicodeLocaleId(
+                    RemoveUnicodeExtensions(resolvedLocale)
+                );
+                var cultureInfo =
+                    GetCultureInfo(finalResolvedLocale) ?? CultureInfo.InvariantCulture;
+                return new JsDisplayNamesObject(
+                    realm,
+                    prototype,
+                    finalResolvedLocale,
+                    type,
+                    style,
+                    fallback,
+                    string.Equals(type, "language", StringComparison.Ordinal)
+                        ? languageDisplay
+                        : null,
+                    cultureInfo
+                );
+            },
+            "DisplayNames",
+            2,
+            true
+        );
 
         displayNamesConstructor.InitializePrototypeProperty(displayNamesPrototype);
-        displayNamesConstructor.DefineDataPropertyAtom(Realm, IdSupportedLocalesOf, supportedLocalesOfFn,
-            JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable);
+        displayNamesConstructor.DefineDataPropertyAtom(
+            Realm,
+            IdSupportedLocalesOf,
+            supportedLocalesOfFn,
+            JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable
+        );
         return displayNamesConstructor;
     }
 
     private JsHostFunction CreateDateTimeFormatConstructor(JsPlainObject dateTimeFormatPrototype)
     {
-        var supportedLocalesOfFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            var requestedLocales = CanonicalizeLocaleList(realm, args.Length == 0 ? JsValue.Undefined : args[0]);
-            var options = GetIntlOptionsObject(realm, args.Length > 1 ? args[1] : JsValue.Undefined,
-                "Intl.DateTimeFormat.supportedLocalesOf options must be an object");
-            _ = GetIntlStringOption(realm, options, "localeMatcher", IntlLocaleMatcherValues, "best fit");
+        var supportedLocalesOfFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                var requestedLocales = CanonicalizeLocaleList(
+                    realm,
+                    args.Length == 0 ? JsValue.Undefined : args[0]
+                );
+                var options = GetIntlOptionsObject(
+                    realm,
+                    args.Length > 1 ? args[1] : JsValue.Undefined,
+                    "Intl.DateTimeFormat.supportedLocalesOf options must be an object"
+                );
+                _ = GetIntlStringOption(
+                    realm,
+                    options,
+                    "localeMatcher",
+                    IntlLocaleMatcherValues,
+                    "best fit"
+                );
 
-            return CreateSupportedLocalesArray(realm, requestedLocales);
-        }, "supportedLocalesOf", 1);
+                return CreateSupportedLocalesArray(realm, requestedLocales);
+            },
+            "supportedLocalesOf",
+            1
+        );
 
         JsHostFunction dateTimeFormatConstructor = null!;
-        dateTimeFormatConstructor = new(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            var options = GetIntlConstructorOptionsObject(realm, args.Length > 1 ? args[1] : JsValue.Undefined,
-                "Intl.DateTimeFormat options must be an object");
-            _ = GetIntlStringOption(realm, options, "localeMatcher", IntlLocaleMatcherValues, "best fit");
-
-            string? calendarOption = null;
-            if (options.TryGetProperty("calendar", out var calendarValue) && !calendarValue.IsUndefined)
+        dateTimeFormatConstructor = new(
+            Realm,
+            (in info) =>
             {
-                calendarOption = realm.ToJsStringSlowPath(calendarValue).ToLowerInvariant();
-                if (!IsAsciiLowerAlphaNumericTypeSequence(calendarOption))
-                    throw new JsRuntimeException(JsErrorKind.RangeError,
-                        $"Invalid calendar option: {calendarOption}");
-                if (LocaleData.UnicodeMappings.TryGetValue("ca", out var calendarMappings) &&
-                    calendarMappings.TryGetValue(calendarOption, out var calendarAlias))
-                    calendarOption = calendarAlias;
-            }
+                var realm = info.Realm;
+                var args = info.Arguments;
+                var options = GetIntlConstructorOptionsObject(
+                    realm,
+                    args.Length > 1 ? args[1] : JsValue.Undefined,
+                    "Intl.DateTimeFormat options must be an object"
+                );
+                _ = GetIntlStringOption(
+                    realm,
+                    options,
+                    "localeMatcher",
+                    IntlLocaleMatcherValues,
+                    "best fit"
+                );
 
-            string? numberingSystemOption = null;
-            if (options.TryGetProperty("numberingSystem", out var numberingSystemValue) &&
-                !numberingSystemValue.IsUndefined)
-            {
-                numberingSystemOption = realm.ToJsStringSlowPath(numberingSystemValue);
-                if (!IsWellFormedNumberingSystem(numberingSystemOption))
-                    throw new JsRuntimeException(JsErrorKind.RangeError,
-                        $"Invalid numberingSystem: {numberingSystemOption}");
-            }
+                string? calendarOption = null;
+                if (
+                    options.TryGetProperty("calendar", out var calendarValue)
+                    && !calendarValue.IsUndefined
+                )
+                {
+                    calendarOption = realm.ToJsStringSlowPath(calendarValue).ToLowerInvariant();
+                    if (!IsAsciiLowerAlphaNumericTypeSequence(calendarOption))
+                        throw new JsRuntimeException(
+                            JsErrorKind.RangeError,
+                            $"Invalid calendar option: {calendarOption}"
+                        );
+                    if (
+                        LocaleData.UnicodeMappings.TryGetValue("ca", out var calendarMappings)
+                        && calendarMappings.TryGetValue(calendarOption, out var calendarAlias)
+                    )
+                        calendarOption = calendarAlias;
+                }
 
-            var requestedLocales = CanonicalizeLocaleList(realm, args.Length == 0 ? JsValue.Undefined : args[0]);
-            var resolvedLocale = ResolveIntlLocale(requestedLocales);
-            var baseResolvedLocale = CanonicalizeUnicodeLocaleId(RemoveUnicodeExtensions(resolvedLocale));
-            var cultureInfo = GetCultureInfo(resolvedLocale) ?? CultureInfo.InvariantCulture;
-            string? localeCalendar = null;
-            string? localeHourCycle = null;
-            string? localeNumberingSystem = null;
-            Dictionary<string, string?> localeOtherUnicodeKeywords = new(StringComparer.Ordinal);
-            List<string> localeUnicodeAttributes = [];
-            List<ExtensionSubtag> localeOtherExtensions = [];
-            if (requestedLocales.Count > 0 && ContainsUnicodeExtension(requestedLocales[0]))
-            {
-                var parsed = ParseLanguageTag(requestedLocales[0]);
-                ExtractLocaleComponents(parsed, out _, out _, out _, out _,
-                    out localeCalendar, out _, out _, out localeHourCycle, out localeNumberingSystem,
-                    out _, out _, out localeUnicodeAttributes, out localeOtherUnicodeKeywords,
-                    out localeOtherExtensions);
-            }
+                string? numberingSystemOption = null;
+                if (
+                    options.TryGetProperty("numberingSystem", out var numberingSystemValue)
+                    && !numberingSystemValue.IsUndefined
+                )
+                {
+                    numberingSystemOption = realm.ToJsStringSlowPath(numberingSystemValue);
+                    if (!IsWellFormedNumberingSystem(numberingSystemOption))
+                        throw new JsRuntimeException(
+                            JsErrorKind.RangeError,
+                            $"Invalid numberingSystem: {numberingSystemOption}"
+                        );
+                }
 
-            string resolvedNumberingSystem;
-            if (numberingSystemOption is not null && NumberingSystemData.IsSupported(numberingSystemOption))
-                resolvedNumberingSystem = numberingSystemOption.ToLowerInvariant();
-            else if (localeNumberingSystem is not null &&
-                     NumberingSystemData.IsSupported(localeNumberingSystem))
-                resolvedNumberingSystem = localeNumberingSystem.ToLowerInvariant();
-            else
-                resolvedNumberingSystem = "latn";
+                var requestedLocales = CanonicalizeLocaleList(
+                    realm,
+                    args.Length == 0 ? JsValue.Undefined : args[0]
+                );
+                var resolvedLocale = ResolveIntlLocale(requestedLocales);
+                var baseResolvedLocale = CanonicalizeUnicodeLocaleId(
+                    RemoveUnicodeExtensions(resolvedLocale)
+                );
+                var cultureInfo = GetCultureInfo(resolvedLocale) ?? CultureInfo.InvariantCulture;
+                string? localeCalendar = null;
+                string? localeHourCycle = null;
+                string? localeNumberingSystem = null;
+                Dictionary<string, string?> localeOtherUnicodeKeywords = new(
+                    StringComparer.Ordinal
+                );
+                List<string> localeUnicodeAttributes = [];
+                List<ExtensionSubtag> localeOtherExtensions = [];
+                if (requestedLocales.Count > 0 && ContainsUnicodeExtension(requestedLocales[0]))
+                {
+                    var parsed = ParseLanguageTag(requestedLocales[0]);
+                    ExtractLocaleComponents(
+                        parsed,
+                        out _,
+                        out _,
+                        out _,
+                        out _,
+                        out localeCalendar,
+                        out _,
+                        out _,
+                        out localeHourCycle,
+                        out localeNumberingSystem,
+                        out _,
+                        out _,
+                        out localeUnicodeAttributes,
+                        out localeOtherUnicodeKeywords,
+                        out localeOtherExtensions
+                    );
+                }
 
-            var calendar = ResolveDateTimeFormatCalendar(localeCalendar, calendarOption);
-            bool? hour12 = options.TryGetProperty("hour12", out var hour12Value) && !hour12Value.IsUndefined
-                ? JsRealm.ToBoolean(hour12Value)
-                : null;
-            var hourCycleExplicit = options.TryGetProperty("hourCycle", out var explicitHourCycleValue) &&
-                                    !explicitHourCycleValue.IsUndefined;
-            var hourCycle = hourCycleExplicit
-                ? GetIntlStringOptionValue(realm, explicitHourCycleValue, "hourCycle",
-                    IntlDateTimeFormatHourCycleValues)
-                : localeHourCycle ?? GetDefaultHourCycle(cultureInfo);
-            if (hour12.HasValue)
-                hourCycle = hour12.Value
-                    ? resolvedLocale.StartsWith("ja", StringComparison.OrdinalIgnoreCase) ? "h11" : "h12"
-                    : "h23";
+                string resolvedNumberingSystem;
+                if (
+                    numberingSystemOption is not null
+                    && NumberingSystemData.IsSupported(numberingSystemOption)
+                )
+                    resolvedNumberingSystem = numberingSystemOption.ToLowerInvariant();
+                else if (
+                    localeNumberingSystem is not null
+                    && NumberingSystemData.IsSupported(localeNumberingSystem)
+                )
+                    resolvedNumberingSystem = localeNumberingSystem.ToLowerInvariant();
+                else
+                    resolvedNumberingSystem = "latn";
 
-            var hasTimeZoneOption =
-                options.TryGetProperty("timeZone", out var timeZoneValue) && !timeZoneValue.IsUndefined;
-            var timeZone =
-                ValidateAndCanonicalizeDateTimeFormatTimeZone(realm,
-                    hasTimeZoneOption ? timeZoneValue : JsValue.Undefined);
-            var weekday = GetIntlStringOption(realm, options, "weekday", IntlDateTimeFormatWeekdayValues, null!);
-            var era = GetIntlStringOption(realm, options, "era", IntlDateTimeFormatEraValues, null!);
-            var year = GetIntlStringOption(realm, options, "year", IntlDateTimeFormatYearValues, null!);
-            var month = GetIntlStringOption(realm, options, "month", IntlDateTimeFormatMonthValues, null!);
-            var day = GetIntlStringOption(realm, options, "day", IntlDateTimeFormatDayValues, null!);
-            var dayPeriod =
-                GetIntlStringOption(realm, options, "dayPeriod", IntlDateTimeFormatDayPeriodValues, null!);
-            var hour = GetIntlStringOption(realm, options, "hour", IntlDateTimeFormatHourValues, null!);
-            var minute = GetIntlStringOption(realm, options, "minute", IntlDateTimeFormatMinuteValues, null!);
-            var second = GetIntlStringOption(realm, options, "second", IntlDateTimeFormatSecondValues, null!);
-            int? fractionalSecondDigits = null;
-            if (options.TryGetProperty("fractionalSecondDigits", out var fractionalSecondDigitsRaw) &&
-                !fractionalSecondDigitsRaw.IsUndefined)
-            {
-                var number = realm.ToNumberSlowPath(fractionalSecondDigitsRaw);
-                var integer = realm.ToIntegerOrInfinity(new(number));
-                if (double.IsNaN(integer) || double.IsInfinity(integer) || number < 1 || number > 3 || integer < 1 ||
-                    integer > 3)
-                    throw new JsRuntimeException(JsErrorKind.RangeError,
-                        $"Invalid value '{number}' for option 'fractionalSecondDigits'");
-                fractionalSecondDigits = (int)integer;
-            }
+                var calendar = ResolveDateTimeFormatCalendar(localeCalendar, calendarOption);
+                bool? hour12 =
+                    options.TryGetProperty("hour12", out var hour12Value)
+                    && !hour12Value.IsUndefined
+                        ? JsRealm.ToBoolean(hour12Value)
+                        : null;
+                var hourCycleExplicit =
+                    options.TryGetProperty("hourCycle", out var explicitHourCycleValue)
+                    && !explicitHourCycleValue.IsUndefined;
+                var hourCycle = hourCycleExplicit
+                    ? GetIntlStringOptionValue(
+                        realm,
+                        explicitHourCycleValue,
+                        "hourCycle",
+                        IntlDateTimeFormatHourCycleValues
+                    )
+                    : localeHourCycle ?? GetDefaultHourCycle(cultureInfo);
+                if (hour12.HasValue)
+                    hourCycle = hour12.Value
+                        ? resolvedLocale.StartsWith("ja", StringComparison.OrdinalIgnoreCase)
+                            ? "h11"
+                            : "h12"
+                        : "h23";
 
-            var timeZoneName = GetIntlStringOption(realm, options, "timeZoneName",
-                IntlDateTimeFormatTimeZoneNameValues, null!);
-            var formatMatcher = GetIntlStringOption(realm, options, "formatMatcher",
-                IntlDateTimeFormatFormatMatcherValues, "best fit");
-            var dateStyle = GetIntlStringOption(realm, options, "dateStyle", IntlDateTimeFormatStyleValues, null!);
-            var timeStyle = GetIntlStringOption(realm, options, "timeStyle", IntlDateTimeFormatStyleValues, null!);
+                var hasTimeZoneOption =
+                    options.TryGetProperty("timeZone", out var timeZoneValue)
+                    && !timeZoneValue.IsUndefined;
+                var timeZone = ValidateAndCanonicalizeDateTimeFormatTimeZone(
+                    realm,
+                    hasTimeZoneOption ? timeZoneValue : JsValue.Undefined
+                );
+                var weekday = GetIntlStringOption(
+                    realm,
+                    options,
+                    "weekday",
+                    IntlDateTimeFormatWeekdayValues,
+                    null!
+                );
+                var era = GetIntlStringOption(
+                    realm,
+                    options,
+                    "era",
+                    IntlDateTimeFormatEraValues,
+                    null!
+                );
+                var year = GetIntlStringOption(
+                    realm,
+                    options,
+                    "year",
+                    IntlDateTimeFormatYearValues,
+                    null!
+                );
+                var month = GetIntlStringOption(
+                    realm,
+                    options,
+                    "month",
+                    IntlDateTimeFormatMonthValues,
+                    null!
+                );
+                var day = GetIntlStringOption(
+                    realm,
+                    options,
+                    "day",
+                    IntlDateTimeFormatDayValues,
+                    null!
+                );
+                var dayPeriod = GetIntlStringOption(
+                    realm,
+                    options,
+                    "dayPeriod",
+                    IntlDateTimeFormatDayPeriodValues,
+                    null!
+                );
+                var hour = GetIntlStringOption(
+                    realm,
+                    options,
+                    "hour",
+                    IntlDateTimeFormatHourValues,
+                    null!
+                );
+                var minute = GetIntlStringOption(
+                    realm,
+                    options,
+                    "minute",
+                    IntlDateTimeFormatMinuteValues,
+                    null!
+                );
+                var second = GetIntlStringOption(
+                    realm,
+                    options,
+                    "second",
+                    IntlDateTimeFormatSecondValues,
+                    null!
+                );
+                int? fractionalSecondDigits = null;
+                if (
+                    options.TryGetProperty(
+                        "fractionalSecondDigits",
+                        out var fractionalSecondDigitsRaw
+                    ) && !fractionalSecondDigitsRaw.IsUndefined
+                )
+                {
+                    var number = realm.ToNumberSlowPath(fractionalSecondDigitsRaw);
+                    var integer = realm.ToIntegerOrInfinity(new(number));
+                    if (
+                        double.IsNaN(integer)
+                        || double.IsInfinity(integer)
+                        || number < 1
+                        || number > 3
+                        || integer < 1
+                        || integer > 3
+                    )
+                        throw new JsRuntimeException(
+                            JsErrorKind.RangeError,
+                            $"Invalid value '{number}' for option 'fractionalSecondDigits'"
+                        );
+                    fractionalSecondDigits = (int)integer;
+                }
 
-            var hasExplicitFormatComponents = weekday is not null || era is not null || year is not null ||
-                                              month is not null ||
-                                              day is not null || dayPeriod is not null || hour is not null ||
-                                              minute is not null ||
-                                              second is not null || fractionalSecondDigits is not null ||
-                                              timeZoneName is not null;
-            if ((dateStyle is not null || timeStyle is not null) && hasExplicitFormatComponents)
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "dateStyle/timeStyle cannot be mixed with explicit format components");
+                var timeZoneName = GetIntlStringOption(
+                    realm,
+                    options,
+                    "timeZoneName",
+                    IntlDateTimeFormatTimeZoneNameValues,
+                    null!
+                );
+                var formatMatcher = GetIntlStringOption(
+                    realm,
+                    options,
+                    "formatMatcher",
+                    IntlDateTimeFormatFormatMatcherValues,
+                    "best fit"
+                );
+                var dateStyle = GetIntlStringOption(
+                    realm,
+                    options,
+                    "dateStyle",
+                    IntlDateTimeFormatStyleValues,
+                    null!
+                );
+                var timeStyle = GetIntlStringOption(
+                    realm,
+                    options,
+                    "timeStyle",
+                    IntlDateTimeFormatStyleValues,
+                    null!
+                );
 
-            if (dateStyle is null && timeStyle is null &&
-                weekday is null && era is null && year is null && month is null && day is null &&
-                dayPeriod is null && hour is null && minute is null && second is null &&
-                fractionalSecondDigits is null && timeZoneName is null)
-            {
-                year = "numeric";
-                month = "numeric";
-                day = "numeric";
-            }
+                var hasExplicitFormatComponents =
+                    weekday is not null
+                    || era is not null
+                    || year is not null
+                    || month is not null
+                    || day is not null
+                    || dayPeriod is not null
+                    || hour is not null
+                    || minute is not null
+                    || second is not null
+                    || fractionalSecondDigits is not null
+                    || timeZoneName is not null;
+                if ((dateStyle is not null || timeStyle is not null) && hasExplicitFormatComponents)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "dateStyle/timeStyle cannot be mixed with explicit format components"
+                    );
 
-            var finalResolvedLocale = BuildResolvedDateTimeFormatLocale(
-                baseResolvedLocale,
-                localeHourCycle,
-                localeNumberingSystem,
-                localeUnicodeAttributes,
-                localeOtherUnicodeKeywords,
-                localeOtherExtensions,
-                localeCalendar,
-                hourCycle,
-                resolvedNumberingSystem,
-                calendar,
-                hour is not null || timeStyle is not null,
-                hour12.HasValue,
-                hourCycleExplicit,
-                numberingSystemOption);
+                if (
+                    dateStyle is null
+                    && timeStyle is null
+                    && weekday is null
+                    && era is null
+                    && year is null
+                    && month is null
+                    && day is null
+                    && dayPeriod is null
+                    && hour is null
+                    && minute is null
+                    && second is null
+                    && fractionalSecondDigits is null
+                    && timeZoneName is null
+                )
+                {
+                    year = "numeric";
+                    month = "numeric";
+                    day = "numeric";
+                }
 
-            var prototype = GetIntlPrototypeFromConstructor(realm, info.NewTarget, dateTimeFormatConstructor,
-                dateTimeFormatPrototype, "DateTimeFormat");
+                var finalResolvedLocale = BuildResolvedDateTimeFormatLocale(
+                    baseResolvedLocale,
+                    localeHourCycle,
+                    localeNumberingSystem,
+                    localeUnicodeAttributes,
+                    localeOtherUnicodeKeywords,
+                    localeOtherExtensions,
+                    localeCalendar,
+                    hourCycle,
+                    resolvedNumberingSystem,
+                    calendar,
+                    hour is not null || timeStyle is not null,
+                    hour12.HasValue,
+                    hourCycleExplicit,
+                    numberingSystemOption
+                );
 
-            return new JsDateTimeFormatObject(realm, prototype, finalResolvedLocale, calendar,
-                resolvedNumberingSystem,
-                timeZone, !hasTimeZoneOption, hourCycle, hour12, weekday, era, year, month, day, dayPeriod, hour,
-                minute, second,
-                fractionalSecondDigits, timeZoneName, formatMatcher, dateStyle, timeStyle, cultureInfo);
-        }, "DateTimeFormat", 0, true);
+                var prototype = GetIntlPrototypeFromConstructor(
+                    realm,
+                    info.NewTarget,
+                    dateTimeFormatConstructor,
+                    dateTimeFormatPrototype,
+                    "DateTimeFormat"
+                );
+
+                return new JsDateTimeFormatObject(
+                    realm,
+                    prototype,
+                    finalResolvedLocale,
+                    calendar,
+                    resolvedNumberingSystem,
+                    timeZone,
+                    !hasTimeZoneOption,
+                    hourCycle,
+                    hour12,
+                    weekday,
+                    era,
+                    year,
+                    month,
+                    day,
+                    dayPeriod,
+                    hour,
+                    minute,
+                    second,
+                    fractionalSecondDigits,
+                    timeZoneName,
+                    formatMatcher,
+                    dateStyle,
+                    timeStyle,
+                    cultureInfo
+                );
+            },
+            "DateTimeFormat",
+            0,
+            true
+        );
 
         dateTimeFormatConstructor.InitializePrototypeProperty(dateTimeFormatPrototype);
-        dateTimeFormatConstructor.DefineDataPropertyAtom(Realm, IdSupportedLocalesOf, supportedLocalesOfFn,
-            JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable);
+        dateTimeFormatConstructor.DefineDataPropertyAtom(
+            Realm,
+            IdSupportedLocalesOf,
+            supportedLocalesOfFn,
+            JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable
+        );
         return dateTimeFormatConstructor;
     }
 
     private JsHostFunction CreateCollatorConstructor(JsPlainObject collatorPrototype)
     {
-        var supportedLocalesOfFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            var requestedLocales = CanonicalizeLocaleList(realm, args.Length == 0 ? JsValue.Undefined : args[0]);
-            var options = GetIntlOptionsObject(realm, args.Length > 1 ? args[1] : JsValue.Undefined,
-                "Intl.Collator.supportedLocalesOf options must be an object");
-            _ = GetIntlStringOption(realm, options, "localeMatcher", IntlLocaleMatcherValues, "best fit");
+        var supportedLocalesOfFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                var requestedLocales = CanonicalizeLocaleList(
+                    realm,
+                    args.Length == 0 ? JsValue.Undefined : args[0]
+                );
+                var options = GetIntlOptionsObject(
+                    realm,
+                    args.Length > 1 ? args[1] : JsValue.Undefined,
+                    "Intl.Collator.supportedLocalesOf options must be an object"
+                );
+                _ = GetIntlStringOption(
+                    realm,
+                    options,
+                    "localeMatcher",
+                    IntlLocaleMatcherValues,
+                    "best fit"
+                );
 
-            return CreateSupportedLocalesArray(realm, requestedLocales);
-        }, "supportedLocalesOf", 1);
+                return CreateSupportedLocalesArray(realm, requestedLocales);
+            },
+            "supportedLocalesOf",
+            1
+        );
 
         JsHostFunction collatorConstructor = null!;
-        collatorConstructor = new(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-
-            var options = GetIntlConstructorOptionsObject(realm, args.Length > 1 ? args[1] : JsValue.Undefined,
-                "Intl.Collator options must be an object");
-            _ = GetIntlStringOption(realm, options, "localeMatcher", IntlLocaleMatcherValues, "best fit");
-
-            var usage = GetIntlStringOption(realm, options, "usage", IntlCollatorUsageValues, "sort");
-            var sensitivity =
-                GetIntlStringOption(realm, options, "sensitivity", IntlCollatorSensitivityValues, "variant");
-            var requestedLocales = CanonicalizeLocaleList(realm, args.Length == 0 ? JsValue.Undefined : args[0]);
-            var resolvedLocale = ResolveIntlLocale(requestedLocales);
-            var baseResolvedLocale = CanonicalizeUnicodeLocaleId(RemoveUnicodeExtensions(resolvedLocale));
-            string? localeCaseFirst = null;
-            string? localeCollation = null;
-            bool? localeNumeric = null;
-            if (requestedLocales.Count > 0 && ContainsUnicodeExtension(requestedLocales[0]))
+        collatorConstructor = new(
+            Realm,
+            (in info) =>
             {
-                var parsed = ParseLanguageTag(requestedLocales[0]);
-                ExtractLocaleComponents(parsed, out _, out _, out _, out _,
-                    out _, out localeCaseFirst, out localeCollation, out _, out _,
-                    out localeNumeric, out _, out _, out _, out _);
-            }
+                var realm = info.Realm;
+                var args = info.Arguments;
 
-            if (localeCaseFirst is not null &&
-                !IntlCollatorCaseFirstValues.Contains(localeCaseFirst, StringComparer.Ordinal))
-                localeCaseFirst = null;
+                var options = GetIntlConstructorOptionsObject(
+                    realm,
+                    args.Length > 1 ? args[1] : JsValue.Undefined,
+                    "Intl.Collator options must be an object"
+                );
+                _ = GetIntlStringOption(
+                    realm,
+                    options,
+                    "localeMatcher",
+                    IntlLocaleMatcherValues,
+                    "best fit"
+                );
 
-            var caseFirst = GetIntlStringOption(realm, options, "caseFirst", IntlCollatorCaseFirstValues,
-                localeCaseFirst ?? "false");
-            var numeric = GetNumericOption(realm, options, localeNumeric) ?? false;
-            var ignorePunctuation = options.TryGetProperty("ignorePunctuation", out var ignorePunctuationValue) &&
-                                    !ignorePunctuationValue.IsUndefined
-                ? JsRealm.ToBoolean(ignorePunctuationValue)
-                : baseResolvedLocale.StartsWith("th", StringComparison.OrdinalIgnoreCase);
-            var collationOption = GetUnicodeKeywordOption(realm, options, "collation", "co", null);
-            var collation = ResolveSupportedCollation(baseResolvedLocale, usage, collationOption, localeCollation);
-            var finalResolvedLocale = BuildResolvedCollatorLocale(baseResolvedLocale,
-                localeCaseFirst, localeCollation, localeNumeric, caseFirst, collation, numeric);
+                var usage = GetIntlStringOption(
+                    realm,
+                    options,
+                    "usage",
+                    IntlCollatorUsageValues,
+                    "sort"
+                );
+                var sensitivity = GetIntlStringOption(
+                    realm,
+                    options,
+                    "sensitivity",
+                    IntlCollatorSensitivityValues,
+                    "variant"
+                );
+                var requestedLocales = CanonicalizeLocaleList(
+                    realm,
+                    args.Length == 0 ? JsValue.Undefined : args[0]
+                );
+                var resolvedLocale = ResolveIntlLocale(requestedLocales);
+                var baseResolvedLocale = CanonicalizeUnicodeLocaleId(
+                    RemoveUnicodeExtensions(resolvedLocale)
+                );
+                string? localeCaseFirst = null;
+                string? localeCollation = null;
+                bool? localeNumeric = null;
+                if (requestedLocales.Count > 0 && ContainsUnicodeExtension(requestedLocales[0]))
+                {
+                    var parsed = ParseLanguageTag(requestedLocales[0]);
+                    ExtractLocaleComponents(
+                        parsed,
+                        out _,
+                        out _,
+                        out _,
+                        out _,
+                        out _,
+                        out localeCaseFirst,
+                        out localeCollation,
+                        out _,
+                        out _,
+                        out localeNumeric,
+                        out _,
+                        out _,
+                        out _,
+                        out _
+                    );
+                }
 
-            var cultureInfo = GetCultureInfo(resolvedLocale) ?? CultureInfo.InvariantCulture;
-            var prototype = GetIntlPrototypeFromConstructor(realm, info.NewTarget, collatorConstructor,
-                collatorPrototype, "Collator");
+                if (
+                    localeCaseFirst is not null
+                    && !IntlCollatorCaseFirstValues.Contains(
+                        localeCaseFirst,
+                        StringComparer.Ordinal
+                    )
+                )
+                    localeCaseFirst = null;
 
-            var compareOptions = MapCollatorCompareOptions(sensitivity, ignorePunctuation);
-            if (string.Equals(usage, "search", StringComparison.Ordinal) &&
-                baseResolvedLocale.StartsWith("de", StringComparison.OrdinalIgnoreCase))
-                compareOptions |= CompareOptions.IgnoreCase;
+                var caseFirst = GetIntlStringOption(
+                    realm,
+                    options,
+                    "caseFirst",
+                    IntlCollatorCaseFirstValues,
+                    localeCaseFirst ?? "false"
+                );
+                var numeric = GetNumericOption(realm, options, localeNumeric) ?? false;
+                var ignorePunctuation =
+                    options.TryGetProperty("ignorePunctuation", out var ignorePunctuationValue)
+                    && !ignorePunctuationValue.IsUndefined
+                        ? JsRealm.ToBoolean(ignorePunctuationValue)
+                        : baseResolvedLocale.StartsWith("th", StringComparison.OrdinalIgnoreCase);
+                var collationOption = GetUnicodeKeywordOption(
+                    realm,
+                    options,
+                    "collation",
+                    "co",
+                    null
+                );
+                var collation = ResolveSupportedCollation(
+                    baseResolvedLocale,
+                    usage,
+                    collationOption,
+                    localeCollation
+                );
+                var finalResolvedLocale = BuildResolvedCollatorLocale(
+                    baseResolvedLocale,
+                    localeCaseFirst,
+                    localeCollation,
+                    localeNumeric,
+                    caseFirst,
+                    collation,
+                    numeric
+                );
 
-            return new JsCollatorObject(realm, prototype, finalResolvedLocale, usage, sensitivity, ignorePunctuation,
-                collation, numeric, caseFirst, cultureInfo.CompareInfo, compareOptions);
-        }, "Collator", 0, true);
+                var cultureInfo = GetCultureInfo(resolvedLocale) ?? CultureInfo.InvariantCulture;
+                var prototype = GetIntlPrototypeFromConstructor(
+                    realm,
+                    info.NewTarget,
+                    collatorConstructor,
+                    collatorPrototype,
+                    "Collator"
+                );
+
+                var compareOptions = MapCollatorCompareOptions(sensitivity, ignorePunctuation);
+                if (
+                    string.Equals(usage, "search", StringComparison.Ordinal)
+                    && baseResolvedLocale.StartsWith("de", StringComparison.OrdinalIgnoreCase)
+                )
+                    compareOptions |= CompareOptions.IgnoreCase;
+
+                return new JsCollatorObject(
+                    realm,
+                    prototype,
+                    finalResolvedLocale,
+                    usage,
+                    sensitivity,
+                    ignorePunctuation,
+                    collation,
+                    numeric,
+                    caseFirst,
+                    cultureInfo.CompareInfo,
+                    compareOptions
+                );
+            },
+            "Collator",
+            0,
+            true
+        );
 
         collatorConstructor.InitializePrototypeProperty(collatorPrototype);
-        collatorConstructor.DefineDataPropertyAtom(Realm, IdSupportedLocalesOf, supportedLocalesOfFn,
-            JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable);
+        collatorConstructor.DefineDataPropertyAtom(
+            Realm,
+            IdSupportedLocalesOf,
+            supportedLocalesOfFn,
+            JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable
+        );
         return collatorConstructor;
     }
 
     private JsHostFunction CreatePluralRulesConstructor(JsPlainObject pluralRulesPrototype)
     {
-        var supportedLocalesOfFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            var requestedLocales = CanonicalizeLocaleList(realm, args.Length == 0 ? JsValue.Undefined : args[0]);
-            var options = GetIntlOptionsObject(realm, args.Length > 1 ? args[1] : JsValue.Undefined,
-                "Intl.PluralRules.supportedLocalesOf options must be an object");
-            _ = GetIntlStringOption(realm, options, "localeMatcher", IntlLocaleMatcherValues, "best fit");
+        var supportedLocalesOfFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                var requestedLocales = CanonicalizeLocaleList(
+                    realm,
+                    args.Length == 0 ? JsValue.Undefined : args[0]
+                );
+                var options = GetIntlOptionsObject(
+                    realm,
+                    args.Length > 1 ? args[1] : JsValue.Undefined,
+                    "Intl.PluralRules.supportedLocalesOf options must be an object"
+                );
+                _ = GetIntlStringOption(
+                    realm,
+                    options,
+                    "localeMatcher",
+                    IntlLocaleMatcherValues,
+                    "best fit"
+                );
 
-            return CreateSupportedLocalesArray(realm, requestedLocales);
-        }, "supportedLocalesOf", 1);
+                return CreateSupportedLocalesArray(realm, requestedLocales);
+            },
+            "supportedLocalesOf",
+            1
+        );
 
         JsHostFunction pluralRulesConstructor = null!;
-        pluralRulesConstructor = new(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            if (!info.IsConstruct)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Intl.PluralRules must be called with new");
-
-            var options = GetIntlConstructorOptionsObject(realm, args.Length > 1 ? args[1] : JsValue.Undefined,
-                "Intl.PluralRules options must be an object");
-            _ = GetIntlStringOption(realm, options, "localeMatcher", IntlLocaleMatcherValues, "best fit");
-
-            var type = GetIntlStringOption(realm, options, "type", IntlPluralRulesTypeValues, "cardinal");
-            var notation =
-                GetIntlStringOption(realm, options, "notation", IntlPluralRulesNotationValues, "standard");
-            var minimumIntegerDigits = GetIntlNumberOption(realm, options, "minimumIntegerDigits", 1, 21, 1);
-
-            int? minimumFractionDigits = null;
-            int? maximumFractionDigits = null;
-            int? minimumSignificantDigits = null;
-            int? maximumSignificantDigits = null;
-
-            var minFracValue = options.TryGetProperty("minimumFractionDigits", out var minFracRaw)
-                ? minFracRaw
-                : JsValue.Undefined;
-            var maxFracValue = options.TryGetProperty("maximumFractionDigits", out var maxFracRaw)
-                ? maxFracRaw
-                : JsValue.Undefined;
-            var minSigValue = options.TryGetProperty("minimumSignificantDigits", out var minSigRaw)
-                ? minSigRaw
-                : JsValue.Undefined;
-            var maxSigValue = options.TryGetProperty("maximumSignificantDigits", out var maxSigRaw)
-                ? maxSigRaw
-                : JsValue.Undefined;
-
-            var minimumSignificantDigitsExplicit = !minSigValue.IsUndefined;
-            var maximumSignificantDigitsExplicit = !maxSigValue.IsUndefined;
-            if (minimumSignificantDigitsExplicit || maximumSignificantDigitsExplicit)
+        pluralRulesConstructor = new(
+            Realm,
+            (in info) =>
             {
-                minimumSignificantDigits = minimumSignificantDigitsExplicit
-                    ? GetIntlNumberOptionValue(realm, minSigValue, "minimumSignificantDigits", 1, 21)
-                    : 1;
-                maximumSignificantDigits = maximumSignificantDigitsExplicit
-                    ? GetIntlNumberOptionValue(realm, maxSigValue, "maximumSignificantDigits",
-                        minimumSignificantDigits.Value, 21)
-                    : 21;
-            }
-            else
-            {
-                minimumFractionDigits = minFracValue.IsUndefined
-                    ? 0
-                    : GetIntlNumberOptionValue(realm, minFracValue, "minimumFractionDigits", 0, 100);
-                var maxFractionFallback = Math.Max(minimumFractionDigits.Value, 3);
-                maximumFractionDigits = maxFracValue.IsUndefined
-                    ? maxFractionFallback
-                    : GetIntlNumberOptionValue(realm, maxFracValue, "maximumFractionDigits",
-                        minimumFractionDigits.Value, 100);
-                if (minimumFractionDigits > maximumFractionDigits)
-                    minimumFractionDigits = maximumFractionDigits;
-            }
+                var realm = info.Realm;
+                var args = info.Arguments;
+                if (!info.IsConstruct)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Intl.PluralRules must be called with new"
+                    );
 
-            var roundingIncrement = GetIntlRoundingIncrementOption(realm, options);
-            var roundingMode = GetIntlStringOption(realm, options, "roundingMode",
-                IntlNumberFormatRoundingModeValues, "halfExpand");
-            var roundingPriority = GetIntlStringOption(realm, options, "roundingPriority",
-                IntlNumberFormatRoundingPriorityValues, "auto");
-            var trailingZeroDisplay = GetIntlStringOption(realm, options, "trailingZeroDisplay",
-                IntlNumberFormatTrailingZeroDisplayValues, "auto");
+                var options = GetIntlConstructorOptionsObject(
+                    realm,
+                    args.Length > 1 ? args[1] : JsValue.Undefined,
+                    "Intl.PluralRules options must be an object"
+                );
+                _ = GetIntlStringOption(
+                    realm,
+                    options,
+                    "localeMatcher",
+                    IntlLocaleMatcherValues,
+                    "best fit"
+                );
 
-            var requestedLocales = CanonicalizeLocaleList(realm, args.Length == 0 ? JsValue.Undefined : args[0]);
-            var resolvedLocale = ResolveIntlLocale(requestedLocales);
-            var cultureInfo = GetCultureInfo(resolvedLocale) ?? CultureInfo.InvariantCulture;
-            var prototype = GetIntlPrototypeFromConstructor(realm, info.NewTarget, pluralRulesConstructor,
-                pluralRulesPrototype, "PluralRules");
-            return new JsPluralRulesObject(realm, prototype, resolvedLocale, type, notation, minimumIntegerDigits,
-                minimumFractionDigits, maximumFractionDigits, minimumSignificantDigits, maximumSignificantDigits,
-                roundingMode, roundingPriority, roundingIncrement, trailingZeroDisplay, cultureInfo);
-        }, "PluralRules", 0, true);
+                var type = GetIntlStringOption(
+                    realm,
+                    options,
+                    "type",
+                    IntlPluralRulesTypeValues,
+                    "cardinal"
+                );
+                var notation = GetIntlStringOption(
+                    realm,
+                    options,
+                    "notation",
+                    IntlPluralRulesNotationValues,
+                    "standard"
+                );
+                var minimumIntegerDigits = GetIntlNumberOption(
+                    realm,
+                    options,
+                    "minimumIntegerDigits",
+                    1,
+                    21,
+                    1
+                );
 
+                int? minimumFractionDigits = null;
+                int? maximumFractionDigits = null;
+                int? minimumSignificantDigits = null;
+                int? maximumSignificantDigits = null;
+
+                var minFracValue = options.TryGetProperty(
+                    "minimumFractionDigits",
+                    out var minFracRaw
+                )
+                    ? minFracRaw
+                    : JsValue.Undefined;
+                var maxFracValue = options.TryGetProperty(
+                    "maximumFractionDigits",
+                    out var maxFracRaw
+                )
+                    ? maxFracRaw
+                    : JsValue.Undefined;
+                var minSigValue = options.TryGetProperty(
+                    "minimumSignificantDigits",
+                    out var minSigRaw
+                )
+                    ? minSigRaw
+                    : JsValue.Undefined;
+                var maxSigValue = options.TryGetProperty(
+                    "maximumSignificantDigits",
+                    out var maxSigRaw
+                )
+                    ? maxSigRaw
+                    : JsValue.Undefined;
+
+                var minimumSignificantDigitsExplicit = !minSigValue.IsUndefined;
+                var maximumSignificantDigitsExplicit = !maxSigValue.IsUndefined;
+                if (minimumSignificantDigitsExplicit || maximumSignificantDigitsExplicit)
+                {
+                    minimumSignificantDigits = minimumSignificantDigitsExplicit
+                        ? GetIntlNumberOptionValue(
+                            realm,
+                            minSigValue,
+                            "minimumSignificantDigits",
+                            1,
+                            21
+                        )
+                        : 1;
+                    maximumSignificantDigits = maximumSignificantDigitsExplicit
+                        ? GetIntlNumberOptionValue(
+                            realm,
+                            maxSigValue,
+                            "maximumSignificantDigits",
+                            minimumSignificantDigits.Value,
+                            21
+                        )
+                        : 21;
+                }
+                else
+                {
+                    minimumFractionDigits = minFracValue.IsUndefined
+                        ? 0
+                        : GetIntlNumberOptionValue(
+                            realm,
+                            minFracValue,
+                            "minimumFractionDigits",
+                            0,
+                            100
+                        );
+                    var maxFractionFallback = Math.Max(minimumFractionDigits.Value, 3);
+                    maximumFractionDigits = maxFracValue.IsUndefined
+                        ? maxFractionFallback
+                        : GetIntlNumberOptionValue(
+                            realm,
+                            maxFracValue,
+                            "maximumFractionDigits",
+                            minimumFractionDigits.Value,
+                            100
+                        );
+                    if (minimumFractionDigits > maximumFractionDigits)
+                        minimumFractionDigits = maximumFractionDigits;
+                }
+
+                var roundingIncrement = GetIntlRoundingIncrementOption(realm, options);
+                var roundingMode = GetIntlStringOption(
+                    realm,
+                    options,
+                    "roundingMode",
+                    IntlNumberFormatRoundingModeValues,
+                    "halfExpand"
+                );
+                var roundingPriority = GetIntlStringOption(
+                    realm,
+                    options,
+                    "roundingPriority",
+                    IntlNumberFormatRoundingPriorityValues,
+                    "auto"
+                );
+                var trailingZeroDisplay = GetIntlStringOption(
+                    realm,
+                    options,
+                    "trailingZeroDisplay",
+                    IntlNumberFormatTrailingZeroDisplayValues,
+                    "auto"
+                );
+
+                var requestedLocales = CanonicalizeLocaleList(
+                    realm,
+                    args.Length == 0 ? JsValue.Undefined : args[0]
+                );
+                var resolvedLocale = ResolveIntlLocale(requestedLocales);
+                var cultureInfo = GetCultureInfo(resolvedLocale) ?? CultureInfo.InvariantCulture;
+                var prototype = GetIntlPrototypeFromConstructor(
+                    realm,
+                    info.NewTarget,
+                    pluralRulesConstructor,
+                    pluralRulesPrototype,
+                    "PluralRules"
+                );
+                return new JsPluralRulesObject(
+                    realm,
+                    prototype,
+                    resolvedLocale,
+                    type,
+                    notation,
+                    minimumIntegerDigits,
+                    minimumFractionDigits,
+                    maximumFractionDigits,
+                    minimumSignificantDigits,
+                    maximumSignificantDigits,
+                    roundingMode,
+                    roundingPriority,
+                    roundingIncrement,
+                    trailingZeroDisplay,
+                    cultureInfo
+                );
+            },
+            "PluralRules",
+            0,
+            true
+        );
 
         pluralRulesConstructor.InitializePrototypeProperty(pluralRulesPrototype);
-        pluralRulesConstructor.DefineDataPropertyAtom(Realm, IdSupportedLocalesOf, supportedLocalesOfFn,
-            JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable);
+        pluralRulesConstructor.DefineDataPropertyAtom(
+            Realm,
+            IdSupportedLocalesOf,
+            supportedLocalesOfFn,
+            JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable
+        );
         return pluralRulesConstructor;
     }
 
-    private void InstallLocalePrototypeBuiltins(JsPlainObject localePrototype, JsHostFunction localeConstructor)
+    private void InstallLocalePrototypeBuiltins(
+        JsPlainObject localePrototype,
+        JsHostFunction localeConstructor
+    )
     {
-        var maximizeFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var locale = ThisLocaleValue(info.Realm, info.ThisValue, "Intl.Locale.prototype.maximize");
-            var maximized = LikelySubtags.AddLikelySubtags(locale.Locale);
-            return CreateLocaleObject(info.Realm, localePrototype, maximized, JsValue.Undefined);
-        }, "maximize", 0);
+        var maximizeFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var locale = ThisLocaleValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.Locale.prototype.maximize"
+                );
+                var maximized = LikelySubtags.AddLikelySubtags(locale.Locale);
+                return CreateLocaleObject(
+                    info.Realm,
+                    localePrototype,
+                    maximized,
+                    JsValue.Undefined
+                );
+            },
+            "maximize",
+            0
+        );
 
-        var minimizeFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var locale = ThisLocaleValue(info.Realm, info.ThisValue, "Intl.Locale.prototype.minimize");
-            var minimized = LikelySubtags.RemoveLikelySubtags(locale.Locale);
-            return CreateLocaleObject(info.Realm, localePrototype, minimized, JsValue.Undefined);
-        }, "minimize", 0);
+        var minimizeFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var locale = ThisLocaleValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.Locale.prototype.minimize"
+                );
+                var minimized = LikelySubtags.RemoveLikelySubtags(locale.Locale);
+                return CreateLocaleObject(
+                    info.Realm,
+                    localePrototype,
+                    minimized,
+                    JsValue.Undefined
+                );
+            },
+            "minimize",
+            0
+        );
 
-        var toStringFn = new JsHostFunction(Realm,
+        var toStringFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
-                return JsValue.FromString(ThisLocaleValue(info.Realm, info.ThisValue, "Intl.Locale.prototype.toString")
-                    .Locale);
-            }, "toString", 0);
+                return JsValue.FromString(
+                    ThisLocaleValue(
+                        info.Realm,
+                        info.ThisValue,
+                        "Intl.Locale.prototype.toString"
+                    ).Locale
+                );
+            },
+            "toString",
+            0
+        );
 
-        var getCalendarsFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var locale = ThisLocaleValue(info.Realm, info.ThisValue, "Intl.Locale.prototype.getCalendars");
-            return CreateStringArray(info.Realm, [locale.Calendar ?? "gregory"]);
-        }, "getCalendars", 0);
-
-        var getCollationsFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var locale = ThisLocaleValue(info.Realm, info.ThisValue, "Intl.Locale.prototype.getCollations");
-            var result = info.Realm.CreateArrayObject();
-            var value = locale.Collation switch
+        var getCalendarsFn = new JsHostFunction(
+            Realm,
+            (in info) =>
             {
-                null or "" or "search" or "standard" => "default",
-                _ => locale.Collation
-            };
-            return CreateStringArray(info.Realm, [value]);
-        }, "getCollations", 0);
+                var locale = ThisLocaleValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.Locale.prototype.getCalendars"
+                );
+                return CreateStringArray(info.Realm, [locale.Calendar ?? "gregory"]);
+            },
+            "getCalendars",
+            0
+        );
 
-        var getHourCyclesFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var locale = ThisLocaleValue(info.Realm, info.ThisValue, "Intl.Locale.prototype.getHourCycles");
-            var hourCycle = locale.HourCycle ?? GetDefaultHourCycle(locale.CultureInfo);
-            return CreateStringArray(info.Realm, [hourCycle]);
-        }, "getHourCycles", 0);
+        var getCollationsFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var locale = ThisLocaleValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.Locale.prototype.getCollations"
+                );
+                var result = info.Realm.CreateArrayObject();
+                var value = locale.Collation switch
+                {
+                    null or "" or "search" or "standard" => "default",
+                    _ => locale.Collation,
+                };
+                return CreateStringArray(info.Realm, [value]);
+            },
+            "getCollations",
+            0
+        );
 
-        var getNumberingSystemsFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var locale = ThisLocaleValue(info.Realm, info.ThisValue, "Intl.Locale.prototype.getNumberingSystems");
-            return CreateStringArray(info.Realm, [locale.NumberingSystem ?? "latn"]);
-        }, "getNumberingSystems", 0);
+        var getHourCyclesFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var locale = ThisLocaleValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.Locale.prototype.getHourCycles"
+                );
+                var hourCycle = locale.HourCycle ?? GetDefaultHourCycle(locale.CultureInfo);
+                return CreateStringArray(info.Realm, [hourCycle]);
+            },
+            "getHourCycles",
+            0
+        );
 
-        var getTimeZonesFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var locale = ThisLocaleValue(info.Realm, info.ThisValue, "Intl.Locale.prototype.getTimeZones");
-            if (string.IsNullOrEmpty(locale.Region))
-                return JsValue.Undefined;
+        var getNumberingSystemsFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var locale = ThisLocaleValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.Locale.prototype.getNumberingSystems"
+                );
+                return CreateStringArray(info.Realm, [locale.NumberingSystem ?? "latn"]);
+            },
+            "getNumberingSystems",
+            0
+        );
 
-            var timeZones = GetTimeZonesForRegion(locale.Region);
-            return CreateStringArray(info.Realm, timeZones);
-        }, "getTimeZones", 0);
+        var getTimeZonesFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var locale = ThisLocaleValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.Locale.prototype.getTimeZones"
+                );
+                if (string.IsNullOrEmpty(locale.Region))
+                    return JsValue.Undefined;
 
-        var getTextInfoFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var locale = ThisLocaleValue(info.Realm, info.ThisValue, "Intl.Locale.prototype.getTextInfo");
-            var result = new JsPlainObject(info.Realm);
-            result.DefineDataPropertyAtom(info.Realm, IdDirection,
-                JsValue.FromString(locale.CultureInfo.TextInfo.IsRightToLeft ? "rtl" : "ltr"),
-                JsShapePropertyFlags.Open);
-            return result;
-        }, "getTextInfo", 0);
+                var timeZones = GetTimeZonesForRegion(locale.Region);
+                return CreateStringArray(info.Realm, timeZones);
+            },
+            "getTimeZones",
+            0
+        );
 
-        var getWeekInfoFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var locale = ThisLocaleValue(info.Realm, info.ThisValue, "Intl.Locale.prototype.getWeekInfo");
-            var result = new JsPlainObject(info.Realm);
-            result.DefineDataPropertyAtom(info.Realm, IdFirstDay,
-                JsValue.FromInt32(GetWeekdayNumber(locale.FirstDayOfWeek ?? GetDefaultFirstDayOfWeek(locale.Region))),
-                JsShapePropertyFlags.Open);
-            var weekend = info.Realm.CreateArrayObject();
-            FreshArrayOperations.DefineElement(weekend, 0, JsValue.FromInt32(6));
-            FreshArrayOperations.DefineElement(weekend, 1, JsValue.FromInt32(7));
-            result.DefineDataPropertyAtom(info.Realm, IdWeekend, JsValue.FromObject(weekend),
-                JsShapePropertyFlags.Open);
-            return result;
-        }, "getWeekInfo", 0);
+        var getTextInfoFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var locale = ThisLocaleValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.Locale.prototype.getTextInfo"
+                );
+                var result = new JsPlainObject(info.Realm);
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdDirection,
+                    JsValue.FromString(locale.CultureInfo.TextInfo.IsRightToLeft ? "rtl" : "ltr"),
+                    JsShapePropertyFlags.Open
+                );
+                return result;
+            },
+            "getTextInfo",
+            0
+        );
 
-        var baseNameGetter = new JsHostFunction(Realm,
+        var getWeekInfoFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var locale = ThisLocaleValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.Locale.prototype.getWeekInfo"
+                );
+                var result = new JsPlainObject(info.Realm);
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdFirstDay,
+                    JsValue.FromInt32(
+                        GetWeekdayNumber(
+                            locale.FirstDayOfWeek ?? GetDefaultFirstDayOfWeek(locale.Region)
+                        )
+                    ),
+                    JsShapePropertyFlags.Open
+                );
+                var weekend = info.Realm.CreateArrayObject();
+                FreshArrayOperations.DefineElement(weekend, 0, JsValue.FromInt32(6));
+                FreshArrayOperations.DefineElement(weekend, 1, JsValue.FromInt32(7));
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdWeekend,
+                    JsValue.FromObject(weekend),
+                    JsShapePropertyFlags.Open
+                );
+                return result;
+            },
+            "getWeekInfo",
+            0
+        );
+
+        var baseNameGetter = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
-                return JsValue.FromString(ThisLocaleValue(info.Realm, info.ThisValue, "Intl.Locale.prototype.baseName")
-                    .BaseName);
-            }, "get baseName", 0);
-        var calendarGetter = new JsHostFunction(Realm, (in info) =>
-        {
-            var value = ThisLocaleValue(info.Realm, info.ThisValue, "Intl.Locale.prototype.calendar").Calendar;
-            return value is null ? JsValue.Undefined : JsValue.FromString(value);
-        }, "get calendar", 0);
-        var caseFirstGetter = new JsHostFunction(Realm, (in info) =>
-        {
-            var value = ThisLocaleValue(info.Realm, info.ThisValue, "Intl.Locale.prototype.caseFirst").CaseFirst;
-            return value is null ? JsValue.Undefined : JsValue.FromString(value);
-        }, "get caseFirst", 0);
-        var collationGetter = new JsHostFunction(Realm, (in info) =>
-        {
-            var value = ThisLocaleValue(info.Realm, info.ThisValue, "Intl.Locale.prototype.collation").Collation;
-            return value is null ? JsValue.Undefined : JsValue.FromString(value);
-        }, "get collation", 0);
-        var hourCycleGetter = new JsHostFunction(Realm, (in info) =>
-        {
-            var value = ThisLocaleValue(info.Realm, info.ThisValue, "Intl.Locale.prototype.hourCycle").HourCycle;
-            return value is null ? JsValue.Undefined : JsValue.FromString(value);
-        }, "get hourCycle", 0);
-        var languageGetter = new JsHostFunction(Realm,
+                return JsValue.FromString(
+                    ThisLocaleValue(
+                        info.Realm,
+                        info.ThisValue,
+                        "Intl.Locale.prototype.baseName"
+                    ).BaseName
+                );
+            },
+            "get baseName",
+            0
+        );
+        var calendarGetter = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var value = ThisLocaleValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.Locale.prototype.calendar"
+                ).Calendar;
+                return value is null ? JsValue.Undefined : JsValue.FromString(value);
+            },
+            "get calendar",
+            0
+        );
+        var caseFirstGetter = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var value = ThisLocaleValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.Locale.prototype.caseFirst"
+                ).CaseFirst;
+                return value is null ? JsValue.Undefined : JsValue.FromString(value);
+            },
+            "get caseFirst",
+            0
+        );
+        var collationGetter = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var value = ThisLocaleValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.Locale.prototype.collation"
+                ).Collation;
+                return value is null ? JsValue.Undefined : JsValue.FromString(value);
+            },
+            "get collation",
+            0
+        );
+        var hourCycleGetter = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var value = ThisLocaleValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.Locale.prototype.hourCycle"
+                ).HourCycle;
+                return value is null ? JsValue.Undefined : JsValue.FromString(value);
+            },
+            "get hourCycle",
+            0
+        );
+        var languageGetter = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
-                return JsValue.FromString(ThisLocaleValue(info.Realm, info.ThisValue, "Intl.Locale.prototype.language")
-                    .Language);
-            }, "get language", 0);
-        var numberingSystemGetter = new JsHostFunction(Realm, (in info) =>
-        {
-            var value = ThisLocaleValue(info.Realm, info.ThisValue, "Intl.Locale.prototype.numberingSystem")
-                .NumberingSystem;
-            return value is null ? JsValue.Undefined : JsValue.FromString(value);
-        }, "get numberingSystem", 0);
-        var numericGetter = new JsHostFunction(Realm, (in info) =>
-        {
-            var value = ThisLocaleValue(info.Realm, info.ThisValue, "Intl.Locale.prototype.numeric").Numeric;
-            return value.HasValue ? value.Value ? JsValue.True : JsValue.False : JsValue.False;
-        }, "get numeric", 0);
-        var regionGetter = new JsHostFunction(Realm, (in info) =>
-        {
-            var value = ThisLocaleValue(info.Realm, info.ThisValue, "Intl.Locale.prototype.region").Region;
-            return value is null ? JsValue.Undefined : JsValue.FromString(value);
-        }, "get region", 0);
-        var scriptGetter = new JsHostFunction(Realm, (in info) =>
-        {
-            var value = ThisLocaleValue(info.Realm, info.ThisValue, "Intl.Locale.prototype.script").Script;
-            return value is null ? JsValue.Undefined : JsValue.FromString(value);
-        }, "get script", 0);
-        var firstDayOfWeekGetter = new JsHostFunction(Realm, (in info) =>
-        {
-            var value = ThisLocaleValue(info.Realm, info.ThisValue, "Intl.Locale.prototype.firstDayOfWeek")
-                .FirstDayOfWeek;
-            return value is null ? JsValue.Undefined : JsValue.FromString(value);
-        }, "get firstDayOfWeek", 0);
-        var variantsGetter = new JsHostFunction(Realm, (in info) =>
-        {
-            var value = ThisLocaleValue(info.Realm, info.ThisValue, "Intl.Locale.prototype.variants").Variants;
-            return value.Length == 0 ? JsValue.Undefined : JsValue.FromString(string.Join("-", value));
-        }, "get variants", 0);
+                return JsValue.FromString(
+                    ThisLocaleValue(
+                        info.Realm,
+                        info.ThisValue,
+                        "Intl.Locale.prototype.language"
+                    ).Language
+                );
+            },
+            "get language",
+            0
+        );
+        var numberingSystemGetter = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var value = ThisLocaleValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.Locale.prototype.numberingSystem"
+                ).NumberingSystem;
+                return value is null ? JsValue.Undefined : JsValue.FromString(value);
+            },
+            "get numberingSystem",
+            0
+        );
+        var numericGetter = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var value = ThisLocaleValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.Locale.prototype.numeric"
+                ).Numeric;
+                return value.HasValue
+                    ? value.Value
+                        ? JsValue.True
+                        : JsValue.False
+                    : JsValue.False;
+            },
+            "get numeric",
+            0
+        );
+        var regionGetter = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var value = ThisLocaleValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.Locale.prototype.region"
+                ).Region;
+                return value is null ? JsValue.Undefined : JsValue.FromString(value);
+            },
+            "get region",
+            0
+        );
+        var scriptGetter = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var value = ThisLocaleValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.Locale.prototype.script"
+                ).Script;
+                return value is null ? JsValue.Undefined : JsValue.FromString(value);
+            },
+            "get script",
+            0
+        );
+        var firstDayOfWeekGetter = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var value = ThisLocaleValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.Locale.prototype.firstDayOfWeek"
+                ).FirstDayOfWeek;
+                return value is null ? JsValue.Undefined : JsValue.FromString(value);
+            },
+            "get firstDayOfWeek",
+            0
+        );
+        var variantsGetter = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var value = ThisLocaleValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.Locale.prototype.variants"
+                ).Variants;
+                return value.Length == 0
+                    ? JsValue.Undefined
+                    : JsValue.FromString(string.Join("-", value));
+            },
+            "get variants",
+            0
+        );
 
         Span<PropertyDefinition> defs =
         [
-            PropertyDefinition.Const(IdConstructor, JsValue.FromObject(localeConstructor), true,
-                configurable: true),
+            PropertyDefinition.Const(
+                IdConstructor,
+                JsValue.FromObject(localeConstructor),
+                true,
+                configurable: true
+            ),
             PropertyDefinition.Mutable(IdMaximize, JsValue.FromObject(maximizeFn)),
             PropertyDefinition.Mutable(IdMinimize, JsValue.FromObject(minimizeFn)),
             PropertyDefinition.Mutable(IdToString, JsValue.FromObject(toStringFn)),
             PropertyDefinition.Mutable(IdGetCalendars, JsValue.FromObject(getCalendarsFn)),
             PropertyDefinition.Mutable(IdGetCollations, JsValue.FromObject(getCollationsFn)),
             PropertyDefinition.Mutable(IdGetHourCycles, JsValue.FromObject(getHourCyclesFn)),
-            PropertyDefinition.Mutable(IdGetNumberingSystems, JsValue.FromObject(getNumberingSystemsFn)),
+            PropertyDefinition.Mutable(
+                IdGetNumberingSystems,
+                JsValue.FromObject(getNumberingSystemsFn)
+            ),
             PropertyDefinition.Mutable(IdGetTimeZones, JsValue.FromObject(getTimeZonesFn)),
             PropertyDefinition.Mutable(IdGetTextInfo, JsValue.FromObject(getTextInfoFn)),
             PropertyDefinition.Mutable(IdGetWeekInfo, JsValue.FromObject(getWeekInfoFn)),
@@ -1687,868 +3355,1772 @@ public partial class Intrinsics
             PropertyDefinition.GetterData(IdCollation, collationGetter, configurable: true),
             PropertyDefinition.GetterData(IdHourCycle, hourCycleGetter, configurable: true),
             PropertyDefinition.GetterData(IdLanguage, languageGetter, configurable: true),
-            PropertyDefinition.GetterData(IdNumberingSystem, numberingSystemGetter, configurable: true),
+            PropertyDefinition.GetterData(
+                IdNumberingSystem,
+                numberingSystemGetter,
+                configurable: true
+            ),
             PropertyDefinition.GetterData(IdNumeric, numericGetter, configurable: true),
             PropertyDefinition.GetterData(IdRegion, regionGetter, configurable: true),
             PropertyDefinition.GetterData(IdScript, scriptGetter, configurable: true),
-            PropertyDefinition.GetterData(IdFirstDayOfWeek, firstDayOfWeekGetter, configurable: true),
-            PropertyDefinition.GetterData(IdVariants, variantsGetter, configurable: true)
+            PropertyDefinition.GetterData(
+                IdFirstDayOfWeek,
+                firstDayOfWeekGetter,
+                configurable: true
+            ),
+            PropertyDefinition.GetterData(IdVariants, variantsGetter, configurable: true),
         ];
         localePrototype.DefineNewPropertiesNoCollision(Realm, defs);
-        localePrototype.DefineDataPropertyAtom(Realm, IdSymbolToStringTag, JsValue.FromString("Intl.Locale"),
-            JsShapePropertyFlags.Configurable);
+        localePrototype.DefineDataPropertyAtom(
+            Realm,
+            IdSymbolToStringTag,
+            JsValue.FromString("Intl.Locale"),
+            JsShapePropertyFlags.Configurable
+        );
     }
 
     private void InstallSegmenterPrototypeBuiltins(
         JsPlainObject segmenterPrototype,
         JsHostFunction segmenterConstructor,
         JsPlainObject segmentsPrototype,
-        JsPlainObject segmentIteratorPrototype)
+        JsPlainObject segmentIteratorPrototype
+    )
     {
-        var segmentFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var segmenter = ThisSegmenterValue(info.Realm, info.ThisValue, "Intl.Segmenter.prototype.segment");
-            var input = info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0];
-            var text = info.Realm.ToJsStringSlowPath(input);
-            return new JsSegmentsObject(info.Realm, segmentsPrototype, segmentIteratorPrototype, segmenter, text);
-        }, "segment", 1);
-
-        var resolvedOptionsFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var segmenter = ThisSegmenterValue(info.Realm, info.ThisValue, "Intl.Segmenter.prototype.resolvedOptions");
-            var result = new JsPlainObject(info.Realm)
+        var segmentFn = new JsHostFunction(
+            Realm,
+            (in info) =>
             {
-                Prototype = info.Realm.ObjectPrototype
-            };
-            result.DefineDataPropertyAtom(info.Realm, IdLocaleLower,
-                JsValue.FromString(segmenter.Locale),
-                JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdGranularity,
-                JsValue.FromString(segmenter.Granularity),
-                JsShapePropertyFlags.Open);
-            return result;
-        }, "resolvedOptions", 0);
+                var segmenter = ThisSegmenterValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.Segmenter.prototype.segment"
+                );
+                var input = info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0];
+                var text = info.Realm.ToJsStringSlowPath(input);
+                return new JsSegmentsObject(
+                    info.Realm,
+                    segmentsPrototype,
+                    segmentIteratorPrototype,
+                    segmenter,
+                    text
+                );
+            },
+            "segment",
+            1
+        );
+
+        var resolvedOptionsFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var segmenter = ThisSegmenterValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.Segmenter.prototype.resolvedOptions"
+                );
+                var result = new JsPlainObject(info.Realm)
+                {
+                    Prototype = info.Realm.ObjectPrototype,
+                };
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdLocaleLower,
+                    JsValue.FromString(segmenter.Locale),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdGranularity,
+                    JsValue.FromString(segmenter.Granularity),
+                    JsShapePropertyFlags.Open
+                );
+                return result;
+            },
+            "resolvedOptions",
+            0
+        );
 
         Span<PropertyDefinition> defs =
         [
-            PropertyDefinition.Const(IdConstructor, JsValue.FromObject(segmenterConstructor), true,
-                configurable: true),
+            PropertyDefinition.Const(
+                IdConstructor,
+                JsValue.FromObject(segmenterConstructor),
+                true,
+                configurable: true
+            ),
             PropertyDefinition.Mutable(IdSegment, JsValue.FromObject(segmentFn)),
-            PropertyDefinition.Mutable(IdResolvedOptions, JsValue.FromObject(resolvedOptionsFn))
+            PropertyDefinition.Mutable(IdResolvedOptions, JsValue.FromObject(resolvedOptionsFn)),
         ];
         segmenterPrototype.DefineNewPropertiesNoCollision(Realm, defs);
-        segmenterPrototype.DefineDataPropertyAtom(Realm, IdSymbolToStringTag,
+        segmenterPrototype.DefineDataPropertyAtom(
+            Realm,
+            IdSymbolToStringTag,
             JsValue.FromString("Intl.Segmenter"),
-            JsShapePropertyFlags.Configurable);
+            JsShapePropertyFlags.Configurable
+        );
     }
 
-    private void InstallSegmentsPrototypeBuiltins(JsPlainObject segmentsPrototype,
-        JsPlainObject segmentIteratorPrototype)
+    private void InstallSegmentsPrototypeBuiltins(
+        JsPlainObject segmentsPrototype,
+        JsPlainObject segmentIteratorPrototype
+    )
     {
-        var containingFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var segments =
-                ThisSegmentsValue(info.Realm, info.ThisValue, "Intl.Segmenter.prototype.segment().containing");
-            var index = info.Arguments.Length == 0 ? 0d : info.Realm.ToIntegerOrInfinity(info.Arguments[0]);
-            return segments.Containing(index);
-        }, "containing", 1);
+        var containingFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var segments = ThisSegmentsValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.Segmenter.prototype.segment().containing"
+                );
+                var index =
+                    info.Arguments.Length == 0
+                        ? 0d
+                        : info.Realm.ToIntegerOrInfinity(info.Arguments[0]);
+                return segments.Containing(index);
+            },
+            "containing",
+            1
+        );
 
-        var iteratorFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var segments = ThisSegmentsValue(info.Realm, info.ThisValue,
-                "Intl.Segmenter.prototype.segment()[Symbol.iterator]");
-            return segments.CreateIterator();
-        }, "[Symbol.iterator]", 0);
+        var iteratorFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var segments = ThisSegmentsValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.Segmenter.prototype.segment()[Symbol.iterator]"
+                );
+                return segments.CreateIterator();
+            },
+            "[Symbol.iterator]",
+            0
+        );
 
         Span<PropertyDefinition> defs =
         [
             PropertyDefinition.Mutable(IdContaining, JsValue.FromObject(containingFn)),
-            PropertyDefinition.Mutable(IdSymbolIterator, JsValue.FromObject(iteratorFn))
+            PropertyDefinition.Mutable(IdSymbolIterator, JsValue.FromObject(iteratorFn)),
         ];
         segmentsPrototype.DefineNewPropertiesNoCollision(Realm, defs);
-        segmentsPrototype.DefineDataPropertyAtom(Realm, IdConstructor, JsValue.Undefined,
-            JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable);
+        segmentsPrototype.DefineDataPropertyAtom(
+            Realm,
+            IdConstructor,
+            JsValue.Undefined,
+            JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable
+        );
     }
 
     private void InstallSegmentIteratorPrototypeBuiltins(JsPlainObject segmentIteratorPrototype)
     {
-        var nextFn = new JsHostFunction(Realm,
+        var nextFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
-                return ThisSegmentIteratorValue(info.Realm, info.ThisValue, "Segment Iterator.prototype.next").Next();
-            }, "next", 0);
+                return ThisSegmentIteratorValue(
+                        info.Realm,
+                        info.ThisValue,
+                        "Segment Iterator.prototype.next"
+                    )
+                    .Next();
+            },
+            "next",
+            0
+        );
 
-        var iteratorSelfFn = new JsHostFunction(Realm, (in info) =>
-        {
-            ThisSegmentIteratorValue(info.Realm, info.ThisValue, "Segment Iterator.prototype[Symbol.iterator]");
-            return info.ThisValue;
-        }, "[Symbol.iterator]", 0);
+        var iteratorSelfFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                ThisSegmentIteratorValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Segment Iterator.prototype[Symbol.iterator]"
+                );
+                return info.ThisValue;
+            },
+            "[Symbol.iterator]",
+            0
+        );
 
         Span<PropertyDefinition> defs =
         [
             PropertyDefinition.Mutable(IdNext, JsValue.FromObject(nextFn)),
-            PropertyDefinition.Mutable(IdSymbolIterator, JsValue.FromObject(iteratorSelfFn))
+            PropertyDefinition.Mutable(IdSymbolIterator, JsValue.FromObject(iteratorSelfFn)),
         ];
         segmentIteratorPrototype.DefineNewPropertiesNoCollision(Realm, defs);
-        segmentIteratorPrototype.DefineDataPropertyAtom(Realm, IdSymbolToStringTag,
-            JsValue.FromString("Segment Iterator"), JsShapePropertyFlags.Configurable);
+        segmentIteratorPrototype.DefineDataPropertyAtom(
+            Realm,
+            IdSymbolToStringTag,
+            JsValue.FromString("Segment Iterator"),
+            JsShapePropertyFlags.Configurable
+        );
     }
 
     private void InstallRelativeTimeFormatPrototypeBuiltins(
         JsPlainObject relativeTimeFormatPrototype,
-        JsHostFunction relativeTimeFormatConstructor)
+        JsHostFunction relativeTimeFormatConstructor
+    )
     {
-        var formatFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var relativeTimeFormat = ThisRelativeTimeFormatValue(info.Realm, info.ThisValue,
-                "Intl.RelativeTimeFormat.prototype.format");
-            var value = info.Realm.ToNumberSlowPath(
-                info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0]);
-            if (double.IsNaN(value) || double.IsInfinity(value))
-                throw new JsRuntimeException(JsErrorKind.RangeError, "Invalid value");
-            var unit = NormalizeRelativeTimeFormatUnit(info.Realm,
-                info.Arguments.Length > 1 ? info.Arguments[1] : JsValue.Undefined);
-            return JsValue.FromString(relativeTimeFormat.Format(value, unit));
-        }, "format", 2);
-
-        var formatToPartsFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var relativeTimeFormat = ThisRelativeTimeFormatValue(info.Realm, info.ThisValue,
-                "Intl.RelativeTimeFormat.prototype.formatToParts");
-            var value = info.Realm.ToNumberSlowPath(
-                info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0]);
-            if (double.IsNaN(value) || double.IsInfinity(value))
-                throw new JsRuntimeException(JsErrorKind.RangeError, "Invalid value");
-            var unit = NormalizeRelativeTimeFormatUnit(info.Realm,
-                info.Arguments.Length > 1 ? info.Arguments[1] : JsValue.Undefined);
-            return relativeTimeFormat.FormatToParts(value, unit);
-        }, "formatToParts", 2);
-
-        var resolvedOptionsFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var relativeTimeFormat = ThisRelativeTimeFormatValue(info.Realm, info.ThisValue,
-                "Intl.RelativeTimeFormat.prototype.resolvedOptions");
-            var result = new JsPlainObject(info.Realm)
+        var formatFn = new JsHostFunction(
+            Realm,
+            (in info) =>
             {
-                Prototype = info.Realm.ObjectPrototype
-            };
-            result.DefineDataPropertyAtom(info.Realm, IdLocaleLower,
-                JsValue.FromString(relativeTimeFormat.Locale), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdStyle,
-                JsValue.FromString(relativeTimeFormat.Style), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdNumeric,
-                JsValue.FromString(relativeTimeFormat.Numeric), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdNumberingSystem,
-                JsValue.FromString(relativeTimeFormat.NumberingSystem), JsShapePropertyFlags.Open);
-            return result;
-        }, "resolvedOptions", 0);
+                var relativeTimeFormat = ThisRelativeTimeFormatValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.RelativeTimeFormat.prototype.format"
+                );
+                var value = info.Realm.ToNumberSlowPath(
+                    info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0]
+                );
+                if (double.IsNaN(value) || double.IsInfinity(value))
+                    throw new JsRuntimeException(JsErrorKind.RangeError, "Invalid value");
+                var unit = NormalizeRelativeTimeFormatUnit(
+                    info.Realm,
+                    info.Arguments.Length > 1 ? info.Arguments[1] : JsValue.Undefined
+                );
+                return JsValue.FromString(relativeTimeFormat.Format(value, unit));
+            },
+            "format",
+            2
+        );
+
+        var formatToPartsFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var relativeTimeFormat = ThisRelativeTimeFormatValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.RelativeTimeFormat.prototype.formatToParts"
+                );
+                var value = info.Realm.ToNumberSlowPath(
+                    info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0]
+                );
+                if (double.IsNaN(value) || double.IsInfinity(value))
+                    throw new JsRuntimeException(JsErrorKind.RangeError, "Invalid value");
+                var unit = NormalizeRelativeTimeFormatUnit(
+                    info.Realm,
+                    info.Arguments.Length > 1 ? info.Arguments[1] : JsValue.Undefined
+                );
+                return relativeTimeFormat.FormatToParts(value, unit);
+            },
+            "formatToParts",
+            2
+        );
+
+        var resolvedOptionsFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var relativeTimeFormat = ThisRelativeTimeFormatValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.RelativeTimeFormat.prototype.resolvedOptions"
+                );
+                var result = new JsPlainObject(info.Realm)
+                {
+                    Prototype = info.Realm.ObjectPrototype,
+                };
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdLocaleLower,
+                    JsValue.FromString(relativeTimeFormat.Locale),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdStyle,
+                    JsValue.FromString(relativeTimeFormat.Style),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdNumeric,
+                    JsValue.FromString(relativeTimeFormat.Numeric),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdNumberingSystem,
+                    JsValue.FromString(relativeTimeFormat.NumberingSystem),
+                    JsShapePropertyFlags.Open
+                );
+                return result;
+            },
+            "resolvedOptions",
+            0
+        );
 
         Span<PropertyDefinition> defs =
         [
-            PropertyDefinition.Const(IdConstructor, JsValue.FromObject(relativeTimeFormatConstructor),
-                true, configurable: true),
+            PropertyDefinition.Const(
+                IdConstructor,
+                JsValue.FromObject(relativeTimeFormatConstructor),
+                true,
+                configurable: true
+            ),
             PropertyDefinition.Mutable(IdFormat, JsValue.FromObject(formatFn)),
             PropertyDefinition.Mutable(IdFormatToParts, JsValue.FromObject(formatToPartsFn)),
-            PropertyDefinition.Mutable(IdResolvedOptions, JsValue.FromObject(resolvedOptionsFn))
+            PropertyDefinition.Mutable(IdResolvedOptions, JsValue.FromObject(resolvedOptionsFn)),
         ];
         relativeTimeFormatPrototype.DefineNewPropertiesNoCollision(Realm, defs);
-        relativeTimeFormatPrototype.DefineDataPropertyAtom(Realm, IdSymbolToStringTag,
-            JsValue.FromString("Intl.RelativeTimeFormat"), JsShapePropertyFlags.Configurable);
+        relativeTimeFormatPrototype.DefineDataPropertyAtom(
+            Realm,
+            IdSymbolToStringTag,
+            JsValue.FromString("Intl.RelativeTimeFormat"),
+            JsShapePropertyFlags.Configurable
+        );
     }
 
     private void InstallDurationFormatPrototypeBuiltins(
         JsPlainObject durationFormatPrototype,
-        JsHostFunction durationFormatConstructor)
+        JsHostFunction durationFormatConstructor
+    )
     {
-        var formatFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var durationFormat =
-                ThisDurationFormatValue(info.Realm, info.ThisValue, "Intl.DurationFormat.prototype.format");
-            var duration = ToDurationFormatRecord(info.Realm,
-                info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0]);
-            return JsValue.FromString(durationFormat.Format(duration));
-        }, "format", 1);
-
-        var formatToPartsFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var durationFormat = ThisDurationFormatValue(info.Realm, info.ThisValue,
-                "Intl.DurationFormat.prototype.formatToParts");
-            var duration = ToDurationFormatRecord(info.Realm,
-                info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0]);
-            return durationFormat.FormatToParts(duration);
-        }, "formatToParts", 1);
-
-        var resolvedOptionsFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var durationFormat = ThisDurationFormatValue(info.Realm, info.ThisValue,
-                "Intl.DurationFormat.prototype.resolvedOptions");
-            var result = new JsPlainObject(info.Realm, useDictionaryMode: true)
+        var formatFn = new JsHostFunction(
+            Realm,
+            (in info) =>
             {
-                Prototype = info.Realm.ObjectPrototype
-            };
-            result.DefineDataPropertyAtom(info.Realm, IdLocaleLower,
-                JsValue.FromString(durationFormat.Locale), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdNumberingSystem,
-                JsValue.FromString(durationFormat.NumberingSystem), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdStyle,
-                JsValue.FromString(durationFormat.Style), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdYears,
-                JsValue.FromString(durationFormat.YearsStyle), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdYearsDisplay,
-                JsValue.FromString(durationFormat.YearsDisplay), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdMonths,
-                JsValue.FromString(durationFormat.MonthsStyle), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdMonthsDisplay,
-                JsValue.FromString(durationFormat.MonthsDisplay), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdWeeks,
-                JsValue.FromString(durationFormat.WeeksStyle), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdWeeksDisplay,
-                JsValue.FromString(durationFormat.WeeksDisplay), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdDays,
-                JsValue.FromString(durationFormat.DaysStyle), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdDaysDisplay,
-                JsValue.FromString(durationFormat.DaysDisplay), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdHours,
-                JsValue.FromString(durationFormat.HoursStyle), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdHoursDisplay,
-                JsValue.FromString(durationFormat.HoursDisplay), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdMinutes,
-                JsValue.FromString(durationFormat.MinutesStyle), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdMinutesDisplay,
-                JsValue.FromString(durationFormat.MinutesDisplay), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdSeconds,
-                JsValue.FromString(durationFormat.SecondsStyle), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdSecondsDisplay,
-                JsValue.FromString(durationFormat.SecondsDisplay), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdMilliseconds,
-                JsValue.FromString(durationFormat.MillisecondsStyle), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdMillisecondsDisplay,
-                JsValue.FromString(durationFormat.MillisecondsDisplay), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdMicroseconds,
-                JsValue.FromString(durationFormat.MicrosecondsStyle), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdMicrosecondsDisplay,
-                JsValue.FromString(durationFormat.MicrosecondsDisplay), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdNanoseconds,
-                JsValue.FromString(durationFormat.NanosecondsStyle), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdNanosecondsDisplay,
-                JsValue.FromString(durationFormat.NanosecondsDisplay), JsShapePropertyFlags.Open);
-            if (durationFormat.FractionalDigits.HasValue)
-                result.DefineDataPropertyAtom(info.Realm, IdFractionalDigits,
-                    JsValue.FromInt32(durationFormat.FractionalDigits.Value), JsShapePropertyFlags.Open);
+                var durationFormat = ThisDurationFormatValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.DurationFormat.prototype.format"
+                );
+                var duration = ToDurationFormatRecord(
+                    info.Realm,
+                    info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0]
+                );
+                return JsValue.FromString(durationFormat.Format(duration));
+            },
+            "format",
+            1
+        );
 
-            return result;
-        }, "resolvedOptions", 0);
+        var formatToPartsFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var durationFormat = ThisDurationFormatValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.DurationFormat.prototype.formatToParts"
+                );
+                var duration = ToDurationFormatRecord(
+                    info.Realm,
+                    info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0]
+                );
+                return durationFormat.FormatToParts(duration);
+            },
+            "formatToParts",
+            1
+        );
+
+        var resolvedOptionsFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var durationFormat = ThisDurationFormatValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.DurationFormat.prototype.resolvedOptions"
+                );
+                var result = new JsPlainObject(info.Realm, useDictionaryMode: true)
+                {
+                    Prototype = info.Realm.ObjectPrototype,
+                };
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdLocaleLower,
+                    JsValue.FromString(durationFormat.Locale),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdNumberingSystem,
+                    JsValue.FromString(durationFormat.NumberingSystem),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdStyle,
+                    JsValue.FromString(durationFormat.Style),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdYears,
+                    JsValue.FromString(durationFormat.YearsStyle),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdYearsDisplay,
+                    JsValue.FromString(durationFormat.YearsDisplay),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdMonths,
+                    JsValue.FromString(durationFormat.MonthsStyle),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdMonthsDisplay,
+                    JsValue.FromString(durationFormat.MonthsDisplay),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdWeeks,
+                    JsValue.FromString(durationFormat.WeeksStyle),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdWeeksDisplay,
+                    JsValue.FromString(durationFormat.WeeksDisplay),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdDays,
+                    JsValue.FromString(durationFormat.DaysStyle),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdDaysDisplay,
+                    JsValue.FromString(durationFormat.DaysDisplay),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdHours,
+                    JsValue.FromString(durationFormat.HoursStyle),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdHoursDisplay,
+                    JsValue.FromString(durationFormat.HoursDisplay),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdMinutes,
+                    JsValue.FromString(durationFormat.MinutesStyle),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdMinutesDisplay,
+                    JsValue.FromString(durationFormat.MinutesDisplay),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdSeconds,
+                    JsValue.FromString(durationFormat.SecondsStyle),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdSecondsDisplay,
+                    JsValue.FromString(durationFormat.SecondsDisplay),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdMilliseconds,
+                    JsValue.FromString(durationFormat.MillisecondsStyle),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdMillisecondsDisplay,
+                    JsValue.FromString(durationFormat.MillisecondsDisplay),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdMicroseconds,
+                    JsValue.FromString(durationFormat.MicrosecondsStyle),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdMicrosecondsDisplay,
+                    JsValue.FromString(durationFormat.MicrosecondsDisplay),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdNanoseconds,
+                    JsValue.FromString(durationFormat.NanosecondsStyle),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdNanosecondsDisplay,
+                    JsValue.FromString(durationFormat.NanosecondsDisplay),
+                    JsShapePropertyFlags.Open
+                );
+                if (durationFormat.FractionalDigits.HasValue)
+                    result.DefineDataPropertyAtom(
+                        info.Realm,
+                        IdFractionalDigits,
+                        JsValue.FromInt32(durationFormat.FractionalDigits.Value),
+                        JsShapePropertyFlags.Open
+                    );
+
+                return result;
+            },
+            "resolvedOptions",
+            0
+        );
 
         Span<PropertyDefinition> defs =
         [
-            PropertyDefinition.Const(IdConstructor, JsValue.FromObject(durationFormatConstructor),
-                true, configurable: true),
+            PropertyDefinition.Const(
+                IdConstructor,
+                JsValue.FromObject(durationFormatConstructor),
+                true,
+                configurable: true
+            ),
             PropertyDefinition.Mutable(IdFormat, JsValue.FromObject(formatFn)),
             PropertyDefinition.Mutable(IdFormatToParts, JsValue.FromObject(formatToPartsFn)),
-            PropertyDefinition.Mutable(IdResolvedOptions, JsValue.FromObject(resolvedOptionsFn))
+            PropertyDefinition.Mutable(IdResolvedOptions, JsValue.FromObject(resolvedOptionsFn)),
         ];
         durationFormatPrototype.DefineNewPropertiesNoCollision(Realm, defs);
-        durationFormatPrototype.DefineDataPropertyAtom(Realm, IdSymbolToStringTag,
-            JsValue.FromString("Intl.DurationFormat"), JsShapePropertyFlags.Configurable);
+        durationFormatPrototype.DefineDataPropertyAtom(
+            Realm,
+            IdSymbolToStringTag,
+            JsValue.FromString("Intl.DurationFormat"),
+            JsShapePropertyFlags.Configurable
+        );
     }
 
     private void InstallNumberFormatPrototypeBuiltins(
         JsPlainObject numberFormatPrototype,
-        JsHostFunction numberFormatConstructor)
+        JsHostFunction numberFormatConstructor
+    )
     {
-        var formatGetter = new JsHostFunction(Realm, (in info) =>
-        {
-            var numberFormat = ThisNumberFormatValue(info.Realm, info.ThisValue, "Intl.NumberFormat.prototype.format");
-            var boundFormat = new JsHostFunction(info.Realm, static (in innerInfo) =>
+        var formatGetter = new JsHostFunction(
+            Realm,
+            (in info) =>
             {
-                var capture = (JsNumberFormatObject)((JsHostFunction)innerInfo.Function).UserData!;
-                var value = innerInfo.Arguments.Length == 0 ? JsValue.Undefined : innerInfo.Arguments[0];
-                if (capture.TryFormatExactValue(value, out var exact))
-                    return JsValue.FromString(exact);
-                var number = value.IsUndefined ? double.NaN : innerInfo.Realm.ToNumberSlowPath(value);
-                return JsValue.FromString(capture.Format(number));
-            }, string.Empty, 1)
+                var numberFormat = ThisNumberFormatValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.NumberFormat.prototype.format"
+                );
+                var boundFormat = new JsHostFunction(
+                    info.Realm,
+                    static (in innerInfo) =>
+                    {
+                        var capture = (JsNumberFormatObject)
+                            ((JsHostFunction)innerInfo.Function).UserData!;
+                        var value =
+                            innerInfo.Arguments.Length == 0
+                                ? JsValue.Undefined
+                                : innerInfo.Arguments[0];
+                        if (capture.TryFormatExactValue(value, out var exact))
+                            return JsValue.FromString(exact);
+                        var number = value.IsUndefined
+                            ? double.NaN
+                            : innerInfo.Realm.ToNumberSlowPath(value);
+                        return JsValue.FromString(capture.Format(number));
+                    },
+                    string.Empty,
+                    1
+                )
+                {
+                    UserData = numberFormat,
+                };
+                return boundFormat;
+            },
+            "get format",
+            0
+        );
+
+        var resolvedOptionsFn = new JsHostFunction(
+            Realm,
+            (in info) =>
             {
-                UserData = numberFormat
-            };
-            return boundFormat;
-        }, "get format", 0);
+                var numberFormat = ThisNumberFormatValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.NumberFormat.prototype.resolvedOptions"
+                );
+                var result = new JsPlainObject(info.Realm, useDictionaryMode: true)
+                {
+                    Prototype = info.Realm.ObjectPrototype,
+                };
+                var useGroupingValue = string.Equals(
+                    numberFormat.UseGrouping,
+                    "false",
+                    StringComparison.Ordinal
+                )
+                    ? JsValue.False
+                    : JsValue.FromString(numberFormat.UseGrouping);
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdLocaleLower,
+                    JsValue.FromString(numberFormat.Locale),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdNumberingSystem,
+                    JsValue.FromString(numberFormat.NumberingSystem),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdStyle,
+                    JsValue.FromString(numberFormat.Style),
+                    JsShapePropertyFlags.Open
+                );
+                if (numberFormat.Currency is not null)
+                {
+                    result.DefineDataPropertyAtom(
+                        info.Realm,
+                        IdCurrency,
+                        JsValue.FromString(numberFormat.Currency),
+                        JsShapePropertyFlags.Open
+                    );
+                    result.DefineDataPropertyAtom(
+                        info.Realm,
+                        IdCurrencyDisplay,
+                        JsValue.FromString(numberFormat.CurrencyDisplay),
+                        JsShapePropertyFlags.Open
+                    );
+                    result.DefineDataPropertyAtom(
+                        info.Realm,
+                        IdCurrencySign,
+                        JsValue.FromString(numberFormat.CurrencySign),
+                        JsShapePropertyFlags.Open
+                    );
+                }
 
-        var resolvedOptionsFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var numberFormat = ThisNumberFormatValue(info.Realm, info.ThisValue,
-                "Intl.NumberFormat.prototype.resolvedOptions");
-            var result = new JsPlainObject(info.Realm, useDictionaryMode: true)
-            {
-                Prototype = info.Realm.ObjectPrototype
-            };
-            var useGroupingValue = string.Equals(numberFormat.UseGrouping, "false", StringComparison.Ordinal)
-                ? JsValue.False
-                : JsValue.FromString(numberFormat.UseGrouping);
-            result.DefineDataPropertyAtom(info.Realm, IdLocaleLower,
-                JsValue.FromString(numberFormat.Locale), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdNumberingSystem,
-                JsValue.FromString(numberFormat.NumberingSystem), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdStyle,
-                JsValue.FromString(numberFormat.Style), JsShapePropertyFlags.Open);
-            if (numberFormat.Currency is not null)
-            {
-                result.DefineDataPropertyAtom(info.Realm, IdCurrency,
-                    JsValue.FromString(numberFormat.Currency), JsShapePropertyFlags.Open);
-                result.DefineDataPropertyAtom(info.Realm, IdCurrencyDisplay,
-                    JsValue.FromString(numberFormat.CurrencyDisplay), JsShapePropertyFlags.Open);
-                result.DefineDataPropertyAtom(info.Realm, IdCurrencySign,
-                    JsValue.FromString(numberFormat.CurrencySign), JsShapePropertyFlags.Open);
-            }
+                if (numberFormat.Unit is not null)
+                {
+                    result.DefineDataPropertyAtom(
+                        info.Realm,
+                        IdUnit,
+                        JsValue.FromString(numberFormat.Unit),
+                        JsShapePropertyFlags.Open
+                    );
+                    result.DefineDataPropertyAtom(
+                        info.Realm,
+                        IdUnitDisplay,
+                        JsValue.FromString(numberFormat.UnitDisplay),
+                        JsShapePropertyFlags.Open
+                    );
+                }
 
-            if (numberFormat.Unit is not null)
-            {
-                result.DefineDataPropertyAtom(info.Realm, IdUnit,
-                    JsValue.FromString(numberFormat.Unit), JsShapePropertyFlags.Open);
-                result.DefineDataPropertyAtom(info.Realm, IdUnitDisplay,
-                    JsValue.FromString(numberFormat.UnitDisplay), JsShapePropertyFlags.Open);
-            }
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdMinimumIntegerDigits,
+                    JsValue.FromInt32(numberFormat.MinimumIntegerDigits),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdMinimumFractionDigits,
+                    JsValue.FromInt32(numberFormat.MinimumFractionDigits),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdMaximumFractionDigits,
+                    JsValue.FromInt32(numberFormat.MaximumFractionDigits),
+                    JsShapePropertyFlags.Open
+                );
+                if (numberFormat.MinimumSignificantDigits.HasValue)
+                    result.DefineDataPropertyAtom(
+                        info.Realm,
+                        IdMinimumSignificantDigits,
+                        JsValue.FromInt32(numberFormat.MinimumSignificantDigits.Value),
+                        JsShapePropertyFlags.Open
+                    );
 
-            result.DefineDataPropertyAtom(info.Realm, IdMinimumIntegerDigits,
-                JsValue.FromInt32(numberFormat.MinimumIntegerDigits), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdMinimumFractionDigits,
-                JsValue.FromInt32(numberFormat.MinimumFractionDigits), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdMaximumFractionDigits,
-                JsValue.FromInt32(numberFormat.MaximumFractionDigits), JsShapePropertyFlags.Open);
-            if (numberFormat.MinimumSignificantDigits.HasValue)
-                result.DefineDataPropertyAtom(info.Realm, IdMinimumSignificantDigits,
-                    JsValue.FromInt32(numberFormat.MinimumSignificantDigits.Value), JsShapePropertyFlags.Open);
+                if (numberFormat.MaximumSignificantDigits.HasValue)
+                    result.DefineDataPropertyAtom(
+                        info.Realm,
+                        IdMaximumSignificantDigits,
+                        JsValue.FromInt32(numberFormat.MaximumSignificantDigits.Value),
+                        JsShapePropertyFlags.Open
+                    );
 
-            if (numberFormat.MaximumSignificantDigits.HasValue)
-                result.DefineDataPropertyAtom(info.Realm, IdMaximumSignificantDigits,
-                    JsValue.FromInt32(numberFormat.MaximumSignificantDigits.Value), JsShapePropertyFlags.Open);
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdUseGrouping,
+                    useGroupingValue,
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdNotation,
+                    JsValue.FromString(numberFormat.Notation),
+                    JsShapePropertyFlags.Open
+                );
+                if (string.Equals(numberFormat.Notation, "compact", StringComparison.Ordinal))
+                    result.DefineDataPropertyAtom(
+                        info.Realm,
+                        IdCompactDisplay,
+                        JsValue.FromString(numberFormat.CompactDisplay),
+                        JsShapePropertyFlags.Open
+                    );
 
-            result.DefineDataPropertyAtom(info.Realm, IdUseGrouping,
-                useGroupingValue, JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdNotation,
-                JsValue.FromString(numberFormat.Notation), JsShapePropertyFlags.Open);
-            if (string.Equals(numberFormat.Notation, "compact", StringComparison.Ordinal))
-                result.DefineDataPropertyAtom(info.Realm, IdCompactDisplay,
-                    JsValue.FromString(numberFormat.CompactDisplay), JsShapePropertyFlags.Open);
-
-            result.DefineDataPropertyAtom(info.Realm, IdSignDisplay,
-                JsValue.FromString(numberFormat.SignDisplay), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdRoundingIncrement,
-                JsValue.FromInt32(numberFormat.RoundingIncrement), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdRoundingMode,
-                JsValue.FromString(numberFormat.RoundingMode), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdRoundingPriority,
-                JsValue.FromString(numberFormat.RoundingPriority), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdTrailingZeroDisplay,
-                JsValue.FromString(numberFormat.TrailingZeroDisplay), JsShapePropertyFlags.Open);
-            return result;
-        }, "resolvedOptions", 0);
-
-        var formatToPartsFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var numberFormat = ThisNumberFormatValue(info.Realm, info.ThisValue,
-                "Intl.NumberFormat.prototype.formatToParts");
-            var value = info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0];
-            var number = value.IsUndefined ? double.NaN : info.Realm.ToNumberSlowPath(value);
-            return numberFormat.FormatToParts(number);
-        }, "formatToParts", 1);
-
-        var formatRangeFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var numberFormat = ThisNumberFormatValue(info.Realm, info.ThisValue,
-                "Intl.NumberFormat.prototype.formatRange");
-            var startValue = info.Arguments.Length > 0 ? info.Arguments[0] : JsValue.Undefined;
-            var endValue = info.Arguments.Length > 1 ? info.Arguments[1] : JsValue.Undefined;
-            var startFormatted = FormatRangeValue(info.Realm, numberFormat, startValue);
-            var endFormatted = FormatRangeValue(info.Realm, numberFormat, endValue);
-            if (string.Equals(startFormatted, endFormatted, StringComparison.Ordinal))
-                return JsValue.FromString("~" + startFormatted);
-
-            var separator = GetRangeSeparator(numberFormat, startValue, endValue);
-            if (TryCompressSharedSuffix(startFormatted, endFormatted, separator, out var suffixCompressed))
-                return JsValue.FromString(suffixCompressed!);
-            if (TryCompressSharedPrefix(startFormatted, endFormatted, separator, out var prefixCompressed))
-                return JsValue.FromString(prefixCompressed!);
-            return JsValue.FromString(startFormatted + separator + endFormatted);
-        }, "formatRange", 2);
-
-        var formatRangeToPartsFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var numberFormat = ThisNumberFormatValue(info.Realm, info.ThisValue,
-                "Intl.NumberFormat.prototype.formatRangeToParts");
-            var startValue = info.Arguments.Length > 0 ? info.Arguments[0] : JsValue.Undefined;
-            var endValue = info.Arguments.Length > 1 ? info.Arguments[1] : JsValue.Undefined;
-            var start = ToRangeNumber(info.Realm, startValue);
-            var end = ToRangeNumber(info.Realm, endValue);
-            var startParts = numberFormat.FormatToParts(start);
-            var endParts = numberFormat.FormatToParts(end);
-            var startFormatted = numberFormat.Format(start);
-            var endFormatted = numberFormat.Format(end);
-            var result = info.Realm.CreateArrayObject();
-            uint index = 0;
-
-            if (string.Equals(startFormatted, endFormatted, StringComparison.Ordinal))
-            {
-                result.SetElement(index++,
-                    JsValue.FromObject(CreateRangePartObject(info.Realm, "approximatelySign", "~", "shared")));
-                AppendRangeParts(result, ref index, startParts, "shared");
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdSignDisplay,
+                    JsValue.FromString(numberFormat.SignDisplay),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdRoundingIncrement,
+                    JsValue.FromInt32(numberFormat.RoundingIncrement),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdRoundingMode,
+                    JsValue.FromString(numberFormat.RoundingMode),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdRoundingPriority,
+                    JsValue.FromString(numberFormat.RoundingPriority),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdTrailingZeroDisplay,
+                    JsValue.FromString(numberFormat.TrailingZeroDisplay),
+                    JsShapePropertyFlags.Open
+                );
                 return result;
-            }
+            },
+            "resolvedOptions",
+            0
+        );
 
-            AppendRangeParts(result, ref index, startParts, "startRange");
-            result.SetElement(index++,
-                JsValue.FromObject(CreateRangePartObject(info.Realm, "literal",
-                    GetRangeSeparator(numberFormat, startValue, endValue), "shared")));
-            AppendRangeParts(result, ref index, endParts, "endRange");
-            return result;
-        }, "formatRangeToParts", 2);
+        var formatToPartsFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var numberFormat = ThisNumberFormatValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.NumberFormat.prototype.formatToParts"
+                );
+                var value = info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0];
+                var number = value.IsUndefined ? double.NaN : info.Realm.ToNumberSlowPath(value);
+                return numberFormat.FormatToParts(number);
+            },
+            "formatToParts",
+            1
+        );
+
+        var formatRangeFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var numberFormat = ThisNumberFormatValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.NumberFormat.prototype.formatRange"
+                );
+                var startValue = info.Arguments.Length > 0 ? info.Arguments[0] : JsValue.Undefined;
+                var endValue = info.Arguments.Length > 1 ? info.Arguments[1] : JsValue.Undefined;
+                var startFormatted = FormatRangeValue(info.Realm, numberFormat, startValue);
+                var endFormatted = FormatRangeValue(info.Realm, numberFormat, endValue);
+                if (string.Equals(startFormatted, endFormatted, StringComparison.Ordinal))
+                    return JsValue.FromString("~" + startFormatted);
+
+                var separator = GetRangeSeparator(numberFormat, startValue, endValue);
+                if (
+                    TryCompressSharedSuffix(
+                        startFormatted,
+                        endFormatted,
+                        separator,
+                        out var suffixCompressed
+                    )
+                )
+                    return JsValue.FromString(suffixCompressed!);
+                if (
+                    TryCompressSharedPrefix(
+                        startFormatted,
+                        endFormatted,
+                        separator,
+                        out var prefixCompressed
+                    )
+                )
+                    return JsValue.FromString(prefixCompressed!);
+                return JsValue.FromString(startFormatted + separator + endFormatted);
+            },
+            "formatRange",
+            2
+        );
+
+        var formatRangeToPartsFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var numberFormat = ThisNumberFormatValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.NumberFormat.prototype.formatRangeToParts"
+                );
+                var startValue = info.Arguments.Length > 0 ? info.Arguments[0] : JsValue.Undefined;
+                var endValue = info.Arguments.Length > 1 ? info.Arguments[1] : JsValue.Undefined;
+                var start = ToRangeNumber(info.Realm, startValue);
+                var end = ToRangeNumber(info.Realm, endValue);
+                var startParts = numberFormat.FormatToParts(start);
+                var endParts = numberFormat.FormatToParts(end);
+                var startFormatted = numberFormat.Format(start);
+                var endFormatted = numberFormat.Format(end);
+                var result = info.Realm.CreateArrayObject();
+                uint index = 0;
+
+                if (string.Equals(startFormatted, endFormatted, StringComparison.Ordinal))
+                {
+                    result.SetElement(
+                        index++,
+                        JsValue.FromObject(
+                            CreateRangePartObject(info.Realm, "approximatelySign", "~", "shared")
+                        )
+                    );
+                    AppendRangeParts(result, ref index, startParts, "shared");
+                    return result;
+                }
+
+                AppendRangeParts(result, ref index, startParts, "startRange");
+                result.SetElement(
+                    index++,
+                    JsValue.FromObject(
+                        CreateRangePartObject(
+                            info.Realm,
+                            "literal",
+                            GetRangeSeparator(numberFormat, startValue, endValue),
+                            "shared"
+                        )
+                    )
+                );
+                AppendRangeParts(result, ref index, endParts, "endRange");
+                return result;
+            },
+            "formatRangeToParts",
+            2
+        );
 
         Span<PropertyDefinition> defs =
         [
-            PropertyDefinition.Const(IdConstructor, JsValue.FromObject(numberFormatConstructor),
-                true, configurable: true),
+            PropertyDefinition.Const(
+                IdConstructor,
+                JsValue.FromObject(numberFormatConstructor),
+                true,
+                configurable: true
+            ),
             PropertyDefinition.GetterData(IdFormat, formatGetter, configurable: true),
             PropertyDefinition.Mutable(IdResolvedOptions, JsValue.FromObject(resolvedOptionsFn)),
             PropertyDefinition.Mutable(IdFormatToParts, JsValue.FromObject(formatToPartsFn)),
             PropertyDefinition.Mutable(IdFormatRange, JsValue.FromObject(formatRangeFn)),
-            PropertyDefinition.Mutable(IdFormatRangeToParts, JsValue.FromObject(formatRangeToPartsFn)),
-            PropertyDefinition.Data(IdSymbolToStringTag, JsValue.FromString("Intl.NumberFormat"),
-                configurable: true)
+            PropertyDefinition.Mutable(
+                IdFormatRangeToParts,
+                JsValue.FromObject(formatRangeToPartsFn)
+            ),
+            PropertyDefinition.Data(
+                IdSymbolToStringTag,
+                JsValue.FromString("Intl.NumberFormat"),
+                configurable: true
+            ),
         ];
         numberFormatPrototype.DefineNewPropertiesNoCollision(Realm, defs);
     }
 
     private void InstallDateTimeFormatPrototypeBuiltins(
         JsPlainObject dateTimeFormatPrototype,
-        JsHostFunction dateTimeFormatConstructor)
+        JsHostFunction dateTimeFormatConstructor
+    )
     {
-        var formatGetter = new JsHostFunction(Realm, (in info) =>
-        {
-            var dateTimeFormat =
-                ThisDateTimeFormatValue(info.Realm, info.ThisValue, "Intl.DateTimeFormat.prototype.format");
-            return dateTimeFormat.GetOrCreateBoundFormat(info.Realm);
-        }, "get format", 0);
-
-        var resolvedOptionsFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var dateTimeFormat = ThisDateTimeFormatValue(info.Realm, info.ThisValue,
-                "Intl.DateTimeFormat.prototype.resolvedOptions");
-            var result = new JsPlainObject(info.Realm)
+        var formatGetter = new JsHostFunction(
+            Realm,
+            (in info) =>
             {
-                Prototype = info.Realm.ObjectPrototype
-            };
-            result.DefineDataPropertyAtom(info.Realm, IdLocaleLower,
-                JsValue.FromString(dateTimeFormat.Locale), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdCalendar,
-                JsValue.FromString(dateTimeFormat.Calendar), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdNumberingSystem,
-                JsValue.FromString(dateTimeFormat.NumberingSystem), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdTimeZone,
-                JsValue.FromString(dateTimeFormat.TimeZone), JsShapePropertyFlags.Open);
-            var includeHourCycle = dateTimeFormat.Hour is not null || dateTimeFormat.TimeStyle is not null;
-            if (includeHourCycle)
+                var dateTimeFormat = ThisDateTimeFormatValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.DateTimeFormat.prototype.format"
+                );
+                return dateTimeFormat.GetOrCreateBoundFormat(info.Realm);
+            },
+            "get format",
+            0
+        );
+
+        var resolvedOptionsFn = new JsHostFunction(
+            Realm,
+            (in info) =>
             {
-                result.DefineDataPropertyAtom(info.Realm, IdHourCycle,
-                    JsValue.FromString(dateTimeFormat.HourCycle), JsShapePropertyFlags.Open);
-                result.DefineDataPropertyAtom(info.Realm, IdHour12,
-                    dateTimeFormat.HourCycle is "h11" or "h12" ? JsValue.True : JsValue.False,
-                    JsShapePropertyFlags.Open);
-            }
+                var dateTimeFormat = ThisDateTimeFormatValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.DateTimeFormat.prototype.resolvedOptions"
+                );
+                var result = new JsPlainObject(info.Realm)
+                {
+                    Prototype = info.Realm.ObjectPrototype,
+                };
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdLocaleLower,
+                    JsValue.FromString(dateTimeFormat.Locale),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdCalendar,
+                    JsValue.FromString(dateTimeFormat.Calendar),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdNumberingSystem,
+                    JsValue.FromString(dateTimeFormat.NumberingSystem),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdTimeZone,
+                    JsValue.FromString(dateTimeFormat.TimeZone),
+                    JsShapePropertyFlags.Open
+                );
+                var includeHourCycle =
+                    dateTimeFormat.Hour is not null || dateTimeFormat.TimeStyle is not null;
+                if (includeHourCycle)
+                {
+                    result.DefineDataPropertyAtom(
+                        info.Realm,
+                        IdHourCycle,
+                        JsValue.FromString(dateTimeFormat.HourCycle),
+                        JsShapePropertyFlags.Open
+                    );
+                    result.DefineDataPropertyAtom(
+                        info.Realm,
+                        IdHour12,
+                        dateTimeFormat.HourCycle is "h11" or "h12" ? JsValue.True : JsValue.False,
+                        JsShapePropertyFlags.Open
+                    );
+                }
 
-            DefineDateTimeResolvedOption(info.Realm, result, IdWeekday, dateTimeFormat.Weekday);
-            DefineDateTimeResolvedOption(info.Realm, result, IdEra, dateTimeFormat.Era);
-            DefineDateTimeResolvedOption(info.Realm, result, IdYear, dateTimeFormat.Year);
-            DefineDateTimeResolvedOption(info.Realm, result, IdMonth, dateTimeFormat.Month);
-            DefineDateTimeResolvedOption(info.Realm, result, IdDay, dateTimeFormat.Day);
-            DefineDateTimeResolvedOption(info.Realm, result, IdDayPeriod, dateTimeFormat.DayPeriod);
-            DefineDateTimeResolvedOption(info.Realm, result, IdHour, dateTimeFormat.Hour);
-            DefineDateTimeResolvedOption(info.Realm, result, IdMinute, dateTimeFormat.Minute);
-            DefineDateTimeResolvedOption(info.Realm, result, IdSecond, dateTimeFormat.Second);
-            if (dateTimeFormat.FractionalSecondDigits is not null)
-                result.DefineDataPropertyAtom(info.Realm, IdFractionalSecondDigits,
-                    JsValue.FromInt32(dateTimeFormat.FractionalSecondDigits.Value), JsShapePropertyFlags.Open);
+                DefineDateTimeResolvedOption(info.Realm, result, IdWeekday, dateTimeFormat.Weekday);
+                DefineDateTimeResolvedOption(info.Realm, result, IdEra, dateTimeFormat.Era);
+                DefineDateTimeResolvedOption(info.Realm, result, IdYear, dateTimeFormat.Year);
+                DefineDateTimeResolvedOption(info.Realm, result, IdMonth, dateTimeFormat.Month);
+                DefineDateTimeResolvedOption(info.Realm, result, IdDay, dateTimeFormat.Day);
+                DefineDateTimeResolvedOption(
+                    info.Realm,
+                    result,
+                    IdDayPeriod,
+                    dateTimeFormat.DayPeriod
+                );
+                DefineDateTimeResolvedOption(info.Realm, result, IdHour, dateTimeFormat.Hour);
+                DefineDateTimeResolvedOption(info.Realm, result, IdMinute, dateTimeFormat.Minute);
+                DefineDateTimeResolvedOption(info.Realm, result, IdSecond, dateTimeFormat.Second);
+                if (dateTimeFormat.FractionalSecondDigits is not null)
+                    result.DefineDataPropertyAtom(
+                        info.Realm,
+                        IdFractionalSecondDigits,
+                        JsValue.FromInt32(dateTimeFormat.FractionalSecondDigits.Value),
+                        JsShapePropertyFlags.Open
+                    );
 
-            DefineDateTimeResolvedOption(info.Realm, result, IdTimeZoneName, dateTimeFormat.TimeZoneName);
-            DefineDateTimeResolvedOption(info.Realm, result, IdDateStyle, dateTimeFormat.DateStyle);
-            DefineDateTimeResolvedOption(info.Realm, result, IdTimeStyle, dateTimeFormat.TimeStyle);
-            return result;
-        }, "resolvedOptions", 0);
+                DefineDateTimeResolvedOption(
+                    info.Realm,
+                    result,
+                    IdTimeZoneName,
+                    dateTimeFormat.TimeZoneName
+                );
+                DefineDateTimeResolvedOption(
+                    info.Realm,
+                    result,
+                    IdDateStyle,
+                    dateTimeFormat.DateStyle
+                );
+                DefineDateTimeResolvedOption(
+                    info.Realm,
+                    result,
+                    IdTimeStyle,
+                    dateTimeFormat.TimeStyle
+                );
+                return result;
+            },
+            "resolvedOptions",
+            0
+        );
 
-        var formatToPartsFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var dateTimeFormat = ThisDateTimeFormatValue(info.Realm, info.ThisValue,
-                "Intl.DateTimeFormat.prototype.formatToParts");
-            var value = info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0];
-            var number = value.IsUndefined
-                ? DateTimeOffset.Now.ToUnixTimeMilliseconds()
-                : info.Realm.ToNumberSlowPath(value);
-            return dateTimeFormat.FormatToParts(number);
-        }, "formatToParts", 1);
+        var formatToPartsFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var dateTimeFormat = ThisDateTimeFormatValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.DateTimeFormat.prototype.formatToParts"
+                );
+                var value = info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0];
+                var number = value.IsUndefined
+                    ? DateTimeOffset.Now.ToUnixTimeMilliseconds()
+                    : info.Realm.ToNumberSlowPath(value);
+                return dateTimeFormat.FormatToParts(number);
+            },
+            "formatToParts",
+            1
+        );
 
-        var formatRangeFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var dateTimeFormat =
-                ThisDateTimeFormatValue(info.Realm, info.ThisValue, "Intl.DateTimeFormat.prototype.formatRange");
-            if (info.Arguments.Length < 2)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "start and end are required");
-            if (info.Arguments[0].IsUndefined || info.Arguments[1].IsUndefined)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "start and end are required");
-            var start = ToRangeDateTimeFormatNumber(info.Realm, info.Arguments[0]);
-            var end = ToRangeDateTimeFormatNumber(info.Realm, info.Arguments[1]);
-            return JsValue.FromString(dateTimeFormat.FormatRange(start, end));
-        }, "formatRange", 2);
+        var formatRangeFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var dateTimeFormat = ThisDateTimeFormatValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.DateTimeFormat.prototype.formatRange"
+                );
+                if (info.Arguments.Length < 2)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "start and end are required"
+                    );
+                if (info.Arguments[0].IsUndefined || info.Arguments[1].IsUndefined)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "start and end are required"
+                    );
+                var start = ToRangeDateTimeFormatNumber(info.Realm, info.Arguments[0]);
+                var end = ToRangeDateTimeFormatNumber(info.Realm, info.Arguments[1]);
+                return JsValue.FromString(dateTimeFormat.FormatRange(start, end));
+            },
+            "formatRange",
+            2
+        );
 
-        var formatRangeToPartsFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var dateTimeFormat = ThisDateTimeFormatValue(info.Realm, info.ThisValue,
-                "Intl.DateTimeFormat.prototype.formatRangeToParts");
-            if (info.Arguments.Length < 2)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "start and end are required");
-            if (info.Arguments[0].IsUndefined || info.Arguments[1].IsUndefined)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "start and end are required");
-            var start = ToRangeDateTimeFormatNumber(info.Realm, info.Arguments[0]);
-            var end = ToRangeDateTimeFormatNumber(info.Realm, info.Arguments[1]);
-            return dateTimeFormat.FormatRangeToParts(start, end);
-        }, "formatRangeToParts", 2);
+        var formatRangeToPartsFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var dateTimeFormat = ThisDateTimeFormatValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.DateTimeFormat.prototype.formatRangeToParts"
+                );
+                if (info.Arguments.Length < 2)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "start and end are required"
+                    );
+                if (info.Arguments[0].IsUndefined || info.Arguments[1].IsUndefined)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "start and end are required"
+                    );
+                var start = ToRangeDateTimeFormatNumber(info.Realm, info.Arguments[0]);
+                var end = ToRangeDateTimeFormatNumber(info.Realm, info.Arguments[1]);
+                return dateTimeFormat.FormatRangeToParts(start, end);
+            },
+            "formatRangeToParts",
+            2
+        );
 
         Span<PropertyDefinition> defs =
         [
-            PropertyDefinition.Const(IdConstructor, JsValue.FromObject(dateTimeFormatConstructor),
-                true, configurable: true),
+            PropertyDefinition.Const(
+                IdConstructor,
+                JsValue.FromObject(dateTimeFormatConstructor),
+                true,
+                configurable: true
+            ),
             PropertyDefinition.GetterData(IdFormat, formatGetter, configurable: true),
             PropertyDefinition.Mutable(IdResolvedOptions, JsValue.FromObject(resolvedOptionsFn)),
             PropertyDefinition.Mutable(IdFormatToParts, JsValue.FromObject(formatToPartsFn)),
             PropertyDefinition.Mutable(IdFormatRange, JsValue.FromObject(formatRangeFn)),
-            PropertyDefinition.Mutable(IdFormatRangeToParts, JsValue.FromObject(formatRangeToPartsFn)),
-            PropertyDefinition.Data(IdSymbolToStringTag, JsValue.FromString("Intl.DateTimeFormat"),
-                configurable: true)
+            PropertyDefinition.Mutable(
+                IdFormatRangeToParts,
+                JsValue.FromObject(formatRangeToPartsFn)
+            ),
+            PropertyDefinition.Data(
+                IdSymbolToStringTag,
+                JsValue.FromString("Intl.DateTimeFormat"),
+                configurable: true
+            ),
         ];
         dateTimeFormatPrototype.DefineNewPropertiesNoCollision(Realm, defs);
     }
 
     private void InstallListFormatPrototypeBuiltins(
         JsPlainObject listFormatPrototype,
-        JsHostFunction listFormatConstructor)
+        JsHostFunction listFormatConstructor
+    )
     {
-        var formatFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var listFormat = ThisListFormatValue(info.Realm, info.ThisValue, "Intl.ListFormat.prototype.format");
-            return JsValue.FromString(listFormat.Format(StringListFromIterable(info.Realm,
-                info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0])));
-        }, "format", 1);
-
-        var formatToPartsFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var listFormat = ThisListFormatValue(info.Realm, info.ThisValue, "Intl.ListFormat.prototype.formatToParts");
-            return listFormat.FormatToParts(StringListFromIterable(info.Realm,
-                info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0]));
-        }, "formatToParts", 1);
-
-        var resolvedOptionsFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var listFormat =
-                ThisListFormatValue(info.Realm, info.ThisValue, "Intl.ListFormat.prototype.resolvedOptions");
-            var result = new JsPlainObject(info.Realm)
+        var formatFn = new JsHostFunction(
+            Realm,
+            (in info) =>
             {
-                Prototype = info.Realm.ObjectPrototype
-            };
-            result.DefineDataPropertyAtom(info.Realm, IdLocaleLower,
-                JsValue.FromString(listFormat.Locale), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdType,
-                JsValue.FromString(listFormat.Type), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdStyle,
-                JsValue.FromString(listFormat.Style), JsShapePropertyFlags.Open);
-            return result;
-        }, "resolvedOptions", 0);
+                var listFormat = ThisListFormatValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.ListFormat.prototype.format"
+                );
+                return JsValue.FromString(
+                    listFormat.Format(
+                        StringListFromIterable(
+                            info.Realm,
+                            info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0]
+                        )
+                    )
+                );
+            },
+            "format",
+            1
+        );
+
+        var formatToPartsFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var listFormat = ThisListFormatValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.ListFormat.prototype.formatToParts"
+                );
+                return listFormat.FormatToParts(
+                    StringListFromIterable(
+                        info.Realm,
+                        info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0]
+                    )
+                );
+            },
+            "formatToParts",
+            1
+        );
+
+        var resolvedOptionsFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var listFormat = ThisListFormatValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.ListFormat.prototype.resolvedOptions"
+                );
+                var result = new JsPlainObject(info.Realm)
+                {
+                    Prototype = info.Realm.ObjectPrototype,
+                };
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdLocaleLower,
+                    JsValue.FromString(listFormat.Locale),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdType,
+                    JsValue.FromString(listFormat.Type),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdStyle,
+                    JsValue.FromString(listFormat.Style),
+                    JsShapePropertyFlags.Open
+                );
+                return result;
+            },
+            "resolvedOptions",
+            0
+        );
 
         Span<PropertyDefinition> defs =
         [
-            PropertyDefinition.Const(IdConstructor, JsValue.FromObject(listFormatConstructor), true,
-                configurable: true),
+            PropertyDefinition.Const(
+                IdConstructor,
+                JsValue.FromObject(listFormatConstructor),
+                true,
+                configurable: true
+            ),
             PropertyDefinition.Mutable(IdFormat, JsValue.FromObject(formatFn)),
             PropertyDefinition.Mutable(IdFormatToParts, JsValue.FromObject(formatToPartsFn)),
             PropertyDefinition.Mutable(IdResolvedOptions, JsValue.FromObject(resolvedOptionsFn)),
-            PropertyDefinition.Data(IdSymbolToStringTag, JsValue.FromString("Intl.ListFormat"),
-                configurable: true)
+            PropertyDefinition.Data(
+                IdSymbolToStringTag,
+                JsValue.FromString("Intl.ListFormat"),
+                configurable: true
+            ),
         ];
         listFormatPrototype.DefineNewPropertiesNoCollision(Realm, defs);
     }
 
     private void InstallDisplayNamesPrototypeBuiltins(
         JsPlainObject displayNamesPrototype,
-        JsHostFunction displayNamesConstructor)
+        JsHostFunction displayNamesConstructor
+    )
     {
-        var ofFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var displayNames = ThisDisplayNamesValue(info.Realm, info.ThisValue, "Intl.DisplayNames.prototype.of");
-            var codeValue = info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0];
-            if (codeValue.IsUndefined)
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Intl.DisplayNames.prototype.of requires a code");
-
-            var code = info.Realm.ToJsStringSlowPath(codeValue);
-            var canonicalCode = CanonicalizeDisplayNamesCode(displayNames.DisplayType, code);
-            var result = displayNames.Of(canonicalCode);
-            return result is null ? JsValue.Undefined : JsValue.FromString(result);
-        }, "of", 1);
-
-        var resolvedOptionsFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var displayNames = ThisDisplayNamesValue(info.Realm, info.ThisValue,
-                "Intl.DisplayNames.prototype.resolvedOptions");
-            var result = new JsPlainObject(info.Realm)
+        var ofFn = new JsHostFunction(
+            Realm,
+            (in info) =>
             {
-                Prototype = info.Realm.ObjectPrototype
-            };
-            result.DefineDataPropertyAtom(info.Realm, IdLocaleLower,
-                JsValue.FromString(displayNames.Locale), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdStyle,
-                JsValue.FromString(displayNames.Style), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdType,
-                JsValue.FromString(displayNames.DisplayType), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdFallback,
-                JsValue.FromString(displayNames.Fallback), JsShapePropertyFlags.Open);
-            if (displayNames.LanguageDisplay is not null)
-                result.DefineDataPropertyAtom(info.Realm, IdLanguageDisplay,
-                    JsValue.FromString(displayNames.LanguageDisplay), JsShapePropertyFlags.Open);
+                var displayNames = ThisDisplayNamesValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.DisplayNames.prototype.of"
+                );
+                var codeValue = info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0];
+                if (codeValue.IsUndefined)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Intl.DisplayNames.prototype.of requires a code"
+                    );
 
-            return result;
-        }, "resolvedOptions", 0);
+                var code = info.Realm.ToJsStringSlowPath(codeValue);
+                var canonicalCode = CanonicalizeDisplayNamesCode(displayNames.DisplayType, code);
+                var result = displayNames.Of(canonicalCode);
+                return result is null ? JsValue.Undefined : JsValue.FromString(result);
+            },
+            "of",
+            1
+        );
+
+        var resolvedOptionsFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var displayNames = ThisDisplayNamesValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.DisplayNames.prototype.resolvedOptions"
+                );
+                var result = new JsPlainObject(info.Realm)
+                {
+                    Prototype = info.Realm.ObjectPrototype,
+                };
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdLocaleLower,
+                    JsValue.FromString(displayNames.Locale),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdStyle,
+                    JsValue.FromString(displayNames.Style),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdType,
+                    JsValue.FromString(displayNames.DisplayType),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdFallback,
+                    JsValue.FromString(displayNames.Fallback),
+                    JsShapePropertyFlags.Open
+                );
+                if (displayNames.LanguageDisplay is not null)
+                    result.DefineDataPropertyAtom(
+                        info.Realm,
+                        IdLanguageDisplay,
+                        JsValue.FromString(displayNames.LanguageDisplay),
+                        JsShapePropertyFlags.Open
+                    );
+
+                return result;
+            },
+            "resolvedOptions",
+            0
+        );
 
         Span<PropertyDefinition> defs =
         [
-            PropertyDefinition.Const(IdConstructor, JsValue.FromObject(displayNamesConstructor),
-                true, configurable: true),
+            PropertyDefinition.Const(
+                IdConstructor,
+                JsValue.FromObject(displayNamesConstructor),
+                true,
+                configurable: true
+            ),
             PropertyDefinition.Mutable(IdOf, JsValue.FromObject(ofFn)),
-            PropertyDefinition.Mutable(IdResolvedOptions, JsValue.FromObject(resolvedOptionsFn))
+            PropertyDefinition.Mutable(IdResolvedOptions, JsValue.FromObject(resolvedOptionsFn)),
         ];
         displayNamesPrototype.DefineNewPropertiesNoCollision(Realm, defs);
-        displayNamesPrototype.DefineDataPropertyAtom(Realm, IdSymbolToStringTag,
-            JsValue.FromString("Intl.DisplayNames"), JsShapePropertyFlags.Configurable);
+        displayNamesPrototype.DefineDataPropertyAtom(
+            Realm,
+            IdSymbolToStringTag,
+            JsValue.FromString("Intl.DisplayNames"),
+            JsShapePropertyFlags.Configurable
+        );
     }
 
     private void InstallCollatorPrototypeBuiltins(
         JsPlainObject collatorPrototype,
-        JsHostFunction collatorConstructor)
+        JsHostFunction collatorConstructor
+    )
     {
-        var compareGetter = new JsHostFunction(Realm, (in info) =>
-        {
-            var collator = ThisCollatorValue(info.Realm, info.ThisValue, "Intl.Collator.prototype.compare");
-            return collator.GetOrCreateBoundCompare(info.Realm);
-        }, "get compare", 0);
-
-        var resolvedOptionsFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var collator = ThisCollatorValue(info.Realm, info.ThisValue, "Intl.Collator.prototype.resolvedOptions");
-            var result = new JsPlainObject(info.Realm)
+        var compareGetter = new JsHostFunction(
+            Realm,
+            (in info) =>
             {
-                Prototype = info.Realm.ObjectPrototype
-            };
-            result.DefineDataPropertyAtom(info.Realm, IdLocaleLower,
-                JsValue.FromString(collator.Locale), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdUsage,
-                JsValue.FromString(collator.Usage), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdSensitivity,
-                JsValue.FromString(collator.Sensitivity), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdIgnorePunctuation,
-                collator.IgnorePunctuation ? JsValue.True : JsValue.False, JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdCollation,
-                JsValue.FromString(collator.Collation), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdNumeric,
-                collator.Numeric ? JsValue.True : JsValue.False, JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdCaseFirst,
-                JsValue.FromString(collator.CaseFirst), JsShapePropertyFlags.Open);
-            return result;
-        }, "resolvedOptions", 0);
+                var collator = ThisCollatorValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.Collator.prototype.compare"
+                );
+                return collator.GetOrCreateBoundCompare(info.Realm);
+            },
+            "get compare",
+            0
+        );
+
+        var resolvedOptionsFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var collator = ThisCollatorValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.Collator.prototype.resolvedOptions"
+                );
+                var result = new JsPlainObject(info.Realm)
+                {
+                    Prototype = info.Realm.ObjectPrototype,
+                };
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdLocaleLower,
+                    JsValue.FromString(collator.Locale),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdUsage,
+                    JsValue.FromString(collator.Usage),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdSensitivity,
+                    JsValue.FromString(collator.Sensitivity),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdIgnorePunctuation,
+                    collator.IgnorePunctuation ? JsValue.True : JsValue.False,
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdCollation,
+                    JsValue.FromString(collator.Collation),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdNumeric,
+                    collator.Numeric ? JsValue.True : JsValue.False,
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdCaseFirst,
+                    JsValue.FromString(collator.CaseFirst),
+                    JsShapePropertyFlags.Open
+                );
+                return result;
+            },
+            "resolvedOptions",
+            0
+        );
 
         Span<PropertyDefinition> defs =
         [
-            PropertyDefinition.Const(IdConstructor, JsValue.FromObject(collatorConstructor), true,
-                configurable: true),
+            PropertyDefinition.Const(
+                IdConstructor,
+                JsValue.FromObject(collatorConstructor),
+                true,
+                configurable: true
+            ),
             PropertyDefinition.GetterData(IdCompare, compareGetter, configurable: true),
             PropertyDefinition.Mutable(IdResolvedOptions, JsValue.FromObject(resolvedOptionsFn)),
-            PropertyDefinition.Data(IdSymbolToStringTag, JsValue.FromString("Intl.Collator"),
-                configurable: true)
+            PropertyDefinition.Data(
+                IdSymbolToStringTag,
+                JsValue.FromString("Intl.Collator"),
+                configurable: true
+            ),
         ];
         collatorPrototype.DefineNewPropertiesNoCollision(Realm, defs);
     }
 
     private void InstallPluralRulesPrototypeBuiltins(
         JsPlainObject pluralRulesPrototype,
-        JsHostFunction pluralRulesConstructor)
+        JsHostFunction pluralRulesConstructor
+    )
     {
-        var selectFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var pluralRules = ThisPluralRulesValue(info.Realm, info.ThisValue, "Intl.PluralRules.prototype.select");
-            var value = info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0];
-            var number = value.IsUndefined ? double.NaN : info.Realm.ToNumberSlowPath(value);
-            return JsValue.FromString(pluralRules.Select(number));
-        }, "select", 1);
-
-        var selectRangeFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var pluralRules =
-                ThisPluralRulesValue(info.Realm, info.ThisValue, "Intl.PluralRules.prototype.selectRange");
-            if (info.Arguments.Length < 2 || info.Arguments[0].IsUndefined || info.Arguments[1].IsUndefined)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "start and end are required");
-
-            var start = info.Realm.ToNumberSlowPath(info.Arguments[0]);
-            var end = info.Realm.ToNumberSlowPath(info.Arguments[1]);
-            if (double.IsNaN(start) || double.IsNaN(end))
-                throw new JsRuntimeException(JsErrorKind.RangeError, "Invalid value");
-
-            return JsValue.FromString(pluralRules.Select(end));
-        }, "selectRange", 2);
-
-        var resolvedOptionsFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var pluralRules =
-                ThisPluralRulesValue(info.Realm, info.ThisValue, "Intl.PluralRules.prototype.resolvedOptions");
-            var result = new JsPlainObject(info.Realm, useDictionaryMode: true)
+        var selectFn = new JsHostFunction(
+            Realm,
+            (in info) =>
             {
-                Prototype = info.Realm.ObjectPrototype
-            };
-            result.DefineDataPropertyAtom(info.Realm, IdLocaleLower,
-                JsValue.FromString(pluralRules.Locale), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdType,
-                JsValue.FromString(pluralRules.PluralRuleType), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdNotation,
-                JsValue.FromString(pluralRules.Notation), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdMinimumIntegerDigits,
-                JsValue.FromInt32(pluralRules.MinimumIntegerDigits), JsShapePropertyFlags.Open);
-            if (pluralRules.MinimumFractionDigits.HasValue)
-                result.DefineDataPropertyAtom(info.Realm, IdMinimumFractionDigits,
-                    JsValue.FromInt32(pluralRules.MinimumFractionDigits.Value), JsShapePropertyFlags.Open);
+                var pluralRules = ThisPluralRulesValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.PluralRules.prototype.select"
+                );
+                var value = info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0];
+                var number = value.IsUndefined ? double.NaN : info.Realm.ToNumberSlowPath(value);
+                return JsValue.FromString(pluralRules.Select(number));
+            },
+            "select",
+            1
+        );
 
-            if (pluralRules.MaximumFractionDigits.HasValue)
-                result.DefineDataPropertyAtom(info.Realm, IdMaximumFractionDigits,
-                    JsValue.FromInt32(pluralRules.MaximumFractionDigits.Value), JsShapePropertyFlags.Open);
+        var selectRangeFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var pluralRules = ThisPluralRulesValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.PluralRules.prototype.selectRange"
+                );
+                if (
+                    info.Arguments.Length < 2
+                    || info.Arguments[0].IsUndefined
+                    || info.Arguments[1].IsUndefined
+                )
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "start and end are required"
+                    );
 
-            if (pluralRules.MinimumSignificantDigits.HasValue)
-                result.DefineDataPropertyAtom(info.Realm, IdMinimumSignificantDigits,
-                    JsValue.FromInt32(pluralRules.MinimumSignificantDigits.Value), JsShapePropertyFlags.Open);
+                var start = info.Realm.ToNumberSlowPath(info.Arguments[0]);
+                var end = info.Realm.ToNumberSlowPath(info.Arguments[1]);
+                if (double.IsNaN(start) || double.IsNaN(end))
+                    throw new JsRuntimeException(JsErrorKind.RangeError, "Invalid value");
 
-            if (pluralRules.MaximumSignificantDigits.HasValue)
-                result.DefineDataPropertyAtom(info.Realm, IdMaximumSignificantDigits,
-                    JsValue.FromInt32(pluralRules.MaximumSignificantDigits.Value), JsShapePropertyFlags.Open);
+                return JsValue.FromString(pluralRules.Select(end));
+            },
+            "selectRange",
+            2
+        );
 
-            var categories = pluralRules.GetPluralCategories();
-            var pluralCategories = CreateStringArray(info.Realm, categories);
-            result.DefineDataPropertyAtom(info.Realm, IdPluralCategories,
-                JsValue.FromObject(pluralCategories), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdRoundingIncrement,
-                JsValue.FromInt32(pluralRules.RoundingIncrement), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdRoundingMode,
-                JsValue.FromString(pluralRules.RoundingMode), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdRoundingPriority,
-                JsValue.FromString(pluralRules.RoundingPriority), JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(info.Realm, IdTrailingZeroDisplay,
-                JsValue.FromString(pluralRules.TrailingZeroDisplay), JsShapePropertyFlags.Open);
-            return result;
-        }, "resolvedOptions", 0);
+        var resolvedOptionsFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var pluralRules = ThisPluralRulesValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Intl.PluralRules.prototype.resolvedOptions"
+                );
+                var result = new JsPlainObject(info.Realm, useDictionaryMode: true)
+                {
+                    Prototype = info.Realm.ObjectPrototype,
+                };
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdLocaleLower,
+                    JsValue.FromString(pluralRules.Locale),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdType,
+                    JsValue.FromString(pluralRules.PluralRuleType),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdNotation,
+                    JsValue.FromString(pluralRules.Notation),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdMinimumIntegerDigits,
+                    JsValue.FromInt32(pluralRules.MinimumIntegerDigits),
+                    JsShapePropertyFlags.Open
+                );
+                if (pluralRules.MinimumFractionDigits.HasValue)
+                    result.DefineDataPropertyAtom(
+                        info.Realm,
+                        IdMinimumFractionDigits,
+                        JsValue.FromInt32(pluralRules.MinimumFractionDigits.Value),
+                        JsShapePropertyFlags.Open
+                    );
+
+                if (pluralRules.MaximumFractionDigits.HasValue)
+                    result.DefineDataPropertyAtom(
+                        info.Realm,
+                        IdMaximumFractionDigits,
+                        JsValue.FromInt32(pluralRules.MaximumFractionDigits.Value),
+                        JsShapePropertyFlags.Open
+                    );
+
+                if (pluralRules.MinimumSignificantDigits.HasValue)
+                    result.DefineDataPropertyAtom(
+                        info.Realm,
+                        IdMinimumSignificantDigits,
+                        JsValue.FromInt32(pluralRules.MinimumSignificantDigits.Value),
+                        JsShapePropertyFlags.Open
+                    );
+
+                if (pluralRules.MaximumSignificantDigits.HasValue)
+                    result.DefineDataPropertyAtom(
+                        info.Realm,
+                        IdMaximumSignificantDigits,
+                        JsValue.FromInt32(pluralRules.MaximumSignificantDigits.Value),
+                        JsShapePropertyFlags.Open
+                    );
+
+                var categories = pluralRules.GetPluralCategories();
+                var pluralCategories = CreateStringArray(info.Realm, categories);
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdPluralCategories,
+                    JsValue.FromObject(pluralCategories),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdRoundingIncrement,
+                    JsValue.FromInt32(pluralRules.RoundingIncrement),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdRoundingMode,
+                    JsValue.FromString(pluralRules.RoundingMode),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdRoundingPriority,
+                    JsValue.FromString(pluralRules.RoundingPriority),
+                    JsShapePropertyFlags.Open
+                );
+                result.DefineDataPropertyAtom(
+                    info.Realm,
+                    IdTrailingZeroDisplay,
+                    JsValue.FromString(pluralRules.TrailingZeroDisplay),
+                    JsShapePropertyFlags.Open
+                );
+                return result;
+            },
+            "resolvedOptions",
+            0
+        );
 
         Span<PropertyDefinition> defs =
         [
-            PropertyDefinition.Const(IdConstructor, JsValue.FromObject(pluralRulesConstructor),
-                true, configurable: true),
+            PropertyDefinition.Const(
+                IdConstructor,
+                JsValue.FromObject(pluralRulesConstructor),
+                true,
+                configurable: true
+            ),
             PropertyDefinition.Mutable(IdSelect, JsValue.FromObject(selectFn)),
             PropertyDefinition.Mutable(IdSelectRange, JsValue.FromObject(selectRangeFn)),
-            PropertyDefinition.Mutable(IdResolvedOptions, JsValue.FromObject(resolvedOptionsFn))
+            PropertyDefinition.Mutable(IdResolvedOptions, JsValue.FromObject(resolvedOptionsFn)),
         ];
         pluralRulesPrototype.DefineNewPropertiesNoCollision(Realm, defs);
-        pluralRulesPrototype.DefineDataPropertyAtom(Realm, IdSymbolToStringTag,
-            JsValue.FromString("Intl.PluralRules"), JsShapePropertyFlags.Configurable);
+        pluralRulesPrototype.DefineDataPropertyAtom(
+            Realm,
+            IdSymbolToStringTag,
+            JsValue.FromString("Intl.PluralRules"),
+            JsShapePropertyFlags.Configurable
+        );
     }
 
-    private static JsLocaleObject ThisLocaleValue(JsRealm realm, in JsValue thisValue, string methodName)
+    private static JsLocaleObject ThisLocaleValue(
+        JsRealm realm,
+        in JsValue thisValue,
+        string methodName
+    )
     {
         if (thisValue.TryGetObject(out var obj) && obj is JsLocaleObject locale)
             return locale;
-        throw new JsRuntimeException(JsErrorKind.TypeError, $"{methodName} requires Intl.Locale receiver");
+        throw new JsRuntimeException(
+            JsErrorKind.TypeError,
+            $"{methodName} requires Intl.Locale receiver"
+        );
     }
 
-    private static JsSegmenterObject ThisSegmenterValue(JsRealm realm, in JsValue thisValue, string methodName)
+    private static JsSegmenterObject ThisSegmenterValue(
+        JsRealm realm,
+        in JsValue thisValue,
+        string methodName
+    )
     {
         if (thisValue.TryGetObject(out var obj) && obj is JsSegmenterObject segmenter)
             return segmenter;
-        throw new JsRuntimeException(JsErrorKind.TypeError, $"{methodName} requires Intl.Segmenter receiver");
+        throw new JsRuntimeException(
+            JsErrorKind.TypeError,
+            $"{methodName} requires Intl.Segmenter receiver"
+        );
     }
 
-    private static JsSegmentsObject ThisSegmentsValue(JsRealm realm, in JsValue thisValue, string methodName)
+    private static JsSegmentsObject ThisSegmentsValue(
+        JsRealm realm,
+        in JsValue thisValue,
+        string methodName
+    )
     {
         if (thisValue.TryGetObject(out var obj) && obj is JsSegmentsObject segments)
             return segments;
-        throw new JsRuntimeException(JsErrorKind.TypeError, $"{methodName} requires a Segments receiver");
+        throw new JsRuntimeException(
+            JsErrorKind.TypeError,
+            $"{methodName} requires a Segments receiver"
+        );
     }
 
-    private static JsSegmentIteratorObject ThisSegmentIteratorValue(JsRealm realm, in JsValue thisValue,
-        string methodName)
+    private static JsSegmentIteratorObject ThisSegmentIteratorValue(
+        JsRealm realm,
+        in JsValue thisValue,
+        string methodName
+    )
     {
         if (thisValue.TryGetObject(out var obj) && obj is JsSegmentIteratorObject iterator)
             return iterator;
-        throw new JsRuntimeException(JsErrorKind.TypeError, $"{methodName} requires a Segment Iterator receiver");
+        throw new JsRuntimeException(
+            JsErrorKind.TypeError,
+            $"{methodName} requires a Segment Iterator receiver"
+        );
     }
 
-    private static JsRelativeTimeFormatObject ThisRelativeTimeFormatValue(JsRealm realm, in JsValue thisValue,
-        string methodName)
+    private static JsRelativeTimeFormatObject ThisRelativeTimeFormatValue(
+        JsRealm realm,
+        in JsValue thisValue,
+        string methodName
+    )
     {
-        if (thisValue.TryGetObject(out var obj) && obj is JsRelativeTimeFormatObject relativeTimeFormat)
+        if (
+            thisValue.TryGetObject(out var obj)
+            && obj is JsRelativeTimeFormatObject relativeTimeFormat
+        )
             return relativeTimeFormat;
-        throw new JsRuntimeException(JsErrorKind.TypeError,
-            $"{methodName} requires Intl.RelativeTimeFormat receiver");
+        throw new JsRuntimeException(
+            JsErrorKind.TypeError,
+            $"{methodName} requires Intl.RelativeTimeFormat receiver"
+        );
     }
 
-    private static JsDurationFormatObject ThisDurationFormatValue(JsRealm realm, in JsValue thisValue,
-        string methodName)
+    private static JsDurationFormatObject ThisDurationFormatValue(
+        JsRealm realm,
+        in JsValue thisValue,
+        string methodName
+    )
     {
         if (thisValue.TryGetObject(out var obj) && obj is JsDurationFormatObject durationFormat)
             return durationFormat;
-        throw new JsRuntimeException(JsErrorKind.TypeError, $"{methodName} requires Intl.DurationFormat receiver");
+        throw new JsRuntimeException(
+            JsErrorKind.TypeError,
+            $"{methodName} requires Intl.DurationFormat receiver"
+        );
     }
 
-    private static JsNumberFormatObject ThisNumberFormatValue(JsRealm realm, in JsValue thisValue,
-        string methodName)
+    private static JsNumberFormatObject ThisNumberFormatValue(
+        JsRealm realm,
+        in JsValue thisValue,
+        string methodName
+    )
     {
         if (thisValue.TryGetObject(out var obj) && obj is JsNumberFormatObject numberFormat)
             return numberFormat;
-        throw new JsRuntimeException(JsErrorKind.TypeError, $"{methodName} requires Intl.NumberFormat receiver");
+        throw new JsRuntimeException(
+            JsErrorKind.TypeError,
+            $"{methodName} requires Intl.NumberFormat receiver"
+        );
     }
 
-    private static JsPluralRulesObject ThisPluralRulesValue(JsRealm realm, in JsValue thisValue, string methodName)
+    private static JsPluralRulesObject ThisPluralRulesValue(
+        JsRealm realm,
+        in JsValue thisValue,
+        string methodName
+    )
     {
         if (thisValue.TryGetObject(out var obj) && obj is JsPluralRulesObject pluralRules)
             return pluralRules;
-        throw new JsRuntimeException(JsErrorKind.TypeError, $"{methodName} requires Intl.PluralRules receiver");
+        throw new JsRuntimeException(
+            JsErrorKind.TypeError,
+            $"{methodName} requires Intl.PluralRules receiver"
+        );
     }
 
-    private static JsListFormatObject ThisListFormatValue(JsRealm realm, in JsValue thisValue, string methodName)
+    private static JsListFormatObject ThisListFormatValue(
+        JsRealm realm,
+        in JsValue thisValue,
+        string methodName
+    )
     {
         if (thisValue.TryGetObject(out var obj) && obj is JsListFormatObject listFormat)
             return listFormat;
-        throw new JsRuntimeException(JsErrorKind.TypeError, $"{methodName} requires Intl.ListFormat receiver");
+        throw new JsRuntimeException(
+            JsErrorKind.TypeError,
+            $"{methodName} requires Intl.ListFormat receiver"
+        );
     }
 
-    private static JsDisplayNamesObject ThisDisplayNamesValue(JsRealm realm, in JsValue thisValue,
-        string methodName)
+    private static JsDisplayNamesObject ThisDisplayNamesValue(
+        JsRealm realm,
+        in JsValue thisValue,
+        string methodName
+    )
     {
         if (thisValue.TryGetObject(out var obj) && obj is JsDisplayNamesObject displayNames)
             return displayNames;
-        throw new JsRuntimeException(JsErrorKind.TypeError, $"{methodName} requires Intl.DisplayNames receiver");
+        throw new JsRuntimeException(
+            JsErrorKind.TypeError,
+            $"{methodName} requires Intl.DisplayNames receiver"
+        );
     }
 
-    private static JsCollatorObject ThisCollatorValue(JsRealm realm, in JsValue thisValue, string methodName)
+    private static JsCollatorObject ThisCollatorValue(
+        JsRealm realm,
+        in JsValue thisValue,
+        string methodName
+    )
     {
         if (thisValue.TryGetObject(out var obj) && obj is JsCollatorObject collator)
             return collator;
-        throw new JsRuntimeException(JsErrorKind.TypeError, $"{methodName} requires Intl.Collator receiver");
+        throw new JsRuntimeException(
+            JsErrorKind.TypeError,
+            $"{methodName} requires Intl.Collator receiver"
+        );
     }
 
-    private static JsDateTimeFormatObject ThisDateTimeFormatValue(JsRealm realm, in JsValue thisValue,
-        string methodName)
+    private static JsDateTimeFormatObject ThisDateTimeFormatValue(
+        JsRealm realm,
+        in JsValue thisValue,
+        string methodName
+    )
     {
         if (thisValue.TryGetObject(out var obj) && obj is JsDateTimeFormatObject dateTimeFormat)
             return dateTimeFormat;
-        throw new JsRuntimeException(JsErrorKind.TypeError, $"{methodName} requires Intl.DateTimeFormat receiver");
+        throw new JsRuntimeException(
+            JsErrorKind.TypeError,
+            $"{methodName} requires Intl.DateTimeFormat receiver"
+        );
     }
 
     private static double ToRangeNumber(JsRealm realm, in JsValue value)
@@ -2564,14 +5136,20 @@ public partial class Intrinsics
         return number;
     }
 
-    private static string FormatRangeValue(JsRealm realm, JsNumberFormatObject numberFormat, in JsValue value)
+    private static string FormatRangeValue(
+        JsRealm realm,
+        JsNumberFormatObject numberFormat,
+        in JsValue value
+    )
     {
         if (value.IsUndefined)
             throw new JsRuntimeException(JsErrorKind.TypeError, "start and end are required");
 
         if (numberFormat.SupportsExactIntegralFormatting)
         {
-            if (value.IsString && TryParseExactIntegralString(value.AsString(), out var rawIntegral))
+            if (
+                value.IsString && TryParseExactIntegralString(value.AsString(), out var rawIntegral)
+            )
                 return numberFormat.FormatExactIntegralString(rawIntegral!);
             if (value.IsBigInt)
                 return numberFormat.FormatExactIntegralString(value.AsBigInt().Value.ToString());
@@ -2597,13 +5175,19 @@ public partial class Intrinsics
         return true;
     }
 
-    private static string GetRangeSeparator(JsNumberFormatObject numberFormat, in JsValue startValue,
-        in JsValue endValue)
+    private static string GetRangeSeparator(
+        JsNumberFormatObject numberFormat,
+        in JsValue startValue,
+        in JsValue endValue
+    )
     {
         if (numberFormat.Locale.StartsWith("pt-PT", StringComparison.OrdinalIgnoreCase))
             return " - ";
-        if (numberFormat.SupportsExactIntegralFormatting && IsExactIntegralRangeOperand(startValue) &&
-            IsExactIntegralRangeOperand(endValue))
+        if (
+            numberFormat.SupportsExactIntegralFormatting
+            && IsExactIntegralRangeOperand(startValue)
+            && IsExactIntegralRangeOperand(endValue)
+        )
             return "–";
         return " – ";
     }
@@ -2615,8 +5199,12 @@ public partial class Intrinsics
         return value.IsString && TryParseExactIntegralString(value.AsString(), out _);
     }
 
-    private static bool TryCompressSharedPrefix(string startFormatted, string endFormatted, string separator,
-        out string? compressed)
+    private static bool TryCompressSharedPrefix(
+        string startFormatted,
+        string endFormatted,
+        string separator,
+        out string? compressed
+    )
     {
         compressed = null;
         var prefixLength = 0;
@@ -2631,40 +5219,63 @@ public partial class Intrinsics
             return false;
 
         var compressedSeparator = separator.Contains('–') ? "–" : separator;
-        compressed = prefix + startFormatted[prefixLength..] + compressedSeparator + endFormatted[prefixLength..];
+        compressed =
+            prefix
+            + startFormatted[prefixLength..]
+            + compressedSeparator
+            + endFormatted[prefixLength..];
         return true;
     }
 
-    private static bool TryCompressSharedSuffix(string startFormatted, string endFormatted, string separator,
-        out string? compressed)
+    private static bool TryCompressSharedSuffix(
+        string startFormatted,
+        string endFormatted,
+        string separator,
+        out string? compressed
+    )
     {
         compressed = null;
         var suffixLength = 0;
         var max = Math.Min(startFormatted.Length, endFormatted.Length);
-        while (suffixLength < max &&
-               startFormatted[startFormatted.Length - 1 - suffixLength] ==
-               endFormatted[endFormatted.Length - 1 - suffixLength])
+        while (
+            suffixLength < max
+            && startFormatted[startFormatted.Length - 1 - suffixLength]
+                == endFormatted[endFormatted.Length - 1 - suffixLength]
+        )
             suffixLength++;
         if (suffixLength == 0)
             return false;
 
         var suffix = startFormatted[^suffixLength..];
         var affixStart = 0;
-        while (affixStart < suffix.Length &&
-               (char.IsAsciiDigit(suffix[affixStart]) || suffix[affixStart] is '.' or ',' or '+' or '-'))
+        while (
+            affixStart < suffix.Length
+            && (
+                char.IsAsciiDigit(suffix[affixStart])
+                || suffix[affixStart] is '.' or ',' or '+' or '-'
+            )
+        )
             affixStart++;
 
         if (affixStart > 0 && affixStart < suffix.Length)
             suffix = suffix[affixStart..];
-        if (!suffix.Contains('€') && !suffix.Contains('$') && !suffix.Contains('¥') && !suffix.Contains('£'))
+        if (
+            !suffix.Contains('€')
+            && !suffix.Contains('$')
+            && !suffix.Contains('¥')
+            && !suffix.Contains('£')
+        )
             return false;
 
         var removeLength = suffix.Length;
         var startCore = startFormatted[..^removeLength];
         var endCore = endFormatted[..^removeLength];
-        if (startCore.Length > 0 && endCore.Length > 0 &&
-            startCore[0] == endCore[0] &&
-            startCore[0] is '+' or '-')
+        if (
+            startCore.Length > 0
+            && endCore.Length > 0
+            && startCore[0] == endCore[0]
+            && startCore[0] is '+' or '-'
+        )
         {
             compressed = startCore[0] + startCore[1..] + separator + endCore[1..] + suffix;
             return true;
@@ -2674,7 +5285,12 @@ public partial class Intrinsics
         return true;
     }
 
-    private static JsPlainObject CreateRangePartObject(JsRealm realm, string type, string value, string source)
+    private static JsPlainObject CreateRangePartObject(
+        JsRealm realm,
+        string type,
+        string value,
+        string source
+    )
     {
         var part = new JsPlainObject(realm.IntlRangePartObjectShape);
         part.SetNamedSlotUnchecked(JsRealm.IntlRangePartTypeSlot, JsValue.FromString(type));
@@ -2698,35 +5314,72 @@ public partial class Intrinsics
         }
 
         if (!iterable.TryGetObject(out var iterableObject))
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Intl.ListFormat list is not iterable");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Intl.ListFormat list is not iterable"
+            );
 
-        if (!iterableObject.TryGetPropertyAtom(realm, IdSymbolIterator, out var iteratorMethodValue, out _) ||
-            iteratorMethodValue.IsUndefined || iteratorMethodValue.IsNull)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Intl.ListFormat list is not iterable");
+        if (
+            !iterableObject.TryGetPropertyAtom(
+                realm,
+                IdSymbolIterator,
+                out var iteratorMethodValue,
+                out _
+            )
+            || iteratorMethodValue.IsUndefined
+            || iteratorMethodValue.IsNull
+        )
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Intl.ListFormat list is not iterable"
+            );
 
-        if (!iteratorMethodValue.TryGetObject(out var iteratorMethodObject) ||
-            iteratorMethodObject is not JsFunction iteratorMethod)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Intl.ListFormat list is not iterable");
+        if (
+            !iteratorMethodValue.TryGetObject(out var iteratorMethodObject)
+            || iteratorMethodObject is not JsFunction iteratorMethod
+        )
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Intl.ListFormat list is not iterable"
+            );
 
-        var iteratorValue = realm.InvokeFunction(iteratorMethod, JsValue.FromObject(iterableObject),
-            ReadOnlySpan<JsValue>.Empty);
+        var iteratorValue = realm.InvokeFunction(
+            iteratorMethod,
+            JsValue.FromObject(iterableObject),
+            ReadOnlySpan<JsValue>.Empty
+        );
         if (!iteratorValue.TryGetObject(out var iterator))
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Intl.ListFormat iterator result must be object");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Intl.ListFormat iterator result must be object"
+            );
 
         while (true)
         {
             if (!iterator.TryGetPropertyAtom(realm, IdNext, out var nextMethodValue, out _))
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Intl.ListFormat iterator.next is not a function");
-            if (!nextMethodValue.TryGetObject(out var nextMethodObject) ||
-                nextMethodObject is not JsFunction nextMethod)
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Intl.ListFormat iterator.next is not a function");
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Intl.ListFormat iterator.next is not a function"
+                );
+            if (
+                !nextMethodValue.TryGetObject(out var nextMethodObject)
+                || nextMethodObject is not JsFunction nextMethod
+            )
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Intl.ListFormat iterator.next is not a function"
+                );
 
-            var stepValue = realm.InvokeFunction(nextMethod, JsValue.FromObject(iterator), ReadOnlySpan<JsValue>.Empty);
+            var stepValue = realm.InvokeFunction(
+                nextMethod,
+                JsValue.FromObject(iterator),
+                ReadOnlySpan<JsValue>.Empty
+            );
             if (!stepValue.TryGetObject(out var stepObject))
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Intl.ListFormat iterator result must be object");
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Intl.ListFormat iterator result must be object"
+                );
 
             _ = stepObject.TryGetPropertyAtom(realm, IdDone, out var doneValue, out _);
             if (JsRealm.ToBoolean(doneValue))
@@ -2738,7 +5391,10 @@ public partial class Intrinsics
             if (!nextValue.IsString)
             {
                 realm.BestEffortIteratorCloseOnThrow(iterator);
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Iterable yielded a non-String value");
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Iterable yielded a non-String value"
+                );
             }
 
             list.Add(nextValue.AsString());
@@ -2747,7 +5403,12 @@ public partial class Intrinsics
         return list;
     }
 
-    private static void AppendRangeParts(JsArray result, ref uint index, JsArray parts, string source)
+    private static void AppendRangeParts(
+        JsArray result,
+        ref uint index,
+        JsArray parts,
+        string source
+    )
     {
         for (uint i = 0; i < parts.Length; i++)
         {
@@ -2755,15 +5416,30 @@ public partial class Intrinsics
                 continue;
             if (!entryObject.TryGetPropertyByAtom(IdType, out var typeValue) || !typeValue.IsString)
                 continue;
-            if (!entryObject.TryGetPropertyByAtom(IdValue, out var valueValue) || !valueValue.IsString)
+            if (
+                !entryObject.TryGetPropertyByAtom(IdValue, out var valueValue)
+                || !valueValue.IsString
+            )
                 continue;
-            result.SetElement(index++,
-                JsValue.FromObject(CreateRangePartObject(result.Realm, typeValue.AsString(), valueValue.AsString(),
-                    source)));
+            result.SetElement(
+                index++,
+                JsValue.FromObject(
+                    CreateRangePartObject(
+                        result.Realm,
+                        typeValue.AsString(),
+                        valueValue.AsString(),
+                        source
+                    )
+                )
+            );
         }
     }
 
-    private static JsObject GetIntlOptionsObject(JsRealm realm, in JsValue optionsValue, string errorMessage)
+    private static JsObject GetIntlOptionsObject(
+        JsRealm realm,
+        in JsValue optionsValue,
+        string errorMessage
+    )
     {
         if (optionsValue.IsUndefined)
             return new JsPlainObject(realm, false);
@@ -2772,7 +5448,10 @@ public partial class Intrinsics
         throw new JsRuntimeException(JsErrorKind.TypeError, errorMessage);
     }
 
-    private static JsDurationFormatObject.DurationRecord ToDurationFormatRecord(JsRealm realm, in JsValue value)
+    private static JsDurationFormatObject.DurationRecord ToDurationFormatRecord(
+        JsRealm realm,
+        in JsValue value
+    )
     {
         if (value.IsString)
         {
@@ -2794,8 +5473,10 @@ public partial class Intrinsics
             }
 
         if (!hasDefinedProperty)
-            throw new JsRuntimeException(JsErrorKind.TypeError,
-                "Duration must have at least one duration property defined");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Duration must have at least one duration property defined"
+            );
 
         ulong presentMask = 0;
         var record = new JsDurationFormatObject.DurationRecord(
@@ -2809,14 +5490,20 @@ public partial class Intrinsics
             GetDurationFormatComponent(realm, obj, "milliseconds", ref presentMask, 7),
             GetDurationFormatComponent(realm, obj, "microseconds", ref presentMask, 8),
             GetDurationFormatComponent(realm, obj, "nanoseconds", ref presentMask, 9),
-            presentMask);
+            presentMask
+        );
 
         ValidateDurationFormatRecord(record);
         return record;
     }
 
-    private static double GetDurationFormatComponent(JsRealm realm, JsObject obj, string property,
-        ref ulong presentMask, int bit)
+    private static double GetDurationFormatComponent(
+        JsRealm realm,
+        JsObject obj,
+        string property,
+        ref ulong presentMask,
+        int bit
+    )
     {
         obj.TryGetProperty(property, out var value);
         if (value.IsUndefined)
@@ -2829,8 +5516,10 @@ public partial class Intrinsics
 
         var truncated = Math.Truncate(number);
         if (number != truncated)
-            throw new JsRuntimeException(JsErrorKind.RangeError,
-                $"Duration property {property} must be an integer");
+            throw new JsRuntimeException(
+                JsErrorKind.RangeError,
+                $"Duration property {property} must be an integer"
+            );
 
         return JsDurationFormatObject.NoNegativeZero(truncated);
     }
@@ -2846,31 +5535,55 @@ public partial class Intrinsics
             throw new JsRuntimeException(JsErrorKind.RangeError, "weeks value out of range");
 
         var totalNanoseconds =
-            new BigInteger(record.Days) * 86_400_000_000_000 +
-            new BigInteger(record.Hours) * 3_600_000_000_000 +
-            new BigInteger(record.Minutes) * 60_000_000_000 +
-            new BigInteger(record.Seconds) * 1_000_000_000 +
-            new BigInteger(record.Milliseconds) * 1_000_000 +
-            new BigInteger(record.Microseconds) * 1_000 +
-            new BigInteger(record.Nanoseconds);
+            new BigInteger(record.Days) * 86_400_000_000_000
+            + new BigInteger(record.Hours) * 3_600_000_000_000
+            + new BigInteger(record.Minutes) * 60_000_000_000
+            + new BigInteger(record.Seconds) * 1_000_000_000
+            + new BigInteger(record.Milliseconds) * 1_000_000
+            + new BigInteger(record.Microseconds) * 1_000
+            + new BigInteger(record.Nanoseconds);
 
         var maxTimeDuration = ((BigInteger)1 << 53) * 1_000_000_000;
         if (BigInteger.Abs(totalNanoseconds) >= maxTimeDuration)
-            throw new JsRuntimeException(JsErrorKind.RangeError, "Duration time values out of range");
+            throw new JsRuntimeException(
+                JsErrorKind.RangeError,
+                "Duration time values out of range"
+            );
 
-        var hasPositive = record.Years > 0 || record.Months > 0 || record.Weeks > 0 || record.Days > 0 ||
-                          record.Hours > 0 || record.Minutes > 0 || record.Seconds > 0 ||
-                          record.Milliseconds > 0 || record.Microseconds > 0 || record.Nanoseconds > 0;
-        var hasNegative = record.Years < 0 || record.Months < 0 || record.Weeks < 0 || record.Days < 0 ||
-                          record.Hours < 0 || record.Minutes < 0 || record.Seconds < 0 ||
-                          record.Milliseconds < 0 || record.Microseconds < 0 || record.Nanoseconds < 0;
+        var hasPositive =
+            record.Years > 0
+            || record.Months > 0
+            || record.Weeks > 0
+            || record.Days > 0
+            || record.Hours > 0
+            || record.Minutes > 0
+            || record.Seconds > 0
+            || record.Milliseconds > 0
+            || record.Microseconds > 0
+            || record.Nanoseconds > 0;
+        var hasNegative =
+            record.Years < 0
+            || record.Months < 0
+            || record.Weeks < 0
+            || record.Days < 0
+            || record.Hours < 0
+            || record.Minutes < 0
+            || record.Seconds < 0
+            || record.Milliseconds < 0
+            || record.Microseconds < 0
+            || record.Nanoseconds < 0;
         if (hasPositive && hasNegative)
-            throw new JsRuntimeException(JsErrorKind.RangeError,
-                "Duration cannot have mixed positive and negative values");
+            throw new JsRuntimeException(
+                JsErrorKind.RangeError,
+                "Duration cannot have mixed positive and negative values"
+            );
     }
 
-    private static JsObject GetIntlConstructorOptionsObject(JsRealm realm, in JsValue optionsValue,
-        string errorMessage)
+    private static JsObject GetIntlConstructorOptionsObject(
+        JsRealm realm,
+        in JsValue optionsValue,
+        string errorMessage
+    )
     {
         if (optionsValue.IsUndefined)
             return new JsPlainObject(realm, false);
@@ -2879,8 +5592,11 @@ public partial class Intrinsics
         throw new JsRuntimeException(JsErrorKind.TypeError, errorMessage);
     }
 
-    private static JsObject GetIntlObjectOnlyOptionsObject(JsRealm realm, in JsValue optionsValue,
-        string errorMessage)
+    private static JsObject GetIntlObjectOnlyOptionsObject(
+        JsRealm realm,
+        in JsValue optionsValue,
+        string errorMessage
+    )
     {
         if (optionsValue.IsUndefined)
             return new JsPlainObject(realm, false);
@@ -2889,11 +5605,21 @@ public partial class Intrinsics
         throw new JsRuntimeException(JsErrorKind.TypeError, errorMessage);
     }
 
-    private static void DefineDateTimeResolvedOption(JsRealm realm, JsPlainObject result, int atom, string? value)
+    private static void DefineDateTimeResolvedOption(
+        JsRealm realm,
+        JsPlainObject result,
+        int atom,
+        string? value
+    )
     {
         if (value is null)
             return;
-        result.DefineDataPropertyAtom(realm, atom, JsValue.FromString(value), JsShapePropertyFlags.Open);
+        result.DefineDataPropertyAtom(
+            realm,
+            atom,
+            JsValue.FromString(value),
+            JsShapePropertyFlags.Open
+        );
     }
 
     private static double ToRangeDateTimeFormatNumber(JsRealm realm, in JsValue value)
@@ -2906,7 +5632,10 @@ public partial class Intrinsics
         return number;
     }
 
-    private static string ValidateAndCanonicalizeDateTimeFormatTimeZone(JsRealm realm, in JsValue value)
+    private static string ValidateAndCanonicalizeDateTimeFormatTimeZone(
+        JsRealm realm,
+        in JsValue value
+    )
     {
         if (value.IsUndefined)
             return "UTC";
@@ -2956,8 +5685,12 @@ public partial class Intrinsics
         }
         else if (text.Length == 5)
         {
-            if (!char.IsAsciiDigit(text[1]) || !char.IsAsciiDigit(text[2]) ||
-                !char.IsAsciiDigit(text[3]) || !char.IsAsciiDigit(text[4]))
+            if (
+                !char.IsAsciiDigit(text[1])
+                || !char.IsAsciiDigit(text[2])
+                || !char.IsAsciiDigit(text[3])
+                || !char.IsAsciiDigit(text[4])
+            )
                 throw new JsRuntimeException(JsErrorKind.RangeError, $"Invalid timeZone: {text}");
 
             hours = (text[1] - '0') * 10 + (text[2] - '0');
@@ -2965,9 +5698,14 @@ public partial class Intrinsics
         }
         else
         {
-            if (text.Length != 6 || text[3] != ':' ||
-                !char.IsAsciiDigit(text[1]) || !char.IsAsciiDigit(text[2]) ||
-                !char.IsAsciiDigit(text[4]) || !char.IsAsciiDigit(text[5]))
+            if (
+                text.Length != 6
+                || text[3] != ':'
+                || !char.IsAsciiDigit(text[1])
+                || !char.IsAsciiDigit(text[2])
+                || !char.IsAsciiDigit(text[4])
+                || !char.IsAsciiDigit(text[5])
+            )
                 throw new JsRuntimeException(JsErrorKind.RangeError, $"Invalid timeZone: {text}");
 
             hours = (text[1] - '0') * 10 + (text[2] - '0');
@@ -2992,7 +5730,15 @@ public partial class Intrinsics
         if (suffix.Length < 2 || (suffix[0] != '+' && suffix[0] != '-'))
             return false;
 
-        if (!int.TryParse(suffix[1..], NumberStyles.None, CultureInfo.InvariantCulture, out var hours) || hours > 23)
+        if (
+            !int.TryParse(
+                suffix[1..],
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out var hours
+            )
+            || hours > 23
+        )
             throw new JsRuntimeException(JsErrorKind.RangeError, $"Invalid timeZone: {text}");
 
         canonical = $"Etc/GMT{suffix[0]}{hours}";
@@ -3005,8 +5751,13 @@ public partial class Intrinsics
         {
             if (segment.Length == 0)
                 return false;
-            if (!(char.IsUpper(segment[0]) || segment.Equals("UTC", StringComparison.Ordinal) ||
-                  segment.Equals("GMT", StringComparison.Ordinal)))
+            if (
+                !(
+                    char.IsUpper(segment[0])
+                    || segment.Equals("UTC", StringComparison.Ordinal)
+                    || segment.Equals("GMT", StringComparison.Ordinal)
+                )
+            )
                 return false;
         }
 
@@ -3031,7 +5782,8 @@ public partial class Intrinsics
                 var allLower = words[i].All(static c => !char.IsLetter(c) || char.IsLower(c));
                 var allUpper = words[i].All(static c => !char.IsLetter(c) || char.IsUpper(c));
                 if (allLower || allUpper)
-                    words[i] = char.ToUpperInvariant(words[i][0]) + words[i][1..].ToLowerInvariant();
+                    words[i] =
+                        char.ToUpperInvariant(words[i][0]) + words[i][1..].ToLowerInvariant();
             }
 
             return string.Join("_", words);
@@ -3045,7 +5797,8 @@ public partial class Intrinsics
         JsObject options,
         string property,
         IReadOnlyList<string> validValues,
-        string fallback)
+        string fallback
+    )
     {
         if (!options.TryGetProperty(property, out var value) || value.IsUndefined)
             return fallback;
@@ -3057,14 +5810,18 @@ public partial class Intrinsics
         JsRealm realm,
         in JsValue value,
         string property,
-        IReadOnlyList<string> validValues)
+        IReadOnlyList<string> validValues
+    )
     {
         var text = realm.ToJsStringSlowPath(value);
         foreach (var validValue in validValues)
             if (string.Equals(text, validValue, StringComparison.Ordinal))
                 return text;
 
-        throw new JsRuntimeException(JsErrorKind.RangeError, $"Invalid value '{text}' for option '{property}'");
+        throw new JsRuntimeException(
+            JsErrorKind.RangeError,
+            $"Invalid value '{text}' for option '{property}'"
+        );
     }
 
     private static string CanonicalizeDisplayNamesCode(string type, string code)
@@ -3073,13 +5830,20 @@ public partial class Intrinsics
         {
             case "language":
                 if (!IsValidDisplayNamesLanguageCode(code))
-                    throw new JsRuntimeException(JsErrorKind.RangeError,
-                        $"Invalid code '{code}' for type '{type}'");
+                    throw new JsRuntimeException(
+                        JsErrorKind.RangeError,
+                        $"Invalid code '{code}' for type '{type}'"
+                    );
                 return CanonicalizeUnicodeLocaleId(code);
             case "region":
                 if (code.Length == 2 && char.IsLetter(code[0]) && char.IsLetter(code[1]))
                     return code.ToUpperInvariant();
-                if (code.Length == 3 && char.IsDigit(code[0]) && char.IsDigit(code[1]) && char.IsDigit(code[2]))
+                if (
+                    code.Length == 3
+                    && char.IsDigit(code[0])
+                    && char.IsDigit(code[1])
+                    && char.IsDigit(code[2])
+                )
                     return code;
                 break;
             case "script":
@@ -3100,24 +5864,26 @@ public partial class Intrinsics
                 break;
         }
 
-        throw new JsRuntimeException(JsErrorKind.RangeError, $"Invalid code '{code}' for type '{type}'");
+        throw new JsRuntimeException(
+            JsErrorKind.RangeError,
+            $"Invalid code '{code}' for type '{type}'"
+        );
     }
 
     private static bool IsValidDisplayNamesLanguageCode(string code)
     {
-        if (string.IsNullOrEmpty(code) ||
-            string.Equals(code, "root", StringComparison.OrdinalIgnoreCase) ||
-            code.Contains('_') ||
-            code[0] == '-' ||
-            code[^1] == '-' ||
-            code.Contains("--", StringComparison.Ordinal))
+        if (
+            string.IsNullOrEmpty(code)
+            || string.Equals(code, "root", StringComparison.OrdinalIgnoreCase)
+            || code.Contains('_')
+            || code[0] == '-'
+            || code[^1] == '-'
+            || code.Contains("--", StringComparison.Ordinal)
+        )
             return false;
 
         foreach (var c in code)
-            if ((c < 'A' || c > 'Z') &&
-                (c < 'a' || c > 'z') &&
-                (c < '0' || c > '9') &&
-                c != '-')
+            if ((c < 'A' || c > 'Z') && (c < 'a' || c > 'z') && (c < '0' || c > '9') && c != '-')
                 return false;
 
         var parts = code.Split('-');
@@ -3143,7 +5909,12 @@ public partial class Intrinsics
                     return false;
                 hasRegion = true;
             }
-            else if (part.Length == 3 && char.IsDigit(part[0]) && char.IsDigit(part[1]) && char.IsDigit(part[2]))
+            else if (
+                part.Length == 3
+                && char.IsDigit(part[0])
+                && char.IsDigit(part[1])
+                && char.IsDigit(part[2])
+            )
             {
                 if (hasRegion || seenVariants.Count > 0)
                     return false;
@@ -3209,10 +5980,7 @@ public partial class Intrinsics
         {
             if (char.IsWhiteSpace(c) || c == '_')
                 return false;
-            if ((c < 'A' || c > 'Z') &&
-                (c < 'a' || c > 'z') &&
-                (c < '0' || c > '9') &&
-                c != '-')
+            if ((c < 'A' || c > 'Z') && (c < 'a' || c > 'z') && (c < '0' || c > '9') && c != '-')
                 return false;
         }
 
@@ -3240,7 +6008,7 @@ public partial class Intrinsics
             "minute" => "minute",
             "second" => "second",
             "timeZoneName" => "timeZoneName",
-            _ => null
+            _ => null,
         };
         return canonicalCode is not null;
     }
@@ -3261,12 +6029,18 @@ public partial class Intrinsics
             "months" => "month",
             "quarters" => "quarter",
             "years" => "year",
-            _ => unit
+            _ => unit,
         };
     }
 
-    private static int GetIntlNumberOption(JsRealm realm, JsObject options, string property, int minimum,
-        int maximum, int fallback)
+    private static int GetIntlNumberOption(
+        JsRealm realm,
+        JsObject options,
+        string property,
+        int minimum,
+        int maximum,
+        int fallback
+    )
     {
         if (!options.TryGetProperty(property, out var value) || value.IsUndefined)
             return fallback;
@@ -3274,19 +6048,32 @@ public partial class Intrinsics
         return GetIntlNumberOptionValue(realm, value, property, minimum, maximum);
     }
 
-    private static int GetIntlNumberOptionValue(JsRealm realm, in JsValue value, string property, int minimum,
-        int maximum)
+    private static int GetIntlNumberOptionValue(
+        JsRealm realm,
+        in JsValue value,
+        string property,
+        int minimum,
+        int maximum
+    )
     {
         var number = realm.ToNumberSlowPath(value);
         var integer = realm.ToIntegerOrInfinity(new(number));
         if (double.IsNaN(integer) || integer < minimum || integer > maximum)
-            throw new JsRuntimeException(JsErrorKind.RangeError,
-                $"Invalid value '{number}' for option '{property}'");
+            throw new JsRuntimeException(
+                JsErrorKind.RangeError,
+                $"Invalid value '{number}' for option '{property}'"
+            );
         return (int)integer;
     }
 
-    private static bool TryGetIntlNumberOption(JsRealm realm, JsObject options, string property, int minimum,
-        int maximum, out int? result)
+    private static bool TryGetIntlNumberOption(
+        JsRealm realm,
+        JsObject options,
+        string property,
+        int minimum,
+        int maximum,
+        out int? result
+    )
     {
         result = null;
         if (!options.TryGetProperty(property, out var value) || value.IsUndefined)
@@ -3295,8 +6082,10 @@ public partial class Intrinsics
         var number = realm.ToNumberSlowPath(value);
         var integer = realm.ToIntegerOrInfinity(new(number));
         if (double.IsNaN(integer) || integer < minimum || integer > maximum)
-            throw new JsRuntimeException(JsErrorKind.RangeError,
-                $"Invalid value '{number}' for option '{property}'");
+            throw new JsRuntimeException(
+                JsErrorKind.RangeError,
+                $"Invalid value '{number}' for option '{property}'"
+            );
         result = (int)integer;
         return true;
     }
@@ -3311,7 +6100,24 @@ public partial class Intrinsics
         if (double.IsNaN(integer) || double.IsInfinity(integer) || number != integer)
             throw new JsRuntimeException(JsErrorKind.RangeError, "Invalid roundingIncrement");
         var intValue = (int)integer;
-        ReadOnlySpan<int> valid = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500, 5000];
+        ReadOnlySpan<int> valid =
+        [
+            1,
+            2,
+            5,
+            10,
+            20,
+            25,
+            50,
+            100,
+            200,
+            250,
+            500,
+            1000,
+            2000,
+            2500,
+            5000,
+        ];
         foreach (var candidate in valid)
             if (candidate == intValue)
                 return intValue;
@@ -3321,7 +6127,9 @@ public partial class Intrinsics
 
     private static string GetIntlUseGroupingOption(JsRealm realm, JsObject options, string notation)
     {
-        var fallback = string.Equals(notation, "compact", StringComparison.Ordinal) ? "min2" : "auto";
+        var fallback = string.Equals(notation, "compact", StringComparison.Ordinal)
+            ? "min2"
+            : "auto";
         if (!options.TryGetProperty("useGrouping", out var value) || value.IsUndefined)
             return fallback;
         if (value.IsBool)
@@ -3333,8 +6141,10 @@ public partial class Intrinsics
             var number = value.NumberValue;
             if (number == 0d)
                 return "false";
-            throw new JsRuntimeException(JsErrorKind.RangeError,
-                $"Invalid value '{number}' for option 'useGrouping'");
+            throw new JsRuntimeException(
+                JsErrorKind.RangeError,
+                $"Invalid value '{number}' for option 'useGrouping'"
+            );
         }
 
         var text = realm.ToJsStringSlowPath(value);
@@ -3344,10 +6154,15 @@ public partial class Intrinsics
             if (string.Equals(text, valid, StringComparison.Ordinal))
                 return text;
 
-        if (string.Equals(text, "true", StringComparison.Ordinal) ||
-            string.Equals(text, "false", StringComparison.Ordinal))
+        if (
+            string.Equals(text, "true", StringComparison.Ordinal)
+            || string.Equals(text, "false", StringComparison.Ordinal)
+        )
             return fallback;
-        throw new JsRuntimeException(JsErrorKind.RangeError, $"Invalid value '{text}' for option 'useGrouping'");
+        throw new JsRuntimeException(
+            JsErrorKind.RangeError,
+            $"Invalid value '{text}' for option 'useGrouping'"
+        );
     }
 
     private static string ResolveIntlLocale(IReadOnlyList<string> requestedLocales)
@@ -3383,7 +6198,10 @@ public partial class Intrinsics
         return IsSupportedIntlLocale(canonicalDefaultLocale) ? canonicalDefaultLocale : "en";
     }
 
-    private static JsArray CreateSupportedLocalesArray(JsRealm realm, IReadOnlyList<string> requestedLocales)
+    private static JsArray CreateSupportedLocalesArray(
+        JsRealm realm,
+        IReadOnlyList<string> requestedLocales
+    )
     {
         if (requestedLocales.Count == 0)
             return realm.CreateArrayObject();
@@ -3392,7 +6210,11 @@ public partial class Intrinsics
         {
             var result = realm.CreateArrayObject();
             if (IsSupportedIntlLocale(requestedLocales[0]))
-                FreshArrayOperations.DefineElement(result, 0, JsValue.FromString(requestedLocales[0]));
+                FreshArrayOperations.DefineElement(
+                    result,
+                    0,
+                    JsValue.FromString(requestedLocales[0])
+                );
             return result;
         }
 
@@ -3443,8 +6265,10 @@ public partial class Intrinsics
             var language = GetLocaleLanguageSubtag(canonicalLocale);
             if (string.Equals(language, "zxx", StringComparison.OrdinalIgnoreCase))
                 supported = false;
-            else if (string.Equals(culture.EnglishName, culture.Name, StringComparison.OrdinalIgnoreCase) &&
-                     culture.Name.Length >= 2)
+            else if (
+                string.Equals(culture.EnglishName, culture.Name, StringComparison.OrdinalIgnoreCase)
+                && culture.Name.Length >= 2
+            )
                 supported = false;
             else
                 supported = true;
@@ -3495,8 +6319,8 @@ public partial class Intrinsics
 
         var numerator = unit[..perIndex];
         var denominator = unit[(perIndex + 5)..];
-        return UnitData.IsSimpleSanctionedUnit(numerator) &&
-               UnitData.IsSimpleSanctionedUnit(denominator);
+        return UnitData.IsSimpleSanctionedUnit(numerator)
+            && UnitData.IsSimpleSanctionedUnit(denominator);
     }
 
     private static int GetCurrencyDigits(string currency)
@@ -3504,9 +6328,24 @@ public partial class Intrinsics
         return currency.ToUpperInvariant() switch
         {
             "BHD" or "IQD" or "JOD" or "KWD" or "LYD" or "OMR" or "TND" => 3,
-            "BIF" or "CLP" or "DJF" or "GNF" or "ISK" or "JPY" or "KMF" or "KRW" or "PYG" or "RWF" or "UGX" or "UYI"
-                or "VND" or "VUV" or "XAF" or "XOF" or "XPF" => 0,
-            _ => 2
+            "BIF"
+            or "CLP"
+            or "DJF"
+            or "GNF"
+            or "ISK"
+            or "JPY"
+            or "KMF"
+            or "KRW"
+            or "PYG"
+            or "RWF"
+            or "UGX"
+            or "UYI"
+            or "VND"
+            or "VUV"
+            or "XAF"
+            or "XOF"
+            or "XPF" => 0,
+            _ => 2,
         };
     }
 
@@ -3523,7 +6362,9 @@ public partial class Intrinsics
         var valueEnd = valueStart;
         while (valueEnd < extensionPart.Length && extensionPart[valueEnd] != '-')
             valueEnd++;
-        return valueEnd > valueStart ? extensionPart[valueStart..valueEnd].ToLowerInvariant() : null;
+        return valueEnd > valueStart
+            ? extensionPart[valueStart..valueEnd].ToLowerInvariant()
+            : null;
     }
 
     private static string RemoveUnsupportedNumberFormatLocaleExtensions(string locale)
@@ -3536,7 +6377,7 @@ public partial class Intrinsics
         var extensionPart = locale[(uIndex + 3)..];
         var kept = new List<string>();
         var parts = extensionPart.Split('-', StringSplitOptions.RemoveEmptyEntries);
-        for (var i = 0; i < parts.Length;)
+        for (var i = 0; i < parts.Length; )
         {
             var key = parts[i];
             if (key.Length != 2)
@@ -3554,8 +6395,10 @@ public partial class Intrinsics
                 continue;
 
             var numberingSystem = values[0].ToLowerInvariant();
-            if (!IsWellFormedNumberingSystem(numberingSystem) ||
-                !NumberingSystemData.IsSupported(numberingSystem))
+            if (
+                !IsWellFormedNumberingSystem(numberingSystem)
+                || !NumberingSystemData.IsSupported(numberingSystem)
+            )
                 continue;
 
             kept.Add("nu");
@@ -3581,7 +6424,10 @@ public partial class Intrinsics
 
         var hasOtherExtensions = valueEnd < locale.Length;
         var extensionPart = locale[(uIndex + 3)..];
-        var hasExtensionsBefore = !extensionPart.StartsWith("nu-", StringComparison.OrdinalIgnoreCase);
+        var hasExtensionsBefore = !extensionPart.StartsWith(
+            "nu-",
+            StringComparison.OrdinalIgnoreCase
+        );
         if (!hasOtherExtensions && !hasExtensionsBefore)
             return locale[..uIndex];
 
@@ -3602,59 +6448,117 @@ public partial class Intrinsics
         bool includesHourField,
         bool hour12Explicit,
         bool hourCycleExplicit,
-        string? numberingSystemOption)
+        string? numberingSystemOption
+    )
     {
         var parsedBaseLocale = ParseLanguageTag(baseResolvedLocale);
-        ExtractLocaleComponents(parsedBaseLocale, out var language, out var script, out var region, out var variants,
-            out _, out _, out _, out _, out _, out _, out _, out _, out _, out _);
+        ExtractLocaleComponents(
+            parsedBaseLocale,
+            out var language,
+            out var script,
+            out var region,
+            out var variants,
+            out _,
+            out _,
+            out _,
+            out _,
+            out _,
+            out _,
+            out _,
+            out _,
+            out _,
+            out _
+        );
 
         localeOtherUnicodeKeywords.Clear();
 
         string? finalCalendar = null;
-        var localeCalendarSupported = localeCalendar is not null &&
-                                      IsSupportedDateTimeFormatCalendar(localeCalendar);
+        var localeCalendarSupported =
+            localeCalendar is not null && IsSupportedDateTimeFormatCalendar(localeCalendar);
         var optionCalendarSupported = IsSupportedDateTimeFormatCalendar(resolvedCalendar);
-        if (localeCalendarSupported &&
-            optionCalendarSupported &&
-            string.Equals(localeCalendar, resolvedCalendar, StringComparison.OrdinalIgnoreCase))
+        if (
+            localeCalendarSupported
+            && optionCalendarSupported
+            && string.Equals(localeCalendar, resolvedCalendar, StringComparison.OrdinalIgnoreCase)
+        )
             finalCalendar = CanonicalizeDateTimeFormatCalendar(localeCalendar!);
 
         string? finalHourCycle = null;
-        if (localeHourCycle is not null &&
-            IntlDateTimeFormatHourCycleValues.Contains(localeHourCycle, StringComparer.Ordinal))
+        if (
+            localeHourCycle is not null
+            && IntlDateTimeFormatHourCycleValues.Contains(localeHourCycle, StringComparer.Ordinal)
+        )
         {
-            var keepLocaleHourCycle = !hour12Explicit &&
-                                      ((!hourCycleExplicit && !includesHourField) ||
-                                       string.Equals(localeHourCycle, resolvedHourCycle,
-                                           StringComparison.OrdinalIgnoreCase));
+            var keepLocaleHourCycle =
+                !hour12Explicit
+                && (
+                    (!hourCycleExplicit && !includesHourField)
+                    || string.Equals(
+                        localeHourCycle,
+                        resolvedHourCycle,
+                        StringComparison.OrdinalIgnoreCase
+                    )
+                );
             if (keepLocaleHourCycle)
                 finalHourCycle = localeHourCycle.ToLowerInvariant();
         }
 
         string? finalNumberingSystem = null;
-        var localeNumberingSystemSupported = localeNumberingSystem is not null &&
-                                             IsWellFormedNumberingSystem(localeNumberingSystem) &&
-                                             NumberingSystemData.IsSupported(localeNumberingSystem);
-        var numberingSystemOptionSupported = numberingSystemOption is not null &&
-                                             NumberingSystemData.IsSupported(numberingSystemOption);
-        if (localeNumberingSystemSupported &&
-            string.Equals(localeNumberingSystem, resolvedNumberingSystem, StringComparison.OrdinalIgnoreCase) &&
-            (!numberingSystemOptionSupported ||
-             string.Equals(localeNumberingSystem, numberingSystemOption, StringComparison.OrdinalIgnoreCase)))
+        var localeNumberingSystemSupported =
+            localeNumberingSystem is not null
+            && IsWellFormedNumberingSystem(localeNumberingSystem)
+            && NumberingSystemData.IsSupported(localeNumberingSystem);
+        var numberingSystemOptionSupported =
+            numberingSystemOption is not null
+            && NumberingSystemData.IsSupported(numberingSystemOption);
+        if (
+            localeNumberingSystemSupported
+            && string.Equals(
+                localeNumberingSystem,
+                resolvedNumberingSystem,
+                StringComparison.OrdinalIgnoreCase
+            )
+            && (
+                !numberingSystemOptionSupported
+                || string.Equals(
+                    localeNumberingSystem,
+                    numberingSystemOption,
+                    StringComparison.OrdinalIgnoreCase
+                )
+            )
+        )
             finalNumberingSystem = localeNumberingSystem!.ToLowerInvariant();
 
-        return BuildLocaleWithExtensions(language, script, region, variants, finalCalendar, null, null, null,
+        return BuildLocaleWithExtensions(
+            language,
+            script,
+            region,
+            variants,
+            finalCalendar,
+            null,
+            null,
+            null,
             finalHourCycle,
-            finalNumberingSystem, null, localeUnicodeAttributes, localeOtherUnicodeKeywords, localeOtherExtensions);
+            finalNumberingSystem,
+            null,
+            localeUnicodeAttributes,
+            localeOtherUnicodeKeywords,
+            localeOtherExtensions
+        );
     }
 
-    private static string ResolveDateTimeFormatCalendar(string? localeCalendar, string? calendarOption)
+    private static string ResolveDateTimeFormatCalendar(
+        string? localeCalendar,
+        string? calendarOption
+    )
     {
         if (calendarOption is not null)
         {
             var canonicalOption = CanonicalizeDateTimeFormatCalendar(calendarOption);
-            if (string.Equals(canonicalOption, "islamic", StringComparison.Ordinal) ||
-                string.Equals(canonicalOption, "islamic-rgsa", StringComparison.Ordinal))
+            if (
+                string.Equals(canonicalOption, "islamic", StringComparison.Ordinal)
+                || string.Equals(canonicalOption, "islamic-rgsa", StringComparison.Ordinal)
+            )
                 return "islamic-civil";
 
             if (IsSupportedDateTimeFormatCalendar(canonicalOption))
@@ -3664,8 +6568,10 @@ public partial class Intrinsics
         if (localeCalendar is not null)
         {
             var canonicalLocale = CanonicalizeDateTimeFormatCalendar(localeCalendar);
-            if (string.Equals(canonicalLocale, "islamic", StringComparison.Ordinal) ||
-                string.Equals(canonicalLocale, "islamic-rgsa", StringComparison.Ordinal))
+            if (
+                string.Equals(canonicalLocale, "islamic", StringComparison.Ordinal)
+                || string.Equals(canonicalLocale, "islamic-rgsa", StringComparison.Ordinal)
+            )
                 return "islamic-civil";
 
             if (IsSupportedDateTimeFormatCalendar(canonicalLocale))
@@ -3678,8 +6584,10 @@ public partial class Intrinsics
     private static string CanonicalizeDateTimeFormatCalendar(string calendar)
     {
         var text = calendar.ToLowerInvariant();
-        if (LocaleData.UnicodeMappings.TryGetValue("ca", out var mappings) &&
-            mappings.TryGetValue(text, out var alias))
+        if (
+            LocaleData.UnicodeMappings.TryGetValue("ca", out var mappings)
+            && mappings.TryGetValue(text, out var alias)
+        )
             text = alias;
 
         return text;
@@ -3690,9 +6598,9 @@ public partial class Intrinsics
         if (string.IsNullOrEmpty(calendar))
             return false;
         var canonical = CanonicalizeDateTimeFormatCalendar(calendar);
-        return CalendarData.IsSupportedCalendar(canonical) ||
-               string.Equals(canonical, "islamic", StringComparison.Ordinal) ||
-               string.Equals(canonical, "islamic-rgsa", StringComparison.Ordinal);
+        return CalendarData.IsSupportedCalendar(canonical)
+            || string.Equals(canonical, "islamic", StringComparison.Ordinal)
+            || string.Equals(canonical, "islamic-rgsa", StringComparison.Ordinal);
     }
 
     private static string EnsureNumberingSystemInLocale(string locale, string numberingSystem)
@@ -3716,19 +6624,39 @@ public partial class Intrinsics
         return locale[..valueStart] + numberingSystem + locale[valueEnd..];
     }
 
-    private static JsLocaleObject CreateLocaleObject(JsRealm realm, JsObject prototype, string canonicalTag,
-        in JsValue optionsValue)
+    private static JsLocaleObject CreateLocaleObject(
+        JsRealm realm,
+        JsObject prototype,
+        string canonicalTag,
+        in JsValue optionsValue
+    )
     {
         var parsed = ParseLanguageTag(canonicalTag);
-        ExtractLocaleComponents(parsed, out var language, out var script, out var region, out var variants,
-            out var calendar, out var caseFirst, out var collation, out var hourCycle, out var numberingSystem,
-            out var numeric, out var firstDayOfWeek, out var unicodeAttributes, out var otherUnicodeKeywords,
-            out var otherExtensions);
+        ExtractLocaleComponents(
+            parsed,
+            out var language,
+            out var script,
+            out var region,
+            out var variants,
+            out var calendar,
+            out var caseFirst,
+            out var collation,
+            out var hourCycle,
+            out var numberingSystem,
+            out var numeric,
+            out var firstDayOfWeek,
+            out var unicodeAttributes,
+            out var otherUnicodeKeywords,
+            out var otherExtensions
+        );
 
         JsObject? options = null;
         if (!optionsValue.IsUndefined)
             if (!realm.TryToObject(optionsValue, out options))
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Intl.Locale options must be an object");
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Intl.Locale options must be an object"
+                );
 
         language = GetLocaleLanguageOption(realm, options, language);
         script = GetLocaleScriptOption(realm, options, script);
@@ -3740,7 +6668,13 @@ public partial class Intrinsics
         hourCycle = GetHourCycleOption(realm, options, hourCycle);
         caseFirst = GetCaseFirstOption(realm, options, caseFirst);
         numeric = GetNumericOption(realm, options, numeric);
-        numberingSystem = GetUnicodeKeywordOption(realm, options, "numberingSystem", "nu", numberingSystem);
+        numberingSystem = GetUnicodeKeywordOption(
+            realm,
+            options,
+            "numberingSystem",
+            "nu",
+            numberingSystem
+        );
 
         var baseName = BuildLocaleBaseName(language, script, region, variants);
         var canonicalBaseName = CanonicalizeUnicodeLocaleId(baseName);
@@ -3750,14 +6684,43 @@ public partial class Intrinsics
         region = baseParsed.Region;
         variants = baseParsed.Variants?.ToArray() ?? [];
 
-        var locale = BuildLocaleWithExtensions(language, script, region, variants, calendar, caseFirst, collation,
-            firstDayOfWeek, hourCycle, numberingSystem, numeric, unicodeAttributes, otherUnicodeKeywords,
-            otherExtensions);
+        var locale = BuildLocaleWithExtensions(
+            language,
+            script,
+            region,
+            variants,
+            calendar,
+            caseFirst,
+            collation,
+            firstDayOfWeek,
+            hourCycle,
+            numberingSystem,
+            numeric,
+            unicodeAttributes,
+            otherUnicodeKeywords,
+            otherExtensions
+        );
         var cultureBaseName = BuildLocaleBaseName(language, script, region, []);
         var cultureInfo = GetCultureInfo(cultureBaseName) ?? CultureInfo.InvariantCulture;
 
-        return new(realm, prototype, locale, canonicalBaseName, language, script, region, variants,
-            calendar, caseFirst, collation, hourCycle, numberingSystem, numeric, firstDayOfWeek, cultureInfo);
+        return new(
+            realm,
+            prototype,
+            locale,
+            canonicalBaseName,
+            language,
+            script,
+            region,
+            variants,
+            calendar,
+            caseFirst,
+            collation,
+            hourCycle,
+            numberingSystem,
+            numeric,
+            firstDayOfWeek,
+            cultureInfo
+        );
     }
 
     private static string BuildLocaleWithExtensions(
@@ -3774,7 +6737,8 @@ public partial class Intrinsics
         bool? numeric,
         List<string> unicodeAttributes,
         Dictionary<string, string?> otherUnicodeKeywords,
-        List<ExtensionSubtag> otherExtensions)
+        List<ExtensionSubtag> otherExtensions
+    )
     {
         var parts = new List<string>();
         parts.Add(language);
@@ -3795,7 +6759,9 @@ public partial class Intrinsics
         if (numeric.HasValue)
             AddUnicodeKeyword(unicodeParts, "kn", numeric.Value ? string.Empty : "false");
         AddUnicodeKeyword(unicodeParts, "nu", numberingSystem);
-        foreach (var kv in otherUnicodeKeywords.OrderBy(static kv => kv.Key, StringComparer.Ordinal))
+        foreach (
+            var kv in otherUnicodeKeywords.OrderBy(static kv => kv.Key, StringComparer.Ordinal)
+        )
             AddUnicodeKeyword(unicodeParts, kv.Key, kv.Value);
         if (unicodeParts.Count > 0)
         {
@@ -3817,8 +6783,12 @@ public partial class Intrinsics
             target.AddRange(value.Split('-'));
     }
 
-    private static string BuildLocaleBaseName(string language, string? script, string? region,
-        IReadOnlyList<string> variants)
+    private static string BuildLocaleBaseName(
+        string language,
+        string? script,
+        string? region,
+        IReadOnlyList<string> variants
+    )
     {
         var parts = new List<string> { language };
         if (!string.IsNullOrEmpty(script))
@@ -3845,7 +6815,8 @@ public partial class Intrinsics
         out string? firstDayOfWeek,
         out List<string> unicodeAttributes,
         out Dictionary<string, string?> otherUnicodeKeywords,
-        out List<ExtensionSubtag> otherExtensions)
+        out List<ExtensionSubtag> otherExtensions
+    )
     {
         language = parsed.Language ?? "und";
         script = parsed.Script;
@@ -3873,7 +6844,7 @@ public partial class Intrinsics
                 continue;
             }
 
-            for (var i = 1; i < extension.Parts.Count;)
+            for (var i = 1; i < extension.Parts.Count; )
             {
                 var part = extension.Parts[i];
                 if (part.Length != 2)
@@ -3908,7 +6879,9 @@ public partial class Intrinsics
                         caseFirst = joined;
                         break;
                     case "kn":
-                        numeric = joined.Length == 0 || !string.Equals(joined, "false", StringComparison.Ordinal);
+                        numeric =
+                            joined.Length == 0
+                            || !string.Equals(joined, "false", StringComparison.Ordinal);
                         break;
                     case "nu":
                         numberingSystem = joined;
@@ -3928,7 +6901,10 @@ public partial class Intrinsics
             return fallback;
         var text = realm.ToJsStringSlowPath(value);
         if (!IsAsciiLanguageOption(text))
-            throw new JsRuntimeException(JsErrorKind.RangeError, $"Invalid language option: {text}");
+            throw new JsRuntimeException(
+                JsErrorKind.RangeError,
+                $"Invalid language option: {text}"
+            );
         return text.ToLowerInvariant();
     }
 
@@ -3955,23 +6931,37 @@ public partial class Intrinsics
         return text.Length == 2 ? text.ToUpperInvariant() : text;
     }
 
-    private static string[] GetLocaleVariantsOption(JsRealm realm, JsObject? options, string[] fallback)
+    private static string[] GetLocaleVariantsOption(
+        JsRealm realm,
+        JsObject? options,
+        string[] fallback
+    )
     {
         var value = GetLocaleOptionValue(realm, options, "variants");
         if (value.IsUndefined)
             return fallback;
 
         var text = realm.ToJsStringSlowPath(value);
-        if (text.Length == 0 || text.StartsWith("-", StringComparison.Ordinal) ||
-            text.EndsWith("-", StringComparison.Ordinal) || text.Contains("--", StringComparison.Ordinal))
+        if (
+            text.Length == 0
+            || text.StartsWith("-", StringComparison.Ordinal)
+            || text.EndsWith("-", StringComparison.Ordinal)
+            || text.Contains("--", StringComparison.Ordinal)
+        )
             throw new JsRuntimeException(JsErrorKind.RangeError, "Invalid variants option: ");
-        var parts = text.Split('-', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var parts = text.Split(
+            '-',
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+        );
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var variants = new List<string>(parts.Length);
         foreach (var part in parts)
         {
             if (!IsValidVariant(part) || !seen.Add(part))
-                throw new JsRuntimeException(JsErrorKind.RangeError, $"Invalid variants option: {text}");
+                throw new JsRuntimeException(
+                    JsErrorKind.RangeError,
+                    $"Invalid variants option: {text}"
+                );
             variants.Add(part.ToLowerInvariant());
         }
 
@@ -3979,18 +6969,28 @@ public partial class Intrinsics
         return variants.ToArray();
     }
 
-    private static string? GetUnicodeKeywordOption(JsRealm realm, JsObject? options, string propertyName,
-        string keyword, string? fallback)
+    private static string? GetUnicodeKeywordOption(
+        JsRealm realm,
+        JsObject? options,
+        string propertyName,
+        string keyword,
+        string? fallback
+    )
     {
         var value = GetLocaleOptionValue(realm, options, propertyName);
         if (value.IsUndefined)
             return fallback;
         var text = realm.ToJsStringSlowPath(value).ToLowerInvariant();
         if (!IsAsciiLowerAlphaNumericTypeSequence(text))
-            throw new JsRuntimeException(JsErrorKind.RangeError, $"Invalid {propertyName} option: {text}");
+            throw new JsRuntimeException(
+                JsErrorKind.RangeError,
+                $"Invalid {propertyName} option: {text}"
+            );
 
-        if (LocaleData.UnicodeMappings.TryGetValue(keyword, out var mappings) &&
-            mappings.TryGetValue(text, out var alias))
+        if (
+            LocaleData.UnicodeMappings.TryGetValue(keyword, out var mappings)
+            && mappings.TryGetValue(text, out var alias)
+        )
             text = alias;
 
         return text;
@@ -4005,7 +7005,10 @@ public partial class Intrinsics
         return text switch
         {
             "h11" or "h12" or "h23" or "h24" => text,
-            _ => throw new JsRuntimeException(JsErrorKind.RangeError, $"Invalid hourCycle option: {text}")
+            _ => throw new JsRuntimeException(
+                JsErrorKind.RangeError,
+                $"Invalid hourCycle option: {text}"
+            ),
         };
     }
 
@@ -4018,7 +7021,10 @@ public partial class Intrinsics
         return text switch
         {
             "upper" or "lower" or "false" => text,
-            _ => throw new JsRuntimeException(JsErrorKind.RangeError, $"Invalid caseFirst option: {text}")
+            _ => throw new JsRuntimeException(
+                JsErrorKind.RangeError,
+                $"Invalid caseFirst option: {text}"
+            ),
         };
     }
 
@@ -4028,14 +7034,17 @@ public partial class Intrinsics
         return value.IsUndefined ? fallback : JsRealm.ToBoolean(value);
     }
 
-    private static CompareOptions MapCollatorCompareOptions(string sensitivity, bool ignorePunctuation)
+    private static CompareOptions MapCollatorCompareOptions(
+        string sensitivity,
+        bool ignorePunctuation
+    )
     {
         var options = sensitivity switch
         {
             "base" => CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace,
             "accent" => CompareOptions.IgnoreCase,
             "case" => CompareOptions.IgnoreNonSpace,
-            _ => CompareOptions.None
+            _ => CompareOptions.None,
         };
 
         if (ignorePunctuation)
@@ -4044,27 +7053,38 @@ public partial class Intrinsics
         return options;
     }
 
-    private static string ResolveSupportedCollation(string locale, string usage, string? optionCollation,
-        string? localeCollation)
+    private static string ResolveSupportedCollation(
+        string locale,
+        string usage,
+        string? optionCollation,
+        string? localeCollation
+    )
     {
         if (string.Equals(usage, "search", StringComparison.Ordinal))
             return "default";
 
         var localeLanguage = GetLanguageSubtag(locale);
-        var supported = IntlCollatorLocaleCollationSupport.TryGetValue(localeLanguage, out var values)
+        var supported = IntlCollatorLocaleCollationSupport.TryGetValue(
+            localeLanguage,
+            out var values
+        )
             ? values
             : null;
 
-        if (optionCollation is not null &&
-            IsSupportedCollationValue(optionCollation) &&
-            supported is not null &&
-            supported.Contains(optionCollation))
+        if (
+            optionCollation is not null
+            && IsSupportedCollationValue(optionCollation)
+            && supported is not null
+            && supported.Contains(optionCollation)
+        )
             return optionCollation;
 
-        if (localeCollation is not null &&
-            IsSupportedCollationValue(localeCollation) &&
-            supported is not null &&
-            supported.Contains(localeCollation))
+        if (
+            localeCollation is not null
+            && IsSupportedCollationValue(localeCollation)
+            && supported is not null
+            && supported.Contains(localeCollation)
+        )
             return localeCollation;
 
         return "default";
@@ -4075,7 +7095,7 @@ public partial class Intrinsics
         return value switch
         {
             "default" or "phonebk" or "eor" or "ducet" or "emoji" => true,
-            _ => false
+            _ => false,
         };
     }
 
@@ -4086,27 +7106,31 @@ public partial class Intrinsics
         bool? localeNumeric,
         string caseFirst,
         string collation,
-        bool numeric)
+        bool numeric
+    )
     {
         var extensions = new List<string>();
-        if (localeCollation is not null &&
-            string.Equals(localeCollation, collation, StringComparison.Ordinal) &&
-            !string.Equals(collation, "default", StringComparison.Ordinal))
+        if (
+            localeCollation is not null
+            && string.Equals(localeCollation, collation, StringComparison.Ordinal)
+            && !string.Equals(collation, "default", StringComparison.Ordinal)
+        )
         {
             extensions.Add("co");
             extensions.Add(collation);
         }
 
-        if (localeCaseFirst is not null &&
-            string.Equals(localeCaseFirst, caseFirst, StringComparison.Ordinal) &&
-            !string.Equals(caseFirst, "false", StringComparison.Ordinal))
+        if (
+            localeCaseFirst is not null
+            && string.Equals(localeCaseFirst, caseFirst, StringComparison.Ordinal)
+            && !string.Equals(caseFirst, "false", StringComparison.Ordinal)
+        )
         {
             extensions.Add("kf");
             extensions.Add(caseFirst);
         }
 
-        if (localeNumeric.HasValue &&
-            localeNumeric.Value == numeric)
+        if (localeNumeric.HasValue && localeNumeric.Value == numeric)
         {
             extensions.Add("kn");
             if (!numeric)
@@ -4119,7 +7143,11 @@ public partial class Intrinsics
         return baseLocale + "-u-" + string.Join("-", extensions);
     }
 
-    private static string? GetFirstDayOfWeekOption(JsRealm realm, JsObject? options, string? fallback)
+    private static string? GetFirstDayOfWeekOption(
+        JsRealm realm,
+        JsObject? options,
+        string? fallback
+    )
     {
         var value = GetLocaleOptionValue(realm, options, "firstDayOfWeek");
         if (value.IsUndefined)
@@ -4129,7 +7157,10 @@ public partial class Intrinsics
         if (normalized is not null)
             return normalized;
         if (!IsAsciiAlphaNumericTypeSequence(text))
-            throw new JsRuntimeException(JsErrorKind.RangeError, $"Invalid firstDayOfWeek option: {text}");
+            throw new JsRuntimeException(
+                JsErrorKind.RangeError,
+                $"Invalid firstDayOfWeek option: {text}"
+            );
         return text.ToLowerInvariant();
     }
 
@@ -4154,7 +7185,7 @@ public partial class Intrinsics
             "sat" or "6" => "sat",
             "sun" or "0" or "7" => "sun",
             "false" => "false",
-            _ => null
+            _ => null,
         };
     }
 
@@ -4250,7 +7281,9 @@ public partial class Intrinsics
 
     private static string GetDefaultHourCycle(CultureInfo cultureInfo)
     {
-        return cultureInfo.DateTimeFormat.ShortTimePattern.Contains('H', StringComparison.Ordinal) ? "h23" : "h12";
+        return cultureInfo.DateTimeFormat.ShortTimePattern.Contains('H', StringComparison.Ordinal)
+            ? "h23"
+            : "h12";
     }
 
     private static string GetDefaultFirstDayOfWeek(string? region)
@@ -4258,7 +7291,7 @@ public partial class Intrinsics
         return region?.ToUpperInvariant() switch
         {
             "US" or "CA" or "JP" => "sun",
-            _ => "mon"
+            _ => "mon",
         };
     }
 
@@ -4272,7 +7305,7 @@ public partial class Intrinsics
             "thu" => 4,
             "fri" => 5,
             "sat" => 6,
-            _ => 7
+            _ => 7,
         };
     }
 
@@ -4287,7 +7320,7 @@ public partial class Intrinsics
             "JP" => ["Asia/Tokyo"],
             "CN" => ["Asia/Shanghai"],
             "CA" => ["America/Toronto"],
-            _ => ["UTC"]
+            _ => ["UTC"],
         };
     }
 
@@ -4296,26 +7329,46 @@ public partial class Intrinsics
         in JsValue newTarget,
         JsHostFunction activeFunction,
         JsObject intrinsicDefaultPrototype,
-        string constructorName)
+        string constructorName
+    )
     {
-        if (newTarget.TryGetObject(out var newTargetObj) && newTargetObj is JsFunction newTargetFunction)
+        if (
+            newTarget.TryGetObject(out var newTargetObj)
+            && newTargetObj is JsFunction newTargetFunction
+        )
         {
-            if (newTargetObj.TryGetPropertyAtom(realm, IdPrototype, out var explicitPrototypeValue, out _) &&
-                explicitPrototypeValue.TryGetObject(out var explicitPrototypeObj))
+            if (
+                newTargetObj.TryGetPropertyAtom(
+                    realm,
+                    IdPrototype,
+                    out var explicitPrototypeValue,
+                    out _
+                ) && explicitPrototypeValue.TryGetObject(out var explicitPrototypeObj)
+            )
                 return explicitPrototypeObj;
 
             var functionRealm = GetFunctionRealm(realm, newTargetFunction);
-            if (functionRealm.Global.TryGetValue("Intl", out var intlValue) &&
-                intlValue.TryGetObject(out var intlObj) &&
-                intlObj.TryGetProperty(constructorName, out var ctorValue) &&
-                ctorValue.TryGetObject(out var ctorObj) &&
-                ctorObj.TryGetPropertyAtom(functionRealm, IdPrototype, out var realmPrototypeValue, out _) &&
-                realmPrototypeValue.TryGetObject(out var realmPrototypeObj))
+            if (
+                functionRealm.Global.TryGetValue("Intl", out var intlValue)
+                && intlValue.TryGetObject(out var intlObj)
+                && intlObj.TryGetProperty(constructorName, out var ctorValue)
+                && ctorValue.TryGetObject(out var ctorObj)
+                && ctorObj.TryGetPropertyAtom(
+                    functionRealm,
+                    IdPrototype,
+                    out var realmPrototypeValue,
+                    out _
+                )
+                && realmPrototypeValue.TryGetObject(out var realmPrototypeObj)
+            )
                 return realmPrototypeObj;
         }
 
-        return realm.Intrinsics.GetPrototypeFromConstructorOrIntrinsic(newTarget, activeFunction,
-            intrinsicDefaultPrototype);
+        return realm.Intrinsics.GetPrototypeFromConstructorOrIntrinsic(
+            newTarget,
+            activeFunction,
+            intrinsicDefaultPrototype
+        );
     }
 
     [GeneratedRegex(@"^[A-Za-z._+-]+(?:/[A-Za-z0-9._+-]+)+$", RegexOptions.CultureInvariant)]

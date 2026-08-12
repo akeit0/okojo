@@ -8,7 +8,8 @@ internal sealed class JsWeakMapObject : JsObject
 
     private readonly ConditionalWeakTable<JsObject, ValueBox> table = new();
 
-    internal JsWeakMapObject(JsRealm realm, JsObject prototype) : base(realm)
+    internal JsWeakMapObject(JsRealm realm, JsObject prototype)
+        : base(realm)
     {
         Prototype = prototype;
         realm.Agent.TrackWeakMap(this);

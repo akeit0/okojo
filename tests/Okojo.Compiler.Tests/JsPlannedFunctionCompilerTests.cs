@@ -13,11 +13,13 @@ public class JsPlannedFunctionCompilerTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var compiler = new JsPlannedFunctionCompiler(realm);
-        var program = JavaScriptParser.ParseScript("""
-                                                   function sum(x, y) {
-                                                       return x + y;
-                                                   }
-                                                   """);
+        var program = JavaScriptParser.ParseScript(
+            """
+            function sum(x, y) {
+                return x + y;
+            }
+            """
+        );
         var function = (JsFunctionDeclaration)program.Statements[0];
         var plan = FunctionParameterPlan.FromFunction(function);
 
@@ -33,16 +35,18 @@ public class JsPlannedFunctionCompilerTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var compiler = new JsPlannedFunctionCompiler(realm);
-        var program = JavaScriptParser.ParseScript("""
-                                                   function choose(x) {
-                                                       if (x < 2) {
-                                                           x += 40;
-                                                       } else {
-                                                           x = 0;
-                                                       }
-                                                       return x;
-                                                   }
-                                                   """);
+        var program = JavaScriptParser.ParseScript(
+            """
+            function choose(x) {
+                if (x < 2) {
+                    x += 40;
+                } else {
+                    x = 0;
+                }
+                return x;
+            }
+            """
+        );
         var function = (JsFunctionDeclaration)program.Statements[0];
         var plan = FunctionParameterPlan.FromFunction(function);
 
@@ -50,9 +54,10 @@ public class JsPlannedFunctionCompilerTests
 
         Assert.That(compiled.Script.Bytecode.Contains((byte)JsOpCode.TestLessThan), Is.True);
         Assert.That(
-            compiled.Script.Bytecode.Contains((byte)JsOpCode.JumpIfFalse) ||
-            compiled.Script.Bytecode.Contains((byte)JsOpCode.JumpIfToBooleanFalse),
-            Is.True);
+            compiled.Script.Bytecode.Contains((byte)JsOpCode.JumpIfFalse)
+                || compiled.Script.Bytecode.Contains((byte)JsOpCode.JumpIfToBooleanFalse),
+            Is.True
+        );
         Assert.That(compiled.Script.Bytecode.Contains((byte)JsOpCode.Return), Is.True);
     }
 
@@ -61,19 +66,25 @@ public class JsPlannedFunctionCompilerTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var compiler = new JsPlannedFunctionCompiler(realm);
-        var program = JavaScriptParser.ParseScript("""
-                                                   function makeAdder(x) {
-                                                       function addOne() {
-                                                           return x + 1;
-                                                       }
-                                                       return addOne;
-                                                   }
-                                                   """);
+        var program = JavaScriptParser.ParseScript(
+            """
+            function makeAdder(x) {
+                function addOne() {
+                    return x + 1;
+                }
+                return addOne;
+            }
+            """
+        );
         var function = (JsFunctionDeclaration)program.Statements[0];
         var plan = FunctionParameterPlan.FromFunction(function);
 
         var compiled = compiler.CompileFunction("makeAdder", plan, function.Body);
-        var closureValue = realm.InvokeFunction(compiled, JsValue.Undefined, [JsValue.FromInt32(41)]);
+        var closureValue = realm.InvokeFunction(
+            compiled,
+            JsValue.Undefined,
+            [JsValue.FromInt32(41)]
+        );
         Assert.That(closureValue.Obj, Is.AssignableTo<JsFunction>());
         var closure = (JsFunction)closureValue.Obj!;
         var result = realm.InvokeFunction(closure, JsValue.Undefined, ReadOnlySpan<JsValue>.Empty);
@@ -86,21 +97,27 @@ public class JsPlannedFunctionCompilerTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var compiler = new JsPlannedFunctionCompiler(realm);
-        var program = JavaScriptParser.ParseScript("""
-                                                   function run() {
-                                                       let x = 1;
-                                                       function bump() {
-                                                           x += 41;
-                                                           return x;
-                                                       }
-                                                       return bump;
-                                                   }
-                                                   """);
+        var program = JavaScriptParser.ParseScript(
+            """
+            function run() {
+                let x = 1;
+                function bump() {
+                    x += 41;
+                    return x;
+                }
+                return bump;
+            }
+            """
+        );
         var function = (JsFunctionDeclaration)program.Statements[0];
         var plan = FunctionParameterPlan.FromFunction(function);
 
         var compiled = compiler.CompileFunction("run", plan, function.Body);
-        var closureValue = realm.InvokeFunction(compiled, JsValue.Undefined, ReadOnlySpan<JsValue>.Empty);
+        var closureValue = realm.InvokeFunction(
+            compiled,
+            JsValue.Undefined,
+            ReadOnlySpan<JsValue>.Empty
+        );
         Assert.That(closureValue.Obj, Is.AssignableTo<JsFunction>());
         var closure = (JsFunction)closureValue.Obj!;
         var result = realm.InvokeFunction(closure, JsValue.Undefined, ReadOnlySpan<JsValue>.Empty);
@@ -113,24 +130,30 @@ public class JsPlannedFunctionCompilerTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var compiler = new JsPlannedFunctionCompiler(realm);
-        var program = JavaScriptParser.ParseScript("""
-                                                   function make() {
-                                                       let fn = 0;
-                                                       {
-                                                           let x = 41;
-                                                           function answer() {
-                                                               return x + 1;
-                                                           }
-                                                           fn = answer;
-                                                       }
-                                                       return fn;
-                                                   }
-                                                   """);
+        var program = JavaScriptParser.ParseScript(
+            """
+            function make() {
+                let fn = 0;
+                {
+                    let x = 41;
+                    function answer() {
+                        return x + 1;
+                    }
+                    fn = answer;
+                }
+                return fn;
+            }
+            """
+        );
         var function = (JsFunctionDeclaration)program.Statements[0];
         var plan = FunctionParameterPlan.FromFunction(function);
 
         var compiled = compiler.CompileFunction("make", plan, function.Body);
-        var closureValue = realm.InvokeFunction(compiled, JsValue.Undefined, ReadOnlySpan<JsValue>.Empty);
+        var closureValue = realm.InvokeFunction(
+            compiled,
+            JsValue.Undefined,
+            ReadOnlySpan<JsValue>.Empty
+        );
         Assert.That(closureValue.Obj, Is.AssignableTo<JsFunction>());
         var closure = (JsFunction)closureValue.Obj!;
         var result = realm.InvokeFunction(closure, JsValue.Undefined, ReadOnlySpan<JsValue>.Empty);

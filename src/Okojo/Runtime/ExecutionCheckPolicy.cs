@@ -33,12 +33,12 @@ internal sealed class ExecutionCheckPolicy
         {
             lock (gate)
             {
-                return debuggerSession is not null ||
-                       constraints.Length != 0 ||
-                       executionDeadline is not null ||
-                       executionCancellationToken.CanBeCanceled ||
-                       maxInstructions != ulong.MaxValue ||
-                       checkInterval != ulong.MaxValue;
+                return debuggerSession is not null
+                    || constraints.Length != 0
+                    || executionDeadline is not null
+                    || executionCancellationToken.CanBeCanceled
+                    || maxInstructions != ulong.MaxValue
+                    || checkInterval != ulong.MaxValue;
             }
         }
     }
@@ -49,11 +49,11 @@ internal sealed class ExecutionCheckPolicy
         {
             lock (gate)
             {
-                return constraints.Length != 0 ||
-                       executionDeadline is not null ||
-                       executionCancellationToken.CanBeCanceled ||
-                       maxInstructions != ulong.MaxValue ||
-                       checkInterval != ulong.MaxValue;
+                return constraints.Length != 0
+                    || executionDeadline is not null
+                    || executionCancellationToken.CanBeCanceled
+                    || maxInstructions != ulong.MaxValue
+                    || checkInterval != ulong.MaxValue;
             }
         }
     }
@@ -191,7 +191,8 @@ internal sealed class ExecutionCheckPolicy
         Span<JsValue> fullStack,
         int fp,
         ExecutionCheckpointKind kind,
-        int programCounter)
+        int programCounter
+    )
     {
         EmitBoundaryCheckpointCore(realm, fullStack, fp, kind, programCounter, null);
     }
@@ -203,10 +204,17 @@ internal sealed class ExecutionCheckPolicy
         int fp,
         ExecutionCheckpointKind kind,
         ref byte bytecode,
-        ref byte pc)
+        ref byte pc
+    )
     {
-        EmitBoundaryCheckpointCore(realm, fullStack, fp, kind, JsRealm.GetPcOffset(ref bytecode, ref pc),
-            null);
+        EmitBoundaryCheckpointCore(
+            realm,
+            fullStack,
+            fp,
+            kind,
+            JsRealm.GetPcOffset(ref bytecode, ref pc),
+            null
+        );
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -215,10 +223,17 @@ internal sealed class ExecutionCheckPolicy
         Span<JsValue> fullStack,
         int fp,
         ref byte bytecode,
-        ref byte pc)
+        ref byte pc
+    )
     {
-        EmitBoundaryCheckpointCore(realm, fullStack, fp, ExecutionCheckpointKind.DebuggerStatement,
-            JsRealm.GetPcOffset(ref bytecode, ref pc), null);
+        EmitBoundaryCheckpointCore(
+            realm,
+            fullStack,
+            fp,
+            ExecutionCheckpointKind.DebuggerStatement,
+            JsRealm.GetPcOffset(ref bytecode, ref pc),
+            null
+        );
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -227,10 +242,17 @@ internal sealed class ExecutionCheckPolicy
         Span<JsValue> fullStack,
         int fp,
         ref byte bytecode,
-        ref byte pc)
+        ref byte pc
+    )
     {
-        EmitBoundaryCheckpointCore(realm, fullStack, fp, ExecutionCheckpointKind.Breakpoint,
-            JsRealm.GetPcOffset(ref bytecode, ref pc), null);
+        EmitBoundaryCheckpointCore(
+            realm,
+            fullStack,
+            fp,
+            ExecutionCheckpointKind.Breakpoint,
+            JsRealm.GetPcOffset(ref bytecode, ref pc),
+            null
+        );
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -238,7 +260,8 @@ internal sealed class ExecutionCheckPolicy
         JsRealm realm,
         Span<JsValue> fullStack,
         int fp,
-        ExecutionCheckpointKind kind)
+        ExecutionCheckpointKind kind
+    )
     {
         EmitBoundaryCheckpointCore(realm, fullStack, fp, kind, 0, null);
     }
@@ -250,7 +273,8 @@ internal sealed class ExecutionCheckPolicy
         int fp,
         ExecutionCheckpointKind kind,
         int programCounter,
-        JsOpCode? currentOpcode)
+        JsOpCode? currentOpcode
+    )
     {
         DateTimeOffset? executionDeadline;
         CancellationToken executionCancellationToken;
@@ -267,9 +291,15 @@ internal sealed class ExecutionCheckPolicy
         }
 
         ThrowIfCanceled(executionCancellationToken);
-        if (executionDeadline is not null && realm.TimeProvider.GetUtcNow() >= executionDeadline.Value)
-            throw new JsRuntimeException(JsErrorKind.RangeError, "Execution timeout exceeded",
-                "EXECUTION_TIMEOUT_EXCEEDED");
+        if (
+            executionDeadline is not null
+            && realm.TimeProvider.GetUtcNow() >= executionDeadline.Value
+        )
+            throw new JsRuntimeException(
+                JsErrorKind.RangeError,
+                "Execution timeout exceeded",
+                "EXECUTION_TIMEOUT_EXCEEDED"
+            );
 
         if (debuggerSession is null && constraints.Length == 0)
             return;
@@ -285,9 +315,15 @@ internal sealed class ExecutionCheckPolicy
         IReadOnlyList<JsLocalDebugInfo>? locals = null;
         IReadOnlyList<PausedLocalValue>? localValues = null;
         IReadOnlyList<PausedScopeSnapshot>? scopeChain = null;
-        if (debuggerSession is not null && realm.GetCallFrameAt(fp).Function is JsBytecodeFunction bytecodeFunction)
+        if (
+            debuggerSession is not null
+            && realm.GetCallFrameAt(fp).Function is JsBytecodeFunction bytecodeFunction
+        )
         {
-            locals = JsScriptDebugInfo.GetVisibleLocalInfos(bytecodeFunction.Script, programCounter);
+            locals = JsScriptDebugInfo.GetVisibleLocalInfos(
+                bytecodeFunction.Script,
+                programCounter
+            );
             localValues = realm.CapturePausedLocalValues(fullStack, fp, programCounter);
             scopeChain = realm.CapturePausedScopeChain(fullStack, fp, programCounter);
             if (scopeChain is not null && scopeChain.Count != 0)
@@ -306,7 +342,8 @@ internal sealed class ExecutionCheckPolicy
             stackFrames,
             locals,
             localValues,
-            scopeChain);
+            scopeChain
+        );
         if (realm.Agent.TryConsumeStepRequest(in checkpoint, out var stepKind))
             checkpoint = checkpoint.WithKind(stepKind);
         debuggerSession?.OnCheckpoint(in checkpoint);
@@ -322,7 +359,8 @@ internal sealed class ExecutionCheckPolicy
         ref byte bytecode,
         ref byte pc,
         JsOpCode currentOpcode,
-        ref ulong nextCheck)
+        ref ulong nextCheck
+    )
     {
         ulong interval;
         ulong maxInstructions;
@@ -344,13 +382,22 @@ internal sealed class ExecutionCheckPolicy
         }
 
         ThrowIfCanceled(executionCancellationToken);
-        if (executionDeadline is not null && realm.TimeProvider.GetUtcNow() >= executionDeadline.Value)
-            throw new JsRuntimeException(JsErrorKind.RangeError, "Execution timeout exceeded",
-                "EXECUTION_TIMEOUT_EXCEEDED");
+        if (
+            executionDeadline is not null
+            && realm.TimeProvider.GetUtcNow() >= executionDeadline.Value
+        )
+            throw new JsRuntimeException(
+                JsErrorKind.RangeError,
+                "Execution timeout exceeded",
+                "EXECUTION_TIMEOUT_EXCEEDED"
+            );
 
         if (maxInstructions != ulong.MaxValue && nextExecuted > maxInstructions)
-            throw new JsRuntimeException(JsErrorKind.RangeError, "Execution limit exceeded",
-                "EXECUTION_LIMIT_EXCEEDED");
+            throw new JsRuntimeException(
+                JsErrorKind.RangeError,
+                "Execution limit exceeded",
+                "EXECUTION_LIMIT_EXCEEDED"
+            );
 
         var programCounter = JsRealm.GetPcOffset(ref bytecode, ref pc);
         var currentFrame = realm.GetCurrentFrameInfo(fullStack, fp, programCounter);
@@ -364,9 +411,15 @@ internal sealed class ExecutionCheckPolicy
         IReadOnlyList<JsLocalDebugInfo>? locals = null;
         IReadOnlyList<PausedLocalValue>? localValues = null;
         IReadOnlyList<PausedScopeSnapshot>? scopeChain = null;
-        if (debuggerSession is not null && realm.GetCallFrameAt(fp).Function is JsBytecodeFunction bytecodeFunction)
+        if (
+            debuggerSession is not null
+            && realm.GetCallFrameAt(fp).Function is JsBytecodeFunction bytecodeFunction
+        )
         {
-            locals = JsScriptDebugInfo.GetVisibleLocalInfos(bytecodeFunction.Script, programCounter);
+            locals = JsScriptDebugInfo.GetVisibleLocalInfos(
+                bytecodeFunction.Script,
+                programCounter
+            );
             localValues = realm.CapturePausedLocalValues(fullStack, fp, programCounter);
             scopeChain = realm.CapturePausedScopeChain(fullStack, fp, programCounter);
             if (scopeChain is not null && scopeChain.Count != 0)
@@ -385,7 +438,8 @@ internal sealed class ExecutionCheckPolicy
             stackFrames,
             locals,
             localValues,
-            scopeChain);
+            scopeChain
+        );
         debuggerSession?.OnCheckpoint(in checkpoint);
         for (var i = 0; i < constraints.Length; i++)
             constraints[i].OnCheckpoint(in checkpoint);
@@ -396,7 +450,10 @@ internal sealed class ExecutionCheckPolicy
     private static void ThrowIfCanceled(CancellationToken cancellationToken)
     {
         if (cancellationToken.IsCancellationRequested)
-            throw new JsRuntimeException(JsErrorKind.RangeError, "Execution canceled",
-                "EXECUTION_CANCELED");
+            throw new JsRuntimeException(
+                JsErrorKind.RangeError,
+                "Execution canceled",
+                "EXECUTION_CANCELED"
+            );
     }
 }

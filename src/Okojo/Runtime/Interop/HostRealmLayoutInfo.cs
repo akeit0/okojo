@@ -9,19 +9,26 @@ internal sealed class HostRealmLayoutInfo
     private const int SpecialMethodCount = 4;
 
     private readonly object lazyMethodLock = new();
-    private readonly Dictionary<int, (HostNamedMemberDescriptor Member, int Slot)>? lazyMethodsByAtom;
+    private readonly Dictionary<
+        int,
+        (HostNamedMemberDescriptor Member, int Slot)
+    >? lazyMethodsByAtom;
     private readonly byte specialMethodMask;
     private readonly JsHostFunction?[] specialMethodFunctions;
 
-    internal HostRealmLayoutInfo(StaticNamedPropertyLayout layout, JsValue[] slotTemplate,
+    internal HostRealmLayoutInfo(
+        StaticNamedPropertyLayout layout,
+        JsValue[] slotTemplate,
         Dictionary<int, (HostNamedMemberDescriptor Member, int Slot)>? lazyMethodsByAtom,
-        byte specialMethodMask)
+        byte specialMethodMask
+    )
     {
         Layout = layout;
         SlotTemplate = slotTemplate;
         this.lazyMethodsByAtom = lazyMethodsByAtom;
         this.specialMethodMask = specialMethodMask;
-        specialMethodFunctions = specialMethodMask == 0 ? [] : new JsHostFunction?[SpecialMethodCount];
+        specialMethodFunctions =
+            specialMethodMask == 0 ? [] : new JsHostFunction?[SpecialMethodCount];
     }
 
     internal StaticNamedPropertyLayout Layout { get; }
@@ -41,11 +48,14 @@ internal sealed class HostRealmLayoutInfo
             if (!value.IsTheHole)
                 return true;
 
-            var function = new JsHostFunction(realm,
-                entry.Member.BindableMethodBody ?? HostTypeDescriptor.InvokeHostMethod, entry.Member.Name,
-                entry.Member.FunctionLength)
+            var function = new JsHostFunction(
+                realm,
+                entry.Member.BindableMethodBody ?? HostTypeDescriptor.InvokeHostMethod,
+                entry.Member.Name,
+                entry.Member.FunctionLength
+            )
             {
-                UserData = entry.Member
+                UserData = entry.Member,
             };
             value = JsValue.FromObject(function);
             SlotTemplate[entry.Slot] = value;
@@ -70,7 +80,12 @@ internal sealed class HostRealmLayoutInfo
                 return true;
             }
 
-            function = new JsHostFunction(realm, GetSpecialMethodBody(slot), GetSpecialMethodName(slot), 0);
+            function = new JsHostFunction(
+                realm,
+                GetSpecialMethodBody(slot),
+                GetSpecialMethodName(slot),
+                0
+            );
             value = JsValue.FromObject(function);
             specialMethodFunctions[slot] = function;
             return true;
@@ -129,7 +144,7 @@ internal sealed class HostRealmLayoutInfo
             1 => "[Symbol.asyncIterator]",
             2 => "[Symbol.dispose]",
             3 => "[Symbol.asyncDispose]",
-            _ => throw new ArgumentOutOfRangeException(nameof(slot))
+            _ => throw new ArgumentOutOfRangeException(nameof(slot)),
         };
     }
 
@@ -141,7 +156,7 @@ internal sealed class HostRealmLayoutInfo
             1 => JsHostObject.InvokeHostAsyncIteratorMethod,
             2 => JsHostObject.InvokeHostDisposeMethod,
             3 => JsHostObject.InvokeHostAsyncDisposeMethod,
-            _ => throw new ArgumentOutOfRangeException(nameof(slot))
+            _ => throw new ArgumentOutOfRangeException(nameof(slot)),
         };
     }
 }

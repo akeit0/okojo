@@ -15,7 +15,11 @@ internal sealed partial class JsPlannedScriptCompiler
             case JsIdentifierExpression identifier:
                 EmitIdentifierLoad(identifier.Name);
                 return;
-            case JsAssignmentExpression { Left: JsIdentifierExpression identifier, Right: var right } assignment:
+            case JsAssignmentExpression
+            {
+                Left: JsIdentifierExpression identifier,
+                Right: var right
+            } assignment:
                 EmitIdentifierAssignment(identifier.Name, assignment.Operator, right);
                 return;
             case JsBinaryExpression add when TryEmitComparisonExpression(add):
@@ -42,14 +46,18 @@ internal sealed partial class JsPlannedScriptCompiler
 
                 return;
             default:
-                throw new NotSupportedException($"JsPlannedScriptCompiler does not support expression '{expression.GetType().Name}'.");
+                throw new NotSupportedException(
+                    $"JsPlannedScriptCompiler does not support expression '{expression.GetType().Name}'."
+                );
         }
     }
 
     private void EmitIdentifierAssignment(string name, JsAssignmentOperator op, JsExpression right)
     {
         if (!TryResolveBindingAccess(name, out var binding, out var contextDepth))
-            throw new NotSupportedException($"JsPlannedScriptCompiler does not support assignment to '{name}'.");
+            throw new NotSupportedException(
+                $"JsPlannedScriptCompiler does not support assignment to '{name}'."
+            );
 
         switch (op)
         {
@@ -68,7 +76,9 @@ internal sealed partial class JsPlannedScriptCompiler
                 EmitStore(binding, contextDepth);
                 return;
             default:
-                throw new NotSupportedException($"JsPlannedScriptCompiler does not support assignment operator '{op}'.");
+                throw new NotSupportedException(
+                    $"JsPlannedScriptCompiler does not support assignment operator '{op}'."
+                );
         }
     }
 
@@ -145,7 +155,7 @@ internal sealed partial class JsPlannedScriptCompiler
             JsBinaryOperator.GreaterThan => JsOpCode.TestGreaterThan,
             JsBinaryOperator.LessThanOrEqual => JsOpCode.TestLessThanOrEqual,
             JsBinaryOperator.GreaterThanOrEqual => JsOpCode.TestGreaterThanOrEqual,
-            _ => default
+            _ => default,
         };
         return opcode != default;
     }
@@ -166,18 +176,25 @@ internal sealed partial class JsPlannedScriptCompiler
             case long int64 when int64 >= int.MinValue && int64 <= int.MaxValue:
                 EmitSmi((int)int64);
                 return;
-            case double number when Math.Truncate(number) == number && number >= int.MinValue && number <= int.MaxValue:
+            case double number
+                when Math.Truncate(number) == number
+                    && number >= int.MinValue
+                    && number <= int.MaxValue:
                 EmitSmi((int)number);
                 return;
             default:
-                throw new NotSupportedException($"JsPlannedScriptCompiler does not support literal '{literal.Text}'.");
+                throw new NotSupportedException(
+                    $"JsPlannedScriptCompiler does not support literal '{literal.Text}'."
+                );
         }
     }
 
     private void EmitIdentifierLoad(string name)
     {
         if (!TryResolveBindingAccess(name, out var binding, out var contextDepth))
-            throw new NotSupportedException($"JsPlannedScriptCompiler does not support unbound identifier '{name}'.");
+            throw new NotSupportedException(
+                $"JsPlannedScriptCompiler does not support unbound identifier '{name}'."
+            );
 
         switch (binding.Planned.StorageKind)
         {
@@ -194,7 +211,9 @@ internal sealed partial class JsPlannedScriptCompiler
                     EmitLdaContextSlot(binding.Planned.StorageIndex, contextDepth);
                 return;
             default:
-                throw new NotSupportedException($"JsPlannedScriptCompiler does not support loading '{name}' from {binding.Planned.StorageKind}.");
+                throw new NotSupportedException(
+                    $"JsPlannedScriptCompiler does not support loading '{name}' from {binding.Planned.StorageKind}."
+                );
         }
     }
 
@@ -220,7 +239,9 @@ internal sealed partial class JsPlannedScriptCompiler
                     EmitStaContextSlot(binding.Planned.StorageIndex, contextDepth);
                 return;
             default:
-                throw new NotSupportedException($"JsPlannedScriptCompiler does not support storing '{binding.Planned.Name}' in {binding.Planned.StorageKind}.");
+                throw new NotSupportedException(
+                    $"JsPlannedScriptCompiler does not support storing '{binding.Planned.Name}' in {binding.Planned.StorageKind}."
+                );
         }
     }
 }

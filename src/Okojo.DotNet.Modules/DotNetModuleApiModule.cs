@@ -13,14 +13,21 @@ internal sealed class DotNetModuleApiModule(DotNetModuleImportBridge bridge) : I
             return;
 
         realm.Global[DotNetModuleImportBridge.GlobalBridgeFunctionName] = JsValue.FromObject(
-            new JsHostFunction(realm, DotNetModuleImportBridge.GlobalBridgeFunctionName, 1, static (in info) =>
+            new JsHostFunction(
+                realm,
+                DotNetModuleImportBridge.GlobalBridgeFunctionName,
+                1,
+                static (in info) =>
+                {
+                    var importBridge = (DotNetModuleImportBridge)
+                        ((JsHostFunction)info.Function).UserData!;
+                    var resolvedId = info.GetArgumentOrDefault(0, JsValue.Undefined).AsString();
+                    return importBridge.Import(info.Realm, resolvedId);
+                }
+            )
             {
-                var importBridge = (DotNetModuleImportBridge)((JsHostFunction)info.Function).UserData!;
-                var resolvedId = info.GetArgumentOrDefault(0, JsValue.Undefined).AsString();
-                return importBridge.Import(info.Realm, resolvedId);
-            })
-            {
-                UserData = bridge
-            });
+                UserData = bridge,
+            }
+        );
     }
 }

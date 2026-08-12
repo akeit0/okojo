@@ -7,61 +7,75 @@ public class ModuleTdzBindingKindTests
     [Test]
     public void EvaluateModule_LocalLet_ReadBeforeInitialization_Throws()
     {
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/main.js"] = """
-                                export const y = x;
-                                let x = 1;
-                                """
-        });
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal)
+            {
+                ["/mods/main.js"] = """
+                export const y = x;
+                let x = 1;
+                """,
+            }
+        );
 
         using var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var realm = engine.MainRealm;
-        Assert.Throws<JsRuntimeException>(() => engine.MainAgent.EvaluateModule(realm, "/mods/main.js"));
+        Assert.Throws<JsRuntimeException>(() =>
+            engine.MainAgent.EvaluateModule(realm, "/mods/main.js")
+        );
     }
 
     [Test]
     public void EvaluateModule_LocalConst_ReadBeforeInitialization_Throws()
     {
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/main.js"] = """
-                                export const y = x;
-                                const x = 1;
-                                """
-        });
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal)
+            {
+                ["/mods/main.js"] = """
+                export const y = x;
+                const x = 1;
+                """,
+            }
+        );
 
         using var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var realm = engine.MainRealm;
-        Assert.Throws<JsRuntimeException>(() => engine.MainAgent.EvaluateModule(realm, "/mods/main.js"));
+        Assert.Throws<JsRuntimeException>(() =>
+            engine.MainAgent.EvaluateModule(realm, "/mods/main.js")
+        );
     }
 
     [Test]
     public void EvaluateModule_LocalClass_ReadBeforeInitialization_Throws()
     {
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/main.js"] = """
-                                export const y = C;
-                                class C {}
-                                """
-        });
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal)
+            {
+                ["/mods/main.js"] = """
+                export const y = C;
+                class C {}
+                """,
+            }
+        );
 
         using var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var realm = engine.MainRealm;
-        Assert.Throws<JsRuntimeException>(() => engine.MainAgent.EvaluateModule(realm, "/mods/main.js"));
+        Assert.Throws<JsRuntimeException>(() =>
+            engine.MainAgent.EvaluateModule(realm, "/mods/main.js")
+        );
     }
 
     [Test]
     public void EvaluateModule_LocalVar_ReadBeforeInitialization_IsUndefined()
     {
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/main.js"] = """
-                                export const y = x;
-                                var x = 1;
-                                """
-        });
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal)
+            {
+                ["/mods/main.js"] = """
+                export const y = x;
+                var x = 1;
+                """,
+            }
+        );
 
         using var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var realm = engine.MainRealm;
@@ -74,13 +88,15 @@ public class ModuleTdzBindingKindTests
     [Test]
     public void EvaluateModule_LocalFunction_ReadBeforeDeclaration_IsCallable()
     {
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/main.js"] = """
-                                export const y = f();
-                                function f() { return 7; }
-                                """
-        });
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal)
+            {
+                ["/mods/main.js"] = """
+                export const y = f();
+                function f() { return 7; }
+                """,
+            }
+        );
 
         using var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var realm = engine.MainRealm;
@@ -94,33 +110,38 @@ public class ModuleTdzBindingKindTests
     [Test]
     public void EvaluateModule_SuperSet_On_ModuleNamespace_TdzBinding_ThrowsReferenceError()
     {
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/main.js"] = """
-                                import * as ns from './main.js';
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal)
+            {
+                ["/mods/main.js"] = """
+                import * as ns from './main.js';
 
-                                class A { constructor() { return ns; } }
-                                class B extends A {
-                                  constructor() {
-                                    super();
-                                    super.foo = 14;
-                                  }
-                                }
+                class A { constructor() { return ns; } }
+                class B extends A {
+                  constructor() {
+                    super();
+                    super.foo = 14;
+                  }
+                }
 
-                                new B();
+                new B();
 
-                                export let foo = 42;
-                                """
-        });
+                export let foo = 42;
+                """,
+            }
+        );
 
         using var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var realm = engine.MainRealm;
-        var ex = Assert.Throws<JsRuntimeException>(() => engine.MainAgent.EvaluateModule(realm, "/mods/main.js"));
+        var ex = Assert.Throws<JsRuntimeException>(() =>
+            engine.MainAgent.EvaluateModule(realm, "/mods/main.js")
+        );
         Assert.That(ex, Is.Not.Null);
         Assert.That(ex!.Kind, Is.EqualTo(JsErrorKind.ReferenceError));
     }
 
-    private sealed class InMemoryModuleLoader(Dictionary<string, string> modules) : IModuleSourceLoader
+    private sealed class InMemoryModuleLoader(Dictionary<string, string> modules)
+        : IModuleSourceLoader
     {
         private readonly Dictionary<string, string> modules = modules;
 

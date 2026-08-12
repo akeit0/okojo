@@ -59,7 +59,10 @@ internal sealed partial class JsParser
         if (!strictBeforeBody && strictMode)
             for (var i = 0; i < parameters.Count; i++)
                 if (IsEvalOrArguments(parameters[i], parameterIds[i]))
-                    throw Error("Unexpected eval or arguments in strict mode", parameterPositions[i]);
+                    throw Error(
+                        "Unexpected eval or arguments in strict mode",
+                        parameterPositions[i]
+                    );
 
         strictMode = strictBeforeBody;
         generatorFunctionLevel = generatorLevelBeforeBody;
@@ -67,21 +70,25 @@ internal sealed partial class JsParser
         allowSuperProperty = allowSuperPropertyBeforeBody;
         allowSuperCall = allowSuperCallBeforeBody;
 
-        return At(new JsFunctionExpression(
-            name,
-            parameters,
-            body,
-            isGenerator,
-            isAsync,
-            parameterInitializers: parameterInitializers,
-            parameterPatterns: parameterPatterns,
-            parameterPositions: parameterPositions,
-            parameterBindingKinds: parameterBindingKinds,
-            functionLength: functionLength,
-            hasSimpleParameterList: hasSimpleParameterList,
-            hasDuplicateParameters: hasDuplicateParameters,
-            restParameterIndex: restParameterIndex,
-            nameId: nameId,
-            parameterIds: parameterIds), start);
+        return At(
+            new JsFunctionExpression(
+                name,
+                parameters,
+                body,
+                isGenerator,
+                isAsync,
+                parameterInitializers: parameterInitializers,
+                parameterPatterns: parameterPatterns,
+                parameterPositions: parameterPositions,
+                parameterBindingKinds: parameterBindingKinds,
+                functionLength: functionLength,
+                hasSimpleParameterList: hasSimpleParameterList,
+                hasDuplicateParameters: hasDuplicateParameters,
+                restParameterIndex: restParameterIndex,
+                nameId: nameId,
+                parameterIds: parameterIds
+            ),
+            start
+        );
     }
 }

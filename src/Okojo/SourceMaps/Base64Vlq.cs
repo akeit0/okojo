@@ -4,7 +4,8 @@ namespace Okojo.SourceMaps;
 
 internal static class Base64Vlq
 {
-    private const string Digits = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    private const string Digits =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
     public static int[] Decode(string text)
     {

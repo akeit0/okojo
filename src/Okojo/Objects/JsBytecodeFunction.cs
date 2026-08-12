@@ -6,24 +6,44 @@ public sealed class JsBytecodeFunction : JsFunction
 {
     private JsContext? functionMetadataContext;
 
-    public JsBytecodeFunction(JsRealm realm, JsScript script, string name = "",
-        bool requiresClosureBinding = false, bool isStrict = false, int privateBrandId = 0,
-        bool assignFunctionPrototype = true, bool hasNewTarget = false, bool isDerivedConstructor = false,
-        JsBytecodeFunctionKind kind = JsBytecodeFunctionKind.Normal, bool isArrow = false, bool isMethod = false,
-        int formalParameterCount = 0, bool hasSimpleParameterList = true,
+    public JsBytecodeFunction(
+        JsRealm realm,
+        JsScript script,
+        string name = "",
+        bool requiresClosureBinding = false,
+        bool isStrict = false,
+        int privateBrandId = 0,
+        bool assignFunctionPrototype = true,
+        bool hasNewTarget = false,
+        bool isDerivedConstructor = false,
+        JsBytecodeFunctionKind kind = JsBytecodeFunctionKind.Normal,
+        bool isArrow = false,
+        bool isMethod = false,
+        int formalParameterCount = 0,
+        bool hasSimpleParameterList = true,
         bool isClassConstructor = false,
         bool hasEagerGeneratorParameterBinding = false,
-        int expectedArgumentCount = 0)
-        : base(realm, name, assignFunctionPrototype,
+        int expectedArgumentCount = 0
+    )
+        : base(
+            realm,
+            name,
+            assignFunctionPrototype,
             expectedArgumentCount,
-            !isArrow &&
-            (kind is JsBytecodeFunctionKind.Generator or JsBytecodeFunctionKind.AsyncGenerator ||
-             (!isMethod && kind is not JsBytecodeFunctionKind.Async)),
+            !isArrow
+                && (
+                    kind
+                        is JsBytecodeFunctionKind.Generator
+                            or JsBytecodeFunctionKind.AsyncGenerator
+                    || (!isMethod && kind is not JsBytecodeFunctionKind.Async)
+                ),
             kind is not (JsBytecodeFunctionKind.Generator or JsBytecodeFunctionKind.AsyncGenerator),
-            !isArrow && !isMethod &&
-            kind != JsBytecodeFunctionKind.Generator &&
-            kind != JsBytecodeFunctionKind.Async &&
-            kind != JsBytecodeFunctionKind.AsyncGenerator)
+            !isArrow
+                && !isMethod
+                && kind != JsBytecodeFunctionKind.Generator
+                && kind != JsBytecodeFunctionKind.Async
+                && kind != JsBytecodeFunctionKind.AsyncGenerator
+        )
     {
         Script = script;
         Script.BindAgent(realm.Agent);
@@ -43,11 +63,21 @@ public sealed class JsBytecodeFunction : JsFunction
         if (assignFunctionPrototype)
             Prototype = realm.Intrinsics.GetFunctionPrototypeForKind(kind);
 
-        if (isClassConstructor &&
-            TryGetOwnNamedPropertyDescriptorAtom(realm, IdPrototype, out var classPrototypeDescriptor) &&
-            !classPrototypeDescriptor.IsAccessor)
-            _ = DefineOwnDataPropertyExact(realm, IdPrototype, classPrototypeDescriptor.Value,
-                JsShapePropertyFlags.None);
+        if (
+            isClassConstructor
+            && TryGetOwnNamedPropertyDescriptorAtom(
+                realm,
+                IdPrototype,
+                out var classPrototypeDescriptor
+            )
+            && !classPrototypeDescriptor.IsAccessor
+        )
+            _ = DefineOwnDataPropertyExact(
+                realm,
+                IdPrototype,
+                classPrototypeDescriptor.Value,
+                JsShapePropertyFlags.None
+            );
     }
 
     public JsScript Script { get; internal set; }
@@ -99,15 +129,29 @@ public sealed class JsBytecodeFunction : JsFunction
 
     public JsBytecodeFunction CloneForClosure(JsRealm realm)
     {
-        var clone = new JsBytecodeFunction(realm, Script, Name, RequiresClosureBinding, IsStrict, PrivateBrandId,
-            true, HasNewTarget, IsDerivedConstructor,
-            Kind, IsArrow, IsMethod,
-            FormalParameterCount, HasSimpleParameterList,
+        var clone = new JsBytecodeFunction(
+            realm,
+            Script,
+            Name,
+            RequiresClosureBinding,
+            IsStrict,
+            PrivateBrandId,
+            true,
+            HasNewTarget,
+            IsDerivedConstructor,
+            Kind,
+            IsArrow,
+            IsMethod,
+            FormalParameterCount,
+            HasSimpleParameterList,
             IsClassConstructor,
             HasEagerGeneratorParameterBinding,
-            Length)
+            Length
+        )
         {
-            ArgumentsMappedSlots = ArgumentsMappedSlots is null ? null : (int[])ArgumentsMappedSlots.Clone(),
+            ArgumentsMappedSlots = ArgumentsMappedSlots is null
+                ? null
+                : (int[])ArgumentsMappedSlots.Clone(),
             BoundThisValue = BoundThisValue,
             BoundNewTargetValue = BoundNewTargetValue,
             BoundDerivedSuperCallState = BoundDerivedSuperCallState,
@@ -120,16 +164,20 @@ public sealed class JsBytecodeFunction : JsFunction
             LexicalThisContextDepth = LexicalThisContextDepth,
             UsesClassLexicalBinding = UsesClassLexicalBinding,
             UsesMethodEnvironmentCapture = UsesMethodEnvironmentCapture,
-            Prototype = Prototype
+            Prototype = Prototype,
         };
 
         if (functionMetadataContext?.Metadata is { } metadata)
             clone.functionMetadataContext = CreateMetadataContext(metadata.Clone());
 
-        if (Kind is JsBytecodeFunctionKind.Generator or JsBytecodeFunctionKind.AsyncGenerator &&
-            TryGetMaterializedPrototypePropertyObject(out var templatePrototypeObject))
-            if (clone.TryGetPropertyAtom(realm, IdPrototype, out var clonePrototypeValue, out _) &&
-                clonePrototypeValue.TryGetObject(out var clonePrototypeObject))
+        if (
+            Kind is JsBytecodeFunctionKind.Generator or JsBytecodeFunctionKind.AsyncGenerator
+            && TryGetMaterializedPrototypePropertyObject(out var templatePrototypeObject)
+        )
+            if (
+                clone.TryGetPropertyAtom(realm, IdPrototype, out var clonePrototypeValue, out _)
+                && clonePrototypeValue.TryGetObject(out var clonePrototypeObject)
+            )
                 clonePrototypeObject.Prototype = templatePrototypeObject.Prototype;
 
         return clone;
@@ -137,8 +185,10 @@ public sealed class JsBytecodeFunction : JsFunction
 
     internal bool TryResolvePrivateBrandToken(int brandId, out JsObject token)
     {
-        if (functionMetadataContext?.Metadata?.PrivateBrandTokensByBrandId is { } mappings &&
-            mappings.TryGetValue(brandId, out token!))
+        if (
+            functionMetadataContext?.Metadata?.PrivateBrandTokensByBrandId is { } mappings
+            && mappings.TryGetValue(brandId, out token!)
+        )
             return true;
 
         token = functionMetadataContext?.Metadata?.PrivateBrandToken!;
@@ -224,22 +274,42 @@ public sealed class JsBytecodeFunction : JsFunction
         return base.GetPrototypePropertyObjectPrototype(realm);
     }
 
-    internal override bool TryGetPropertyAtomWithReceiverValue(JsRealm realm, in JsValue receiverValue, int atom,
-        out JsValue value, out SlotInfo slotInfo)
+    internal override bool TryGetPropertyAtomWithReceiverValue(
+        JsRealm realm,
+        in JsValue receiverValue,
+        int atom,
+        out JsValue value,
+        out SlotInfo slotInfo
+    )
     {
         if (IsRestrictedClassConstructorProperty(realm, atom))
-            throw new JsRuntimeException(JsErrorKind.TypeError,
-                "Cannot access restricted function property");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Cannot access restricted function property"
+            );
 
-        return base.TryGetPropertyAtomWithReceiverValue(realm, receiverValue, atom, out value, out slotInfo);
+        return base.TryGetPropertyAtomWithReceiverValue(
+            realm,
+            receiverValue,
+            atom,
+            out value,
+            out slotInfo
+        );
     }
 
-    internal override bool SetPropertyAtomWithReceiver(JsRealm realm, JsObject receiver, int atom, JsValue value,
-        out SlotInfo slotInfo)
+    internal override bool SetPropertyAtomWithReceiver(
+        JsRealm realm,
+        JsObject receiver,
+        int atom,
+        JsValue value,
+        out SlotInfo slotInfo
+    )
     {
         if (IsRestrictedClassConstructorProperty(realm, atom))
-            throw new JsRuntimeException(JsErrorKind.TypeError,
-                "Cannot access restricted function property");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Cannot access restricted function property"
+            );
 
         return base.SetPropertyAtomWithReceiver(realm, receiver, atom, value, out slotInfo);
     }
@@ -266,7 +336,8 @@ public sealed class JsBytecodeFunction : JsFunction
             JsBytecodeFunction constructorFunction,
             JsValue newTarget,
             JsContext? derivedThisContext,
-            int derivedThisSlot)
+            int derivedThisSlot
+        )
         {
             FramePointer = framePointer;
             ConstructorFunction = constructorFunction;

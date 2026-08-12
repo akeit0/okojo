@@ -22,66 +22,57 @@ public partial class Intrinsics
 
     public readonly JsRealm Realm;
 
-
     public Intrinsics(JsRealm realm, JsPlainObject objectPrototype)
     {
         Realm = realm;
         ObjectPrototype = objectPrototype;
-        FunctionPrototype = new(Realm, (in info) => { return JsValue.Undefined; },
-            "", 0,
-            false, false)
+        FunctionPrototype = new(
+            Realm,
+            (in info) =>
+            {
+                return JsValue.Undefined;
+            },
+            "",
+            0,
+            false,
+            false
+        )
         {
-            Prototype = ObjectPrototype
+            Prototype = ObjectPrototype,
         };
         realm.BootstrapFunctionPrototype = FunctionPrototype;
-        GeneratorFunctionPrototype = new(Realm, false)
-        { Prototype = FunctionPrototype };
-        AsyncFunctionPrototype = new(Realm, false)
-        { Prototype = FunctionPrototype };
-        AsyncGeneratorFunctionPrototype = new(Realm, false)
-        { Prototype = FunctionPrototype };
+        GeneratorFunctionPrototype = new(Realm, false) { Prototype = FunctionPrototype };
+        AsyncFunctionPrototype = new(Realm, false) { Prototype = FunctionPrototype };
+        AsyncGeneratorFunctionPrototype = new(Realm, false) { Prototype = FunctionPrototype };
         ArrayPrototype = new(Realm);
         NumberPrototype = new(Realm, 0, ObjectPrototype);
         BooleanPrototype = new(Realm, false, ObjectPrototype);
         StringPrototype = new(Realm, string.Empty, ObjectPrototype);
         BigIntPrototype = new(Realm, false) { Prototype = ObjectPrototype };
         SymbolPrototype = new(Realm, false) { Prototype = ObjectPrototype };
-        ArrayBufferPrototype = new(Realm, false)
-        { Prototype = ObjectPrototype };
-        SharedArrayBufferPrototype = new(Realm, false)
-        { Prototype = ObjectPrototype };
+        ArrayBufferPrototype = new(Realm, false) { Prototype = ObjectPrototype };
+        SharedArrayBufferPrototype = new(Realm, false) { Prototype = ObjectPrototype };
         TypedArrayPrototype = new(Realm, false) { Prototype = ObjectPrototype };
         TypedArrayPrototypes = new JsPlainObject[12];
         for (var i = 0; i < TypedArrayPrototypes.Length; i++)
-            TypedArrayPrototypes[i] = new(Realm, false)
-            { Prototype = TypedArrayPrototype };
+            TypedArrayPrototypes[i] = new(Realm, false) { Prototype = TypedArrayPrototype };
         DataViewPrototype = new(Realm, false) { Prototype = ObjectPrototype };
         IteratorPrototype = new(Realm, false) { Prototype = ObjectPrototype };
-        StringIteratorPrototype = new(Realm, false)
-        { Prototype = IteratorPrototype };
-        RegExpStringIteratorPrototype = new(Realm, false)
-        { Prototype = IteratorPrototype };
-        ArrayIteratorPrototype = new(Realm, false)
-        { Prototype = IteratorPrototype };
-        TypedArrayIteratorPrototype = new(Realm, false)
-        { Prototype = IteratorPrototype };
-        IteratorWrapPrototype = new(Realm, false)
-        { Prototype = IteratorPrototype };
-        AsyncIteratorPrototype = new(Realm, false)
-        { Prototype = ObjectPrototype };
+        StringIteratorPrototype = new(Realm, false) { Prototype = IteratorPrototype };
+        RegExpStringIteratorPrototype = new(Realm, false) { Prototype = IteratorPrototype };
+        ArrayIteratorPrototype = new(Realm, false) { Prototype = IteratorPrototype };
+        TypedArrayIteratorPrototype = new(Realm, false) { Prototype = IteratorPrototype };
+        IteratorWrapPrototype = new(Realm, false) { Prototype = IteratorPrototype };
+        AsyncIteratorPrototype = new(Realm, false) { Prototype = ObjectPrototype };
         MapPrototype = new(Realm, false) { Prototype = ObjectPrototype };
-        MapIteratorPrototype = new(Realm, false)
-        { Prototype = IteratorPrototype };
+        MapIteratorPrototype = new(Realm, false) { Prototype = IteratorPrototype };
         SetPrototype = new(Realm, false) { Prototype = ObjectPrototype };
-        SetIteratorPrototype = new(Realm, false)
-        { Prototype = IteratorPrototype };
+        SetIteratorPrototype = new(Realm, false) { Prototype = IteratorPrototype };
         WeakMapPrototype = new(Realm, false) { Prototype = ObjectPrototype };
         WeakSetPrototype = new(Realm, false) { Prototype = ObjectPrototype };
         WeakRefPrototype = new(Realm, false) { Prototype = ObjectPrototype };
-        FinalizationRegistryPrototype = new(Realm, false)
-        { Prototype = ObjectPrototype };
-        AsyncGeneratorObjectPrototype = new(Realm, false)
-        { Prototype = AsyncIteratorPrototype };
+        FinalizationRegistryPrototype = new(Realm, false) { Prototype = ObjectPrototype };
+        AsyncGeneratorObjectPrototype = new(Realm, false) { Prototype = AsyncIteratorPrototype };
 
         ObjectConstructor = CreateObjectConstructor();
         ArrayConstructor = CreateArrayConstructor();
@@ -94,19 +85,19 @@ public partial class Intrinsics
         AsyncGeneratorFunctionConstructor.Prototype = FunctionConstructor;
         ErrorPrototype = new(realm, false) { Prototype = ObjectPrototype };
         TypeErrorPrototype = new(realm, false) { Prototype = ErrorPrototype };
-        ReferenceErrorPrototype = new(realm, false)
-        { Prototype = ErrorPrototype };
+        ReferenceErrorPrototype = new(realm, false) { Prototype = ErrorPrototype };
         RangeErrorPrototype = new(realm, false) { Prototype = ErrorPrototype };
         SyntaxErrorPrototype = new(realm, false) { Prototype = ErrorPrototype };
         EvalErrorPrototype = new(realm, false) { Prototype = ErrorPrototype };
         UriErrorPrototype = new(realm, false) { Prototype = ErrorPrototype };
-        AggregateErrorPrototype = new(realm, false)
-        { Prototype = ErrorPrototype };
-        SuppressedErrorPrototype = new(realm, false)
-        { Prototype = ErrorPrototype };
+        AggregateErrorPrototype = new(realm, false) { Prototype = ErrorPrototype };
+        SuppressedErrorPrototype = new(realm, false) { Prototype = ErrorPrototype };
         ErrorConstructor = CreateErrorConstructor();
         TypeErrorConstructor = CreateNativeErrorConstructor("TypeError", TypeErrorPrototype);
-        ReferenceErrorConstructor = CreateNativeErrorConstructor("ReferenceError", ReferenceErrorPrototype);
+        ReferenceErrorConstructor = CreateNativeErrorConstructor(
+            "ReferenceError",
+            ReferenceErrorPrototype
+        );
         RangeErrorConstructor = CreateNativeErrorConstructor("RangeError", RangeErrorPrototype);
         SyntaxErrorConstructor = CreateNativeErrorConstructor("SyntaxError", SyntaxErrorPrototype);
         EvalErrorConstructor = CreateNativeErrorConstructor("EvalError", EvalErrorPrototype);
@@ -124,12 +115,19 @@ public partial class Intrinsics
         ArrayBufferConstructor = CreateArrayBufferConstructor();
         SharedArrayBufferConstructor = CreateSharedArrayBufferConstructor();
         IteratorConstructor = CreateIteratorConstructor();
-        TypedArrayConstructor = new(realm,
+        TypedArrayConstructor = new(
+            realm,
             static (in info) =>
             {
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Abstract class TypedArray not directly constructable");
-            }, "TypedArray", 0, true);
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Abstract class TypedArray not directly constructable"
+                );
+            },
+            "TypedArray",
+            0,
+            true
+        );
         TypedArrayConstructors = new JsHostFunction[12];
         for (var i = 0; i < TypedArrayConstructors.Length; i++)
         {
@@ -150,7 +148,6 @@ public partial class Intrinsics
         DatePrototype = new(Realm, false) { Prototype = ObjectPrototype };
         DateConstructor = CreateDateConstructor();
 
-
         SymbolConstructor = CreateSymbolConstructor();
         ProxyConstructor = CreateProxyConstructor();
         DisposableStackPrototype = new(Realm, false) { Prototype = ObjectPrototype };
@@ -158,16 +155,31 @@ public partial class Intrinsics
         DisposableStackConstructor = CreateDisposableStackConstructor();
         AsyncDisposableStackConstructor = CreateAsyncDisposableStackConstructor();
         AtomicsObject = CreateAtomicsObject();
-        ThrowTypeErrorIntrinsic = new(Realm,
+        ThrowTypeErrorIntrinsic = new(
+            Realm,
             static (in info) =>
             {
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "%ThrowTypeError% always throws", errorRealm: info.Function.Realm);
-            }, string.Empty, 0);
-        _ = ThrowTypeErrorIntrinsic.DefineOwnDataPropertyExact(Realm, IdLength, JsValue.FromInt32(0),
-            JsShapePropertyFlags.None);
-        _ = ThrowTypeErrorIntrinsic.DefineOwnDataPropertyExact(Realm, IdName, JsValue.FromString(string.Empty),
-            JsShapePropertyFlags.None);
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "%ThrowTypeError% always throws",
+                    errorRealm: info.Function.Realm
+                );
+            },
+            string.Empty,
+            0
+        );
+        _ = ThrowTypeErrorIntrinsic.DefineOwnDataPropertyExact(
+            Realm,
+            IdLength,
+            JsValue.FromInt32(0),
+            JsShapePropertyFlags.None
+        );
+        _ = ThrowTypeErrorIntrinsic.DefineOwnDataPropertyExact(
+            Realm,
+            IdName,
+            JsValue.FromString(string.Empty),
+            JsShapePropertyFlags.None
+        );
         ThrowTypeErrorIntrinsic.PreventExtensions();
     }
 
@@ -193,7 +205,8 @@ public partial class Intrinsics
     internal JsPlainObject RegExpStringIteratorPrototype { get; }
     internal JsPlainObject TypedArrayPrototype { get; }
     internal JsPlainObject[] TypedArrayPrototypes { get; }
-    internal JsPlainObject Uint8ArrayPrototype => GetTypedArrayPrototype(TypedArrayElementKind.Uint8);
+    internal JsPlainObject Uint8ArrayPrototype =>
+        GetTypedArrayPrototype(TypedArrayElementKind.Uint8);
     internal JsPlainObject DataViewPrototype { get; }
     internal JsPlainObject TypedArrayIteratorPrototype { get; }
     internal JsPlainObject IteratorPrototype { get; }
@@ -236,7 +249,8 @@ public partial class Intrinsics
     internal JsHostFunction IteratorConstructor { get; }
     internal JsHostFunction TypedArrayConstructor { get; }
     internal JsHostFunction[] TypedArrayConstructors { get; }
-    internal JsHostFunction Uint8ArrayConstructor => GetTypedArrayConstructor(TypedArrayElementKind.Uint8);
+    internal JsHostFunction Uint8ArrayConstructor =>
+        GetTypedArrayConstructor(TypedArrayElementKind.Uint8);
     internal JsHostFunction DataViewConstructor { get; }
     internal JsHostFunction MapConstructor { get; }
     internal JsHostFunction SetConstructor { get; }
@@ -286,7 +300,7 @@ public partial class Intrinsics
             JsBytecodeFunctionKind.Generator => GeneratorFunctionPrototype,
             JsBytecodeFunctionKind.Async => AsyncFunctionPrototype,
             JsBytecodeFunctionKind.AsyncGenerator => AsyncGeneratorFunctionPrototype,
-            _ => FunctionPrototype
+            _ => FunctionPrototype,
         };
     }
 }

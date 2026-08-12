@@ -28,9 +28,16 @@ public class NumberPrecisionFormattingTests
     [TestCase(123.456, 2, "1.23e+2")]
     [TestCase(123.456, 5, "1.23456e+2")]
     [TestCase(0.00123456, 3, "1.235e-3")]
-    public void FormatExponential_ProducesExpected(double value, int fractionDigits, string expected)
+    public void FormatExponential_ProducesExpected(
+        double value,
+        int fractionDigits,
+        string expected
+    )
     {
-        Assert.That(NumberPrecisionFormatting.FormatExponential(value, fractionDigits), Is.EqualTo(expected));
+        Assert.That(
+            NumberPrecisionFormatting.FormatExponential(value, fractionDigits),
+            Is.EqualTo(expected)
+        );
     }
 
     [TestCase(123.456, 2, "1.2e+2")]
@@ -39,14 +46,22 @@ public class NumberPrecisionFormattingTests
     [TestCase(1234.5, 4, "1235")]
     public void FormatPrecision_ProducesExpected(double value, int precision, string expected)
     {
-        Assert.That(NumberPrecisionFormatting.FormatPrecision(value, precision), Is.EqualTo(expected));
+        Assert.That(
+            NumberPrecisionFormatting.FormatPrecision(value, precision),
+            Is.EqualTo(expected)
+        );
     }
 
     [TestCase(0.0, false, 0, "0")]
     [TestCase(1.0, false, 0, "1")]
     [TestCase(-2.5, true, 0, "25")]
     [TestCase(123.456, false, 2, "1235")]
-    public void RoundToSignificantDigits_ProducesExpected(double value, bool negative, int exponent, string digits)
+    public void RoundToSignificantDigits_ProducesExpected(
+        double value,
+        bool negative,
+        int exponent,
+        string digits
+    )
     {
         var result = NumberPrecisionFormatting.RoundToSignificantDigits(value, digits.Length);
         Assert.Multiple(() =>

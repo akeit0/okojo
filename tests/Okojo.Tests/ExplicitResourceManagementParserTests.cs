@@ -32,10 +32,12 @@ public class ExplicitResourceManagementParserTests
     [Test]
     public void ParseModule_ForOf_Head_AwaitUsing_SetsTopLevelAwait()
     {
-        var program = JavaScriptParser.ParseModule("""
-                                                   for (await using value of items) {
-                                                   }
-                                                   """);
+        var program = JavaScriptParser.ParseModule(
+            """
+            for (await using value of items) {
+            }
+            """
+        );
 
         Assert.That(program.HasTopLevelAwait, Is.True);
         Assert.That(program.Statements[0], Is.TypeOf<JsForInOfStatement>());
@@ -44,8 +46,10 @@ public class ExplicitResourceManagementParserTests
     [Test]
     public void ParseScript_Rejects_TopLevel_Using_Declaration()
     {
-        Assert.That(() => JavaScriptParser.ParseScript("using value = null;"),
-            Throws.InstanceOf<JsParseException>());
+        Assert.That(
+            () => JavaScriptParser.ParseScript("using value = null;"),
+            Throws.InstanceOf<JsParseException>()
+        );
     }
 
     [Test]
@@ -63,11 +67,13 @@ public class ExplicitResourceManagementParserTests
     [Test]
     public void ParseScript_Parses_AwaitUsing_In_Async_Function()
     {
-        var program = JavaScriptParser.ParseScript("""
-                                                   async function f() {
-                                                     await using value = null;
-                                                   }
-                                                   """);
+        var program = JavaScriptParser.ParseScript(
+            """
+            async function f() {
+              await using value = null;
+            }
+            """
+        );
 
         var function = program.Statements[0] as JsFunctionDeclaration;
         Assert.That(function, Is.Not.Null);
@@ -79,21 +85,27 @@ public class ExplicitResourceManagementParserTests
     [Test]
     public void ParseScript_Rejects_Using_Declaration_Without_Initializer()
     {
-        Assert.That(() => JavaScriptParser.ParseScript("{ using value; }"),
-            Throws.InstanceOf<JsParseException>());
+        Assert.That(
+            () => JavaScriptParser.ParseScript("{ using value; }"),
+            Throws.InstanceOf<JsParseException>()
+        );
     }
 
     [Test]
     public void ParseScript_Allows_ForOf_Using_Of_Ambiguity_As_Expression()
     {
-        Assert.That(() => JavaScriptParser.ParseScript("for (using of of [0, 1, 2]) { }"),
-            Throws.Nothing);
+        Assert.That(
+            () => JavaScriptParser.ParseScript("for (using of of [0, 1, 2]) { }"),
+            Throws.Nothing
+        );
     }
 
     [Test]
     public void ParseScript_Rejects_ForIn_Using_Declaration()
     {
-        Assert.That(() => JavaScriptParser.ParseScript("for (using value in obj) { }"),
-            Throws.InstanceOf<JsParseException>());
+        Assert.That(
+            () => JavaScriptParser.ParseScript("for (using value in obj) { }"),
+            Throws.InstanceOf<JsParseException>()
+        );
     }
 }

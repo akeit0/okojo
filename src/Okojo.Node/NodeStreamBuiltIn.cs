@@ -59,12 +59,27 @@ internal sealed class NodeStreamBuiltIn(NodeRuntime runtime, NodeEventsBuiltIn e
         var realm = runtime.MainRealm;
         var shape = moduleShape ??= CreateModuleShape(realm);
         var module = new JsPlainObject(shape);
-        module.SetNamedSlotUnchecked(ModuleReadableSlot, JsValue.FromObject(GetReadableConstructor()));
-        module.SetNamedSlotUnchecked(ModuleWritableSlot, JsValue.FromObject(GetWritableConstructor()));
+        module.SetNamedSlotUnchecked(
+            ModuleReadableSlot,
+            JsValue.FromObject(GetReadableConstructor())
+        );
+        module.SetNamedSlotUnchecked(
+            ModuleWritableSlot,
+            JsValue.FromObject(GetWritableConstructor())
+        );
         module.SetNamedSlotUnchecked(ModuleDuplexSlot, JsValue.FromObject(GetDuplexConstructor()));
-        module.SetNamedSlotUnchecked(ModuleTransformSlot, JsValue.FromObject(GetTransformConstructor()));
-        module.SetNamedSlotUnchecked(ModulePassThroughSlot, JsValue.FromObject(GetPassThroughConstructor()));
-        module.SetNamedSlotUnchecked(ModulePipelineSlot, JsValue.FromObject(CreatePipelineFunction(realm)));
+        module.SetNamedSlotUnchecked(
+            ModuleTransformSlot,
+            JsValue.FromObject(GetTransformConstructor())
+        );
+        module.SetNamedSlotUnchecked(
+            ModulePassThroughSlot,
+            JsValue.FromObject(GetPassThroughConstructor())
+        );
+        module.SetNamedSlotUnchecked(
+            ModulePipelineSlot,
+            JsValue.FromObject(CreatePipelineFunction(realm))
+        );
         moduleObject = module;
         return module;
     }
@@ -97,26 +112,40 @@ internal sealed class NodeStreamBuiltIn(NodeRuntime runtime, NodeEventsBuiltIn e
     private JsHostFunction CreateConstructor(string name, bool readable, bool writable)
     {
         var realm = runtime.MainRealm;
-        var ctor = new JsHostFunction(realm, name, 0, static (in info) =>
-        {
-            if (!info.IsConstruct)
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Class constructor cannot be invoked without 'new'");
+        var ctor = new JsHostFunction(
+            realm,
+            name,
+            0,
+            static (in info) =>
+            {
+                if (!info.IsConstruct)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Class constructor cannot be invoked without 'new'"
+                    );
 
-            var state = (ConstructorState)((JsHostFunction)info.Function).UserData!;
-            return JsValue.FromObject(state.Owner.CreateStreamInstance(info.Realm, state.Readable, state.Writable));
-        })
+                var state = (ConstructorState)((JsHostFunction)info.Function).UserData!;
+                return JsValue.FromObject(
+                    state.Owner.CreateStreamInstance(info.Realm, state.Readable, state.Writable)
+                );
+            }
+        )
         {
-            UserData = new ConstructorState(this, name, readable, writable)
+            UserData = new ConstructorState(this, name, readable, writable),
         };
-        ctor.DefineDataProperty("prototype", JsValue.FromObject(GetStreamPrototype()), JsShapePropertyFlags.Open);
+        ctor.DefineDataProperty(
+            "prototype",
+            JsValue.FromObject(GetStreamPrototype()),
+            JsShapePropertyFlags.Open
+        );
         return ctor;
     }
 
     private JsUserDataObject<NodeEventsBuiltIn.EventEmitterState> CreateStreamInstance(
         JsRealm realm,
         bool readable,
-        bool writable)
+        bool writable
+    )
     {
         var shape = instanceShape ??= CreateInstanceShape(realm);
         var instance = new JsUserDataObject<NodeEventsBuiltIn.EventEmitterState>(shape, false);
@@ -124,8 +153,14 @@ internal sealed class NodeStreamBuiltIn(NodeRuntime runtime, NodeEventsBuiltIn e
         instance.Prototype = GetStreamPrototype();
         var state = new StreamState(readable, writable);
         states.Add(instance, state);
-        instance.SetNamedSlotUnchecked(InstanceReadableSlot, readable ? JsValue.True : JsValue.False);
-        instance.SetNamedSlotUnchecked(InstanceWritableSlot, writable ? JsValue.True : JsValue.False);
+        instance.SetNamedSlotUnchecked(
+            InstanceReadableSlot,
+            readable ? JsValue.True : JsValue.False
+        );
+        instance.SetNamedSlotUnchecked(
+            InstanceWritableSlot,
+            writable ? JsValue.True : JsValue.False
+        );
         instance.SetNamedSlotUnchecked(InstanceWritableEndedSlot, JsValue.False);
         instance.SetNamedSlotUnchecked(InstanceDestroyedSlot, JsValue.False);
         return instance;
@@ -140,10 +175,22 @@ internal sealed class NodeStreamBuiltIn(NodeRuntime runtime, NodeEventsBuiltIn e
         var shape = prototypeShape ??= CreatePrototypeShape(realm);
         var prototype = new JsPlainObject(shape);
         prototype.Prototype = eventsBuiltIn.GetPrototypeObject();
-        prototype.SetNamedSlotUnchecked(PrototypeWriteSlot, JsValue.FromObject(CreateWriteFunction(realm)));
-        prototype.SetNamedSlotUnchecked(PrototypeEndSlot, JsValue.FromObject(CreateEndFunction(realm)));
-        prototype.SetNamedSlotUnchecked(PrototypePipeSlot, JsValue.FromObject(CreatePipeFunction(realm)));
-        prototype.SetNamedSlotUnchecked(PrototypeDestroySlot, JsValue.FromObject(CreateDestroyFunction(realm)));
+        prototype.SetNamedSlotUnchecked(
+            PrototypeWriteSlot,
+            JsValue.FromObject(CreateWriteFunction(realm))
+        );
+        prototype.SetNamedSlotUnchecked(
+            PrototypeEndSlot,
+            JsValue.FromObject(CreateEndFunction(realm))
+        );
+        prototype.SetNamedSlotUnchecked(
+            PrototypePipeSlot,
+            JsValue.FromObject(CreatePipeFunction(realm))
+        );
+        prototype.SetNamedSlotUnchecked(
+            PrototypeDestroySlot,
+            JsValue.FromObject(CreateDestroyFunction(realm))
+        );
         streamPrototype = prototype;
         return prototype;
     }
@@ -151,12 +198,32 @@ internal sealed class NodeStreamBuiltIn(NodeRuntime runtime, NodeEventsBuiltIn e
     private StaticNamedPropertyLayout CreateModuleShape(JsRealm realm)
     {
         EnsureAtoms(realm);
-        var shape = realm.EmptyShape.GetOrAddTransition(atomReadable, JsShapePropertyFlags.Open, out var readableInfo);
-        shape = shape.GetOrAddTransition(atomWritable, JsShapePropertyFlags.Open, out var writableInfo);
+        var shape = realm.EmptyShape.GetOrAddTransition(
+            atomReadable,
+            JsShapePropertyFlags.Open,
+            out var readableInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomWritable,
+            JsShapePropertyFlags.Open,
+            out var writableInfo
+        );
         shape = shape.GetOrAddTransition(atomDuplex, JsShapePropertyFlags.Open, out var duplexInfo);
-        shape = shape.GetOrAddTransition(atomTransform, JsShapePropertyFlags.Open, out var transformInfo);
-        shape = shape.GetOrAddTransition(atomPassThrough, JsShapePropertyFlags.Open, out var passThroughInfo);
-        shape = shape.GetOrAddTransition(atomPipeline, JsShapePropertyFlags.Open, out var pipelineInfo);
+        shape = shape.GetOrAddTransition(
+            atomTransform,
+            JsShapePropertyFlags.Open,
+            out var transformInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomPassThrough,
+            JsShapePropertyFlags.Open,
+            out var passThroughInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomPipeline,
+            JsShapePropertyFlags.Open,
+            out var pipelineInfo
+        );
         Debug.Assert(readableInfo.Slot == ModuleReadableSlot);
         Debug.Assert(writableInfo.Slot == ModuleWritableSlot);
         Debug.Assert(duplexInfo.Slot == ModuleDuplexSlot);
@@ -169,11 +236,26 @@ internal sealed class NodeStreamBuiltIn(NodeRuntime runtime, NodeEventsBuiltIn e
     private StaticNamedPropertyLayout CreateInstanceShape(JsRealm realm)
     {
         EnsureAtoms(realm);
-        var shape = realm.EmptyShape.GetOrAddTransition(atomReadableState, JsShapePropertyFlags.Open,
-            out var readableInfo);
-        shape = shape.GetOrAddTransition(atomWritableState, JsShapePropertyFlags.Open, out var writableInfo);
-        shape = shape.GetOrAddTransition(atomWritableEnded, JsShapePropertyFlags.Open, out var endedInfo);
-        shape = shape.GetOrAddTransition(atomDestroyed, JsShapePropertyFlags.Open, out var destroyedInfo);
+        var shape = realm.EmptyShape.GetOrAddTransition(
+            atomReadableState,
+            JsShapePropertyFlags.Open,
+            out var readableInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomWritableState,
+            JsShapePropertyFlags.Open,
+            out var writableInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomWritableEnded,
+            JsShapePropertyFlags.Open,
+            out var endedInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomDestroyed,
+            JsShapePropertyFlags.Open,
+            out var destroyedInfo
+        );
         Debug.Assert(readableInfo.Slot == InstanceReadableSlot);
         Debug.Assert(writableInfo.Slot == InstanceWritableSlot);
         Debug.Assert(endedInfo.Slot == InstanceWritableEndedSlot);
@@ -184,10 +266,18 @@ internal sealed class NodeStreamBuiltIn(NodeRuntime runtime, NodeEventsBuiltIn e
     private StaticNamedPropertyLayout CreatePrototypeShape(JsRealm realm)
     {
         EnsureAtoms(realm);
-        var shape = realm.EmptyShape.GetOrAddTransition(atomWrite, JsShapePropertyFlags.Open, out var writeInfo);
+        var shape = realm.EmptyShape.GetOrAddTransition(
+            atomWrite,
+            JsShapePropertyFlags.Open,
+            out var writeInfo
+        );
         shape = shape.GetOrAddTransition(atomEnd, JsShapePropertyFlags.Open, out var endInfo);
         shape = shape.GetOrAddTransition(atomPipe, JsShapePropertyFlags.Open, out var pipeInfo);
-        shape = shape.GetOrAddTransition(atomDestroy, JsShapePropertyFlags.Open, out var destroyInfo);
+        shape = shape.GetOrAddTransition(
+            atomDestroy,
+            JsShapePropertyFlags.Open,
+            out var destroyInfo
+        );
         Debug.Assert(writeInfo.Slot == PrototypeWriteSlot);
         Debug.Assert(endInfo.Slot == PrototypeEndSlot);
         Debug.Assert(pipeInfo.Slot == PrototypePipeSlot);
@@ -220,106 +310,154 @@ internal sealed class NodeStreamBuiltIn(NodeRuntime runtime, NodeEventsBuiltIn e
 
     private JsHostFunction CreateWriteFunction(JsRealm realm)
     {
-        return new(realm, "write", 1, (in info) =>
-        {
-            var stream = GetStreamObject(info);
-            var state = states.GetValue(stream,
-                static _ => throw new InvalidOperationException("Stream state missing."));
-            if (!state.Writable || state.WritableEnded || state.Destroyed)
-                return JsValue.False;
+        return new(
+            realm,
+            "write",
+            1,
+            (in info) =>
+            {
+                var stream = GetStreamObject(info);
+                var state = states.GetValue(
+                    stream,
+                    static _ => throw new InvalidOperationException("Stream state missing.")
+                );
+                if (!state.Writable || state.WritableEnded || state.Destroyed)
+                    return JsValue.False;
 
-            var chunk = info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0];
-            Emit(stream, "data", [chunk]);
-            return JsValue.True;
-        }, false);
+                var chunk = info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0];
+                Emit(stream, "data", [chunk]);
+                return JsValue.True;
+            },
+            false
+        );
     }
 
     private JsHostFunction CreateEndFunction(JsRealm realm)
     {
-        return new(realm, "end", 1, (in info) =>
-        {
-            var stream = GetStreamObject(info);
-            var state = states.GetValue(stream,
-                static _ => throw new InvalidOperationException("Stream state missing."));
-            if (!state.Destroyed && info.Arguments.Length != 0)
+        return new(
+            realm,
+            "end",
+            1,
+            (in info) =>
             {
-                var chunk = info.Arguments[0];
-                Emit(stream, "data", [chunk]);
-            }
+                var stream = GetStreamObject(info);
+                var state = states.GetValue(
+                    stream,
+                    static _ => throw new InvalidOperationException("Stream state missing.")
+                );
+                if (!state.Destroyed && info.Arguments.Length != 0)
+                {
+                    var chunk = info.Arguments[0];
+                    Emit(stream, "data", [chunk]);
+                }
 
-            state.WritableEnded = true;
-            stream.SetNamedSlotUnchecked(InstanceWritableEndedSlot, JsValue.True);
-            Emit(stream, "end", []);
-            Emit(stream, "finish", []);
-            return info.ThisValue;
-        }, false);
+                state.WritableEnded = true;
+                stream.SetNamedSlotUnchecked(InstanceWritableEndedSlot, JsValue.True);
+                Emit(stream, "end", []);
+                Emit(stream, "finish", []);
+                return info.ThisValue;
+            },
+            false
+        );
     }
 
     private JsHostFunction CreatePipeFunction(JsRealm realm)
     {
-        return new(realm, "pipe", 1, (in info) =>
-        {
-            var source = GetStreamObject(info);
-            var destValue = info.GetArgument(0);
-            if (!destValue.TryGetObject(out var destObject))
-                throw new JsRuntimeException(JsErrorKind.TypeError, "pipe destination must be an object");
+        return new(
+            realm,
+            "pipe",
+            1,
+            (in info) =>
+            {
+                var source = GetStreamObject(info);
+                var destValue = info.GetArgument(0);
+                if (!destValue.TryGetObject(out var destObject))
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "pipe destination must be an object"
+                    );
 
-            var destWrite = GetCallable(destObject, "write");
-            var destEnd = GetCallable(destObject, "end");
+                var destWrite = GetCallable(destObject, "write");
+                var destEnd = GetCallable(destObject, "end");
 
-            EmitBridge(source, "data", realm, destObject, destWrite, false);
-            EmitBridge(source, "end", realm, destObject, destEnd, true);
-            return destValue;
-        }, false);
+                EmitBridge(source, "data", realm, destObject, destWrite, false);
+                EmitBridge(source, "end", realm, destObject, destEnd, true);
+                return destValue;
+            },
+            false
+        );
     }
 
     private JsHostFunction CreateDestroyFunction(JsRealm realm)
     {
-        return new(realm, "destroy", 0, (in info) =>
-        {
-            var stream = GetStreamObject(info);
-            var state = states.GetValue(stream,
-                static _ => throw new InvalidOperationException("Stream state missing."));
-            if (!state.Destroyed)
+        return new(
+            realm,
+            "destroy",
+            0,
+            (in info) =>
             {
-                state.Destroyed = true;
-                stream.SetNamedSlotUnchecked(InstanceDestroyedSlot, JsValue.True);
-                Emit(stream, "close", []);
-            }
+                var stream = GetStreamObject(info);
+                var state = states.GetValue(
+                    stream,
+                    static _ => throw new InvalidOperationException("Stream state missing.")
+                );
+                if (!state.Destroyed)
+                {
+                    state.Destroyed = true;
+                    stream.SetNamedSlotUnchecked(InstanceDestroyedSlot, JsValue.True);
+                    Emit(stream, "close", []);
+                }
 
-            return info.ThisValue;
-        }, false);
+                return info.ThisValue;
+            },
+            false
+        );
     }
 
     private JsHostFunction CreatePipelineFunction(JsRealm realm)
     {
-        return new(realm, "pipeline", 0, (in info) =>
-        {
-            if (info.Arguments.Length < 2)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "pipeline requires at least two streams");
-
-            var callbackIndex = -1;
-            JsFunction? callback = null;
-            if (info.Arguments[^1].TryGetObject(out var callbackObject) && callbackObject is JsFunction callbackFn)
+        return new(
+            realm,
+            "pipeline",
+            0,
+            (in info) =>
             {
-                callbackIndex = info.Arguments.Length - 1;
-                callback = callbackFn;
-            }
+                if (info.Arguments.Length < 2)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "pipeline requires at least two streams"
+                    );
 
-            var streamCount = callbackIndex >= 0 ? callbackIndex : info.Arguments.Length;
-            for (var i = 0; i < streamCount - 1; i++)
-            {
-                if (!info.Arguments[i].TryGetObject(out var sourceObj))
-                    throw new JsRuntimeException(JsErrorKind.TypeError, "pipeline source must be an object");
-                var pipe = GetCallable(sourceObj, "pipe");
-                _ = realm.Call(pipe, info.Arguments[i], info.Arguments[i + 1]);
-            }
+                var callbackIndex = -1;
+                JsFunction? callback = null;
+                if (
+                    info.Arguments[^1].TryGetObject(out var callbackObject)
+                    && callbackObject is JsFunction callbackFn
+                )
+                {
+                    callbackIndex = info.Arguments.Length - 1;
+                    callback = callbackFn;
+                }
 
-            if (callback is not null)
-                _ = realm.Call(callback, JsValue.Undefined, JsValue.Undefined);
+                var streamCount = callbackIndex >= 0 ? callbackIndex : info.Arguments.Length;
+                for (var i = 0; i < streamCount - 1; i++)
+                {
+                    if (!info.Arguments[i].TryGetObject(out var sourceObj))
+                        throw new JsRuntimeException(
+                            JsErrorKind.TypeError,
+                            "pipeline source must be an object"
+                        );
+                    var pipe = GetCallable(sourceObj, "pipe");
+                    _ = realm.Call(pipe, info.Arguments[i], info.Arguments[i + 1]);
+                }
 
-            return info.Arguments[streamCount - 1];
-        }, false);
+                if (callback is not null)
+                    _ = realm.Call(callback, JsValue.Undefined, JsValue.Undefined);
+
+                return info.Arguments[streamCount - 1];
+            },
+            false
+        );
     }
 
     private void EmitBridge(
@@ -328,58 +466,91 @@ internal sealed class NodeStreamBuiltIn(NodeRuntime runtime, NodeEventsBuiltIn e
         JsRealm realm,
         JsObject destObject,
         JsFunction targetFn,
-        bool endOnTrigger)
+        bool endOnTrigger
+    )
     {
         var emitterPrototype = eventsBuiltIn.GetPrototypeObject();
-        if (!emitterPrototype.TryGetProperty(eventName == "data" ? "on" : "once", out var hookValue) ||
-            !hookValue.TryGetObject(out var hookObject) ||
-            hookObject is not JsFunction hook)
+        if (
+            !emitterPrototype.TryGetProperty(eventName == "data" ? "on" : "once", out var hookValue)
+            || !hookValue.TryGetObject(out var hookObject)
+            || hookObject is not JsFunction hook
+        )
             throw new InvalidOperationException("EventEmitter hook missing.");
 
-        var bridge = new JsHostFunction(realm, endOnTrigger ? "pipelineEnd" : "pipelineWrite", 1,
+        var bridge = new JsHostFunction(
+            realm,
+            endOnTrigger ? "pipelineEnd" : "pipelineWrite",
+            1,
             static (in bridgeInfo) =>
             {
                 var data = (PipelineBridgeState)((JsHostFunction)bridgeInfo.Function).UserData!;
                 if (data.EndOnTrigger)
                     _ = data.Realm.Call(data.Target, JsValue.FromObject(data.Destination));
                 else
-                    _ = data.Realm.Call(data.Target, JsValue.FromObject(data.Destination),
-                        bridgeInfo.Arguments.Length == 0 ? [] : [bridgeInfo.Arguments[0]]);
+                    _ = data.Realm.Call(
+                        data.Target,
+                        JsValue.FromObject(data.Destination),
+                        bridgeInfo.Arguments.Length == 0 ? [] : [bridgeInfo.Arguments[0]]
+                    );
                 return JsValue.Undefined;
-            }, false)
+            },
+            false
+        )
         {
-            UserData = new PipelineBridgeState(realm, destObject, targetFn, endOnTrigger)
+            UserData = new PipelineBridgeState(realm, destObject, targetFn, endOnTrigger),
         };
 
-        _ = realm.Call(hook, JsValue.FromObject(source), JsValue.FromString(eventName), JsValue.FromObject(bridge));
+        _ = realm.Call(
+            hook,
+            JsValue.FromObject(source),
+            JsValue.FromString(eventName),
+            JsValue.FromObject(bridge)
+        );
     }
 
     private static JsFunction GetCallable(JsObject obj, string propertyName)
     {
-        if (!obj.TryGetProperty(propertyName, out var value) ||
-            !value.TryGetObject(out var fnObject) ||
-            fnObject is not JsFunction fn)
-            throw new JsRuntimeException(JsErrorKind.TypeError, $"Expected callable property '{propertyName}'");
+        if (
+            !obj.TryGetProperty(propertyName, out var value)
+            || !value.TryGetObject(out var fnObject)
+            || fnObject is not JsFunction fn
+        )
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                $"Expected callable property '{propertyName}'"
+            );
 
         return fn;
     }
 
-    private static JsUserDataObject<NodeEventsBuiltIn.EventEmitterState> GetStreamObject(in CallInfo info)
+    private static JsUserDataObject<NodeEventsBuiltIn.EventEmitterState> GetStreamObject(
+        in CallInfo info
+    )
     {
-        if (info.ThisValue.TryGetObject(out var thisObj) &&
-            thisObj is JsUserDataObject<NodeEventsBuiltIn.EventEmitterState> stream &&
-            stream.UserData is not null)
+        if (
+            info.ThisValue.TryGetObject(out var thisObj)
+            && thisObj is JsUserDataObject<NodeEventsBuiltIn.EventEmitterState> stream
+            && stream.UserData is not null
+        )
             return stream;
 
-        throw new JsRuntimeException(JsErrorKind.TypeError, "Stream method called on incompatible receiver");
+        throw new JsRuntimeException(
+            JsErrorKind.TypeError,
+            "Stream method called on incompatible receiver"
+        );
     }
 
-    private static void Emit(JsUserDataObject<NodeEventsBuiltIn.EventEmitterState> stream, string eventName,
-        ReadOnlySpan<JsValue> args)
+    private static void Emit(
+        JsUserDataObject<NodeEventsBuiltIn.EventEmitterState> stream,
+        string eventName,
+        ReadOnlySpan<JsValue> args
+    )
     {
-        if (!stream.TryGetProperty("emit", out var emitValue) ||
-            !emitValue.TryGetObject(out var emitObject) ||
-            emitObject is not JsFunction emit)
+        if (
+            !stream.TryGetProperty("emit", out var emitValue)
+            || !emitValue.TryGetObject(out var emitObject)
+            || emitObject is not JsFunction emit
+        )
             throw new InvalidOperationException("EventEmitter.emit missing on stream object.");
 
         var callArgs = new JsValue[args.Length + 1];
@@ -397,7 +568,12 @@ internal sealed class NodeStreamBuiltIn(NodeRuntime runtime, NodeEventsBuiltIn e
         public bool Destroyed { get; set; }
     }
 
-    private sealed class ConstructorState(NodeStreamBuiltIn owner, string name, bool readable, bool writable)
+    private sealed class ConstructorState(
+        NodeStreamBuiltIn owner,
+        string name,
+        bool readable,
+        bool writable
+    )
     {
         public NodeStreamBuiltIn Owner { get; } = owner;
         public string Name { get; } = name;
@@ -405,7 +581,12 @@ internal sealed class NodeStreamBuiltIn(NodeRuntime runtime, NodeEventsBuiltIn e
         public bool Writable { get; } = writable;
     }
 
-    private sealed class PipelineBridgeState(JsRealm realm, JsObject destination, JsFunction target, bool endOnTrigger)
+    private sealed class PipelineBridgeState(
+        JsRealm realm,
+        JsObject destination,
+        JsFunction target,
+        bool endOnTrigger
+    )
     {
         public JsRealm Realm { get; } = realm;
         public JsObject Destination { get; } = destination;

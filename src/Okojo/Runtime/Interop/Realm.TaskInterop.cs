@@ -10,40 +10,71 @@ namespace Okojo.Runtime
         private static readonly Action<object?> SCompleteTaskPromiseJob = static state =>
         {
             var completion = (PendingTaskPromiseState)state!;
-            completion.Realm.CompletePromiseFromTask(completion.Task, completion.Promise,
-                completion.CancelReasonProvider, completion.CancellationPolicy);
+            completion.Realm.CompletePromiseFromTask(
+                completion.Task,
+                completion.Promise,
+                completion.CancelReasonProvider,
+                completion.CancellationPolicy
+            );
         };
 
         public JsValue WrapTask(Task task)
         {
-            return WrapTask(task, false, InternalHostTaskQueueDefaults.Default, null,
-                JsTaskCancellationPolicy.RejectWithHostException);
+            return WrapTask(
+                task,
+                false,
+                InternalHostTaskQueueDefaults.Default,
+                null,
+                JsTaskCancellationPolicy.RejectWithHostException
+            );
         }
 
         public JsValue WrapTask(Task task, IJsCancelReasonProvider cancelReasonProvider)
         {
             ArgumentNullException.ThrowIfNull(cancelReasonProvider);
-            return WrapTask(task, false, InternalHostTaskQueueDefaults.Default, cancelReasonProvider,
-                JsTaskCancellationPolicy.RejectWithProviderReasonOrHostException);
+            return WrapTask(
+                task,
+                false,
+                InternalHostTaskQueueDefaults.Default,
+                cancelReasonProvider,
+                JsTaskCancellationPolicy.RejectWithProviderReasonOrHostException
+            );
         }
 
         internal JsValue WrapTaskOnHostQueue(Task task, HostTaskQueueKey completionQueueKey)
         {
-            return WrapTask(task, true, completionQueueKey, null,
-                JsTaskCancellationPolicy.RejectWithHostException);
+            return WrapTask(
+                task,
+                true,
+                completionQueueKey,
+                null,
+                JsTaskCancellationPolicy.RejectWithHostException
+            );
         }
 
-        internal JsValue WrapTaskOnHostQueue(Task task, HostTaskQueueKey completionQueueKey,
-            IJsCancelReasonProvider cancelReasonProvider)
+        internal JsValue WrapTaskOnHostQueue(
+            Task task,
+            HostTaskQueueKey completionQueueKey,
+            IJsCancelReasonProvider cancelReasonProvider
+        )
         {
             ArgumentNullException.ThrowIfNull(cancelReasonProvider);
-            return WrapTask(task, true, completionQueueKey, cancelReasonProvider,
-                JsTaskCancellationPolicy.RejectWithProviderReasonOrHostException);
+            return WrapTask(
+                task,
+                true,
+                completionQueueKey,
+                cancelReasonProvider,
+                JsTaskCancellationPolicy.RejectWithProviderReasonOrHostException
+            );
         }
 
-        private JsValue WrapTask(Task task, bool useHostQueue, HostTaskQueueKey completionQueueKey,
+        private JsValue WrapTask(
+            Task task,
+            bool useHostQueue,
+            HostTaskQueueKey completionQueueKey,
             IJsCancelReasonProvider? cancelReasonProvider,
-            JsTaskCancellationPolicy cancellationPolicy)
+            JsTaskCancellationPolicy cancellationPolicy
+        )
         {
             ArgumentNullException.ThrowIfNull(task);
             var promise = this.CreatePromiseObject();
@@ -53,7 +84,8 @@ namespace Okojo.Runtime
                 return JsValue.FromObject(promise);
             }
 
-            _ = task.ContinueWith(static (completed, state) =>
+            _ = task.ContinueWith(
+                static (completed, state) =>
                 {
                     var pending = (PendingTaskPromiseState)state!;
                     var queued = new PendingTaskPromiseState
@@ -64,11 +96,14 @@ namespace Okojo.Runtime
                         CompletionQueueKey = pending.CompletionQueueKey,
                         UseHostQueue = pending.UseHostQueue,
                         CancelReasonProvider = pending.CancelReasonProvider,
-                        CancellationPolicy = pending.CancellationPolicy
+                        CancellationPolicy = pending.CancellationPolicy,
                     };
                     if (pending.UseHostQueue)
-                        pending.Realm.Agent.EnqueueHostTask(pending.CompletionQueueKey, SCompleteTaskPromiseJob,
-                            queued);
+                        pending.Realm.Agent.EnqueueHostTask(
+                            pending.CompletionQueueKey,
+                            SCompleteTaskPromiseJob,
+                            queued
+                        );
                     else
                         pending.Realm.Agent.EnqueuePromiseJob(SCompleteTaskPromiseJob, queued);
                 },
@@ -80,45 +115,73 @@ namespace Okojo.Runtime
                     CompletionQueueKey = completionQueueKey,
                     UseHostQueue = useHostQueue,
                     CancelReasonProvider = cancelReasonProvider,
-                    CancellationPolicy = cancellationPolicy
+                    CancellationPolicy = cancellationPolicy,
                 },
                 CancellationToken.None,
                 TaskContinuationOptions.ExecuteSynchronously,
-                TaskScheduler.Default);
+                TaskScheduler.Default
+            );
 
             return JsValue.FromObject(promise);
         }
 
         public JsValue WrapTask<T>(Task<T> task)
         {
-            return WrapTask(task, false, InternalHostTaskQueueDefaults.Default, null,
-                JsTaskCancellationPolicy.RejectWithHostException);
+            return WrapTask(
+                task,
+                false,
+                InternalHostTaskQueueDefaults.Default,
+                null,
+                JsTaskCancellationPolicy.RejectWithHostException
+            );
         }
 
         public JsValue WrapTask<T>(Task<T> task, IJsCancelReasonProvider cancelReasonProvider)
         {
             ArgumentNullException.ThrowIfNull(cancelReasonProvider);
-            return WrapTask(task, false, InternalHostTaskQueueDefaults.Default, cancelReasonProvider,
-                JsTaskCancellationPolicy.RejectWithProviderReasonOrHostException);
+            return WrapTask(
+                task,
+                false,
+                InternalHostTaskQueueDefaults.Default,
+                cancelReasonProvider,
+                JsTaskCancellationPolicy.RejectWithProviderReasonOrHostException
+            );
         }
 
         internal JsValue WrapTaskOnHostQueue<T>(Task<T> task, HostTaskQueueKey completionQueueKey)
         {
-            return WrapTask(task, true, completionQueueKey, null,
-                JsTaskCancellationPolicy.RejectWithHostException);
+            return WrapTask(
+                task,
+                true,
+                completionQueueKey,
+                null,
+                JsTaskCancellationPolicy.RejectWithHostException
+            );
         }
 
-        internal JsValue WrapTaskOnHostQueue<T>(Task<T> task, HostTaskQueueKey completionQueueKey,
-            IJsCancelReasonProvider cancelReasonProvider)
+        internal JsValue WrapTaskOnHostQueue<T>(
+            Task<T> task,
+            HostTaskQueueKey completionQueueKey,
+            IJsCancelReasonProvider cancelReasonProvider
+        )
         {
             ArgumentNullException.ThrowIfNull(cancelReasonProvider);
-            return WrapTask(task, true, completionQueueKey, cancelReasonProvider,
-                JsTaskCancellationPolicy.RejectWithProviderReasonOrHostException);
+            return WrapTask(
+                task,
+                true,
+                completionQueueKey,
+                cancelReasonProvider,
+                JsTaskCancellationPolicy.RejectWithProviderReasonOrHostException
+            );
         }
 
-        private JsValue WrapTask<T>(Task<T> task, bool useHostQueue, HostTaskQueueKey completionQueueKey,
+        private JsValue WrapTask<T>(
+            Task<T> task,
+            bool useHostQueue,
+            HostTaskQueueKey completionQueueKey,
             IJsCancelReasonProvider? cancelReasonProvider,
-            JsTaskCancellationPolicy cancellationPolicy)
+            JsTaskCancellationPolicy cancellationPolicy
+        )
         {
             ArgumentNullException.ThrowIfNull(task);
             var promise = this.CreatePromiseObject();
@@ -128,7 +191,8 @@ namespace Okojo.Runtime
                 return JsValue.FromObject(promise);
             }
 
-            _ = task.ContinueWith(static (completed, state) =>
+            _ = task.ContinueWith(
+                static (completed, state) =>
                 {
                     var pending = (PendingTaskResultPromiseState<T>)state!;
                     var queued = new PendingTaskResultPromiseState<T>
@@ -139,13 +203,19 @@ namespace Okojo.Runtime
                         CompletionQueueKey = pending.CompletionQueueKey,
                         UseHostQueue = pending.UseHostQueue,
                         CancelReasonProvider = pending.CancelReasonProvider,
-                        CancellationPolicy = pending.CancellationPolicy
+                        CancellationPolicy = pending.CancellationPolicy,
                     };
                     if (pending.UseHostQueue)
-                        pending.Realm.Agent.EnqueueHostTask(pending.CompletionQueueKey,
-                            TaskPromiseCompletion<T>.CompletePromiseJob, queued);
+                        pending.Realm.Agent.EnqueueHostTask(
+                            pending.CompletionQueueKey,
+                            TaskPromiseCompletion<T>.CompletePromiseJob,
+                            queued
+                        );
                     else
-                        pending.Realm.Agent.EnqueuePromiseJob(TaskPromiseCompletion<T>.CompletePromiseJob, queued);
+                        pending.Realm.Agent.EnqueuePromiseJob(
+                            TaskPromiseCompletion<T>.CompletePromiseJob,
+                            queued
+                        );
                 },
                 new PendingTaskResultPromiseState<T>
                 {
@@ -155,11 +225,12 @@ namespace Okojo.Runtime
                     CompletionQueueKey = completionQueueKey,
                     UseHostQueue = useHostQueue,
                     CancelReasonProvider = cancelReasonProvider,
-                    CancellationPolicy = cancellationPolicy
+                    CancellationPolicy = cancellationPolicy,
                 },
                 CancellationToken.None,
                 TaskContinuationOptions.ExecuteSynchronously,
-                TaskScheduler.Default);
+                TaskScheduler.Default
+            );
 
             return JsValue.FromObject(promise);
         }
@@ -168,12 +239,21 @@ namespace Okojo.Runtime
         {
             if (task.IsCompletedSuccessfully)
                 return this.PromiseResolveValue(JsValue.Undefined);
-            return WrapVoidValueTask(task, false, InternalHostTaskQueueDefaults.Default, null, null,
-                JsTaskCancellationPolicy.RejectWithHostException);
+            return WrapVoidValueTask(
+                task,
+                false,
+                InternalHostTaskQueueDefaults.Default,
+                null,
+                null,
+                JsTaskCancellationPolicy.RejectWithHostException
+            );
         }
 
-        internal JsValue WrapPromiseValueTask(ValueTask task,
-            IJsCancelReasonProvider? cancelReasonProvider = null, Action? cleanupAction = null)
+        internal JsValue WrapPromiseValueTask(
+            ValueTask task,
+            IJsCancelReasonProvider? cancelReasonProvider = null,
+            Action? cleanupAction = null
+        )
         {
             if (task.IsCompletedSuccessfully)
             {
@@ -182,20 +262,31 @@ namespace Okojo.Runtime
                 return this.PromiseResolveValue(JsValue.Undefined);
             }
 
-            return WrapVoidValueTask(task, false, InternalHostTaskQueueDefaults.Default, cancelReasonProvider,
+            return WrapVoidValueTask(
+                task,
+                false,
+                InternalHostTaskQueueDefaults.Default,
+                cancelReasonProvider,
                 cleanupAction,
                 cancelReasonProvider is null
                     ? JsTaskCancellationPolicy.RejectWithHostException
                     : JsTaskCancellationPolicy.RejectWithProviderReasonOrHostException,
-                useDisposeErrorValue: true);
+                useDisposeErrorValue: true
+            );
         }
 
         public JsValue WrapTask<T>(ValueTask<T> task)
         {
             if (task.IsCompletedSuccessfully)
                 return this.PromiseResolveValue(WrapHostValue(task.Result));
-            return WrapValueTask(task, false, InternalHostTaskQueueDefaults.Default, null, null,
-                JsTaskCancellationPolicy.RejectWithHostException);
+            return WrapValueTask(
+                task,
+                false,
+                InternalHostTaskQueueDefaults.Default,
+                null,
+                null,
+                JsTaskCancellationPolicy.RejectWithHostException
+            );
         }
 
         public Task<JsValue> ToTask(JsValue value, CancellationToken cancellationToken = default)
@@ -208,44 +299,65 @@ namespace Okojo.Runtime
             if (promise.State == JsPromiseObject.PromiseState.Rejected)
                 return Task.FromException<JsValue>(new PromiseRejectedException(promise.Result));
 
-            var completionSource =
-                new TaskCompletionSource<JsValue>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var state = new PromiseTaskState
-            {
-                CompletionSource = completionSource
-            };
+            var completionSource = new TaskCompletionSource<JsValue>(
+                TaskCreationOptions.RunContinuationsAsynchronously
+            );
+            var state = new PromiseTaskState { CompletionSource = completionSource };
 
             if (cancellationToken.CanBeCanceled)
                 state.CancellationRegistration = cancellationToken.Register(
-                    static sourceObj => { ((TaskCompletionSource<JsValue>)sourceObj!).TrySetCanceled(); },
-                    completionSource);
+                    static sourceObj =>
+                    {
+                        ((TaskCompletionSource<JsValue>)sourceObj!).TrySetCanceled();
+                    },
+                    completionSource
+                );
 
-            var resolve = new JsHostFunction(this, static (in info) =>
+            var resolve = new JsHostFunction(
+                this,
+                static (in info) =>
+                {
+                    var host = (JsHostFunction)info.Function;
+                    var promiseState = (PromiseTaskState)host.UserData!;
+                    promiseState.CancellationRegistration.Dispose();
+                    promiseState.CompletionSource.TrySetResult(
+                        info.GetArgumentOrDefault(0, JsValue.Undefined)
+                    );
+                    return JsValue.Undefined;
+                },
+                string.Empty,
+                1
+            )
             {
-                var host = (JsHostFunction)info.Function;
-                var promiseState = (PromiseTaskState)host.UserData!;
-                promiseState.CancellationRegistration.Dispose();
-                promiseState.CompletionSource.TrySetResult(info.GetArgumentOrDefault(0, JsValue.Undefined));
-                return JsValue.Undefined;
-            }, string.Empty, 1)
-            {
-                UserData = state
+                UserData = state,
             };
 
-            var reject = new JsHostFunction(this, static (in info) =>
+            var reject = new JsHostFunction(
+                this,
+                static (in info) =>
+                {
+                    var host = (JsHostFunction)info.Function;
+                    var promiseState = (PromiseTaskState)host.UserData!;
+                    promiseState.CancellationRegistration.Dispose();
+                    promiseState.CompletionSource.TrySetException(
+                        new PromiseRejectedException(
+                            info.GetArgumentOrDefault(0, JsValue.Undefined)
+                        )
+                    );
+                    return JsValue.Undefined;
+                },
+                string.Empty,
+                1
+            )
             {
-                var host = (JsHostFunction)info.Function;
-                var promiseState = (PromiseTaskState)host.UserData!;
-                promiseState.CancellationRegistration.Dispose();
-                promiseState.CompletionSource.TrySetException(
-                    new PromiseRejectedException(info.GetArgumentOrDefault(0, JsValue.Undefined)));
-                return JsValue.Undefined;
-            }, string.Empty, 1)
-            {
-                UserData = state
+                UserData = state,
             };
 
-            this.PromiseThenNoCapability(promise, JsValue.FromObject(resolve), JsValue.FromObject(reject));
+            this.PromiseThenNoCapability(
+                promise,
+                JsValue.FromObject(resolve),
+                JsValue.FromObject(reject)
+            );
             return PumpJobsUntilAsync(completionSource.Task, cancellationToken);
         }
 
@@ -276,7 +388,10 @@ namespace Okojo.Runtime
             return new(source, source.Version);
         }
 
-        public ValueTask<T> ToValueTask<T>(JsValue value, CancellationToken cancellationToken = default)
+        public ValueTask<T> ToValueTask<T>(
+            JsValue value,
+            CancellationToken cancellationToken = default
+        )
         {
             if (!value.TryGetObject(out var obj) || obj is not JsPromiseObject promise)
             {
@@ -286,7 +401,8 @@ namespace Okojo.Runtime
 
             if (promise.State == JsPromiseObject.PromiseState.Fulfilled)
             {
-                var converted = (T)HostValueConverter.ConvertFromJsValue(this, promise.Result, typeof(T))!;
+                var converted = (T)
+                    HostValueConverter.ConvertFromJsValue(this, promise.Result, typeof(T))!;
                 return ValueTask.FromResult(converted);
             }
 
@@ -299,7 +415,10 @@ namespace Okojo.Runtime
             return new(source, source.Version);
         }
 
-        public ValueTask<JsValue> ToPumpedValueTask(JsValue value, CancellationToken cancellationToken = default)
+        public ValueTask<JsValue> ToPumpedValueTask(
+            JsValue value,
+            CancellationToken cancellationToken = default
+        )
         {
             if (!value.TryGetObject(out var obj) || obj is not JsPromiseObject promise)
                 return ValueTask.FromResult(value);
@@ -307,11 +426,16 @@ namespace Okojo.Runtime
             if (promise.State == JsPromiseObject.PromiseState.Fulfilled)
                 return ValueTask.FromResult(promise.Result);
             if (promise.State == JsPromiseObject.PromiseState.Rejected)
-                return ValueTask.FromException<JsValue>(new PromiseRejectedException(promise.Result));
+                return ValueTask.FromException<JsValue>(
+                    new PromiseRejectedException(promise.Result)
+                );
             return AwaitPumpedPromiseAsync(promise, cancellationToken);
         }
 
-        public async ValueTask<T> ToPumpedValueTask<T>(JsValue value, CancellationToken cancellationToken = default)
+        public async ValueTask<T> ToPumpedValueTask<T>(
+            JsValue value,
+            CancellationToken cancellationToken = default
+        )
         {
             if (!value.TryGetObject(out var obj) || obj is not JsPromiseObject promise)
             {
@@ -321,20 +445,23 @@ namespace Okojo.Runtime
 
             if (promise.State == JsPromiseObject.PromiseState.Fulfilled)
             {
-                var converted = (T)HostValueConverter.ConvertFromJsValue(this, promise.Result, typeof(T))!;
+                var converted = (T)
+                    HostValueConverter.ConvertFromJsValue(this, promise.Result, typeof(T))!;
                 return converted;
             }
 
             if (promise.State == JsPromiseObject.PromiseState.Rejected)
                 throw new PromiseRejectedException(promise.Result);
 
-            var settled = await AwaitPumpedPromiseAsync(promise, cancellationToken).ConfigureAwait(false);
+            var settled = await AwaitPumpedPromiseAsync(promise, cancellationToken)
+                .ConfigureAwait(false);
             return (T)HostValueConverter.ConvertFromJsValue(this, settled, typeof(T))!;
         }
 
         private async ValueTask<JsValue> AwaitPumpedPromiseAsync(
             JsPromiseObject promise,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken
+        )
         {
             while (promise.IsPending)
             {
@@ -351,22 +478,37 @@ namespace Okojo.Runtime
             return promise.SettledResult;
         }
 
-        public ValueTask<JsValue> CallAsync(JsFunction function, JsValue thisValue, params ReadOnlySpan<JsValue> args)
+        public ValueTask<JsValue> CallAsync(
+            JsFunction function,
+            JsValue thisValue,
+            params ReadOnlySpan<JsValue> args
+        )
         {
             return ToPumpedValueTask<JsValue>(Call(function, thisValue, args));
         }
 
-        public ValueTask<JsValue> CallAsync(JsValue function, JsValue thisValue, params ReadOnlySpan<JsValue> args)
+        public ValueTask<JsValue> CallAsync(
+            JsValue function,
+            JsValue thisValue,
+            params ReadOnlySpan<JsValue> args
+        )
         {
             return ToPumpedValueTask<JsValue>(Call(function, thisValue, args));
         }
 
-        public ValueTask<JsValue> EvalAsync(string script, CancellationToken cancellationToken = default)
+        public ValueTask<JsValue> EvalAsync(
+            string script,
+            CancellationToken cancellationToken = default
+        )
         {
             return EvaluateAsync(script, cancellationToken);
         }
 
-        internal static bool TryConvertTaskObjectToJsValue(JsRealm realm, object value, out JsValue jsValue)
+        internal static bool TryConvertTaskObjectToJsValue(
+            JsRealm realm,
+            object value,
+            out JsValue jsValue
+        )
         {
             if (value is Task<JsValue> jsTask)
             {
@@ -376,8 +518,10 @@ namespace Okojo.Runtime
 
             if (value is Task task)
             {
-                if (realm.EngineHost.ClrAccessProvider is { } provider &&
-                    provider.TryConvertTaskObjectToJsValue(realm, value, out jsValue))
+                if (
+                    realm.EngineHost.ClrAccessProvider is { } provider
+                    && provider.TryConvertTaskObjectToJsValue(realm, value, out jsValue)
+                )
                     return true;
 
                 jsValue = realm.WrapTask(task);
@@ -391,18 +535,27 @@ namespace Okojo.Runtime
                 return true;
             }
 
-            if (valueType.IsGenericType && valueType.GetGenericTypeDefinition() == typeof(ValueTask<>))
-                if (realm.EngineHost.ClrAccessProvider is { } provider &&
-                    provider.TryConvertTaskObjectToJsValue(realm, value, out jsValue))
+            if (
+                valueType.IsGenericType
+                && valueType.GetGenericTypeDefinition() == typeof(ValueTask<>)
+            )
+                if (
+                    realm.EngineHost.ClrAccessProvider is { } provider
+                    && provider.TryConvertTaskObjectToJsValue(realm, value, out jsValue)
+                )
                     return true;
 
             jsValue = JsValue.Undefined;
             return false;
         }
 
-        internal static bool TryConvertJsValueToTaskObject(JsRealm realm, JsValue value, Type targetType,
+        internal static bool TryConvertJsValueToTaskObject(
+            JsRealm realm,
+            JsValue value,
+            Type targetType,
             out object? result,
-            out int score)
+            out int score
+        )
         {
             score = 0;
 
@@ -418,115 +571,225 @@ namespace Okojo.Runtime
                 return true;
             }
 
-            if (realm.EngineHost.ClrAccessProvider is { } provider &&
-                provider.TryConvertJsValueToTaskObject(realm, value, targetType, out result, out score))
+            if (
+                realm.EngineHost.ClrAccessProvider is { } provider
+                && provider.TryConvertJsValueToTaskObject(
+                    realm,
+                    value,
+                    targetType,
+                    out result,
+                    out score
+                )
+            )
                 return true;
 
             result = null;
             return false;
         }
 
-        private async Task<T> AwaitTaskResultAsync<T>(Task<JsValue> task, CancellationToken cancellationToken)
+        private async Task<T> AwaitTaskResultAsync<T>(
+            Task<JsValue> task,
+            CancellationToken cancellationToken
+        )
         {
             var settled = await PumpJobsUntilAsync(task, cancellationToken).ConfigureAwait(false);
             return (T)HostValueConverter.ConvertFromJsValue(this, settled, typeof(T))!;
         }
 
-        private void AttachPromiseValueTaskSource(JsPromiseObject promise, PromiseValueTaskSource source)
+        private void AttachPromiseValueTaskSource(
+            JsPromiseObject promise,
+            PromiseValueTaskSource source
+        )
         {
-            AttachPromiseValueTaskSourceCore(promise, source,
+            AttachPromiseValueTaskSourceCore(
+                promise,
+                source,
                 static (_, _, state) => ((PromiseValueTaskSource)state).TrySetResult(),
                 static (reason, state) =>
-                    ((PromiseValueTaskSource)state).TrySetException(new PromiseRejectedException(reason)));
+                    ((PromiseValueTaskSource)state).TrySetException(
+                        new PromiseRejectedException(reason)
+                    )
+            );
         }
 
-        private void AttachPromiseValueTaskSource<T>(JsPromiseObject promise, PromiseValueTaskSource<T> source)
+        private void AttachPromiseValueTaskSource<T>(
+            JsPromiseObject promise,
+            PromiseValueTaskSource<T> source
+        )
         {
-            AttachPromiseValueTaskSourceCore(promise, source,
+            AttachPromiseValueTaskSourceCore(
+                promise,
+                source,
                 static (realm, resolved, state) =>
                 {
-                    var converted = (T)HostValueConverter.ConvertFromJsValue(realm, resolved, typeof(T))!;
+                    var converted = (T)
+                        HostValueConverter.ConvertFromJsValue(realm, resolved, typeof(T))!;
                     ((PromiseValueTaskSource<T>)state).TrySetResult(converted);
                 },
                 static (reason, state) =>
-                    ((PromiseValueTaskSource<T>)state).TrySetException(new PromiseRejectedException(reason)));
+                    ((PromiseValueTaskSource<T>)state).TrySetException(
+                        new PromiseRejectedException(reason)
+                    )
+            );
         }
 
-        private void AttachPromiseValueTaskSource<T>(JsPromiseObject promise, PumpedPromiseValueTaskSource<T> source)
+        private void AttachPromiseValueTaskSource<T>(
+            JsPromiseObject promise,
+            PumpedPromiseValueTaskSource<T> source
+        )
         {
-            AttachPromiseValueTaskSourceCore(promise, source,
+            AttachPromiseValueTaskSourceCore(
+                promise,
+                source,
                 static (realm, resolved, state) =>
                 {
-                    var converted = (T)HostValueConverter.ConvertFromJsValue(realm, resolved, typeof(T))!;
+                    var converted = (T)
+                        HostValueConverter.ConvertFromJsValue(realm, resolved, typeof(T))!;
                     ((PumpedPromiseValueTaskSource<T>)state).TrySetResult(converted);
                 },
                 static (reason, state) =>
-                    ((PumpedPromiseValueTaskSource<T>)state).TrySetException(new PromiseRejectedException(reason)));
+                    ((PumpedPromiseValueTaskSource<T>)state).TrySetException(
+                        new PromiseRejectedException(reason)
+                    )
+            );
         }
 
-        private void AttachPromiseValueTaskSourceCore(JsPromiseObject promise, object source,
+        private void AttachPromiseValueTaskSourceCore(
+            JsPromiseObject promise,
+            object source,
             Action<JsRealm, JsValue, object> resolveAction,
-            Action<JsValue, object> rejectAction)
+            Action<JsValue, object> rejectAction
+        )
         {
-            var resolve = new JsHostFunction(this, static (in info) =>
+            var resolve = new JsHostFunction(
+                this,
+                static (in info) =>
+                {
+                    var host = (JsHostFunction)info.Function;
+                    var state = (PromiseValueTaskSourceAttachment)host.UserData!;
+                    state.ResolveAction(
+                        info.Realm,
+                        info.GetArgumentOrDefault(0, JsValue.Undefined),
+                        state.Source
+                    );
+                    return JsValue.Undefined;
+                },
+                string.Empty,
+                1
+            )
             {
-                var host = (JsHostFunction)info.Function;
-                var state = (PromiseValueTaskSourceAttachment)host.UserData!;
-                state.ResolveAction(info.Realm, info.GetArgumentOrDefault(0, JsValue.Undefined), state.Source);
-                return JsValue.Undefined;
-            }, string.Empty, 1)
-            {
-                UserData = new PromiseValueTaskSourceAttachment(source, resolveAction, rejectAction)
+                UserData = new PromiseValueTaskSourceAttachment(
+                    source,
+                    resolveAction,
+                    rejectAction
+                ),
             };
 
-            var reject = new JsHostFunction(this, static (in info) =>
+            var reject = new JsHostFunction(
+                this,
+                static (in info) =>
+                {
+                    var host = (JsHostFunction)info.Function;
+                    var state = (PromiseValueTaskSourceAttachment)host.UserData!;
+                    state.RejectAction(
+                        info.GetArgumentOrDefault(0, JsValue.Undefined),
+                        state.Source
+                    );
+                    return JsValue.Undefined;
+                },
+                string.Empty,
+                1
+            )
             {
-                var host = (JsHostFunction)info.Function;
-                var state = (PromiseValueTaskSourceAttachment)host.UserData!;
-                state.RejectAction(info.GetArgumentOrDefault(0, JsValue.Undefined), state.Source);
-                return JsValue.Undefined;
-            }, string.Empty, 1)
-            {
-                UserData = new PromiseValueTaskSourceAttachment(source, resolveAction, rejectAction)
+                UserData = new PromiseValueTaskSourceAttachment(
+                    source,
+                    resolveAction,
+                    rejectAction
+                ),
             };
 
-            this.PromiseThenNoCapability(promise, JsValue.FromObject(resolve), JsValue.FromObject(reject));
+            this.PromiseThenNoCapability(
+                promise,
+                JsValue.FromObject(resolve),
+                JsValue.FromObject(reject)
+            );
         }
 
-        internal JsValue WrapTask(ValueTask task, IJsCancelReasonProvider cancelReasonProvider,
-            Action? cleanupAction = null)
+        internal JsValue WrapTask(
+            ValueTask task,
+            IJsCancelReasonProvider cancelReasonProvider,
+            Action? cleanupAction = null
+        )
         {
             ArgumentNullException.ThrowIfNull(cancelReasonProvider);
-            return WrapVoidValueTask(task, false, InternalHostTaskQueueDefaults.Default, cancelReasonProvider,
-                cleanupAction, JsTaskCancellationPolicy.RejectWithProviderReasonOrHostException);
+            return WrapVoidValueTask(
+                task,
+                false,
+                InternalHostTaskQueueDefaults.Default,
+                cancelReasonProvider,
+                cleanupAction,
+                JsTaskCancellationPolicy.RejectWithProviderReasonOrHostException
+            );
         }
 
-        internal JsValue WrapTask<T>(ValueTask<T> task, IJsCancelReasonProvider cancelReasonProvider,
-            Action? cleanupAction = null)
+        internal JsValue WrapTask<T>(
+            ValueTask<T> task,
+            IJsCancelReasonProvider cancelReasonProvider,
+            Action? cleanupAction = null
+        )
         {
             ArgumentNullException.ThrowIfNull(cancelReasonProvider);
-            return WrapValueTask(task, false, InternalHostTaskQueueDefaults.Default, cancelReasonProvider,
-                cleanupAction, JsTaskCancellationPolicy.RejectWithProviderReasonOrHostException);
+            return WrapValueTask(
+                task,
+                false,
+                InternalHostTaskQueueDefaults.Default,
+                cancelReasonProvider,
+                cleanupAction,
+                JsTaskCancellationPolicy.RejectWithProviderReasonOrHostException
+            );
         }
 
-        private JsValue WrapValueTask(ValueTask task, bool useHostQueue, HostTaskQueueKey completionQueueKey,
-            IJsCancelReasonProvider? cancelReasonProvider, Action? cleanupAction)
+        private JsValue WrapValueTask(
+            ValueTask task,
+            bool useHostQueue,
+            HostTaskQueueKey completionQueueKey,
+            IJsCancelReasonProvider? cancelReasonProvider,
+            Action? cleanupAction
+        )
         {
-            return WrapVoidValueTask(task, useHostQueue, completionQueueKey, cancelReasonProvider, cleanupAction,
-                JsTaskCancellationPolicy.RejectWithHostException, useDisposeErrorValue: false);
+            return WrapVoidValueTask(
+                task,
+                useHostQueue,
+                completionQueueKey,
+                cancelReasonProvider,
+                cleanupAction,
+                JsTaskCancellationPolicy.RejectWithHostException,
+                useDisposeErrorValue: false
+            );
         }
 
-        private JsValue WrapVoidValueTask(ValueTask task, bool useHostQueue, HostTaskQueueKey completionQueueKey,
-            IJsCancelReasonProvider? cancelReasonProvider, Action? cleanupAction,
+        private JsValue WrapVoidValueTask(
+            ValueTask task,
+            bool useHostQueue,
+            HostTaskQueueKey completionQueueKey,
+            IJsCancelReasonProvider? cancelReasonProvider,
+            Action? cleanupAction,
             JsTaskCancellationPolicy cancellationPolicy,
-            bool useDisposeErrorValue = false)
+            bool useDisposeErrorValue = false
+        )
         {
             var promise = this.CreatePromiseObject();
             var awaiter = task.GetAwaiter();
             if (awaiter.IsCompleted)
             {
-                CompletePromiseFromValueTask(awaiter, promise, cancelReasonProvider, cleanupAction,
-                    cancellationPolicy, useDisposeErrorValue);
+                CompletePromiseFromValueTask(
+                    awaiter,
+                    promise,
+                    cancelReasonProvider,
+                    cleanupAction,
+                    cancellationPolicy,
+                    useDisposeErrorValue
+                );
                 return JsValue.FromObject(promise);
             }
 
@@ -540,22 +803,32 @@ namespace Okojo.Runtime
                 CancellationPolicy = cancellationPolicy,
                 CleanupAction = cleanupAction,
                 UseDisposeErrorValue = useDisposeErrorValue,
-                Awaiter = awaiter
+                Awaiter = awaiter,
             };
             awaiter.OnCompleted(state.OnCompleted);
             return JsValue.FromObject(promise);
         }
 
-        private JsValue WrapValueTask<T>(ValueTask<T> task, bool useHostQueue, HostTaskQueueKey completionQueueKey,
-            IJsCancelReasonProvider? cancelReasonProvider, Action? cleanupAction,
-            JsTaskCancellationPolicy cancellationPolicy)
+        private JsValue WrapValueTask<T>(
+            ValueTask<T> task,
+            bool useHostQueue,
+            HostTaskQueueKey completionQueueKey,
+            IJsCancelReasonProvider? cancelReasonProvider,
+            Action? cleanupAction,
+            JsTaskCancellationPolicy cancellationPolicy
+        )
         {
             var promise = this.CreatePromiseObject();
             var awaiter = task.GetAwaiter();
             if (awaiter.IsCompleted)
             {
-                CompletePromiseFromValueTask(awaiter, promise, cancelReasonProvider, cleanupAction,
-                    cancellationPolicy);
+                CompletePromiseFromValueTask(
+                    awaiter,
+                    promise,
+                    cancelReasonProvider,
+                    cleanupAction,
+                    cancellationPolicy
+                );
                 return JsValue.FromObject(promise);
             }
 
@@ -568,7 +841,7 @@ namespace Okojo.Runtime
                 CancelReasonProvider = cancelReasonProvider,
                 CancellationPolicy = cancellationPolicy,
                 CleanupAction = cleanupAction,
-                Awaiter = awaiter
+                Awaiter = awaiter,
             };
             awaiter.OnCompleted(state.OnCompleted);
             return JsValue.FromObject(promise);
@@ -579,41 +852,61 @@ namespace Okojo.Runtime
             state.CleanupAction?.Invoke();
             state.CleanupAction = null;
             if (state.UseHostQueue)
-                Agent.EnqueueHostTask(state.CompletionQueueKey, static boxed =>
-                {
-                    var pending = (PendingValueTaskPromiseState)boxed!;
-                    pending.Realm.CompletePromiseFromValueTask(pending);
-                }, state);
+                Agent.EnqueueHostTask(
+                    state.CompletionQueueKey,
+                    static boxed =>
+                    {
+                        var pending = (PendingValueTaskPromiseState)boxed!;
+                        pending.Realm.CompletePromiseFromValueTask(pending);
+                    },
+                    state
+                );
             else
-                Agent.EnqueuePromiseJob(static boxed =>
-                {
-                    var pending = (PendingValueTaskPromiseState)boxed!;
-                    pending.Realm.CompletePromiseFromValueTask(pending);
-                }, state);
+                Agent.EnqueuePromiseJob(
+                    static boxed =>
+                    {
+                        var pending = (PendingValueTaskPromiseState)boxed!;
+                        pending.Realm.CompletePromiseFromValueTask(pending);
+                    },
+                    state
+                );
         }
 
-        private void EnqueueValueTaskPromiseCompletion<T>(PendingValueTaskResultPromiseState<T> state)
+        private void EnqueueValueTaskPromiseCompletion<T>(
+            PendingValueTaskResultPromiseState<T> state
+        )
         {
             state.CleanupAction?.Invoke();
             state.CleanupAction = null;
             if (state.UseHostQueue)
-                Agent.EnqueueHostTask(state.CompletionQueueKey, static boxed =>
-                {
-                    var pending = (PendingValueTaskResultPromiseState<T>)boxed!;
-                    pending.Realm.CompletePromiseFromValueTask(pending);
-                }, state);
+                Agent.EnqueueHostTask(
+                    state.CompletionQueueKey,
+                    static boxed =>
+                    {
+                        var pending = (PendingValueTaskResultPromiseState<T>)boxed!;
+                        pending.Realm.CompletePromiseFromValueTask(pending);
+                    },
+                    state
+                );
             else
-                Agent.EnqueuePromiseJob(static boxed =>
-                {
-                    var pending = (PendingValueTaskResultPromiseState<T>)boxed!;
-                    pending.Realm.CompletePromiseFromValueTask(pending);
-                }, state);
+                Agent.EnqueuePromiseJob(
+                    static boxed =>
+                    {
+                        var pending = (PendingValueTaskResultPromiseState<T>)boxed!;
+                        pending.Realm.CompletePromiseFromValueTask(pending);
+                    },
+                    state
+                );
         }
 
-        private void CompletePromiseFromValueTask(ValueTaskAwaiter awaiter, JsPromiseObject promise,
-            IJsCancelReasonProvider? cancelReasonProvider, Action? cleanupAction,
+        private void CompletePromiseFromValueTask(
+            ValueTaskAwaiter awaiter,
+            JsPromiseObject promise,
+            IJsCancelReasonProvider? cancelReasonProvider,
+            Action? cleanupAction,
             JsTaskCancellationPolicy cancellationPolicy,
-            bool useDisposeErrorValue)
+            bool useDisposeErrorValue
+        )
         {
             try
             {
@@ -622,7 +915,14 @@ namespace Okojo.Runtime
             }
             catch (Exception ex)
             {
-                if (!TryCompleteCanceledPromise(ex, promise, cancelReasonProvider, cancellationPolicy))
+                if (
+                    !TryCompleteCanceledPromise(
+                        ex,
+                        promise,
+                        cancelReasonProvider,
+                        cancellationPolicy
+                    )
+                )
                     this.RejectPromise(promise, GetValueTaskFaultReason(ex, useDisposeErrorValue));
             }
             finally
@@ -631,9 +931,13 @@ namespace Okojo.Runtime
             }
         }
 
-        private void CompletePromiseFromValueTask<T>(ValueTaskAwaiter<T> awaiter, JsPromiseObject promise,
-            IJsCancelReasonProvider? cancelReasonProvider, Action? cleanupAction,
-            JsTaskCancellationPolicy cancellationPolicy)
+        private void CompletePromiseFromValueTask<T>(
+            ValueTaskAwaiter<T> awaiter,
+            JsPromiseObject promise,
+            IJsCancelReasonProvider? cancelReasonProvider,
+            Action? cleanupAction,
+            JsTaskCancellationPolicy cancellationPolicy
+        )
         {
             try
             {
@@ -642,7 +946,14 @@ namespace Okojo.Runtime
             }
             catch (Exception ex)
             {
-                if (!TryCompleteCanceledPromise(ex, promise, cancelReasonProvider, cancellationPolicy))
+                if (
+                    !TryCompleteCanceledPromise(
+                        ex,
+                        promise,
+                        cancelReasonProvider,
+                        cancellationPolicy
+                    )
+                )
                     this.RejectPromise(promise, GetTaskFaultReason(ex));
             }
             finally
@@ -653,8 +964,14 @@ namespace Okojo.Runtime
 
         private void CompletePromiseFromValueTask(PendingValueTaskPromiseState state)
         {
-            CompletePromiseFromValueTask(state.Awaiter, state.Promise, state.CancelReasonProvider, null,
-                state.CancellationPolicy, state.UseDisposeErrorValue);
+            CompletePromiseFromValueTask(
+                state.Awaiter,
+                state.Promise,
+                state.CancelReasonProvider,
+                null,
+                state.CancellationPolicy,
+                state.UseDisposeErrorValue
+            );
         }
 
         private JsValue GetValueTaskFaultReason(Exception ex, bool useDisposeErrorValue)
@@ -666,17 +983,33 @@ namespace Okojo.Runtime
 
         private void CompletePromiseFromValueTask<T>(PendingValueTaskResultPromiseState<T> state)
         {
-            CompletePromiseFromValueTask(state.Awaiter, state.Promise, state.CancelReasonProvider, null,
-                state.CancellationPolicy);
+            CompletePromiseFromValueTask(
+                state.Awaiter,
+                state.Promise,
+                state.CancelReasonProvider,
+                null,
+                state.CancellationPolicy
+            );
         }
 
-        private bool TryCompleteCanceledPromise(Exception ex, JsPromiseObject promise,
-            IJsCancelReasonProvider? cancelReasonProvider, JsTaskCancellationPolicy cancellationPolicy)
+        private bool TryCompleteCanceledPromise(
+            Exception ex,
+            JsPromiseObject promise,
+            IJsCancelReasonProvider? cancelReasonProvider,
+            JsTaskCancellationPolicy cancellationPolicy
+        )
         {
             if (ex is OperationCanceledException)
             {
-                if (cancellationPolicy == JsTaskCancellationPolicy.RejectWithProviderReasonOrHostException &&
-                    TryGetCanceledReason(cancelReasonProvider, cancellationPolicy, out var canceledReason))
+                if (
+                    cancellationPolicy
+                        == JsTaskCancellationPolicy.RejectWithProviderReasonOrHostException
+                    && TryGetCanceledReason(
+                        cancelReasonProvider,
+                        cancellationPolicy,
+                        out var canceledReason
+                    )
+                )
                 {
                     this.RejectPromise(promise, canceledReason);
                     return true;
@@ -704,7 +1037,10 @@ namespace Okojo.Runtime
             await target.ConfigureAwait(false);
         }
 
-        private async Task<T> PumpJobsUntilAsync<T>(Task<T> target, CancellationToken cancellationToken)
+        private async Task<T> PumpJobsUntilAsync<T>(
+            Task<T> target,
+            CancellationToken cancellationToken
+        )
         {
             while (!target.IsCompleted)
             {
@@ -719,7 +1055,10 @@ namespace Okojo.Runtime
             return await target.ConfigureAwait(false);
         }
 
-        private async Task WaitForJobsOrCompletionAsync(Task target, CancellationToken cancellationToken)
+        private async Task WaitForJobsOrCompletionAsync(
+            Task target,
+            CancellationToken cancellationToken
+        )
         {
             var jobSignal = WaitForJobsAsync(cancellationToken);
             var completed = await Task.WhenAny(target, jobSignal).ConfigureAwait(false);
@@ -729,66 +1068,107 @@ namespace Okojo.Runtime
 
         private async Task WaitForJobsAsync(CancellationToken cancellationToken)
         {
-            await Engine.Options.HostServices.BackgroundScheduler
-                .WaitHandleAsync(Agent.JobsAvailableWaitHandle, cancellationToken)
+            await Engine
+                .Options.HostServices.BackgroundScheduler.WaitHandleAsync(
+                    Agent.JobsAvailableWaitHandle,
+                    cancellationToken
+                )
                 .ConfigureAwait(false);
         }
 
-        private void CompletePromiseFromTask(Task task, JsPromiseObject promise,
-            IJsCancelReasonProvider? cancelReasonProvider, JsTaskCancellationPolicy cancellationPolicy)
+        private void CompletePromiseFromTask(
+            Task task,
+            JsPromiseObject promise,
+            IJsCancelReasonProvider? cancelReasonProvider,
+            JsTaskCancellationPolicy cancellationPolicy
+        )
         {
             if (task.IsCanceled)
             {
-                if (TryGetCanceledReason(cancelReasonProvider, cancellationPolicy, out var canceledReason))
+                if (
+                    TryGetCanceledReason(
+                        cancelReasonProvider,
+                        cancellationPolicy,
+                        out var canceledReason
+                    )
+                )
                 {
                     this.RejectPromise(promise, canceledReason);
                     return;
                 }
 
-                this.RejectPromise(promise, CreateHostExceptionValue(new TaskCanceledException(task)));
+                this.RejectPromise(
+                    promise,
+                    CreateHostExceptionValue(new TaskCanceledException(task))
+                );
                 return;
             }
 
             if (task.IsFaulted)
             {
-                this.RejectPromise(promise, GetTaskFaultReason(task.Exception?.InnerException ?? task.Exception!));
+                this.RejectPromise(
+                    promise,
+                    GetTaskFaultReason(task.Exception?.InnerException ?? task.Exception!)
+                );
                 return;
             }
 
             this.ResolvePromise(promise, JsValue.Undefined);
         }
 
-        private void CompletePromiseFromTask<T>(Task<T> task, JsPromiseObject promise,
-            IJsCancelReasonProvider? cancelReasonProvider, JsTaskCancellationPolicy cancellationPolicy)
+        private void CompletePromiseFromTask<T>(
+            Task<T> task,
+            JsPromiseObject promise,
+            IJsCancelReasonProvider? cancelReasonProvider,
+            JsTaskCancellationPolicy cancellationPolicy
+        )
         {
             if (task.IsCanceled)
             {
-                if (TryGetCanceledReason(cancelReasonProvider, cancellationPolicy, out var canceledReason))
+                if (
+                    TryGetCanceledReason(
+                        cancelReasonProvider,
+                        cancellationPolicy,
+                        out var canceledReason
+                    )
+                )
                 {
                     this.RejectPromise(promise, canceledReason);
                     return;
                 }
 
-                this.RejectPromise(promise, CreateHostExceptionValue(new TaskCanceledException(task)));
+                this.RejectPromise(
+                    promise,
+                    CreateHostExceptionValue(new TaskCanceledException(task))
+                );
                 return;
             }
 
             if (task.IsFaulted)
             {
-                this.RejectPromise(promise, GetTaskFaultReason(task.Exception?.InnerException ?? task.Exception!));
+                this.RejectPromise(
+                    promise,
+                    GetTaskFaultReason(task.Exception?.InnerException ?? task.Exception!)
+                );
                 return;
             }
 
             this.ResolvePromiseWithAssimilation(promise, WrapHostValue(task.Result));
         }
 
-        private static bool TryGetCanceledReason(IJsCancelReasonProvider? cancelReasonProvider,
-            JsTaskCancellationPolicy cancellationPolicy, out JsValue canceledReason)
+        private static bool TryGetCanceledReason(
+            IJsCancelReasonProvider? cancelReasonProvider,
+            JsTaskCancellationPolicy cancellationPolicy,
+            out JsValue canceledReason
+        )
         {
-            if (cancellationPolicy == JsTaskCancellationPolicy.RejectWithProviderReasonOrHostException &&
-                cancelReasonProvider is not null &&
-                cancelReasonProvider.TryGetCancelReason(out canceledReason) &&
-                !canceledReason.IsUndefined)
+            if (
+                cancellationPolicy
+                    == JsTaskCancellationPolicy.RejectWithProviderReasonOrHostException
+                && cancelReasonProvider is not null
+                && cancelReasonProvider.TryGetCancelReason(out canceledReason)
+                && !canceledReason.IsUndefined
+            )
                 return true;
 
             canceledReason = JsValue.Undefined;
@@ -806,21 +1186,27 @@ namespace Okojo.Runtime
 
         private JsValue CreateHostExceptionValue(Exception ex)
         {
-            var err = new JsPlainObject(this, false)
-            {
-                Prototype = ErrorPrototype
-            };
-            err.DefineDataPropertyAtom(this, IdName, JsValue.FromString(ex.GetType().Name),
-                JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable);
-            err.DefineDataPropertyAtom(this, IdMessage, JsValue.FromString(ex.Message ?? string.Empty),
-                JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable);
+            var err = new JsPlainObject(this, false) { Prototype = ErrorPrototype };
+            err.DefineDataPropertyAtom(
+                this,
+                IdName,
+                JsValue.FromString(ex.GetType().Name),
+                JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable
+            );
+            err.DefineDataPropertyAtom(
+                this,
+                IdMessage,
+                JsValue.FromString(ex.Message ?? string.Empty),
+                JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable
+            );
             return JsValue.FromObject(err);
         }
 
         private sealed class PromiseValueTaskSourceAttachment(
             object source,
             Action<JsRealm, JsValue, object> resolveAction,
-            Action<JsValue, object> rejectAction)
+            Action<JsValue, object> rejectAction
+        )
         {
             public object Source { get; } = source;
             public Action<JsRealm, JsValue, object> ResolveAction { get; } = resolveAction;
@@ -880,8 +1266,12 @@ namespace Okojo.Runtime
             internal static readonly Action<object?> CompletePromiseJob = static state =>
             {
                 var completion = (PendingTaskResultPromiseState<T>)state!;
-                completion.Realm.CompletePromiseFromTask(completion.Task, completion.Promise,
-                    completion.CancelReasonProvider, completion.CancellationPolicy);
+                completion.Realm.CompletePromiseFromTask(
+                    completion.Task,
+                    completion.Promise,
+                    completion.CancelReasonProvider,
+                    completion.CancellationPolicy
+                );
             };
         }
     }

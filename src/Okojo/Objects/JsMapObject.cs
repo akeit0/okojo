@@ -3,9 +3,12 @@ namespace Okojo.Objects;
 public sealed class JsMapObject : JsObject
 {
     private readonly List<Entry> entries = new(4);
-    private readonly Dictionary<JsValue, int> entryIndexByKey = new(JsValueSameValueZeroComparer.Instance);
+    private readonly Dictionary<JsValue, int> entryIndexByKey = new(
+        JsValueSameValueZeroComparer.Instance
+    );
 
-    public JsMapObject(JsRealm realm, JsObject? prototype = null) : base(realm)
+    public JsMapObject(JsRealm realm, JsObject? prototype = null)
+        : base(realm)
     {
         Prototype = prototype ?? realm.MapPrototype;
     }
@@ -40,7 +43,14 @@ public sealed class JsMapObject : JsObject
         }
 
         entryIndexByKey[key] = entries.Count;
-        entries.Add(new() { Key = key, Value = value, IsDeleted = false });
+        entries.Add(
+            new()
+            {
+                Key = key,
+                Value = value,
+                IsDeleted = false,
+            }
+        );
         Count++;
     }
 

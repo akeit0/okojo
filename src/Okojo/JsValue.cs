@@ -13,7 +13,8 @@ public readonly struct JsValue : IEquatable<JsValue>
     internal const ulong Top32Mask = 0xFFFFFFFF00000000UL;
     internal const int TagShift = 44;
     internal const ulong TagMask = 0xFUL;
-    internal const ulong JsInt32Top32Bits = (BoxHdr | ((ulong)Tag.JsTagInt << TagShift)) & Top32Mask;
+    internal const ulong JsInt32Top32Bits =
+        (BoxHdr | ((ulong)Tag.JsTagInt << TagShift)) & Top32Mask;
     internal const ulong JsNullBits = BoxHdr | ((ulong)Tag.JsTagNull << TagShift);
     internal const ulong JsUndefinedBits = BoxHdr | ((ulong)Tag.JsTagUndefined << TagShift);
     internal const ulong JsTheHoleBits = BoxHdr | ((ulong)Tag.JsTagUninitialized << TagShift);
@@ -33,16 +34,19 @@ public readonly struct JsValue : IEquatable<JsValue>
     public const ulong JsNan = 0x7ff0000000000001;
     public static JsValue NaN => new(JsNan);
 
-    [FieldOffset(0)] public readonly ulong U;
+    [FieldOffset(0)]
+    public readonly ulong U;
 
     // [FieldOffset(0)] public readonly double D;
-    [FieldOffset(8)] public readonly object? Obj;
+    [FieldOffset(8)]
+    public readonly object? Obj;
 
     public Tag Tag
     {
         get
         {
-            if ((U & BoxMask) != BoxHdr) return Tag.JsTagFloat64;
+            if ((U & BoxMask) != BoxHdr)
+                return Tag.JsTagFloat64;
             return (Tag)((U >> TagShift) & TagMask);
         }
     }
@@ -52,7 +56,8 @@ public readonly struct JsValue : IEquatable<JsValue>
     public bool IsNumber => (U & BoxMask) != BoxHdr || (U & Top32Mask) == JsInt32Top32Bits;
 
     public bool IsNumeric =>
-        (U & BoxMask) != BoxHdr || (U & Top32Mask) is JsInt32Top32Bits or (JsBigIntBits & Top32Mask);
+        (U & BoxMask) != BoxHdr
+        || (U & Top32Mask) is JsInt32Top32Bits or (JsBigIntBits & Top32Mask);
 
     public bool IsSymbol => U == JsSymbolBits;
     public bool IsString => U == JsStringBits;
@@ -167,7 +172,8 @@ public readonly struct JsValue : IEquatable<JsValue>
     internal JsValue NegateBigInt()
     {
         var bigint = AsBigInt().Value;
-        if (bigint.IsZero) return this;
+        if (bigint.IsZero)
+            return this;
         return FromBigInt(new(-bigint));
     }
 
@@ -338,19 +344,16 @@ public readonly struct JsValue : IEquatable<JsValue>
 
         if (typeof(T) == typeof(object))
         {
-            object? boxed = IsUndefined || IsNull
-                ? null
-                : IsString
-                    ? AsString()
-                    : IsBool
-                        ? IsTrue
-                        : IsInt32
-                            ? Int32Value
-                            : IsNumber
-                                ? NumberValue
-                                : TryGetObject(out var boxedObject)
-                                    ? boxedObject is Objects.JsHostObject host ? host.Data : boxedObject
-                                    : this;
+            object? boxed =
+                IsUndefined || IsNull ? null
+                : IsString ? AsString()
+                : IsBool ? IsTrue
+                : IsInt32 ? Int32Value
+                : IsNumber ? NumberValue
+                : TryGetObject(out var boxedObject)
+                    ? boxedObject is Objects.JsHostObject host ? host.Data
+                        : boxedObject
+                : this;
             value = Unsafe.As<object?, T>(ref boxed)!;
             return true;
         }
@@ -550,14 +553,15 @@ public readonly struct JsValue : IEquatable<JsValue>
         Obj = null;
     }
 
-    public JsValue(bool v) : this(Tag.JsTagBool, v ? 1u : 0u)
-    {
-    }
+    public JsValue(bool v)
+        : this(Tag.JsTagBool, v ? 1u : 0u) { }
 
     internal double FastFloat64Value => Unsafe.As<ulong, double>(ref Unsafe.AsRef(in U));
 
     public double Float64Value =>
-        IsFloat64 ? Unsafe.As<ulong, double>(ref Unsafe.AsRef(in U)) : IsInt32 ? Int32Value : double.NaN;
+        IsFloat64 ? Unsafe.As<ulong, double>(ref Unsafe.AsRef(in U))
+        : IsInt32 ? Int32Value
+        : double.NaN;
 
     public int Int32Value => (int)(U & 0xFFFFFFFFUL);
 
@@ -565,7 +569,8 @@ public readonly struct JsValue : IEquatable<JsValue>
     {
         get
         {
-            if ((U & BoxMask) != BoxHdr) return Unsafe.As<ulong, double>(ref Unsafe.AsRef(in U));
+            if ((U & BoxMask) != BoxHdr)
+                return Unsafe.As<ulong, double>(ref Unsafe.AsRef(in U));
 
             var intValue = (int)(U & 0xFFFFFFFFUL);
             // if(intValue==0)return +0d;
@@ -612,15 +617,18 @@ public readonly struct JsValue : IEquatable<JsValue>
 
     internal static double FastNumberValueFromULong(ulong u)
     {
-        if ((u & BoxMask) != BoxHdr) return Unsafe.As<ulong, double>(ref u);
+        if ((u & BoxMask) != BoxHdr)
+            return Unsafe.As<ulong, double>(ref u);
 
         var intValue = (int)(u & 0xFFFFFFFFUL);
         // if(intValue==0)return +0d;
         return intValue;
     }
 
-    public double NumberValue => (U & BoxMask) != BoxHdr ? Unsafe.As<ulong, double>(ref Unsafe.AsRef(in U)) :
-        IsInt32 ? Int32Value : double.NaN;
+    public double NumberValue =>
+        (U & BoxMask) != BoxHdr ? Unsafe.As<ulong, double>(ref Unsafe.AsRef(in U))
+        : IsInt32 ? Int32Value
+        : double.NaN;
 
     public static implicit operator JsValue(int value)
     {
@@ -675,7 +683,9 @@ public readonly struct JsValue : IEquatable<JsValue>
             if (double.IsNaN(number))
                 return double.NaN.GetHashCode();
             if (number == 0d)
-                return double.IsNegativeInfinity(1d / number) ? double.NegativeInfinity.GetHashCode() : 0;
+                return double.IsNegativeInfinity(1d / number)
+                    ? double.NegativeInfinity.GetHashCode()
+                    : 0;
             return number.GetHashCode();
         }
 
@@ -717,33 +727,55 @@ public readonly struct JsValue : IEquatable<JsValue>
 
     public override string ToString()
     {
-        if (IsUndefined) return "undefined";
-        if (IsNull) return "null";
-        if (IsNaN) return "NaN";
-        if (IsFloat64) return NumberFormatting.ToString(Float64Value);
-        if (IsTrue) return "true";
-        if (IsFalse) return "false";
-        if (IsInt32) return Int32Value.ToString();
-        if (IsSymbol) return AsSymbol().ToString();
-        if (IsString) return AsString();
-        if (IsBigInt) return AsBigInt().ToString();
-        if (IsObject) return AsObject().ToString() ?? $"[object {AsObject().GetType().Name}]";
+        if (IsUndefined)
+            return "undefined";
+        if (IsNull)
+            return "null";
+        if (IsNaN)
+            return "NaN";
+        if (IsFloat64)
+            return NumberFormatting.ToString(Float64Value);
+        if (IsTrue)
+            return "true";
+        if (IsFalse)
+            return "false";
+        if (IsInt32)
+            return Int32Value.ToString();
+        if (IsSymbol)
+            return AsSymbol().ToString();
+        if (IsString)
+            return AsString();
+        if (IsBigInt)
+            return AsBigInt().ToString();
+        if (IsObject)
+            return AsObject().ToString() ?? $"[object {AsObject().GetType().Name}]";
         return Tag.ToString();
     }
 
     public string ToString(JsRealm realm)
     {
-        if (IsUndefined) return "undefined";
-        if (IsNull) return "null";
-        if (IsNaN) return "NaN";
-        if (IsFloat64) return NumberFormatting.ToString(Float64Value);
-        if (IsTrue) return "true";
-        if (IsFalse) return "false";
-        if (IsInt32) return Int32Value.ToString();
-        if (IsSymbol) return AsSymbol().ToString();
-        if (IsString) return AsString();
-        if (IsBigInt) return AsBigInt().ToString();
-        if (IsObject) return realm.ToPrimitiveSlowPath(this, true).ToString(realm);
+        if (IsUndefined)
+            return "undefined";
+        if (IsNull)
+            return "null";
+        if (IsNaN)
+            return "NaN";
+        if (IsFloat64)
+            return NumberFormatting.ToString(Float64Value);
+        if (IsTrue)
+            return "true";
+        if (IsFalse)
+            return "false";
+        if (IsInt32)
+            return Int32Value.ToString();
+        if (IsSymbol)
+            return AsSymbol().ToString();
+        if (IsString)
+            return AsString();
+        if (IsBigInt)
+            return AsBigInt().ToString();
+        if (IsObject)
+            return realm.ToPrimitiveSlowPath(this, true).ToString(realm);
         return Tag.ToString();
     }
 
@@ -775,11 +807,11 @@ public readonly struct JsValue : IEquatable<JsValue>
     public static double StringToNumber(string s)
     {
         var span = s.AsSpan().Trim();
-        if (span.Length == 0) return 0d;
+        if (span.Length == 0)
+            return 0d;
         if (TryParseHexLiteral(span, out var hex))
             return hex;
-        if (double.TryParse(span, NumberStyles.Float,
-                CultureInfo.InvariantCulture, out var n))
+        if (double.TryParse(span, NumberStyles.Float, CultureInfo.InvariantCulture, out var n))
             return n;
         return double.NaN;
 
@@ -801,7 +833,7 @@ public readonly struct JsValue : IEquatable<JsValue>
                     >= '0' and <= '9' => text[i] - '0',
                     >= 'a' and <= 'f' => text[i] - 'a' + 10,
                     >= 'A' and <= 'F' => text[i] - 'A' + 10,
-                    _ => -1
+                    _ => -1,
                 };
                 if (digit < 0)
                     return false;

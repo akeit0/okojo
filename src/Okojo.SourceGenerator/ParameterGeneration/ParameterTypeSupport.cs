@@ -19,7 +19,7 @@ internal enum SpanElementKind : byte
     UInt64,
     Single,
     Double,
-    Decimal
+    Decimal,
 }
 
 internal static class ParameterTypeSupport
@@ -44,10 +44,13 @@ internal static class ParameterTypeSupport
     public static bool TryGetTrailingReadOnlySpanElementType(
         IReadOnlyList<IParameterSymbol> parameters,
         out int spanIndex,
-        out ITypeSymbol elementType)
+        out ITypeSymbol elementType
+    )
     {
-        if (parameters.Count != 0 &&
-            TryGetReadOnlySpanElementType(parameters[parameters.Count - 1].Type, out elementType))
+        if (
+            parameters.Count != 0
+            && TryGetReadOnlySpanElementType(parameters[parameters.Count - 1].Type, out elementType)
+        )
         {
             spanIndex = parameters.Count - 1;
             return true;
@@ -60,10 +63,12 @@ internal static class ParameterTypeSupport
 
     public static bool TryGetReadOnlySpanElementType(ITypeSymbol type, out ITypeSymbol elementType)
     {
-        if (type is INamedTypeSymbol namedType &&
-            namedType.Name == "ReadOnlySpan" &&
-            namedType.TypeArguments.Length == 1 &&
-            namedType.ContainingNamespace.ToDisplayString() == "System")
+        if (
+            type is INamedTypeSymbol namedType
+            && namedType.Name == "ReadOnlySpan"
+            && namedType.TypeArguments.Length == 1
+            && namedType.ContainingNamespace.ToDisplayString() == "System"
+        )
         {
             elementType = namedType.TypeArguments[0];
             return true;
@@ -73,7 +78,10 @@ internal static class ParameterTypeSupport
         return false;
     }
 
-    public static int ComputeFunctionLength(ImmutableArray<IParameterSymbol> parameters, bool stopAtDefaultValue)
+    public static int ComputeFunctionLength(
+        ImmutableArray<IParameterSymbol> parameters,
+        bool stopAtDefaultValue
+    )
     {
         var length = 0;
         for (var i = 0; i < parameters.Length; i++)
@@ -91,7 +99,10 @@ internal static class ParameterTypeSupport
 
     public static SpanElementKind GetSpanElementKind(ITypeSymbol type)
     {
-        if (type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::Okojo.JsValue")
+        if (
+            type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
+            == "global::Okojo.JsValue"
+        )
             return SpanElementKind.JsValue;
 
         return type.SpecialType switch
@@ -109,14 +120,14 @@ internal static class ParameterTypeSupport
             SpecialType.System_Single => SpanElementKind.Single,
             SpecialType.System_Double => SpanElementKind.Double,
             SpecialType.System_Decimal => SpanElementKind.Decimal,
-            _ => SpanElementKind.Other
+            _ => SpanElementKind.Other,
         };
     }
 
     public static bool IsTaskLike(ITypeSymbol type)
     {
-        return type is INamedTypeSymbol namedType &&
-               namedType.ContainingNamespace.ToDisplayString() == "System.Threading.Tasks" &&
-               namedType.Name is "Task" or "ValueTask";
+        return type is INamedTypeSymbol namedType
+            && namedType.ContainingNamespace.ToDisplayString() == "System.Threading.Tasks"
+            && namedType.Name is "Task" or "ValueTask";
     }
 }

@@ -7,10 +7,9 @@ public class ModuleGraphStateTests
     [Test]
     public void EvaluateModule_SetsGraphState_ToEvaluated()
     {
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/a.js"] = "export const a = 1;"
-        });
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal) { ["/mods/a.js"] = "export const a = 1;" }
+        );
         var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var worker = engine.CreateWorkerAgent();
 
@@ -23,14 +22,18 @@ public class ModuleGraphStateTests
     [Test]
     public void EvaluateModule_OnRuntimeFailure_SetsGraphState_ToFailed()
     {
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/bad.js"] = "export const x = (function(){ throw 1; })();"
-        });
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal)
+            {
+                ["/mods/bad.js"] = "export const x = (function(){ throw 1; })();",
+            }
+        );
         var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var worker = engine.CreateWorkerAgent();
 
-        Assert.Throws<JsRuntimeException>(() => _ = worker.EvaluateModule(worker.MainRealm, "/mods/bad.js"));
+        Assert.Throws<JsRuntimeException>(() =>
+            _ = worker.EvaluateModule(worker.MainRealm, "/mods/bad.js")
+        );
 
         Assert.That(worker.ModuleGraph.TryGet("/mods/bad.js", out var node), Is.True);
         Assert.That(node.State, Is.EqualTo(ModuleEvalState.Failed));
@@ -39,17 +42,18 @@ public class ModuleGraphStateTests
     [Test]
     public void EvaluateModule_OnRepeatedRuntimeFailure_Rethrows_Original_Error()
     {
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/bad.js"] = "throw 'foo';"
-        });
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal) { ["/mods/bad.js"] = "throw 'foo';" }
+        );
         var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var worker = engine.CreateWorkerAgent();
 
         var first = Assert.Throws<JsRuntimeException>(() =>
-            _ = worker.EvaluateModule(worker.MainRealm, "/mods/bad.js"));
-        var second =
-            Assert.Throws<JsRuntimeException>(() => _ = worker.EvaluateModule(worker.MainRealm, "/mods/bad.js"));
+            _ = worker.EvaluateModule(worker.MainRealm, "/mods/bad.js")
+        );
+        var second = Assert.Throws<JsRuntimeException>(() =>
+            _ = worker.EvaluateModule(worker.MainRealm, "/mods/bad.js")
+        );
 
         Assert.That(first!.ThrownValue!.Value.AsString(), Is.EqualTo("foo"));
         Assert.That(second!.ThrownValue!.Value.AsString(), Is.EqualTo("foo"));
@@ -60,17 +64,19 @@ public class ModuleGraphStateTests
     [Test]
     public void EvaluateModule_Cycle_SetsAllNodes_ToEvaluated()
     {
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/a.js"] = """
-                             import "./b.js";
-                             export const a = 1;
-                             """,
-            ["/mods/b.js"] = """
-                             import "./a.js";
-                             export const b = 2;
-                             """
-        });
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal)
+            {
+                ["/mods/a.js"] = """
+                import "./b.js";
+                export const a = 1;
+                """,
+                ["/mods/b.js"] = """
+                import "./a.js";
+                export const b = 2;
+                """,
+            }
+        );
         var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var worker = engine.CreateWorkerAgent();
 
@@ -85,16 +91,18 @@ public class ModuleGraphStateTests
     [Test]
     public void LinkModule_RecursivelyCreatesDependencyNodes_WithoutEvaluation()
     {
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/a.js"] = """
-                             import "./b.js";
-                             export const a = 1;
-                             """,
-            ["/mods/b.js"] = """
-                             export const b = 2;
-                             """
-        });
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal)
+            {
+                ["/mods/a.js"] = """
+                import "./b.js";
+                export const a = 1;
+                """,
+                ["/mods/b.js"] = """
+                export const b = 2;
+                """,
+            }
+        );
         var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var worker = engine.CreateWorkerAgent();
 
@@ -109,7 +117,8 @@ public class ModuleGraphStateTests
         Assert.That(bNode.State, Is.EqualTo(ModuleEvalState.Uninitialized));
     }
 
-    private sealed class InMemoryModuleLoader(Dictionary<string, string> modules) : IModuleSourceLoader
+    private sealed class InMemoryModuleLoader(Dictionary<string, string> modules)
+        : IModuleSourceLoader
     {
         public string ResolveSpecifier(string specifier, string? referrer)
         {

@@ -7,15 +7,20 @@ internal sealed class JsFinalizationRegistryObject : JsObject
     private readonly List<CellRecord> cells = new();
     private bool cleanupJobActive;
 
-    internal JsFinalizationRegistryObject(JsRealm realm, JsObject prototype) : base(realm)
+    internal JsFinalizationRegistryObject(JsRealm realm, JsObject prototype)
+        : base(realm)
     {
         Prototype = prototype;
         CleanupCallback = null!;
         realm.Agent.TrackFinalizationRegistry(this);
     }
 
-    internal JsFinalizationRegistryObject(JsRealm realm, JsObject prototype, JsFunction cleanupCallback) :
-        base(realm)
+    internal JsFinalizationRegistryObject(
+        JsRealm realm,
+        JsObject prototype,
+        JsFunction cleanupCallback
+    )
+        : base(realm)
     {
         Prototype = prototype;
         CleanupCallback = cleanupCallback;
@@ -26,7 +31,11 @@ internal sealed class JsFinalizationRegistryObject : JsObject
 
     internal int CellCount => cells.Count;
 
-    internal void RegisterTarget(in JsValue target, in JsValue heldValue, in JsValue unregisterToken)
+    internal void RegisterTarget(
+        in JsValue target,
+        in JsValue heldValue,
+        in JsValue unregisterToken
+    )
     {
         cells.Add(new(target, heldValue, unregisterToken));
     }
@@ -105,7 +114,9 @@ internal sealed class JsFinalizationRegistryObject : JsObject
             else if (target.IsSymbol)
                 symbolTarget = target.AsSymbol();
             else
-                throw new InvalidOperationException("FinalizationRegistry target must be weakly holdable.");
+                throw new InvalidOperationException(
+                    "FinalizationRegistry target must be weakly holdable."
+                );
 
             HeldValue = heldValue;
             UnregisterToken = unregisterToken;
@@ -134,14 +145,21 @@ internal sealed class JsFinalizationRegistryObject : JsObject
                 return false;
             if (target.TryGetObject(out var obj))
             {
-                if (objectTarget is null || !objectTarget.TryGetTarget(out var current) ||
-                    !ReferenceEquals(current, obj))
+                if (
+                    objectTarget is null
+                    || !objectTarget.TryGetTarget(out var current)
+                    || !ReferenceEquals(current, obj)
+                )
                     return false;
                 cleared = true;
                 return true;
             }
 
-            if (!target.IsSymbol || symbolTarget is null || !ReferenceEquals(symbolTarget, target.AsSymbol()))
+            if (
+                !target.IsSymbol
+                || symbolTarget is null
+                || !ReferenceEquals(symbolTarget, target.AsSymbol())
+            )
                 return false;
 
             symbolTarget = null;

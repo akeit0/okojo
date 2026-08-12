@@ -10,7 +10,9 @@ public static partial class Locale
     /// <summary>Resolves a BCP-47 locale tag to a .NET <see cref="CultureInfo"/>.</summary>
     public static CultureInfo GetCultureInfo(string locale)
     {
-        return CultureInfo.GetCultureInfo(CanonicalizeUnicodeLocaleId(RemoveUnicodeExtensions(locale)));
+        return CultureInfo.GetCultureInfo(
+            CanonicalizeUnicodeLocaleId(RemoveUnicodeExtensions(locale))
+        );
     }
 
     /// <summary>Resolves a BCP-47 locale tag to its <see cref="CompareInfo"/>.</summary>
@@ -22,10 +24,13 @@ public static partial class Locale
     private static readonly ConcurrentDictionary<string, string?> ValidatedCanonicalLocaleCache =
         new(StringComparer.OrdinalIgnoreCase);
 
-    private static readonly ConcurrentDictionary<string, string> CanonicalLocaleCache =
-        new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<string, string> CanonicalLocaleCache = new(
+        StringComparer.OrdinalIgnoreCase
+    );
 
-    private static readonly Dictionary<string, string> GrandfatheredTags = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, string> GrandfatheredTags = new(
+        StringComparer.OrdinalIgnoreCase
+    )
     {
         { "art-lojban", "jbo" },
         { "cel-gaulish", "xtg" },
@@ -50,51 +55,138 @@ public static partial class Locale
         { "sgn-PT", "psr" },
         { "sgn-SE", "swl" },
         { "sgn-US", "ase" },
-        { "sgn-ZA", "sfs" }
+        { "sgn-ZA", "sfs" },
     };
 
-    private static readonly Dictionary<string, string> LanguageAliases = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, string> LanguageAliases = new(
+        StringComparer.OrdinalIgnoreCase
+    )
     {
-        { "cmn", "zh" }, { "arb", "ar" }, { "swh", "sw" }, { "zsm", "ms" },
-        { "ji", "yi" }, { "iw", "he" }, { "in", "id" }, { "jw", "jv" },
-        { "mo", "ro" }, { "tl", "fil" }, { "sh", "sr-Latn" }
+        { "cmn", "zh" },
+        { "arb", "ar" },
+        { "swh", "sw" },
+        { "zsm", "ms" },
+        { "ji", "yi" },
+        { "iw", "he" },
+        { "in", "id" },
+        { "jw", "jv" },
+        { "mo", "ro" },
+        { "tl", "fil" },
+        { "sh", "sr-Latn" },
     };
 
-    private static readonly Dictionary<string, string> RegionAliases = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, string> RegionAliases = new(
+        StringComparer.OrdinalIgnoreCase
+    )
     {
-        { "DD", "DE" }, { "YD", "YE" }, { "AN", "CW" }, { "CS", "RS" },
-        { "YU", "RS" }, { "TP", "TL" }, { "ZR", "CD" }, { "BU", "MM" },
-        { "SU", "RU" }, { "FX", "FR" }
+        { "DD", "DE" },
+        { "YD", "YE" },
+        { "AN", "CW" },
+        { "CS", "RS" },
+        { "YU", "RS" },
+        { "TP", "TL" },
+        { "ZR", "CD" },
+        { "BU", "MM" },
+        { "SU", "RU" },
+        { "FX", "FR" },
     };
 
-    private static readonly Dictionary<string, string> LikelyScripts = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, string> LikelyScripts = new(
+        StringComparer.OrdinalIgnoreCase
+    )
     {
-        { "aa", "Latn" }, { "ab", "Cyrl" }, { "af", "Latn" }, { "am", "Ethi" }, { "ar", "Arab" },
-        { "as", "Beng" }, { "az", "Latn" }, { "be", "Cyrl" }, { "bg", "Cyrl" }, { "bn", "Beng" },
-        { "bs", "Latn" }, { "ca", "Latn" }, { "cs", "Latn" }, { "cy", "Latn" }, { "da", "Latn" },
-        { "de", "Latn" }, { "el", "Grek" }, { "en", "Latn" }, { "es", "Latn" }, { "et", "Latn" },
-        { "eu", "Latn" }, { "fa", "Arab" }, { "fi", "Latn" }, { "fr", "Latn" }, { "ga", "Latn" },
-        { "gl", "Latn" }, { "gu", "Gujr" }, { "he", "Hebr" }, { "hi", "Deva" }, { "hr", "Latn" },
-        { "hu", "Latn" }, { "hy", "Armn" }, { "id", "Latn" }, { "is", "Latn" }, { "it", "Latn" },
-        { "ja", "Jpan" }, { "ka", "Geor" }, { "kk", "Cyrl" }, { "km", "Khmr" }, { "kn", "Knda" },
-        { "ko", "Kore" }, { "ky", "Cyrl" }, { "lo", "Laoo" }, { "lt", "Latn" }, { "lv", "Latn" },
-        { "mk", "Cyrl" }, { "ml", "Mlym" }, { "mn", "Cyrl" }, { "mr", "Deva" }, { "ms", "Latn" },
-        { "my", "Mymr" }, { "nb", "Latn" }, { "ne", "Deva" }, { "nl", "Latn" }, { "nn", "Latn" },
-        { "no", "Latn" }, { "or", "Orya" }, { "pa", "Guru" }, { "pl", "Latn" }, { "ps", "Arab" },
-        { "pt", "Latn" }, { "ro", "Latn" }, { "ru", "Cyrl" }, { "si", "Sinh" }, { "sk", "Latn" },
-        { "sl", "Latn" }, { "sq", "Latn" }, { "sr", "Cyrl" }, { "sv", "Latn" }, { "sw", "Latn" },
-        { "ta", "Taml" }, { "te", "Telu" }, { "tg", "Cyrl" }, { "th", "Thai" }, { "tk", "Latn" },
-        { "tr", "Latn" }, { "uk", "Cyrl" }, { "und", "Latn" }, { "ur", "Arab" }, { "uz", "Latn" },
-        { "vi", "Latn" }, { "zh", "Hans" }
+        { "aa", "Latn" },
+        { "ab", "Cyrl" },
+        { "af", "Latn" },
+        { "am", "Ethi" },
+        { "ar", "Arab" },
+        { "as", "Beng" },
+        { "az", "Latn" },
+        { "be", "Cyrl" },
+        { "bg", "Cyrl" },
+        { "bn", "Beng" },
+        { "bs", "Latn" },
+        { "ca", "Latn" },
+        { "cs", "Latn" },
+        { "cy", "Latn" },
+        { "da", "Latn" },
+        { "de", "Latn" },
+        { "el", "Grek" },
+        { "en", "Latn" },
+        { "es", "Latn" },
+        { "et", "Latn" },
+        { "eu", "Latn" },
+        { "fa", "Arab" },
+        { "fi", "Latn" },
+        { "fr", "Latn" },
+        { "ga", "Latn" },
+        { "gl", "Latn" },
+        { "gu", "Gujr" },
+        { "he", "Hebr" },
+        { "hi", "Deva" },
+        { "hr", "Latn" },
+        { "hu", "Latn" },
+        { "hy", "Armn" },
+        { "id", "Latn" },
+        { "is", "Latn" },
+        { "it", "Latn" },
+        { "ja", "Jpan" },
+        { "ka", "Geor" },
+        { "kk", "Cyrl" },
+        { "km", "Khmr" },
+        { "kn", "Knda" },
+        { "ko", "Kore" },
+        { "ky", "Cyrl" },
+        { "lo", "Laoo" },
+        { "lt", "Latn" },
+        { "lv", "Latn" },
+        { "mk", "Cyrl" },
+        { "ml", "Mlym" },
+        { "mn", "Cyrl" },
+        { "mr", "Deva" },
+        { "ms", "Latn" },
+        { "my", "Mymr" },
+        { "nb", "Latn" },
+        { "ne", "Deva" },
+        { "nl", "Latn" },
+        { "nn", "Latn" },
+        { "no", "Latn" },
+        { "or", "Orya" },
+        { "pa", "Guru" },
+        { "pl", "Latn" },
+        { "ps", "Arab" },
+        { "pt", "Latn" },
+        { "ro", "Latn" },
+        { "ru", "Cyrl" },
+        { "si", "Sinh" },
+        { "sk", "Latn" },
+        { "sl", "Latn" },
+        { "sq", "Latn" },
+        { "sr", "Cyrl" },
+        { "sv", "Latn" },
+        { "sw", "Latn" },
+        { "ta", "Taml" },
+        { "te", "Telu" },
+        { "tg", "Cyrl" },
+        { "th", "Thai" },
+        { "tk", "Latn" },
+        { "tr", "Latn" },
+        { "uk", "Cyrl" },
+        { "und", "Latn" },
+        { "ur", "Arab" },
+        { "uz", "Latn" },
+        { "vi", "Latn" },
+        { "zh", "Hans" },
     };
 
-    private static readonly Dictionary<string, string> TValueAliases = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, string> TValueAliases = new(
+        StringComparer.OrdinalIgnoreCase
+    )
     {
-        { "names", "prprname" }
+        { "names", "prprname" },
     };
 
-    [GeneratedRegex("^[a-zA-Z]{2,8}(?:-[a-zA-Z0-9]{1,8})*$", RegexOptions.CultureInvariant,
-        100)]
+    [GeneratedRegex("^[a-zA-Z]{2,8}(?:-[a-zA-Z0-9]{1,8})*$", RegexOptions.CultureInvariant, 100)]
     private static partial Regex LanguageTagRegex();
 
     /// <summary>Removes the <c>-u-...</c> unicode extension from a locale tag, leaving the base tag.</summary>
@@ -218,8 +310,11 @@ public static partial class Locale
                 extensionHasSubtag = true;
                 if (extensionType == 'x')
                     continue;
-                if (extensionType == 'u' && part.Length == 2 &&
-                    (!char.IsLetterOrDigit(part[0]) || !char.IsLetter(part[1])))
+                if (
+                    extensionType == 'u'
+                    && part.Length == 2
+                    && (!char.IsLetterOrDigit(part[0]) || !char.IsLetter(part[1]))
+                )
                     return false;
             }
             else
@@ -243,8 +338,10 @@ public static partial class Locale
                         return false;
                     }
                 }
-                else if ((part.Length == 2 && char.IsLetter(part[0])) ||
-                         (part.Length == 3 && char.IsDigit(part[0])))
+                else if (
+                    (part.Length == 2 && char.IsLetter(part[0]))
+                    || (part.Length == 3 && char.IsDigit(part[0]))
+                )
                 {
                     if (hasRegion)
                         return false;
@@ -293,7 +390,9 @@ public static partial class Locale
             var parsed = ParseLanguageTag(locale);
             if (parsed.Language is not null)
             {
-                if (LocaleData.ComplexLanguageMappings.TryGetValue(parsed.Language, out var complex))
+                if (
+                    LocaleData.ComplexLanguageMappings.TryGetValue(parsed.Language, out var complex)
+                )
                 {
                     parsed.Language = complex.Language;
                     if (parsed.Script is null && complex.Script is not null)
@@ -301,8 +400,10 @@ public static partial class Locale
                     if (parsed.Region is null && complex.Region is not null)
                         parsed.Region = complex.Region;
                 }
-                else if (LocaleData.LanguageMappings.TryGetValue(parsed.Language, out replacement) ||
-                         LanguageAliases.TryGetValue(parsed.Language, out replacement))
+                else if (
+                    LocaleData.LanguageMappings.TryGetValue(parsed.Language, out replacement)
+                    || LanguageAliases.TryGetValue(parsed.Language, out replacement)
+                )
                 {
                     if (replacement.Contains('-'))
                     {
@@ -327,14 +428,23 @@ public static partial class Locale
                 if (script is not null)
                 {
                     var scriptRegionKey = script + "+" + parsed.Region;
-                    if (LocaleData.ScriptRegionMappings.TryGetValue(scriptRegionKey, out replacement))
+                    if (
+                        LocaleData.ScriptRegionMappings.TryGetValue(
+                            scriptRegionKey,
+                            out replacement
+                        )
+                    )
                         parsed.Region = replacement;
-                    else if (LocaleData.RegionMappings.TryGetValue(parsed.Region, out replacement) ||
-                             RegionAliases.TryGetValue(parsed.Region, out replacement))
+                    else if (
+                        LocaleData.RegionMappings.TryGetValue(parsed.Region, out replacement)
+                        || RegionAliases.TryGetValue(parsed.Region, out replacement)
+                    )
                         parsed.Region = replacement;
                 }
-                else if (LocaleData.RegionMappings.TryGetValue(parsed.Region, out replacement) ||
-                         RegionAliases.TryGetValue(parsed.Region, out replacement))
+                else if (
+                    LocaleData.RegionMappings.TryGetValue(parsed.Region, out replacement)
+                    || RegionAliases.TryGetValue(parsed.Region, out replacement)
+                )
                 {
                     parsed.Region = replacement;
                 }
@@ -343,7 +453,12 @@ public static partial class Locale
             if (parsed.Variants is not null && parsed.Variants.Count > 0)
                 for (var i = parsed.Variants.Count - 1; i >= 0; i--)
                 {
-                    if (!LocaleData.VariantMappings.TryGetValue(parsed.Variants[i], out var variantMapping))
+                    if (
+                        !LocaleData.VariantMappings.TryGetValue(
+                            parsed.Variants[i],
+                            out var variantMapping
+                        )
+                    )
                         continue;
 
                     if (string.Equals(variantMapping.Type, "language", StringComparison.Ordinal))
@@ -364,8 +479,14 @@ public static partial class Locale
                             continue;
 
                         for (var j = parsed.Variants.Count - 1; j >= 0; j--)
-                            if (j != i && string.Equals(parsed.Variants[j], variantMapping.Prefix,
-                                    StringComparison.OrdinalIgnoreCase))
+                            if (
+                                j != i
+                                && string.Equals(
+                                    parsed.Variants[j],
+                                    variantMapping.Prefix,
+                                    StringComparison.OrdinalIgnoreCase
+                                )
+                            )
                             {
                                 parsed.Variants.RemoveAt(j);
                                 if (j < i)
@@ -374,7 +495,11 @@ public static partial class Locale
                     }
                 }
 
-            if (parsed.Language is not null && parsed.Variants is not null && parsed.Variants.Count > 0)
+            if (
+                parsed.Language is not null
+                && parsed.Variants is not null
+                && parsed.Variants.Count > 0
+            )
                 for (var i = parsed.Variants.Count - 1; i >= 0; i--)
                 {
                     var key = parsed.Language + "+" + parsed.Variants[i].ToLowerInvariant();
@@ -424,15 +549,26 @@ public static partial class Locale
                 result.Extensions ??= [];
                 result.Extensions.Add(new() { Type = extensionType, Parts = extensionParts });
             }
-            else if (part.Length == 4 && char.IsLetter(part[0]) && result.Script is null && result.Region is null &&
-                     (result.Variants is null || result.Variants.Count == 0))
+            else if (
+                part.Length == 4
+                && char.IsLetter(part[0])
+                && result.Script is null
+                && result.Region is null
+                && (result.Variants is null || result.Variants.Count == 0)
+            )
             {
                 result.Script = char.ToUpperInvariant(part[0]) + partLower.Substring(1);
                 index++;
             }
-            else if ((part.Length == 2 && char.IsLetter(part[0])) || (part.Length == 3 && char.IsDigit(part[0])))
+            else if (
+                (part.Length == 2 && char.IsLetter(part[0]))
+                || (part.Length == 3 && char.IsDigit(part[0]))
+            )
             {
-                if (result.Region is null && (result.Variants is null || result.Variants.Count == 0))
+                if (
+                    result.Region is null
+                    && (result.Variants is null || result.Variants.Count == 0)
+                )
                 {
                     result.Region = part.Length == 2 ? part.ToUpperInvariant() : part;
                 }
@@ -494,7 +630,9 @@ public static partial class Locale
                     }
                     else
                     {
-                        currentValues.Add(TValueAliases.TryGetValue(part, out var alias) ? alias : part);
+                        currentValues.Add(
+                            TValueAliases.TryGetValue(part, out var alias) ? alias : part
+                        );
                     }
                 }
 
@@ -503,8 +641,12 @@ public static partial class Locale
 
                 if (tlangParts.Count > 0)
                 {
-                    if (LocaleData.LanguageMappings.TryGetValue(tlangParts[0], out var tlangReplacement) ||
-                        LanguageAliases.TryGetValue(tlangParts[0], out tlangReplacement))
+                    if (
+                        LocaleData.LanguageMappings.TryGetValue(
+                            tlangParts[0],
+                            out var tlangReplacement
+                        ) || LanguageAliases.TryGetValue(tlangParts[0], out tlangReplacement)
+                    )
                         tlangParts[0] = tlangReplacement;
 
                     var tlangPrefix = new List<string>();
@@ -516,12 +658,18 @@ public static partial class Locale
                         {
                             tlangPrefix.Add(part);
                         }
-                        else if (part.Length == 4 && char.IsLetter(part[0]) && tlangVariants.Count == 0)
+                        else if (
+                            part.Length == 4
+                            && char.IsLetter(part[0])
+                            && tlangVariants.Count == 0
+                        )
                         {
                             tlangPrefix.Add(part);
                         }
-                        else if ((part.Length == 2 && char.IsLetter(part[0])) ||
-                                 (part.Length == 3 && char.IsDigit(part[0])))
+                        else if (
+                            (part.Length == 2 && char.IsLetter(part[0]))
+                            || (part.Length == 3 && char.IsDigit(part[0]))
+                        )
                         {
                             if (tlangVariants.Count == 0)
                                 tlangPrefix.Add(part);
@@ -559,8 +707,15 @@ public static partial class Locale
                 for (var j = 1; j < parts.Count; j++)
                 {
                     var part = parts[j];
-                    if (part.Length == 2 && char.IsLetter(part[0]) && char.IsLetter(part[1]) &&
-                        currentKey is null && keywords.Count == 0 && attributes.Count == 0 && j == 1)
+                    if (
+                        part.Length == 2
+                        && char.IsLetter(part[0])
+                        && char.IsLetter(part[1])
+                        && currentKey is null
+                        && keywords.Count == 0
+                        && attributes.Count == 0
+                        && j == 1
+                    )
                     {
                         currentKey = part;
                     }
@@ -617,7 +772,9 @@ public static partial class Locale
                         }
                     }
 
-                    kw.Values.RemoveAll(static v => string.Equals(v, "true", StringComparison.OrdinalIgnoreCase));
+                    kw.Values.RemoveAll(static v =>
+                        string.Equals(v, "true", StringComparison.OrdinalIgnoreCase)
+                    );
                 }
 
                 attributes.Sort(StringComparer.Ordinal);
@@ -663,8 +820,12 @@ public static partial class Locale
         var endIndex = locale.Length;
         for (var i = tIndex + 3; i < locale.Length - 1; i++)
         {
-            if (locale[i] != '-' || i + 2 >= locale.Length || locale[i + 2] != '-' ||
-                !char.IsLetterOrDigit(locale[i + 1]))
+            if (
+                locale[i] != '-'
+                || i + 2 >= locale.Length
+                || locale[i + 2] != '-'
+                || !char.IsLetterOrDigit(locale[i + 1])
+            )
                 continue;
 
             var nextChar = locale[i + 1];
@@ -728,8 +889,13 @@ public static partial class Locale
                     if (!tlangSeenVariants.Add(part))
                         return false;
                 }
-                else if (!tlangHasRegion &&
-                         ((part.Length == 2 && IsAllLetters(part)) || (part.Length == 3 && IsAllDigits(part))))
+                else if (
+                    !tlangHasRegion
+                    && (
+                        (part.Length == 2 && IsAllLetters(part))
+                        || (part.Length == 3 && IsAllDigits(part))
+                    )
+                )
                 {
                     tlangHasRegion = true;
                 }

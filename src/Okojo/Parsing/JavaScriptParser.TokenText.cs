@@ -4,7 +4,8 @@ internal sealed partial class JsParser
 {
     private bool CurrentSourceTextEquals(string text)
     {
-        return current.SourceLength == text.Length && GetTokenSourceSpan(current).SequenceEqual(text.AsSpan());
+        return current.SourceLength == text.Length
+            && GetTokenSourceSpan(current).SequenceEqual(text.AsSpan());
     }
 
     private ReadOnlySpan<char> GetTokenSourceSpan(in JsToken token)
@@ -37,7 +38,10 @@ internal sealed partial class JsParser
         return lexer.AddIdentifierLiteral(text);
     }
 
-    private ParsedIdentifierName ParseCheckedIdentifierName(JsToken token, bool isParamDeclaration = false)
+    private ParsedIdentifierName ParseCheckedIdentifierName(
+        JsToken token,
+        bool isParamDeclaration = false
+    )
     {
         var name = GetIdentifierText(token);
         var nameId = GetIdentifierId(token);
@@ -57,7 +61,10 @@ internal sealed partial class JsParser
         return name;
     }
 
-    private ParsedPropertyName ParsePropertyName(bool allowPrivateIdentifier, bool deriveComputedLiteralKeyText)
+    private ParsedPropertyName ParsePropertyName(
+        bool allowPrivateIdentifier,
+        bool deriveComputedLiteralKeyText
+    )
     {
         using var depthCounter = AddDepth();
         if (current.Kind == JsTokenKind.LeftBracket)
@@ -66,12 +73,15 @@ internal sealed partial class JsParser
             var computedKey = ParseAssignment(true);
             Expect(JsTokenKind.RightBracket);
             return new(
-                deriveComputedLiteralKeyText ? GetComputedLiteralPropertyKeyText(computedKey) : string.Empty,
+                deriveComputedLiteralKeyText
+                    ? GetComputedLiteralPropertyKeyText(computedKey)
+                    : string.Empty,
                 -1,
                 computedKey,
                 true,
                 false,
-                false);
+                false
+            );
         }
 
         if (allowPrivateIdentifier && current.Kind == JsTokenKind.PrivateIdentifier)
@@ -79,13 +89,7 @@ internal sealed partial class JsParser
             var identifierId = GetIdentifierId(current);
             var key = GetPrivateIdentifierText(current);
             Next();
-            return new(
-                key,
-                identifierId,
-                null,
-                false,
-                true,
-                false);
+            return new(key, identifierId, null, false, true, false);
         }
 
         if (IsIdentifierNameToken(current.Kind))
@@ -99,20 +103,15 @@ internal sealed partial class JsParser
                 null,
                 false,
                 false,
-                tokenKind == JsTokenKind.Identifier || (tokenKind == JsTokenKind.Let && !strictMode));
+                tokenKind == JsTokenKind.Identifier || (tokenKind == JsTokenKind.Let && !strictMode)
+            );
         }
 
         if (current.Kind is JsTokenKind.String or JsTokenKind.Number or JsTokenKind.BigInt)
         {
             var key = GetPropertyKeyText(current);
             Next();
-            return new(
-                key,
-                -1,
-                null,
-                false,
-                false,
-                false);
+            return new(key, -1, null, false, false, false);
         }
 
         throw Error("Expected object property key", current.Position);
@@ -125,7 +124,7 @@ internal sealed partial class JsParser
             JsLiteralExpression { Value: string s } => s,
             JsLiteralExpression { Value: double d } => JsValue.NumberToJsString(d),
             JsLiteralExpression { Value: JsBigInt bi } => bi.Value.ToString(),
-            _ => null
+            _ => null,
         };
     }
 
@@ -139,14 +138,22 @@ internal sealed partial class JsParser
         return new(name, initializer, GetOrAddIdentifierId(name));
     }
 
-    private JsVariableDeclarator CreateVariableDeclarator(JsIdentifierExpression identifier,
-        JsExpression? initializer)
+    private JsVariableDeclarator CreateVariableDeclarator(
+        JsIdentifierExpression identifier,
+        JsExpression? initializer
+    )
     {
-        var nameId = identifier.NameId >= 0 ? identifier.NameId : GetOrAddIdentifierId(identifier.Name);
+        var nameId =
+            identifier.NameId >= 0 ? identifier.NameId : GetOrAddIdentifierId(identifier.Name);
         return new(identifier.Name, initializer, nameId);
     }
 
-    private static bool TryAddIdentifierKey(HashSet<int>? idSet, HashSet<string>? textSet, int nameId, string name)
+    private static bool TryAddIdentifierKey(
+        HashSet<int>? idSet,
+        HashSet<string>? textSet,
+        int nameId,
+        string name
+    )
     {
         if (nameId >= 0)
             return idSet?.Add(nameId) ?? true;
@@ -156,7 +163,9 @@ internal sealed partial class JsParser
 
     private string GetPrivateIdentifierText(in JsToken token)
     {
-        return token.DataIndex >= 0 ? "#" + lexer.GetIdentifierLiteral(token) : GetTokenSourceText(token);
+        return token.DataIndex >= 0
+            ? "#" + lexer.GetIdentifierLiteral(token)
+            : GetTokenSourceText(token);
     }
 
     private readonly record struct ParsedIdentifierName(string Name, int NameId, int Position);
@@ -167,5 +176,6 @@ internal sealed partial class JsParser
         JsExpression? ComputedKey,
         bool IsComputed,
         bool IsPrivate,
-        bool ShorthandAllowed);
+        bool ShorthandAllowed
+    );
 }

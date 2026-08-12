@@ -40,24 +40,44 @@ internal sealed class JsProxyObject : JsObject, IProxyObject
         return core.EnsureTarget(errorRealm);
     }
 
-    internal override bool TryGetPropertyAtomWithReceiverValue(JsRealm realm, in JsValue receiverValue, int atom,
-        out JsValue value, out SlotInfo slotInfo)
+    internal override bool TryGetPropertyAtomWithReceiverValue(
+        JsRealm realm,
+        in JsValue receiverValue,
+        int atom,
+        out JsValue value,
+        out SlotInfo slotInfo
+    )
     {
         return this.TryGetPropertyAtomViaProxy(realm, receiverValue, atom, out value, out slotInfo);
     }
 
-    internal override bool SetPropertyAtomWithReceiver(JsRealm realm, JsObject receiver, int atom, JsValue value,
-        out SlotInfo slotInfo)
+    internal override bool SetPropertyAtomWithReceiver(
+        JsRealm realm,
+        JsObject receiver,
+        int atom,
+        JsValue value,
+        out SlotInfo slotInfo
+    )
     {
         return this.SetPropertyAtomWithReceiverViaProxy(realm, receiver, atom, value, out slotInfo);
     }
 
-    internal override bool TryGetElementWithReceiver(JsRealm realm, JsObject receiver, uint index, out JsValue value)
+    internal override bool TryGetElementWithReceiver(
+        JsRealm realm,
+        JsObject receiver,
+        uint index,
+        out JsValue value
+    )
     {
         return this.TryGetElementViaProxy(index, receiver, out value);
     }
 
-    internal override bool SetElementWithReceiver(JsRealm realm, JsObject receiver, uint index, JsValue value)
+    internal override bool SetElementWithReceiver(
+        JsRealm realm,
+        JsObject receiver,
+        uint index,
+        JsValue value
+    )
     {
         return this.SetElementWithReceiverViaProxy(realm, receiver, index, value);
     }
@@ -78,12 +98,20 @@ internal sealed class JsProxyObject : JsObject, IProxyObject
         return target.TryGetOwnElementDescriptor(index, out descriptor);
     }
 
-    internal override bool TryGetOwnNamedPropertyDescriptorAtom(JsRealm realm, int atom,
+    internal override bool TryGetOwnNamedPropertyDescriptorAtom(
+        JsRealm realm,
+        int atom,
         out PropertyDescriptor descriptor,
-        bool needDescriptor = true)
+        bool needDescriptor = true
+    )
     {
         var target = EnsureTarget();
-        return target.TryGetOwnNamedPropertyDescriptorAtom(realm, atom, out descriptor, needDescriptor);
+        return target.TryGetOwnNamedPropertyDescriptorAtom(
+            realm,
+            atom,
+            out descriptor,
+            needDescriptor
+        );
     }
 
     internal override bool TrySetOwnElement(uint index, JsValue value, out bool hadOwnElement)
@@ -103,7 +131,8 @@ internal sealed class JsProxyObject : JsObject, IProxyObject
     internal override void CollectForInEnumerableStringAtomKeys(
         JsRealm realm,
         HashSet<string> visited,
-        List<string> enumerableKeysOut)
+        List<string> enumerableKeysOut
+    )
     {
         var target = EnsureTarget();
         target.CollectForInEnumerableStringAtomKeys(realm, visited, enumerableKeysOut);
@@ -122,7 +151,10 @@ internal sealed class JsProxyObject : JsObject, IProxyObject
     internal override void PreventExtensions()
     {
         if (!PreventExtensionsViaProxy(EnsureTarget().Realm))
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Proxy preventExtensions trap returned false");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Proxy preventExtensions trap returned false"
+            );
     }
 
     internal override void SealDataProperties()

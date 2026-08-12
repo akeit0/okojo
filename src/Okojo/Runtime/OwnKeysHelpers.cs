@@ -15,8 +15,10 @@ internal static class OwnKeysHelpers
 
         if (proxy.TryGetProxyTarget(out var proxyTarget))
         {
-            if (proxyTarget.TryGetProxyTarget(out _) ||
-                proxyTarget.TryGetOwnKeysTrapKeys(realm, out _))
+            if (
+                proxyTarget.TryGetProxyTarget(out _)
+                || proxyTarget.TryGetOwnKeysTrapKeys(realm, out _)
+            )
                 return CollectForProxy(realm, proxyTarget);
             return CollectOrdinaryOwnPropertyKeys(realm, proxyTarget);
         }
@@ -78,34 +80,42 @@ internal static class OwnKeysHelpers
         for (var i = 0; i < symbolAtoms.Count; i++)
         {
             var atom = symbolAtoms[i];
-            var sym = realm.Agent.TryGetRegisteredSymbolByAtom(atom, out var registered)
-                ? registered
-                : realm.Atoms.TryGetSymbolByAtom(atom, out var existing)
-                    ? existing
-                    : new(atom, realm.Atoms.AtomToString(atom));
+            var sym =
+                realm.Agent.TryGetRegisteredSymbolByAtom(atom, out var registered) ? registered
+                : realm.Atoms.TryGetSymbolByAtom(atom, out var existing) ? existing
+                : new(atom, realm.Atoms.AtomToString(atom));
             keys.Add(JsValue.FromSymbol(sym));
         }
 
         return keys;
     }
 
-    private static List<JsValue> ValidateProxyTrapKeys(JsRealm realm, JsObject target, List<JsValue> trapKeys)
+    private static List<JsValue> ValidateProxyTrapKeys(
+        JsRealm realm,
+        JsObject target,
+        List<JsValue> trapKeys
+    )
     {
         var seen = new HashSet<JsValue>(JsValueSameValueZeroComparer.Instance);
         for (var i = 0; i < trapKeys.Count; i++)
         {
             var key = trapKeys[i];
             if (!key.IsString && !key.IsSymbol)
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Proxy ownKeys trap result entries must be property keys");
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Proxy ownKeys trap result entries must be property keys"
+                );
             if (!seen.Add(key))
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Proxy ownKeys trap returned duplicate keys");
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Proxy ownKeys trap returned duplicate keys"
+                );
         }
 
-        var targetKeys = target.TryGetProxyTarget(out _) ||
-                         target.TryGetOwnKeysTrapKeys(realm, out _)
-            ? CollectForProxy(realm, target)
-            : CollectOrdinaryOwnPropertyKeys(realm, target);
+        var targetKeys =
+            target.TryGetProxyTarget(out _) || target.TryGetOwnKeysTrapKeys(realm, out _)
+                ? CollectForProxy(realm, target)
+                : CollectOrdinaryOwnPropertyKeys(realm, target);
 
         if (target.IsExtensible)
         {
@@ -115,8 +125,10 @@ internal static class OwnKeysHelpers
                 if (!TryGetOwnPropertyConfigurability(realm, target, key, out var configurable))
                     continue;
                 if (!configurable && !seen.Contains(key))
-                    throw new JsRuntimeException(JsErrorKind.TypeError,
-                        "Proxy ownKeys trap result is missing a non-configurable target key");
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Proxy ownKeys trap result is missing a non-configurable target key"
+                    );
             }
 
             return trapKeys;
@@ -125,19 +137,27 @@ internal static class OwnKeysHelpers
         var targetKeySet = new HashSet<JsValue>(targetKeys, JsValueSameValueZeroComparer.Instance);
         for (var i = 0; i < targetKeys.Count; i++)
             if (!seen.Contains(targetKeys[i]))
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Proxy ownKeys trap result is missing a target key for a non-extensible target");
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Proxy ownKeys trap result is missing a target key for a non-extensible target"
+                );
 
         for (var i = 0; i < trapKeys.Count; i++)
             if (!targetKeySet.Contains(trapKeys[i]))
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Proxy ownKeys trap result contains a new key for a non-extensible target");
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Proxy ownKeys trap result contains a new key for a non-extensible target"
+                );
 
         return trapKeys;
     }
 
-    internal static bool TryGetOwnPropertyConfigurability(JsRealm realm, JsObject target, in JsValue key,
-        out bool configurable)
+    internal static bool TryGetOwnPropertyConfigurability(
+        JsRealm realm,
+        JsObject target,
+        in JsValue key,
+        out bool configurable
+    )
     {
         if (target.TryGetOwnPropertyDescriptorViaTrap(realm, key, out var descriptorValue))
         {
@@ -148,8 +168,10 @@ internal static class OwnKeysHelpers
             }
 
             if (!descriptorValue.TryGetObject(out var descriptorObject))
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Proxy getOwnPropertyDescriptor trap result must be object or undefined");
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Proxy getOwnPropertyDescriptor trap result must be object or undefined"
+                );
 
             configurable = false;
             if (descriptorObject.TryGetProperty("configurable", out var configurableValue))
@@ -166,8 +188,10 @@ internal static class OwnKeysHelpers
                 return true;
             }
 
-            if (target is JsGlobalObject symbolGlobal &&
-                symbolGlobal.TryGetOwnGlobalDescriptorAtom(atom, out var globalSymbolDescriptor))
+            if (
+                target is JsGlobalObject symbolGlobal
+                && symbolGlobal.TryGetOwnGlobalDescriptorAtom(atom, out var globalSymbolDescriptor)
+            )
             {
                 configurable = globalSymbolDescriptor.Configurable;
                 return true;
@@ -178,8 +202,10 @@ internal static class OwnKeysHelpers
         }
 
         var name = key.AsString();
-        if (TryGetArrayIndexFromCanonicalString(name, out var index) &&
-            target.TryGetOwnElementDescriptor(index, out var elementDescriptor))
+        if (
+            TryGetArrayIndexFromCanonicalString(name, out var index)
+            && target.TryGetOwnElementDescriptor(index, out var elementDescriptor)
+        )
         {
             configurable = elementDescriptor.Configurable;
             return true;
@@ -187,14 +213,22 @@ internal static class OwnKeysHelpers
 
         if (realm.Atoms.TryGetInterned(name, out var nameAtom))
         {
-            if (target.TryGetOwnNamedPropertyDescriptorAtom(realm, nameAtom, out var namedDescriptor))
+            if (
+                target.TryGetOwnNamedPropertyDescriptorAtom(
+                    realm,
+                    nameAtom,
+                    out var namedDescriptor
+                )
+            )
             {
                 configurable = namedDescriptor.Configurable;
                 return true;
             }
 
-            if (target is JsGlobalObject global &&
-                global.TryGetOwnGlobalDescriptorAtom(nameAtom, out var globalDescriptor))
+            if (
+                target is JsGlobalObject global
+                && global.TryGetOwnGlobalDescriptorAtom(nameAtom, out var globalDescriptor)
+            )
             {
                 configurable = globalDescriptor.Configurable;
                 return true;

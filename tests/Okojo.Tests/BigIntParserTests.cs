@@ -30,6 +30,9 @@ public class BigIntParserTests
     [TestCase("1e3n;")]
     public void Parser_Rejects_Invalid_BigInt_Literal_Forms(string source)
     {
-        Assert.That(() => JavaScriptParser.ParseScript(source), Throws.InstanceOf<JsParseException>());
+        Assert.That(
+            () => JavaScriptParser.ParseScript(source),
+            Throws.InstanceOf<JsParseException>()
+        );
     }
 }

@@ -3,12 +3,16 @@ namespace Okojo.SourceMaps;
 public sealed class SourceMapDocument
 {
     private readonly Dictionary<int, List<SourceMapEntry>> entriesByGeneratedLine;
-    private readonly Dictionary<string, Dictionary<int, List<SourceMapEntry>>> entriesByOriginalSource;
+    private readonly Dictionary<
+        string,
+        Dictionary<int, List<SourceMapEntry>>
+    > entriesByOriginalSource;
 
     internal SourceMapDocument(
         string generatedSourcePath,
         IReadOnlyList<SourceMapEntry> entries,
-        IReadOnlyDictionary<string, string?>? sourceContents)
+        IReadOnlyDictionary<string, string?>? sourceContents
+    )
     {
         GeneratedSourcePath = Path.GetFullPath(generatedSourcePath);
         Entries = entries;
@@ -28,7 +32,12 @@ public sealed class SourceMapDocument
 
             generatedEntries.Add(entry);
 
-            if (!entriesByOriginalSource.TryGetValue(entry.OriginalSourcePath, out var originalLines))
+            if (
+                !entriesByOriginalSource.TryGetValue(
+                    entry.OriginalSourcePath,
+                    out var originalLines
+                )
+            )
             {
                 originalLines = new();
                 entriesByOriginalSource[entry.OriginalSourcePath] = originalLines;
@@ -50,7 +59,11 @@ public sealed class SourceMapDocument
 
     public IReadOnlyDictionary<string, string?>? SourceContents { get; }
 
-    public bool TryMapToOriginal(int generatedLine, int generatedColumn, out SourceMapLocation location)
+    public bool TryMapToOriginal(
+        int generatedLine,
+        int generatedColumn,
+        out SourceMapLocation location
+    )
     {
         if (!entriesByGeneratedLine.TryGetValue(generatedLine, out var entries))
         {
@@ -79,8 +92,12 @@ public sealed class SourceMapDocument
         return true;
     }
 
-    public bool TryMapToGenerated(string originalSourcePath, int originalLine, int originalColumn,
-        out SourceMapLocation location)
+    public bool TryMapToGenerated(
+        string originalSourcePath,
+        int originalLine,
+        int originalColumn,
+        out SourceMapLocation location
+    )
     {
         ArgumentNullException.ThrowIfNull(originalSourcePath);
         originalSourcePath = Path.GetFullPath(originalSourcePath);
@@ -123,7 +140,8 @@ public sealed class SourceMapDocument
         Dictionary<int, List<SourceMapEntry>> lines,
         int originalLine,
         int originalColumn,
-        out SourceMapLocation location)
+        out SourceMapLocation location
+    )
     {
         if (!lines.TryGetValue(originalLine, out var entries) || entries.Count == 0)
         {
@@ -138,7 +156,11 @@ public sealed class SourceMapDocument
             if (entry.OriginalColumn >= originalColumn)
             {
                 selected = entry;
-                location = new(GeneratedSourcePath, selected.GeneratedLine, selected.GeneratedColumn);
+                location = new(
+                    GeneratedSourcePath,
+                    selected.GeneratedLine,
+                    selected.GeneratedColumn
+                );
                 return true;
             }
 

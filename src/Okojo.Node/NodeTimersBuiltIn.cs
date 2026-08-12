@@ -21,10 +21,16 @@ internal sealed class NodeTimersBuiltIn(NodeRuntime runtime)
         DefineGlobalAlias(module, realm, "clearTimeout");
         DefineGlobalAlias(module, realm, "setInterval");
         DefineGlobalAlias(module, realm, "clearInterval");
-        module.DefineDataProperty("setImmediate",
-            JsValue.FromObject(runtime.BuiltIns.CreateSetImmediateFunction(realm)), JsShapePropertyFlags.Open);
-        module.DefineDataProperty("clearImmediate",
-            JsValue.FromObject(runtime.BuiltIns.CreateClearImmediateFunction(realm)), JsShapePropertyFlags.Open);
+        module.DefineDataProperty(
+            "setImmediate",
+            JsValue.FromObject(runtime.BuiltIns.CreateSetImmediateFunction(realm)),
+            JsShapePropertyFlags.Open
+        );
+        module.DefineDataProperty(
+            "clearImmediate",
+            JsValue.FromObject(runtime.BuiltIns.CreateClearImmediateFunction(realm)),
+            JsShapePropertyFlags.Open
+        );
         timersModule = module;
         return module;
     }
@@ -39,14 +45,29 @@ internal sealed class NodeTimersBuiltIn(NodeRuntime runtime)
         var module = new JsPlainObject(realm, useDictionaryMode: true);
         module.DefineDataProperty(
             "setTimeout",
-            JsValue.FromObject(CreateSetTimeoutPromiseFunction(realm, GetRequiredModuleFunction(timers, "setTimeout"))),
-            JsShapePropertyFlags.Open);
+            JsValue.FromObject(
+                CreateSetTimeoutPromiseFunction(
+                    realm,
+                    GetRequiredModuleFunction(timers, "setTimeout")
+                )
+            ),
+            JsShapePropertyFlags.Open
+        );
         module.DefineDataProperty(
             "setImmediate",
             JsValue.FromObject(
-                CreateSetImmediatePromiseFunction(realm, GetRequiredModuleFunction(timers, "setImmediate"))),
-            JsShapePropertyFlags.Open);
-        module.DefineDataProperty("scheduler", JsValue.FromObject(GetSchedulerObject()), JsShapePropertyFlags.Open);
+                CreateSetImmediatePromiseFunction(
+                    realm,
+                    GetRequiredModuleFunction(timers, "setImmediate")
+                )
+            ),
+            JsShapePropertyFlags.Open
+        );
+        module.DefineDataProperty(
+            "scheduler",
+            JsValue.FromObject(GetSchedulerObject()),
+            JsShapePropertyFlags.Open
+        );
         timersPromisesModule = module;
         return module;
     }
@@ -61,12 +82,21 @@ internal sealed class NodeTimersBuiltIn(NodeRuntime runtime)
         var scheduler = new JsPlainObject(realm, useDictionaryMode: true);
         scheduler.DefineDataProperty(
             "wait",
-            JsValue.FromObject(CreateSchedulerWaitFunction(realm, GetRequiredModuleFunction(timers, "setTimeout"))),
-            JsShapePropertyFlags.Open);
+            JsValue.FromObject(
+                CreateSchedulerWaitFunction(realm, GetRequiredModuleFunction(timers, "setTimeout"))
+            ),
+            JsShapePropertyFlags.Open
+        );
         scheduler.DefineDataProperty(
             "yield",
-            JsValue.FromObject(CreateSchedulerYieldFunction(realm, GetRequiredModuleFunction(timers, "setImmediate"))),
-            JsShapePropertyFlags.Open);
+            JsValue.FromObject(
+                CreateSchedulerYieldFunction(
+                    realm,
+                    GetRequiredModuleFunction(timers, "setImmediate")
+                )
+            ),
+            JsShapePropertyFlags.Open
+        );
         schedulerObject = scheduler;
         return scheduler;
     }
@@ -81,69 +111,111 @@ internal sealed class NodeTimersBuiltIn(NodeRuntime runtime)
     private static JsValue GetRequiredModuleFunction(JsObject module, string name)
     {
         if (!module.TryGetProperty(name, out var value))
-            throw new InvalidOperationException($"Timer module function '{name}' is not available.");
+            throw new InvalidOperationException(
+                $"Timer module function '{name}' is not available."
+            );
 
         return value;
     }
 
     private static JsHostFunction CreateSetTimeoutPromiseFunction(JsRealm realm, JsValue scheduler)
     {
-        return new(realm, "setTimeout", 1, static (in info) =>
+        return new(
+            realm,
+            "setTimeout",
+            1,
+            static (in info) =>
+            {
+                var state = (PromiseSchedulerState)((JsHostFunction)info.Function).UserData!;
+                var delay =
+                    info.Arguments.Length == 0
+                        ? 1
+                        : NormalizeDelay(info.Realm.ToNumber(info.GetArgument(0)));
+                var value = info.Arguments.Length > 1 ? info.GetArgument(1) : JsValue.Undefined;
+                return CreateScheduledPromise(info, state, [JsValue.FromInt32(delay), value]);
+            },
+            false
+        )
         {
-            var state = (PromiseSchedulerState)((JsHostFunction)info.Function).UserData!;
-            var delay = info.Arguments.Length == 0 ? 1 : NormalizeDelay(info.Realm.ToNumber(info.GetArgument(0)));
-            var value = info.Arguments.Length > 1 ? info.GetArgument(1) : JsValue.Undefined;
-            return CreateScheduledPromise(info, state, [JsValue.FromInt32(delay), value]);
-        }, false)
-        {
-            UserData = new PromiseSchedulerState(scheduler, "setTimeout")
+            UserData = new PromiseSchedulerState(scheduler, "setTimeout"),
         };
     }
 
-    private static JsHostFunction CreateSetImmediatePromiseFunction(JsRealm realm, JsValue scheduler)
+    private static JsHostFunction CreateSetImmediatePromiseFunction(
+        JsRealm realm,
+        JsValue scheduler
+    )
     {
-        return new(realm, "setImmediate", 0, static (in info) =>
+        return new(
+            realm,
+            "setImmediate",
+            0,
+            static (in info) =>
+            {
+                var state = (PromiseSchedulerState)((JsHostFunction)info.Function).UserData!;
+                var value = info.Arguments.Length == 0 ? JsValue.Undefined : info.GetArgument(0);
+                return CreateScheduledPromise(info, state, [value]);
+            },
+            false
+        )
         {
-            var state = (PromiseSchedulerState)((JsHostFunction)info.Function).UserData!;
-            var value = info.Arguments.Length == 0 ? JsValue.Undefined : info.GetArgument(0);
-            return CreateScheduledPromise(info, state, [value]);
-        }, false)
-        {
-            UserData = new PromiseSchedulerState(scheduler, "setImmediate")
+            UserData = new PromiseSchedulerState(scheduler, "setImmediate"),
         };
     }
 
     private static JsHostFunction CreateSchedulerWaitFunction(JsRealm realm, JsValue scheduler)
     {
-        return new(realm, "wait", 1, static (in info) =>
+        return new(
+            realm,
+            "wait",
+            1,
+            static (in info) =>
+            {
+                var state = (PromiseSchedulerState)((JsHostFunction)info.Function).UserData!;
+                var delay =
+                    info.Arguments.Length == 0
+                        ? 1
+                        : NormalizeDelay(info.Realm.ToNumber(info.GetArgument(0)));
+                return CreateScheduledPromise(
+                    info,
+                    state,
+                    [JsValue.FromInt32(delay), JsValue.Undefined]
+                );
+            },
+            false
+        )
         {
-            var state = (PromiseSchedulerState)((JsHostFunction)info.Function).UserData!;
-            var delay = info.Arguments.Length == 0 ? 1 : NormalizeDelay(info.Realm.ToNumber(info.GetArgument(0)));
-            return CreateScheduledPromise(info, state, [JsValue.FromInt32(delay), JsValue.Undefined]);
-        }, false)
-        {
-            UserData = new PromiseSchedulerState(scheduler, "wait")
+            UserData = new PromiseSchedulerState(scheduler, "wait"),
         };
     }
 
     private static JsHostFunction CreateSchedulerYieldFunction(JsRealm realm, JsValue scheduler)
     {
-        return new(realm, "yield", 0, static (in info) =>
+        return new(
+            realm,
+            "yield",
+            0,
+            static (in info) =>
+            {
+                var state = (PromiseSchedulerState)((JsHostFunction)info.Function).UserData!;
+                return CreateScheduledPromise(info, state, [JsValue.Undefined]);
+            },
+            false
+        )
         {
-            var state = (PromiseSchedulerState)((JsHostFunction)info.Function).UserData!;
-            return CreateScheduledPromise(info, state, [JsValue.Undefined]);
-        }, false)
-        {
-            UserData = new PromiseSchedulerState(scheduler, "yield")
+            UserData = new PromiseSchedulerState(scheduler, "yield"),
         };
     }
 
     private static JsValue CreateScheduledPromise(
         in CallInfo info,
         PromiseSchedulerState schedulerState,
-        ReadOnlySpan<JsValue> schedulerArgs)
+        ReadOnlySpan<JsValue> schedulerArgs
+    )
     {
-        var completion = new TaskCompletionSource<JsValue>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var completion = new TaskCompletionSource<JsValue>(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
         var resolve = new JsHostFunction(
             info.Realm,
             schedulerState.SchedulerName + " promise resolve",
@@ -151,20 +223,28 @@ internal sealed class NodeTimersBuiltIn(NodeRuntime runtime)
             static (in callbackInfo) =>
             {
                 var state = (PromiseTimerState)((JsHostFunction)callbackInfo.Function).UserData!;
-                var settledValue = callbackInfo.Arguments.Length == 0 ? JsValue.Undefined : callbackInfo.GetArgument(0);
+                var settledValue =
+                    callbackInfo.Arguments.Length == 0
+                        ? JsValue.Undefined
+                        : callbackInfo.GetArgument(0);
                 state.Completion.TrySetResult(settledValue);
                 return JsValue.Undefined;
             },
-            false)
+            false
+        )
         {
-            UserData = new PromiseTimerState(completion)
+            UserData = new PromiseTimerState(completion),
         };
 
         var invokeArgs = new JsValue[1 + schedulerArgs.Length];
         invokeArgs[0] = JsValue.FromObject(resolve);
         for (var i = 0; i < schedulerArgs.Length; i++)
             invokeArgs[i + 1] = schedulerArgs[i];
-        _ = info.Realm.Call(schedulerState.Scheduler, JsValue.FromObject(info.Realm.GlobalObject), invokeArgs);
+        _ = info.Realm.Call(
+            schedulerState.Scheduler,
+            JsValue.FromObject(info.Realm.GlobalObject),
+            invokeArgs
+        );
         return info.Realm.WrapTask(completion.Task);
     }
 

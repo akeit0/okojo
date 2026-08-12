@@ -12,7 +12,11 @@ public sealed class TimeProviderDelayScheduler : IHostDelayScheduler
         this.timeProvider = timeProvider;
     }
 
-    public IHostDelayedOperation ScheduleDelayed(TimeSpan delay, Action<object?> callback, object? state)
+    public IHostDelayedOperation ScheduleDelayed(
+        TimeSpan delay,
+        Action<object?> callback,
+        object? state
+    )
     {
         ArgumentNullException.ThrowIfNull(callback);
         return ScheduledOperation.Create(timeProvider, delay, callback, state);
@@ -49,17 +53,24 @@ public sealed class TimeProviderDelayScheduler : IHostDelayScheduler
             TimeProvider timeProvider,
             TimeSpan delay,
             Action<object?> callback,
-            object? state)
+            object? state
+        )
         {
             var operation = new ScheduledOperation(callback, state);
             var dueTime = delay <= TimeSpan.Zero ? TimeSpan.FromTicks(1) : delay;
             operation.timer = timeProvider is ITimerFactory timerFactory
-                ? timerFactory.CreateJsTimer(static opState => ((ScheduledOperation)opState!).OnReady(), operation,
+                ? timerFactory.CreateJsTimer(
+                    static opState => ((ScheduledOperation)opState!).OnReady(),
+                    operation,
                     dueTime,
-                    Timeout.InfiniteTimeSpan)
-                : timeProvider.CreateTimer(static opState => ((ScheduledOperation)opState!).OnReady(), operation,
+                    Timeout.InfiniteTimeSpan
+                )
+                : timeProvider.CreateTimer(
+                    static opState => ((ScheduledOperation)opState!).OnReady(),
+                    operation,
                     dueTime,
-                    Timeout.InfiniteTimeSpan);
+                    Timeout.InfiniteTimeSpan
+                );
             return operation;
         }
 

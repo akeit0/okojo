@@ -4,8 +4,11 @@ namespace Okojo.SourceMaps;
 
 public static class SourceMapParser
 {
-    public static SourceMapDocument Parse(string sourceMapJson, string generatedSourcePath,
-        string? sourceMapPath = null)
+    public static SourceMapDocument Parse(
+        string sourceMapJson,
+        string generatedSourcePath,
+        string? sourceMapPath = null
+    )
     {
         ArgumentNullException.ThrowIfNull(sourceMapJson);
         ArgumentNullException.ThrowIfNull(generatedSourcePath);
@@ -17,30 +20,40 @@ public static class SourceMapParser
             throw new FormatException($"Unsupported source map version '{version}'.");
 
         var generatedPath = Path.GetFullPath(generatedSourcePath);
-        var sourceRoot = root.TryGetProperty("sourceRoot", out var sourceRootProperty) &&
-                         sourceRootProperty.ValueKind == JsonValueKind.String
-            ? sourceRootProperty.GetString()
-            : null;
+        var sourceRoot =
+            root.TryGetProperty("sourceRoot", out var sourceRootProperty)
+            && sourceRootProperty.ValueKind == JsonValueKind.String
+                ? sourceRootProperty.GetString()
+                : null;
 
         var sourcesElement = root.GetProperty("sources");
         var resolvedSources = new string[sourcesElement.GetArrayLength()];
         for (var i = 0; i < resolvedSources.Length; i++)
         {
-            var rawSource = sourcesElement[i].GetString()
-                            ?? throw new FormatException("Source map source entry cannot be null.");
-            resolvedSources[i] = ResolveSourcePath(rawSource, sourceRoot, generatedPath, sourceMapPath);
+            var rawSource =
+                sourcesElement[i].GetString()
+                ?? throw new FormatException("Source map source entry cannot be null.");
+            resolvedSources[i] = ResolveSourcePath(
+                rawSource,
+                sourceRoot,
+                generatedPath,
+                sourceMapPath
+            );
         }
 
         IReadOnlyDictionary<string, string?>? sourceContents = null;
-        if (root.TryGetProperty("sourcesContent", out var sourcesContentElement) &&
-            sourcesContentElement.ValueKind == JsonValueKind.Array)
+        if (
+            root.TryGetProperty("sourcesContent", out var sourcesContentElement)
+            && sourcesContentElement.ValueKind == JsonValueKind.Array
+        )
         {
             var contents = new Dictionary<string, string?>(SourcePathComparer.Instance);
             var count = Math.Min(resolvedSources.Length, sourcesContentElement.GetArrayLength());
             for (var i = 0; i < count; i++)
-                contents[resolvedSources[i]] = sourcesContentElement[i].ValueKind == JsonValueKind.Null
-                    ? null
-                    : sourcesContentElement[i].GetString();
+                contents[resolvedSources[i]] =
+                    sourcesContentElement[i].ValueKind == JsonValueKind.Null
+                        ? null
+                        : sourcesContentElement[i].GetString();
 
             sourceContents = contents;
         }
@@ -53,7 +66,10 @@ public static class SourceMapParser
         return new(generatedPath, entries, sourceContents);
     }
 
-    private static IReadOnlyList<SourceMapEntry> ParseMappings(string mappings, IReadOnlyList<string> resolvedSources)
+    private static IReadOnlyList<SourceMapEntry> ParseMappings(
+        string mappings,
+        IReadOnlyList<string> resolvedSources
+    )
     {
         var entries = new List<SourceMapEntry>();
         if (string.IsNullOrEmpty(mappings))
@@ -97,12 +113,15 @@ public static class SourceMapParser
                 if ((uint)previousSourceIndex >= (uint)resolvedSources.Count)
                     continue;
 
-                entries.Add(new(
-                    generatedLine,
-                    previousGeneratedColumn + 1,
-                    resolvedSources[previousSourceIndex],
-                    previousOriginalLine + 1,
-                    previousOriginalColumn + 1));
+                entries.Add(
+                    new(
+                        generatedLine,
+                        previousGeneratedColumn + 1,
+                        resolvedSources[previousSourceIndex],
+                        previousOriginalLine + 1,
+                        previousOriginalColumn + 1
+                    )
+                );
             }
         }
 
@@ -113,7 +132,8 @@ public static class SourceMapParser
         string rawSourcePath,
         string? sourceRoot,
         string generatedSourcePath,
-        string? sourceMapPath)
+        string? sourceMapPath
+    )
     {
         if (TryResolveFileUri(rawSourcePath, out var fileUriPath))
             return fileUriPath;

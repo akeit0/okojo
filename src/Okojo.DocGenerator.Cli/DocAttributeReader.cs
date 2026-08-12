@@ -15,7 +15,8 @@ internal static class DocAttributeReader
         return new()
         {
             FileName = GetConstructorString(attribute, 0) ?? GetNamedString(attribute, "FileName"),
-            Namespace = GetConstructorString(attribute, 1) ?? GetNamedString(attribute, "Namespace")
+            Namespace =
+                GetConstructorString(attribute, 1) ?? GetNamedString(attribute, "Namespace"),
         };
     }
 
@@ -29,14 +30,16 @@ internal static class DocAttributeReader
         if (model is null || HasDocIgnore(model.Symbol))
             return null;
 
-        var functions = model.Functions
-            .Where(static x => !HasDocIgnore(x.Symbol))
-            .ToArray();
-        var properties = model.Properties
-            .Where(static x => !HasDocIgnore(x.Symbol))
-            .ToArray();
+        var functions = model.Functions.Where(static x => !HasDocIgnore(x.Symbol)).ToArray();
+        var properties = model.Properties.Where(static x => !HasDocIgnore(x.Symbol)).ToArray();
 
-        return new(model.Symbol, model.InstallerMethodName, model.PropertySourceMethodName, functions, properties);
+        return new(
+            model.Symbol,
+            model.InstallerMethodName,
+            model.PropertySourceMethodName,
+            functions,
+            properties
+        );
     }
 
     public static JsObjectTypeModel? Filter(JsObjectTypeModel? model)
@@ -44,11 +47,11 @@ internal static class DocAttributeReader
         if (model is null || HasDocIgnore(model.Symbol))
             return null;
 
-        var instanceMembers = model.InstanceMembers
-            .Where(static x => !HasDocIgnore(x.Symbol))
+        var instanceMembers = model
+            .InstanceMembers.Where(static x => !HasDocIgnore(x.Symbol))
             .ToArray();
-        var staticMembers = model.StaticMembers
-            .Where(static x => !HasDocIgnore(x.Symbol))
+        var staticMembers = model
+            .StaticMembers.Where(static x => !HasDocIgnore(x.Symbol))
             .ToArray();
 
         return new(model.Symbol, instanceMembers, staticMembers);

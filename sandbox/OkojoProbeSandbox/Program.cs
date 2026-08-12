@@ -1,8 +1,8 @@
+using Okojo;
 using Okojo.Hosting;
 using Okojo.Node;
 using Okojo.Objects;
 using Okojo.Runtime;
-using Okojo;
 
 namespace OkojoProbeSandbox;
 
@@ -48,14 +48,11 @@ internal static class Program
     {
         string source = options.ReadSource();
         string entry = PathUtil.NormalizePath(options.EntryPath ?? "/mods/main.js");
-        var loader = new InMemoryModuleLoader(new Dictionary<string, string>(StringComparer.Ordinal)
-        {
-            [entry] = source
-        });
+        var loader = new InMemoryModuleLoader(
+            new Dictionary<string, string>(StringComparer.Ordinal) { [entry] = source }
+        );
 
-        using var runtime = JsRuntime.CreateBuilder()
-            .UseModuleSourceLoader(loader)
-            .Build();
+        using var runtime = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
 
         JsValue moduleNamespace = runtime.MainRealm.Import(entry);
         PrintValue(moduleNamespace, options.PrintDefault);
@@ -65,14 +62,11 @@ internal static class Program
     {
         string source = options.ReadSource();
         string entry = PathUtil.NormalizePath(options.EntryPath ?? "/app/main.js");
-        var loader = new InMemoryModuleLoader(new Dictionary<string, string>(StringComparer.Ordinal)
-        {
-            [entry] = source
-        });
+        var loader = new InMemoryModuleLoader(
+            new Dictionary<string, string>(StringComparer.Ordinal) { [entry] = source }
+        );
 
-        using var runtime = OkojoNodeRuntime.CreateBuilder()
-            .UseModuleSourceLoader(loader)
-            .Build();
+        using var runtime = OkojoNodeRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
 
         JsValue result = runtime.RunMainModule(entry);
         PrintValue(result, options.PrintDefault);
@@ -80,10 +74,12 @@ internal static class Program
 
     private static void PrintValue(JsValue value, bool printDefault)
     {
-        if (printDefault &&
-            value.TryGetObject(out var obj) &&
-            obj is JsObject jsObj &&
-            jsObj.TryGetProperty("default", out var defaultValue))
+        if (
+            printDefault
+            && value.TryGetObject(out var obj)
+            && obj is JsObject jsObj
+            && jsObj.TryGetProperty("default", out var defaultValue)
+        )
         {
             Console.WriteLine(defaultValue);
             return;
@@ -97,7 +93,7 @@ internal enum ProbeMode
 {
     Script,
     Module,
-    NodeMain
+    NodeMain,
 }
 
 internal sealed class ProbeOptions
@@ -152,7 +148,9 @@ internal sealed class ProbeOptions
                 case "-h":
                     throw new ArgumentException(GetUsage());
                 default:
-                    throw new ArgumentException($"Unknown argument '{args[i]}'.{Environment.NewLine}{GetUsage()}");
+                    throw new ArgumentException(
+                        $"Unknown argument '{args[i]}'.{Environment.NewLine}{GetUsage()}"
+                    );
             }
         }
 
@@ -165,14 +163,13 @@ internal sealed class ProbeOptions
             Source = source,
             SourceIsFile = sourceIsFile,
             EntryPath = entryPath,
-            PrintDefault = printDefault
+            PrintDefault = printDefault,
         };
     }
 
     private static string GetUsage()
     {
-        return
-            """
+        return """
             Usage:
               dotnet run --project sandbox\OkojoProbeSandbox\OkojoProbeSandbox.csproj -- script --inline "<js>"
               dotnet run --project sandbox\OkojoProbeSandbox\OkojoProbeSandbox.csproj -- script --file <path>
@@ -193,8 +190,10 @@ internal sealed class InMemoryModuleLoader(Dictionary<string, string> modules) :
 
     public string ResolveSpecifier(string specifier, string? referrer)
     {
-        if (specifier.StartsWith("./", StringComparison.Ordinal) ||
-            specifier.StartsWith("../", StringComparison.Ordinal))
+        if (
+            specifier.StartsWith("./", StringComparison.Ordinal)
+            || specifier.StartsWith("../", StringComparison.Ordinal)
+        )
         {
             string basePath = referrer is null ? "/" : PathUtil.NormalizePath(referrer);
             int slash = basePath.LastIndexOf('/');

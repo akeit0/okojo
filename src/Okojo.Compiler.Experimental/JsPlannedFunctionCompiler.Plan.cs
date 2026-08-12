@@ -2,7 +2,10 @@ namespace Okojo.Compiler.Experimental;
 
 internal sealed partial class JsPlannedFunctionCompiler
 {
-    private void InitializePlanIndexes(CompilerBindingCollectionResult collected, CompilerBindingPlan plan)
+    private void InitializePlanIndexes(
+        CompilerBindingCollectionResult collected,
+        CompilerBindingPlan plan
+    )
     {
         plannedBindingsByScopeId.Clear();
         scopesByParentScopeId.Clear();
@@ -43,7 +46,7 @@ internal sealed partial class JsPlannedFunctionCompiler
                 {
                     CompilerPlannedStorageKind.ImportBinding => -1,
                     CompilerPlannedStorageKind.ContextSlot => -1,
-                    _ => builder.AllocatePinnedRegister()
+                    _ => builder.AllocatePinnedRegister(),
                 };
                 if (binding.StorageKind == CompilerPlannedStorageKind.ContextSlot)
                     rootContextSlotCount = Math.Max(rootContextSlotCount, binding.StorageIndex + 1);

@@ -6,8 +6,9 @@ namespace Okojo.Node.Cli;
 
 internal sealed class NodeCliInspectConsole : IDisposable
 {
-    private readonly Dictionary<string, SourceMapLocation> breakpointDisplayOverrides =
-        new(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+    private readonly Dictionary<string, SourceMapLocation> breakpointDisplayOverrides = new(
+        OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal
+    );
 
     private readonly List<int> breakpointOrder = new();
     private readonly Dictionary<int, BreakpointEntry> breakpoints = new();
@@ -28,7 +29,8 @@ internal sealed class NodeCliInspectConsole : IDisposable
         DebuggerSession session,
         string workingDirectory,
         string? entrySourcePath,
-        SourceMapRegistry? sourceMaps)
+        SourceMapRegistry? sourceMaps
+    )
     {
         this.session = session;
         this.workingDirectory = Path.GetFullPath(workingDirectory);
@@ -37,7 +39,7 @@ internal sealed class NodeCliInspectConsole : IDisposable
         inputThread = new(RunInputLoop)
         {
             IsBackground = true,
-            Name = "Okojo.Node.Cli.InspectConsole"
+            Name = "Okojo.Node.Cli.InspectConsole",
         };
     }
 
@@ -127,8 +129,10 @@ internal sealed class NodeCliInspectConsole : IDisposable
             return;
         }
 
-        if (string.Equals(command, "c", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(command, "continue", StringComparison.OrdinalIgnoreCase))
+        if (
+            string.Equals(command, "c", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(command, "continue", StringComparison.OrdinalIgnoreCase)
+        )
         {
             stopped = false;
             pauseReady.Reset();
@@ -157,7 +161,9 @@ internal sealed class NodeCliInspectConsole : IDisposable
 
     private bool TryHandleSetBreakpointCommand(string command)
     {
-        if (!command.StartsWith("sb(", StringComparison.OrdinalIgnoreCase) || !command.EndsWith(')'))
+        if (
+            !command.StartsWith("sb(", StringComparison.OrdinalIgnoreCase) || !command.EndsWith(')')
+        )
             return false;
 
         var inner = command[3..^1];
@@ -179,13 +185,16 @@ internal sealed class NodeCliInspectConsole : IDisposable
         var requestedSourcePath = ResolveSourcePath(rawPath);
         var breakpointSourcePath = requestedSourcePath;
         var breakpointLine = line;
-        if (sourceMaps is not null &&
-            sourceMaps.TryMapToGenerated(requestedSourcePath, line, 1, out var generatedLocation))
+        if (
+            sourceMaps is not null
+            && sourceMaps.TryMapToGenerated(requestedSourcePath, line, 1, out var generatedLocation)
+        )
         {
             breakpointSourcePath = generatedLocation.SourcePath;
             breakpointLine = generatedLocation.Line;
-            breakpointDisplayOverrides[CreateBreakpointDisplayKey(breakpointSourcePath, breakpointLine)] =
-                new(requestedSourcePath, line, 1);
+            breakpointDisplayOverrides[
+                CreateBreakpointDisplayKey(breakpointSourcePath, breakpointLine)
+            ] = new(requestedSourcePath, line, 1);
         }
 
         session.SubmitCommand($"break {breakpointSourcePath}:{breakpointLine}");
@@ -199,8 +208,11 @@ internal sealed class NodeCliInspectConsole : IDisposable
 
         var radius = 5;
         if (command.Length > 4)
-            if (!command.StartsWith("list(", StringComparison.OrdinalIgnoreCase) || !command.EndsWith(')') ||
-                !int.TryParse(command[5..^1], out radius))
+            if (
+                !command.StartsWith("list(", StringComparison.OrdinalIgnoreCase)
+                || !command.EndsWith(')')
+                || !int.TryParse(command[5..^1], out radius)
+            )
             {
                 WriteLine("Usage: list(5)");
                 return true;
@@ -218,19 +230,29 @@ internal sealed class NodeCliInspectConsole : IDisposable
         if (sourcePath is not null)
         {
             sourcePath = Path.GetFullPath(sourcePath);
-            if (sourceMaps is not null &&
-                sourceMaps.TryMapToOriginal(sourcePath, line, column, out var mappedLocation))
+            if (
+                sourceMaps is not null
+                && sourceMaps.TryMapToOriginal(sourcePath, line, column, out var mappedLocation)
+            )
             {
                 sourcePath = mappedLocation.SourcePath;
                 line = mappedLocation.Line;
             }
         }
 
-        currentStop = sourcePath is null ? null : new StopLocation(Path.GetFullPath(sourcePath), line);
+        currentStop = sourcePath is null
+            ? null
+            : new StopLocation(Path.GetFullPath(sourcePath), line);
         if (autoContinueTarget is { } target && currentStop is { } stop)
         {
-            if (!string.Equals(stop.SourcePath, target.SourcePath, StringComparison.OrdinalIgnoreCase) ||
-                stop.Line < target.Line)
+            if (
+                !string.Equals(
+                    stop.SourcePath,
+                    target.SourcePath,
+                    StringComparison.OrdinalIgnoreCase
+                )
+                || stop.Line < target.Line
+            )
             {
                 session.SubmitCommand("stepover");
                 return;
@@ -241,7 +263,9 @@ internal sealed class NodeCliInspectConsole : IDisposable
 
         stopped = true;
 
-        var displayPath = currentStop is null ? "<unknown>" : FormatDisplayPath(currentStop.SourcePath);
+        var displayPath = currentStop is null
+            ? "<unknown>"
+            : FormatDisplayPath(currentStop.SourcePath);
         var kind = GetString(payload, "kind") ?? string.Empty;
         if (string.Equals(kind, "entry", StringComparison.OrdinalIgnoreCase))
         {
@@ -267,14 +291,20 @@ internal sealed class NodeCliInspectConsole : IDisposable
             return;
 
         path = Path.GetFullPath(path);
-        if (breakpointDisplayOverrides.TryGetValue(CreateBreakpointDisplayKey(path, line.Value),
-                out var displayOverride))
+        if (
+            breakpointDisplayOverrides.TryGetValue(
+                CreateBreakpointDisplayKey(path, line.Value),
+                out var displayOverride
+            )
+        )
         {
             path = displayOverride.SourcePath;
             line = displayOverride.Line;
         }
-        else if (sourceMaps is not null &&
-                 sourceMaps.TryMapToOriginal(path, line.Value, resolvedColumn, out var mappedLocation))
+        else if (
+            sourceMaps is not null
+            && sourceMaps.TryMapToOriginal(path, line.Value, resolvedColumn, out var mappedLocation)
+        )
         {
             path = mappedLocation.SourcePath;
             line = mappedLocation.Line;
@@ -334,7 +364,7 @@ internal sealed class NodeCliInspectConsole : IDisposable
         for (var lineNumber = start; lineNumber <= end; lineNumber++)
         {
             var marker = lineNumber == stop.Line ? ">" : " ";
-            WriteLine($"{marker} {lineNumber,4} {lines[lineNumber - 1]}");
+            WriteLine($"{marker} {lineNumber, 4} {lines[lineNumber - 1]}");
         }
     }
 
@@ -347,7 +377,13 @@ internal sealed class NodeCliInspectConsole : IDisposable
         for (var i = 0; i < breakpointOrder.Count; i++)
         {
             var candidate = breakpoints[breakpointOrder[i]];
-            if (!string.Equals(candidate.SourcePath, stop.SourcePath, StringComparison.OrdinalIgnoreCase))
+            if (
+                !string.Equals(
+                    candidate.SourcePath,
+                    stop.SourcePath,
+                    StringComparison.OrdinalIgnoreCase
+                )
+            )
                 continue;
             if (candidate.Line <= stop.Line)
                 continue;
@@ -367,13 +403,13 @@ internal sealed class NodeCliInspectConsole : IDisposable
 
     private static bool IsResumeCommand(string command)
     {
-        return string.Equals(command, "si", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(command, "stepin", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(command, "step", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(command, "stepover", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(command, "so", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(command, "su", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(command, "stepout", StringComparison.OrdinalIgnoreCase);
+        return string.Equals(command, "si", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(command, "stepin", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(command, "step", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(command, "stepover", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(command, "so", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(command, "su", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(command, "stepout", StringComparison.OrdinalIgnoreCase);
     }
 
     private string ResolveSourcePath(string rawPath)
@@ -436,37 +472,50 @@ internal sealed class NodeCliInspectConsole : IDisposable
 
     private static string? GetString(JsonElement element, string propertyName)
     {
-        return element.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String
+        return
+            element.TryGetProperty(propertyName, out var property)
+            && property.ValueKind == JsonValueKind.String
             ? property.GetString()
             : null;
     }
 
-    private static string? GetNestedString(JsonElement element, string parentPropertyName, string propertyName)
+    private static string? GetNestedString(
+        JsonElement element,
+        string parentPropertyName,
+        string propertyName
+    )
     {
-        return element.TryGetProperty(parentPropertyName, out var parent)
-               && parent.ValueKind == JsonValueKind.Object
-               && parent.TryGetProperty(propertyName, out var property)
-               && property.ValueKind == JsonValueKind.String
+        return
+            element.TryGetProperty(parentPropertyName, out var parent)
+            && parent.ValueKind == JsonValueKind.Object
+            && parent.TryGetProperty(propertyName, out var property)
+            && property.ValueKind == JsonValueKind.String
             ? property.GetString()
             : null;
     }
 
     private static int? GetInt(JsonElement element, string propertyName)
     {
-        return element.TryGetProperty(propertyName, out var property)
-               && property.ValueKind == JsonValueKind.Number
-               && property.TryGetInt32(out var value)
+        return
+            element.TryGetProperty(propertyName, out var property)
+            && property.ValueKind == JsonValueKind.Number
+            && property.TryGetInt32(out var value)
             ? value
             : null;
     }
 
-    private static int? GetNestedInt(JsonElement element, string parentPropertyName, string propertyName)
+    private static int? GetNestedInt(
+        JsonElement element,
+        string parentPropertyName,
+        string propertyName
+    )
     {
-        return element.TryGetProperty(parentPropertyName, out var parent)
-               && parent.ValueKind == JsonValueKind.Object
-               && parent.TryGetProperty(propertyName, out var property)
-               && property.ValueKind == JsonValueKind.Number
-               && property.TryGetInt32(out var value)
+        return
+            element.TryGetProperty(parentPropertyName, out var parent)
+            && parent.ValueKind == JsonValueKind.Object
+            && parent.TryGetProperty(propertyName, out var property)
+            && property.ValueKind == JsonValueKind.Number
+            && property.TryGetInt32(out var value)
             ? value
             : null;
     }

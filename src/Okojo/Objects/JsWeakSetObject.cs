@@ -8,7 +8,8 @@ internal sealed class JsWeakSetObject : JsObject
 
     private readonly ConditionalWeakTable<JsObject, Sentinel> table = new();
 
-    internal JsWeakSetObject(JsRealm realm, JsObject prototype) : base(realm)
+    internal JsWeakSetObject(JsRealm realm, JsObject prototype)
+        : base(realm)
     {
         Prototype = prototype;
         realm.Agent.TrackWeakSet(this);

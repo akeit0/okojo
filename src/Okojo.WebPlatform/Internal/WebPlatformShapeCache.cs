@@ -30,12 +30,31 @@ internal static class WebPlatformShapeCache
         public static HeaderShapeCache Create(JsRealm realm)
         {
             var shape = realm.EmptyShape;
-            shape = shape.GetOrAddTransition(AtomTable.IdGet, JsShapePropertyFlags.Configurable, out var getInfo);
-            shape = shape.GetOrAddTransition(AtomTable.IdHas, JsShapePropertyFlags.Configurable, out var hasInfo);
-            shape = shape.GetOrAddTransition(AtomTable.IdKeys, JsShapePropertyFlags.Configurable, out var keysInfo);
-            shape = shape.GetOrAddTransition(AtomTable.IdValues, JsShapePropertyFlags.Configurable, out var valuesInfo);
-            shape = shape.GetOrAddTransition(AtomTable.IdEntries, JsShapePropertyFlags.Configurable,
-                out var entriesInfo);
+            shape = shape.GetOrAddTransition(
+                AtomTable.IdGet,
+                JsShapePropertyFlags.Configurable,
+                out var getInfo
+            );
+            shape = shape.GetOrAddTransition(
+                AtomTable.IdHas,
+                JsShapePropertyFlags.Configurable,
+                out var hasInfo
+            );
+            shape = shape.GetOrAddTransition(
+                AtomTable.IdKeys,
+                JsShapePropertyFlags.Configurable,
+                out var keysInfo
+            );
+            shape = shape.GetOrAddTransition(
+                AtomTable.IdValues,
+                JsShapePropertyFlags.Configurable,
+                out var valuesInfo
+            );
+            shape = shape.GetOrAddTransition(
+                AtomTable.IdEntries,
+                JsShapePropertyFlags.Configurable,
+                out var entriesInfo
+            );
 
             Debug.Assert(getInfo.Slot == GetSlot);
             Debug.Assert(hasInfo.Slot == HasSlot);
@@ -70,14 +89,37 @@ internal static class WebPlatformShapeCache
 
             var shape = realm.EmptyShape;
             shape = shape.GetOrAddTransition(okAtom, JsShapePropertyFlags.Open, out var okInfo);
-            shape = shape.GetOrAddTransition(statusAtom, JsShapePropertyFlags.Open, out var statusInfo);
-            shape = shape.GetOrAddTransition(statusTextAtom, JsShapePropertyFlags.Open, out var statusTextInfo);
+            shape = shape.GetOrAddTransition(
+                statusAtom,
+                JsShapePropertyFlags.Open,
+                out var statusInfo
+            );
+            shape = shape.GetOrAddTransition(
+                statusTextAtom,
+                JsShapePropertyFlags.Open,
+                out var statusTextInfo
+            );
             shape = shape.GetOrAddTransition(urlAtom, JsShapePropertyFlags.Open, out var urlInfo);
-            shape = shape.GetOrAddTransition(headersAtom, JsShapePropertyFlags.Open, out var headersInfo);
-            shape = shape.GetOrAddTransition(textAtom, JsShapePropertyFlags.Configurable, out var textInfo);
-            shape = shape.GetOrAddTransition(jsonAtom, JsShapePropertyFlags.Configurable, out var jsonInfo);
-            shape = shape.GetOrAddTransition(arrayBufferAtom, JsShapePropertyFlags.Configurable,
-                out var arrayBufferInfo);
+            shape = shape.GetOrAddTransition(
+                headersAtom,
+                JsShapePropertyFlags.Open,
+                out var headersInfo
+            );
+            shape = shape.GetOrAddTransition(
+                textAtom,
+                JsShapePropertyFlags.Configurable,
+                out var textInfo
+            );
+            shape = shape.GetOrAddTransition(
+                jsonAtom,
+                JsShapePropertyFlags.Configurable,
+                out var jsonInfo
+            );
+            shape = shape.GetOrAddTransition(
+                arrayBufferAtom,
+                JsShapePropertyFlags.Configurable,
+                out var arrayBufferInfo
+            );
 
             Debug.Assert(okInfo.Slot == OkSlot);
             Debug.Assert(statusInfo.Slot == StatusSlot);

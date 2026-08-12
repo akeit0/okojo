@@ -6,5 +6,5 @@ public enum CallFrameKind
     FunctionFrame = 1,
     ConstructFrame = 2,
     HostExitFrame = 3,
-    GeneratorFrame = 4
+    GeneratorFrame = 4,
 }

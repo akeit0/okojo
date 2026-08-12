@@ -18,23 +18,52 @@ public class RegExpEngineBenchmarks
         string Pattern,
         string Flags,
         string Input,
-        int StartIndex = 0);
+        int StartIndex = 0
+    );
 
     private static readonly IReadOnlyDictionary<string, RegExpScenario> ScenarioMap =
         new Dictionary<string, RegExpScenario>(StringComparer.Ordinal)
         {
             ["literal-scan"] = new("literal-scan", "a+", "", "baaaaaaaaaaaaaaaaa"),
-            ["ascii-word-scan"] = new("ascii-word-scan", @"\w+", "", "zzzzzzzzzzzzzzzzzzaaaaaaaaaaaaaa_0099!"),
-            ["first-set-class-scan"] = new("first-set-class-scan", @"[A-Z]foo", "", "zzzzzzzzzzzzzzzzzzQfoo"),
-            ["property-whole-input"] = new("property-whole-input", @"^\p{Uppercase_Letter}+$", "u",
-                Repeat("ABCDEFGHIJKLMNOPQRSTUVWXYZ", 32)),
-            ["string-property-whole-input"] = new("string-property-whole-input", @"^\p{RGI_Emoji}+$", "v",
-                Repeat("1\uFE0F\u20E3", 64)),
+            ["ascii-word-scan"] = new(
+                "ascii-word-scan",
+                @"\w+",
+                "",
+                "zzzzzzzzzzzzzzzzzzaaaaaaaaaaaaaa_0099!"
+            ),
+            ["first-set-class-scan"] = new(
+                "first-set-class-scan",
+                @"[A-Z]foo",
+                "",
+                "zzzzzzzzzzzzzzzzzzQfoo"
+            ),
+            ["property-whole-input"] = new(
+                "property-whole-input",
+                @"^\p{Uppercase_Letter}+$",
+                "u",
+                Repeat("ABCDEFGHIJKLMNOPQRSTUVWXYZ", 32)
+            ),
+            ["string-property-whole-input"] = new(
+                "string-property-whole-input",
+                @"^\p{RGI_Emoji}+$",
+                "v",
+                Repeat("1\uFE0F\u20E3", 64)
+            ),
             ["named-capture"] = new("named-capture", @"(?<name>a)(b)?", "g", "zabz", 1),
             ["unicode-casefold"] = new("unicode-casefold", @"[\u0390]", "ui", "\u1fd3"),
-            ["unicode-class-set-casefold"] = new("unicode-class-set-casefold", @"[\u0390x]", "ui", "\u1fd3"),
-            ["lookahead-backref"] = new("lookahead-backref", @"(.*?)a(?!(a+)b\2c)\2(.*)", "", "baaabaac"),
-            ["global-empty"] = new("global-empty", @"a*", "g", string.Empty)
+            ["unicode-class-set-casefold"] = new(
+                "unicode-class-set-casefold",
+                @"[\u0390x]",
+                "ui",
+                "\u1fd3"
+            ),
+            ["lookahead-backref"] = new(
+                "lookahead-backref",
+                @"(.*?)a(?!(a+)b\2c)\2(.*)",
+                "",
+                "baaabaac"
+            ),
+            ["global-empty"] = new("global-empty", @"a*", "g", string.Empty),
         };
 
     private readonly RegExpEngine currentEngine = RegExpEngine.Default;
@@ -49,8 +78,16 @@ public class RegExpEngineBenchmarks
     private JsRealm experimentalRealm = null!;
     private int sink;
 
-    [Params("literal-scan", "ascii-word-scan", "first-set-class-scan", "property-whole-input",
-        "string-property-whole-input", "unicode-casefold", "unicode-class-set-casefold", "lookahead-backref")]
+    [Params(
+        "literal-scan",
+        "ascii-word-scan",
+        "first-set-class-scan",
+        "property-whole-input",
+        "string-property-whole-input",
+        "unicode-casefold",
+        "unicode-class-set-casefold",
+        "lookahead-backref"
+    )]
     public string Scenario { get; set; } = "literal-scan";
 
     [GlobalSetup]
@@ -60,8 +97,7 @@ public class RegExpEngineBenchmarks
         currentCompiled = currentEngine.Compile(scenario.Pattern, scenario.Flags);
         //experimentalCompiled = experimentalEngine.Compile(scenario.Pattern, scenario.Flags);
 
-        currentRuntime = JsRuntime.CreateBuilder()
-            .Build();
+        currentRuntime = JsRuntime.CreateBuilder().Build();
         //experimentalRuntime = JsRuntime.CreateBuilder()
         // .UseRegExpEngine(ExperimentalRegExpEngine.Default)
         // .Build();
@@ -124,19 +160,21 @@ public class RegExpEngineBenchmarks
         var patternLiteral = ToJsStringLiteral(scenario.Pattern);
         var flagsLiteral = ToJsStringLiteral(scenario.Flags);
         var inputLiteral = ToJsStringLiteral(scenario.Input);
-        realm.Eval($$"""
-                    (() => {
-                        const re = new RegExp({{patternLiteral}}, {{flagsLiteral}});
-                        const input = {{inputLiteral}};
-                        const startIndex = {{scenario.StartIndex}};
-                        return function() {
-                            re.lastIndex = 0;
-                            const match = re.exec(input.slice(startIndex));
-                            re.lastIndex = 0;
-                            return match === null ? -1 : match[0].length;
-                        };
-                    })()
-                    """);
+        realm.Eval(
+            $$"""
+            (() => {
+                const re = new RegExp({{patternLiteral}}, {{flagsLiteral}});
+                const input = {{inputLiteral}};
+                const startIndex = {{scenario.StartIndex}};
+                return function() {
+                    re.lastIndex = 0;
+                    const match = re.exec(input.slice(startIndex));
+                    re.lastIndex = 0;
+                    return match === null ? -1 : match[0].length;
+                };
+            })()
+            """
+        );
         return (JsBytecodeFunction)realm.Accumulator.AsObject();
     }
 
@@ -146,7 +184,11 @@ public class RegExpEngineBenchmarks
         return ExecCompiled(engine, compiled, scenario);
     }
 
-    private static int ExecCompiled(RegExpEngine engine, RegExpCompiledPattern compiled, RegExpScenario scenario)
+    private static int ExecCompiled(
+        RegExpEngine engine,
+        RegExpCompiledPattern compiled,
+        RegExpScenario scenario
+    )
     {
         var match = engine.Exec(compiled, scenario.Input, scenario.StartIndex);
         return match?.Length ?? -1;
@@ -155,8 +197,11 @@ public class RegExpEngineBenchmarks
     private static string ToJsStringLiteral(string value)
     {
         return $$"""
-                 "{{value.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "\\r").Replace("\n", "\\n")}}"
-                 """;
+            "{{value.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "\\r").Replace(
+                "\n",
+                "\\n"
+            )}}"
+            """;
     }
 
     private static string Repeat(string value, int count)

@@ -18,7 +18,10 @@ public sealed partial class JsCompiler
 
     private bool TryGetModuleVariableBinding(string name, out ModuleVariableBinding binding)
     {
-        if (moduleVariableBindings is not null && moduleVariableBindings.TryGetValue(name, out binding))
+        if (
+            moduleVariableBindings is not null
+            && moduleVariableBindings.TryGetValue(name, out binding)
+        )
             return true;
         binding = default;
         return false;

@@ -20,7 +20,9 @@ internal sealed class JsLocaleObject : JsObject
         string? numberingSystem,
         bool? numeric,
         string? firstDayOfWeek,
-        CultureInfo cultureInfo) : base(realm)
+        CultureInfo cultureInfo
+    )
+        : base(realm)
     {
         Prototype = prototype;
         Locale = locale;

@@ -14,7 +14,10 @@ public sealed class WebRuntimeApiModule : IRealmApiModule
     private readonly ConditionalWeakTable<JsRealm, RealmWebRuntimeState> realmStates = new();
     private readonly HostTaskQueueKey timerQueueKey;
 
-    public WebRuntimeApiModule(Func<JsRealm, IHostDelayScheduler> delaySchedulerFactory, HostTaskQueueKey timerQueueKey)
+    public WebRuntimeApiModule(
+        Func<JsRealm, IHostDelayScheduler> delaySchedulerFactory,
+        HostTaskQueueKey timerQueueKey
+    )
     {
         ArgumentNullException.ThrowIfNull(delaySchedulerFactory);
         this.delaySchedulerFactory = delaySchedulerFactory;
@@ -22,9 +25,11 @@ public sealed class WebRuntimeApiModule : IRealmApiModule
         abortApiModule = new(delaySchedulerFactory, timerQueueKey);
     }
 
-    public static WebRuntimeApiModule Shared { get; } = new(
-        static realm => new TimeProviderDelayScheduler(realm.Engine.TimeProvider),
-        WebTaskQueueKeys.Timers);
+    public static WebRuntimeApiModule Shared { get; } =
+        new(
+            static realm => new TimeProviderDelayScheduler(realm.Engine.TimeProvider),
+            WebTaskQueueKeys.Timers
+        );
 
     public void Install(JsRealm realm)
     {
@@ -39,9 +44,13 @@ public sealed class WebRuntimeApiModule : IRealmApiModule
         if (!realm.Global.TryGetValue("setInterval", out _))
             realm.Global["setInterval"] = JsValue.FromObject(CreateSetTimeoutFunction(realm, true));
         if (!realm.Global.TryGetValue("clearTimeout", out _))
-            realm.Global["clearTimeout"] = JsValue.FromObject(CreateClearTimerFunction(realm, "clearTimeout"));
+            realm.Global["clearTimeout"] = JsValue.FromObject(
+                CreateClearTimerFunction(realm, "clearTimeout")
+            );
         if (!realm.Global.TryGetValue("clearInterval", out _))
-            realm.Global["clearInterval"] = JsValue.FromObject(CreateClearTimerFunction(realm, "clearInterval"));
+            realm.Global["clearInterval"] = JsValue.FromObject(
+                CreateClearTimerFunction(realm, "clearInterval")
+            );
     }
 
     private RealmWebRuntimeState GetState(JsRealm realm)
@@ -51,68 +60,107 @@ public sealed class WebRuntimeApiModule : IRealmApiModule
 
     private JsHostFunction CreateAtobFunction(JsRealm realm)
     {
-        return new(realm, static (in info) =>
-        {
-            var input = info.GetArgumentStringOrDefault(0, string.Empty);
-            try
+        return new(
+            realm,
+            static (in info) =>
             {
-                var bytes = Convert.FromBase64String(input);
-                return JsValue.FromString(Encoding.Latin1.GetString(bytes));
-            }
-            catch (FormatException)
-            {
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "The string to be decoded is not correctly encoded.",
-                    "WEBRUNTIME_ATOB_INVALID");
-            }
-        }, "atob", 1);
+                var input = info.GetArgumentStringOrDefault(0, string.Empty);
+                try
+                {
+                    var bytes = Convert.FromBase64String(input);
+                    return JsValue.FromString(Encoding.Latin1.GetString(bytes));
+                }
+                catch (FormatException)
+                {
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "The string to be decoded is not correctly encoded.",
+                        "WEBRUNTIME_ATOB_INVALID"
+                    );
+                }
+            },
+            "atob",
+            1
+        );
     }
 
     private JsHostFunction CreateBtoaFunction(JsRealm realm)
     {
-        return new(realm, static (in info) =>
-        {
-            var input = info.GetArgumentStringOrDefault(0, string.Empty);
-            for (var i = 0; i < input.Length; i++)
-                if (input[i] > 0xFF)
-                    throw new JsRuntimeException(JsErrorKind.TypeError,
-                        "The string to be encoded contains characters outside of the Latin1 range.",
-                        "WEBRUNTIME_BTOA_INVALID");
+        return new(
+            realm,
+            static (in info) =>
+            {
+                var input = info.GetArgumentStringOrDefault(0, string.Empty);
+                for (var i = 0; i < input.Length; i++)
+                    if (input[i] > 0xFF)
+                        throw new JsRuntimeException(
+                            JsErrorKind.TypeError,
+                            "The string to be encoded contains characters outside of the Latin1 range.",
+                            "WEBRUNTIME_BTOA_INVALID"
+                        );
 
-            return JsValue.FromString(Convert.ToBase64String(Encoding.Latin1.GetBytes(input)));
-        }, "btoa", 1);
+                return JsValue.FromString(Convert.ToBase64String(Encoding.Latin1.GetBytes(input)));
+            },
+            "btoa",
+            1
+        );
     }
 
     private JsHostFunction CreateSetTimeoutFunction(JsRealm realm, bool repeat)
     {
         var name = repeat ? "setInterval" : "setTimeout";
-        return new(realm, (in info) =>
-        {
-            if (info.Arguments.Length == 0 ||
-                !info.Arguments[0].TryGetObject(out var callbackObj) ||
-                callbackObj is not JsFunction callback)
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    $"{name} callback is not a function",
-                    repeat ? "SET_INTERVAL_CALLBACK_NOT_FUNCTION" : "SET_TIMEOUT_CALLBACK_NOT_FUNCTION");
+        return new(
+            realm,
+            (in info) =>
+            {
+                if (
+                    info.Arguments.Length == 0
+                    || !info.Arguments[0].TryGetObject(out var callbackObj)
+                    || callbackObj is not JsFunction callback
+                )
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        $"{name} callback is not a function",
+                        repeat
+                            ? "SET_INTERVAL_CALLBACK_NOT_FUNCTION"
+                            : "SET_TIMEOUT_CALLBACK_NOT_FUNCTION"
+                    );
 
-            var delayMs = NormalizeDelay(info.GetArgumentOrDefault(1, JsValue.Undefined));
-            var timerArgs = info.Arguments.Length > 2 ? info.Arguments[2..].ToArray() : Array.Empty<JsValue>();
-            var timerId = CreateTimer(info.Realm, callback, delayMs, timerArgs, repeat);
-            return JsValue.FromInt32(timerId);
-        }, name, 2);
+                var delayMs = NormalizeDelay(info.GetArgumentOrDefault(1, JsValue.Undefined));
+                var timerArgs =
+                    info.Arguments.Length > 2
+                        ? info.Arguments[2..].ToArray()
+                        : Array.Empty<JsValue>();
+                var timerId = CreateTimer(info.Realm, callback, delayMs, timerArgs, repeat);
+                return JsValue.FromInt32(timerId);
+            },
+            name,
+            2
+        );
     }
 
     private JsHostFunction CreateClearTimerFunction(JsRealm realm, string name)
     {
-        return new(realm, (in info) =>
-        {
-            if (info.Arguments.Length != 0)
-                CancelTimer(info.Realm, ToTimerId(info.Arguments[0]));
-            return JsValue.Undefined;
-        }, name, 1);
+        return new(
+            realm,
+            (in info) =>
+            {
+                if (info.Arguments.Length != 0)
+                    CancelTimer(info.Realm, ToTimerId(info.Arguments[0]));
+                return JsValue.Undefined;
+            },
+            name,
+            1
+        );
     }
 
-    private int CreateTimer(JsRealm realm, JsFunction callback, int delayMs, JsValue[] args, bool repeat)
+    private int CreateTimer(
+        JsRealm realm,
+        JsFunction callback,
+        int delayMs,
+        JsValue[] args,
+        bool repeat
+    )
     {
         var state = GetState(realm);
         var delayScheduler = delaySchedulerFactory(realm);
@@ -120,11 +168,16 @@ public sealed class WebRuntimeApiModule : IRealmApiModule
         lock (state.Gate)
         {
             var publicTimerId = ++state.NextTimerId;
-            var driver = new JsHostFunction(realm, static (in info) =>
-            {
-                var timerState = (TimerState)((JsHostFunction)info.Function).UserData!;
-                return timerState.Repeat ? FireInterval(timerState) : FireTimeout(timerState);
-            }, repeat ? "setInterval callback" : "setTimeout callback", 0);
+            var driver = new JsHostFunction(
+                realm,
+                static (in info) =>
+                {
+                    var timerState = (TimerState)((JsHostFunction)info.Function).UserData!;
+                    return timerState.Repeat ? FireInterval(timerState) : FireTimeout(timerState);
+                },
+                repeat ? "setInterval callback" : "setTimeout callback",
+                0
+            );
 
             timer = new()
             {
@@ -137,7 +190,7 @@ public sealed class WebRuntimeApiModule : IRealmApiModule
                 Repeat = repeat,
                 TimerQueueKey = timerQueueKey,
                 DelayScheduler = delayScheduler,
-                Driver = driver
+                Driver = driver,
             };
             driver.UserData = timer;
             state.Timers.Add(publicTimerId, timer);
@@ -189,7 +242,8 @@ public sealed class WebRuntimeApiModule : IRealmApiModule
         {
             lock (timer.OwnerState.Gate)
             {
-                shouldReschedule = timer.Active && timer.OwnerState.Timers.ContainsKey(timer.PublicTimerId);
+                shouldReschedule =
+                    timer.Active && timer.OwnerState.Timers.ContainsKey(timer.PublicTimerId);
                 if (shouldReschedule)
                     ScheduleTimer(timer);
                 else
@@ -201,20 +255,29 @@ public sealed class WebRuntimeApiModule : IRealmApiModule
     private static void ScheduleTimer(TimerState timer)
     {
         ReleaseTimerHandle(timer);
-        var dueTime = timer.DelayMs <= 0 ? TimeSpan.FromTicks(1) : TimeSpan.FromMilliseconds(timer.DelayMs);
+        var dueTime =
+            timer.DelayMs <= 0 ? TimeSpan.FromTicks(1) : TimeSpan.FromMilliseconds(timer.DelayMs);
         if (timer.DelayScheduler is IQueuedHostDelayScheduler queuedDelayScheduler)
-            timer.ScheduledOperation = queuedDelayScheduler.ScheduleDelayed(dueTime, timer.TimerQueueKey,
+            timer.ScheduledOperation = queuedDelayScheduler.ScheduleDelayed(
+                dueTime,
+                timer.TimerQueueKey,
                 static state =>
                 {
                     var timerState = (TimerState)state!;
                     InvokeQueuedTimerTask(timerState);
-                }, timer);
+                },
+                timer
+            );
         else
-            timer.ScheduledOperation = timer.DelayScheduler.ScheduleDelayed(dueTime, static state =>
-            {
-                var timerState = (TimerState)state!;
-                timerState.Realm.QueueHostTask(timerState.Driver);
-            }, timer);
+            timer.ScheduledOperation = timer.DelayScheduler.ScheduleDelayed(
+                dueTime,
+                static state =>
+                {
+                    var timerState = (TimerState)state!;
+                    timerState.Realm.QueueHostTask(timerState.Driver);
+                },
+                timer
+            );
     }
 
     private static void ReleaseTimerHandle(TimerState timer)
@@ -229,9 +292,7 @@ public sealed class WebRuntimeApiModule : IRealmApiModule
         {
             _ = timerState.Realm.InvokeFunction(timerState.Driver, JsValue.Undefined, []);
         }
-        catch (JsRuntimeException)
-        {
-        }
+        catch (JsRuntimeException) { }
     }
 
     private static int NormalizeDelay(in JsValue value)

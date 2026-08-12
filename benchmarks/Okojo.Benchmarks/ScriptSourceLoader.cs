@@ -11,12 +11,28 @@ internal static class ScriptSourceLoader
         var baseDir = AppContext.BaseDirectory;
 
         var directPath = Path.Combine(baseDir, "scripts", fileName);
-        if (File.Exists(directPath)) return File.ReadAllText(directPath);
+        if (File.Exists(directPath))
+            return File.ReadAllText(directPath);
 
-        var repoPath = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "..", "benchmarks", "Okojo.Benchmarks",
-            "scripts", fileName));
-        if (File.Exists(repoPath)) return File.ReadAllText(repoPath);
+        var repoPath = Path.GetFullPath(
+            Path.Combine(
+                baseDir,
+                "..",
+                "..",
+                "..",
+                "..",
+                "benchmarks",
+                "Okojo.Benchmarks",
+                "scripts",
+                fileName
+            )
+        );
+        if (File.Exists(repoPath))
+            return File.ReadAllText(repoPath);
 
-        throw new FileNotFoundException($"Benchmark script not found for scenario '{scenario}'.", directPath);
+        throw new FileNotFoundException(
+            $"Benchmark script not found for scenario '{scenario}'.",
+            directPath
+        );
     }
 }

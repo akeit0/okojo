@@ -2,8 +2,12 @@ namespace Okojo.Parsing;
 
 public static class SourceLocation
 {
-    public static bool TryGetLineOffsetRange(SourceCode sourceCode, int line, out int startOffset,
-        out int endOffsetExclusive)
+    public static bool TryGetLineOffsetRange(
+        SourceCode sourceCode,
+        int line,
+        out int startOffset,
+        out int endOffsetExclusive
+    )
     {
         startOffset = 0;
         endOffsetExclusive = 0;
@@ -16,11 +20,17 @@ public static class SourceLocation
             return false;
 
         startOffset = lineStarts[line - 1];
-        endOffsetExclusive = line >= lineStarts.Length ? sourceCode.Source.Length : lineStarts[line] - 1;
+        endOffsetExclusive =
+            line >= lineStarts.Length ? sourceCode.Source.Length : lineStarts[line] - 1;
         return true;
     }
 
-    public static bool TryGetLineOffsetRange(string source, int line, out int startOffset, out int endOffsetExclusive)
+    public static bool TryGetLineOffsetRange(
+        string source,
+        int line,
+        out int startOffset,
+        out int endOffsetExclusive
+    )
     {
         startOffset = 0;
         endOffsetExclusive = 0;

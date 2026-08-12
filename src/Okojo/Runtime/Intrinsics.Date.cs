@@ -15,483 +15,937 @@ public partial class Intrinsics
 
     [GeneratedRegex(
         @"^(?<year>[+-]?\d{4,6})-(?<month>\d{2})-(?<day>\d{2})(?:T(?<hour>\d{2}):(?<minute>\d{2})(?::(?<second>\d{2})(?:\.(?<millisecond>\d{1,3}))?)?(?<offset>Z|[+-]\d{2}:\d{2})?)?$",
-        RegexOptions.CultureInvariant)]
+        RegexOptions.CultureInvariant
+    )]
     private static partial Regex EcmaIsoDateTimeRegex();
 
     [GeneratedRegex(
         @"^(?<year>[+-]?\d{4,6})(?:-(?<month>\d{2})(?:-(?<day>\d{2}))?)?$",
-        RegexOptions.CultureInvariant)]
+        RegexOptions.CultureInvariant
+    )]
     private static partial Regex EcmaPartialDateRegex();
 
     [GeneratedRegex(
         @"^(?<weekday>[A-Za-z]{3}) (?<monthName>[A-Za-z]{3}) (?<day>\d{2}) (?<year>[+-]?\d{4,6}) (?<hour>\d{2}):(?<minute>\d{2}):(?<second>\d{2}) GMT(?<sign>[+-])(?<offsetHour>\d{2})(?::?(?<offsetMinute>\d{2}))?(?: \(.+\))?$",
-        RegexOptions.CultureInvariant)]
+        RegexOptions.CultureInvariant
+    )]
     private static partial Regex LegacyLocalDateStringRegex();
 
     private JsHostFunction CreateDateConstructor()
     {
-        return new(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            var callee = (JsHostFunction)info.Function;
-
-            if (!info.IsConstruct)
-                return FormatDateLocalString(realm.TimeProvider.GetUtcNow().ToUnixTimeMilliseconds());
-
-            var timeValue = args.Length switch
+        return new(
+            Realm,
+            (in info) =>
             {
-                0 => realm.TimeProvider.GetUtcNow().ToUnixTimeMilliseconds(),
-                1 => DateConstructorSingleArgumentToTimeValue(realm, args[0]),
-                _ => DateConstructorMultipleArgumentsToTimeValue(realm, args)
-            };
+                var realm = info.Realm;
+                var args = info.Arguments;
+                var callee = (JsHostFunction)info.Function;
 
-            var prototype = GetPrototypeFromConstructorOrIntrinsic(info.NewTarget, callee,
-                callee.Realm.DatePrototype);
-            return new JsDateObject(realm, timeValue) { Prototype = prototype };
-        }, "Date", 7, true);
+                if (!info.IsConstruct)
+                    return FormatDateLocalString(
+                        realm.TimeProvider.GetUtcNow().ToUnixTimeMilliseconds()
+                    );
+
+                var timeValue = args.Length switch
+                {
+                    0 => realm.TimeProvider.GetUtcNow().ToUnixTimeMilliseconds(),
+                    1 => DateConstructorSingleArgumentToTimeValue(realm, args[0]),
+                    _ => DateConstructorMultipleArgumentsToTimeValue(realm, args),
+                };
+
+                var prototype = GetPrototypeFromConstructorOrIntrinsic(
+                    info.NewTarget,
+                    callee,
+                    callee.Realm.DatePrototype
+                );
+                return new JsDateObject(realm, timeValue) { Prototype = prototype };
+            },
+            "Date",
+            7,
+            true
+        );
     }
 
     private void InstallDateConstructorBuiltins()
     {
-        var nowFn = new JsHostFunction(Realm,
-            static (in info) => { return new(info.Realm.TimeProvider.GetUtcNow().ToUnixTimeMilliseconds()); },
-            "now", 0);
-
-        var parseFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            var text = args.Length == 0 ? "undefined" : realm.ToJsStringSlowPath(args[0]);
-            return new(ParseDateString(text));
-        }, "parse", 1);
-
-        var utcFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            if (args.Length == 0)
-                return JsValue.NaN;
-
-            var year = realm.ToNumberSlowPath(args[0]);
-            var month = args.Length > 1 ? realm.ToNumberSlowPath(args[1]) : 0d;
-            var date = args.Length > 2 ? realm.ToNumberSlowPath(args[2]) : 1d;
-            var hours = args.Length > 3 ? realm.ToNumberSlowPath(args[3]) : 0d;
-            var minutes = args.Length > 4 ? realm.ToNumberSlowPath(args[4]) : 0d;
-            var seconds = args.Length > 5 ? realm.ToNumberSlowPath(args[5]) : 0d;
-            var milliseconds = args.Length > 6 ? realm.ToNumberSlowPath(args[6]) : 0d;
-
-            if (!AreFiniteDateComponents(year, month, date, hours, minutes, seconds, milliseconds))
-                return JsValue.NaN;
-
-            var fullYear = MakeFullYear(year);
-            var day = MakeDay(fullYear, month, date);
-            var time = MakeTime(hours, minutes, seconds, milliseconds);
-            return new(TimeClip(MakeDate(day, time)));
-        }, "UTC", 7);
-
-        var toStringFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var timeValue = ThisDateValue(info.Realm, info.ThisValue, "Date.prototype.toString");
-            return FormatDateLocalString(timeValue);
-        }, "toString", 0);
-
-        var toDateStringFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var timeValue = ThisDateValue(info.Realm, info.ThisValue, "Date.prototype.toDateString");
-            return FormatDateDateString(timeValue);
-        }, "toDateString", 0);
-
-        var toTimeStringFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var timeValue = ThisDateValue(info.Realm, info.ThisValue, "Date.prototype.toTimeString");
-            return FormatDateTimeString(timeValue);
-        }, "toTimeString", 0);
-
-        var toUtcStringFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var timeValue = ThisDateValue(info.Realm, info.ThisValue, "Date.prototype.toUTCString");
-            return FormatDateUtcString(timeValue);
-        }, "toUTCString", 0);
-
-        var toLocaleDateStringFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var timeValue = ThisDateValue(info.Realm, info.ThisValue, "Date.prototype.toLocaleDateString");
-            return FormatDateWithIntl(info.Realm, timeValue, info.Arguments, true,
-                false);
-        }, "toLocaleDateString", 0);
-
-        var toLocaleStringFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var timeValue = ThisDateValue(info.Realm, info.ThisValue, "Date.prototype.toLocaleString");
-            return FormatDateWithIntl(info.Realm, timeValue, info.Arguments, true,
-                true);
-        }, "toLocaleString", 0);
-
-        var toLocaleTimeStringFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var timeValue = ThisDateValue(info.Realm, info.ThisValue, "Date.prototype.toLocaleTimeString");
-            return FormatDateWithIntl(info.Realm, timeValue, info.Arguments, false,
-                true);
-        }, "toLocaleTimeString", 0);
-
-        var toIsoStringFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var timeValue = ThisDateValue(info.Realm, info.ThisValue, "Date.prototype.toISOString");
-            if (double.IsNaN(timeValue))
-                throw new JsRuntimeException(JsErrorKind.RangeError, "Invalid time value");
-            return FormatDateIsoString(timeValue);
-        }, "toISOString", 0);
-
-        var toJsonFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var thisValue = info.ThisValue;
-            var primitive = realm.ToPrimitiveSlowPath(thisValue, false);
-            if (primitive.IsNumber && (double.IsNaN(primitive.NumberValue) || double.IsInfinity(primitive.NumberValue)))
-                return JsValue.Null;
-
-            if (!realm.TryToObject(thisValue, out var obj))
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Cannot convert undefined or null to object");
-
-            if (!obj.TryGetPropertyAtom(realm, IdToIsoString, out var toIsoValue, out _) ||
-                !toIsoValue.TryGetObject(out var toIsoObj) || toIsoObj is not JsFunction toIsoFn)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "toISOString is not callable");
-
-            return realm.InvokeFunction(toIsoFn, thisValue, ReadOnlySpan<JsValue>.Empty);
-        }, "toJSON", 1);
-
-        var valueOfFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var timeValue = ThisDateValue(info.Realm, info.ThisValue, "Date.prototype.valueOf");
-            return new(timeValue);
-        }, "valueOf", 0);
-
-        var getTimeFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var timeValue = ThisDateValue(info.Realm, info.ThisValue, "Date.prototype.getTime");
-            return new(timeValue);
-        }, "getTime", 0);
-
-        var getDateFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var timeValue = ThisDateValue(info.Realm, info.ThisValue, "Date.prototype.getDate");
-            return GetDateComponentValue(timeValue, DateComponent.Date, false);
-        }, "getDate", 0);
-
-        var getDayFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var timeValue = ThisDateValue(info.Realm, info.ThisValue, "Date.prototype.getDay");
-            return GetDateComponentValue(timeValue, DateComponent.Weekday, false);
-        }, "getDay", 0);
-
-        var getFullYearFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var timeValue = ThisDateValue(info.Realm, info.ThisValue, "Date.prototype.getFullYear");
-            return GetDateComponentValue(timeValue, DateComponent.Year, false);
-        }, "getFullYear", 0);
-
-        var getHoursFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var timeValue = ThisDateValue(info.Realm, info.ThisValue, "Date.prototype.getHours");
-            return GetDateComponentValue(timeValue, DateComponent.Hour, false);
-        }, "getHours", 0);
-
-        var getMillisecondsFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var timeValue = ThisDateValue(info.Realm, info.ThisValue, "Date.prototype.getMilliseconds");
-            return GetDateComponentValue(timeValue, DateComponent.Millisecond, false);
-        }, "getMilliseconds", 0);
-
-        var getMinutesFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var timeValue = ThisDateValue(info.Realm, info.ThisValue, "Date.prototype.getMinutes");
-            return GetDateComponentValue(timeValue, DateComponent.Minute, false);
-        }, "getMinutes", 0);
-
-        var getMonthFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var timeValue = ThisDateValue(info.Realm, info.ThisValue, "Date.prototype.getMonth");
-            return GetDateComponentValue(timeValue, DateComponent.MonthZeroBased, false);
-        }, "getMonth", 0);
-
-        var getSecondsFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var timeValue = ThisDateValue(info.Realm, info.ThisValue, "Date.prototype.getSeconds");
-            return GetDateComponentValue(timeValue, DateComponent.Second, false);
-        }, "getSeconds", 0);
-
-        var getTimezoneOffsetFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var timeValue = ThisDateValue(info.Realm, info.ThisValue, "Date.prototype.getTimezoneOffset");
-            if (double.IsNaN(timeValue))
-                return JsValue.NaN;
-            return new(GetTimezoneOffsetMinutes(timeValue));
-        }, "getTimezoneOffset", 0);
-
-        var getUtcDateFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var timeValue = ThisDateValue(info.Realm, info.ThisValue, "Date.prototype.getUTCDate");
-            return GetDateComponentValue(timeValue, DateComponent.Date, true);
-        }, "getUTCDate", 0);
-
-        var getUtcDayFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var timeValue = ThisDateValue(info.Realm, info.ThisValue, "Date.prototype.getUTCDay");
-            return GetDateComponentValue(timeValue, DateComponent.Weekday, true);
-        }, "getUTCDay", 0);
-
-        var getUtcFullYearFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var timeValue = ThisDateValue(info.Realm, info.ThisValue, "Date.prototype.getUTCFullYear");
-            return GetDateComponentValue(timeValue, DateComponent.Year, true);
-        }, "getUTCFullYear", 0);
-
-        var getUtcHoursFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var timeValue = ThisDateValue(info.Realm, info.ThisValue, "Date.prototype.getUTCHours");
-            return GetDateComponentValue(timeValue, DateComponent.Hour, true);
-        }, "getUTCHours", 0);
-
-        var getUtcMillisecondsFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var timeValue = ThisDateValue(info.Realm, info.ThisValue, "Date.prototype.getUTCMilliseconds");
-            return GetDateComponentValue(timeValue, DateComponent.Millisecond, true);
-        }, "getUTCMilliseconds", 0);
-
-        var getUtcMinutesFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var timeValue = ThisDateValue(info.Realm, info.ThisValue, "Date.prototype.getUTCMinutes");
-            return GetDateComponentValue(timeValue, DateComponent.Minute, true);
-        }, "getUTCMinutes", 0);
-
-        var getUtcMonthFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var timeValue = ThisDateValue(info.Realm, info.ThisValue, "Date.prototype.getUTCMonth");
-            return GetDateComponentValue(timeValue, DateComponent.MonthZeroBased, true);
-        }, "getUTCMonth", 0);
-
-        var getUtcSecondsFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var timeValue = ThisDateValue(info.Realm, info.ThisValue, "Date.prototype.getUTCSeconds");
-            return GetDateComponentValue(timeValue, DateComponent.Second, true);
-        }, "getUTCSeconds", 0);
-
-        var setTimeFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            if (!info.ThisValue.TryGetObject(out var obj) || obj is not JsDateObject date)
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Date.prototype.setTime called on incompatible receiver");
-
-            var time = args.Length == 0 ? double.NaN : realm.ToNumberSlowPath(args[0]);
-            var clipped = TimeClip(time);
-            date.TimeValue = clipped;
-            return new(clipped);
-        }, "setTime", 1);
-
-        var setDateFn = new JsHostFunction(Realm,
+        var nowFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
-                return SetDateLike(info, "Date.prototype.setDate", false,
+                return new(info.Realm.TimeProvider.GetUtcNow().ToUnixTimeMilliseconds());
+            },
+            "now",
+            0
+        );
+
+        var parseFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                var text = args.Length == 0 ? "undefined" : realm.ToJsStringSlowPath(args[0]);
+                return new(ParseDateString(text));
+            },
+            "parse",
+            1
+        );
+
+        var utcFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                if (args.Length == 0)
+                    return JsValue.NaN;
+
+                var year = realm.ToNumberSlowPath(args[0]);
+                var month = args.Length > 1 ? realm.ToNumberSlowPath(args[1]) : 0d;
+                var date = args.Length > 2 ? realm.ToNumberSlowPath(args[2]) : 1d;
+                var hours = args.Length > 3 ? realm.ToNumberSlowPath(args[3]) : 0d;
+                var minutes = args.Length > 4 ? realm.ToNumberSlowPath(args[4]) : 0d;
+                var seconds = args.Length > 5 ? realm.ToNumberSlowPath(args[5]) : 0d;
+                var milliseconds = args.Length > 6 ? realm.ToNumberSlowPath(args[6]) : 0d;
+
+                if (
+                    !AreFiniteDateComponents(
+                        year,
+                        month,
+                        date,
+                        hours,
+                        minutes,
+                        seconds,
+                        milliseconds
+                    )
+                )
+                    return JsValue.NaN;
+
+                var fullYear = MakeFullYear(year);
+                var day = MakeDay(fullYear, month, date);
+                var time = MakeTime(hours, minutes, seconds, milliseconds);
+                return new(TimeClip(MakeDate(day, time)));
+            },
+            "UTC",
+            7
+        );
+
+        var toStringFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var timeValue = ThisDateValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Date.prototype.toString"
+                );
+                return FormatDateLocalString(timeValue);
+            },
+            "toString",
+            0
+        );
+
+        var toDateStringFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var timeValue = ThisDateValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Date.prototype.toDateString"
+                );
+                return FormatDateDateString(timeValue);
+            },
+            "toDateString",
+            0
+        );
+
+        var toTimeStringFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var timeValue = ThisDateValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Date.prototype.toTimeString"
+                );
+                return FormatDateTimeString(timeValue);
+            },
+            "toTimeString",
+            0
+        );
+
+        var toUtcStringFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var timeValue = ThisDateValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Date.prototype.toUTCString"
+                );
+                return FormatDateUtcString(timeValue);
+            },
+            "toUTCString",
+            0
+        );
+
+        var toLocaleDateStringFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var timeValue = ThisDateValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Date.prototype.toLocaleDateString"
+                );
+                return FormatDateWithIntl(info.Realm, timeValue, info.Arguments, true, false);
+            },
+            "toLocaleDateString",
+            0
+        );
+
+        var toLocaleStringFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var timeValue = ThisDateValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Date.prototype.toLocaleString"
+                );
+                return FormatDateWithIntl(info.Realm, timeValue, info.Arguments, true, true);
+            },
+            "toLocaleString",
+            0
+        );
+
+        var toLocaleTimeStringFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var timeValue = ThisDateValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Date.prototype.toLocaleTimeString"
+                );
+                return FormatDateWithIntl(info.Realm, timeValue, info.Arguments, false, true);
+            },
+            "toLocaleTimeString",
+            0
+        );
+
+        var toIsoStringFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var timeValue = ThisDateValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Date.prototype.toISOString"
+                );
+                if (double.IsNaN(timeValue))
+                    throw new JsRuntimeException(JsErrorKind.RangeError, "Invalid time value");
+                return FormatDateIsoString(timeValue);
+            },
+            "toISOString",
+            0
+        );
+
+        var toJsonFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var thisValue = info.ThisValue;
+                var primitive = realm.ToPrimitiveSlowPath(thisValue, false);
+                if (
+                    primitive.IsNumber
+                    && (
+                        double.IsNaN(primitive.NumberValue)
+                        || double.IsInfinity(primitive.NumberValue)
+                    )
+                )
+                    return JsValue.Null;
+
+                if (!realm.TryToObject(thisValue, out var obj))
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Cannot convert undefined or null to object"
+                    );
+
+                if (
+                    !obj.TryGetPropertyAtom(realm, IdToIsoString, out var toIsoValue, out _)
+                    || !toIsoValue.TryGetObject(out var toIsoObj)
+                    || toIsoObj is not JsFunction toIsoFn
+                )
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "toISOString is not callable"
+                    );
+
+                return realm.InvokeFunction(toIsoFn, thisValue, ReadOnlySpan<JsValue>.Empty);
+            },
+            "toJSON",
+            1
+        );
+
+        var valueOfFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var timeValue = ThisDateValue(info.Realm, info.ThisValue, "Date.prototype.valueOf");
+                return new(timeValue);
+            },
+            "valueOf",
+            0
+        );
+
+        var getTimeFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var timeValue = ThisDateValue(info.Realm, info.ThisValue, "Date.prototype.getTime");
+                return new(timeValue);
+            },
+            "getTime",
+            0
+        );
+
+        var getDateFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var timeValue = ThisDateValue(info.Realm, info.ThisValue, "Date.prototype.getDate");
+                return GetDateComponentValue(timeValue, DateComponent.Date, false);
+            },
+            "getDate",
+            0
+        );
+
+        var getDayFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var timeValue = ThisDateValue(info.Realm, info.ThisValue, "Date.prototype.getDay");
+                return GetDateComponentValue(timeValue, DateComponent.Weekday, false);
+            },
+            "getDay",
+            0
+        );
+
+        var getFullYearFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var timeValue = ThisDateValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Date.prototype.getFullYear"
+                );
+                return GetDateComponentValue(timeValue, DateComponent.Year, false);
+            },
+            "getFullYear",
+            0
+        );
+
+        var getHoursFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var timeValue = ThisDateValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Date.prototype.getHours"
+                );
+                return GetDateComponentValue(timeValue, DateComponent.Hour, false);
+            },
+            "getHours",
+            0
+        );
+
+        var getMillisecondsFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var timeValue = ThisDateValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Date.prototype.getMilliseconds"
+                );
+                return GetDateComponentValue(timeValue, DateComponent.Millisecond, false);
+            },
+            "getMilliseconds",
+            0
+        );
+
+        var getMinutesFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var timeValue = ThisDateValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Date.prototype.getMinutes"
+                );
+                return GetDateComponentValue(timeValue, DateComponent.Minute, false);
+            },
+            "getMinutes",
+            0
+        );
+
+        var getMonthFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var timeValue = ThisDateValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Date.prototype.getMonth"
+                );
+                return GetDateComponentValue(timeValue, DateComponent.MonthZeroBased, false);
+            },
+            "getMonth",
+            0
+        );
+
+        var getSecondsFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var timeValue = ThisDateValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Date.prototype.getSeconds"
+                );
+                return GetDateComponentValue(timeValue, DateComponent.Second, false);
+            },
+            "getSeconds",
+            0
+        );
+
+        var getTimezoneOffsetFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var timeValue = ThisDateValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Date.prototype.getTimezoneOffset"
+                );
+                if (double.IsNaN(timeValue))
+                    return JsValue.NaN;
+                return new(GetTimezoneOffsetMinutes(timeValue));
+            },
+            "getTimezoneOffset",
+            0
+        );
+
+        var getUtcDateFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var timeValue = ThisDateValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Date.prototype.getUTCDate"
+                );
+                return GetDateComponentValue(timeValue, DateComponent.Date, true);
+            },
+            "getUTCDate",
+            0
+        );
+
+        var getUtcDayFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var timeValue = ThisDateValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Date.prototype.getUTCDay"
+                );
+                return GetDateComponentValue(timeValue, DateComponent.Weekday, true);
+            },
+            "getUTCDay",
+            0
+        );
+
+        var getUtcFullYearFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var timeValue = ThisDateValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Date.prototype.getUTCFullYear"
+                );
+                return GetDateComponentValue(timeValue, DateComponent.Year, true);
+            },
+            "getUTCFullYear",
+            0
+        );
+
+        var getUtcHoursFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var timeValue = ThisDateValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Date.prototype.getUTCHours"
+                );
+                return GetDateComponentValue(timeValue, DateComponent.Hour, true);
+            },
+            "getUTCHours",
+            0
+        );
+
+        var getUtcMillisecondsFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var timeValue = ThisDateValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Date.prototype.getUTCMilliseconds"
+                );
+                return GetDateComponentValue(timeValue, DateComponent.Millisecond, true);
+            },
+            "getUTCMilliseconds",
+            0
+        );
+
+        var getUtcMinutesFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var timeValue = ThisDateValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Date.prototype.getUTCMinutes"
+                );
+                return GetDateComponentValue(timeValue, DateComponent.Minute, true);
+            },
+            "getUTCMinutes",
+            0
+        );
+
+        var getUtcMonthFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var timeValue = ThisDateValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Date.prototype.getUTCMonth"
+                );
+                return GetDateComponentValue(timeValue, DateComponent.MonthZeroBased, true);
+            },
+            "getUTCMonth",
+            0
+        );
+
+        var getUtcSecondsFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var timeValue = ThisDateValue(
+                    info.Realm,
+                    info.ThisValue,
+                    "Date.prototype.getUTCSeconds"
+                );
+                return GetDateComponentValue(timeValue, DateComponent.Second, true);
+            },
+            "getUTCSeconds",
+            0
+        );
+
+        var setTimeFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                if (!info.ThisValue.TryGetObject(out var obj) || obj is not JsDateObject date)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Date.prototype.setTime called on incompatible receiver"
+                    );
+
+                var time = args.Length == 0 ? double.NaN : realm.ToNumberSlowPath(args[0]);
+                var clipped = TimeClip(time);
+                date.TimeValue = clipped;
+                return new(clipped);
+            },
+            "setTime",
+            1
+        );
+
+        var setDateFn = new JsHostFunction(
+            Realm,
+            static (in info) =>
+            {
+                return SetDateLike(
+                    info,
+                    "Date.prototype.setDate",
+                    false,
                     static (realm, args, ref parts) =>
                     {
                         parts = parts with { Day = ToDateSetterValue(realm, args, 0) };
-                    });
-            }, "setDate", 1);
+                    }
+                );
+            },
+            "setDate",
+            1
+        );
 
-        var setFullYearFn = new JsHostFunction(Realm, (in info) =>
-        {
-            return SetDateLike(info, "Date.prototype.setFullYear", false,
-                static (realm, args, ref parts) =>
-                {
-                    parts = parts with
+        var setFullYearFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                return SetDateLike(
+                    info,
+                    "Date.prototype.setFullYear",
+                    false,
+                    static (realm, args, ref parts) =>
                     {
-                        Year = ToDateSetterValue(realm, args, 0),
-                        Month = args.Length > 1 ? ToDateSetterValue(realm, args, 1) + 1 : parts.Month,
-                        Day = args.Length > 2 ? ToDateSetterValue(realm, args, 2) : parts.Day
-                    };
-                }, true, true);
-        }, "setFullYear", 3);
+                        parts = parts with
+                        {
+                            Year = ToDateSetterValue(realm, args, 0),
+                            Month =
+                                args.Length > 1
+                                    ? ToDateSetterValue(realm, args, 1) + 1
+                                    : parts.Month,
+                            Day = args.Length > 2 ? ToDateSetterValue(realm, args, 2) : parts.Day,
+                        };
+                    },
+                    true,
+                    true
+                );
+            },
+            "setFullYear",
+            3
+        );
 
-        var setHoursFn = new JsHostFunction(Realm, (in info) =>
-        {
-            return SetDateLike(info, "Date.prototype.setHours", false,
-                static (realm, args, ref parts) =>
-                {
-                    parts = parts with
+        var setHoursFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                return SetDateLike(
+                    info,
+                    "Date.prototype.setHours",
+                    false,
+                    static (realm, args, ref parts) =>
                     {
-                        Hour = ToDateSetterValue(realm, args, 0),
-                        Minute = args.Length > 1 ? ToDateSetterValue(realm, args, 1) : parts.Minute,
-                        Second = args.Length > 2 ? ToDateSetterValue(realm, args, 2) : parts.Second,
-                        Millisecond = args.Length > 3 ? ToDateSetterValue(realm, args, 3) : parts.Millisecond
-                    };
-                });
-        }, "setHours", 4);
+                        parts = parts with
+                        {
+                            Hour = ToDateSetterValue(realm, args, 0),
+                            Minute =
+                                args.Length > 1 ? ToDateSetterValue(realm, args, 1) : parts.Minute,
+                            Second =
+                                args.Length > 2 ? ToDateSetterValue(realm, args, 2) : parts.Second,
+                            Millisecond =
+                                args.Length > 3
+                                    ? ToDateSetterValue(realm, args, 3)
+                                    : parts.Millisecond,
+                        };
+                    }
+                );
+            },
+            "setHours",
+            4
+        );
 
-        var setMillisecondsFn = new JsHostFunction(Realm,
+        var setMillisecondsFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
-                return SetDateLike(info, "Date.prototype.setMilliseconds", false,
+                return SetDateLike(
+                    info,
+                    "Date.prototype.setMilliseconds",
+                    false,
                     static (realm, args, ref parts) =>
                     {
                         parts = parts with { Millisecond = ToDateSetterValue(realm, args, 0) };
-                    });
-            }, "setMilliseconds", 1);
+                    }
+                );
+            },
+            "setMilliseconds",
+            1
+        );
 
-        var setMinutesFn = new JsHostFunction(Realm, (in info) =>
-        {
-            return SetDateLike(info, "Date.prototype.setMinutes", false,
-                static (realm, args, ref parts) =>
-                {
-                    parts = parts with
+        var setMinutesFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                return SetDateLike(
+                    info,
+                    "Date.prototype.setMinutes",
+                    false,
+                    static (realm, args, ref parts) =>
                     {
-                        Minute = ToDateSetterValue(realm, args, 0),
-                        Second = args.Length > 1 ? ToDateSetterValue(realm, args, 1) : parts.Second,
-                        Millisecond = args.Length > 2 ? ToDateSetterValue(realm, args, 2) : parts.Millisecond
-                    };
-                });
-        }, "setMinutes", 3);
+                        parts = parts with
+                        {
+                            Minute = ToDateSetterValue(realm, args, 0),
+                            Second =
+                                args.Length > 1 ? ToDateSetterValue(realm, args, 1) : parts.Second,
+                            Millisecond =
+                                args.Length > 2
+                                    ? ToDateSetterValue(realm, args, 2)
+                                    : parts.Millisecond,
+                        };
+                    }
+                );
+            },
+            "setMinutes",
+            3
+        );
 
-        var setMonthFn = new JsHostFunction(Realm, (in info) =>
-        {
-            return SetDateLike(info, "Date.prototype.setMonth", false,
-                static (realm, args, ref parts) =>
-                {
-                    parts = parts with
+        var setMonthFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                return SetDateLike(
+                    info,
+                    "Date.prototype.setMonth",
+                    false,
+                    static (realm, args, ref parts) =>
                     {
-                        Month = ToDateSetterValue(realm, args, 0) + 1,
-                        Day = args.Length > 1 ? ToDateSetterValue(realm, args, 1) : parts.Day
-                    };
-                });
-        }, "setMonth", 2);
+                        parts = parts with
+                        {
+                            Month = ToDateSetterValue(realm, args, 0) + 1,
+                            Day = args.Length > 1 ? ToDateSetterValue(realm, args, 1) : parts.Day,
+                        };
+                    }
+                );
+            },
+            "setMonth",
+            2
+        );
 
-        var setSecondsFn = new JsHostFunction(Realm, (in info) =>
-        {
-            return SetDateLike(info, "Date.prototype.setSeconds", false,
-                static (realm, args, ref parts) =>
-                {
-                    parts = parts with
+        var setSecondsFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                return SetDateLike(
+                    info,
+                    "Date.prototype.setSeconds",
+                    false,
+                    static (realm, args, ref parts) =>
                     {
-                        Second = ToDateSetterValue(realm, args, 0),
-                        Millisecond = args.Length > 1 ? ToDateSetterValue(realm, args, 1) : parts.Millisecond
-                    };
-                });
-        }, "setSeconds", 2);
+                        parts = parts with
+                        {
+                            Second = ToDateSetterValue(realm, args, 0),
+                            Millisecond =
+                                args.Length > 1
+                                    ? ToDateSetterValue(realm, args, 1)
+                                    : parts.Millisecond,
+                        };
+                    }
+                );
+            },
+            "setSeconds",
+            2
+        );
 
-        var setUtcDateFn = new JsHostFunction(Realm,
+        var setUtcDateFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
-                return SetDateLike(info, "Date.prototype.setUTCDate", true,
+                return SetDateLike(
+                    info,
+                    "Date.prototype.setUTCDate",
+                    true,
                     static (realm, args, ref parts) =>
                     {
                         parts = parts with { Day = ToDateSetterValue(realm, args, 0) };
-                    });
-            }, "setUTCDate", 1);
+                    }
+                );
+            },
+            "setUTCDate",
+            1
+        );
 
-        var setUtcFullYearFn = new JsHostFunction(Realm, (in info) =>
-        {
-            return SetDateLike(info, "Date.prototype.setUTCFullYear", true,
-                static (realm, args, ref parts) =>
-                {
-                    parts = parts with
+        var setUtcFullYearFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                return SetDateLike(
+                    info,
+                    "Date.prototype.setUTCFullYear",
+                    true,
+                    static (realm, args, ref parts) =>
                     {
-                        Year = ToDateSetterValue(realm, args, 0),
-                        Month = args.Length > 1 ? ToDateSetterValue(realm, args, 1) + 1 : parts.Month,
-                        Day = args.Length > 2 ? ToDateSetterValue(realm, args, 2) : parts.Day
-                    };
-                }, true, true);
-        }, "setUTCFullYear", 3);
+                        parts = parts with
+                        {
+                            Year = ToDateSetterValue(realm, args, 0),
+                            Month =
+                                args.Length > 1
+                                    ? ToDateSetterValue(realm, args, 1) + 1
+                                    : parts.Month,
+                            Day = args.Length > 2 ? ToDateSetterValue(realm, args, 2) : parts.Day,
+                        };
+                    },
+                    true,
+                    true
+                );
+            },
+            "setUTCFullYear",
+            3
+        );
 
-        var setUtcHoursFn = new JsHostFunction(Realm, (in info) =>
-        {
-            return SetDateLike(info, "Date.prototype.setUTCHours", true,
-                static (realm, args, ref parts) =>
-                {
-                    parts = parts with
+        var setUtcHoursFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                return SetDateLike(
+                    info,
+                    "Date.prototype.setUTCHours",
+                    true,
+                    static (realm, args, ref parts) =>
                     {
-                        Hour = ToDateSetterValue(realm, args, 0),
-                        Minute = args.Length > 1 ? ToDateSetterValue(realm, args, 1) : parts.Minute,
-                        Second = args.Length > 2 ? ToDateSetterValue(realm, args, 2) : parts.Second,
-                        Millisecond = args.Length > 3 ? ToDateSetterValue(realm, args, 3) : parts.Millisecond
-                    };
-                });
-        }, "setUTCHours", 4);
+                        parts = parts with
+                        {
+                            Hour = ToDateSetterValue(realm, args, 0),
+                            Minute =
+                                args.Length > 1 ? ToDateSetterValue(realm, args, 1) : parts.Minute,
+                            Second =
+                                args.Length > 2 ? ToDateSetterValue(realm, args, 2) : parts.Second,
+                            Millisecond =
+                                args.Length > 3
+                                    ? ToDateSetterValue(realm, args, 3)
+                                    : parts.Millisecond,
+                        };
+                    }
+                );
+            },
+            "setUTCHours",
+            4
+        );
 
-        var setUtcMillisecondsFn = new JsHostFunction(Realm,
+        var setUtcMillisecondsFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
-                return SetDateLike(info, "Date.prototype.setUTCMilliseconds", true,
+                return SetDateLike(
+                    info,
+                    "Date.prototype.setUTCMilliseconds",
+                    true,
                     static (realm, args, ref parts) =>
                     {
                         parts = parts with { Millisecond = ToDateSetterValue(realm, args, 0) };
-                    });
-            }, "setUTCMilliseconds", 1);
+                    }
+                );
+            },
+            "setUTCMilliseconds",
+            1
+        );
 
-        var setUtcMinutesFn = new JsHostFunction(Realm, (in info) =>
-        {
-            return SetDateLike(info, "Date.prototype.setUTCMinutes", true,
-                static (realm, args, ref parts) =>
-                {
-                    parts = parts with
-                    {
-                        Minute = ToDateSetterValue(realm, args, 0),
-                        Second = args.Length > 1 ? ToDateSetterValue(realm, args, 1) : parts.Second,
-                        Millisecond = args.Length > 2 ? ToDateSetterValue(realm, args, 2) : parts.Millisecond
-                    };
-                });
-        }, "setUTCMinutes", 3);
-
-        var setUtcMonthFn = new JsHostFunction(Realm, (in info) =>
-        {
-            return SetDateLike(info, "Date.prototype.setUTCMonth", true,
-                static (realm, args, ref parts) =>
-                {
-                    parts = parts with
-                    {
-                        Month = ToDateSetterValue(realm, args, 0) + 1,
-                        Day = args.Length > 1 ? ToDateSetterValue(realm, args, 1) : parts.Day
-                    };
-                });
-        }, "setUTCMonth", 2);
-
-        var setUtcSecondsFn = new JsHostFunction(Realm, (in info) =>
-        {
-            return SetDateLike(info, "Date.prototype.setUTCSeconds", true,
-                static (realm, args, ref parts) =>
-                {
-                    parts = parts with
-                    {
-                        Second = ToDateSetterValue(realm, args, 0),
-                        Millisecond = args.Length > 1 ? ToDateSetterValue(realm, args, 1) : parts.Millisecond
-                    };
-                });
-        }, "setUTCSeconds", 2);
-
-        var toPrimitiveFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            var thisValue = info.ThisValue;
-            if (!thisValue.IsObject)
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Date.prototype [Symbol.toPrimitive] called on incompatible receiver");
-
-            if (args.Length == 0 || !args[0].IsString)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Invalid hint");
-
-            var hint = args[0].AsString();
-            var preferString = hint switch
+        var setUtcMinutesFn = new JsHostFunction(
+            Realm,
+            (in info) =>
             {
-                "string" => true,
-                "default" => true,
-                "number" => false,
-                _ => throw new JsRuntimeException(JsErrorKind.TypeError, "Invalid hint")
-            };
+                return SetDateLike(
+                    info,
+                    "Date.prototype.setUTCMinutes",
+                    true,
+                    static (realm, args, ref parts) =>
+                    {
+                        parts = parts with
+                        {
+                            Minute = ToDateSetterValue(realm, args, 0),
+                            Second =
+                                args.Length > 1 ? ToDateSetterValue(realm, args, 1) : parts.Second,
+                            Millisecond =
+                                args.Length > 2
+                                    ? ToDateSetterValue(realm, args, 2)
+                                    : parts.Millisecond,
+                        };
+                    }
+                );
+            },
+            "setUTCMinutes",
+            3
+        );
 
-            return OrdinaryDateToPrimitive(realm, thisValue, preferString);
-        }, "[Symbol.toPrimitive]", 1);
+        var setUtcMonthFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                return SetDateLike(
+                    info,
+                    "Date.prototype.setUTCMonth",
+                    true,
+                    static (realm, args, ref parts) =>
+                    {
+                        parts = parts with
+                        {
+                            Month = ToDateSetterValue(realm, args, 0) + 1,
+                            Day = args.Length > 1 ? ToDateSetterValue(realm, args, 1) : parts.Day,
+                        };
+                    }
+                );
+            },
+            "setUTCMonth",
+            2
+        );
+
+        var setUtcSecondsFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                return SetDateLike(
+                    info,
+                    "Date.prototype.setUTCSeconds",
+                    true,
+                    static (realm, args, ref parts) =>
+                    {
+                        parts = parts with
+                        {
+                            Second = ToDateSetterValue(realm, args, 0),
+                            Millisecond =
+                                args.Length > 1
+                                    ? ToDateSetterValue(realm, args, 1)
+                                    : parts.Millisecond,
+                        };
+                    }
+                );
+            },
+            "setUTCSeconds",
+            2
+        );
+
+        var toPrimitiveFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                var thisValue = info.ThisValue;
+                if (!thisValue.IsObject)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Date.prototype [Symbol.toPrimitive] called on incompatible receiver"
+                    );
+
+                if (args.Length == 0 || !args[0].IsString)
+                    throw new JsRuntimeException(JsErrorKind.TypeError, "Invalid hint");
+
+                var hint = args[0].AsString();
+                var preferString = hint switch
+                {
+                    "string" => true,
+                    "default" => true,
+                    "number" => false,
+                    _ => throw new JsRuntimeException(JsErrorKind.TypeError, "Invalid hint"),
+                };
+
+                return OrdinaryDateToPrimitive(realm, thisValue, preferString);
+            },
+            "[Symbol.toPrimitive]",
+            1
+        );
 
         Span<PropertyDefinition> protoDefs =
         [
@@ -505,12 +959,18 @@ public partial class Intrinsics
             PropertyDefinition.Mutable(IdGetMonth, JsValue.FromObject(getMonthFn)),
             PropertyDefinition.Mutable(IdGetSeconds, JsValue.FromObject(getSecondsFn)),
             PropertyDefinition.Mutable(IdGetTime, JsValue.FromObject(getTimeFn)),
-            PropertyDefinition.Mutable(IdGetTimezoneOffset, JsValue.FromObject(getTimezoneOffsetFn)),
+            PropertyDefinition.Mutable(
+                IdGetTimezoneOffset,
+                JsValue.FromObject(getTimezoneOffsetFn)
+            ),
             PropertyDefinition.Mutable(IdGetUtcDate, JsValue.FromObject(getUtcDateFn)),
             PropertyDefinition.Mutable(IdGetUtcDay, JsValue.FromObject(getUtcDayFn)),
             PropertyDefinition.Mutable(IdGetUtcFullYear, JsValue.FromObject(getUtcFullYearFn)),
             PropertyDefinition.Mutable(IdGetUtcHours, JsValue.FromObject(getUtcHoursFn)),
-            PropertyDefinition.Mutable(IdGetUtcMilliseconds, JsValue.FromObject(getUtcMillisecondsFn)),
+            PropertyDefinition.Mutable(
+                IdGetUtcMilliseconds,
+                JsValue.FromObject(getUtcMillisecondsFn)
+            ),
             PropertyDefinition.Mutable(IdGetUtcMinutes, JsValue.FromObject(getUtcMinutesFn)),
             PropertyDefinition.Mutable(IdGetUtcMonth, JsValue.FromObject(getUtcMonthFn)),
             PropertyDefinition.Mutable(IdGetUtcSeconds, JsValue.FromObject(getUtcSecondsFn)),
@@ -525,13 +985,22 @@ public partial class Intrinsics
             PropertyDefinition.Mutable(IdSetUtcDate, JsValue.FromObject(setUtcDateFn)),
             PropertyDefinition.Mutable(IdSetUtcFullYear, JsValue.FromObject(setUtcFullYearFn)),
             PropertyDefinition.Mutable(IdSetUtcHours, JsValue.FromObject(setUtcHoursFn)),
-            PropertyDefinition.Mutable(IdSetUtcMilliseconds, JsValue.FromObject(setUtcMillisecondsFn)),
+            PropertyDefinition.Mutable(
+                IdSetUtcMilliseconds,
+                JsValue.FromObject(setUtcMillisecondsFn)
+            ),
             PropertyDefinition.Mutable(IdSetUtcMinutes, JsValue.FromObject(setUtcMinutesFn)),
             PropertyDefinition.Mutable(IdSetUtcMonth, JsValue.FromObject(setUtcMonthFn)),
             PropertyDefinition.Mutable(IdSetUtcSeconds, JsValue.FromObject(setUtcSecondsFn)),
-            PropertyDefinition.Mutable(IdToLocaleDateString, JsValue.FromObject(toLocaleDateStringFn)),
+            PropertyDefinition.Mutable(
+                IdToLocaleDateString,
+                JsValue.FromObject(toLocaleDateStringFn)
+            ),
             PropertyDefinition.Mutable(IdToLocaleString, JsValue.FromObject(toLocaleStringFn)),
-            PropertyDefinition.Mutable(IdToLocaleTimeString, JsValue.FromObject(toLocaleTimeStringFn)),
+            PropertyDefinition.Mutable(
+                IdToLocaleTimeString,
+                JsValue.FromObject(toLocaleTimeStringFn)
+            ),
             PropertyDefinition.Mutable(IdToDateString, JsValue.FromObject(toDateStringFn)),
             PropertyDefinition.Mutable(IdToIsoString, JsValue.FromObject(toIsoStringFn)),
             PropertyDefinition.Mutable(IdToJson, JsValue.FromObject(toJsonFn)),
@@ -539,8 +1008,11 @@ public partial class Intrinsics
             PropertyDefinition.Mutable(IdToTimeString, JsValue.FromObject(toTimeStringFn)),
             PropertyDefinition.Mutable(IdToUtcString, JsValue.FromObject(toUtcStringFn)),
             PropertyDefinition.Mutable(IdValueOf, JsValue.FromObject(valueOfFn)),
-            PropertyDefinition.Const(IdSymbolToPrimitive, JsValue.FromObject(toPrimitiveFn),
-                configurable: true)
+            PropertyDefinition.Const(
+                IdSymbolToPrimitive,
+                JsValue.FromObject(toPrimitiveFn),
+                configurable: true
+            ),
         ];
         DatePrototype.DefineNewPropertiesNoCollision(Realm, protoDefs);
 
@@ -548,7 +1020,7 @@ public partial class Intrinsics
         [
             PropertyDefinition.Mutable(IdNow, JsValue.FromObject(nowFn)),
             PropertyDefinition.Mutable(IdParse, JsValue.FromObject(parseFn)),
-            PropertyDefinition.Mutable(IdUTC, JsValue.FromObject(utcFn))
+            PropertyDefinition.Mutable(IdUTC, JsValue.FromObject(utcFn)),
         ];
         DateConstructor.InitializePrototypeProperty(DatePrototype);
         DateConstructor.DefineNewPropertiesNoCollision(Realm, ctorDefs);
@@ -566,7 +1038,10 @@ public partial class Intrinsics
         return TimeClip(realm.ToNumberSlowPath(primitive));
     }
 
-    private static double DateConstructorMultipleArgumentsToTimeValue(JsRealm realm, ReadOnlySpan<JsValue> args)
+    private static double DateConstructorMultipleArgumentsToTimeValue(
+        JsRealm realm,
+        ReadOnlySpan<JsValue> args
+    )
     {
         var year = realm.ToNumberSlowPath(args[0]);
         var month = args.Length > 1 ? realm.ToNumberSlowPath(args[1]) : 0d;
@@ -591,14 +1066,35 @@ public partial class Intrinsics
         var localMinute = (int)Math.Truncate(minutes);
         var localSecond = (int)Math.Truncate(seconds);
         var localMillisecond = (int)Math.Truncate(milliseconds);
-        NormalizeDateTimeParts(ref localYear, ref localMonth, ref localDay, ref localHour, ref localMinute,
-            ref localSecond, ref localMillisecond);
+        NormalizeDateTimeParts(
+            ref localYear,
+            ref localMonth,
+            ref localDay,
+            ref localHour,
+            ref localMinute,
+            ref localSecond,
+            ref localMillisecond
+        );
 
-        return TimeClip(localTime - GetLocalOffsetMilliseconds(localYear, localMonth, localDay, localHour, localMinute,
-            localSecond, localMillisecond));
+        return TimeClip(
+            localTime
+                - GetLocalOffsetMilliseconds(
+                    localYear,
+                    localMonth,
+                    localDay,
+                    localHour,
+                    localMinute,
+                    localSecond,
+                    localMillisecond
+                )
+        );
     }
 
-    private static JsValue OrdinaryDateToPrimitive(JsRealm realm, JsValue thisValue, bool preferString)
+    private static JsValue OrdinaryDateToPrimitive(
+        JsRealm realm,
+        JsValue thisValue,
+        bool preferString
+    )
     {
         var first = preferString ? IdToString : IdValueOf;
         var second = preferString ? IdValueOf : IdToString;
@@ -609,14 +1105,25 @@ public partial class Intrinsics
         if (TryInvokeOrdinaryDatePrimitiveMethod(realm, obj, thisValue, second, out primitive))
             return primitive;
 
-        throw new JsRuntimeException(JsErrorKind.TypeError, "Cannot convert object to primitive value");
+        throw new JsRuntimeException(
+            JsErrorKind.TypeError,
+            "Cannot convert object to primitive value"
+        );
     }
 
-    private static bool TryInvokeOrdinaryDatePrimitiveMethod(JsRealm realm, JsObject obj, JsValue thisValue,
-        int methodAtom, out JsValue primitive)
+    private static bool TryInvokeOrdinaryDatePrimitiveMethod(
+        JsRealm realm,
+        JsObject obj,
+        JsValue thisValue,
+        int methodAtom,
+        out JsValue primitive
+    )
     {
-        if (obj.TryGetPropertyAtom(realm, methodAtom, out var candidate, out _) &&
-            candidate.TryGetObject(out var fnObj) && fnObj is JsFunction fn)
+        if (
+            obj.TryGetPropertyAtom(realm, methodAtom, out var candidate, out _)
+            && candidate.TryGetObject(out var fnObj)
+            && fnObj is JsFunction fn
+        )
         {
             var value = realm.InvokeFunction(fn, thisValue, ReadOnlySpan<JsValue>.Empty);
             if (!value.IsObject)
@@ -636,17 +1143,29 @@ public partial class Intrinsics
             return value;
 
         var obj = value.AsObject();
-        if (obj.TryGetPropertyAtom(realm, IdSymbolToPrimitive, out var exoticToPrim, out _) &&
-            !exoticToPrim.IsUndefined && !exoticToPrim.IsNull)
+        if (
+            obj.TryGetPropertyAtom(realm, IdSymbolToPrimitive, out var exoticToPrim, out _)
+            && !exoticToPrim.IsUndefined
+            && !exoticToPrim.IsNull
+        )
         {
-            if (!exoticToPrim.TryGetObject(out var exoticObj) || exoticObj is not JsFunction exoticFn)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "@@toPrimitive is not callable");
+            if (
+                !exoticToPrim.TryGetObject(out var exoticObj)
+                || exoticObj is not JsFunction exoticFn
+            )
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "@@toPrimitive is not callable"
+                );
 
             var hint = JsValue.FromString("default");
             var hintArgs = MemoryMarshal.CreateReadOnlySpan(ref hint, 1);
             var exoticResult = realm.InvokeFunction(exoticFn, obj, hintArgs);
             if (exoticResult.IsObject)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "@@toPrimitive must return a primitive value");
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "@@toPrimitive must return a primitive value"
+                );
             return exoticResult;
         }
 
@@ -655,23 +1174,38 @@ public partial class Intrinsics
         if (TryInvokeOrdinaryDatePrimitiveMethod(realm, obj, obj, IdToString, out primitive))
             return primitive;
 
-        throw new JsRuntimeException(JsErrorKind.TypeError, "Cannot convert object to primitive value");
+        throw new JsRuntimeException(
+            JsErrorKind.TypeError,
+            "Cannot convert object to primitive value"
+        );
     }
 
     internal static double ThisDateValue(JsRealm realm, JsValue thisValue, string methodName)
     {
         if (!thisValue.TryGetObject(out var obj) || obj is not JsDateObject date)
-            throw new JsRuntimeException(JsErrorKind.TypeError, $"{methodName} called on incompatible receiver");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                $"{methodName} called on incompatible receiver"
+            );
         return date.TimeValue;
     }
 
-    private static JsValue SetDateLike(in CallInfo info, string methodName, bool utc, DatePartsMutator mutator,
-        bool useDefaultDateOnNaN = false, bool seedNaNFromUtcZero = false)
+    private static JsValue SetDateLike(
+        in CallInfo info,
+        string methodName,
+        bool utc,
+        DatePartsMutator mutator,
+        bool useDefaultDateOnNaN = false,
+        bool seedNaNFromUtcZero = false
+    )
     {
         var realm = info.Realm;
         var args = info.Arguments;
         if (!info.ThisValue.TryGetObject(out var obj) || obj is not JsDateObject date)
-            throw new JsRuntimeException(JsErrorKind.TypeError, $"{methodName} called on incompatible receiver");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                $"{methodName} called on incompatible receiver"
+            );
 
         var currentTime = date.TimeValue;
         var initialNaN = double.IsNaN(currentTime);
@@ -700,13 +1234,15 @@ public partial class Intrinsics
 
     private static double ComposeTimeValue(DateTimeParts parts, bool utc)
     {
-        if (parts.Year == int.MinValue ||
-            parts.Month == int.MinValue ||
-            parts.Day == int.MinValue ||
-            parts.Hour == int.MinValue ||
-            parts.Minute == int.MinValue ||
-            parts.Second == int.MinValue ||
-            parts.Millisecond == int.MinValue)
+        if (
+            parts.Year == int.MinValue
+            || parts.Month == int.MinValue
+            || parts.Day == int.MinValue
+            || parts.Hour == int.MinValue
+            || parts.Minute == int.MinValue
+            || parts.Second == int.MinValue
+            || parts.Millisecond == int.MinValue
+        )
             return double.NaN;
 
         var day = MakeDay(parts.Year, parts.Month - 1, parts.Day);
@@ -722,14 +1258,33 @@ public partial class Intrinsics
         var localMinute = parts.Minute;
         var localSecond = parts.Second;
         var localMillisecond = parts.Millisecond;
-        NormalizeDateTimeParts(ref localYear, ref localMonth, ref localDay, ref localHour, ref localMinute,
-            ref localSecond, ref localMillisecond);
+        NormalizeDateTimeParts(
+            ref localYear,
+            ref localMonth,
+            ref localDay,
+            ref localHour,
+            ref localMinute,
+            ref localSecond,
+            ref localMillisecond
+        );
 
-        return composed - GetLocalOffsetMilliseconds(localYear, localMonth, localDay, localHour, localMinute,
-            localSecond, localMillisecond);
+        return composed
+            - GetLocalOffsetMilliseconds(
+                localYear,
+                localMonth,
+                localDay,
+                localHour,
+                localMinute,
+                localSecond,
+                localMillisecond
+            );
     }
 
-    private static JsValue GetDateComponentValue(double timeValue, DateComponent component, bool utc)
+    private static JsValue GetDateComponentValue(
+        double timeValue,
+        DateComponent component,
+        bool utc
+    )
     {
         if (double.IsNaN(timeValue))
             return JsValue.NaN;
@@ -744,7 +1299,7 @@ public partial class Intrinsics
             DateComponent.Hour => parts.Hour,
             DateComponent.Minute => parts.Minute,
             DateComponent.Second => parts.Second,
-            _ => parts.Millisecond
+            _ => parts.Millisecond,
         };
         return new(result);
     }
@@ -758,7 +1313,8 @@ public partial class Intrinsics
         var localParts = GetDateTimeParts(timeValue, false);
         var utcFromLocal = MakeDate(
             MakeDay(localParts.Year, localParts.Month - 1, localParts.Day),
-            MakeTime(localParts.Hour, localParts.Minute, localParts.Second, localParts.Millisecond));
+            MakeTime(localParts.Hour, localParts.Minute, localParts.Second, localParts.Millisecond)
+        );
         return (epochMilliseconds - utcFromLocal) / MsPerMinute;
     }
 
@@ -773,10 +1329,12 @@ public partial class Intrinsics
 
     private static double ParseDateString(string text)
     {
-        if (TryParseEcmaDateTime(text, out var timeValue) ||
-            TryParsePartialEcmaDate(text, out timeValue) ||
-            TryParseRfc1123Date(text, out timeValue) ||
-            TryParseLegacyLocalDateString(text, out timeValue))
+        if (
+            TryParseEcmaDateTime(text, out var timeValue)
+            || TryParsePartialEcmaDate(text, out timeValue)
+            || TryParseRfc1123Date(text, out timeValue)
+            || TryParseLegacyLocalDateString(text, out timeValue)
+        )
             return TimeClip(timeValue);
 
         return double.NaN;
@@ -822,12 +1380,15 @@ public partial class Intrinsics
                 {
                     1 => int.Parse(msText, CultureInfo.InvariantCulture) * 100,
                     2 => int.Parse(msText, CultureInfo.InvariantCulture) * 10,
-                    _ => int.Parse(msText, CultureInfo.InvariantCulture)
+                    _ => int.Parse(msText, CultureInfo.InvariantCulture),
                 };
             }
         }
 
-        if (!IsValidDateParts(year, month, day) || !IsValidTimeParts(hour, minute, second, millisecond))
+        if (
+            !IsValidDateParts(year, month, day)
+            || !IsValidTimeParts(hour, minute, second, millisecond)
+        )
         {
             timeValue = double.NaN;
             return false;
@@ -850,11 +1411,21 @@ public partial class Intrinsics
         var timePart = MakeTime(hour, minute, second, millisecond);
         timeValue = MakeDate(dayValue, timePart);
 
-        var offsetText = match.Groups["offset"].Success ? match.Groups["offset"].Value : string.Empty;
+        var offsetText = match.Groups["offset"].Success
+            ? match.Groups["offset"].Value
+            : string.Empty;
         if (!hasTime || string.IsNullOrEmpty(offsetText) || offsetText == "Z")
         {
             if (hasTime && string.IsNullOrEmpty(offsetText))
-                timeValue -= GetLocalOffsetMilliseconds(year, month, day, hour, minute, second, millisecond);
+                timeValue -= GetLocalOffsetMilliseconds(
+                    year,
+                    month,
+                    day,
+                    hour,
+                    minute,
+                    second,
+                    millisecond
+                );
             return true;
         }
 
@@ -885,7 +1456,9 @@ public partial class Intrinsics
         var month = match.Groups["month"].Success
             ? int.Parse(match.Groups["month"].Value, CultureInfo.InvariantCulture)
             : 1;
-        var day = match.Groups["day"].Success ? int.Parse(match.Groups["day"].Value, CultureInfo.InvariantCulture) : 1;
+        var day = match.Groups["day"].Success
+            ? int.Parse(match.Groups["day"].Value, CultureInfo.InvariantCulture)
+            : 1;
 
         if (!IsValidDateParts(year, month, day))
         {
@@ -899,8 +1472,15 @@ public partial class Intrinsics
 
     private static bool TryParseRfc1123Date(string text, out double timeValue)
     {
-        if (DateTimeOffset.TryParseExact(text, "r", CultureInfo.InvariantCulture,
-                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var dto))
+        if (
+            DateTimeOffset.TryParseExact(
+                text,
+                "r",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                out var dto
+            )
+        )
         {
             timeValue = dto.ToUnixTimeMilliseconds();
             return true;
@@ -952,10 +1532,10 @@ public partial class Intrinsics
 
     private static bool IsValidTimeParts(int hour, int minute, int second, int millisecond)
     {
-        return hour is >= 0 and <= 24 &&
-               minute is >= 0 and < 60 &&
-               second is >= 0 and < 60 &&
-               millisecond is >= 0 and < 1000;
+        return hour is >= 0 and <= 24
+            && minute is >= 0 and < 60
+            && second is >= 0 and < 60
+            && millisecond is >= 0 and < 1000;
     }
 
     private static void NormalizeDateParts(ref int year, ref int month, ref int day)
@@ -996,8 +1576,15 @@ public partial class Intrinsics
         }
     }
 
-    private static void NormalizeDateTimeParts(ref int year, ref int month, ref int day, ref int hour, ref int minute,
-        ref int second, ref int millisecond)
+    private static void NormalizeDateTimeParts(
+        ref int year,
+        ref int month,
+        ref int day,
+        ref int hour,
+        ref int minute,
+        ref int second,
+        ref int millisecond
+    )
     {
         NormalizeCarry(ref second, ref millisecond, 1000);
         NormalizeCarry(ref minute, ref second, 60);
@@ -1027,7 +1614,7 @@ public partial class Intrinsics
             1 or 3 or 5 or 7 or 8 or 10 or 12 => 31,
             4 or 6 or 9 or 11 => 30,
             2 => IsLeapYear(year) ? 29 : 28,
-            _ => 0
+            _ => 0,
         };
     }
 
@@ -1056,7 +1643,7 @@ public partial class Intrinsics
             "Oct" => 10,
             "Nov" => 11,
             "Dec" => 12,
-            _ => 0
+            _ => 0,
         };
     }
 
@@ -1088,10 +1675,10 @@ public partial class Intrinsics
         if (!AreFiniteDateComponents(hour, minute, second, millisecond))
             return double.NaN;
 
-        return Math.Truncate(hour) * MsPerHour +
-               Math.Truncate(minute) * MsPerMinute +
-               Math.Truncate(second) * MsPerSecond +
-               Math.Truncate(millisecond);
+        return Math.Truncate(hour) * MsPerHour
+            + Math.Truncate(minute) * MsPerMinute
+            + Math.Truncate(second) * MsPerSecond
+            + Math.Truncate(millisecond);
     }
 
     private static double MakeDate(double day, double time)
@@ -1153,13 +1740,28 @@ public partial class Intrinsics
         return era * 146097 + doe - 719468;
     }
 
-    private static double GetLocalOffsetMilliseconds(int year, int month, int day, int hour, int minute, int second,
-        int millisecond)
+    private static double GetLocalOffsetMilliseconds(
+        int year,
+        int month,
+        int day,
+        int hour,
+        int minute,
+        int second,
+        int millisecond
+    )
     {
         var offsetYear = year is < 1 or > 9999 ? MapToEquivalentTimeZoneYear(year) : year;
 
-        var unspecified = new DateTime(offsetYear, month, day, hour, minute, second, millisecond,
-            DateTimeKind.Unspecified);
+        var unspecified = new DateTime(
+            offsetYear,
+            month,
+            day,
+            hour,
+            minute,
+            second,
+            millisecond,
+            DateTimeKind.Unspecified
+        );
         var offset = TimeZoneInfo.Local.GetUtcOffset(unspecified);
         return offset.TotalMilliseconds;
     }
@@ -1170,49 +1772,82 @@ public partial class Intrinsics
             return "Invalid Date";
 
         var local = GetDateTimeParts(timeValue, false);
-        return string.Create(CultureInfo.InvariantCulture,
-            $"{local.WeekdayName} {local.MonthName} {local.Day:00} {FormatDateYear(local.Year)} {local.Hour:00}:{local.Minute:00}:{local.Second:00} {FormatTimeZoneString(timeValue, local)}");
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"{local.WeekdayName} {local.MonthName} {local.Day:00} {FormatDateYear(local.Year)} {local.Hour:00}:{local.Minute:00}:{local.Second:00} {FormatTimeZoneString(timeValue, local)}"
+        );
     }
 
-    private static JsValue FormatDateWithIntl(JsRealm realm, double timeValue, ReadOnlySpan<JsValue> arguments,
-        bool dateDefaults, bool timeDefaults)
+    private static JsValue FormatDateWithIntl(
+        JsRealm realm,
+        double timeValue,
+        ReadOnlySpan<JsValue> arguments,
+        bool dateDefaults,
+        bool timeDefaults
+    )
     {
         if (double.IsNaN(timeValue) || double.IsInfinity(timeValue))
             return JsValue.FromString("Invalid Date");
 
-        if (!realm.GlobalObject.TryGetPropertyAtom(realm, realm.Atoms.InternNoCheck("Intl"), out var intlValue,
-                out _) ||
-            !intlValue.TryGetObject(out var intlObject) ||
-            !intlObject.TryGetPropertyAtom(realm, realm.Atoms.InternNoCheck("DateTimeFormat"), out var ctorValue,
-                out _) ||
-            !ctorValue.TryGetObject(out var ctorObject) ||
-            ctorObject is not JsFunction ctorFn)
-            return JsValue.FromString(dateDefaults
-                ? timeDefaults ? FormatDateLocalString(timeValue) : FormatDateDateString(timeValue)
-                : FormatDateTimeString(timeValue));
+        if (
+            !realm.GlobalObject.TryGetPropertyAtom(
+                realm,
+                realm.Atoms.InternNoCheck("Intl"),
+                out var intlValue,
+                out _
+            )
+            || !intlValue.TryGetObject(out var intlObject)
+            || !intlObject.TryGetPropertyAtom(
+                realm,
+                realm.Atoms.InternNoCheck("DateTimeFormat"),
+                out var ctorValue,
+                out _
+            )
+            || !ctorValue.TryGetObject(out var ctorObject)
+            || ctorObject is not JsFunction ctorFn
+        )
+            return JsValue.FromString(
+                dateDefaults
+                    ? timeDefaults
+                        ? FormatDateLocalString(timeValue)
+                        : FormatDateDateString(timeValue)
+                    : FormatDateTimeString(timeValue)
+            );
 
         var locales = arguments.Length > 0 ? arguments[0] : JsValue.Undefined;
-        var options = arguments.Length > 1
-            ? CreateDateLocaleOptions(realm, arguments[1], dateDefaults, timeDefaults)
-            : CreateDateLocaleOptions(realm, JsValue.Undefined, dateDefaults, timeDefaults);
-        var dateTimeFormatValue =
-            realm.ConstructWithExplicitNewTarget(ctorFn, [locales, options], JsValue.FromObject(ctorFn), -1);
-        if (dateTimeFormatValue.TryGetObject(out var dateTimeFormatObject) &&
-            dateTimeFormatObject is JsDateTimeFormatObject dateTimeFormat)
+        var options =
+            arguments.Length > 1
+                ? CreateDateLocaleOptions(realm, arguments[1], dateDefaults, timeDefaults)
+                : CreateDateLocaleOptions(realm, JsValue.Undefined, dateDefaults, timeDefaults);
+        var dateTimeFormatValue = realm.ConstructWithExplicitNewTarget(
+            ctorFn,
+            [locales, options],
+            JsValue.FromObject(ctorFn),
+            -1
+        );
+        if (
+            dateTimeFormatValue.TryGetObject(out var dateTimeFormatObject)
+            && dateTimeFormatObject is JsDateTimeFormatObject dateTimeFormat
+        )
             return JsValue.FromString(dateTimeFormat.Format(timeValue));
 
-        return JsValue.FromString(dateDefaults
-            ? timeDefaults ? FormatDateLocalString(timeValue) : FormatDateDateString(timeValue)
-            : FormatDateTimeString(timeValue));
+        return JsValue.FromString(
+            dateDefaults
+                ? timeDefaults
+                    ? FormatDateLocalString(timeValue)
+                    : FormatDateDateString(timeValue)
+                : FormatDateTimeString(timeValue)
+        );
     }
 
-    private static JsValue CreateDateLocaleOptions(JsRealm realm, JsValue optionsValue, bool dateDefaults,
-        bool timeDefaults)
+    private static JsValue CreateDateLocaleOptions(
+        JsRealm realm,
+        JsValue optionsValue,
+        bool dateDefaults,
+        bool timeDefaults
+    )
     {
-        var options = new JsPlainObject(realm)
-        {
-            Prototype = realm.ObjectPrototype
-        };
+        var options = new JsPlainObject(realm) { Prototype = realm.ObjectPrototype };
 
         var hasDateOption = false;
         var hasTimeOption = false;
@@ -1232,7 +1867,13 @@ public partial class Intrinsics
             CopyDateLocaleOptionIfPresent(realm, source, options, "hour", ref hasTimeOption);
             CopyDateLocaleOptionIfPresent(realm, source, options, "minute", ref hasTimeOption);
             CopyDateLocaleOptionIfPresent(realm, source, options, "second", ref hasTimeOption);
-            CopyDateLocaleOptionIfPresent(realm, source, options, "fractionalSecondDigits", ref hasTimeOption);
+            CopyDateLocaleOptionIfPresent(
+                realm,
+                source,
+                options,
+                "fractionalSecondDigits",
+                ref hasTimeOption
+            );
             CopyDateLocaleOptionIfPresent(realm, source, options, "dateStyle");
             CopyDateLocaleOptionIfPresent(realm, source, options, "timeStyle");
             CopyDateLocaleOptionIfPresent(realm, source, options, "calendar");
@@ -1244,42 +1885,77 @@ public partial class Intrinsics
             CopyDateLocaleOptionIfPresent(realm, source, options, "formatMatcher");
         }
 
-        var addDateDefaults = dateDefaults && (!timeDefaults ? !hasDateOption : !hasDateOption && !hasTimeOption);
-        var addTimeDefaults = timeDefaults && (!dateDefaults ? !hasTimeOption : !hasDateOption && !hasTimeOption);
+        var addDateDefaults =
+            dateDefaults && (!timeDefaults ? !hasDateOption : !hasDateOption && !hasTimeOption);
+        var addTimeDefaults =
+            timeDefaults && (!dateDefaults ? !hasTimeOption : !hasDateOption && !hasTimeOption);
 
         if (addDateDefaults)
         {
-            options.DefineDataPropertyAtom(realm, realm.Atoms.InternNoCheck("year"), JsValue.FromString("numeric"),
-                JsShapePropertyFlags.Open);
-            options.DefineDataPropertyAtom(realm, realm.Atoms.InternNoCheck("month"), JsValue.FromString("numeric"),
-                JsShapePropertyFlags.Open);
-            options.DefineDataPropertyAtom(realm, realm.Atoms.InternNoCheck("day"), JsValue.FromString("numeric"),
-                JsShapePropertyFlags.Open);
+            options.DefineDataPropertyAtom(
+                realm,
+                realm.Atoms.InternNoCheck("year"),
+                JsValue.FromString("numeric"),
+                JsShapePropertyFlags.Open
+            );
+            options.DefineDataPropertyAtom(
+                realm,
+                realm.Atoms.InternNoCheck("month"),
+                JsValue.FromString("numeric"),
+                JsShapePropertyFlags.Open
+            );
+            options.DefineDataPropertyAtom(
+                realm,
+                realm.Atoms.InternNoCheck("day"),
+                JsValue.FromString("numeric"),
+                JsShapePropertyFlags.Open
+            );
         }
 
         if (addTimeDefaults)
         {
-            options.DefineDataPropertyAtom(realm, realm.Atoms.InternNoCheck("hour"), JsValue.FromString("numeric"),
-                JsShapePropertyFlags.Open);
-            options.DefineDataPropertyAtom(realm, realm.Atoms.InternNoCheck("minute"), JsValue.FromString("numeric"),
-                JsShapePropertyFlags.Open);
-            options.DefineDataPropertyAtom(realm, realm.Atoms.InternNoCheck("second"), JsValue.FromString("numeric"),
-                JsShapePropertyFlags.Open);
+            options.DefineDataPropertyAtom(
+                realm,
+                realm.Atoms.InternNoCheck("hour"),
+                JsValue.FromString("numeric"),
+                JsShapePropertyFlags.Open
+            );
+            options.DefineDataPropertyAtom(
+                realm,
+                realm.Atoms.InternNoCheck("minute"),
+                JsValue.FromString("numeric"),
+                JsShapePropertyFlags.Open
+            );
+            options.DefineDataPropertyAtom(
+                realm,
+                realm.Atoms.InternNoCheck("second"),
+                JsValue.FromString("numeric"),
+                JsShapePropertyFlags.Open
+            );
         }
 
         return JsValue.FromObject(options);
     }
 
-    private static void CopyDateLocaleOptionIfPresent(JsRealm realm, JsObject source, JsPlainObject target,
-        string name)
+    private static void CopyDateLocaleOptionIfPresent(
+        JsRealm realm,
+        JsObject source,
+        JsPlainObject target,
+        string name
+    )
     {
         var atom = realm.Atoms.InternNoCheck(name);
         if (source.TryGetPropertyAtom(realm, atom, out var value, out _) && !value.IsUndefined)
             target.DefineDataPropertyAtom(realm, atom, value, JsShapePropertyFlags.Open);
     }
 
-    private static void CopyDateLocaleOptionIfPresent(JsRealm realm, JsObject source, JsPlainObject target,
-        string name, ref bool present)
+    private static void CopyDateLocaleOptionIfPresent(
+        JsRealm realm,
+        JsObject source,
+        JsPlainObject target,
+        string name,
+        ref bool present
+    )
     {
         var atom = realm.Atoms.InternNoCheck(name);
         if (source.TryGetPropertyAtom(realm, atom, out var value, out _) && !value.IsUndefined)
@@ -1295,8 +1971,10 @@ public partial class Intrinsics
             return "Invalid Date";
 
         var local = GetDateTimeParts(timeValue, false);
-        return string.Create(CultureInfo.InvariantCulture,
-            $"{local.WeekdayName} {local.MonthName} {local.Day:00} {FormatDateYear(local.Year)}");
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"{local.WeekdayName} {local.MonthName} {local.Day:00} {FormatDateYear(local.Year)}"
+        );
     }
 
     private static string FormatDateTimeString(double timeValue)
@@ -1305,8 +1983,10 @@ public partial class Intrinsics
             return "Invalid Date";
 
         var local = GetDateTimeParts(timeValue, false);
-        return string.Create(CultureInfo.InvariantCulture,
-            $"{local.Hour:00}:{local.Minute:00}:{local.Second:00} {FormatTimeZoneString(timeValue, local)}");
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"{local.Hour:00}:{local.Minute:00}:{local.Second:00} {FormatTimeZoneString(timeValue, local)}"
+        );
     }
 
     private static string FormatDateUtcString(double timeValue)
@@ -1315,16 +1995,20 @@ public partial class Intrinsics
             return "Invalid Date";
 
         var parts = GetUtcDateTimeParts((long)timeValue);
-        return string.Create(CultureInfo.InvariantCulture,
-            $"{parts.WeekdayName}, {parts.Day:00} {parts.MonthName} {parts.Year:0000} {parts.Hour:00}:{parts.Minute:00}:{parts.Second:00} GMT");
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"{parts.WeekdayName}, {parts.Day:00} {parts.MonthName} {parts.Year:0000} {parts.Hour:00}:{parts.Minute:00}:{parts.Second:00} GMT"
+        );
     }
 
     private static string FormatDateIsoString(double timeValue)
     {
         var parts = GetUtcDateTimeParts((long)timeValue);
         var year = FormatIsoYear(parts.Year);
-        return string.Create(CultureInfo.InvariantCulture,
-            $"{year}-{parts.Month:00}-{parts.Day:00}T{parts.Hour:00}:{parts.Minute:00}:{parts.Second:00}.{parts.Millisecond:000}Z");
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"{year}-{parts.Month:00}-{parts.Day:00}T{parts.Hour:00}:{parts.Minute:00}:{parts.Second:00}.{parts.Millisecond:000}Z"
+        );
     }
 
     private static string FormatDateYear(int year)
@@ -1340,8 +2024,10 @@ public partial class Intrinsics
     {
         return year is >= 0 and <= 9999
             ? year.ToString("D4", CultureInfo.InvariantCulture)
-            : string.Create(CultureInfo.InvariantCulture,
-                $"{(year < 0 ? "-" : "+")}{Math.Abs(year):D6}");
+            : string.Create(
+                CultureInfo.InvariantCulture,
+                $"{(year < 0 ? "-" : "+")}{Math.Abs(year):D6}"
+            );
     }
 
     private static string FormatTimeZoneString(double timeValue, DateTimeParts localParts)
@@ -1371,7 +2057,8 @@ public partial class Intrinsics
                 local.Minute,
                 local.Second,
                 local.Millisecond,
-                (int)local.DayOfWeek);
+                (int)local.DayOfWeek
+            );
         }
 
         return GetOutOfRangeLocalDateTimeParts(epochMilliseconds);
@@ -1382,8 +2069,15 @@ public partial class Intrinsics
         var approximateOffset = GetLocalOffsetMillisecondsForEpoch(epochMilliseconds);
         var localEpochMilliseconds = epochMilliseconds + (long)Math.Truncate(approximateOffset);
         var localParts = GetUtcDateTimeParts(localEpochMilliseconds);
-        var correctedOffset = GetLocalOffsetMilliseconds(localParts.Year, localParts.Month, localParts.Day,
-            localParts.Hour, localParts.Minute, localParts.Second, localParts.Millisecond);
+        var correctedOffset = GetLocalOffsetMilliseconds(
+            localParts.Year,
+            localParts.Month,
+            localParts.Day,
+            localParts.Hour,
+            localParts.Minute,
+            localParts.Second,
+            localParts.Millisecond
+        );
 
         if ((long)Math.Truncate(correctedOffset) != (long)Math.Truncate(approximateOffset))
         {
@@ -1397,8 +2091,15 @@ public partial class Intrinsics
     private static double GetLocalOffsetMillisecondsForEpoch(long epochMilliseconds)
     {
         var utcParts = GetUtcDateTimeParts(epochMilliseconds);
-        return GetLocalOffsetMilliseconds(utcParts.Year, utcParts.Month, utcParts.Day, utcParts.Hour, utcParts.Minute,
-            utcParts.Second, utcParts.Millisecond);
+        return GetLocalOffsetMilliseconds(
+            utcParts.Year,
+            utcParts.Month,
+            utcParts.Day,
+            utcParts.Hour,
+            utcParts.Minute,
+            utcParts.Second,
+            utcParts.Millisecond
+        );
     }
 
     private static DateTimeParts GetUtcDateTimeParts(long epochMilliseconds)
@@ -1420,15 +2121,7 @@ public partial class Intrinsics
         var millisecond = (int)(timeWithinDay % (long)MsPerSecond);
         var weekdayIndex = Mod((int)(day + 4), 7);
 
-        return new(
-            year,
-            month,
-            date,
-            hour,
-            minute,
-            second,
-            millisecond,
-            weekdayIndex);
+        return new(year, month, date, hour, minute, second, millisecond, weekdayIndex);
     }
 
     private static void CivilFromDays(int days, out int year, out int month, out int day)
@@ -1450,7 +2143,10 @@ public partial class Intrinsics
         return 2000 + Mod(year - 2000, 400);
     }
 
-    internal static bool TryTimeClipToEpochMillisecondsForIntl(double timeValue, out long epochMilliseconds)
+    internal static bool TryTimeClipToEpochMillisecondsForIntl(
+        double timeValue,
+        out long epochMilliseconds
+    )
     {
         var clipped = TimeClip(timeValue);
         if (double.IsNaN(clipped))
@@ -1463,7 +2159,10 @@ public partial class Intrinsics
         return true;
     }
 
-    internal static OkojoEcmaDateTimeParts GetEcmaDateTimePartsForIntl(long epochMilliseconds, bool utc)
+    internal static OkojoEcmaDateTimeParts GetEcmaDateTimePartsForIntl(
+        long epochMilliseconds,
+        bool utc
+    )
     {
         var parts = utc
             ? GetUtcDateTimeParts(epochMilliseconds)
@@ -1477,7 +2176,8 @@ public partial class Intrinsics
             parts.Minute,
             parts.Second,
             parts.Millisecond,
-            parts.WeekdayIndex);
+            parts.WeekdayIndex
+        );
     }
 
     private enum DateComponent
@@ -1489,10 +2189,14 @@ public partial class Intrinsics
         Hour,
         Minute,
         Second,
-        Millisecond
+        Millisecond,
     }
 
-    private delegate void DatePartsMutator(JsRealm realm, ReadOnlySpan<JsValue> args, ref DateTimeParts parts);
+    private delegate void DatePartsMutator(
+        JsRealm realm,
+        ReadOnlySpan<JsValue> args,
+        ref DateTimeParts parts
+    );
 
     internal readonly record struct OkojoEcmaDateTimeParts(
         int Year,
@@ -1502,7 +2206,8 @@ public partial class Intrinsics
         int Minute,
         int Second,
         int Millisecond,
-        int WeekdayIndex);
+        int WeekdayIndex
+    );
 
     private readonly record struct DateTimeParts(
         int Year,
@@ -1512,33 +2217,36 @@ public partial class Intrinsics
         int Minute,
         int Second,
         int Millisecond,
-        int WeekdayIndex)
+        int WeekdayIndex
+    )
     {
-        internal string WeekdayName => WeekdayIndex switch
-        {
-            0 => "Sun",
-            1 => "Mon",
-            2 => "Tue",
-            3 => "Wed",
-            4 => "Thu",
-            5 => "Fri",
-            _ => "Sat"
-        };
+        internal string WeekdayName =>
+            WeekdayIndex switch
+            {
+                0 => "Sun",
+                1 => "Mon",
+                2 => "Tue",
+                3 => "Wed",
+                4 => "Thu",
+                5 => "Fri",
+                _ => "Sat",
+            };
 
-        internal string MonthName => Month switch
-        {
-            1 => "Jan",
-            2 => "Feb",
-            3 => "Mar",
-            4 => "Apr",
-            5 => "May",
-            6 => "Jun",
-            7 => "Jul",
-            8 => "Aug",
-            9 => "Sep",
-            10 => "Oct",
-            11 => "Nov",
-            _ => "Dec"
-        };
+        internal string MonthName =>
+            Month switch
+            {
+                1 => "Jan",
+                2 => "Feb",
+                3 => "Mar",
+                4 => "Apr",
+                5 => "May",
+                6 => "Jun",
+                7 => "Jul",
+                8 => "Aug",
+                9 => "Sep",
+                10 => "Oct",
+                11 => "Nov",
+                _ => "Dec",
+            };
     }
 }

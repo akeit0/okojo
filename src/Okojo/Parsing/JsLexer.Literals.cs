@@ -55,7 +55,11 @@ internal sealed partial class JsLexer
         return bigIntLiterals.Count - 1;
     }
 
-    private static void CopyWithoutNumericSeparators(ReadOnlySpan<char> text, Span<char> destination, out int written)
+    private static void CopyWithoutNumericSeparators(
+        ReadOnlySpan<char> text,
+        Span<char> destination,
+        out int written
+    )
     {
         written = 0;
         for (var i = 0; i < text.Length; i++)

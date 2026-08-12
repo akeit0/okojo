@@ -36,20 +36,14 @@ public sealed partial class SourceMapScriptLoader(SourceMapRegistry registry)
                 sourceMapJson = File.ReadAllText(sourceMapPath);
             }
 
-            registry.Register(SourceMapParser.Parse(sourceMapJson, generatedSourcePath, sourceMapPath));
+            registry.Register(
+                SourceMapParser.Parse(sourceMapJson, generatedSourcePath, sourceMapPath)
+            );
         }
-        catch (IOException)
-        {
-        }
-        catch (UnauthorizedAccessException)
-        {
-        }
-        catch (FormatException)
-        {
-        }
-        catch (JsonException)
-        {
-        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
+        catch (FormatException) { }
+        catch (JsonException) { }
     }
 
     public static bool TryGetSourceMappingUrl(string sourceText, out string sourceMappingUrl)
@@ -65,7 +59,10 @@ public sealed partial class SourceMapScriptLoader(SourceMapRegistry registry)
 
     public static string ResolveSourceMapPath(string generatedSourcePath, string sourceMappingUrl)
     {
-        if (Uri.TryCreate(sourceMappingUrl, UriKind.Absolute, out var absoluteUri) && absoluteUri.IsFile)
+        if (
+            Uri.TryCreate(sourceMappingUrl, UriKind.Absolute, out var absoluteUri)
+            && absoluteUri.IsFile
+        )
             return Path.GetFullPath(absoluteUri.LocalPath);
 
         var basePath = Path.GetDirectoryName(generatedSourcePath)!;
@@ -100,6 +97,7 @@ public sealed partial class SourceMapScriptLoader(SourceMapRegistry registry)
 
     [GeneratedRegex(
         @"(?://[@#]\s*sourceMappingURL=(?<url>\S+)|/\*[#@]\s*sourceMappingURL=(?<url>[^*\r\n]+)\*/)",
-        RegexOptions.CultureInvariant)]
+        RegexOptions.CultureInvariant
+    )]
     private static partial Regex SourceMappingUrlRegex();
 }

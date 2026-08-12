@@ -7,69 +7,117 @@ public partial class Intrinsics
 {
     [MethodImpl(MethodImplOptions.NoInlining)]
     internal static void HandleRuntimeDynamicImport(
-        JsRealm realm, JsScript script, int opcodePc, ref JsValue registers, int fp, int argRegStart,
-        int argCount, ref JsValue acc)
+        JsRealm realm,
+        JsScript script,
+        int opcodePc,
+        ref JsValue registers,
+        int fp,
+        int argRegStart,
+        int argCount,
+        ref JsValue acc
+    )
     {
         var capability = realm.CreatePromiseCapability(realm.PromiseConstructor);
         try
         {
             var specifier = realm.ToJsStringSlowPath(Unsafe.Add(ref registers, argRegStart));
             string? importType = null;
-            if (argCount >= 2 &&
-                !TryValidateDynamicImportOptions(realm, capability, Unsafe.Add(ref registers, argRegStart + 1),
-                    out importType))
+            if (
+                argCount >= 2
+                && !TryValidateDynamicImportOptions(
+                    realm,
+                    capability,
+                    Unsafe.Add(ref registers, argRegStart + 1),
+                    out importType
+                )
+            )
             {
                 acc = JsValue.FromObject(capability.Promise);
                 return;
             }
 
-            realm.Agent.EnqueuePromiseJob(static stateObj =>
-            {
-                var state = (DynamicImportJobState)stateObj!;
-                try
+            realm.Agent.EnqueuePromiseJob(
+                static stateObj =>
                 {
-                    var moduleNamespace = state.Realm.Agent.EvaluateModule(
-                        state.Realm,
-                        state.Specifier,
-                        state.Referrer,
-                        false,
-                        state.ImportType);
-                    if (state.Realm.Agent.TryGetPendingModuleEvaluationPromise(state.Specifier, state.Referrer,
-                            out var pendingPromise))
+                    var state = (DynamicImportJobState)stateObj!;
+                    try
                     {
-                        var onFulfilled = new JsHostFunction(state.Realm, (in info) =>
+                        var moduleNamespace = state.Realm.Agent.EvaluateModule(
+                            state.Realm,
+                            state.Specifier,
+                            state.Referrer,
+                            false,
+                            state.ImportType
+                        );
+                        if (
+                            state.Realm.Agent.TryGetPendingModuleEvaluationPromise(
+                                state.Specifier,
+                                state.Referrer,
+                                out var pendingPromise
+                            )
+                        )
                         {
-                            info.Realm.ResolvePromiseCapability(state.Capability, moduleNamespace);
-                            return JsValue.Undefined;
-                        }, string.Empty, 0);
-                        var onRejected = new JsHostFunction(state.Realm, (in info) =>
+                            var onFulfilled = new JsHostFunction(
+                                state.Realm,
+                                (in info) =>
+                                {
+                                    info.Realm.ResolvePromiseCapability(
+                                        state.Capability,
+                                        moduleNamespace
+                                    );
+                                    return JsValue.Undefined;
+                                },
+                                string.Empty,
+                                0
+                            );
+                            var onRejected = new JsHostFunction(
+                                state.Realm,
+                                (in info) =>
+                                {
+                                    var reason =
+                                        info.Arguments.Length == 0
+                                            ? JsValue.Undefined
+                                            : info.Arguments[0];
+                                    info.Realm.RejectPromiseCapability(state.Capability, reason);
+                                    return JsValue.Undefined;
+                                },
+                                string.Empty,
+                                1
+                            );
+                            _ = state.Realm.PromiseThen(
+                                pendingPromise,
+                                JsValue.FromObject(onFulfilled),
+                                JsValue.FromObject(onRejected)
+                            );
+                        }
+                        else
                         {
-                            var reason = info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0];
-                            info.Realm.RejectPromiseCapability(state.Capability, reason);
-                            return JsValue.Undefined;
-                        }, string.Empty, 1);
-                        _ = state.Realm.PromiseThen(
-                            pendingPromise,
-                            JsValue.FromObject(onFulfilled),
-                            JsValue.FromObject(onRejected));
+                            state.Realm.ResolvePromiseCapability(state.Capability, moduleNamespace);
+                        }
                     }
-                    else
+                    catch (JsRuntimeException ex)
                     {
-                        state.Realm.ResolvePromiseCapability(state.Capability, moduleNamespace);
+                        var reason =
+                            ex.ThrownValue ?? state.Realm.CreateErrorObjectFromException(ex);
+                        state.Realm.RejectPromiseCapability(state.Capability, reason);
                     }
-                }
-                catch (JsRuntimeException ex)
-                {
-                    var reason = ex.ThrownValue ?? state.Realm.CreateErrorObjectFromException(ex);
-                    state.Realm.RejectPromiseCapability(state.Capability, reason);
-                }
-                catch (Exception ex)
-                {
-                    var wrapped = JsRealm.WrapUnexpectedRuntimeException(ex);
-                    var reason = wrapped.ThrownValue ?? state.Realm.CreateErrorObjectFromException(wrapped);
-                    state.Realm.RejectPromiseCapability(state.Capability, reason);
-                }
-            }, new DynamicImportJobState(realm, capability, specifier, script.SourcePath, importType));
+                    catch (Exception ex)
+                    {
+                        var wrapped = JsRealm.WrapUnexpectedRuntimeException(ex);
+                        var reason =
+                            wrapped.ThrownValue
+                            ?? state.Realm.CreateErrorObjectFromException(wrapped);
+                        state.Realm.RejectPromiseCapability(state.Capability, reason);
+                    }
+                },
+                new DynamicImportJobState(
+                    realm,
+                    capability,
+                    specifier,
+                    script.SourcePath,
+                    importType
+                )
+            );
         }
         catch (JsRuntimeException ex)
         {
@@ -90,7 +138,8 @@ public partial class Intrinsics
         JsRealm realm,
         JsPromiseObject.PromiseCapability capability,
         in JsValue optionsValue,
-        out string? importType)
+        out string? importType
+    )
     {
         importType = null;
         if (optionsValue.IsUndefined)
@@ -98,13 +147,19 @@ public partial class Intrinsics
 
         if (!optionsValue.TryGetObject(out var optionsObj))
         {
-            RejectDynamicImportTypeError(realm, capability, "Dynamic import options must be an object");
+            RejectDynamicImportTypeError(
+                realm,
+                capability,
+                "Dynamic import options must be an object"
+            );
             return false;
         }
 
         if (!optionsObj.TryGetPropertyByAtom(IdWith, out var attributesValue))
             attributesValue = JsValue.Undefined;
-        if (attributesValue.IsUndefined && !optionsObj.TryGetProperty("assert", out attributesValue))
+        if (
+            attributesValue.IsUndefined && !optionsObj.TryGetProperty("assert", out attributesValue)
+        )
             attributesValue = JsValue.Undefined;
 
         if (attributesValue.IsUndefined)
@@ -112,7 +167,11 @@ public partial class Intrinsics
 
         if (!attributesValue.TryGetObject(out var attributesObj))
         {
-            RejectDynamicImportTypeError(realm, capability, "Dynamic import with option must be an object");
+            RejectDynamicImportTypeError(
+                realm,
+                capability,
+                "Dynamic import with option must be an object"
+            );
             return false;
         }
 
@@ -120,7 +179,11 @@ public partial class Intrinsics
         var keysValue = realm.InvokeObjectConstructorMethod("keys", keysArgs);
         if (!keysValue.TryGetObject(out var keysObj))
         {
-            RejectDynamicImportTypeError(realm, capability, "Dynamic import with keys must be an object");
+            RejectDynamicImportTypeError(
+                realm,
+                capability,
+                "Dynamic import with keys must be an object"
+            );
             return false;
         }
 
@@ -128,12 +191,17 @@ public partial class Intrinsics
         for (long i = 0; i < keyCount; i++)
         {
             _ = keysObj.TryGetElement((uint)i, out var keyValue);
-            var keyText = keyValue.IsString ? keyValue.AsString() : realm.ToJsStringSlowPath(keyValue);
+            var keyText = keyValue.IsString
+                ? keyValue.AsString()
+                : realm.ToJsStringSlowPath(keyValue);
             _ = attributesObj.TryGetProperty(keyText, out var attributeValue);
             if (!attributeValue.IsString)
             {
-                RejectDynamicImportTypeError(realm, capability,
-                    "Dynamic import attribute values must be strings");
+                RejectDynamicImportTypeError(
+                    realm,
+                    capability,
+                    "Dynamic import attribute values must be strings"
+                );
                 return false;
             }
 
@@ -147,7 +215,8 @@ public partial class Intrinsics
     private static void RejectDynamicImportTypeError(
         JsRealm realm,
         JsPromiseObject.PromiseCapability capability,
-        string message)
+        string message
+    )
     {
         var error = realm.CreateErrorObjectFromException(new(JsErrorKind.TypeError, message));
         realm.RejectPromiseCapability(capability, error);
@@ -158,7 +227,8 @@ public partial class Intrinsics
         JsPromiseObject.PromiseCapability capability,
         string specifier,
         string? referrer,
-        string? importType)
+        string? importType
+    )
     {
         public readonly JsPromiseObject.PromiseCapability Capability = capability;
         public readonly string? ImportType = importType;

@@ -7,12 +7,13 @@ internal enum GlobalStoreResult : byte
     Success = 0,
     Unresolvable = 1,
     ReadOnly = 2,
-    FunctionNotDefinable = 3
+    FunctionNotDefinable = 3,
 }
 
 public sealed partial class JsGlobalObject : JsObject
 {
-    public JsGlobalObject(JsRealm realm) : base(realm)
+    public JsGlobalObject(JsRealm realm)
+        : base(realm)
     {
         Prototype = realm.ObjectPrototype;
     }
@@ -50,16 +51,23 @@ public sealed partial class JsGlobalObject : JsObject
             return true;
         }
 
-        if (Prototype is not null &&
-            Prototype.TryGetPropertyAtomWithReceiver(realm, this, atom, out value, out _))
+        if (
+            Prototype is not null
+            && Prototype.TryGetPropertyAtomWithReceiver(realm, this, atom, out value, out _)
+        )
             return true;
 
         value = JsValue.Undefined;
         return false;
     }
 
-    internal bool TryGetPropertyAtomForGlobalCache(JsRealm realm, int atom, out JsValue value, out int globalSlot,
-        out int globalVersion)
+    internal bool TryGetPropertyAtomForGlobalCache(
+        JsRealm realm,
+        int atom,
+        out JsValue value,
+        out int globalSlot,
+        out int globalVersion
+    )
     {
         globalSlot = -1;
         globalVersion = 0;
@@ -97,16 +105,23 @@ public sealed partial class JsGlobalObject : JsObject
             return true;
         }
 
-        if (Prototype is not null &&
-            Prototype.TryGetPropertyAtomWithReceiver(realm, this, atom, out value, out _))
+        if (
+            Prototype is not null
+            && Prototype.TryGetPropertyAtomWithReceiver(realm, this, atom, out value, out _)
+        )
             return true;
 
         value = JsValue.Undefined;
         return false;
     }
 
-    internal override bool TryGetPropertyAtomWithReceiverValue(JsRealm realm, in JsValue receiverValue, int atom,
-        out JsValue value, out SlotInfo slotInfo)
+    internal override bool TryGetPropertyAtomWithReceiverValue(
+        JsRealm realm,
+        in JsValue receiverValue,
+        int atom,
+        out JsValue value,
+        out SlotInfo slotInfo
+    )
     {
         ref var data = ref GetNamedDataSlotRef(atom);
         if (!Unsafe.IsNullRef(ref data))
@@ -142,8 +157,16 @@ public sealed partial class JsGlobalObject : JsObject
             return true;
         }
 
-        if (Prototype is not null &&
-            Prototype.TryGetPropertyAtomWithReceiverValue(realm, receiverValue, atom, out value, out _))
+        if (
+            Prototype is not null
+            && Prototype.TryGetPropertyAtomWithReceiverValue(
+                realm,
+                receiverValue,
+                atom,
+                out value,
+                out _
+            )
+        )
         {
             slotInfo = SlotInfo.Invalid;
             return true;
@@ -166,11 +189,14 @@ public sealed partial class JsGlobalObject : JsObject
         {
             if ((existing.Flags & JsShapePropertyFlags.Writable) == 0)
                 return;
-            existing = new(existing.Slot,
+            existing = new(
+                existing.Slot,
                 DescriptorUtilities.BuildDataFlags(
                     true,
                     (existing.Flags & JsShapePropertyFlags.Enumerable) != 0,
-                    (existing.Flags & JsShapePropertyFlags.Configurable) != 0));
+                    (existing.Flags & JsShapePropertyFlags.Configurable) != 0
+                )
+            );
             SetGlobalValue(existing, value);
             return;
         }
@@ -180,31 +206,50 @@ public sealed partial class JsGlobalObject : JsObject
         {
             if (!existingDescriptor.Writable)
                 return;
-            existingDescriptor = PropertyDescriptor.Data(value,
+            existingDescriptor = PropertyDescriptor.Data(
+                value,
                 true,
                 existingDescriptor.Enumerable,
-                existingDescriptor.Configurable);
+                existingDescriptor.Configurable
+            );
             return;
         }
 
         if (!IsExtensibleFlag)
             return;
 
-        var slotInfo = GetOrAddNamedDataSlot(atom, DescriptorUtilities.BuildDataFlags(true, false, true), out _);
+        var slotInfo = GetOrAddNamedDataSlot(
+            atom,
+            DescriptorUtilities.BuildDataFlags(true, false, true),
+            out _
+        );
         SetGlobalValue(slotInfo, value);
     }
 
-    internal void DefineOwnGlobalDataPropertyAtom(int atom, JsValue value, bool writable, bool enumerable,
-        bool configurable)
+    internal void DefineOwnGlobalDataPropertyAtom(
+        int atom,
+        JsValue value,
+        bool writable,
+        bool enumerable,
+        bool configurable
+    )
     {
         namedDescriptors?.Remove(atom);
-        var slotInfo = GetOrAddNamedDataSlot(atom,
-            DescriptorUtilities.BuildDataFlags(writable, enumerable, configurable), out _);
+        var slotInfo = GetOrAddNamedDataSlot(
+            atom,
+            DescriptorUtilities.BuildDataFlags(writable, enumerable, configurable),
+            out _
+        );
         SetGlobalValue(slotInfo, value);
     }
 
-    internal override bool SetPropertyAtomWithReceiver(JsRealm realm, JsObject receiver, int atom, JsValue value,
-        out SlotInfo slotInfo)
+    internal override bool SetPropertyAtomWithReceiver(
+        JsRealm realm,
+        JsObject receiver,
+        int atom,
+        JsValue value,
+        out SlotInfo slotInfo
+    )
     {
         if (!ReferenceEquals(this, receiver))
             return base.SetPropertyAtomWithReceiver(realm, receiver, atom, value, out slotInfo);
@@ -237,7 +282,8 @@ public sealed partial class JsGlobalObject : JsObject
                 value,
                 descriptorCurrent.Writable,
                 descriptorCurrent.Enumerable,
-                descriptorCurrent.Configurable);
+                descriptorCurrent.Configurable
+            );
             slotInfo = SlotInfo.Invalid;
             return true;
         }
@@ -254,14 +300,25 @@ public sealed partial class JsGlobalObject : JsObject
             return false;
         }
 
-        var created = GetOrAddNamedDataSlot(atom, DescriptorUtilities.BuildDataFlags(true, true, true), out _);
+        var created = GetOrAddNamedDataSlot(
+            atom,
+            DescriptorUtilities.BuildDataFlags(true, true, true),
+            out _
+        );
         SetGlobalValue(created, value);
         slotInfo = SlotInfo.Invalid;
         return true;
     }
 
-    internal GlobalStoreResult StoreGlobalAtom(JsRealm realm, int atom, JsValue value, bool strict,
-        bool isInitializationStore, bool useFunctionDeclarationSemantics, bool useConfigurableInitializationSemantics)
+    internal GlobalStoreResult StoreGlobalAtom(
+        JsRealm realm,
+        int atom,
+        JsValue value,
+        bool strict,
+        bool isInitializationStore,
+        bool useFunctionDeclarationSemantics,
+        bool useConfigurableInitializationSemantics
+    )
     {
         if (strict && !isInitializationStore && !TryGetPropertyAtom(realm, atom, out _))
             return GlobalStoreResult.Unresolvable;
@@ -279,14 +336,16 @@ public sealed partial class JsGlobalObject : JsObject
                         value,
                         existingDescriptor.Configurable || existingDescriptor.Writable,
                         existingDescriptor.Configurable || existingDescriptor.Enumerable,
-                        existingDescriptor.Configurable);
+                        existingDescriptor.Configurable
+                    );
                     if (TrySetOwnGlobalDescriptorAtom(atom, updatedDescriptor))
                         return GlobalStoreResult.Success;
 
                     var exactFlags = DescriptorUtilities.BuildDataFlags(
                         existingDescriptor.Configurable || existingDescriptor.Writable,
                         existingDescriptor.Configurable || existingDescriptor.Enumerable,
-                        existingDescriptor.Configurable);
+                        existingDescriptor.Configurable
+                    );
                     _ = DefineOwnDataPropertyExact(realm, atom, value, exactFlags);
                 }
                 else
@@ -294,8 +353,11 @@ public sealed partial class JsGlobalObject : JsObject
                     if (!IsExtensibleFlag)
                         return GlobalStoreResult.ReadOnly;
 
-                    var slotInfo = GetOrAddNamedDataSlot(atom,
-                        DescriptorUtilities.BuildDataFlags(true, true, true), out _);
+                    var slotInfo = GetOrAddNamedDataSlot(
+                        atom,
+                        DescriptorUtilities.BuildDataFlags(true, true, true),
+                        out _
+                    );
                     SetGlobalValue(slotInfo, value);
                 }
 
@@ -310,7 +372,8 @@ public sealed partial class JsGlobalObject : JsObject
                         value,
                         scriptExistingDescriptor.Writable,
                         scriptExistingDescriptor.Enumerable,
-                        scriptExistingDescriptor.Configurable);
+                        scriptExistingDescriptor.Configurable
+                    );
                 if (!TrySetOwnGlobalDescriptorAtom(atom, updatedDescriptor))
                 {
                     var exactFlags = scriptExistingDescriptor.Configurable
@@ -318,7 +381,8 @@ public sealed partial class JsGlobalObject : JsObject
                         : DescriptorUtilities.BuildDataFlags(
                             scriptExistingDescriptor.Writable,
                             scriptExistingDescriptor.Enumerable,
-                            scriptExistingDescriptor.Configurable);
+                            scriptExistingDescriptor.Configurable
+                        );
                     _ = DefineOwnDataPropertyExact(realm, atom, value, exactFlags);
                 }
 
@@ -328,32 +392,39 @@ public sealed partial class JsGlobalObject : JsObject
             if (!IsExtensibleFlag)
                 return GlobalStoreResult.ReadOnly;
 
-            var functionSlot = GetOrAddNamedDataSlot(atom,
-                DescriptorUtilities.BuildDataFlags(true, true, false), out _);
+            var functionSlot = GetOrAddNamedDataSlot(
+                atom,
+                DescriptorUtilities.BuildDataFlags(true, true, false),
+                out _
+            );
             SetGlobalValue(functionSlot, value);
             return GlobalStoreResult.Success;
         }
 
         // Global var declaration initialization for absent binding.
-        if (isInitializationStore &&
-            value.IsUndefined &&
-            !TryGetOwnGlobalAtom(atom, out _))
+        if (isInitializationStore && value.IsUndefined && !TryGetOwnGlobalAtom(atom, out _))
         {
             if (!IsExtensibleFlag)
                 return GlobalStoreResult.ReadOnly;
 
-            var initSlot = GetOrAddNamedDataSlot(atom,
+            var initSlot = GetOrAddNamedDataSlot(
+                atom,
                 DescriptorUtilities.BuildDataFlags(
                     true,
                     true,
-                    useConfigurableInitializationSemantics), out _);
+                    useConfigurableInitializationSemantics
+                ),
+                out _
+            );
             SetGlobalValue(initSlot, JsValue.Undefined);
             return GlobalStoreResult.Success;
         }
 
-        if (isInitializationStore &&
-            value.IsUndefined &&
-            TryGetOwnGlobalDescriptorAtom(atom, out _))
+        if (
+            isInitializationStore
+            && value.IsUndefined
+            && TryGetOwnGlobalDescriptorAtom(atom, out _)
+        )
             return GlobalStoreResult.Success;
 
         return TrySetPropertyAtom(realm, atom, value, out _)
@@ -392,8 +463,11 @@ public sealed partial class JsGlobalObject : JsObject
         return false;
     }
 
-    internal override void CollectForInEnumerableStringAtomKeys(JsRealm realm, HashSet<string> visited,
-        List<string> enumerableKeysOut)
+    internal override void CollectForInEnumerableStringAtomKeys(
+        JsRealm realm,
+        HashSet<string> visited,
+        List<string> enumerableKeysOut
+    )
     {
         if (namedData.Count != 0 || (namedDescriptors is not null && namedDescriptors.Count != 0))
         {
@@ -448,7 +522,11 @@ public sealed partial class JsGlobalObject : JsObject
         base.CollectForInEnumerableStringAtomKeys(realm, visited, enumerableKeysOut);
     }
 
-    internal override void CollectOwnNamedPropertyAtoms(JsRealm realm, List<int> atomsOut, bool enumerableOnly)
+    internal override void CollectOwnNamedPropertyAtoms(
+        JsRealm realm,
+        List<int> atomsOut,
+        bool enumerableOnly
+    )
     {
         if (namedData.Count != 0)
             foreach (var entry in namedData)
@@ -469,9 +547,12 @@ public sealed partial class JsGlobalObject : JsObject
         base.CollectOwnNamedPropertyAtoms(realm, atomsOut, enumerableOnly);
     }
 
-    internal override bool TryGetOwnNamedPropertyDescriptorAtom(JsRealm realm, int atom,
+    internal override bool TryGetOwnNamedPropertyDescriptorAtom(
+        JsRealm realm,
+        int atom,
         out PropertyDescriptor descriptor,
-        bool needDescriptor = true)
+        bool needDescriptor = true
+    )
     {
         ref var data = ref GetNamedDataSlotRef(atom);
         if (!Unsafe.IsNullRef(ref data))
@@ -486,7 +567,8 @@ public sealed partial class JsGlobalObject : JsObject
                 globalValueEntries[data.Slot].Value,
                 (data.Flags & JsShapePropertyFlags.Writable) != 0,
                 (data.Flags & JsShapePropertyFlags.Enumerable) != 0,
-                (data.Flags & JsShapePropertyFlags.Configurable) != 0);
+                (data.Flags & JsShapePropertyFlags.Configurable) != 0
+            );
             return true;
         }
 
@@ -497,6 +579,11 @@ public sealed partial class JsGlobalObject : JsObject
             return true;
         }
 
-        return base.TryGetOwnNamedPropertyDescriptorAtom(realm, atom, out descriptor, needDescriptor);
+        return base.TryGetOwnNamedPropertyDescriptorAtom(
+            realm,
+            atom,
+            out descriptor,
+            needDescriptor
+        );
     }
 }

@@ -21,10 +21,20 @@ internal sealed class NodeCliProcess : IAsyncDisposable
     private NodeCliProcess(Process process)
     {
         this.process = process;
-        stdoutPump = PumpAsync(process.StandardOutput, stdoutLines, stdoutBuilder, stdoutGate,
-            cancellationTokenSource.Token);
-        stderrPump = PumpAsync(process.StandardError, stderrLines, stderrBuilder, stderrGate,
-            cancellationTokenSource.Token);
+        stdoutPump = PumpAsync(
+            process.StandardOutput,
+            stdoutLines,
+            stdoutBuilder,
+            stdoutGate,
+            cancellationTokenSource.Token
+        );
+        stderrPump = PumpAsync(
+            process.StandardError,
+            stderrLines,
+            stderrBuilder,
+            stderrGate,
+            cancellationTokenSource.Token
+        );
     }
 
     public async ValueTask DisposeAsync()
@@ -35,18 +45,14 @@ internal sealed class NodeCliProcess : IAsyncDisposable
         {
             process.StandardInput.Close();
         }
-        catch
-        {
-        }
+        catch { }
 
         if (!process.HasExited)
             try
             {
                 process.Kill(true);
             }
-            catch
-            {
-            }
+            catch { }
 
         stdoutLines.CompleteAdding();
         stderrLines.CompleteAdding();
@@ -63,10 +69,20 @@ internal sealed class NodeCliProcess : IAsyncDisposable
         var repoRoot = FindRepoRoot();
         var configuration = GetBuildConfiguration();
         var targetFramework = GetTargetFramework();
-        var cliDll = Path.Combine(repoRoot, "src", "Okojo.Node.Cli", "bin", configuration, targetFramework,
-            "okojonode.dll");
+        var cliDll = Path.Combine(
+            repoRoot,
+            "src",
+            "Okojo.Node.Cli",
+            "bin",
+            configuration,
+            targetFramework,
+            "okojonode.dll"
+        );
         if (!File.Exists(cliDll))
-            throw new FileNotFoundException($"Expected Okojo.Node.Cli build output at '{cliDll}'.", cliDll);
+            throw new FileNotFoundException(
+                $"Expected Okojo.Node.Cli build output at '{cliDll}'.",
+                cliDll
+            );
 
         var startInfo = new ProcessStartInfo("dotnet")
         {
@@ -75,14 +91,15 @@ internal sealed class NodeCliProcess : IAsyncDisposable
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
-            CreateNoWindow = true
+            CreateNoWindow = true,
         };
         startInfo.ArgumentList.Add(cliDll);
         foreach (var arg in args)
             startInfo.ArgumentList.Add(arg);
 
-        var process = Process.Start(startInfo) ??
-                      throw new InvalidOperationException("Failed to start Okojo.Node.Cli.");
+        var process =
+            Process.Start(startInfo)
+            ?? throw new InvalidOperationException("Failed to start Okojo.Node.Cli.");
         return new(process);
     }
 
@@ -108,7 +125,8 @@ internal sealed class NodeCliProcess : IAsyncDisposable
         }
 
         throw new TimeoutException(
-            $"Timed out waiting for stdout line. Current stdout:{Environment.NewLine}{GetStdout()}");
+            $"Timed out waiting for stdout line. Current stdout:{Environment.NewLine}{GetStdout()}"
+        );
     }
 
     public async Task WaitForExitAsync(TimeSpan timeout)
@@ -140,7 +158,8 @@ internal sealed class NodeCliProcess : IAsyncDisposable
         BlockingCollection<string> lines,
         StringBuilder builder,
         object gate,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         try
         {
@@ -158,9 +177,7 @@ internal sealed class NodeCliProcess : IAsyncDisposable
                 lines.Add(line, cancellationToken);
             }
         }
-        catch (OperationCanceledException)
-        {
-        }
+        catch (OperationCanceledException) { }
         finally
         {
             lines.CompleteAdding();
@@ -179,8 +196,9 @@ internal sealed class NodeCliProcess : IAsyncDisposable
 
     private static string FindRepoRoot()
     {
-        var current = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)
-                      ?? throw new InvalidOperationException("Unable to resolve test assembly path.");
+        var current =
+            Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)
+            ?? throw new InvalidOperationException("Unable to resolve test assembly path.");
         while (!string.IsNullOrEmpty(current))
         {
             if (File.Exists(Path.Combine(current, "Okojo.slnx")))
@@ -194,15 +212,16 @@ internal sealed class NodeCliProcess : IAsyncDisposable
 
     private static string GetBuildConfiguration()
     {
-        var directory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)
-                        ?? throw new InvalidOperationException("Unable to resolve test assembly path.");
+        var directory =
+            Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)
+            ?? throw new InvalidOperationException("Unable to resolve test assembly path.");
         return Directory.GetParent(directory)?.Name
-               ?? throw new InvalidOperationException("Could not determine test build configuration.");
+            ?? throw new InvalidOperationException("Could not determine test build configuration.");
     }
 
     private static string GetTargetFramework()
     {
         return Path.GetFileName(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location))
-               ?? throw new InvalidOperationException("Could not determine target framework.");
+            ?? throw new InvalidOperationException("Could not determine target framework.");
     }
 }

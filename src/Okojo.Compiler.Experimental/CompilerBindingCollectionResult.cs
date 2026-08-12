@@ -10,7 +10,8 @@ internal sealed class CompilerBindingCollectionResult : IDisposable
     internal CompilerBindingCollectionResult(
         PooledArrayBuilder<CompilerCollectedScope> scopes,
         PooledArrayBuilder<CompilerCollectedBinding> bindings,
-        PooledArrayBuilder<CompilerCollectedReference> references)
+        PooledArrayBuilder<CompilerCollectedReference> references
+    )
     {
         this.scopes = scopes;
         this.bindings = bindings;

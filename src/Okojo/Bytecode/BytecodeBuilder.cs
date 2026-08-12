@@ -95,14 +95,16 @@ public sealed class BytecodeBuilder : IDisposable
 
     public void EmitJumpIfTruethy(JsOpCode op, Label target)
     {
-        if (lastEmittedOp is { } o && IsTestOpcode(o)) op = JsOpCode.JumpIfTrue;
+        if (lastEmittedOp is { } o && IsTestOpcode(o))
+            op = JsOpCode.JumpIfTrue;
         jumps16ToPatch.Add(new(code.Count, target));
         Emit(op, 0, 0); // Placeholder for 16-bit offset
     }
 
     public void EmitJumpIfFalsy(JsOpCode op, Label target)
     {
-        if (lastEmittedOp is { } o && IsTestOpcode(o)) op = JsOpCode.JumpIfFalse;
+        if (lastEmittedOp is { } o && IsTestOpcode(o))
+            op = JsOpCode.JumpIfFalse;
         jumps16ToPatch.Add(new(code.Count, target));
         Emit(op, 0, 0); // Placeholder for 16-bit offset
     }
@@ -120,21 +122,20 @@ public sealed class BytecodeBuilder : IDisposable
 
     private static bool IsTestOpcode(JsOpCode op)
     {
-        return op is
-            JsOpCode.TestEqual
-            or JsOpCode.TestEqualStrict
-            or JsOpCode.TestNotEqual
-            or JsOpCode.TestLessThan
-            or JsOpCode.TestLessThanOrEqual
-            or JsOpCode.TestLessThanOrEqualSmi
-            or JsOpCode.TestIn
-            or JsOpCode.TestGreaterThan
-            or JsOpCode.TestGreaterThanSmi
-            or JsOpCode.TestGreaterThanOrEqual
-            or JsOpCode.TestGreaterThanOrEqualSmi
-            or JsOpCode.TestInstanceOf;
+        return op
+            is JsOpCode.TestEqual
+                or JsOpCode.TestEqualStrict
+                or JsOpCode.TestNotEqual
+                or JsOpCode.TestLessThan
+                or JsOpCode.TestLessThanOrEqual
+                or JsOpCode.TestLessThanOrEqualSmi
+                or JsOpCode.TestIn
+                or JsOpCode.TestGreaterThan
+                or JsOpCode.TestGreaterThanSmi
+                or JsOpCode.TestGreaterThanOrEqual
+                or JsOpCode.TestGreaterThanOrEqualSmi
+                or JsOpCode.TestInstanceOf;
     }
-
 
     public void EmitJump(Label target)
     {
@@ -144,7 +145,9 @@ public sealed class BytecodeBuilder : IDisposable
     public void EmitSwitchOnSmi(IReadOnlyList<Label> targets)
     {
         if (targets.Count > byte.MaxValue)
-            throw new InvalidOperationException("SwitchOnSmi target count exceeds byte operand capacity.");
+            throw new InvalidOperationException(
+                "SwitchOnSmi target count exceeds byte operand capacity."
+            );
         var copied = new Label[targets.Count];
         for (var i = 0; i < targets.Count; i++)
             copied[i] = targets[i];
@@ -221,11 +224,15 @@ public sealed class BytecodeBuilder : IDisposable
             throw new ArgumentOutOfRangeException(nameof(register));
         var activeIndex = FindActiveTemporaryRegisterIndex(register);
         if (activeIndex < 0)
-            throw new InvalidOperationException($"Temporary register r{register} is not currently active.");
+            throw new InvalidOperationException(
+                $"Temporary register r{register} is not currently active."
+            );
         activeTemporaryRegisters.RemoveAt(activeIndex);
 #if DEBUG
         if (!freeTemporaryRegisterSet.Add(register))
-            throw new InvalidOperationException($"Temporary register r{register} released more than once.");
+            throw new InvalidOperationException(
+                $"Temporary register r{register} released more than once."
+            );
 #endif
         freeTemporaryRegisters.Add(register);
     }
@@ -262,7 +269,9 @@ public sealed class BytecodeBuilder : IDisposable
             activeTemporaryRegisters.RemoveAt(idx);
 #if DEBUG
             if (!freeTemporaryRegisterSet.Add(reg))
-                throw new InvalidOperationException($"Temporary register r{reg} released more than once.");
+                throw new InvalidOperationException(
+                    $"Temporary register r{reg} released more than once."
+                );
 #endif
             freeTemporaryRegisters.Add(reg);
         }
@@ -271,14 +280,18 @@ public sealed class BytecodeBuilder : IDisposable
     public int AllocateFeedbackSlot()
     {
         if (namedPropertyFeedbackSlotCount == ushort.MaxValue)
-            throw new InvalidOperationException("Named-property feedback slot count exceeds ushort operand capacity.");
+            throw new InvalidOperationException(
+                "Named-property feedback slot count exceeds ushort operand capacity."
+            );
         return namedPropertyFeedbackSlotCount++;
     }
 
     public int AllocateGlobalBindingFeedbackSlot()
     {
         if (globalBindingFeedbackSlotCount == ushort.MaxValue)
-            throw new InvalidOperationException("Global-binding feedback slot count exceeds ushort operand capacity.");
+            throw new InvalidOperationException(
+                "Global-binding feedback slot count exceeds ushort operand capacity."
+            );
         return globalBindingFeedbackSlotCount++;
     }
 
@@ -316,7 +329,8 @@ public sealed class BytecodeBuilder : IDisposable
     {
         if (TryGetArrayIndexFromCanonicalString(value, out _))
             throw new InvalidOperationException(
-                $"Atomized string constant cannot be a canonical array index: '{value}'.");
+                $"Atomized string constant cannot be a canonical array index: '{value}'."
+            );
 
         var atom = realm.Atoms.InternNoCheck(value);
         for (var i = 0; i < atomizedStringConstants.Count; i++)
@@ -332,7 +346,8 @@ public sealed class BytecodeBuilder : IDisposable
         var text = realm.Atoms.AtomToString(atom);
         if (TryGetArrayIndexFromCanonicalString(text, out _))
             throw new InvalidOperationException(
-                $"Atomized string constant cannot be a canonical array index: '{text}'.");
+                $"Atomized string constant cannot be a canonical array index: '{text}'."
+            );
 
         for (var i = 0; i < atomizedStringConstants.Count; i++)
             if (atomizedStringConstants[i] == atom)
@@ -425,7 +440,16 @@ public sealed class BytecodeBuilder : IDisposable
         EmitLdaCore(op, op1, op2, op3, op4, op5, op6);
     }
 
-    public void Emit(JsOpCode op, byte op1, byte op2, byte op3, byte op4, byte op5, byte op6, byte op7)
+    public void Emit(
+        JsOpCode op,
+        byte op1,
+        byte op2,
+        byte op3,
+        byte op4,
+        byte op5,
+        byte op6,
+        byte op7
+    )
     {
         EmitCore(op, op1, op2, op3, op4, op5, op6, op7);
     }
@@ -435,7 +459,16 @@ public sealed class BytecodeBuilder : IDisposable
         EmitCore(op, operands);
     }
 
-    public void EmitLda(JsOpCode op, byte op1, byte op2, byte op3, byte op4, byte op5, byte op6, byte op7)
+    public void EmitLda(
+        JsOpCode op,
+        byte op1,
+        byte op2,
+        byte op3,
+        byte op4,
+        byte op5,
+        byte op6,
+        byte op7
+    )
     {
         EmitLdaCore(op, op1, op2, op3, op4, op5, op6, op7);
     }
@@ -477,11 +510,11 @@ public sealed class BytecodeBuilder : IDisposable
 
     private bool TryOmitRedundantAccumulatorLoad(JsOpCode op, ReadOnlySpan<byte> operands)
     {
-        return (op == JsOpCode.Ldar || op == JsOpCode.LdarWide) &&
-               TryDecodeRegisterOperands(op, operands, out var loadReg0, out _) &&
-               (lastEmittedOp == JsOpCode.Star || lastEmittedOp == JsOpCode.StarWide) &&
-               lastEmittedRegisterOperand0 == loadReg0 &&
-               !IsPositionAnchored(code.Count);
+        return (op == JsOpCode.Ldar || op == JsOpCode.LdarWide)
+            && TryDecodeRegisterOperands(op, operands, out var loadReg0, out _)
+            && (lastEmittedOp == JsOpCode.Star || lastEmittedOp == JsOpCode.StarWide)
+            && lastEmittedRegisterOperand0 == loadReg0
+            && !IsPositionAnchored(code.Count);
     }
 
     private void TryReplacePreviousPureAccumulatorLoad(JsOpCode op, ReadOnlySpan<byte> operands)
@@ -500,8 +533,11 @@ public sealed class BytecodeBuilder : IDisposable
 
     private bool IsPositionAnchored(int pc)
     {
-        if (debugSourceOffsets.ContainsKey(pc) || runtimeCallDebugNames.ContainsKey(pc) ||
-            tdzReadDebugNames.ContainsKey(pc))
+        if (
+            debugSourceOffsets.ContainsKey(pc)
+            || runtimeCallDebugNames.ContainsKey(pc)
+            || tdzReadDebugNames.ContainsKey(pc)
+        )
             return true;
 
         foreach (var boundPc in labelPositions.Values)
@@ -563,7 +599,9 @@ public sealed class BytecodeBuilder : IDisposable
             {
                 var offset = targetPos - (jump.InstructionPos + 3); // +3 for op and 2-byte operand
                 if (offset < short.MinValue || offset > short.MaxValue)
-                    throw new InvalidOperationException("Jump16 offset out of range for 16-bit operand.");
+                    throw new InvalidOperationException(
+                        "Jump16 offset out of range for 16-bit operand."
+                    );
 
                 var s = (short)offset;
                 code[jump.InstructionPos + 1] = (byte)(s & 0xFF);
@@ -578,7 +616,9 @@ public sealed class BytecodeBuilder : IDisposable
         {
             var tableStart = switchOnSmiTargets.Count;
             if (tableStart > byte.MaxValue)
-                throw new InvalidOperationException("SwitchOnSmi table start exceeds byte operand capacity.");
+                throw new InvalidOperationException(
+                    "SwitchOnSmi table start exceeds byte operand capacity."
+                );
 
             code[switchPatch.InstructionPos + 1] = (byte)tableStart;
             for (var i = 0; i < switchPatch.Targets.Length; i++)
@@ -601,7 +641,11 @@ public sealed class BytecodeBuilder : IDisposable
         int[]? tdzReadDebugNameIndices = null;
         long[]? privateFieldDebugKeys = null;
         int[]? privateFieldDebugNameIndices = null;
-        if (runtimeCallDebugNames.Count != 0 || tdzReadDebugNames.Count != 0 || privateFieldDebugNames.Count != 0)
+        if (
+            runtimeCallDebugNames.Count != 0
+            || tdzReadDebugNames.Count != 0
+            || privateFieldDebugNames.Count != 0
+        )
         {
             var nameIndexByText = new Dictionary<string, int>(StringComparer.Ordinal);
             var names = new List<string>();
@@ -617,19 +661,34 @@ public sealed class BytecodeBuilder : IDisposable
             }
 
             if (runtimeCallDebugNames.Count != 0)
-                BuildSortedDebugNameTable(runtimeCallDebugNames, nameIndexByText, names,
-                    out runtimeCallDebugPcs, out runtimeCallDebugNameIndices, static (value, map, list) =>
-                        InternName(map, list, value));
+                BuildSortedDebugNameTable(
+                    runtimeCallDebugNames,
+                    nameIndexByText,
+                    names,
+                    out runtimeCallDebugPcs,
+                    out runtimeCallDebugNameIndices,
+                    static (value, map, list) => InternName(map, list, value)
+                );
 
             if (tdzReadDebugNames.Count != 0)
-                BuildSortedDebugNameTable(tdzReadDebugNames, nameIndexByText, names,
-                    out tdzReadDebugPcs, out tdzReadDebugNameIndices, static (value, map, list) =>
-                        InternName(map, list, value));
+                BuildSortedDebugNameTable(
+                    tdzReadDebugNames,
+                    nameIndexByText,
+                    names,
+                    out tdzReadDebugPcs,
+                    out tdzReadDebugNameIndices,
+                    static (value, map, list) => InternName(map, list, value)
+                );
 
             if (privateFieldDebugNames.Count != 0)
-                BuildSortedDebugNameTable(privateFieldDebugNames, nameIndexByText, names,
-                    out privateFieldDebugKeys, out privateFieldDebugNameIndices, static (value, map, list) =>
-                        InternName(map, list, value));
+                BuildSortedDebugNameTable(
+                    privateFieldDebugNames,
+                    nameIndexByText,
+                    names,
+                    out privateFieldDebugKeys,
+                    out privateFieldDebugNameIndices,
+                    static (value, map, list) => InternName(map, list, value)
+                );
 
             debugNames = names.ToArray();
         }
@@ -650,13 +709,17 @@ public sealed class BytecodeBuilder : IDisposable
             runtimeCallDebugNameIndices,
             tdzReadDebugPcs,
             tdzReadDebugNameIndices,
-            namedPropertyFeedbackSlotCount == 0 ? null : new OkojoNamedPropertyIcEntry[namedPropertyFeedbackSlotCount],
+            namedPropertyFeedbackSlotCount == 0
+                ? null
+                : new OkojoNamedPropertyIcEntry[namedPropertyFeedbackSlotCount],
             globalBindingIcEntries,
             debugPcOffsets,
             debugSourceOffsets,
             sourceText,
             FunctionSourceText: default,
-            GeneratorSwitchTargets: generatorSwitchTargets.Count == 0 ? null : generatorSwitchTargets.ToArray(),
+            GeneratorSwitchTargets: generatorSwitchTargets.Count == 0
+                ? null
+                : generatorSwitchTargets.ToArray(),
             SwitchOnSmiTargets: switchOnSmiTargets.Count == 0 ? null : switchOnSmiTargets.ToArray(),
             PrivateFieldDebugKeys: privateFieldDebugKeys,
             PrivateFieldDebugNameIndices: privateFieldDebugNameIndices,
@@ -702,7 +765,11 @@ public sealed class BytecodeBuilder : IDisposable
         return -1;
     }
 
-    private static void CopySortedIntMap(Dictionary<int, int> source, out int[] keys, out int[] values)
+    private static void CopySortedIntMap(
+        Dictionary<int, int> source,
+        out int[] keys,
+        out int[] values
+    )
     {
         keys = new int[source.Count];
         values = new int[source.Count];
@@ -739,8 +806,17 @@ public sealed class BytecodeBuilder : IDisposable
         while (pc < code.Count)
         {
             var oldPc = pc;
-            if (!BytecodeInfo.TryDecodeInstructionHeader(code.ToArray(), pc, out var op, out var scale,
-                    out var operandStart, out var operandByteCount, out var instructionLength))
+            if (
+                !BytecodeInfo.TryDecodeInstructionHeader(
+                    code.ToArray(),
+                    pc,
+                    out var op,
+                    out var scale,
+                    out var operandStart,
+                    out var operandByteCount,
+                    out var instructionLength
+                )
+            )
                 throw new InvalidOperationException($"Truncated instruction stream at pc {oldPc}.");
 
             var operands = new byte[operandByteCount];
@@ -753,7 +829,9 @@ public sealed class BytecodeBuilder : IDisposable
         return decoded;
     }
 
-    private HashSet<int> CollectProtectedInstructionTargets(IReadOnlyList<DecodedInstruction> instructions)
+    private HashSet<int> CollectProtectedInstructionTargets(
+        IReadOnlyList<DecodedInstruction> instructions
+    )
     {
         var targets = new HashSet<int>();
         for (var i = 0; i < instructions.Count; i++)
@@ -773,7 +851,8 @@ public sealed class BytecodeBuilder : IDisposable
 
     private static List<DecodedInstruction> ElideDeadPureAccumulatorLoads(
         IReadOnlyList<DecodedInstruction> instructions,
-        HashSet<int> protectedTargets)
+        HashSet<int> protectedTargets
+    )
     {
         var kept = new List<DecodedInstruction>(instructions.Count);
         for (var i = 0; i < instructions.Count; i++)
@@ -782,9 +861,11 @@ public sealed class BytecodeBuilder : IDisposable
             if (kept.Count != 0)
             {
                 var previous = kept[^1];
-                if (!protectedTargets.Contains(previous.OldPc) &&
-                    BytecodeInfo.IsPureAccumulatorLoad(previous.Op) &&
-                    BytecodeInfo.OverwritesAccumulatorWithoutReading(current.Op))
+                if (
+                    !protectedTargets.Contains(previous.OldPc)
+                    && BytecodeInfo.IsPureAccumulatorLoad(previous.Op)
+                    && BytecodeInfo.OverwritesAccumulatorWithoutReading(current.Op)
+                )
                     kept.RemoveAt(kept.Count - 1);
             }
 
@@ -822,7 +903,8 @@ public sealed class BytecodeBuilder : IDisposable
                 var offset = newTargetPc - (instructionNewPc + instruction.Length);
                 if (offset < short.MinValue || offset > short.MaxValue)
                     throw new InvalidOperationException(
-                        $"Optimized jump offset out of range for {instruction.Op} at pc {instructionNewPc}.");
+                        $"Optimized jump offset out of range for {instruction.Op} at pc {instructionNewPc}."
+                    );
 
                 operands[0] = (byte)(offset & 0xFF);
                 operands[1] = (byte)((offset >> 8) & 0xFF);
@@ -876,7 +958,10 @@ public sealed class BytecodeBuilder : IDisposable
         return nextOldPc == int.MaxValue ? newPcByOldPc.Values.Max() : newPcByOldPc[nextOldPc];
     }
 
-    private static int MapPcToPreviousKeptInstructionOrStart(int oldPc, Dictionary<int, int> newPcByOldPc)
+    private static int MapPcToPreviousKeptInstructionOrStart(
+        int oldPc,
+        Dictionary<int, int> newPcByOldPc
+    )
     {
         if (newPcByOldPc.TryGetValue(oldPc, out var mapped))
             return mapped;
@@ -906,7 +991,8 @@ public sealed class BytecodeBuilder : IDisposable
     private static void RemapPcDictionaryInPlace<TValue>(
         Dictionary<int, TValue> source,
         Dictionary<int, int> newPcByOldPc,
-        PcRemapDirection remapDirection = PcRemapDirection.Next)
+        PcRemapDirection remapDirection = PcRemapDirection.Next
+    )
     {
         if (source.Count == 0)
             return;
@@ -914,9 +1000,10 @@ public sealed class BytecodeBuilder : IDisposable
         var remapped = new Dictionary<int, TValue>(source.Count);
         foreach (var pair in source)
         {
-            var remappedPc = remapDirection == PcRemapDirection.Previous
-                ? MapPcToPreviousKeptInstructionOrStart(pair.Key, newPcByOldPc)
-                : MapPcToNextKeptInstructionOrEnd(pair.Key, newPcByOldPc);
+            var remappedPc =
+                remapDirection == PcRemapDirection.Previous
+                    ? MapPcToPreviousKeptInstructionOrStart(pair.Key, newPcByOldPc)
+                    : MapPcToNextKeptInstructionOrEnd(pair.Key, newPcByOldPc);
             remapped[remappedPc] = pair.Value;
         }
 
@@ -931,7 +1018,8 @@ public sealed class BytecodeBuilder : IDisposable
         List<string> names,
         out int[] keys,
         out int[] nameIndices,
-        Func<string, Dictionary<string, int>, List<string>, int> nameIndexer)
+        Func<string, Dictionary<string, int>, List<string>, int> nameIndexer
+    )
     {
         keys = new int[source.Count];
         nameIndices = new int[source.Count];
@@ -950,7 +1038,8 @@ public sealed class BytecodeBuilder : IDisposable
         List<string> names,
         out long[] keys,
         out int[] nameIndices,
-        Func<string, Dictionary<string, int>, List<string>, int> nameIndexer)
+        Func<string, Dictionary<string, int>, List<string>, int> nameIndexer
+    )
     {
         keys = new long[source.Count];
         nameIndices = new int[source.Count];
@@ -968,7 +1057,14 @@ public sealed class BytecodeBuilder : IDisposable
         lastEmittedOp = op;
         lastEmittedOp1 = operands.Length > 0 ? operands[0] : (byte)0;
         lastEmittedOp2 = operands.Length > 1 ? operands[1] : (byte)0;
-        if (TryDecodeRegisterOperands(op, operands, out var registerOperand0, out var registerOperand1))
+        if (
+            TryDecodeRegisterOperands(
+                op,
+                operands,
+                out var registerOperand0,
+                out var registerOperand1
+            )
+        )
         {
             lastEmittedRegisterOperand0 = (ushort)registerOperand0;
             lastEmittedRegisterOperand1 = (ushort)registerOperand1;
@@ -983,10 +1079,20 @@ public sealed class BytecodeBuilder : IDisposable
         lastEmittedLength = operands.Length + 1;
     }
 
-    private static bool TryDecodeRegisterOperands(JsOpCode op, ReadOnlySpan<byte> operands, out int register0,
-        out int register1)
+    private static bool TryDecodeRegisterOperands(
+        JsOpCode op,
+        ReadOnlySpan<byte> operands,
+        out int register0,
+        out int register1
+    )
     {
-        return TryDecodeRegisterOperands(op, BytecodeInfo.OperandScale.Single, operands, out register0, out register1);
+        return TryDecodeRegisterOperands(
+            op,
+            BytecodeInfo.OperandScale.Single,
+            operands,
+            out register0,
+            out register1
+        );
     }
 
     private static bool TryDecodeRegisterOperands(
@@ -994,7 +1100,8 @@ public sealed class BytecodeBuilder : IDisposable
         BytecodeInfo.OperandScale scale,
         ReadOnlySpan<byte> operands,
         out int register0,
-        out int register1)
+        out int register1
+    )
     {
         register0 = -1;
         register1 = -1;
@@ -1094,7 +1201,6 @@ public sealed class BytecodeBuilder : IDisposable
         }
     }
 
-
     private readonly record struct JumpInfo(int InstructionPos, Label Target);
 
     private readonly record struct SwitchOnSmiPatchInfo(int InstructionPos, Label[] Targets);
@@ -1103,7 +1209,8 @@ public sealed class BytecodeBuilder : IDisposable
         int OldPc,
         JsOpCode Op,
         BytecodeInfo.OperandScale Scale,
-        byte[] Operands)
+        byte[] Operands
+    )
     {
         public int Length => (Scale == BytecodeInfo.OperandScale.Single ? 1 : 2) + Operands.Length;
     }
@@ -1111,8 +1218,9 @@ public sealed class BytecodeBuilder : IDisposable
     private enum PcRemapDirection : byte
     {
         Next = 0,
-        Previous = 1
+        Previous = 1,
     }
+
 #if DEBUG
     private readonly HashSet<int> freeTemporaryRegisterSet;
     private readonly HashSet<long> reportedSuspiciousAccumulatorCopies;
@@ -1191,8 +1299,9 @@ public sealed class BytecodeBuilder : IDisposable
         var key = ((long)sourceReg << 32) | (uint)destReg;
         if (reportedSuspiciousAccumulatorCopies.Add(key))
             Debug.WriteLine(
-                $"[OkojoBytecodeBuilder] suspicious accumulator copy at pc {lastEmittedPc}: " +
-                $"Ldar r{sourceReg} -> Star r{destReg}. Prefer Mov when accumulator preservation is not required.");
+                $"[OkojoBytecodeBuilder] suspicious accumulator copy at pc {lastEmittedPc}: "
+                    + $"Ldar r{sourceReg} -> Star r{destReg}. Prefer Mov when accumulator preservation is not required."
+            );
     }
 
 #endif
@@ -1210,7 +1319,7 @@ public enum GlobalBindingIcKind : byte
     Uninitialized = 0,
     Lexical = 1,
     LexicalConst = 2,
-    NonLexical = 3
+    NonLexical = 3,
 }
 
 public struct GlobalBindingIcEntry

@@ -7,8 +7,12 @@ internal sealed class TypedArrayIteratorObject : JsObject
     private readonly JsTypedArrayObject typedArray;
     private uint index;
 
-    internal TypedArrayIteratorObject(JsRealm realm, JsTypedArrayObject typedArray, IterationKind kind) :
-        base(realm)
+    internal TypedArrayIteratorObject(
+        JsRealm realm,
+        JsTypedArrayObject typedArray,
+        IterationKind kind
+    )
+        : base(realm)
     {
         this.typedArray = typedArray;
         this.kind = kind;
@@ -18,8 +22,10 @@ internal sealed class TypedArrayIteratorObject : JsObject
     internal JsValue Next()
     {
         if (typedArray.Buffer.IsDetached)
-            throw new JsRuntimeException(JsErrorKind.TypeError,
-                "Cannot perform Array Iterator.prototype.next on a detached TypedArray");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Cannot perform Array Iterator.prototype.next on a detached TypedArray"
+            );
 
         if (index >= typedArray.Length)
             return Realm.CreateIteratorResultObject(JsValue.Undefined, true);
@@ -29,11 +35,15 @@ internal sealed class TypedArrayIteratorObject : JsObject
 
         return kind switch
         {
-            IterationKind.Keys => JsValue.FromObject(Realm.CreateIteratorResultObject(
-                JsValue.FromInt32((int)currentIndex),
-                false)),
-            IterationKind.Values => JsValue.FromObject(Realm.CreateIteratorResultObject(value, false)),
-            _ => JsValue.FromObject(Realm.CreateIteratorResultObject(CreateEntryPair(currentIndex, value), false))
+            IterationKind.Keys => JsValue.FromObject(
+                Realm.CreateIteratorResultObject(JsValue.FromInt32((int)currentIndex), false)
+            ),
+            IterationKind.Values => JsValue.FromObject(
+                Realm.CreateIteratorResultObject(value, false)
+            ),
+            _ => JsValue.FromObject(
+                Realm.CreateIteratorResultObject(CreateEntryPair(currentIndex, value), false)
+            ),
         };
     }
 
@@ -49,6 +59,6 @@ internal sealed class TypedArrayIteratorObject : JsObject
     {
         Keys,
         Values,
-        Entries
+        Entries,
     }
 }

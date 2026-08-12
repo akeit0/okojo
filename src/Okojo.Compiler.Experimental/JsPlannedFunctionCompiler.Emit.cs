@@ -19,7 +19,11 @@ internal sealed partial class JsPlannedFunctionCompiler
             return;
         }
 
-        builder.EmitLda(JsOpCode.LdaSmiWide, unchecked((byte)(value & 0xFF)), unchecked((byte)((value >> 8) & 0xFF)));
+        builder.EmitLda(
+            JsOpCode.LdaSmiWide,
+            unchecked((byte)(value & 0xFF)),
+            unchecked((byte)((value >> 8) & 0xFF))
+        );
     }
 
     private static bool TryGetSmallIntLiteral(JsExpression expression, out int value)
@@ -29,12 +33,14 @@ internal sealed partial class JsPlannedFunctionCompiler
             case JsLiteralExpression { Value: int int32 }:
                 value = int32;
                 return true;
-            case JsLiteralExpression { Value: long int64 } when int64 >= sbyte.MinValue && int64 <= sbyte.MaxValue:
+            case JsLiteralExpression { Value: long int64 }
+                when int64 >= sbyte.MinValue && int64 <= sbyte.MaxValue:
                 value = (int)int64;
                 return true;
-            case JsLiteralExpression { Value: double number } when Math.Truncate(number) == number &&
-                                                                    number >= sbyte.MinValue &&
-                                                                    number <= sbyte.MaxValue:
+            case JsLiteralExpression { Value: double number }
+                when Math.Truncate(number) == number
+                    && number >= sbyte.MinValue
+                    && number <= sbyte.MaxValue:
                 value = (int)number;
                 return true;
             default:
@@ -48,7 +54,11 @@ internal sealed partial class JsPlannedFunctionCompiler
         if (register <= byte.MaxValue)
             builder.EmitLda(JsOpCode.Ldar, (byte)register);
         else
-            builder.EmitLda(JsOpCode.LdarWide, (byte)(register & 0xFF), (byte)((register >> 8) & 0xFF));
+            builder.EmitLda(
+                JsOpCode.LdarWide,
+                (byte)(register & 0xFF),
+                (byte)((register >> 8) & 0xFF)
+            );
     }
 
     private void EmitLdaLexicalLocal(int register)
@@ -56,7 +66,11 @@ internal sealed partial class JsPlannedFunctionCompiler
         if (register <= byte.MaxValue)
             builder.EmitLda(JsOpCode.LdaLexicalLocal, (byte)register);
         else
-            builder.EmitLda(JsOpCode.LdaLexicalLocalWide, (byte)(register & 0xFF), (byte)((register >> 8) & 0xFF));
+            builder.EmitLda(
+                JsOpCode.LdaLexicalLocalWide,
+                (byte)(register & 0xFF),
+                (byte)((register >> 8) & 0xFF)
+            );
     }
 
     private void EmitStar(int register)
@@ -64,7 +78,11 @@ internal sealed partial class JsPlannedFunctionCompiler
         if (register <= byte.MaxValue)
             builder.Emit(JsOpCode.Star, (byte)register);
         else
-            builder.Emit(JsOpCode.StarWide, (byte)(register & 0xFF), (byte)((register >> 8) & 0xFF));
+            builder.Emit(
+                JsOpCode.StarWide,
+                (byte)(register & 0xFF),
+                (byte)((register >> 8) & 0xFF)
+            );
     }
 
     private void EmitStaLexicalLocal(int register)
@@ -72,7 +90,11 @@ internal sealed partial class JsPlannedFunctionCompiler
         if (register <= byte.MaxValue)
             builder.Emit(JsOpCode.StaLexicalLocal, (byte)register);
         else
-            builder.Emit(JsOpCode.StaLexicalLocalWide, (byte)(register & 0xFF), (byte)((register >> 8) & 0xFF));
+            builder.Emit(
+                JsOpCode.StaLexicalLocalWide,
+                (byte)(register & 0xFF),
+                (byte)((register >> 8) & 0xFF)
+            );
     }
 
     private void EmitFunctionContextSetup()
@@ -89,7 +111,12 @@ internal sealed partial class JsPlannedFunctionCompiler
                 continue;
             if (binding.Planned.Kind != CompilerCollectedBindingKind.Parameter)
                 continue;
-            if (!parameterRegisterByName.TryGetValue(binding.Planned.Name, out var parameterRegister))
+            if (
+                !parameterRegisterByName.TryGetValue(
+                    binding.Planned.Name,
+                    out var parameterRegister
+                )
+            )
                 continue;
             EmitLdar(parameterRegister);
             EmitStaCurrentContextSlot(binding.Planned.StorageIndex);
@@ -106,13 +133,17 @@ internal sealed partial class JsPlannedFunctionCompiler
 
         if ((uint)slotCount <= ushort.MaxValue)
         {
-            builder.Emit(JsOpCode.CreateFunctionContextWithCellsWide,
+            builder.Emit(
+                JsOpCode.CreateFunctionContextWithCellsWide,
                 (byte)(slotCount & 0xFF),
-                (byte)((slotCount >> 8) & 0xFF));
+                (byte)((slotCount >> 8) & 0xFF)
+            );
             return;
         }
 
-        throw new InvalidOperationException("CreateFunctionContextWithCells operands exceed ushort operand capacity.");
+        throw new InvalidOperationException(
+            "CreateFunctionContextWithCells operands exceed ushort operand capacity."
+        );
     }
 
     private void EmitLdaCurrentContextSlot(int slot)
@@ -123,7 +154,11 @@ internal sealed partial class JsPlannedFunctionCompiler
             return;
         }
 
-        builder.EmitLda(JsOpCode.LdaCurrentContextSlotWide, (byte)(slot & 0xFF), (byte)((slot >> 8) & 0xFF));
+        builder.EmitLda(
+            JsOpCode.LdaCurrentContextSlotWide,
+            (byte)(slot & 0xFF),
+            (byte)((slot >> 8) & 0xFF)
+        );
     }
 
     private void EmitStaCurrentContextSlot(int slot)
@@ -134,13 +169,19 @@ internal sealed partial class JsPlannedFunctionCompiler
             return;
         }
 
-        builder.Emit(JsOpCode.StaCurrentContextSlotWide, (byte)(slot & 0xFF), (byte)((slot >> 8) & 0xFF));
+        builder.Emit(
+            JsOpCode.StaCurrentContextSlotWide,
+            (byte)(slot & 0xFF),
+            (byte)((slot >> 8) & 0xFF)
+        );
     }
 
     private void EmitLdaContextSlot(int slot, int depth)
     {
         if ((uint)depth > byte.MaxValue)
-            throw new InvalidOperationException("Context access operands exceed byte operand capacity.");
+            throw new InvalidOperationException(
+                "Context access operands exceed byte operand capacity."
+            );
 
         if ((uint)slot <= byte.MaxValue)
         {
@@ -148,16 +189,20 @@ internal sealed partial class JsPlannedFunctionCompiler
             return;
         }
 
-        builder.EmitLda(JsOpCode.LdaContextSlotWide,
+        builder.EmitLda(
+            JsOpCode.LdaContextSlotWide,
             (byte)(slot & 0xFF),
             (byte)((slot >> 8) & 0xFF),
-            (byte)depth);
+            (byte)depth
+        );
     }
 
     private void EmitStaContextSlot(int slot, int depth)
     {
         if ((uint)depth > byte.MaxValue)
-            throw new InvalidOperationException("Context access operands exceed byte operand capacity.");
+            throw new InvalidOperationException(
+                "Context access operands exceed byte operand capacity."
+            );
 
         if ((uint)slot <= byte.MaxValue)
         {
@@ -165,10 +210,12 @@ internal sealed partial class JsPlannedFunctionCompiler
             return;
         }
 
-        builder.Emit(JsOpCode.StaContextSlotWide,
+        builder.Emit(
+            JsOpCode.StaContextSlotWide,
             (byte)(slot & 0xFF),
             (byte)((slot >> 8) & 0xFF),
-            (byte)depth);
+            (byte)depth
+        );
     }
 
     private void EmitRegisterWithSlotOp(JsOpCode op, int register)
@@ -200,14 +247,18 @@ internal sealed partial class JsPlannedFunctionCompiler
     private void EmitAddSmi(int value)
     {
         if (value is < sbyte.MinValue or > sbyte.MaxValue)
-            throw new NotSupportedException("JsPlannedFunctionCompiler supports only small AddSmi immediates.");
+            throw new NotSupportedException(
+                "JsPlannedFunctionCompiler supports only small AddSmi immediates."
+            );
         builder.Emit(JsOpCode.AddSmi, unchecked((byte)(sbyte)value), 0);
     }
 
     private void EmitSubSmi(int value)
     {
         if (value is < sbyte.MinValue or > sbyte.MaxValue)
-            throw new NotSupportedException("JsPlannedFunctionCompiler supports only small SubSmi immediates.");
+            throw new NotSupportedException(
+                "JsPlannedFunctionCompiler supports only small SubSmi immediates."
+            );
         builder.Emit(JsOpCode.SubSmi, unchecked((byte)(sbyte)value), 0);
     }
 
@@ -231,14 +282,18 @@ internal sealed partial class JsPlannedFunctionCompiler
 
         if ((uint)idx <= ushort.MaxValue)
         {
-            builder.Emit(JsOpCode.CreateClosureWide,
+            builder.Emit(
+                JsOpCode.CreateClosureWide,
                 (byte)(idx & 0xFF),
                 (byte)((idx >> 8) & 0xFF),
-                flags);
+                flags
+            );
             return;
         }
 
-        throw new InvalidOperationException("CreateClosure operands exceed ushort operand capacity.");
+        throw new InvalidOperationException(
+            "CreateClosure operands exceed ushort operand capacity."
+        );
     }
 
     private void EmitPopContext()

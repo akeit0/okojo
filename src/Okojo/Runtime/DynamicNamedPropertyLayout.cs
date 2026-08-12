@@ -12,12 +12,14 @@ internal sealed class DynamicNamedPropertyLayout : NamedPropertyLayout
     private int[] entryIndexes = Array.Empty<int>();
     private int tombstones;
 
-    internal DynamicNamedPropertyLayout(JsRealm owner) : base(owner, NamedPropertyLayoutKind.DynamicLinear)
-    {
-    }
+    internal DynamicNamedPropertyLayout(JsRealm owner)
+        : base(owner, NamedPropertyLayoutKind.DynamicLinear) { }
 
     private DynamicNamedPropertyLayout(JsRealm owner, Entry[] denseEntries, bool isMap)
-        : base(owner, isMap ? NamedPropertyLayoutKind.DynamicMap : NamedPropertyLayoutKind.DynamicLinear)
+        : base(
+            owner,
+            isMap ? NamedPropertyLayoutKind.DynamicMap : NamedPropertyLayoutKind.DynamicLinear
+        )
     {
         Entries = denseEntries;
         if (!isMap)
@@ -28,14 +30,21 @@ internal sealed class DynamicNamedPropertyLayout : NamedPropertyLayout
             return;
         }
 
-        BuildMapFromDenseEntries(denseEntries, ComputeSwissCapacity(denseEntries.Length), denseEntries.Length);
+        BuildMapFromDenseEntries(
+            denseEntries,
+            ComputeSwissCapacity(denseEntries.Length),
+            denseEntries.Length
+        );
     }
 
     public int Count => LiveCount;
     internal Entry[] UnsafeEntries => Entries;
     internal int StorageSlotCount { get; private set; }
 
-    internal static DynamicNamedPropertyLayout CreateOpenDataNoCollision(JsRealm owner, ReadOnlySpan<int> atoms)
+    internal static DynamicNamedPropertyLayout CreateOpenDataNoCollision(
+        JsRealm owner,
+        ReadOnlySpan<int> atoms
+    )
     {
         if (atoms.Length == 0)
             return new(owner);
@@ -58,7 +67,16 @@ internal sealed class DynamicNamedPropertyLayout : NamedPropertyLayout
 
     internal bool TryGetMapSlotInfoCore(int atom, out SlotInfo slotInfo, out int hint)
     {
-        if (TryFindSwissEntryOrInsertionSlot(Entries, control, entryIndexes, atom, out var entryIndex, out hint))
+        if (
+            TryFindSwissEntryOrInsertionSlot(
+                Entries,
+                control,
+                entryIndexes,
+                atom,
+                out var entryIndex,
+                out hint
+            )
+        )
         {
             slotInfo = Entries[entryIndex].SlotInfo;
             return true;
@@ -134,7 +152,8 @@ internal sealed class DynamicNamedPropertyLayout : NamedPropertyLayout
                 entryCount = LiveCount;
                 if ((uint)LiveCount < (uint)Entries.Length)
                     Entries[LiveCount] = default;
-                StorageSlotCount = LiveCount == 0 ? 0 : ComputeStorageSlotCount(Entries[LiveCount - 1].SlotInfo);
+                StorageSlotCount =
+                    LiveCount == 0 ? 0 : ComputeStorageSlotCount(Entries[LiveCount - 1].SlotInfo);
                 return true;
             }
 
@@ -160,12 +179,15 @@ internal sealed class DynamicNamedPropertyLayout : NamedPropertyLayout
 
         if (LiveCount <= LinearEntryLimit)
             CompactToLinear();
-        else if (tombstones > 16 && tombstones * 2 > entryCount) CompactMap();
+        else if (tombstones > 16 && tombstones * 2 > entryCount)
+            CompactMap();
 
         return true;
     }
 
-    internal DynamicNamedPropertyLayout RewriteFlags(Func<JsShapePropertyFlags, JsShapePropertyFlags> mapFlags)
+    internal DynamicNamedPropertyLayout RewriteFlags(
+        Func<JsShapePropertyFlags, JsShapePropertyFlags> mapFlags
+    )
     {
         var current = CopyLiveEntries();
         for (var i = 0; i < current.Length; i++)
@@ -177,9 +199,11 @@ internal sealed class DynamicNamedPropertyLayout : NamedPropertyLayout
         return CreateFromDenseEntries(Owner, current);
     }
 
-    internal DynamicNamedPropertyLayout RewriteFlags(int atom,
+    internal DynamicNamedPropertyLayout RewriteFlags(
+        int atom,
         Func<JsShapePropertyFlags, JsShapePropertyFlags, JsShapePropertyFlags> mapFlags,
-        JsShapePropertyFlags newFlags)
+        JsShapePropertyFlags newFlags
+    )
     {
         var current = CopyLiveEntries();
         for (var i = 0; i < current.Length; i++)
@@ -188,7 +212,10 @@ internal sealed class DynamicNamedPropertyLayout : NamedPropertyLayout
             if (entry.Atom != atom)
                 continue;
 
-            entry = new(entry.Atom, new(entry.SlotInfo.Slot, mapFlags(entry.SlotInfo.Flags, newFlags)));
+            entry = new(
+                entry.Atom,
+                new(entry.SlotInfo.Slot, mapFlags(entry.SlotInfo.Flags, newFlags))
+            );
             break;
         }
 
@@ -209,13 +236,19 @@ internal sealed class DynamicNamedPropertyLayout : NamedPropertyLayout
 
             var flags = entry.SlotInfo.Flags;
             next[nextIndex++] = new(entry.Atom, new(slotCursor, flags));
-            slotCursor += (flags & JsShapePropertyFlags.BothAccessor) == JsShapePropertyFlags.BothAccessor ? 2 : 1;
+            slotCursor +=
+                (flags & JsShapePropertyFlags.BothAccessor) == JsShapePropertyFlags.BothAccessor
+                    ? 2
+                    : 1;
         }
 
         return CreateFromDenseEntries(Owner, next);
     }
 
-    internal DynamicNamedPropertyLayout RebuildReplacingProperty(int targetAtom, JsShapePropertyFlags targetFlags)
+    internal DynamicNamedPropertyLayout RebuildReplacingProperty(
+        int targetAtom,
+        JsShapePropertyFlags targetFlags
+    )
     {
         var current = CopyLiveEntries();
         var slotCursor = 0;
@@ -224,7 +257,10 @@ internal sealed class DynamicNamedPropertyLayout : NamedPropertyLayout
             ref var entry = ref current[i];
             var flags = entry.Atom == targetAtom ? targetFlags : entry.SlotInfo.Flags;
             entry = new(entry.Atom, new(slotCursor, flags));
-            slotCursor += (flags & JsShapePropertyFlags.BothAccessor) == JsShapePropertyFlags.BothAccessor ? 2 : 1;
+            slotCursor +=
+                (flags & JsShapePropertyFlags.BothAccessor) == JsShapePropertyFlags.BothAccessor
+                    ? 2
+                    : 1;
         }
 
         return CreateFromDenseEntries(Owner, current);
@@ -270,8 +306,11 @@ internal sealed class DynamicNamedPropertyLayout : NamedPropertyLayout
     {
         Kind = NamedPropertyLayoutKind.DynamicMap;
         var linearEntries = CopyLiveEntries();
-        BuildMapFromDenseEntries(linearEntries, ComputeSwissCapacity(linearEntries.Length + 1),
-            Math.Max(16, linearEntries.Length * 2));
+        BuildMapFromDenseEntries(
+            linearEntries,
+            ComputeSwissCapacity(linearEntries.Length + 1),
+            Math.Max(16, linearEntries.Length * 2)
+        );
     }
 
     private void CompactToLinear()
@@ -315,8 +354,16 @@ internal sealed class DynamicNamedPropertyLayout : NamedPropertyLayout
         if (control.Length == 0)
             EnsureMapStorage();
 
-        if (TryFindSwissEntryOrInsertionSlot(Entries, control, entryIndexes, atom, out var entryIndex,
-                out var insertionIndex))
+        if (
+            TryFindSwissEntryOrInsertionSlot(
+                Entries,
+                control,
+                entryIndexes,
+                atom,
+                out var entryIndex,
+                out var insertionIndex
+            )
+        )
         {
             Entries[entryIndex].SlotInfo = slotInfo;
             return;
@@ -352,7 +399,14 @@ internal sealed class DynamicNamedPropertyLayout : NamedPropertyLayout
         {
             var insertionIndex = hint;
             if (insertionIndex < 0)
-                _ = TryFindSwissEntryOrInsertionSlot(Entries, control, entryIndexes, atom, out _, out insertionIndex);
+                _ = TryFindSwissEntryOrInsertionSlot(
+                    Entries,
+                    control,
+                    entryIndexes,
+                    atom,
+                    out _,
+                    out insertionIndex
+                );
             AppendMapEntryUnchecked(atom, slotInfo, insertionIndex);
         }
     }
@@ -374,7 +428,14 @@ internal sealed class DynamicNamedPropertyLayout : NamedPropertyLayout
             Array.Resize(ref Entries, newLength);
         }
 
-        _ = TryFindSwissEntryOrInsertionSlot(Entries, control, entryIndexes, atom, out _, out var insertionIndex);
+        _ = TryFindSwissEntryOrInsertionSlot(
+            Entries,
+            control,
+            entryIndexes,
+            atom,
+            out _,
+            out var insertionIndex
+        );
         AppendMapEntryUnchecked(atom, slotInfo, insertionIndex);
     }
 
@@ -404,12 +465,23 @@ internal sealed class DynamicNamedPropertyLayout : NamedPropertyLayout
 
     private bool TryFindMap(int atom, out int entryIndex, out int tableIndex)
     {
-        return TryFindSwissEntry(Entries, control, entryIndexes, atom, out entryIndex, out tableIndex);
+        return TryFindSwissEntry(
+            Entries,
+            control,
+            entryIndexes,
+            atom,
+            out entryIndex,
+            out tableIndex
+        );
     }
 
     private void CompactMap()
     {
-        BuildMapFromDenseEntries(CopyLiveEntries(), ComputeSwissCapacity(LiveCount), Math.Max(16, Entries.Length));
+        BuildMapFromDenseEntries(
+            CopyLiveEntries(),
+            ComputeSwissCapacity(LiveCount),
+            Math.Max(16, Entries.Length)
+        );
     }
 
     private void RehashMap(int newCapacity)
@@ -430,7 +502,11 @@ internal sealed class DynamicNamedPropertyLayout : NamedPropertyLayout
         entryIndexes[slot] = entryIndex;
     }
 
-    private void BuildMapFromDenseEntries(Entry[] denseEntries, int capacity, int minimumEntryArrayLength)
+    private void BuildMapFromDenseEntries(
+        Entry[] denseEntries,
+        int capacity,
+        int minimumEntryArrayLength
+    )
     {
         if (capacity < 16)
             capacity = 16;
@@ -454,7 +530,10 @@ internal sealed class DynamicNamedPropertyLayout : NamedPropertyLayout
             InsertIntoSwissMap(i);
     }
 
-    private static DynamicNamedPropertyLayout CreateFromDenseEntries(JsRealm owner, Entry[] denseEntries)
+    private static DynamicNamedPropertyLayout CreateFromDenseEntries(
+        JsRealm owner,
+        Entry[] denseEntries
+    )
     {
         var isMap = denseEntries.Length > LinearEntryLimit;
         return new(owner, denseEntries, isMap);
@@ -467,7 +546,12 @@ internal sealed class DynamicNamedPropertyLayout : NamedPropertyLayout
 
     private static int ComputeStorageSlotCount(in SlotInfo slotInfo)
     {
-        return slotInfo.Slot +
-               ((slotInfo.Flags & JsShapePropertyFlags.BothAccessor) == JsShapePropertyFlags.BothAccessor ? 2 : 1);
+        return slotInfo.Slot
+            + (
+                (slotInfo.Flags & JsShapePropertyFlags.BothAccessor)
+                == JsShapePropertyFlags.BothAccessor
+                    ? 2
+                    : 1
+            );
     }
 }

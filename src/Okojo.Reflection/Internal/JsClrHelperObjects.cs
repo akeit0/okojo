@@ -4,7 +4,11 @@ using static Okojo.Runtime.AtomTable;
 
 namespace Okojo.Objects;
 
-internal readonly record struct OkojoClrUsingImport(string? NamespacePath, JsValue Value, bool IsNamespace);
+internal readonly record struct OkojoClrUsingImport(
+    string? NamespacePath,
+    JsValue Value,
+    bool IsNamespace
+);
 
 internal sealed class JsClrTypedNullObject : JsObject, IClrTypedNullReference
 {
@@ -20,8 +24,13 @@ internal sealed class JsClrTypedNullObject : JsObject, IClrTypedNullReference
 
     public Type TargetType { get; }
 
-    internal override bool TryGetPropertyAtomWithReceiverValue(JsRealm realm, in JsValue receiverValue, int atom,
-        out JsValue value, out SlotInfo slotInfo)
+    internal override bool TryGetPropertyAtomWithReceiverValue(
+        JsRealm realm,
+        in JsValue receiverValue,
+        int atom,
+        out JsValue value,
+        out SlotInfo slotInfo
+    )
     {
         slotInfo = SlotInfo.Invalid;
         if (atom == IdSymbolToStringTag)
@@ -31,14 +40,24 @@ internal sealed class JsClrTypedNullObject : JsObject, IClrTypedNullReference
         }
 
         if (Prototype is not null && Prototype != this)
-            return Prototype.TryGetPropertyAtomWithReceiverValue(realm, receiverValue, atom, out value, out _);
+            return Prototype.TryGetPropertyAtomWithReceiverValue(
+                realm,
+                receiverValue,
+                atom,
+                out value,
+                out _
+            );
 
         value = JsValue.Undefined;
         return false;
     }
 
-    internal override bool TryGetOwnNamedPropertyDescriptorAtom(JsRealm realm, int atom,
-        out PropertyDescriptor descriptor, bool needDescriptor = true)
+    internal override bool TryGetOwnNamedPropertyDescriptorAtom(
+        JsRealm realm,
+        int atom,
+        out PropertyDescriptor descriptor,
+        bool needDescriptor = true
+    )
     {
         if (atom == IdSymbolToStringTag)
         {
@@ -52,7 +71,11 @@ internal sealed class JsClrTypedNullObject : JsObject, IClrTypedNullReference
         return false;
     }
 
-    internal override void CollectOwnNamedPropertyAtoms(JsRealm realm, List<int> atomsOut, bool enumerableOnly)
+    internal override void CollectOwnNamedPropertyAtoms(
+        JsRealm realm,
+        List<int> atomsOut,
+        bool enumerableOnly
+    )
     {
         if (!enumerableOnly)
             atomsOut.Add(IdSymbolToStringTag);
@@ -72,19 +95,32 @@ internal sealed class JsClrUsingResolverObject : JsObject
         : base(realm)
     {
         Prototype = realm.Intrinsics.ObjectPrototype;
-        var addFunction = new JsHostFunction(realm, static (in info) =>
+        var addFunction = new JsHostFunction(
+            realm,
+            static (in info) =>
+            {
+                var resolver = (JsClrUsingResolverObject)((JsHostFunction)info.Function).UserData!;
+                resolver.AddImports(info.Arguments);
+                return JsValue.FromObject(resolver);
+            },
+            "Add",
+            0
+        )
         {
-            var resolver = (JsClrUsingResolverObject)((JsHostFunction)info.Function).UserData!;
-            resolver.AddImports(info.Arguments);
-            return JsValue.FromObject(resolver);
-        }, "Add", 0)
-        {
-            UserData = this
+            UserData = this,
         };
-        _ = DefineOwnDataPropertyExact(realm, realm.Atoms.InternNoCheck("Add"), JsValue.FromObject(addFunction),
-            JsShapePropertyFlags.None);
-        _ = DefineOwnDataPropertyExact(realm, IdSymbolToStringTag, JsValue.FromString(DisplayTag),
-            JsShapePropertyFlags.None);
+        _ = DefineOwnDataPropertyExact(
+            realm,
+            realm.Atoms.InternNoCheck("Add"),
+            JsValue.FromObject(addFunction),
+            JsShapePropertyFlags.None
+        );
+        _ = DefineOwnDataPropertyExact(
+            realm,
+            IdSymbolToStringTag,
+            JsValue.FromString(DisplayTag),
+            JsShapePropertyFlags.None
+        );
         PreventExtensions();
     }
 
@@ -96,10 +132,23 @@ internal sealed class JsClrUsingResolverObject : JsObject
             AddImport(values[i]);
     }
 
-    internal override bool TryGetPropertyAtomWithReceiverValue(JsRealm realm, in JsValue receiverValue, int atom,
-        out JsValue value, out SlotInfo slotInfo)
+    internal override bool TryGetPropertyAtomWithReceiverValue(
+        JsRealm realm,
+        in JsValue receiverValue,
+        int atom,
+        out JsValue value,
+        out SlotInfo slotInfo
+    )
     {
-        if (base.TryGetPropertyAtomWithReceiverValue(realm, receiverValue, atom, out value, out slotInfo))
+        if (
+            base.TryGetPropertyAtomWithReceiverValue(
+                realm,
+                receiverValue,
+                atom,
+                out value,
+                out slotInfo
+            )
+        )
             return true;
 
         slotInfo = SlotInfo.Invalid;
@@ -110,8 +159,12 @@ internal sealed class JsClrUsingResolverObject : JsObject
         return false;
     }
 
-    internal override bool TryGetOwnNamedPropertyDescriptorAtom(JsRealm realm, int atom,
-        out PropertyDescriptor descriptor, bool needDescriptor = true)
+    internal override bool TryGetOwnNamedPropertyDescriptorAtom(
+        JsRealm realm,
+        int atom,
+        out PropertyDescriptor descriptor,
+        bool needDescriptor = true
+    )
     {
         if (base.TryGetOwnNamedPropertyDescriptorAtom(realm, atom, out descriptor, needDescriptor))
             return true;
@@ -145,8 +198,11 @@ internal sealed class JsClrUsingResolverObject : JsObject
             return;
         }
 
-        throw new JsRuntimeException(JsErrorKind.TypeError, "$using accepts only CLR namespaces or CLR types.",
-            "CLR_USING");
+        throw new JsRuntimeException(
+            JsErrorKind.TypeError,
+            "$using accepts only CLR namespaces or CLR types.",
+            "CLR_USING"
+        );
     }
 
     private bool TryResolveImportMember(string name, out JsValue value)
@@ -156,14 +212,19 @@ internal sealed class JsClrUsingResolverObject : JsObject
             var import = imports[i];
             if (import.IsNamespace)
             {
-                var combinedPath = string.IsNullOrEmpty(import.NamespacePath) ? name : $"{import.NamespacePath}.{name}";
+                var combinedPath = string.IsNullOrEmpty(import.NamespacePath)
+                    ? name
+                    : $"{import.NamespacePath}.{name}";
                 if (Realm.TryResolveClrPathExactly(combinedPath, out value))
                     return true;
                 continue;
             }
 
-            if (import.Value.TryGetObject(out var obj) && obj is JsObject okojoObj &&
-                okojoObj.TryGetProperty(name, out value))
+            if (
+                import.Value.TryGetObject(out var obj)
+                && obj is JsObject okojoObj
+                && okojoObj.TryGetProperty(name, out value)
+            )
                 return true;
         }
 
@@ -189,8 +250,13 @@ internal sealed class JsClrPlaceHolderObject : JsObject, IClrByRefPlaceholder
     public Type TargetType { get; }
     public bool HasValue { get; private set; }
 
-    public bool TryPrepareByRefValue(JsRealm realm, Type parameterType, bool allowUnset, out object? value,
-        out int score)
+    public bool TryPrepareByRefValue(
+        JsRealm realm,
+        Type parameterType,
+        bool allowUnset,
+        out object? value,
+        out int score
+    )
     {
         score = 0;
         if (!parameterType.IsAssignableFrom(TargetType) && parameterType != TargetType)
@@ -228,13 +294,20 @@ internal sealed class JsClrPlaceHolderObject : JsObject, IClrByRefPlaceholder
         HasValue = true;
     }
 
-    internal override bool TryGetPropertyAtomWithReceiverValue(JsRealm realm, in JsValue receiverValue, int atom,
-        out JsValue value, out SlotInfo slotInfo)
+    internal override bool TryGetPropertyAtomWithReceiverValue(
+        JsRealm realm,
+        in JsValue receiverValue,
+        int atom,
+        out JsValue value,
+        out SlotInfo slotInfo
+    )
     {
         slotInfo = SlotInfo.Invalid;
         if (atom == IdValue)
         {
-            value = HasValue ? HostValueConverter.ConvertToJsValue(realm, currentValue) : JsValue.Undefined;
+            value = HasValue
+                ? HostValueConverter.ConvertToJsValue(realm, currentValue)
+                : JsValue.Undefined;
             return true;
         }
 
@@ -245,14 +318,25 @@ internal sealed class JsClrPlaceHolderObject : JsObject, IClrByRefPlaceholder
         }
 
         if (Prototype is not null && Prototype != this)
-            return Prototype.TryGetPropertyAtomWithReceiverValue(realm, receiverValue, atom, out value, out _);
+            return Prototype.TryGetPropertyAtomWithReceiverValue(
+                realm,
+                receiverValue,
+                atom,
+                out value,
+                out _
+            );
 
         value = JsValue.Undefined;
         return false;
     }
 
-    internal override bool SetPropertyAtomWithReceiver(JsRealm realm, JsObject receiver, int atom, JsValue value,
-        out SlotInfo slotInfo)
+    internal override bool SetPropertyAtomWithReceiver(
+        JsRealm realm,
+        JsObject receiver,
+        int atom,
+        JsValue value,
+        out SlotInfo slotInfo
+    )
     {
         slotInfo = SlotInfo.Invalid;
         if (atom == IdValue && ReferenceEquals(receiver, this))
@@ -264,15 +348,24 @@ internal sealed class JsClrPlaceHolderObject : JsObject, IClrByRefPlaceholder
         return base.SetPropertyAtomWithReceiver(realm, receiver, atom, value, out slotInfo);
     }
 
-    internal override bool TryGetOwnNamedPropertyDescriptorAtom(JsRealm realm, int atom,
-        out PropertyDescriptor descriptor, bool needDescriptor = true)
+    internal override bool TryGetOwnNamedPropertyDescriptorAtom(
+        JsRealm realm,
+        int atom,
+        out PropertyDescriptor descriptor,
+        bool needDescriptor = true
+    )
     {
         if (atom == IdValue)
         {
             descriptor = needDescriptor
                 ? PropertyDescriptor.Data(
-                    HasValue ? HostValueConverter.ConvertToJsValue(realm, currentValue) : JsValue.Undefined, true,
-                    false, true)
+                    HasValue
+                        ? HostValueConverter.ConvertToJsValue(realm, currentValue)
+                        : JsValue.Undefined,
+                    true,
+                    false,
+                    true
+                )
                 : default;
             return true;
         }
@@ -289,7 +382,11 @@ internal sealed class JsClrPlaceHolderObject : JsObject, IClrByRefPlaceholder
         return false;
     }
 
-    internal override void CollectOwnNamedPropertyAtoms(JsRealm realm, List<int> atomsOut, bool enumerableOnly)
+    internal override void CollectOwnNamedPropertyAtoms(
+        JsRealm realm,
+        List<int> atomsOut,
+        bool enumerableOnly
+    )
     {
         if (!enumerableOnly)
         {

@@ -8,4 +8,5 @@ namespace Okojo.Hosting;
 /// </summary>
 public readonly record struct HostTaskQueueSnapshot(
     HostTaskQueueKey QueueKey,
-    int PendingTaskCount);
+    int PendingTaskCount
+);

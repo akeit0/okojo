@@ -31,17 +31,29 @@ internal static class TypedArraySort
             return;
 
         var buffer = new JsValue[values.Count];
-        StableMergeSort(values, buffer, 0, values.Count, static (left, right, state) =>
-            Compare(state.realm, state.compareFn, left, right), (realm, compareFn));
+        StableMergeSort(
+            values,
+            buffer,
+            0,
+            values.Count,
+            static (left, right, state) => Compare(state.realm, state.compareFn, left, right),
+            (realm, compareFn)
+        );
     }
 
-    private static int Compare(JsRealm realm, JsFunction? compareFn, in JsValue left, in JsValue right)
+    private static int Compare(
+        JsRealm realm,
+        JsFunction? compareFn,
+        in JsValue left,
+        in JsValue right
+    )
     {
         if (compareFn is not null)
         {
             Span<JsValue> args = [left, right];
-            var compareResult =
-                realm.ToNumberSlowPath(realm.InvokeFunction(compareFn, JsValue.Undefined, args));
+            var compareResult = realm.ToNumberSlowPath(
+                realm.InvokeFunction(compareFn, JsValue.Undefined, args)
+            );
             if (double.IsNaN(compareResult) || compareResult == 0)
                 return 0;
             return compareResult < 0 ? -1 : 1;
@@ -81,7 +93,8 @@ internal static class TypedArraySort
         int start,
         int end,
         Func<T, T, TState, int> compare,
-        TState state)
+        TState state
+    )
     {
         if (end - start <= 1)
             return;
@@ -112,6 +125,7 @@ internal static class TypedArraySort
 
     private static bool IsNegativeZero(double value)
     {
-        return value == 0d && BitConverter.DoubleToInt64Bits(value) == unchecked((long)0x8000000000000000UL);
+        return value == 0d
+            && BitConverter.DoubleToInt64Bits(value) == unchecked((long)0x8000000000000000UL);
     }
 }

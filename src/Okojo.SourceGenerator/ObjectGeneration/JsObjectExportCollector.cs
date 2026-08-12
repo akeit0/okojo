@@ -6,7 +6,10 @@ internal static class JsObjectExportCollector
 {
     public static JsObjectTypeModel? Collect(INamedTypeSymbol symbol)
     {
-        var typeAttribute = JsExportAttributeHelper.GetAttribute(symbol, AttributeMetadataNames.GenerateJsObjectAttribute);
+        var typeAttribute = JsExportAttributeHelper.GetAttribute(
+            symbol,
+            AttributeMetadataNames.GenerateJsObjectAttribute
+        );
         if (typeAttribute is null)
             return null;
         var memberNaming = JsExportAttributeHelper.GetMemberNaming(typeAttribute);
@@ -18,14 +21,26 @@ internal static class JsObjectExportCollector
         {
             if (IsGeneratedSourceMember(member))
                 continue;
-            if (JsExportAttributeHelper.HasAttribute(member, AttributeMetadataNames.JsIgnoreFromObjectAttribute))
+            if (
+                JsExportAttributeHelper.HasAttribute(
+                    member,
+                    AttributeMetadataNames.JsIgnoreFromObjectAttribute
+                )
+            )
                 continue;
 
-            var jsMemberAttribute = JsExportAttributeHelper.GetAttribute(member, AttributeMetadataNames.JsMemberAttribute);
+            var jsMemberAttribute = JsExportAttributeHelper.GetAttribute(
+                member,
+                AttributeMetadataNames.JsMemberAttribute
+            );
             if (jsMemberAttribute is null)
                 continue;
 
-            var jsName = JsExportAttributeHelper.GetMemberName(member, memberNaming, jsMemberAttribute);
+            var jsName = JsExportAttributeHelper.GetMemberName(
+                member,
+                memberNaming,
+                jsMemberAttribute
+            );
 
             var model = member switch
             {
@@ -36,7 +51,8 @@ internal static class JsObjectExportCollector
                     field,
                     field.Type,
                     true,
-                    !field.IsReadOnly),
+                    !field.IsReadOnly
+                ),
                 IPropertySymbol property when property.Parameters.Length == 0 => new(
                     jsName,
                     JsObjectMemberKind.Property,
@@ -44,7 +60,8 @@ internal static class JsObjectExportCollector
                     property,
                     property.Type,
                     property.GetMethod is not null,
-                    property.SetMethod is not null),
+                    property.SetMethod is not null
+                ),
                 IMethodSymbol method when ShouldEmitMethod(method) => new JsObjectMemberModel(
                     jsName,
                     JsObjectMemberKind.Method,
@@ -53,8 +70,11 @@ internal static class JsObjectExportCollector
                     method.ReturnType,
                     false,
                     false,
-                    method.Parameters.Select(static x => new JsObjectParameterModel(x.Name, x.Type)).ToArray()),
-                _ => null
+                    method
+                        .Parameters.Select(static x => new JsObjectParameterModel(x.Name, x.Type))
+                        .ToArray()
+                ),
+                _ => null,
             };
 
             if (model is null)
@@ -79,7 +99,11 @@ internal static class JsObjectExportCollector
             return false;
 
         foreach (var parameter in method.Parameters)
-            if (parameter.RefKind != RefKind.None || parameter.IsParams || parameter.HasExplicitDefaultValue)
+            if (
+                parameter.RefKind != RefKind.None
+                || parameter.IsParams
+                || parameter.HasExplicitDefaultValue
+            )
                 return false;
 
         return true;

@@ -11,5 +11,5 @@ public enum ExecutionCheckpointHooks
     SuspendGenerator = 1 << 4,
     ResumeGenerator = 1 << 5,
     Breakpoint = 1 << 6,
-    CaughtException = 1 << 7
+    CaughtException = 1 << 7,
 }

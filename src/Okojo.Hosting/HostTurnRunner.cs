@@ -13,7 +13,8 @@ public static class HostTurnRunner
     public static bool RunTurn(
         IHostTaskQueuePump queuePump,
         HostPump pump,
-        IHostTurnObserver? observer = null)
+        IHostTurnObserver? observer = null
+    )
     {
         return RunTurn(queuePump, pump, Array.Empty<HostTaskQueueKey>(), observer);
     }
@@ -22,7 +23,8 @@ public static class HostTurnRunner
         IHostTaskQueuePump queuePump,
         HostPump pump,
         ReadOnlySpan<HostTaskQueueKey> preferredOrder,
-        IHostTurnObserver? observer = null)
+        IHostTurnObserver? observer = null
+    )
     {
         ArgumentNullException.ThrowIfNull(queuePump);
         ArgumentNullException.ThrowIfNull(pump);
@@ -30,54 +32,75 @@ public static class HostTurnRunner
         var (readyDelayedCount, pumpedHostTask, pumpedQueueKey) = queuePump switch
         {
             ManualHostEventLoop manualLoop => RunManualTurn(manualLoop, preferredOrder),
-            ThreadAffinityHostLoop threadAffinityLoop => RunThreadAffinityTurn(threadAffinityLoop, preferredOrder),
-            _ => RunGenericTurn(queuePump, preferredOrder)
+            ThreadAffinityHostLoop threadAffinityLoop => RunThreadAffinityTurn(
+                threadAffinityLoop,
+                preferredOrder
+            ),
+            _ => RunGenericTurn(queuePump, preferredOrder),
         };
 
-        observer?.OnTurnEvent(new(
-            HostTurnPhase.BeforeTurn,
-            false,
-            null,
-            readyDelayedCount,
-            pump.Agent.PendingJobCount));
+        observer?.OnTurnEvent(
+            new(
+                HostTurnPhase.BeforeTurn,
+                false,
+                null,
+                readyDelayedCount,
+                pump.Agent.PendingJobCount
+            )
+        );
 
-        observer?.OnTurnEvent(new(
-            HostTurnPhase.AfterHostTask,
-            pumpedHostTask,
-            pumpedQueueKey,
-            readyDelayedCount,
-            pump.Agent.PendingJobCount));
+        observer?.OnTurnEvent(
+            new(
+                HostTurnPhase.AfterHostTask,
+                pumpedHostTask,
+                pumpedQueueKey,
+                readyDelayedCount,
+                pump.Agent.PendingJobCount
+            )
+        );
 
         if (pump.Agent.PendingJobCount != 0)
         {
-            observer?.OnTurnEvent(new(
-                HostTurnPhase.BeforeMicrotaskCheckpoint,
-                pumpedHostTask,
-                pumpedQueueKey,
-                readyDelayedCount,
-                pump.Agent.PendingJobCount));
+            observer?.OnTurnEvent(
+                new(
+                    HostTurnPhase.BeforeMicrotaskCheckpoint,
+                    pumpedHostTask,
+                    pumpedQueueKey,
+                    readyDelayedCount,
+                    pump.Agent.PendingJobCount
+                )
+            );
             pump.PumpUntilIdle();
-            observer?.OnTurnEvent(new(
-                HostTurnPhase.AfterMicrotaskCheckpoint,
-                pumpedHostTask,
-                pumpedQueueKey,
-                readyDelayedCount,
-                pump.Agent.PendingJobCount));
-            observer?.OnTurnEvent(new(
+            observer?.OnTurnEvent(
+                new(
+                    HostTurnPhase.AfterMicrotaskCheckpoint,
+                    pumpedHostTask,
+                    pumpedQueueKey,
+                    readyDelayedCount,
+                    pump.Agent.PendingJobCount
+                )
+            );
+            observer?.OnTurnEvent(
+                new(
+                    HostTurnPhase.AfterTurn,
+                    pumpedHostTask,
+                    pumpedQueueKey,
+                    readyDelayedCount,
+                    pump.Agent.PendingJobCount
+                )
+            );
+            return true;
+        }
+
+        observer?.OnTurnEvent(
+            new(
                 HostTurnPhase.AfterTurn,
                 pumpedHostTask,
                 pumpedQueueKey,
                 readyDelayedCount,
-                pump.Agent.PendingJobCount));
-            return true;
-        }
-
-        observer?.OnTurnEvent(new(
-            HostTurnPhase.AfterTurn,
-            pumpedHostTask,
-            pumpedQueueKey,
-            readyDelayedCount,
-            pump.Agent.PendingJobCount));
+                pump.Agent.PendingJobCount
+            )
+        );
         return pumpedHostTask;
     }
 
@@ -87,10 +110,18 @@ public static class HostTurnRunner
         Func<bool> completed,
         TimeSpan timeout,
         int idleSleepMilliseconds = 5,
-        IHostTurnObserver? observer = null)
+        IHostTurnObserver? observer = null
+    )
     {
-        return RunUntil(queuePump, pump, completed, timeout, Array.Empty<HostTaskQueueKey>(), idleSleepMilliseconds,
-            observer);
+        return RunUntil(
+            queuePump,
+            pump,
+            completed,
+            timeout,
+            Array.Empty<HostTaskQueueKey>(),
+            idleSleepMilliseconds,
+            observer
+        );
     }
 
     public static bool RunUntil(
@@ -100,7 +131,8 @@ public static class HostTurnRunner
         TimeSpan timeout,
         ReadOnlySpan<HostTaskQueueKey> preferredOrder,
         int idleSleepMilliseconds = 5,
-        IHostTurnObserver? observer = null)
+        IHostTurnObserver? observer = null
+    )
     {
         ArgumentNullException.ThrowIfNull(queuePump);
         ArgumentNullException.ThrowIfNull(pump);
@@ -113,12 +145,14 @@ public static class HostTurnRunner
         if (completed())
             return true;
 
-        var timeoutMs = timeout == Timeout.InfiniteTimeSpan
-            ? Timeout.Infinite
-            : checked((long)Math.Ceiling(timeout.TotalMilliseconds));
-        var deadline = timeout == Timeout.InfiniteTimeSpan
-            ? long.MaxValue
-            : Environment.TickCount64 + timeoutMs;
+        var timeoutMs =
+            timeout == Timeout.InfiniteTimeSpan
+                ? Timeout.Infinite
+                : checked((long)Math.Ceiling(timeout.TotalMilliseconds));
+        var deadline =
+            timeout == Timeout.InfiniteTimeSpan
+                ? long.MaxValue
+                : Environment.TickCount64 + timeoutMs;
 
         while (timeout == Timeout.InfiniteTimeSpan || Environment.TickCount64 < deadline)
         {
@@ -133,34 +167,44 @@ public static class HostTurnRunner
         return completed();
     }
 
-    private static (int ReadyDelayedCount, bool PumpedHostTask, HostTaskQueueKey? PumpedQueueKey) RunManualTurn(
-        ManualHostEventLoop eventLoop,
-        ReadOnlySpan<HostTaskQueueKey> preferredOrder)
+    private static (
+        int ReadyDelayedCount,
+        bool PumpedHostTask,
+        HostTaskQueueKey? PumpedQueueKey
+    ) RunManualTurn(ManualHostEventLoop eventLoop, ReadOnlySpan<HostTaskQueueKey> preferredOrder)
     {
         var readyDelayedCount = eventLoop.PumpReadyDelayed();
-        var pumped = preferredOrder.Length == 0
-            ? eventLoop.TryPumpOne(out var queueKey)
-            : eventLoop.TryPumpOne(out queueKey, preferredOrder);
+        var pumped =
+            preferredOrder.Length == 0
+                ? eventLoop.TryPumpOne(out var queueKey)
+                : eventLoop.TryPumpOne(out queueKey, preferredOrder);
         return (readyDelayedCount, pumped, pumped ? queueKey : null);
     }
 
-    private static (int ReadyDelayedCount, bool PumpedHostTask, HostTaskQueueKey? PumpedQueueKey) RunThreadAffinityTurn(
+    private static (
+        int ReadyDelayedCount,
+        bool PumpedHostTask,
+        HostTaskQueueKey? PumpedQueueKey
+    ) RunThreadAffinityTurn(
         ThreadAffinityHostLoop eventLoop,
-        ReadOnlySpan<HostTaskQueueKey> preferredOrder)
+        ReadOnlySpan<HostTaskQueueKey> preferredOrder
+    )
     {
-        var pumped = preferredOrder.Length == 0
-            ? eventLoop.TryPumpOne(out var queueKey, [])
-            : eventLoop.TryPumpOne(out queueKey, preferredOrder);
+        var pumped =
+            preferredOrder.Length == 0
+                ? eventLoop.TryPumpOne(out var queueKey, [])
+                : eventLoop.TryPumpOne(out queueKey, preferredOrder);
         return (0, pumped, pumped ? queueKey : null);
     }
 
-    private static (int ReadyDelayedCount, bool PumpedHostTask, HostTaskQueueKey? PumpedQueueKey) RunGenericTurn(
-        IHostTaskQueuePump queuePump,
-        ReadOnlySpan<HostTaskQueueKey> preferredOrder)
+    private static (
+        int ReadyDelayedCount,
+        bool PumpedHostTask,
+        HostTaskQueueKey? PumpedQueueKey
+    ) RunGenericTurn(IHostTaskQueuePump queuePump, ReadOnlySpan<HostTaskQueueKey> preferredOrder)
     {
-        var pumped = preferredOrder.Length == 0
-            ? queuePump.PumpOne()
-            : queuePump.PumpOne(preferredOrder);
+        var pumped =
+            preferredOrder.Length == 0 ? queuePump.PumpOne() : queuePump.PumpOne(preferredOrder);
         return (0, pumped, null);
     }
 }

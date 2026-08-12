@@ -21,17 +21,22 @@ internal sealed class DefaultSharedWaiterControllerFactory : ISharedWaiterContro
             if (timeout is null)
                 return;
 
-            var dueTime = timeout.Value <= TimeSpan.Zero
-                ? TimeSpan.Zero
+            var dueTime =
+                timeout.Value <= TimeSpan.Zero ? TimeSpan.Zero
                 : timeout.Value.TotalMilliseconds >= int.MaxValue
                     ? TimeSpan.FromMilliseconds(int.MaxValue)
-                    : timeout.Value;
-            timeoutTimer = timeProvider.CreateTimer(static state =>
-            {
-                var waiter = (JsArrayBufferObject.SharedWaiter)state!;
-                if (waiter.TryTimeout())
-                    waiter.Complete();
-            }, waiter, dueTime, Timeout.InfiniteTimeSpan);
+                : timeout.Value;
+            timeoutTimer = timeProvider.CreateTimer(
+                static state =>
+                {
+                    var waiter = (JsArrayBufferObject.SharedWaiter)state!;
+                    if (waiter.TryTimeout())
+                        waiter.Complete();
+                },
+                waiter,
+                dueTime,
+                Timeout.InfiniteTimeSpan
+            );
         }
 
         public bool Wait(JsArrayBufferObject.SharedWaiter waiter, TimeSpan? timeout)

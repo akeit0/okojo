@@ -6,4 +6,5 @@ internal readonly record struct CompilerCollectedBinding(
     string Name,
     int NameId = -1,
     bool IsConst = false,
-    int Position = 0);
+    int Position = 0
+);

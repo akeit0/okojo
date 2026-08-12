@@ -23,7 +23,8 @@ internal static partial class Program
         Action<string> log,
         ConcurrentBag<string> passed,
         ConcurrentBag<(string Path, string Message)> failed,
-        ConcurrentBag<(string Path, string Reason)> skipped)
+        ConcurrentBag<(string Path, string Reason)> skipped
+    )
     {
         if (runnable.Count == 0)
             return false;
@@ -34,8 +35,16 @@ internal static partial class Program
         {
             var candidate = runnable[i];
             var normalizedPath = candidate.Path.Replace('\\', '/');
-            if (normalizedPath.Contains("/built-ins/Atomics/wait/", StringComparison.OrdinalIgnoreCase) ||
-                normalizedPath.Contains("/built-ins/Atomics/waitAsync/", StringComparison.OrdinalIgnoreCase))
+            if (
+                normalizedPath.Contains(
+                    "/built-ins/Atomics/wait/",
+                    StringComparison.OrdinalIgnoreCase
+                )
+                || normalizedPath.Contains(
+                    "/built-ins/Atomics/waitAsync/",
+                    StringComparison.OrdinalIgnoreCase
+                )
+            )
             {
                 var candidateSource = File.ReadAllText(candidate.Path);
                 if (RequiresExclusiveExecution(candidate.Path, candidateSource))
@@ -48,7 +57,10 @@ internal static partial class Program
             parallelCandidates.Add(candidate);
         }
 
-        var workerCount = Math.Max(1, Math.Min(options.Parallelism, Math.Max(1, parallelCandidates.Count)));
+        var workerCount = Math.Max(
+            1,
+            Math.Min(options.Parallelism, Math.Max(1, parallelCandidates.Count))
+        );
         var logGate = new object();
         var nextIndex = -1;
         var stopRequested = 0;
@@ -65,7 +77,8 @@ internal static partial class Program
                 lock (logGate)
                 {
                     log(
-                        $"[{progress.Completed + 1}/{progress.SelectedFiles}] {MakeDisplayPath(repoRoot, path, options.FullPath)}");
+                        $"[{progress.Completed + 1}/{progress.SelectedFiles}] {MakeDisplayPath(repoRoot, path, options.FullPath)}"
+                    );
                 }
 
             try
@@ -92,12 +105,12 @@ internal static partial class Program
                 progress.IncrementExecuted();
                 progress.IncrementCompleted();
 
-                if (!options.VerboseProgress &&
-                    progress.Completed == progress.SelectedFiles)
+                if (!options.VerboseProgress && progress.Completed == progress.SelectedFiles)
                     lock (logGate)
                     {
                         log(
-                            $"[{progress.Completed}/{progress.SelectedFiles}] {MakeDisplayPath(repoRoot, path, options.FullPath)}");
+                            $"[{progress.Completed}/{progress.SelectedFiles}] {MakeDisplayPath(repoRoot, path, options.FullPath)}"
+                        );
                     }
             }
             finally
@@ -124,7 +137,8 @@ internal static partial class Program
 
         void LogProgressSnapshot()
         {
-            var working = progress.GetWorkingSnapshot()
+            var working = progress
+                .GetWorkingSnapshot()
                 .Where(static item => item.Elapsed >= TimeSpan.FromSeconds(1))
                 .Take(workerCount)
                 .ToArray();
@@ -133,34 +147,39 @@ internal static partial class Program
             lock (logGate)
             {
                 log(
-                    $"[progress {runSw.Elapsed:hh\\:mm\\:ss}] completed={progress.Completed}/{progress.SelectedFiles} executed={progress.Executed} passed={progress.Passed} failed={progress.Failed} skipped={progress.Skipped} rate={rate:F2}/s working={working.Length}");
+                    $"[progress {runSw.Elapsed:hh\\:mm\\:ss}] completed={progress.Completed}/{progress.SelectedFiles} executed={progress.Executed} passed={progress.Passed} failed={progress.Failed} skipped={progress.Skipped} rate={rate:F2}/s working={working.Length}"
+                );
                 foreach (var item in working)
                     log(
-                        $"  - {MakeDisplayPath(repoRoot, item.Path, options.FullPath)} ({item.Elapsed.TotalSeconds:F1}s)");
+                        $"  - {MakeDisplayPath(repoRoot, item.Path, options.FullPath)} ({item.Elapsed.TotalSeconds:F1}s)"
+                    );
             }
         }
 
         void ManagerLoop()
         {
-            var progressInterval = options.ProgressSeconds > 0
-                ? TimeSpan.FromSeconds(options.ProgressSeconds)
-                : Timeout.InfiniteTimeSpan;
-            var nextProgressAt = progressInterval == Timeout.InfiniteTimeSpan
-                ? Timeout.InfiniteTimeSpan
-                : progressInterval;
+            var progressInterval =
+                options.ProgressSeconds > 0
+                    ? TimeSpan.FromSeconds(options.ProgressSeconds)
+                    : Timeout.InfiniteTimeSpan;
+            var nextProgressAt =
+                progressInterval == Timeout.InfiniteTimeSpan
+                    ? Timeout.InfiniteTimeSpan
+                    : progressInterval;
 
             while (true)
             {
-                if (!stoppedByTotalTimeout &&
-                    options.TimeoutTotalMs > 0 &&
-                    runSw.ElapsedMilliseconds > options.TimeoutTotalMs)
+                if (
+                    !stoppedByTotalTimeout
+                    && options.TimeoutTotalMs > 0
+                    && runSw.ElapsedMilliseconds > options.TimeoutTotalMs
+                )
                 {
                     stoppedByTotalTimeout = true;
                     Interlocked.Exchange(ref stopRequested, 1);
                 }
 
-                if (progressInterval != Timeout.InfiniteTimeSpan &&
-                    runSw.Elapsed >= nextProgressAt)
+                if (progressInterval != Timeout.InfiniteTimeSpan && runSw.Elapsed >= nextProgressAt)
                 {
                     LogProgressSnapshot();
                     nextProgressAt += progressInterval;
@@ -186,7 +205,7 @@ internal static partial class Program
             workers[i] = new(WorkerLoop)
             {
                 IsBackground = true,
-                Name = $"Test262RunnerWorker-{i + 1}"
+                Name = $"Test262RunnerWorker-{i + 1}",
             };
             workers[i].Start();
         }
@@ -194,7 +213,7 @@ internal static partial class Program
         var managerThread = new Thread(ManagerLoop)
         {
             IsBackground = true,
-            Name = "Test262RunnerManager"
+            Name = "Test262RunnerManager",
         };
         managerThread.Start();
         managerThread.Join();
@@ -209,7 +228,9 @@ internal static partial class Program
             if (logExclusivePhase && exclusiveCandidates.Count != 0)
                 lock (logGate)
                 {
-                    log($"[exclusive] running {exclusiveCandidates.Count} timing-sensitive case(s) sequentially");
+                    log(
+                        $"[exclusive] running {exclusiveCandidates.Count} timing-sensitive case(s) sequentially"
+                    );
                 }
 
             for (var i = 0; i < exclusiveCandidates.Count; i++)
@@ -221,7 +242,8 @@ internal static partial class Program
                     lock (logGate)
                     {
                         log(
-                            $"[exclusive {i + 1}/{exclusiveCandidates.Count}] {MakeDisplayPath(repoRoot, exclusiveCandidates[i].Path, options.FullPath)}");
+                            $"[exclusive {i + 1}/{exclusiveCandidates.Count}] {MakeDisplayPath(repoRoot, exclusiveCandidates[i].Path, options.FullPath)}"
+                        );
                     }
 
                 ExecuteCandidate(exclusiveCandidates[i], exclusiveWorker);
@@ -235,29 +257,33 @@ internal static partial class Program
         TestFileCandidate candidate,
         HarnessAssets harness,
         string repoRoot,
-        Test262Options options)
+        Test262Options options
+    )
     {
         var path = candidate.Path;
         var meta = candidate.Metadata;
         var harnessSource = BuildHarnessSource(harness, meta);
         var source = File.ReadAllText(path);
         var normalizedPath = path.Replace('\\', '/');
-        var isAtomicsCandidate = normalizedPath.Contains("/built-ins/Atomics/", StringComparison.OrdinalIgnoreCase);
+        var isAtomicsCandidate = normalizedPath.Contains(
+            "/built-ins/Atomics/",
+            StringComparison.OrdinalIgnoreCase
+        );
         var isExclusiveCandidate = isAtomicsCandidate && RequiresExclusiveExecution(path, source);
-        var isLegacySuite = path.Contains($"{Path.DirectorySeparatorChar}suite{Path.DirectorySeparatorChar}",
-                                StringComparison.OrdinalIgnoreCase) ||
-                            path.Contains("/suite/", StringComparison.OrdinalIgnoreCase) ||
-                            path.Contains("\\suite\\", StringComparison.OrdinalIgnoreCase);
+        var isLegacySuite =
+            path.Contains(
+                $"{Path.DirectorySeparatorChar}suite{Path.DirectorySeparatorChar}",
+                StringComparison.OrdinalIgnoreCase
+            )
+            || path.Contains("/suite/", StringComparison.OrdinalIgnoreCase)
+            || path.Contains("\\suite\\", StringComparison.OrdinalIgnoreCase);
         var isModuleCase = IsModuleCase(meta, path);
-        var strictModes = isModuleCase
-            ? new[] { true }
-            : meta.Flags.Contains("onlyStrict")
-                ? new[] { true }
-                : meta.Flags.Contains("noStrict")
-                    ? new[] { false }
-                    : isLegacySuite
-                        ? new[] { false }
-                        : new[] { false, true };
+        var strictModes =
+            isModuleCase ? new[] { true }
+            : meta.Flags.Contains("onlyStrict") ? new[] { true }
+            : meta.Flags.Contains("noStrict") ? new[] { false }
+            : isLegacySuite ? new[] { false }
+            : new[] { false, true };
         var outcome = CandidateOutcome.Passed;
         var message = "ok";
         var canRetry = false;
@@ -276,16 +302,35 @@ internal static partial class Program
             foreach (var strict in strictModes)
             {
                 var effectiveTimeoutMs = GetEffectiveCaseTimeoutMs(options);
-                if (RunCase(source, harnessSource, strict, meta.IsNegative, meta.Flags.Contains("async"), isModuleCase,
-                        path, effectiveTimeoutMs, repoRoot, options.FullPath, options, out var runMessage,
-                        out var caseTimings))
+                if (
+                    RunCase(
+                        source,
+                        harnessSource,
+                        strict,
+                        meta.IsNegative,
+                        meta.Flags.Contains("async"),
+                        isModuleCase,
+                        path,
+                        effectiveTimeoutMs,
+                        repoRoot,
+                        options.FullPath,
+                        options,
+                        out var runMessage,
+                        out var caseTimings
+                    )
+                )
                 {
                     fileTimings.Add(caseTimings);
                     continue;
                 }
 
                 fileTimings.Add(caseTimings);
-                if (runMessage.Contains("With statements are not supported in Okojo", StringComparison.Ordinal))
+                if (
+                    runMessage.Contains(
+                        "With statements are not supported in Okojo",
+                        StringComparison.Ordinal
+                    )
+                )
                 {
                     outcome = CandidateOutcome.Skipped;
                     message = SkipList.FormatReason("with statement not supported");
@@ -296,8 +341,10 @@ internal static partial class Program
                 outcome = CandidateOutcome.Failed;
                 message = $"{(strict ? "strict" : "sloppy")}: {runMessage}";
                 canRetry = true;
-                if (options.StopOnLongTestSeconds > 0 &&
-                    runMessage.StartsWith("Timeout after ", StringComparison.Ordinal))
+                if (
+                    options.StopOnLongTestSeconds > 0
+                    && runMessage.StartsWith("Timeout after ", StringComparison.Ordinal)
+                )
                 {
                     message = $"long-running test exceeded {options.StopOnLongTestSeconds}s";
                     canRetry = false;
@@ -308,9 +355,11 @@ internal static partial class Program
         }
 
         RunModes();
-        if ((isExclusiveCandidate || isAtomicsCandidate) &&
-            outcome == CandidateOutcome.Failed &&
-            canRetry)
+        if (
+            (isExclusiveCandidate || isAtomicsCandidate)
+            && outcome == CandidateOutcome.Failed
+            && canRetry
+        )
         {
             ResetRunState();
             RunModes();
@@ -332,11 +381,24 @@ internal static partial class Program
         bool fullPath,
         Test262Options options,
         out string message,
-        out RunnerCaseTimings timings)
+        out RunnerCaseTimings timings
+    )
     {
-        return RunCaseCore(source, harnessSource, strict, negativeExpected, isAsyncTest, isModuleCase, sourcePath,
-            timeoutMs, repoRoot,
-            fullPath, options, out message, out timings);
+        return RunCaseCore(
+            source,
+            harnessSource,
+            strict,
+            negativeExpected,
+            isAsyncTest,
+            isModuleCase,
+            sourcePath,
+            timeoutMs,
+            repoRoot,
+            fullPath,
+            options,
+            out message,
+            out timings
+        );
     }
 
     private static bool RunCaseCore(
@@ -352,7 +414,8 @@ internal static partial class Program
         bool fullPath,
         Test262Options options,
         out string message,
-        out RunnerCaseTimings timings)
+        out RunnerCaseTimings timings
+    )
     {
         timings = default;
         var timeoutSw = timeoutMs > 0 ? Stopwatch.StartNew() : null;
@@ -372,7 +435,8 @@ internal static partial class Program
                 HasTimedOut,
                 timeoutMs,
                 runnerTime,
-                out timeoutMessage);
+                out timeoutMessage
+            );
         }
 
         var sourceForScriptPath = source;
@@ -396,7 +460,10 @@ internal static partial class Program
                 engineOptions.UseWorkerGlobals();
                 engineOptions.UseWebRuntimeGlobals();
                 engineOptions.ConfigureOptions(options =>
-                    options.UseSharedWaiterControllerFactory(Test262RunnerSharedWaiterControllerFactory.Shared));
+                    options.UseSharedWaiterControllerFactory(
+                        Test262RunnerSharedWaiterControllerFactory.Shared
+                    )
+                );
                 if (runnerTime is not null)
                     engineOptions.UseTimeProvider(runnerTime);
                 engineOptions.UseModuleSourceLoader(new RunnerModuleLoader(entryPath, source));
@@ -406,7 +473,10 @@ internal static partial class Program
                 engineOptions.UseWorkerGlobals();
                 engineOptions.UseWebRuntimeGlobals();
                 engineOptions.ConfigureOptions(options =>
-                    options.UseSharedWaiterControllerFactory(Test262RunnerSharedWaiterControllerFactory.Shared));
+                    options.UseSharedWaiterControllerFactory(
+                        Test262RunnerSharedWaiterControllerFactory.Shared
+                    )
+                );
 
                 if (runnerTime is not null)
                     engineOptions.UseTimeProvider(runnerTime);
@@ -414,15 +484,24 @@ internal static partial class Program
         using var hostContext = new Test262HostContext(engine.TimeProvider);
         var vm = engine.DefaultRealm;
         InstallOkojoHarnessGlobals(vm, hostContext);
-        var asyncDone = new TaskCompletionSource<JsValue>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var asyncDone = new TaskCompletionSource<JsValue>(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
         if (isAsyncTest)
-            vm.Global["$DONE"] = JsValue.FromObject(new JsHostFunction(vm, (in info) =>
-            {
-                var args = info.Arguments;
-                var value = args.Length > 0 ? args[0] : JsValue.Undefined;
-                asyncDone.TrySetResult(value);
-                return JsValue.Undefined;
-            }, "$DONE", 1));
+            vm.Global["$DONE"] = JsValue.FromObject(
+                new JsHostFunction(
+                    vm,
+                    (in info) =>
+                    {
+                        var args = info.Arguments;
+                        var value = args.Length > 0 ? args[0] : JsValue.Undefined;
+                        asyncDone.TrySetResult(value);
+                        return JsValue.Undefined;
+                    },
+                    "$DONE",
+                    1
+                )
+            );
 
         try
         {
@@ -582,14 +661,26 @@ internal static partial class Program
             if (ex is JsRuntimeException runtimeEx)
             {
                 message = FormatRuntimeExceptionMessage(runtimeEx);
-                var mappedLocation =
-                    SelectRuntimeExceptionLocation(runtimeEx, sourcePath, harnessSource, strict, isModuleCase);
+                var mappedLocation = SelectRuntimeExceptionLocation(
+                    runtimeEx,
+                    sourcePath,
+                    harnessSource,
+                    strict,
+                    isModuleCase
+                );
                 if (mappedLocation is not null)
-                    message += Environment.NewLine +
-                               $" at {ToDisplayPath(repoRoot, mappedLocation.Value.Path, fullPath)}:{mappedLocation.Value.Line}:{mappedLocation.Value.Column}";
-                if (runtimeEx.Kind == JsErrorKind.InternalError &&
-                    TryExtractManagedSourceLocationForRuntimeException(runtimeEx, repoRoot, fullPath,
-                        out var managedSourceLocation))
+                    message +=
+                        Environment.NewLine
+                        + $" at {ToDisplayPath(repoRoot, mappedLocation.Value.Path, fullPath)}:{mappedLocation.Value.Line}:{mappedLocation.Value.Column}";
+                if (
+                    runtimeEx.Kind == JsErrorKind.InternalError
+                    && TryExtractManagedSourceLocationForRuntimeException(
+                        runtimeEx,
+                        repoRoot,
+                        fullPath,
+                        out var managedSourceLocation
+                    )
+                )
                     message += Environment.NewLine + $" [csharp {managedSourceLocation}]";
 
                 var okojoStack = runtimeEx.FormatOkojoStackTrace();
@@ -603,7 +694,13 @@ internal static partial class Program
                 var baseMessage = StripParseLocationSuffix(parseEx.Message);
                 var mapped = isModuleCase
                     ? (sourcePath.Replace('\\', '/'), parseEx.Line, parseEx.Column)
-                    : MapSourceLocation(sourcePath, harnessSource, strict, parseEx.Line, parseEx.Column);
+                    : MapSourceLocation(
+                        sourcePath,
+                        harnessSource,
+                        strict,
+                        parseEx.Line,
+                        parseEx.Column
+                    );
                 if (mapped is not null)
                     message =
                         $"JsParseException: {baseMessage} at {ToDisplayPath(repoRoot, mapped.Value.Path, fullPath)}:{mapped.Value.Line}:{mapped.Value.Column} (position {parseEx.Position}).";
@@ -624,14 +721,19 @@ internal static partial class Program
     {
         var normalizedPath = sourcePath.Replace('\\', '/');
         var isTimingSensitiveAtomicsWaitPath =
-            normalizedPath.Contains("/built-ins/Atomics/wait/", StringComparison.OrdinalIgnoreCase) ||
-            normalizedPath.Contains("/built-ins/Atomics/waitAsync/", StringComparison.OrdinalIgnoreCase);
+            normalizedPath.Contains("/built-ins/Atomics/wait/", StringComparison.OrdinalIgnoreCase)
+            || normalizedPath.Contains(
+                "/built-ins/Atomics/waitAsync/",
+                StringComparison.OrdinalIgnoreCase
+            );
         if (!isTimingSensitiveAtomicsWaitPath)
             return false;
 
-        return source.Contains("$262.agent.monotonicNow()", StringComparison.Ordinal) &&
-               (source.Contains("Atomics.wait(", StringComparison.Ordinal) ||
-                source.Contains("Atomics.waitAsync(", StringComparison.Ordinal));
+        return source.Contains("$262.agent.monotonicNow()", StringComparison.Ordinal)
+            && (
+                source.Contains("Atomics.wait(", StringComparison.Ordinal)
+                || source.Contains("Atomics.waitAsync(", StringComparison.Ordinal)
+            );
     }
 
     private static string FormatRunnerTimingDuration(TimeSpan duration)

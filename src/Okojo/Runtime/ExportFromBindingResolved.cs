@@ -5,7 +5,8 @@ internal sealed class ExportFromBindingResolved(
     string importedName,
     string exportedName,
     int position,
-    string? importType = null)
+    string? importType = null
+)
 {
     public string ResolvedDependencyId { get; } = resolvedDependencyId;
     public string ImportedName { get; } = importedName;

@@ -10,7 +10,9 @@ internal sealed partial class JsParser
             JsTokenKind.String => lexer.GetStringLiteral(token),
             JsTokenKind.Template => lexer.GetStringLiteral(token),
             JsTokenKind.BigInt => lexer.GetBigIntLiteral(token),
-            _ => throw new InvalidOperationException($"Token kind '{token.Kind}' does not have a literal value.")
+            _ => throw new InvalidOperationException(
+                $"Token kind '{token.Kind}' does not have a literal value."
+            ),
         };
     }
 
@@ -20,7 +22,9 @@ internal sealed partial class JsParser
         {
             JsTokenKind.String => lexer.GetStringLiteral(token),
             JsTokenKind.Template => lexer.GetStringLiteral(token),
-            _ => throw new InvalidOperationException($"Token kind '{token.Kind}' does not have a string literal.")
+            _ => throw new InvalidOperationException(
+                $"Token kind '{token.Kind}' does not have a string literal."
+            ),
         };
     }
 
@@ -32,7 +36,7 @@ internal sealed partial class JsParser
             JsTokenKind.Number => JsValue.NumberToJsString(token.NumberLiteral),
             JsTokenKind.BigInt => lexer.GetBigIntLiteral(token).Value.ToString(),
             JsTokenKind.Identifier or JsTokenKind.PrivateIdentifier => GetIdentifierText(token),
-            _ => GetTokenSourceText(token)
+            _ => GetTokenSourceText(token),
         };
     }
 }

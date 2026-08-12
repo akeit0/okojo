@@ -25,7 +25,8 @@ public class JsObjectPathBenchmarks
         //"indexing",
         // "index-descriptor",
         "private-field-hot",
-        "private-accessor-hot")]
+        "private-accessor-hot"
+    )]
     public string Scenario { get; set; } = "indexing";
 
     [GlobalSetup]

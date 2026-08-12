@@ -8,4 +8,5 @@ internal sealed record RegExpMatchResult(
     string?[] Groups,
     IReadOnlyDictionary<string, string?>? NamedGroups,
     RegExpMatchRange?[]? GroupIndices = null,
-    IReadOnlyDictionary<string, RegExpMatchRange?>? NamedGroupIndices = null);
+    IReadOnlyDictionary<string, RegExpMatchRange?>? NamedGroupIndices = null
+);

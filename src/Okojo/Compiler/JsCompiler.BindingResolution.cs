@@ -9,12 +9,17 @@ public sealed partial class JsCompiler
     {
         var sourceName = identifier.Name;
         var useSyntheticArgumentsBinding = ShouldUseFunctionArgumentsBinding(sourceName);
-        var hasResolvedLocalBinding = TryResolveLocalBinding(identifier, out var resolvedLocalBinding);
+        var hasResolvedLocalBinding = TryResolveLocalBinding(
+            identifier,
+            out var resolvedLocalBinding
+        );
         if (!hasResolvedLocalBinding && !useSyntheticArgumentsBinding)
         {
             var resolvedAliasName = ResolveLocalAlias(sourceName);
-            if (!string.Equals(resolvedAliasName, sourceName, StringComparison.Ordinal) &&
-                TryGetSymbolId(resolvedAliasName, out var resolvedAliasSymbolId))
+            if (
+                !string.Equals(resolvedAliasName, sourceName, StringComparison.Ordinal)
+                && TryGetSymbolId(resolvedAliasName, out var resolvedAliasSymbolId)
+            )
             {
                 resolvedLocalBinding = new(resolvedAliasSymbolId, resolvedAliasName);
                 hasResolvedLocalBinding = true;
@@ -23,19 +28,24 @@ public sealed partial class JsCompiler
 
         var semanticName = hasResolvedLocalBinding ? resolvedLocalBinding.Name : sourceName;
 
-        if (hasResolvedLocalBinding &&
-            TryGetVisibleCurrentLocalBinding(
+        if (
+            hasResolvedLocalBinding
+            && TryGetVisibleCurrentLocalBinding(
                 resolvedLocalBinding.SymbolId,
                 sourceName,
                 out var reg,
                 out var slotIdx,
                 out var hasCurrentContextSlot,
                 out var isLexicalRegisterLocal,
-                out var isConstLocal))
+                out var isConstLocal
+            )
+        )
         {
             if (hasCurrentContextSlot)
             {
-                var perIterationDepth = GetActivePerIterationContextDepthForSymbol(resolvedLocalBinding.SymbolId);
+                var perIterationDepth = GetActivePerIterationContextDepthForSymbol(
+                    resolvedLocalBinding.SymbolId
+                );
                 if (perIterationDepth != 0)
                     return new(
                         ResolvedIdentifierBindingKind.CapturedContext,
@@ -45,7 +55,10 @@ public sealed partial class JsCompiler
                         Slot: (short)slotIdx,
                         Depth: (short)perIterationDepth,
                         IsConst: isConstLocal,
-                        IsImmutableFunctionName: IsImmutableFunctionNameBinding(resolvedLocalBinding.SymbolId));
+                        IsImmutableFunctionName: IsImmutableFunctionNameBinding(
+                            resolvedLocalBinding.SymbolId
+                        )
+                    );
             }
 
             return new(
@@ -58,17 +71,24 @@ public sealed partial class JsCompiler
                 0,
                 isLexicalRegisterLocal,
                 isConstLocal,
-                IsImmutableFunctionNameBinding(resolvedLocalBinding.SymbolId));
+                IsImmutableFunctionNameBinding(resolvedLocalBinding.SymbolId)
+            );
         }
 
-        if (hasResolvedLocalBinding &&
-            IsCurrentFunctionLocalVisible(resolvedLocalBinding.SymbolId, sourceName) &&
-            TryGetCurrentContextSlot(resolvedLocalBinding.SymbolId, out var currentContextSlot))
+        if (
+            hasResolvedLocalBinding
+            && IsCurrentFunctionLocalVisible(resolvedLocalBinding.SymbolId, sourceName)
+            && TryGetCurrentContextSlot(resolvedLocalBinding.SymbolId, out var currentContextSlot)
+        )
         {
             var currentIsLexicalLocal = IsLexicalLocalBinding(resolvedLocalBinding.SymbolId);
             var currentIsConstLocal = IsConstLocalBinding(resolvedLocalBinding.SymbolId);
-            var currentIsImmutableFunctionName = IsImmutableFunctionNameBinding(resolvedLocalBinding.SymbolId);
-            var perIterationDepth = GetActivePerIterationContextDepthForSymbol(resolvedLocalBinding.SymbolId);
+            var currentIsImmutableFunctionName = IsImmutableFunctionNameBinding(
+                resolvedLocalBinding.SymbolId
+            );
+            var perIterationDepth = GetActivePerIterationContextDepthForSymbol(
+                resolvedLocalBinding.SymbolId
+            );
             if (perIterationDepth != 0)
                 return new(
                     ResolvedIdentifierBindingKind.CapturedContext,
@@ -78,7 +98,8 @@ public sealed partial class JsCompiler
                     Slot: (short)currentContextSlot,
                     Depth: (short)perIterationDepth,
                     IsConst: currentIsConstLocal,
-                    IsImmutableFunctionName: currentIsImmutableFunctionName);
+                    IsImmutableFunctionName: currentIsImmutableFunctionName
+                );
 
             return new(
                 ResolvedIdentifierBindingKind.CurrentLocal,
@@ -90,20 +111,24 @@ public sealed partial class JsCompiler
                 0,
                 currentIsLexicalLocal,
                 currentIsConstLocal,
-                currentIsImmutableFunctionName);
+                currentIsImmutableFunctionName
+            );
         }
 
         if (CanUseClassLexicalBindingLoad(sourceName))
         {
             if (!useMethodEnvironmentCapture)
-                throw new InvalidOperationException("Class lexical binding load requires method-environment capture.");
+                throw new InvalidOperationException(
+                    "Class lexical binding load requires method-environment capture."
+                );
             var depth = currentContextSlotById.Count == 0 && !forceModuleFunctionContext ? 0 : 1;
             return new(
                 ResolvedIdentifierBindingKind.ClassLexical,
                 sourceName,
                 sourceName,
                 Slot: 1,
-                Depth: (short)depth);
+                Depth: (short)depth
+            );
         }
 
         if (TryGetModuleVariableBinding(sourceName, out var moduleBinding))
@@ -113,9 +138,12 @@ public sealed partial class JsCompiler
                 sourceName,
                 Slot: moduleBinding.CellIndex,
                 Depth: moduleBinding.Depth,
-                IsModuleReadOnly: moduleBinding.IsReadOnly);
+                IsModuleReadOnly: moduleBinding.IsReadOnly
+            );
 
-        if (TryResolveCapturedContextAccess(identifier, out var capturedSlot, out var capturedDepth))
+        if (
+            TryResolveCapturedContextAccess(identifier, out var capturedSlot, out var capturedDepth)
+        )
             return new(
                 ResolvedIdentifierBindingKind.CapturedContext,
                 sourceName,
@@ -123,7 +151,8 @@ public sealed partial class JsCompiler
                 Slot: (short)capturedSlot,
                 Depth: (short)capturedDepth,
                 IsConst: TryResolveCapturedConst(identifier),
-                IsImmutableFunctionName: TryResolveCapturedImmutableFunctionName(identifier));
+                IsImmutableFunctionName: TryResolveCapturedImmutableFunctionName(identifier)
+            );
 
         if (TryGetModuleVariableBinding(sourceName, out var moduleBindingDirect))
             return new(
@@ -132,29 +161,40 @@ public sealed partial class JsCompiler
                 sourceName,
                 Slot: moduleBindingDirect.CellIndex,
                 Depth: moduleBindingDirect.Depth,
-                IsModuleReadOnly: moduleBindingDirect.IsReadOnly);
+                IsModuleReadOnly: moduleBindingDirect.IsReadOnly
+            );
 
-        if (hasResolvedLocalBinding &&
-            !string.Equals(semanticName, sourceName, StringComparison.Ordinal) &&
-            TryGetModuleVariableBinding(semanticName, out var moduleBindingResolved))
+        if (
+            hasResolvedLocalBinding
+            && !string.Equals(semanticName, sourceName, StringComparison.Ordinal)
+            && TryGetModuleVariableBinding(semanticName, out var moduleBindingResolved)
+        )
             return new(
                 ResolvedIdentifierBindingKind.ModuleVariable,
                 sourceName,
                 semanticName,
                 Slot: moduleBindingResolved.CellIndex,
                 Depth: moduleBindingResolved.Depth,
-                IsModuleReadOnly: moduleBindingResolved.IsReadOnly);
+                IsModuleReadOnly: moduleBindingResolved.IsReadOnly
+            );
 
-        if (isArrowFunction &&
-            string.Equals(sourceName, "arguments", StringComparison.Ordinal) &&
-            TryResolveCapturedContextAccess(SyntheticArgumentsBindingName, out capturedSlot, out capturedDepth))
+        if (
+            isArrowFunction
+            && string.Equals(sourceName, "arguments", StringComparison.Ordinal)
+            && TryResolveCapturedContextAccess(
+                SyntheticArgumentsBindingName,
+                out capturedSlot,
+                out capturedDepth
+            )
+        )
             return new(
                 ResolvedIdentifierBindingKind.CapturedContext,
                 sourceName,
                 SyntheticArgumentsBindingName,
                 SyntheticArgumentsSymbolId,
                 Slot: (short)capturedSlot,
-                Depth: (short)capturedDepth);
+                Depth: (short)capturedDepth
+            );
 
         if (ShouldUseFunctionArgumentsBinding(sourceName))
             return new(ResolvedIdentifierBindingKind.Arguments, sourceName, sourceName);
@@ -172,52 +212,84 @@ public sealed partial class JsCompiler
         if (useSyntheticArgumentsBinding)
             return new(IdentifierReadBindingKind.Arguments);
 
-        var resolvedName = useSyntheticArgumentsBinding ? sourceName : ResolveLocalAlias(sourceName);
+        var resolvedName = useSyntheticArgumentsBinding
+            ? sourceName
+            : ResolveLocalAlias(sourceName);
 
-        if (TryResolveTopLevelModuleVariableReadBinding(sourceName, resolvedName, out var moduleReadBinding))
+        if (
+            TryResolveTopLevelModuleVariableReadBinding(
+                sourceName,
+                resolvedName,
+                out var moduleReadBinding
+            )
+        )
             return moduleReadBinding;
 
-        if (TryGetVisibleCurrentLocalBinding(
+        if (
+            TryGetVisibleCurrentLocalBinding(
                 resolvedName,
                 sourceName,
                 out var reg,
                 out var slotIdx,
                 out var hasCurrentContextSlot,
                 out var isLexicalRegisterLocal,
-                out _))
+                out _
+            )
+        )
         {
             if (hasCurrentContextSlot)
             {
                 var perIterationDepth = GetActivePerIterationContextDepthForSymbol(resolvedName);
                 if (perIterationDepth != 0)
-                    return new(IdentifierReadBindingKind.CapturedContext, -1, (short)slotIdx,
-                        (short)perIterationDepth);
+                    return new(
+                        IdentifierReadBindingKind.CapturedContext,
+                        -1,
+                        (short)slotIdx,
+                        (short)perIterationDepth
+                    );
             }
 
             return hasCurrentContextSlot
                 ? new(IdentifierReadBindingKind.CurrentLocal, (short)reg, (short)slotIdx)
-                : new IdentifierReadBinding(IdentifierReadBindingKind.CurrentLocal, (short)reg,
-                    (short)(isLexicalRegisterLocal ? -2 : -1));
+                : new IdentifierReadBinding(
+                    IdentifierReadBindingKind.CurrentLocal,
+                    (short)reg,
+                    (short)(isLexicalRegisterLocal ? -2 : -1)
+                );
         }
 
-        if (TryGetSymbolId(resolvedName, out var resolvedSymbolId) &&
-            IsCurrentFunctionLocalVisible(resolvedSymbolId, sourceName) &&
-            TryGetCurrentContextSlot(resolvedSymbolId, out var currentContextSlot))
+        if (
+            TryGetSymbolId(resolvedName, out var resolvedSymbolId)
+            && IsCurrentFunctionLocalVisible(resolvedSymbolId, sourceName)
+            && TryGetCurrentContextSlot(resolvedSymbolId, out var currentContextSlot)
+        )
         {
             var perIterationDepth = GetActivePerIterationContextDepthForSymbol(resolvedSymbolId);
             return perIterationDepth != 0
-                ? new(IdentifierReadBindingKind.CapturedContext, -1, (short)currentContextSlot,
-                    (short)perIterationDepth)
+                ? new(
+                    IdentifierReadBindingKind.CapturedContext,
+                    -1,
+                    (short)currentContextSlot,
+                    (short)perIterationDepth
+                )
                 : new(IdentifierReadBindingKind.CurrentLocal, -1, (short)currentContextSlot);
         }
 
-        if (TryResolveAnyScopeModuleVariableReadBinding(sourceName, resolvedName, out moduleReadBinding))
+        if (
+            TryResolveAnyScopeModuleVariableReadBinding(
+                sourceName,
+                resolvedName,
+                out moduleReadBinding
+            )
+        )
             return moduleReadBinding;
 
         if (CanUseClassLexicalBindingLoad(sourceName))
         {
             if (!useMethodEnvironmentCapture)
-                throw new InvalidOperationException("Class lexical binding load requires method-environment capture.");
+                throw new InvalidOperationException(
+                    "Class lexical binding load requires method-environment capture."
+                );
             var depth = currentContextSlotById.Count == 0 && !forceModuleFunctionContext ? 0 : 1;
             return new(IdentifierReadBindingKind.CapturedContext, -1, 1, (short)depth);
         }
@@ -227,17 +299,34 @@ public sealed partial class JsCompiler
                 IdentifierReadBindingKind.ModuleVariable,
                 -1,
                 moduleBinding.CellIndex,
-                moduleBinding.Depth);
+                moduleBinding.Depth
+            );
 
-        if (TryResolveCapturedContextAccess(identifier, out var capturedSlot, out var capturedDepth))
-            return new(IdentifierReadBindingKind.CapturedContext, -1, (short)capturedSlot,
-                (short)capturedDepth);
+        if (
+            TryResolveCapturedContextAccess(identifier, out var capturedSlot, out var capturedDepth)
+        )
+            return new(
+                IdentifierReadBindingKind.CapturedContext,
+                -1,
+                (short)capturedSlot,
+                (short)capturedDepth
+            );
 
-        if (isArrowFunction &&
-            string.Equals(sourceName, "arguments", StringComparison.Ordinal) &&
-            TryResolveCapturedContextAccess(SyntheticArgumentsBindingName, out capturedSlot, out capturedDepth))
-            return new(IdentifierReadBindingKind.CapturedContext, -1, (short)capturedSlot,
-                (short)capturedDepth);
+        if (
+            isArrowFunction
+            && string.Equals(sourceName, "arguments", StringComparison.Ordinal)
+            && TryResolveCapturedContextAccess(
+                SyntheticArgumentsBindingName,
+                out capturedSlot,
+                out capturedDepth
+            )
+        )
+            return new(
+                IdentifierReadBindingKind.CapturedContext,
+                -1,
+                (short)capturedSlot,
+                (short)capturedDepth
+            );
 
         if (sourceName == "undefined")
             return new(IdentifierReadBindingKind.UndefinedIntrinsic);
@@ -248,7 +337,8 @@ public sealed partial class JsCompiler
     private bool TryResolveTopLevelModuleVariableReadBinding(
         string sourceName,
         string resolvedName,
-        out IdentifierReadBinding binding)
+        out IdentifierReadBinding binding
+    )
     {
         if (parent is not null || moduleVariableBindings is null)
         {
@@ -262,18 +352,22 @@ public sealed partial class JsCompiler
                 IdentifierReadBindingKind.ModuleVariable,
                 -1,
                 directBinding.CellIndex,
-                directBinding.Depth);
+                directBinding.Depth
+            );
             return true;
         }
 
-        if (!string.Equals(resolvedName, sourceName, StringComparison.Ordinal) &&
-            TryGetModuleVariableBinding(resolvedName, out var resolvedBinding))
+        if (
+            !string.Equals(resolvedName, sourceName, StringComparison.Ordinal)
+            && TryGetModuleVariableBinding(resolvedName, out var resolvedBinding)
+        )
         {
             binding = new(
                 IdentifierReadBindingKind.ModuleVariable,
                 -1,
                 resolvedBinding.CellIndex,
-                resolvedBinding.Depth);
+                resolvedBinding.Depth
+            );
             return true;
         }
 
@@ -284,7 +378,8 @@ public sealed partial class JsCompiler
     private bool TryResolveAnyScopeModuleVariableReadBinding(
         string sourceName,
         string resolvedName,
-        out IdentifierReadBinding binding)
+        out IdentifierReadBinding binding
+    )
     {
         if (TryGetModuleVariableBinding(sourceName, out var directBinding))
         {
@@ -292,18 +387,22 @@ public sealed partial class JsCompiler
                 IdentifierReadBindingKind.ModuleVariable,
                 -1,
                 directBinding.CellIndex,
-                directBinding.Depth);
+                directBinding.Depth
+            );
             return true;
         }
 
-        if (!string.Equals(resolvedName, sourceName, StringComparison.Ordinal) &&
-            TryGetModuleVariableBinding(resolvedName, out var resolvedBinding))
+        if (
+            !string.Equals(resolvedName, sourceName, StringComparison.Ordinal)
+            && TryGetModuleVariableBinding(resolvedName, out var resolvedBinding)
+        )
         {
             binding = new(
                 IdentifierReadBindingKind.ModuleVariable,
                 -1,
                 resolvedBinding.CellIndex,
-                resolvedBinding.Depth);
+                resolvedBinding.Depth
+            );
             return true;
         }
 
@@ -356,16 +455,20 @@ public sealed partial class JsCompiler
         switch (binding.Kind)
         {
             case IdentifierReadBindingKind.ModuleVariable:
-                builder.EmitLda(JsOpCode.LdaModuleVariable, unchecked((byte)binding.Slot), (byte)binding.Depth);
+                builder.EmitLda(
+                    JsOpCode.LdaModuleVariable,
+                    unchecked((byte)binding.Slot),
+                    (byte)binding.Depth
+                );
                 break;
             case IdentifierReadBindingKind.CapturedContext:
-                {
-                    var readPc = builder.CodeLength;
-                    EmitLdaContextSlot(0, binding.Slot, binding.Depth);
-                    builder.AddTdzReadDebugName(readPc, sourceName);
-                    requiresClosureBinding = true;
-                    break;
-                }
+            {
+                var readPc = builder.CodeLength;
+                EmitLdaContextSlot(0, binding.Slot, binding.Depth);
+                builder.AddTdzReadDebugName(readPc, sourceName);
+                requiresClosureBinding = true;
+                break;
+            }
             case IdentifierReadBindingKind.Arguments:
                 _ = TryEmitArgumentsIdentifierLoad(sourceName);
                 break;
@@ -373,11 +476,14 @@ public sealed partial class JsCompiler
                 EmitLdaUndefined();
                 break;
             case IdentifierReadBindingKind.Global:
-                {
-                    var nameIdx = builder.AddAtomizedStringConstant(sourceName);
-                    EmitLdaGlobalByIndex(nameIdx, builder.GetOrAllocateGlobalBindingFeedbackSlot(sourceName));
-                    break;
-                }
+            {
+                var nameIdx = builder.AddAtomizedStringConstant(sourceName);
+                EmitLdaGlobalByIndex(
+                    nameIdx,
+                    builder.GetOrAllocateGlobalBindingFeedbackSlot(sourceName)
+                );
+                break;
+            }
             default:
                 throw new InvalidOperationException("Unexpected identifier read binding kind.");
         }
@@ -391,12 +497,15 @@ public sealed partial class JsCompiler
     private bool TryResolveIdentifierStoreBinding(
         string resolvedName,
         string sourceNameForDebug,
-        out IdentifierStoreBinding binding)
+        out IdentifierStoreBinding binding
+    )
     {
         if (CanUseClassLexicalBindingLoad(sourceNameForDebug))
         {
             if (!useMethodEnvironmentCapture)
-                throw new InvalidOperationException("Class lexical binding store requires method-environment capture.");
+                throw new InvalidOperationException(
+                    "Class lexical binding store requires method-environment capture."
+                );
             var depth = currentContextSlotById.Count == 0 && !forceModuleFunctionContext ? 0 : 1;
             binding = new(
                 IdentifierStoreBindingKind.CapturedContext,
@@ -404,18 +513,22 @@ public sealed partial class JsCompiler
                 1,
                 (short)depth,
                 true,
-                true);
+                true
+            );
             return true;
         }
 
-        if (TryGetVisibleCurrentLocalBinding(
+        if (
+            TryGetVisibleCurrentLocalBinding(
                 resolvedName,
                 sourceNameForDebug,
                 out var reg,
                 out var slotIdx,
                 out var hasCurrentContextSlot,
                 out var isLexicalRegisterLocal,
-                out var isConstLocal))
+                out var isConstLocal
+            )
+        )
         {
             var isLexicalLocal = IsLexicalLocalBinding(resolvedName);
             var isImmutableFunctionName = IsImmutableFunctionNameBinding(resolvedName);
@@ -431,44 +544,65 @@ public sealed partial class JsCompiler
                         (short)perIterationDepth,
                         isLexicalLocal,
                         isConstLocal,
-                        isImmutableFunctionName);
+                        isImmutableFunctionName
+                    );
                     return true;
                 }
             }
 
             binding = hasCurrentContextSlot
-                ? new(IdentifierStoreBindingKind.CurrentLocal, (short)reg, (short)slotIdx, 0,
-                    isLexicalLocal, isConstLocal, isImmutableFunctionName)
-                : new IdentifierStoreBinding(IdentifierStoreBindingKind.CurrentLocal, (short)reg, -1, 0, isLexicalLocal,
-                    isConstLocal, isImmutableFunctionName, isLexicalRegisterLocal);
+                ? new(
+                    IdentifierStoreBindingKind.CurrentLocal,
+                    (short)reg,
+                    (short)slotIdx,
+                    0,
+                    isLexicalLocal,
+                    isConstLocal,
+                    isImmutableFunctionName
+                )
+                : new IdentifierStoreBinding(
+                    IdentifierStoreBindingKind.CurrentLocal,
+                    (short)reg,
+                    -1,
+                    0,
+                    isLexicalLocal,
+                    isConstLocal,
+                    isImmutableFunctionName,
+                    isLexicalRegisterLocal
+                );
             return true;
         }
 
-        if (TryGetSymbolId(resolvedName, out var resolvedSymbolId) &&
-            IsCurrentFunctionLocalVisible(resolvedSymbolId, sourceNameForDebug) &&
-            TryGetCurrentContextSlot(resolvedSymbolId, out var currentContextSlot))
+        if (
+            TryGetSymbolId(resolvedName, out var resolvedSymbolId)
+            && IsCurrentFunctionLocalVisible(resolvedSymbolId, sourceNameForDebug)
+            && TryGetCurrentContextSlot(resolvedSymbolId, out var currentContextSlot)
+        )
         {
             var currentIsLexicalLocal = IsLexicalLocalBinding(resolvedSymbolId);
             var currentIsConstLocal = IsConstLocalBinding(resolvedSymbolId);
             var currentIsImmutableFunctionName = IsImmutableFunctionNameBinding(resolvedSymbolId);
             var perIterationDepth = GetActivePerIterationContextDepthForSymbol(resolvedSymbolId);
-            binding = perIterationDepth != 0
-                ? new(
-                    IdentifierStoreBindingKind.CapturedContext,
-                    -1,
-                    (short)currentContextSlot,
-                    (short)perIterationDepth,
-                    currentIsLexicalLocal,
-                    currentIsConstLocal,
-                    currentIsImmutableFunctionName)
-                : new(
-                    IdentifierStoreBindingKind.CurrentLocal,
-                    -1,
-                    (short)currentContextSlot,
-                    0,
-                    currentIsLexicalLocal,
-                    currentIsConstLocal,
-                    currentIsImmutableFunctionName);
+            binding =
+                perIterationDepth != 0
+                    ? new(
+                        IdentifierStoreBindingKind.CapturedContext,
+                        -1,
+                        (short)currentContextSlot,
+                        (short)perIterationDepth,
+                        currentIsLexicalLocal,
+                        currentIsConstLocal,
+                        currentIsImmutableFunctionName
+                    )
+                    : new(
+                        IdentifierStoreBindingKind.CurrentLocal,
+                        -1,
+                        (short)currentContextSlot,
+                        0,
+                        currentIsLexicalLocal,
+                        currentIsConstLocal,
+                        currentIsImmutableFunctionName
+                    );
             return true;
         }
 
@@ -482,18 +616,32 @@ public sealed partial class JsCompiler
                 false,
                 false,
                 false,
-                sourceModuleBinding.IsReadOnly);
+                sourceModuleBinding.IsReadOnly
+            );
             return true;
         }
 
         var sourceIdentifier = new CompilerIdentifierName(sourceNameForDebug);
-        if (TryResolveCapturedContextAccess(sourceIdentifier, out var capturedSlot, out var capturedDepth))
+        if (
+            TryResolveCapturedContextAccess(
+                sourceIdentifier,
+                out var capturedSlot,
+                out var capturedDepth
+            )
+        )
         {
             var isConst = TryResolveCapturedConst(sourceIdentifier);
             var isLexical = TryResolveCapturedLexical(sourceIdentifier);
             var isImmutableFunctionName = TryResolveCapturedImmutableFunctionName(sourceIdentifier);
-            binding = new(IdentifierStoreBindingKind.CapturedContext, -1, (short)capturedSlot,
-                (short)capturedDepth, isLexical, isConst, isImmutableFunctionName);
+            binding = new(
+                IdentifierStoreBindingKind.CapturedContext,
+                -1,
+                (short)capturedSlot,
+                (short)capturedDepth,
+                isLexical,
+                isConst,
+                isImmutableFunctionName
+            );
             return true;
         }
 
@@ -507,7 +655,8 @@ public sealed partial class JsCompiler
                 false,
                 false,
                 false,
-                moduleBinding.IsReadOnly);
+                moduleBinding.IsReadOnly
+            );
             return true;
         }
 
@@ -522,18 +671,29 @@ public sealed partial class JsCompiler
 
         return classLexicalNameForMethodResolution.Value.NameId >= 0 && identifier.NameId >= 0
             ? classLexicalNameForMethodResolution.Value.NameId == identifier.NameId
-            : string.Equals(classLexicalNameForMethodResolution.Value.Name, identifier.Name, StringComparison.Ordinal);
+            : string.Equals(
+                classLexicalNameForMethodResolution.Value.Name,
+                identifier.Name,
+                StringComparison.Ordinal
+            );
     }
 
     private bool CanUseClassLexicalBindingLoad(string identifierName)
     {
         if (classLexicalNameForMethodResolution is null)
             return false;
-        return string.Equals(classLexicalNameForMethodResolution.Value.Name, identifierName, StringComparison.Ordinal);
+        return string.Equals(
+            classLexicalNameForMethodResolution.Value.Name,
+            identifierName,
+            StringComparison.Ordinal
+        );
     }
 
-    private bool TryResolveCapturedContextAccess(CompilerIdentifierName identifier, out int ancestorContextSlot,
-        out int depth)
+    private bool TryResolveCapturedContextAccess(
+        CompilerIdentifierName identifier,
+        out int ancestorContextSlot,
+        out int depth
+    )
     {
         ancestorContextSlot = -1;
         depth = activePerIterationContextSlots.Count;
@@ -545,19 +705,24 @@ public sealed partial class JsCompiler
         for (var ancestor = parent; ancestor is not null; ancestor = ancestor.parent)
         {
             var resolvedInAncestor = ancestor.ResolveLocalAlias(identifier);
-            if (ancestor.HasLocalBinding(resolvedInAncestor) ||
-                ancestor.TryGetCurrentContextSlot(resolvedInAncestor, out _))
+            if (
+                ancestor.HasLocalBinding(resolvedInAncestor)
+                || ancestor.TryGetCurrentContextSlot(resolvedInAncestor, out _)
+            )
             {
                 if (!ancestor.IsCurrentFunctionLocalVisibleForCapture(resolvedInAncestor))
                     continue;
                 if (ancestor.TryGetCurrentContextSlot(resolvedInAncestor, out ancestorContextSlot))
                 {
-                    depth += ancestor.GetActivePerIterationContextDepthForSymbol(resolvedInAncestor);
+                    depth += ancestor.GetActivePerIterationContextDepthForSymbol(
+                        resolvedInAncestor
+                    );
                     return true;
                 }
 
                 throw new InvalidOperationException(
-                    $"Captured binding '{resolvedInAncestor}' was not assigned a context slot.");
+                    $"Captured binding '{resolvedInAncestor}' was not assigned a context slot."
+                );
             }
 
             if (ancestor.currentContextSlotById.Count != 0 || ancestor.forceModuleFunctionContext)
@@ -570,10 +735,17 @@ public sealed partial class JsCompiler
         return false;
     }
 
-    private bool TryResolveCapturedContextAccess(string sourceName, out int ancestorContextSlot, out int depth)
+    private bool TryResolveCapturedContextAccess(
+        string sourceName,
+        out int ancestorContextSlot,
+        out int depth
+    )
     {
-        return TryResolveCapturedContextAccess(new CompilerIdentifierName(sourceName), out ancestorContextSlot,
-            out depth);
+        return TryResolveCapturedContextAccess(
+            new CompilerIdentifierName(sourceName),
+            out ancestorContextSlot,
+            out depth
+        );
     }
 
     private bool TryResolveDerivedThisContextAccess(out int ancestorContextSlot, out int depth)
@@ -598,7 +770,12 @@ public sealed partial class JsCompiler
                 return true;
             }
 
-            if (ancestor.currentContextSlotById.TryGetValue(DerivedThisSymbolId, out var derivedThisSlot))
+            if (
+                ancestor.currentContextSlotById.TryGetValue(
+                    DerivedThisSymbolId,
+                    out var derivedThisSlot
+                )
+            )
             {
                 ancestorContextSlot = derivedThisSlot;
                 return true;
@@ -673,7 +850,7 @@ public sealed partial class JsCompiler
         Arguments,
         UndefinedIntrinsic,
         Global,
-        ClassLexical
+        ClassLexical,
     }
 
     [StructLayout(LayoutKind.Auto)]
@@ -688,7 +865,8 @@ public sealed partial class JsCompiler
         bool IsLexicalRegisterLocal = false,
         bool IsConst = false,
         bool IsImmutableFunctionName = false,
-        bool IsModuleReadOnly = false);
+        bool IsModuleReadOnly = false
+    );
 
     private enum IdentifierReadBindingKind : byte
     {
@@ -697,21 +875,22 @@ public sealed partial class JsCompiler
         CapturedContext,
         Arguments,
         UndefinedIntrinsic,
-        Global
+        Global,
     }
 
     private readonly record struct IdentifierReadBinding(
         IdentifierReadBindingKind Kind,
         short Register = -1,
         short Slot = -1,
-        short Depth = 0);
+        short Depth = 0
+    );
 
     private enum IdentifierStoreBindingKind : byte
     {
         ModuleVariable,
         CurrentLocal,
         CapturedContext,
-        Global
+        Global,
     }
 
     [StructLayout(LayoutKind.Auto)]
@@ -724,5 +903,6 @@ public sealed partial class JsCompiler
         bool IsConst = false,
         bool IsImmutableFunctionName = false,
         bool IsLexicalRegisterLocal = false,
-        bool IsModuleReadOnly = false);
+        bool IsModuleReadOnly = false
+    );
 }

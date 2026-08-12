@@ -34,7 +34,8 @@ internal sealed class BrowserThreadPoolHost : IDisposable
 
         var moduleLoader = new DemoModuleLoader(assets);
         var httpClient = new HttpClient(new DemoFetchHandler(assets.FetchPayloads));
-        var runtime = JsRuntime.CreateBuilder()
+        var runtime = JsRuntime
+            .CreateBuilder()
             .UseBrowserHost(browser =>
             {
                 browser.ModuleSourceLoader = moduleLoader;

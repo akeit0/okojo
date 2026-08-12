@@ -11,13 +11,14 @@ internal static partial class Program
     {
         Passed,
         Failed,
-        Skipped
+        Skipped,
     }
 
     private sealed record CandidateExecutionResult(
         CandidateOutcome Outcome,
         string Message,
-        RunnerCaseTimings Timings);
+        RunnerCaseTimings Timings
+    );
 
     private sealed class WorkerRequest
     {
@@ -52,7 +53,11 @@ internal static partial class Program
         {
             EnsureStarted();
             if (process is null)
-                return new(CandidateOutcome.Failed, "Failed to start Test262Runner worker process.", default);
+                return new(
+                    CandidateOutcome.Failed,
+                    "Failed to start Test262Runner worker process.",
+                    default
+                );
 
             var request = JsonSerializer.Serialize(new WorkerRequest { Path = candidate.Path });
             try
@@ -63,7 +68,11 @@ internal static partial class Program
             catch (Exception ex)
             {
                 ResetProcess();
-                return new(CandidateOutcome.Failed, $"Test262Runner worker write failed: {ex.Message}", default);
+                return new(
+                    CandidateOutcome.Failed,
+                    $"Test262Runner worker write failed: {ex.Message}",
+                    default
+                );
             }
 
             var timeoutMs = GetEffectiveCaseTimeoutMs(options);
@@ -75,18 +84,29 @@ internal static partial class Program
             catch (Exception ex)
             {
                 ResetProcess();
-                return new(CandidateOutcome.Failed, $"Test262Runner worker read setup failed: {ex.Message}", default);
+                return new(
+                    CandidateOutcome.Failed,
+                    $"Test262Runner worker read setup failed: {ex.Message}",
+                    default
+                );
             }
 
             if (timeoutMs > 0)
             {
-                var completedTask = Task.WhenAny(readTask, Task.Delay(timeoutMs + ChildExitGraceMilliseconds))
+                var completedTask = Task.WhenAny(
+                        readTask,
+                        Task.Delay(timeoutMs + ChildExitGraceMilliseconds)
+                    )
                     .GetAwaiter()
                     .GetResult();
                 if (!ReferenceEquals(completedTask, readTask))
                 {
                     KillProcess();
-                    return new(CandidateOutcome.Failed, BuildExternalTimeoutMessage(options, timeoutMs), default);
+                    return new(
+                        CandidateOutcome.Failed,
+                        BuildExternalTimeoutMessage(options, timeoutMs),
+                        default
+                    );
                 }
             }
 
@@ -126,8 +146,9 @@ internal static partial class Program
                     {
                         ParseTicks = response.ParseTicks,
                         CompileTicks = response.CompileTicks,
-                        RunTicks = response.RunTicks
-                    });
+                        RunTicks = response.RunTicks,
+                    }
+                );
             }
             catch (JsonException ex)
             {
@@ -148,8 +169,11 @@ internal static partial class Program
                 return;
 
             ResetProcess();
-            process = Process.Start(CreateWorkerProcessStartInfo(resolvedRoot, repoRoot, options))
-                      ?? throw new InvalidOperationException("Failed to start Test262Runner worker process.");
+            process =
+                Process.Start(CreateWorkerProcessStartInfo(resolvedRoot, repoRoot, options))
+                ?? throw new InvalidOperationException(
+                    "Failed to start Test262Runner worker process."
+                );
             stderrTask = process.StandardError.ReadToEndAsync();
         }
 
@@ -197,9 +221,7 @@ internal static partial class Program
                 if (!process.HasExited)
                     process.Kill(true);
             }
-            catch
-            {
-            }
+            catch { }
             finally
             {
                 ResetProcess();
@@ -214,9 +236,7 @@ internal static partial class Program
                 {
                     process.StandardInput.Close();
                 }
-                catch
-                {
-                }
+                catch { }
 
                 try
                 {
@@ -227,9 +247,7 @@ internal static partial class Program
                         process.WaitForExit();
                     }
                 }
-                catch
-                {
-                }
+                catch { }
 
                 process.Dispose();
                 process = null;
@@ -241,28 +259,39 @@ internal static partial class Program
                 {
                     _ = stderrTask.GetAwaiter().GetResult();
                 }
-                catch
-                {
-                }
+                catch { }
 
                 stderrTask = null;
             }
         }
     }
 
-    private static void RunSingleTestProcess(string resolvedRoot, string repoRoot, Test262Options options)
+    private static void RunSingleTestProcess(
+        string resolvedRoot,
+        string repoRoot,
+        Test262Options options
+    )
     {
-        var result = ExecuteCandidateByPath(options.SingleTestPath!, resolvedRoot, repoRoot, options);
+        var result = ExecuteCandidateByPath(
+            options.SingleTestPath!,
+            resolvedRoot,
+            repoRoot,
+            options
+        );
         WriteWorkerResponse(result);
         Environment.ExitCode = result.Outcome switch
         {
             CandidateOutcome.Passed => 0,
             CandidateOutcome.Skipped => 2,
-            _ => 1
+            _ => 1,
         };
     }
 
-    private static void RunWorkerProcess(string resolvedRoot, string repoRoot, Test262Options options)
+    private static void RunWorkerProcess(
+        string resolvedRoot,
+        string repoRoot,
+        Test262Options options
+    )
     {
         var harness = LoadHarness(resolvedRoot);
         string? line;
@@ -279,13 +308,27 @@ internal static partial class Program
                 {
                     var request = JsonSerializer.Deserialize<WorkerRequest>(line);
                     if (request?.Path is null)
-                        result = new(CandidateOutcome.Failed, "Worker request payload was invalid.", default);
+                        result = new(
+                            CandidateOutcome.Failed,
+                            "Worker request payload was invalid.",
+                            default
+                        );
                     else
-                        result = ExecuteCandidateByPath(request.Path, resolvedRoot, repoRoot, options, harness);
+                        result = ExecuteCandidateByPath(
+                            request.Path,
+                            resolvedRoot,
+                            repoRoot,
+                            options,
+                            harness
+                        );
                 }
                 catch (JsonException ex)
                 {
-                    result = new(CandidateOutcome.Failed, $"Worker request payload was invalid: {ex.Message}", default);
+                    result = new(
+                        CandidateOutcome.Failed,
+                        $"Worker request payload was invalid: {ex.Message}",
+                        default
+                    );
                 }
             }
 
@@ -298,7 +341,8 @@ internal static partial class Program
         string resolvedRoot,
         string repoRoot,
         Test262Options options,
-        HarnessAssets? harness = null)
+        HarnessAssets? harness = null
+    )
     {
         var path = Path.IsPathRooted(candidatePath)
             ? candidatePath
@@ -323,12 +367,12 @@ internal static partial class Program
             {
                 CandidateOutcome.Passed => "passed",
                 CandidateOutcome.Skipped => "skipped",
-                _ => "failed"
+                _ => "failed",
             },
             Message = result.Message,
             ParseTicks = result.Timings.ParseTicks,
             CompileTicks = result.Timings.CompileTicks,
-            RunTicks = result.Timings.RunTicks
+            RunTicks = result.Timings.RunTicks,
         };
 
         Console.WriteLine(JsonSerializer.Serialize(payload));
@@ -338,11 +382,14 @@ internal static partial class Program
     private static ProcessStartInfo CreateWorkerProcessStartInfo(
         string resolvedRoot,
         string repoRoot,
-        Test262Options options)
+        Test262Options options
+    )
     {
         var entryAssemblyPath = Assembly.GetEntryAssembly()?.Location;
         if (string.IsNullOrWhiteSpace(entryAssemblyPath) || !File.Exists(entryAssemblyPath))
-            throw new InvalidOperationException("Unable to resolve Test262Runner entry assembly path.");
+            throw new InvalidOperationException(
+                "Unable to resolve Test262Runner entry assembly path."
+            );
 
         var startInfo = new ProcessStartInfo("dotnet")
         {
@@ -351,7 +398,7 @@ internal static partial class Program
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
-            CreateNoWindow = true
+            CreateNoWindow = true,
         };
         startInfo.ArgumentList.Add(entryAssemblyPath);
         startInfo.ArgumentList.Add("--root");
@@ -401,7 +448,7 @@ internal static partial class Program
         {
             "passed" => CandidateOutcome.Passed,
             "skipped" => CandidateOutcome.Skipped,
-            _ => CandidateOutcome.Failed
+            _ => CandidateOutcome.Failed,
         };
     }
 

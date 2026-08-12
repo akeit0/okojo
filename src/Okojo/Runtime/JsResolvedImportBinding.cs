@@ -6,7 +6,8 @@ internal sealed class JsResolvedImportBinding(
     string resolvedDependencyId,
     string importedName,
     int position,
-    string? importType = null)
+    string? importType = null
+)
 {
     public string LocalName { get; } = localName;
     public ModuleImportBindingKind Kind { get; } = kind;

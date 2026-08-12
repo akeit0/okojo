@@ -16,86 +16,160 @@ public sealed partial class JsRealm
     {
         var promise = (JsPromiseObject)state!;
         var realm = promise.Realm;
-        realm.Intrinsics.ResolvePromise(promise,
-            JsValue.FromObject(realm.CreateIteratorResultObject(JsValue.Undefined, true)));
+        realm.Intrinsics.ResolvePromise(
+            promise,
+            JsValue.FromObject(realm.CreateIteratorResultObject(JsValue.Undefined, true))
+        );
     };
 
-    private static readonly Action<object?> SResolveSettledAsyncGeneratorRequestJob = static state =>
-    {
-        var resolveState = (AsyncGeneratorSettledResolveState)state!;
-        if (resolveState.SettledState == JsPromiseObject.PromiseState.Fulfilled)
-            resolveState.Realm.Intrinsics.ResolvePromise(resolveState.RequestPromise,
-                JsValue.FromObject(
-                    resolveState.Realm.CreateIteratorResultObject(resolveState.SettledResult, resolveState.Done)));
-        else
-            resolveState.Realm.Intrinsics.RejectPromise(resolveState.RequestPromise, resolveState.SettledResult);
+    private static readonly Action<object?> SResolveSettledAsyncGeneratorRequestJob =
+        static state =>
+        {
+            var resolveState = (AsyncGeneratorSettledResolveState)state!;
+            if (resolveState.SettledState == JsPromiseObject.PromiseState.Fulfilled)
+                resolveState.Realm.Intrinsics.ResolvePromise(
+                    resolveState.RequestPromise,
+                    JsValue.FromObject(
+                        resolveState.Realm.CreateIteratorResultObject(
+                            resolveState.SettledResult,
+                            resolveState.Done
+                        )
+                    )
+                );
+            else
+                resolveState.Realm.Intrinsics.RejectPromise(
+                    resolveState.RequestPromise,
+                    resolveState.SettledResult
+                );
 
-        resolveState.Realm.FinishAsyncGeneratorRequest(resolveState.Generator);
-    };
+            resolveState.Realm.FinishAsyncGeneratorRequest(resolveState.Generator);
+        };
 
-    private readonly Stack<GeneratorObjectCore.AsyncGeneratorRequest> asyncGeneratorRequestPool = new();
+    private readonly Stack<GeneratorObjectCore.AsyncGeneratorRequest> asyncGeneratorRequestPool =
+        new();
 
     internal void InstallAsyncGeneratorPrototypeBuiltins()
     {
         AsyncGeneratorObjectPrototype.Prototype = AsyncIteratorPrototype;
 
-        var nextFn = new JsHostFunction(this, static (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            if (!realm.TryGetAsyncGeneratorReceiver(info.ThisValue, "next", out var generator, out var rejectedPromise))
-                return rejectedPromise;
-            var input = args.Length != 0 ? args[0] : JsValue.Undefined;
-            return realm.ResumeAsyncGeneratorObject(generator, GeneratorResumeMode.Next, input);
-        }, "next", 1);
+        var nextFn = new JsHostFunction(
+            this,
+            static (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                if (
+                    !realm.TryGetAsyncGeneratorReceiver(
+                        info.ThisValue,
+                        "next",
+                        out var generator,
+                        out var rejectedPromise
+                    )
+                )
+                    return rejectedPromise;
+                var input = args.Length != 0 ? args[0] : JsValue.Undefined;
+                return realm.ResumeAsyncGeneratorObject(generator, GeneratorResumeMode.Next, input);
+            },
+            "next",
+            1
+        );
 
-        var returnFn = new JsHostFunction(this, static (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            if (!realm.TryGetAsyncGeneratorReceiver(info.ThisValue, "return", out var generator,
-                    out var rejectedPromise))
-                return rejectedPromise;
-            var input = args.Length != 0 ? args[0] : JsValue.Undefined;
-            return realm.ResumeAsyncGeneratorObject(generator, GeneratorResumeMode.Return, input);
-        }, "return", 1);
+        var returnFn = new JsHostFunction(
+            this,
+            static (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                if (
+                    !realm.TryGetAsyncGeneratorReceiver(
+                        info.ThisValue,
+                        "return",
+                        out var generator,
+                        out var rejectedPromise
+                    )
+                )
+                    return rejectedPromise;
+                var input = args.Length != 0 ? args[0] : JsValue.Undefined;
+                return realm.ResumeAsyncGeneratorObject(
+                    generator,
+                    GeneratorResumeMode.Return,
+                    input
+                );
+            },
+            "return",
+            1
+        );
 
-        var throwFn = new JsHostFunction(this, static (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            if (!realm.TryGetAsyncGeneratorReceiver(info.ThisValue, "throw", out var generator,
-                    out var rejectedPromise))
-                return rejectedPromise;
-            var input = args.Length != 0 ? args[0] : JsValue.Undefined;
-            return realm.ResumeAsyncGeneratorObject(generator, GeneratorResumeMode.Throw, input);
-        }, "throw", 1);
+        var throwFn = new JsHostFunction(
+            this,
+            static (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                if (
+                    !realm.TryGetAsyncGeneratorReceiver(
+                        info.ThisValue,
+                        "throw",
+                        out var generator,
+                        out var rejectedPromise
+                    )
+                )
+                    return rejectedPromise;
+                var input = args.Length != 0 ? args[0] : JsValue.Undefined;
+                return realm.ResumeAsyncGeneratorObject(
+                    generator,
+                    GeneratorResumeMode.Throw,
+                    input
+                );
+            },
+            "throw",
+            1
+        );
 
         Span<PropertyDefinition> defs =
         [
-            PropertyDefinition.Const(IdConstructor, JsValue.FromObject(AsyncGeneratorFunctionPrototype),
-                configurable: true),
-            PropertyDefinition.Const(IdSymbolToStringTag, JsValue.FromString("AsyncGenerator"),
-                configurable: true),
+            PropertyDefinition.Const(
+                IdConstructor,
+                JsValue.FromObject(AsyncGeneratorFunctionPrototype),
+                configurable: true
+            ),
+            PropertyDefinition.Const(
+                IdSymbolToStringTag,
+                JsValue.FromString("AsyncGenerator"),
+                configurable: true
+            ),
             PropertyDefinition.Mutable(IdNext, JsValue.FromObject(nextFn)),
             PropertyDefinition.Mutable(IdReturn, JsValue.FromObject(returnFn)),
-            PropertyDefinition.Mutable(IdThrow, JsValue.FromObject(throwFn))
+            PropertyDefinition.Mutable(IdThrow, JsValue.FromObject(throwFn)),
         ];
         AsyncGeneratorObjectPrototype.DefineNewPropertiesNoCollision(this, defs);
 
         Span<PropertyDefinition> asyncGeneratorFunctionPrototypeDefs =
         [
-            PropertyDefinition.Const(IdPrototype, AsyncGeneratorObjectPrototype, configurable: true)
+            PropertyDefinition.Const(
+                IdPrototype,
+                AsyncGeneratorObjectPrototype,
+                configurable: true
+            ),
         ];
-        AsyncGeneratorFunctionPrototype.DefineNewPropertiesNoCollision(this, asyncGeneratorFunctionPrototypeDefs);
+        AsyncGeneratorFunctionPrototype.DefineNewPropertiesNoCollision(
+            this,
+            asyncGeneratorFunctionPrototypeDefs
+        );
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private JsValue ResumeAsyncGeneratorObject(JsGeneratorObject generator, GeneratorResumeMode mode,
-        JsValue input)
+    private JsValue ResumeAsyncGeneratorObject(
+        JsGeneratorObject generator,
+        GeneratorResumeMode mode,
+        JsValue input
+    )
     {
-        if (!generator.AsyncGeneratorRequestActive && generator.State == GeneratorState.Completed &&
-            mode == GeneratorResumeMode.Next)
+        if (
+            !generator.AsyncGeneratorRequestActive
+            && generator.State == GeneratorState.Completed
+            && mode == GeneratorResumeMode.Next
+        )
         {
             var completedPromise = Intrinsics.CreatePromiseObject();
             Agent.EnqueuePromiseJob(SResolveCompletedAsyncGeneratorNextJob, completedPromise);
@@ -132,8 +206,11 @@ public sealed partial class JsRealm
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    internal void ContinueActiveAsyncGeneratorRequest(JsGeneratorObject generator, GeneratorResumeMode mode,
-        JsValue value)
+    internal void ContinueActiveAsyncGeneratorRequest(
+        JsGeneratorObject generator,
+        GeneratorResumeMode mode,
+        JsValue value
+    )
     {
         var request = generator.Core.ActiveAsyncRequest;
         if (request is null)
@@ -156,8 +233,11 @@ public sealed partial class JsRealm
                     }
                     catch (JsRuntimeException ex)
                     {
-                        ContinueActiveAsyncGeneratorRequest(generator, GeneratorResumeMode.Throw,
-                            ex.ThrownValue ?? CreateErrorObjectFromException(ex));
+                        ContinueActiveAsyncGeneratorRequest(
+                            generator,
+                            GeneratorResumeMode.Throw,
+                            ex.ThrownValue ?? CreateErrorObjectFromException(ex)
+                        );
                     }
 
                     return;
@@ -170,8 +250,12 @@ public sealed partial class JsRealm
                 }
                 else
                 {
-                    ResolveAsyncGeneratorRequest(generator, request.Promise,
-                        mode == GeneratorResumeMode.Return ? value : JsValue.Undefined, true);
+                    ResolveAsyncGeneratorRequest(
+                        generator,
+                        request.Promise,
+                        mode == GeneratorResumeMode.Return ? value : JsValue.Undefined,
+                        true
+                    );
                 }
 
                 return;
@@ -192,8 +276,11 @@ public sealed partial class JsRealm
                         }
                         catch (JsRuntimeException ex)
                         {
-                            ContinueActiveAsyncGeneratorRequest(generator, GeneratorResumeMode.Throw,
-                                ex.ThrownValue ?? CreateErrorObjectFromException(ex));
+                            ContinueActiveAsyncGeneratorRequest(
+                                generator,
+                                GeneratorResumeMode.Throw,
+                                ex.ThrownValue ?? CreateErrorObjectFromException(ex)
+                            );
                         }
 
                         return;
@@ -226,7 +313,8 @@ public sealed partial class JsRealm
                             request.Promise,
                             resumedStep,
                             true,
-                            request.CompletedAfterAwait);
+                            request.CompletedAfterAwait
+                        );
                         return;
                     }
 
@@ -237,7 +325,12 @@ public sealed partial class JsRealm
                         return;
                     }
 
-                    ResolveAsyncGeneratorRequestFromStep(generator, request.Promise, resumedStep, false);
+                    ResolveAsyncGeneratorRequestFromStep(
+                        generator,
+                        request.Promise,
+                        resumedStep,
+                        false
+                    );
                     return;
                 }
 
@@ -252,8 +345,11 @@ public sealed partial class JsRealm
                     }
                     catch (JsRuntimeException ex)
                     {
-                        ContinueActiveAsyncGeneratorRequest(generator, GeneratorResumeMode.Throw,
-                            ex.ThrownValue ?? CreateErrorObjectFromException(ex));
+                        ContinueActiveAsyncGeneratorRequest(
+                            generator,
+                            GeneratorResumeMode.Throw,
+                            ex.ThrownValue ?? CreateErrorObjectFromException(ex)
+                        );
                     }
 
                     return;
@@ -278,8 +374,11 @@ public sealed partial class JsRealm
                 }
                 catch (JsRuntimeException ex)
                 {
-                    ContinueActiveAsyncGeneratorRequest(generator, GeneratorResumeMode.Throw,
-                        ex.ThrownValue ?? CreateErrorObjectFromException(ex));
+                    ContinueActiveAsyncGeneratorRequest(
+                        generator,
+                        GeneratorResumeMode.Throw,
+                        ex.ThrownValue ?? CreateErrorObjectFromException(ex)
+                    );
                 }
 
                 return;
@@ -308,10 +407,12 @@ public sealed partial class JsRealm
                 return;
             }
 
-            if (mode == GeneratorResumeMode.Return &&
-                generator.State != GeneratorState.Completed &&
-                TryGetIteratorResultParts(stepResult, out _, out var returnDone) &&
-                returnDone)
+            if (
+                mode == GeneratorResumeMode.Return
+                && generator.State != GeneratorState.Completed
+                && TryGetIteratorResultParts(stepResult, out _, out var returnDone)
+                && returnDone
+            )
             {
                 FinalizeGenerator(generator);
                 ResolveAsyncGeneratorRequestFromStep(generator, request.Promise, stepResult, true);
@@ -320,8 +421,13 @@ public sealed partial class JsRealm
 
             if (generator.State == GeneratorState.Completed)
             {
-                ResolveAsyncGeneratorRequestFromStep(generator, request.Promise, stepResult, true,
-                    request.CompletedAfterAwait);
+                ResolveAsyncGeneratorRequestFromStep(
+                    generator,
+                    request.Promise,
+                    stepResult,
+                    true,
+                    request.CompletedAfterAwait
+                );
                 return;
             }
 
@@ -337,7 +443,10 @@ public sealed partial class JsRealm
         catch (JsRuntimeException ex)
         {
             FinalizeGenerator(generator);
-            Intrinsics.RejectPromise(request.Promise, ex.ThrownValue ?? CreateErrorObjectFromException(ex));
+            Intrinsics.RejectPromise(
+                request.Promise,
+                ex.ThrownValue ?? CreateErrorObjectFromException(ex)
+            );
             FinishAsyncGeneratorRequest(generator);
         }
     }
@@ -346,9 +455,14 @@ public sealed partial class JsRealm
     private void AwaitAsyncGeneratorReturn(JsGeneratorObject generator, JsValue value)
     {
         var promiseValue = Intrinsics.PromiseResolveByConstructor(PromiseConstructor, value);
-        if (!promiseValue.TryGetObject(out var promiseObj) || promiseObj is not JsPromiseObject promise)
-            throw new JsRuntimeException(JsErrorKind.InternalError,
-                "Promise.resolve must produce a promise object");
+        if (
+            !promiseValue.TryGetObject(out var promiseObj)
+            || promiseObj is not JsPromiseObject promise
+        )
+            throw new JsRuntimeException(
+                JsErrorKind.InternalError,
+                "Promise.resolve must produce a promise object"
+            );
 
         promise.IsHandled = true;
         if (promise.State == JsPromiseObject.PromiseState.Pending)
@@ -357,12 +471,15 @@ public sealed partial class JsRealm
             return;
         }
 
-        var mode = promise.State == JsPromiseObject.PromiseState.Fulfilled
-            ? GeneratorResumeMode.Return
-            : GeneratorResumeMode.Throw;
+        var mode =
+            promise.State == JsPromiseObject.PromiseState.Fulfilled
+                ? GeneratorResumeMode.Return
+                : GeneratorResumeMode.Throw;
         var resumeValue = promise.Result;
-        Agent.EnqueuePromiseJob(SResumeAsyncGeneratorRequestJob,
-            new GeneratorResumeJobState(this, generator, mode, resumeValue));
+        Agent.EnqueuePromiseJob(
+            SResumeAsyncGeneratorRequestJob,
+            new GeneratorResumeJobState(this, generator, mode, resumeValue)
+        );
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -371,15 +488,28 @@ public sealed partial class JsRealm
         JsPromiseObject requestPromise,
         JsValue stepResult,
         bool defaultDone,
-        bool forceAsyncSettlement = false)
+        bool forceAsyncSettlement = false
+    )
     {
         if (TryGetIteratorResultParts(stepResult, out var value, out var done))
         {
-            ResolveAsyncGeneratorRequest(generator, requestPromise, value, done, forceAsyncSettlement);
+            ResolveAsyncGeneratorRequest(
+                generator,
+                requestPromise,
+                value,
+                done,
+                forceAsyncSettlement
+            );
             return;
         }
 
-        ResolveAsyncGeneratorRequest(generator, requestPromise, stepResult, defaultDone, forceAsyncSettlement);
+        ResolveAsyncGeneratorRequest(
+            generator,
+            requestPromise,
+            stepResult,
+            defaultDone,
+            forceAsyncSettlement
+        );
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -388,31 +518,46 @@ public sealed partial class JsRealm
         JsPromiseObject requestPromise,
         JsValue value,
         bool done,
-        bool forceAsyncSettlement = false)
+        bool forceAsyncSettlement = false
+    )
     {
         if (done)
         {
-            Intrinsics.ResolvePromise(requestPromise, JsValue.FromObject(CreateIteratorResultObject(value, true)));
+            Intrinsics.ResolvePromise(
+                requestPromise,
+                JsValue.FromObject(CreateIteratorResultObject(value, true))
+            );
             FinishAsyncGeneratorRequest(generator);
             return;
         }
 
-        if (generator.HasActiveDelegateIterator &&
-            generator.ActiveDelegateIterator is not JsAsyncFromSyncIteratorObject)
+        if (
+            generator.HasActiveDelegateIterator
+            && generator.ActiveDelegateIterator is not JsAsyncFromSyncIteratorObject
+        )
         {
-            Intrinsics.ResolvePromise(requestPromise, JsValue.FromObject(CreateIteratorResultObject(value, false)));
+            Intrinsics.ResolvePromise(
+                requestPromise,
+                JsValue.FromObject(CreateIteratorResultObject(value, false))
+            );
             FinishAsyncGeneratorRequest(generator);
             return;
         }
 
         var promiseValue = Intrinsics.PromiseResolveByConstructor(PromiseConstructor, value);
-        if (!promiseValue.TryGetObject(out var promiseObj) || promiseObj is not JsPromiseObject promise)
-            throw new JsRuntimeException(JsErrorKind.InternalError,
-                "Promise.resolve must produce a promise object");
+        if (
+            !promiseValue.TryGetObject(out var promiseObj)
+            || promiseObj is not JsPromiseObject promise
+        )
+            throw new JsRuntimeException(
+                JsErrorKind.InternalError,
+                "Promise.resolve must produce a promise object"
+            );
         promise.IsHandled = true;
 
         var reaction = JsPromiseObject.Reaction.CreateAsyncGeneratorYieldValue(
-            new(generator, requestPromise));
+            new(generator, requestPromise)
+        );
         if (promise.State == JsPromiseObject.PromiseState.Pending)
             promise.AddReaction(reaction);
         else
@@ -420,17 +565,28 @@ public sealed partial class JsRealm
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private void AttachAsyncGeneratorAwaitContinuation(JsGeneratorObject generator, JsValue stepResult)
+    private void AttachAsyncGeneratorAwaitContinuation(
+        JsGeneratorObject generator,
+        JsValue stepResult
+    )
     {
         var promiseValue = Intrinsics.PromiseResolveByConstructor(PromiseConstructor, stepResult);
-        if (!promiseValue.TryGetObject(out var promiseObj) || promiseObj is not JsPromiseObject promise)
-            throw new JsRuntimeException(JsErrorKind.InternalError,
-                "PromiseResolve(%Promise%, awaitValue) must produce a promise object");
+        if (
+            !promiseValue.TryGetObject(out var promiseObj)
+            || promiseObj is not JsPromiseObject promise
+        )
+            throw new JsRuntimeException(
+                JsErrorKind.InternalError,
+                "PromiseResolve(%Promise%, awaitValue) must produce a promise object"
+            );
         PromiseThenContinueAsyncGenerator(promise, generator);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void PromiseThenContinueAsyncGenerator(JsPromiseObject promise, JsGeneratorObject generator)
+    private void PromiseThenContinueAsyncGenerator(
+        JsPromiseObject promise,
+        JsGeneratorObject generator
+    )
     {
         promise.IsHandled = true;
         if (promise.State == JsPromiseObject.PromiseState.Pending)
@@ -439,12 +595,15 @@ public sealed partial class JsRealm
             return;
         }
 
-        var mode = promise.State == JsPromiseObject.PromiseState.Fulfilled
-            ? GeneratorResumeMode.Next
-            : GeneratorResumeMode.Throw;
+        var mode =
+            promise.State == JsPromiseObject.PromiseState.Fulfilled
+                ? GeneratorResumeMode.Next
+                : GeneratorResumeMode.Throw;
         var resumeValue = promise.Result;
-        Agent.EnqueuePromiseJob(SResumeAsyncGeneratorRequestJob,
-            new GeneratorResumeJobState(this, generator, mode, resumeValue));
+        Agent.EnqueuePromiseJob(
+            SResumeAsyncGeneratorRequestJob,
+            new GeneratorResumeJobState(this, generator, mode, resumeValue)
+        );
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -461,9 +620,7 @@ public sealed partial class JsRealm
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private GeneratorObjectCore.AsyncGeneratorRequest RentAsyncGeneratorRequest()
     {
-        return asyncGeneratorRequestPool.Count != 0
-            ? asyncGeneratorRequestPool.Pop()
-            : new();
+        return asyncGeneratorRequestPool.Count != 0 ? asyncGeneratorRequestPool.Pop() : new();
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -480,20 +637,28 @@ public sealed partial class JsRealm
         JsGeneratorObject generator,
         GeneratorResumeMode originalMode,
         JsPromiseObject.PromiseState settledState,
-        JsValue settledResult)
+        JsValue settledResult
+    )
     {
         if (settledState != JsPromiseObject.PromiseState.Fulfilled)
         {
             generator.ActiveDelegateIterator = null;
             ClearDelegateIteratorRegisterInContinuationSnapshot(generator);
-            ContinueActiveAsyncGeneratorRequest(generator, GeneratorResumeMode.Throw, settledResult);
+            ContinueActiveAsyncGeneratorRequest(
+                generator,
+                GeneratorResumeMode.Throw,
+                settledResult
+            );
             return;
         }
 
         try
         {
             if (!settledResult.TryGetObject(out var resultObj))
-                throw new JsRuntimeException(JsErrorKind.TypeError, "iterator result is not an object");
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "iterator result is not an object"
+                );
 
             _ = resultObj.TryGetPropertyAtom(this, IdDone, out var doneValue, out _);
             var done = doneValue.ToBoolean();
@@ -506,25 +671,31 @@ public sealed partial class JsRealm
                 if (request is null)
                     return;
 
-                Intrinsics.ResolvePromise(request.Promise,
-                    JsValue.FromObject(CreateIteratorResultObject(value, false)));
+                Intrinsics.ResolvePromise(
+                    request.Promise,
+                    JsValue.FromObject(CreateIteratorResultObject(value, false))
+                );
                 FinishAsyncGeneratorRequest(generator);
                 return;
             }
 
             generator.ActiveDelegateIterator = null;
             ClearDelegateIteratorRegisterInContinuationSnapshot(generator);
-            var continueMode = originalMode == GeneratorResumeMode.Return
-                ? GeneratorResumeMode.Return
-                : GeneratorResumeMode.Next;
+            var continueMode =
+                originalMode == GeneratorResumeMode.Return
+                    ? GeneratorResumeMode.Return
+                    : GeneratorResumeMode.Next;
             ContinueActiveAsyncGeneratorRequest(generator, continueMode, value);
         }
         catch (JsRuntimeException ex)
         {
             generator.ActiveDelegateIterator = null;
             ClearDelegateIteratorRegisterInContinuationSnapshot(generator);
-            ContinueActiveAsyncGeneratorRequest(generator, GeneratorResumeMode.Throw,
-                ex.ThrownValue ?? CreateErrorObjectFromException(ex));
+            ContinueActiveAsyncGeneratorRequest(
+                generator,
+                GeneratorResumeMode.Throw,
+                ex.ThrownValue ?? CreateErrorObjectFromException(ex)
+            );
         }
     }
 
@@ -541,8 +712,10 @@ public sealed partial class JsRealm
         done = false;
         if (!value.TryGetObject(out var obj))
             return false;
-        if (obj.TryGetOwnNamedDataSlotIndex(IdValue, out var valueSlot) &&
-            obj.TryGetOwnNamedDataSlotIndex(IdDone, out var doneSlot))
+        if (
+            obj.TryGetOwnNamedDataSlotIndex(IdValue, out var valueSlot)
+            && obj.TryGetOwnNamedDataSlotIndex(IdDone, out var doneSlot)
+        )
         {
             resultValue = obj.GetNamedSlotUnchecked(valueSlot);
             done = obj.GetNamedSlotUnchecked(doneSlot).ToBoolean();
@@ -563,10 +736,14 @@ public sealed partial class JsRealm
         in JsValue thisValue,
         string methodName,
         out JsGeneratorObject generator,
-        out JsValue rejectedPromise)
+        out JsValue rejectedPromise
+    )
     {
-        if (thisValue.TryGetObject(out var obj) && obj is JsGeneratorObject generatorObject &&
-            generatorObject.IsAsyncGenerator)
+        if (
+            thisValue.TryGetObject(out var obj)
+            && obj is JsGeneratorObject generatorObject
+            && generatorObject.IsAsyncGenerator
+        )
         {
             generator = generatorObject;
             rejectedPromise = default;
@@ -575,9 +752,15 @@ public sealed partial class JsRealm
 
         generator = null!;
         var promise = Intrinsics.CreatePromiseObject();
-        Intrinsics.RejectPromise(promise, CreateErrorObjectFromException(new(
-            JsErrorKind.TypeError,
-            $"AsyncGenerator.prototype.{methodName} called on incompatible receiver")));
+        Intrinsics.RejectPromise(
+            promise,
+            CreateErrorObjectFromException(
+                new(
+                    JsErrorKind.TypeError,
+                    $"AsyncGenerator.prototype.{methodName} called on incompatible receiver"
+                )
+            )
+        );
         rejectedPromise = promise;
         return false;
     }

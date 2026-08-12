@@ -6,7 +6,9 @@ namespace Okojo.DotNet.Modules;
 
 internal sealed class DotNetModuleImportBridge(DotNetModuleImportOptions options)
 {
-    private readonly Dictionary<string, Assembly> assemblyCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, Assembly> assemblyCache = new(
+        StringComparer.OrdinalIgnoreCase
+    );
     private readonly object assemblyGate = new();
 
     internal const string GlobalBridgeFunctionName = "__okojoDotNetModule__";
@@ -15,27 +17,33 @@ internal sealed class DotNetModuleImportBridge(DotNetModuleImportOptions options
     {
         var escapedResolvedId = EscapeJavaScriptStringLiteral(resolvedId);
         return $$"""
-                 const value = globalThis.{{GlobalBridgeFunctionName}}("{{escapedResolvedId}}");
-                 export default value;
-                 """;
+            const value = globalThis.{{GlobalBridgeFunctionName}}("{{escapedResolvedId}}");
+            export default value;
+            """;
     }
 
     public JsValue Import(JsRealm realm, string resolvedId)
     {
         if (!DotNetModuleSpecifier.TryParseResolvedId(resolvedId, out var specifier))
         {
-            throw new JsRuntimeException(JsErrorKind.TypeError,
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
                 $"Unsupported .NET module specifier '{resolvedId}'.",
-                "DOTNET_MODULE_SPECIFIER");
+                "DOTNET_MODULE_SPECIFIER"
+            );
         }
 
         var assembly = specifier.Scheme switch
         {
             DotNetModuleImportScheme.Dll => LoadAssembly(specifier.Target),
-            DotNetModuleImportScheme.NuGet => LoadAssembly(ResolveNuGetAssemblyPath(specifier.Target)),
-            _ => throw new JsRuntimeException(JsErrorKind.TypeError,
+            DotNetModuleImportScheme.NuGet => LoadAssembly(
+                ResolveNuGetAssemblyPath(specifier.Target)
+            ),
+            _ => throw new JsRuntimeException(
+                JsErrorKind.TypeError,
                 $"Unsupported .NET module scheme '{specifier.Scheme}'.",
-                "DOTNET_MODULE_SCHEME")
+                "DOTNET_MODULE_SCHEME"
+            ),
         };
 
         realm.AddClrAssembly(assembly);
@@ -50,23 +58,38 @@ internal sealed class DotNetModuleImportBridge(DotNetModuleImportOptions options
         if (atIndex <= 0 || atIndex == packageReference.Length - 1)
         {
             throw new InvalidOperationException(
-                "nuget: imports must include an explicit version, for example 'nuget:Package.Id@1.2.3#Namespace.Type'.");
+                "nuget: imports must include an explicit version, for example 'nuget:Package.Id@1.2.3#Namespace.Type'."
+            );
         }
 
         var packageId = packageReference[..atIndex];
         var version = packageReference[(atIndex + 1)..];
-        var root = options.GlobalPackagesRoot ?? DotNetFileBasedAppCacheLayout.Detect().GlobalPackagesRoot;
+        var root =
+            options.GlobalPackagesRoot ?? DotNetFileBasedAppCacheLayout.Detect().GlobalPackagesRoot;
         var packageDir = Path.Combine(root, packageId.ToLowerInvariant(), version);
         if (!Directory.Exists(packageDir))
-            throw new FileNotFoundException($"NuGet package cache entry not found for '{packageId}@{version}'.", packageDir);
+            throw new FileNotFoundException(
+                $"NuGet package cache entry not found for '{packageId}@{version}'.",
+                packageDir
+            );
 
         var libDir = Path.Combine(packageDir, "lib");
         if (!Directory.Exists(libDir))
-            throw new FileNotFoundException($"Package '{packageId}@{version}' does not contain a lib folder.", libDir);
+            throw new FileNotFoundException(
+                $"Package '{packageId}@{version}' does not contain a lib folder.",
+                libDir
+            );
 
         var tfmDirs = Directory.GetDirectories(libDir);
-        Array.Sort(tfmDirs, static (left, right) =>
-            string.Compare(Path.GetFileName(left), Path.GetFileName(right), StringComparison.OrdinalIgnoreCase));
+        Array.Sort(
+            tfmDirs,
+            static (left, right) =>
+                string.Compare(
+                    Path.GetFileName(left),
+                    Path.GetFileName(right),
+                    StringComparison.OrdinalIgnoreCase
+                )
+        );
 
         foreach (var preferredTfm in options.PreferredTargetFrameworks)
         {
@@ -89,13 +112,16 @@ internal sealed class DotNetModuleImportBridge(DotNetModuleImportOptions options
                 return assemblyPath;
         }
 
-        throw new FileNotFoundException($"No loadable assembly was found for package '{packageId}@{version}'.", packageDir);
+        throw new FileNotFoundException(
+            $"No loadable assembly was found for package '{packageId}@{version}'.",
+            packageDir
+        );
     }
 
     private static bool IsPreferredTfm(string tfm, string preferredTfm)
     {
-        return string.Equals(tfm, preferredTfm, StringComparison.OrdinalIgnoreCase) ||
-               tfm.StartsWith(preferredTfm + "-", StringComparison.OrdinalIgnoreCase);
+        return string.Equals(tfm, preferredTfm, StringComparison.OrdinalIgnoreCase)
+            || tfm.StartsWith(preferredTfm + "-", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string? TrySelectAssemblyPath(string directory, string packageId)
@@ -107,17 +133,31 @@ internal sealed class DotNetModuleImportBridge(DotNetModuleImportOptions options
         var exactName = packageId + ".dll";
         for (var i = 0; i < dlls.Length; i++)
         {
-            if (string.Equals(Path.GetFileName(dlls[i]), exactName, StringComparison.OrdinalIgnoreCase))
+            if (
+                string.Equals(
+                    Path.GetFileName(dlls[i]),
+                    exactName,
+                    StringComparison.OrdinalIgnoreCase
+                )
+            )
                 return dlls[i];
         }
 
-        var lastSegment = packageId.Split('.', StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
+        var lastSegment = packageId
+            .Split('.', StringSplitOptions.RemoveEmptyEntries)
+            .LastOrDefault();
         if (!string.IsNullOrEmpty(lastSegment))
         {
             var lastSegmentName = lastSegment + ".dll";
             for (var i = 0; i < dlls.Length; i++)
             {
-                if (string.Equals(Path.GetFileName(dlls[i]), lastSegmentName, StringComparison.OrdinalIgnoreCase))
+                if (
+                    string.Equals(
+                        Path.GetFileName(dlls[i]),
+                        lastSegmentName,
+                        StringComparison.OrdinalIgnoreCase
+                    )
+                )
                     return dlls[i];
             }
         }
@@ -135,8 +175,14 @@ internal sealed class DotNetModuleImportBridge(DotNetModuleImportOptions options
 
             foreach (var assembly in AssemblyLoadContext.Default.Assemblies)
             {
-                if (!string.IsNullOrEmpty(assembly.Location) &&
-                    string.Equals(Path.GetFullPath(assembly.Location), fullPath, StringComparison.OrdinalIgnoreCase))
+                if (
+                    !string.IsNullOrEmpty(assembly.Location)
+                    && string.Equals(
+                        Path.GetFullPath(assembly.Location),
+                        fullPath,
+                        StringComparison.OrdinalIgnoreCase
+                    )
+                )
                 {
                     assemblyCache[fullPath] = assembly;
                     return assembly;
@@ -146,7 +192,13 @@ internal sealed class DotNetModuleImportBridge(DotNetModuleImportOptions options
             var targetName = AssemblyName.GetAssemblyName(fullPath);
             foreach (var assembly in AssemblyLoadContext.Default.Assemblies)
             {
-                if (string.Equals(assembly.FullName, targetName.FullName, StringComparison.OrdinalIgnoreCase))
+                if (
+                    string.Equals(
+                        assembly.FullName,
+                        targetName.FullName,
+                        StringComparison.OrdinalIgnoreCase
+                    )
+                )
                 {
                     assemblyCache[fullPath] = assembly;
                     return assembly;
@@ -164,9 +216,11 @@ internal sealed class DotNetModuleImportBridge(DotNetModuleImportOptions options
         if (realm.TryGetClrValue(clrPath, out var value))
             return value;
 
-        throw new JsRuntimeException(JsErrorKind.TypeError,
+        throw new JsRuntimeException(
+            JsErrorKind.TypeError,
             $"CLR path '{clrPath}' was not found after loading '{resolvedId}'.",
-            "DOTNET_MODULE_CLR_PATH_NOT_FOUND");
+            "DOTNET_MODULE_CLR_PATH_NOT_FOUND"
+        );
     }
 
     private static string EscapeJavaScriptStringLiteral(string value)

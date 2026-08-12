@@ -1,7 +1,7 @@
 using System.Buffers;
 using System.Runtime.CompilerServices;
-
 using Okojo.Text.Unicode;
+
 namespace Okojo.Text.RegularExpressions.Internal;
 
 internal static class BacktrackingVm
@@ -133,8 +133,7 @@ internal static class BacktrackingVm
                 int candidate = startIndex;
                 while (candidate <= lastCandidate)
                 {
-                    bool lineStart =
-                        candidate == 0 || Utf16.IsLineTerminator(input[candidate - 1]);
+                    bool lineStart = candidate == 0 || Utf16.IsLineTerminator(input[candidate - 1]);
                     if (
                         lineStart
                         && PrefixMatches(input, candidate, plan.Prefix)
@@ -1012,15 +1011,7 @@ internal static class BacktrackingVm
             candidates[j] = temporary;
         }
 
-        if (
-            Utf16.TryReadForward(
-                input,
-                position,
-                unicode,
-                out int single,
-                out int singleWidth
-            )
-        )
+        if (Utf16.TryReadForward(input, position, unicode, out int single, out int singleWidth))
         {
             bool matches = ClassMatches(info.CodePoints, single, options);
             if ((options & NodeOptions.InvertClass) != 0)
@@ -1348,13 +1339,7 @@ internal static class BacktrackingVm
             {
                 if (
                     !Utf16.TryReadForward(input, captured, unicode, out int a, out int aw)
-                    || !Utf16.TryReadForward(
-                        input,
-                        candidate,
-                        unicode,
-                        out int b,
-                        out int bw
-                    )
+                    || !Utf16.TryReadForward(input, candidate, unicode, out int b, out int bw)
                     || !CharacterEquals(a, b, options)
                 )
                 {
@@ -1375,13 +1360,7 @@ internal static class BacktrackingVm
             {
                 if (
                     !Utf16.TryReadBackward(input, captured, unicode, out int a, out int aw)
-                    || !Utf16.TryReadBackward(
-                        input,
-                        candidate,
-                        unicode,
-                        out int b,
-                        out int bw
-                    )
+                    || !Utf16.TryReadBackward(input, candidate, unicode, out int b, out int bw)
                     || !CharacterEquals(a, b, options)
                 )
                 {

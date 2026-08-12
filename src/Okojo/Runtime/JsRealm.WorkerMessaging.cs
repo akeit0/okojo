@@ -32,21 +32,39 @@ public sealed partial class JsRealm
 
         if (includePostMessage)
             // Worker-side postMessage: sends to parent/main agent.
-            Global["postMessage"] = JsValue.FromObject(new JsHostFunction(this, static (in info) =>
-            {
-                var realm = info.Realm;
-                var args = info.Arguments;
-                var target = realm.Agent.ParentAgent;
-                if (target is null)
-                    throw new JsRuntimeException(JsErrorKind.TypeError,
-                        "postMessage target is not available for this realm", "POSTMESSAGE_TARGET_UNAVAILABLE");
+            Global["postMessage"] = JsValue.FromObject(
+                new JsHostFunction(
+                    this,
+                    static (in info) =>
+                    {
+                        var realm = info.Realm;
+                        var args = info.Arguments;
+                        var target = realm.Agent.ParentAgent;
+                        if (target is null)
+                            throw new JsRuntimeException(
+                                JsErrorKind.TypeError,
+                                "postMessage target is not available for this realm",
+                                "POSTMESSAGE_TARGET_UNAVAILABLE"
+                            );
 
-                var payload = args.Length != 0
-                    ? realm.Engine.Options.HostServices.MessageSerializer.SerializeOutgoing(realm, args[0])
-                    : null;
-                realm.Agent.PostMessage(target, payload, realm.Engine.Options.HostServices.WorkerMessageQueueKey);
-                return JsValue.Undefined;
-            }, "postMessage", 1));
+                        var payload =
+                            args.Length != 0
+                                ? realm.Engine.Options.HostServices.MessageSerializer.SerializeOutgoing(
+                                    realm,
+                                    args[0]
+                                )
+                                : null;
+                        realm.Agent.PostMessage(
+                            target,
+                            payload,
+                            realm.Engine.Options.HostServices.WorkerMessageQueueKey
+                        );
+                        return JsValue.Undefined;
+                    },
+                    "postMessage",
+                    1
+                )
+            );
     }
 
     private void DispatchMessageEvent(JsAgent sender, object? payload)
@@ -69,7 +87,10 @@ public sealed partial class JsRealm
         var payloadValue = JsValue.Undefined;
         try
         {
-            payloadValue = Engine.Options.HostServices.MessageSerializer.DeserializeIncoming(this, payload);
+            payloadValue = Engine.Options.HostServices.MessageSerializer.DeserializeIncoming(
+                this,
+                payload
+            );
         }
         catch (Exception)
         {
@@ -95,7 +116,11 @@ public sealed partial class JsRealm
         return true;
     }
 
-    private bool DispatchWorkerHandleMessageEvent(JsPlainObject workerHandle, object? payload, bool isError)
+    private bool DispatchWorkerHandleMessageEvent(
+        JsPlainObject workerHandle,
+        object? payload,
+        bool isError
+    )
     {
         var handlerAtom = isError ? IdOnmessageerror : IdOnmessage;
         if (!workerHandle.TryGetPropertyAtom(this, handlerAtom, out var handler, out _))
@@ -106,7 +131,10 @@ public sealed partial class JsRealm
         var dataValue = JsValue.Undefined;
         try
         {
-            dataValue = Engine.Options.HostServices.MessageSerializer.DeserializeIncoming(this, payload);
+            dataValue = Engine.Options.HostServices.MessageSerializer.DeserializeIncoming(
+                this,
+                payload
+            );
         }
         catch (Exception)
         {
@@ -134,7 +162,10 @@ public sealed partial class JsRealm
             JsValue dataValue;
             try
             {
-                dataValue = Engine.Options.HostServices.MessageSerializer.DeserializeIncoming(this, payload);
+                dataValue = Engine.Options.HostServices.MessageSerializer.DeserializeIncoming(
+                    this,
+                    payload
+                );
             }
             catch (Exception)
             {
@@ -142,9 +173,14 @@ public sealed partial class JsRealm
                 return;
             }
 
-            if (!GlobalObject.TryGetPropertyAtom(this, IdOnmessage, out var onMessageHandler, out _))
+            if (
+                !GlobalObject.TryGetPropertyAtom(this, IdOnmessage, out var onMessageHandler, out _)
+            )
                 return;
-            if (!onMessageHandler.TryGetObject(out var onMessageObj) || onMessageObj is not JsFunction onMessageFn)
+            if (
+                !onMessageHandler.TryGetObject(out var onMessageObj)
+                || onMessageObj is not JsFunction onMessageFn
+            )
                 return;
 
             var msgEvt = CreateMessageEvent(dataValue);
@@ -183,8 +219,11 @@ public sealed partial class JsRealm
         var workerBinding = Engine.Options.HostServices.WorkerHost.CreateWorker(
             this,
             moduleEntry,
-            GetCurrentModuleResolvedIdOrNull());
-        var handle = WorkerHandleFactory.CreateHandle(this, workerBinding,
+            GetCurrentModuleResolvedIdOrNull()
+        );
+        var handle = WorkerHandleFactory.CreateHandle(
+            this,
+            workerBinding,
             new(
                 IdOnmessage,
                 IdOnmessageerror,
@@ -192,8 +231,10 @@ public sealed partial class JsRealm
                 IdEval,
                 IdLoadModule,
                 IdPump,
-                IdTerminate),
-            RemoveWorkerHandleByAgentId);
+                IdTerminate
+            ),
+            RemoveWorkerHandleByAgentId
+        );
 
         workerHandlesByAgentId[workerBinding.Agent.Id] = handle;
 
@@ -215,15 +256,29 @@ public sealed partial class JsRealm
 
     private StaticNamedPropertyLayout CreateMessageEventShape()
     {
-        var shape = EmptyShape.GetOrAddTransition(IdData, JsShapePropertyFlags.Open, out var dataInfo);
+        var shape = EmptyShape.GetOrAddTransition(
+            IdData,
+            JsShapePropertyFlags.Open,
+            out var dataInfo
+        );
         Debug.Assert(dataInfo.Slot == MessageEventDataSlot);
         return shape;
     }
 
-    private JsValue BridgeIntoThisRealm(in JsValue sourceValue, Dictionary<JsObject, JsValue>? visited = null)
+    private JsValue BridgeIntoThisRealm(
+        in JsValue sourceValue,
+        Dictionary<JsObject, JsValue>? visited = null
+    )
     {
-        if (sourceValue.IsUndefined || sourceValue.IsNull || sourceValue.IsBool || sourceValue.IsInt32 ||
-            sourceValue.IsFloat64 || sourceValue.IsString || sourceValue.IsSymbol)
+        if (
+            sourceValue.IsUndefined
+            || sourceValue.IsNull
+            || sourceValue.IsBool
+            || sourceValue.IsInt32
+            || sourceValue.IsFloat64
+            || sourceValue.IsString
+            || sourceValue.IsSymbol
+        )
             return sourceValue;
 
         if (!sourceValue.TryGetObject(out var sourceObj))
@@ -239,21 +294,30 @@ public sealed partial class JsRealm
 
         if (sourceObj is JsFunction sourceFn)
         {
-            var proxy = new JsHostFunction(this, static (in info) =>
-            {
-                var realm = info.Realm;
-                var args = info.Arguments;
-                var callee = (JsHostFunction)info.Function;
-                var data = (CrossRealmFunctionProxyData)callee.UserData!;
-                var forwarded = args.Length == 0 ? [] : new JsValue[args.Length];
-                for (var i = 0; i < args.Length; i++)
-                    forwarded[i] = data.SourceRealm.BridgeIntoThisRealm(args[i]);
+            var proxy = new JsHostFunction(
+                this,
+                static (in info) =>
+                {
+                    var realm = info.Realm;
+                    var args = info.Arguments;
+                    var callee = (JsHostFunction)info.Function;
+                    var data = (CrossRealmFunctionProxyData)callee.UserData!;
+                    var forwarded = args.Length == 0 ? [] : new JsValue[args.Length];
+                    for (var i = 0; i < args.Length; i++)
+                        forwarded[i] = data.SourceRealm.BridgeIntoThisRealm(args[i]);
 
-                var result = data.SourceRealm.InvokeFunction(data.SourceFunction, JsValue.Undefined, forwarded);
-                return realm.BridgeIntoThisRealm(result);
-            }, sourceFn.Name ?? string.Empty, sourceFn.Length)
+                    var result = data.SourceRealm.InvokeFunction(
+                        data.SourceFunction,
+                        JsValue.Undefined,
+                        forwarded
+                    );
+                    return realm.BridgeIntoThisRealm(result);
+                },
+                sourceFn.Name ?? string.Empty,
+                sourceFn.Length
+            )
             {
-                UserData = new CrossRealmFunctionProxyData(sourceRealm, sourceFn)
+                UserData = new CrossRealmFunctionProxyData(sourceRealm, sourceFn),
             };
 
             var bridgedFn = JsValue.FromObject(proxy);
@@ -298,8 +362,12 @@ public sealed partial class JsRealm
                 else
                 {
                     var targetAtom = Atoms.InternNoCheck(key);
-                    targetObj.DefineDataPropertyAtom(this, targetAtom, BridgeIntoThisRealm(value, visited),
-                        JsShapePropertyFlags.Open);
+                    targetObj.DefineDataPropertyAtom(
+                        this,
+                        targetAtom,
+                        BridgeIntoThisRealm(value, visited),
+                        JsShapePropertyFlags.Open
+                    );
                 }
             }
         }

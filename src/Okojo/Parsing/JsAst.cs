@@ -14,7 +14,13 @@ public sealed class JsParseException : Exception
     public int Line { get; }
     public int Column { get; }
 
-    private static string FormatMessage(string message, int position, string? source, out int line, out int column)
+    private static string FormatMessage(
+        string message,
+        int position,
+        string? source,
+        out int line,
+        out int column
+    )
     {
         if (string.IsNullOrEmpty(source))
         {
@@ -40,29 +46,28 @@ public sealed class JsProgram(
     bool hasTopLevelAwait = false,
     string? sourceText = null,
     string? sourcePath = null,
-    JsIdentifierTable? identifierTable = null) : JsNode
+    JsIdentifierTable? identifierTable = null
+) : JsNode
 {
     public IReadOnlyList<JsStatement> Statements { get; } = statements;
     public bool StrictDeclared { get; } = strictDeclared;
-    public IReadOnlyList<string> TopLevelLexicalNames { get; } = topLevelLexicalNames ?? Array.Empty<string>();
+    public IReadOnlyList<string> TopLevelLexicalNames { get; } =
+        topLevelLexicalNames ?? Array.Empty<string>();
     public bool HasTopLevelAwait { get; } = hasTopLevelAwait;
     public string? SourceText { get; } = sourceText;
     public string? SourcePath { get; } = sourcePath;
     public JsIdentifierTable? IdentifierTable { get; } = identifierTable;
 }
 
-public abstract class JsStatement : JsNode
-{
-}
+public abstract class JsStatement : JsNode { }
 
-public sealed class JsEmptyStatement : JsStatement
-{
-}
+public sealed class JsEmptyStatement : JsStatement { }
 
 public sealed class JsBlockStatement(
     IReadOnlyList<JsStatement> statements,
     bool strictDeclared,
-    bool bodyMayCreateNestedFunction = false) : JsStatement
+    bool bodyMayCreateNestedFunction = false
+) : JsStatement
 {
     public IReadOnlyList<JsStatement> Statements { get; } = statements;
     public bool StrictDeclared { get; } = strictDeclared;
@@ -79,8 +84,8 @@ public sealed class JsVariableDeclarationStatement(
     JsVariableDeclarationKind kind,
     IReadOnlyList<JsVariableDeclarator> declarators,
     JsExpression? bindingPattern = null,
-    JsExpression? bindingInitializer = null)
-    : JsStatement
+    JsExpression? bindingInitializer = null
+) : JsStatement
 {
     public JsVariableDeclarationKind Kind { get; } = kind;
     public IReadOnlyList<JsVariableDeclarator> Declarators { get; } = declarators;
@@ -90,8 +95,8 @@ public sealed class JsVariableDeclarationStatement(
 
 public sealed class JsEmptyObjectBindingDeclarationStatement(
     JsVariableDeclarationKind kind,
-    JsExpression initializer)
-    : JsStatement
+    JsExpression initializer
+) : JsStatement
 {
     public JsVariableDeclarationKind Kind { get; } = kind;
     public JsExpression Initializer { get; } = initializer;
@@ -103,7 +108,7 @@ public enum JsVariableDeclarationKind
     Let,
     Const,
     Using,
-    AwaitUsing
+    AwaitUsing,
 }
 
 public static class JsVariableDeclarationKindExtensions
@@ -115,7 +120,10 @@ public static class JsVariableDeclarationKindExtensions
 
     public static bool IsConstLike(this JsVariableDeclarationKind kind)
     {
-        return kind is JsVariableDeclarationKind.Const or JsVariableDeclarationKind.Using or JsVariableDeclarationKind.AwaitUsing;
+        return kind
+            is JsVariableDeclarationKind.Const
+                or JsVariableDeclarationKind.Using
+                or JsVariableDeclarationKind.AwaitUsing;
     }
 
     public static bool IsUsingLike(this JsVariableDeclarationKind kind)
@@ -124,7 +132,8 @@ public static class JsVariableDeclarationKindExtensions
     }
 }
 
-public sealed class JsVariableDeclarator(string name, JsExpression? initializer, int nameId = -1) : JsNode
+public sealed class JsVariableDeclarator(string name, JsExpression? initializer, int nameId = -1)
+    : JsNode
 {
     public string Name { get; } = name;
     public JsExpression? Initializer { get; } = initializer;
@@ -159,8 +168,8 @@ public sealed class JsFunctionDeclaration(
     bool hasDuplicateParameters = false,
     int restParameterIndex = -1,
     int nameId = -1,
-    IReadOnlyList<int>? parameterIds = null)
-    : JsStatement
+    IReadOnlyList<int>? parameterIds = null
+) : JsStatement
 {
     public string Name { get; } = name;
     public int NameId { get; } = nameId;
@@ -180,11 +189,15 @@ public sealed class JsFunctionDeclaration(
         parameterPatterns ?? JsFunctionExpression.CreateDefaultInitializers(parameters.Count);
 
     public IReadOnlyList<int> ParameterPositions { get; } =
-        parameterPositions ?? JsFunctionExpression.CreateDefaultParameterPositions(parameters.Count);
+        parameterPositions
+        ?? JsFunctionExpression.CreateDefaultParameterPositions(parameters.Count);
 
     public IReadOnlyList<JsFormalParameterBindingKind> ParameterBindingKinds { get; } =
-        parameterBindingKinds ??
-        JsFunctionExpression.CreateDefaultParameterBindingKinds(parameters.Count, restParameterIndex);
+        parameterBindingKinds
+        ?? JsFunctionExpression.CreateDefaultParameterBindingKinds(
+            parameters.Count,
+            restParameterIndex
+        );
 
     public int FunctionLength { get; } = functionLength ?? parameters.Count;
     public bool HasSimpleParameterList { get; } = hasSimpleParameterList;
@@ -192,7 +205,11 @@ public sealed class JsFunctionDeclaration(
     public int RestParameterIndex { get; } = restParameterIndex;
 }
 
-public sealed class JsClassDeclaration(string name, JsClassExpression classExpression, int nameId = -1) : JsStatement
+public sealed class JsClassDeclaration(
+    string name,
+    JsClassExpression classExpression,
+    int nameId = -1
+) : JsStatement
 {
     public string Name { get; } = name;
     public JsClassExpression ClassExpression { get; } = classExpression;
@@ -205,14 +222,16 @@ public sealed class JsImportDeclaration(
     IReadOnlyList<JsImportSpecifier> namedBindings,
     string source,
     bool sideEffectOnly,
-    IReadOnlyList<JsImportAttribute>? attributes = null) : JsStatement
+    IReadOnlyList<JsImportAttribute>? attributes = null
+) : JsStatement
 {
     public string? DefaultBinding { get; } = defaultBinding;
     public string? NamespaceBinding { get; } = namespaceBinding;
     public IReadOnlyList<JsImportSpecifier> NamedBindings { get; } = namedBindings;
     public string Source { get; } = source;
     public bool SideEffectOnly { get; } = sideEffectOnly;
-    public IReadOnlyList<JsImportAttribute> Attributes { get; } = attributes ?? Array.Empty<JsImportAttribute>();
+    public IReadOnlyList<JsImportAttribute> Attributes { get; } =
+        attributes ?? Array.Empty<JsImportAttribute>();
 }
 
 public sealed class JsImportSpecifier(string importedName, string localName) : JsNode
@@ -226,7 +245,8 @@ public sealed class JsExportDeclarationStatement(JsStatement declaration) : JsSt
     public JsStatement Declaration { get; } = declaration;
 }
 
-public sealed class JsExportDefaultDeclaration(JsExpression expression, bool isDeclaration = false) : JsStatement
+public sealed class JsExportDefaultDeclaration(JsExpression expression, bool isDeclaration = false)
+    : JsStatement
 {
     public JsExpression Expression { get; } = expression;
     public bool IsDeclaration { get; } = isDeclaration;
@@ -235,11 +255,13 @@ public sealed class JsExportDefaultDeclaration(JsExpression expression, bool isD
 public sealed class JsExportNamedDeclaration(
     IReadOnlyList<JsExportSpecifier> specifiers,
     string? source = null,
-    IReadOnlyList<JsImportAttribute>? attributes = null) : JsStatement
+    IReadOnlyList<JsImportAttribute>? attributes = null
+) : JsStatement
 {
     public IReadOnlyList<JsExportSpecifier> Specifiers { get; } = specifiers;
     public string? Source { get; } = source;
-    public IReadOnlyList<JsImportAttribute> Attributes { get; } = attributes ?? Array.Empty<JsImportAttribute>();
+    public IReadOnlyList<JsImportAttribute> Attributes { get; } =
+        attributes ?? Array.Empty<JsImportAttribute>();
 }
 
 public sealed class JsExportSpecifier(string localName, string exportedName) : JsNode
@@ -251,11 +273,13 @@ public sealed class JsExportSpecifier(string localName, string exportedName) : J
 public sealed class JsExportAllDeclaration(
     string source,
     string? exportedName = null,
-    IReadOnlyList<JsImportAttribute>? attributes = null) : JsStatement
+    IReadOnlyList<JsImportAttribute>? attributes = null
+) : JsStatement
 {
     public string Source { get; } = source;
     public string? ExportedName { get; } = exportedName;
-    public IReadOnlyList<JsImportAttribute> Attributes { get; } = attributes ?? Array.Empty<JsImportAttribute>();
+    public IReadOnlyList<JsImportAttribute> Attributes { get; } =
+        attributes ?? Array.Empty<JsImportAttribute>();
 }
 
 public sealed class JsImportAttribute(string key, string value) : JsNode
@@ -281,8 +305,8 @@ public sealed class JsForStatement(
     JsExpression? test,
     JsExpression? update,
     JsStatement body,
-    bool bodyMayCreateNestedFunction = false)
-    : JsStatement
+    bool bodyMayCreateNestedFunction = false
+) : JsStatement
 {
     public JsNode? Init { get; } = init;
     public JsExpression? Test { get; } = test;
@@ -297,8 +321,8 @@ public sealed class JsForInOfStatement(
     bool isOf,
     JsStatement body,
     bool isAwait = false,
-    bool bodyMayCreateNestedFunction = false)
-    : JsStatement
+    bool bodyMayCreateNestedFunction = false
+) : JsStatement
 {
     public JsNode Left { get; } = left;
     public JsExpression Right { get; } = right;
@@ -329,9 +353,7 @@ public sealed class JsThrowStatement(JsExpression argument) : JsStatement
     public JsExpression Argument { get; } = argument;
 }
 
-public sealed class JsDebuggerStatement : JsStatement
-{
-}
+public sealed class JsDebuggerStatement : JsStatement { }
 
 public sealed class JsSwitchStatement(JsExpression discriminant, IReadOnlyList<JsSwitchCase> cases)
     : JsStatement
@@ -346,8 +368,11 @@ public sealed class JsSwitchCase(JsExpression? test, IReadOnlyList<JsStatement> 
     public IReadOnlyList<JsStatement> Consequent { get; } = consequent;
 }
 
-public sealed class JsTryStatement(JsBlockStatement block, JsCatchClause? handler, JsBlockStatement? finalizer)
-    : JsStatement
+public sealed class JsTryStatement(
+    JsBlockStatement block,
+    JsCatchClause? handler,
+    JsBlockStatement? finalizer
+) : JsStatement
 {
     public JsBlockStatement Block { get; } = block;
     public JsCatchClause? Handler { get; } = handler;
@@ -364,7 +389,8 @@ public sealed class JsCatchClause(
     string? paramName,
     JsBlockStatement body,
     JsExpression? bindingPattern = null,
-    IReadOnlyList<JsVariableDeclarator>? declarators = null) : JsNode
+    IReadOnlyList<JsVariableDeclarator>? declarators = null
+) : JsNode
 {
     public string? ParamName { get; } = paramName;
     public JsBlockStatement Body { get; } = body;
@@ -374,9 +400,7 @@ public sealed class JsCatchClause(
         declarators ?? Array.Empty<JsVariableDeclarator>();
 }
 
-public abstract class JsExpression : JsNode
-{
-}
+public abstract class JsExpression : JsNode { }
 
 public sealed class JsIdentifierExpression(string name, int nameId = -1) : JsExpression
 {
@@ -384,19 +408,14 @@ public sealed class JsIdentifierExpression(string name, int nameId = -1) : JsExp
     public int NameId { get; } = nameId;
 }
 
-public sealed class JsThisExpression : JsExpression
-{
-}
+public sealed class JsThisExpression : JsExpression { }
 
-public sealed class JsSuperExpression : JsExpression
-{
-}
+public sealed class JsSuperExpression : JsExpression { }
 
 public sealed class JsLiteralExpression(object? value, string text) : JsExpression
 {
-    public JsLiteralExpression(string text) : this(text, text)
-    {
-    }
+    public JsLiteralExpression(string text)
+        : this(text, text) { }
 
     public object? Value { get; } = value;
     public string Text { get; } = text;
@@ -416,10 +435,11 @@ public enum JsUnaryOperator
     BitwiseNot,
     Typeof,
     Void,
-    Delete
+    Delete,
 }
 
-public sealed class JsUnaryExpression(JsUnaryOperator @operator, JsExpression argument) : JsExpression
+public sealed class JsUnaryExpression(JsUnaryOperator @operator, JsExpression argument)
+    : JsExpression
 {
     public JsUnaryOperator Operator { get; } = @operator;
     public JsExpression Argument { get; } = argument;
@@ -451,10 +471,14 @@ public enum JsBinaryOperator
     Multiply,
     Divide,
     Modulo,
-    Exponentiate
+    Exponentiate,
 }
 
-public sealed class JsBinaryExpression(JsBinaryOperator @operator, JsExpression left, JsExpression right) : JsExpression
+public sealed class JsBinaryExpression(
+    JsBinaryOperator @operator,
+    JsExpression left,
+    JsExpression right
+) : JsExpression
 {
     public JsBinaryOperator Operator { get; } = @operator;
     public JsExpression Left { get; } = left;
@@ -478,14 +502,15 @@ public enum JsAssignmentOperator
     BitwiseXorAssign,
     LogicalAndAssign,
     LogicalOrAssign,
-    NullishCoalescingAssign
+    NullishCoalescingAssign,
 }
 
 public sealed class JsAssignmentExpression(
     JsAssignmentOperator @operator,
     JsExpression left,
     JsExpression right,
-    bool isParenthesizedLeftHandSide = false) : JsExpression
+    bool isParenthesizedLeftHandSide = false
+) : JsExpression
 {
     public JsAssignmentOperator Operator { get; } = @operator;
     public JsExpression Left { get; } = left;
@@ -493,9 +518,14 @@ public sealed class JsAssignmentExpression(
     public bool IsParenthesizedLeftHandSide { get; } = isParenthesizedLeftHandSide;
 }
 
-public sealed class JsCallExpression(JsExpression callee, IReadOnlyList<JsExpression> arguments) : JsExpression
+public sealed class JsCallExpression(JsExpression callee, IReadOnlyList<JsExpression> arguments)
+    : JsExpression
 {
-    public JsCallExpression(JsExpression callee, IReadOnlyList<JsExpression> arguments, bool isOptionalChainSegment)
+    public JsCallExpression(
+        JsExpression callee,
+        IReadOnlyList<JsExpression> arguments,
+        bool isOptionalChainSegment
+    )
         : this(callee, arguments)
     {
         IsOptionalChainSegment = isOptionalChainSegment;
@@ -511,22 +541,37 @@ public sealed class JsSpreadExpression(JsExpression argument) : JsExpression
     public JsExpression Argument { get; } = argument;
 }
 
-public sealed class JsIntrinsicCallExpression(ushort intrinsicId, IReadOnlyList<JsExpression> arguments) : JsExpression
+public sealed class JsIntrinsicCallExpression(
+    ushort intrinsicId,
+    IReadOnlyList<JsExpression> arguments
+) : JsExpression
 {
     public ushort IntrinsicId { get; } = intrinsicId;
     public IReadOnlyList<JsExpression> Arguments { get; } = arguments;
 }
 
-public sealed class JsMemberExpression(JsExpression o, JsExpression property, bool isComputed) : JsExpression
+public sealed class JsMemberExpression(JsExpression o, JsExpression property, bool isComputed)
+    : JsExpression
 {
-    public JsMemberExpression(JsExpression o, JsExpression property, bool isComputed, bool isPrivate) : this(o,
-        property, isComputed)
+    public JsMemberExpression(
+        JsExpression o,
+        JsExpression property,
+        bool isComputed,
+        bool isPrivate
+    )
+        : this(o, property, isComputed)
     {
         IsPrivate = isPrivate;
     }
 
-    public JsMemberExpression(JsExpression o, JsExpression property, bool isComputed, bool isPrivate,
-        bool isOptionalChainSegment) : this(o, property, isComputed, isPrivate)
+    public JsMemberExpression(
+        JsExpression o,
+        JsExpression property,
+        bool isComputed,
+        bool isPrivate,
+        bool isOptionalChainSegment
+    )
+        : this(o, property, isComputed, isPrivate)
     {
         IsOptionalChainSegment = isOptionalChainSegment;
     }
@@ -544,8 +589,11 @@ public sealed class JsPrivateIdentifierExpression(string name, int nameId = -1) 
     public int NameId { get; } = nameId;
 }
 
-public sealed class JsConditionalExpression(JsExpression test, JsExpression consequent, JsExpression alternate)
-    : JsExpression
+public sealed class JsConditionalExpression(
+    JsExpression test,
+    JsExpression consequent,
+    JsExpression alternate
+) : JsExpression
 {
     public JsExpression Test { get; } = test;
     public JsExpression Consequent { get; } = consequent;
@@ -560,17 +608,22 @@ public sealed class JsSequenceExpression(IReadOnlyList<JsExpression> expressions
 public enum JsUpdateOperator
 {
     Increment,
-    Decrement
+    Decrement,
 }
 
-public sealed class JsUpdateExpression(JsUpdateOperator @operator, JsExpression argument, bool isPrefix) : JsExpression
+public sealed class JsUpdateExpression(
+    JsUpdateOperator @operator,
+    JsExpression argument,
+    bool isPrefix
+) : JsExpression
 {
     public JsUpdateOperator Operator { get; } = @operator;
     public JsExpression Argument { get; } = argument;
     public bool IsPrefix { get; } = isPrefix;
 }
 
-public sealed class JsNewExpression(JsExpression callee, IReadOnlyList<JsExpression> arguments) : JsExpression
+public sealed class JsNewExpression(JsExpression callee, IReadOnlyList<JsExpression> arguments)
+    : JsExpression
 {
     public JsExpression Callee { get; } = callee;
     public IReadOnlyList<JsExpression> Arguments { get; } = arguments;
@@ -580,7 +633,8 @@ public sealed class JsNewTargetExpression : JsExpression;
 
 public sealed class JsImportMetaExpression : JsExpression;
 
-public sealed class JsImportCallExpression(JsExpression argument, JsExpression? options = null) : JsExpression
+public sealed class JsImportCallExpression(JsExpression argument, JsExpression? options = null)
+    : JsExpression
 {
     public JsExpression Argument { get; } = argument;
     public JsExpression? Options { get; } = options;
@@ -603,8 +657,8 @@ public sealed class JsFunctionExpression(
     bool hasDuplicateParameters = false,
     int restParameterIndex = -1,
     int nameId = -1,
-    IReadOnlyList<int>? parameterIds = null)
-    : JsExpression
+    IReadOnlyList<int>? parameterIds = null
+) : JsExpression
 {
     public string? Name { get; } = name;
     public int NameId { get; } = nameId;
@@ -628,7 +682,8 @@ public sealed class JsFunctionExpression(
         parameterPositions ?? CreateDefaultParameterPositions(parameters.Count);
 
     public IReadOnlyList<JsFormalParameterBindingKind> ParameterBindingKinds { get; } =
-        parameterBindingKinds ?? CreateDefaultParameterBindingKinds(parameters.Count, restParameterIndex);
+        parameterBindingKinds
+        ?? CreateDefaultParameterBindingKinds(parameters.Count, restParameterIndex);
 
     public int FunctionLength { get; } = functionLength ?? parameters.Count;
     public bool HasSimpleParameterList { get; } = hasSimpleParameterList;
@@ -638,14 +693,16 @@ public sealed class JsFunctionExpression(
 
     internal static IReadOnlyList<JsExpression?> CreateDefaultInitializers(int count)
     {
-        if (count <= 0) return Array.Empty<JsExpression?>();
+        if (count <= 0)
+            return Array.Empty<JsExpression?>();
 
         return new JsExpression?[count];
     }
 
     internal static IReadOnlyList<int> CreateDefaultParameterPositions(int count)
     {
-        if (count <= 0) return Array.Empty<int>();
+        if (count <= 0)
+            return Array.Empty<int>();
 
         var positions = new int[count];
         Array.Fill(positions, -1);
@@ -654,21 +711,26 @@ public sealed class JsFunctionExpression(
 
     internal static IReadOnlyList<int> CreateDefaultParameterIds(int count)
     {
-        if (count <= 0) return Array.Empty<int>();
+        if (count <= 0)
+            return Array.Empty<int>();
 
         var ids = new int[count];
         Array.Fill(ids, -1);
         return ids;
     }
 
-    internal static IReadOnlyList<JsFormalParameterBindingKind> CreateDefaultParameterBindingKinds(int count,
-        int restParameterIndex = -1)
+    internal static IReadOnlyList<JsFormalParameterBindingKind> CreateDefaultParameterBindingKinds(
+        int count,
+        int restParameterIndex = -1
+    )
     {
-        if (count <= 0) return Array.Empty<JsFormalParameterBindingKind>();
+        if (count <= 0)
+            return Array.Empty<JsFormalParameterBindingKind>();
 
         var kinds = new JsFormalParameterBindingKind[count];
         Array.Fill(kinds, JsFormalParameterBindingKind.Plain);
-        if ((uint)restParameterIndex < (uint)count) kinds[restParameterIndex] = JsFormalParameterBindingKind.Rest;
+        if ((uint)restParameterIndex < (uint)count)
+            kinds[restParameterIndex] = JsFormalParameterBindingKind.Rest;
 
         return kinds;
     }
@@ -685,7 +747,8 @@ public sealed class JsAwaitExpression(JsExpression argument) : JsExpression
     public JsExpression Argument { get; } = argument;
 }
 
-public sealed class JsParameterInitializerExpression(JsExpression expression, int parameterIndex) : JsExpression
+public sealed class JsParameterInitializerExpression(JsExpression expression, int parameterIndex)
+    : JsExpression
 {
     public JsExpression Expression { get; } = expression;
     public int ParameterIndex { get; } = parameterIndex;
@@ -697,12 +760,14 @@ public sealed class JsClassExpression(
     IReadOnlyList<JsExpression>? decorators = null,
     bool hasExtends = false,
     JsExpression? extendsExpression = null,
-    int nameId = -1) : JsExpression
+    int nameId = -1
+) : JsExpression
 {
     public string? Name { get; } = name;
     public int NameId { get; } = nameId;
     public IReadOnlyList<JsClassElement> Elements { get; } = elements;
-    public IReadOnlyList<JsExpression> Decorators { get; } = decorators ?? Array.Empty<JsExpression>();
+    public IReadOnlyList<JsExpression> Decorators { get; } =
+        decorators ?? Array.Empty<JsExpression>();
     public bool HasExtends { get; } = hasExtends;
     public JsExpression? ExtendsExpression { get; } = extendsExpression;
     public int EndPosition { get; set; }
@@ -716,7 +781,8 @@ public sealed class JsClassElement(
     JsExpression? computedKey = null,
     JsExpression? fieldInitializer = null,
     JsBlockStatement? staticBlock = null,
-    bool isPrivate = false) : JsNode
+    bool isPrivate = false
+) : JsNode
 {
     public string? Key { get; } = key;
     public JsClassElementKind Kind { get; } = kind;
@@ -736,7 +802,7 @@ public enum JsClassElementKind
     Getter,
     Setter,
     Field,
-    StaticBlock
+    StaticBlock,
 }
 
 public sealed class JsArrayExpression(IReadOnlyList<JsExpression?> elements) : JsExpression
@@ -747,7 +813,8 @@ public sealed class JsArrayExpression(IReadOnlyList<JsExpression?> elements) : J
 public sealed class JsTemplateExpression(
     IReadOnlyList<string?> quasis,
     IReadOnlyList<JsExpression> expressions,
-    IReadOnlyList<string>? rawQuasis = null) : JsExpression
+    IReadOnlyList<string>? rawQuasis = null
+) : JsExpression
 {
     public IReadOnlyList<string?> Quasis { get; } = quasis;
     public IReadOnlyList<JsExpression> Expressions { get; } = expressions;
@@ -762,9 +829,8 @@ public sealed class JsTemplateExpression(
     }
 }
 
-public sealed class JsTaggedTemplateExpression(
-    JsExpression tag,
-    JsTemplateExpression template) : JsExpression
+public sealed class JsTaggedTemplateExpression(JsExpression tag, JsTemplateExpression template)
+    : JsExpression
 {
     public JsExpression Tag { get; } = tag;
     public JsTemplateExpression Template { get; } = template;
@@ -779,8 +845,8 @@ public sealed class JsObjectProperty(
     string key,
     JsExpression value,
     JsObjectPropertyKind kind = JsObjectPropertyKind.Data,
-    JsExpression? computedKey = null)
-    : JsNode
+    JsExpression? computedKey = null
+) : JsNode
 {
     public string Key { get; } = key;
     public JsExpression Value { get; } = value;
@@ -794,5 +860,5 @@ public enum JsObjectPropertyKind
     Data,
     Getter,
     Setter,
-    Spread
+    Spread,
 }

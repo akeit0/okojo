@@ -10,7 +10,8 @@ internal static class ArraySortHelpers
         Func<JsRealm, JsObject, long, bool> hasIndex,
         GetIndexDelegate getIndex,
         SetIndexDelegate setIndexOrThrow,
-        Action<JsRealm, JsObject, long> deleteIndexOrThrow)
+        Action<JsRealm, JsObject, long> deleteIndexOrThrow
+    )
     {
         var definedElements = new List<JsValue>();
         long undefinedCount = 0;
@@ -43,14 +44,25 @@ internal static class ArraySortHelpers
             deleteIndexOrThrow(realm, obj, writeIndex);
     }
 
-    private static void StableSortDefinedElements(JsRealm realm, List<JsValue> values, JsFunction? compareFn)
+    private static void StableSortDefinedElements(
+        JsRealm realm,
+        List<JsValue> values,
+        JsFunction? compareFn
+    )
     {
         if (values.Count <= 1)
             return;
 
         var buffer = new JsValue[values.Count];
-        StableMergeSort(values, buffer, 0, values.Count, static (left, right, state) =>
-            CompareArraySortValues(state.realm, state.compareFn, left, right), (realm, compareFn));
+        StableMergeSort(
+            values,
+            buffer,
+            0,
+            values.Count,
+            static (left, right, state) =>
+                CompareArraySortValues(state.realm, state.compareFn, left, right),
+            (realm, compareFn)
+        );
     }
 
     private static void StableMergeSort<T, TState>(
@@ -59,7 +71,8 @@ internal static class ArraySortHelpers
         int start,
         int end,
         Func<T, T, TState, int> compare,
-        TState state)
+        TState state
+    )
     {
         if (end - start <= 1)
             return;
@@ -88,14 +101,19 @@ internal static class ArraySortHelpers
             values[i] = buffer[i];
     }
 
-    private static int CompareArraySortValues(JsRealm realm, JsFunction? compareFn, in JsValue left,
-        in JsValue right)
+    private static int CompareArraySortValues(
+        JsRealm realm,
+        JsFunction? compareFn,
+        in JsValue left,
+        in JsValue right
+    )
     {
         if (compareFn is not null)
         {
             Span<JsValue> args = [left, right];
-            var compareResult =
-                realm.ToNumberSlowPath(realm.InvokeFunction(compareFn, JsValue.Undefined, args));
+            var compareResult = realm.ToNumberSlowPath(
+                realm.InvokeFunction(compareFn, JsValue.Undefined, args)
+            );
             if (double.IsNaN(compareResult) || compareResult == 0)
                 return 0;
             return compareResult < 0 ? -1 : 1;
@@ -106,7 +124,12 @@ internal static class ArraySortHelpers
         return string.CompareOrdinal(leftString, rightString);
     }
 
-    internal delegate void GetIndexDelegate(JsRealm realm, JsObject obj, long index, out JsValue value);
+    internal delegate void GetIndexDelegate(
+        JsRealm realm,
+        JsObject obj,
+        long index,
+        out JsValue value
+    );
 
     internal delegate void SetIndexDelegate(JsRealm realm, JsObject obj, long index, JsValue value);
 }

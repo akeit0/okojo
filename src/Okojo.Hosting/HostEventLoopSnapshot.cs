@@ -6,4 +6,5 @@ namespace Okojo.Hosting;
 public sealed record HostEventLoopSnapshot(
     IReadOnlyList<HostTaskQueueSnapshot> Queues,
     int PendingDelayedCount,
-    DateTimeOffset? NextDelayedDueAt);
+    DateTimeOffset? NextDelayedDueAt
+);

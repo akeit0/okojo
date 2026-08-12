@@ -28,7 +28,12 @@ public sealed class JsGlobalInstaller
         return this;
     }
 
-    public JsGlobalInstaller Function(string name, int length, JsHostFunctionBody body, bool isConstructor = false)
+    public JsGlobalInstaller Function(
+        string name,
+        int length,
+        JsHostFunctionBody body,
+        bool isConstructor = false
+    )
     {
         ArgumentException.ThrowIfNullOrEmpty(name);
         ArgumentNullException.ThrowIfNull(body);
@@ -37,7 +42,12 @@ public sealed class JsGlobalInstaller
         return this;
     }
 
-    public JsGlobalInstaller Function(string name, int length, Func<CallInfo, JsValue> body, bool isConstructor = false)
+    public JsGlobalInstaller Function(
+        string name,
+        int length,
+        Func<CallInfo, JsValue> body,
+        bool isConstructor = false
+    )
     {
         ArgumentException.ThrowIfNullOrEmpty(name);
         ArgumentNullException.ThrowIfNull(body);

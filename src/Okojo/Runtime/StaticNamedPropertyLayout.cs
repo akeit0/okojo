@@ -5,7 +5,7 @@ public enum NamedPropertyLayoutKind : byte
     LinearStatic,
     MapStatic,
     DynamicLinear,
-    DynamicMap
+    DynamicMap,
 }
 
 public sealed class StaticNamedPropertyLayout : NamedPropertyLayout
@@ -16,11 +16,17 @@ public sealed class StaticNamedPropertyLayout : NamedPropertyLayout
     private readonly object transitionLock = new();
     private Dictionary<ulong, StaticNamedPropertyLayout>? transitions;
 
-    internal StaticNamedPropertyLayout(JsRealm owner, Dictionary<int, SlotInfo> slotInfoByAtom,
-        int storageSlotCount = 0)
-        : base(owner, slotInfoByAtom.Count <= LinearEntryLimit
-            ? NamedPropertyLayoutKind.LinearStatic
-            : NamedPropertyLayoutKind.MapStatic)
+    internal StaticNamedPropertyLayout(
+        JsRealm owner,
+        Dictionary<int, SlotInfo> slotInfoByAtom,
+        int storageSlotCount = 0
+    )
+        : base(
+            owner,
+            slotInfoByAtom.Count <= LinearEntryLimit
+                ? NamedPropertyLayoutKind.LinearStatic
+                : NamedPropertyLayoutKind.MapStatic
+        )
     {
         StorageSlotCount = storageSlotCount;
         if (slotInfoByAtom.Count <= LinearEntryLimit)
@@ -36,8 +42,16 @@ public sealed class StaticNamedPropertyLayout : NamedPropertyLayout
         UnsafeStaticMap = this.slotInfoByAtom;
     }
 
-    private StaticNamedPropertyLayout(JsRealm owner, Entry[] entries, int storageSlotCount, bool isMap)
-        : base(owner, isMap ? NamedPropertyLayoutKind.MapStatic : NamedPropertyLayoutKind.LinearStatic)
+    private StaticNamedPropertyLayout(
+        JsRealm owner,
+        Entry[] entries,
+        int storageSlotCount,
+        bool isMap
+    )
+        : base(
+            owner,
+            isMap ? NamedPropertyLayoutKind.MapStatic : NamedPropertyLayoutKind.LinearStatic
+        )
     {
         Entries = entries;
         LiveCount = entries.Length;
@@ -64,7 +78,9 @@ public sealed class StaticNamedPropertyLayout : NamedPropertyLayout
         return base.EnumerateSlotInfos();
     }
 
-    internal StaticNamedPropertyLayout RewriteFlags(Func<JsShapePropertyFlags, JsShapePropertyFlags> mapFlags)
+    internal StaticNamedPropertyLayout RewriteFlags(
+        Func<JsShapePropertyFlags, JsShapePropertyFlags> mapFlags
+    )
     {
         if (Entries.Length == 0)
             return this;
@@ -73,15 +89,20 @@ public sealed class StaticNamedPropertyLayout : NamedPropertyLayout
         for (var i = 0; i < Entries.Length; i++)
         {
             ref readonly var entry = ref Entries[i];
-            nextEntries[i] = new(entry.Atom, new(entry.SlotInfo.Slot, mapFlags(entry.SlotInfo.Flags)));
+            nextEntries[i] = new(
+                entry.Atom,
+                new(entry.SlotInfo.Slot, mapFlags(entry.SlotInfo.Flags))
+            );
         }
 
         return CreateFromEntries(Owner, nextEntries, StorageSlotCount);
     }
 
-    internal StaticNamedPropertyLayout RewriteFlags(int atom,
+    internal StaticNamedPropertyLayout RewriteFlags(
+        int atom,
         Func<JsShapePropertyFlags, JsShapePropertyFlags, JsShapePropertyFlags> mapFlags,
-        JsShapePropertyFlags newFlags)
+        JsShapePropertyFlags newFlags
+    )
     {
         if (Entries.Length == 0)
             return this;
@@ -90,7 +111,10 @@ public sealed class StaticNamedPropertyLayout : NamedPropertyLayout
         for (var i = 0; i < Entries.Length; i++)
         {
             ref readonly var entry = ref Entries[i];
-            var flags = entry.Atom == atom ? mapFlags(entry.SlotInfo.Flags, newFlags) : entry.SlotInfo.Flags;
+            var flags =
+                entry.Atom == atom
+                    ? mapFlags(entry.SlotInfo.Flags, newFlags)
+                    : entry.SlotInfo.Flags;
             nextEntries[i] = new(entry.Atom, new(entry.SlotInfo.Slot, flags));
         }
 
@@ -110,13 +134,19 @@ public sealed class StaticNamedPropertyLayout : NamedPropertyLayout
 
             var flags = entry.SlotInfo.Flags;
             nextEntries[nextIndex++] = new(entry.Atom, new(slotCursor, flags));
-            slotCursor += (flags & JsShapePropertyFlags.BothAccessor) == JsShapePropertyFlags.BothAccessor ? 2 : 1;
+            slotCursor +=
+                (flags & JsShapePropertyFlags.BothAccessor) == JsShapePropertyFlags.BothAccessor
+                    ? 2
+                    : 1;
         }
 
         return CreateFromEntries(Owner, nextEntries, slotCursor);
     }
 
-    internal StaticNamedPropertyLayout RebuildReplacingProperty(int targetAtom, JsShapePropertyFlags targetFlags)
+    internal StaticNamedPropertyLayout RebuildReplacingProperty(
+        int targetAtom,
+        JsShapePropertyFlags targetFlags
+    )
     {
         var nextEntries = new Entry[Entries.Length];
         var slotCursor = 0;
@@ -125,13 +155,18 @@ public sealed class StaticNamedPropertyLayout : NamedPropertyLayout
             ref readonly var entry = ref Entries[i];
             var flags = entry.Atom == targetAtom ? targetFlags : entry.SlotInfo.Flags;
             nextEntries[i] = new(entry.Atom, new(slotCursor, flags));
-            slotCursor += (flags & JsShapePropertyFlags.BothAccessor) == JsShapePropertyFlags.BothAccessor ? 2 : 1;
+            slotCursor +=
+                (flags & JsShapePropertyFlags.BothAccessor) == JsShapePropertyFlags.BothAccessor
+                    ? 2
+                    : 1;
         }
 
         return CreateFromEntries(Owner, nextEntries, slotCursor);
     }
 
-    internal StaticNamedPropertyLayout AppendNoCollision(ReadOnlySpan<PropertyDefinition> definitions)
+    internal StaticNamedPropertyLayout AppendNoCollision(
+        ReadOnlySpan<PropertyDefinition> definitions
+    )
     {
         if (definitions.Length == 0)
             return this;
@@ -143,10 +178,11 @@ public sealed class StaticNamedPropertyLayout : NamedPropertyLayout
         {
             ref readonly var entry = ref Entries[i];
             nextEntries[nextIndex++] = new(entry.Atom, new(slotCursor, entry.SlotInfo.Flags));
-            slotCursor += (entry.SlotInfo.Flags & JsShapePropertyFlags.BothAccessor) ==
-                          JsShapePropertyFlags.BothAccessor
-                ? 2
-                : 1;
+            slotCursor +=
+                (entry.SlotInfo.Flags & JsShapePropertyFlags.BothAccessor)
+                == JsShapePropertyFlags.BothAccessor
+                    ? 2
+                    : 1;
         }
 
         for (var i = 0; i < definitions.Length; i++)
@@ -178,8 +214,11 @@ public sealed class StaticNamedPropertyLayout : NamedPropertyLayout
         return next;
     }
 
-    public StaticNamedPropertyLayout GetOrAddTransition(int atom, JsShapePropertyFlags flags,
-        out SlotInfo slotInfo)
+    public StaticNamedPropertyLayout GetOrAddTransition(
+        int atom,
+        JsShapePropertyFlags flags,
+        out SlotInfo slotInfo
+    )
     {
         if (TryGetSlotInfo(atom, out slotInfo))
             return this;
@@ -201,14 +240,23 @@ public sealed class StaticNamedPropertyLayout : NamedPropertyLayout
                 return existing;
             }
 
-            var width = (flags & JsShapePropertyFlags.BothAccessor) == JsShapePropertyFlags.BothAccessor ? 2 : 1;
+            var width =
+                (flags & JsShapePropertyFlags.BothAccessor) == JsShapePropertyFlags.BothAccessor
+                    ? 2
+                    : 1;
             slotInfo = new(StorageSlotCount, flags);
             var nextEntries = new Entry[Entries.Length + 1];
-            if (Entries.Length != 0) Entries.AsSpan().CopyTo(nextEntries);
+            if (Entries.Length != 0)
+                Entries.AsSpan().CopyTo(nextEntries);
 
             nextEntries[Entries.Length] = new(atom, slotInfo);
             var nextIsMap = nextEntries.Length > LinearEntryLimit;
-            var next = new StaticNamedPropertyLayout(Owner, nextEntries, StorageSlotCount + width, nextIsMap);
+            var next = new StaticNamedPropertyLayout(
+                Owner,
+                nextEntries,
+                StorageSlotCount + width,
+                nextIsMap
+            );
 
             this.transitions.Add(transitionKey, next);
             return next;
@@ -220,8 +268,11 @@ public sealed class StaticNamedPropertyLayout : NamedPropertyLayout
         return ((ulong)(byte)flags << 32) | (uint)atom;
     }
 
-    private static StaticNamedPropertyLayout CreateFromEntries(JsRealm owner, Entry[] entries,
-        int storageSlotCount)
+    private static StaticNamedPropertyLayout CreateFromEntries(
+        JsRealm owner,
+        Entry[] entries,
+        int storageSlotCount
+    )
     {
         var isMap = entries.Length > LinearEntryLimit;
         return new(owner, entries, storageSlotCount, isMap);

@@ -2,7 +2,11 @@ namespace Okojo.Runtime;
 
 public partial class Intrinsics
 {
-    internal static bool TryGetCanonicalNumericIndexString(JsRealm realm, in JsValue key, out double numericIndex)
+    internal static bool TryGetCanonicalNumericIndexString(
+        JsRealm realm,
+        in JsValue key,
+        out double numericIndex
+    )
     {
         if (key.IsSymbol)
         {
@@ -46,7 +50,10 @@ public partial class Intrinsics
         return value == 0d && double.IsNegativeInfinity(1d / value);
     }
 
-    internal static bool IsValidTypedArrayCanonicalNumericIndex(JsTypedArrayObject typedArray, double numericIndex)
+    internal static bool IsValidTypedArrayCanonicalNumericIndex(
+        JsTypedArrayObject typedArray,
+        double numericIndex
+    )
     {
         if (typedArray.IsOutOfBounds)
             return false;
@@ -54,13 +61,22 @@ public partial class Intrinsics
             return false;
         if (IsNegativeZero(numericIndex))
             return false;
-        if (numericIndex < 0d || numericIndex != Math.Truncate(numericIndex) || numericIndex > uint.MaxValue)
+        if (
+            numericIndex < 0d
+            || numericIndex != Math.Truncate(numericIndex)
+            || numericIndex > uint.MaxValue
+        )
             return false;
         return numericIndex < typedArray.Length;
     }
 
-    internal static bool TryGetTypedArrayIntegerIndexedElement(JsRealm realm, JsTypedArrayObject typedArray,
-        in JsValue key, out JsValue value, out bool handled)
+    internal static bool TryGetTypedArrayIntegerIndexedElement(
+        JsRealm realm,
+        JsTypedArrayObject typedArray,
+        in JsValue key,
+        out JsValue value,
+        out bool handled
+    )
     {
         if (!TryGetCanonicalNumericIndexString(realm, key, out var numericIndex))
         {
@@ -80,8 +96,13 @@ public partial class Intrinsics
         return true;
     }
 
-    internal static bool TryHasTypedArrayIntegerIndexedElement(JsRealm realm, JsTypedArrayObject typedArray,
-        in JsValue key, out bool hasProperty, out bool handled)
+    internal static bool TryHasTypedArrayIntegerIndexedElement(
+        JsRealm realm,
+        JsTypedArrayObject typedArray,
+        in JsValue key,
+        out bool hasProperty,
+        out bool handled
+    )
     {
         if (!TryGetCanonicalNumericIndexString(realm, key, out var numericIndex))
         {
@@ -95,8 +116,13 @@ public partial class Intrinsics
         return true;
     }
 
-    internal static bool TryDeleteTypedArrayIntegerIndexedElement(JsRealm realm, JsTypedArrayObject typedArray,
-        in JsValue key, out bool deleted, out bool handled)
+    internal static bool TryDeleteTypedArrayIntegerIndexedElement(
+        JsRealm realm,
+        JsTypedArrayObject typedArray,
+        in JsValue key,
+        out bool deleted,
+        out bool handled
+    )
     {
         if (!TryGetCanonicalNumericIndexString(realm, key, out var numericIndex))
         {
@@ -106,12 +132,21 @@ public partial class Intrinsics
         }
 
         handled = true;
-        deleted = typedArray.Buffer.IsDetached || !IsValidTypedArrayCanonicalNumericIndex(typedArray, numericIndex);
+        deleted =
+            typedArray.Buffer.IsDetached
+            || !IsValidTypedArrayCanonicalNumericIndex(typedArray, numericIndex);
         return true;
     }
 
-    internal static bool TrySetTypedArrayIntegerIndexedWithReceiver(JsRealm realm, JsTypedArrayObject typedArray,
-        in JsValue key, in JsValue value, in JsValue receiverValue, out bool result, out bool handled)
+    internal static bool TrySetTypedArrayIntegerIndexedWithReceiver(
+        JsRealm realm,
+        JsTypedArrayObject typedArray,
+        in JsValue key,
+        in JsValue value,
+        in JsValue receiverValue,
+        out bool result,
+        out bool handled
+    )
     {
         if (!TryGetCanonicalNumericIndexString(realm, key, out var numericIndex))
         {
@@ -121,7 +156,12 @@ public partial class Intrinsics
         }
 
         handled = true;
-        if (ReferenceEquals(receiverValue.TryGetObject(out var earlyReceiverObj) ? earlyReceiverObj : null, typedArray))
+        if (
+            ReferenceEquals(
+                receiverValue.TryGetObject(out var earlyReceiverObj) ? earlyReceiverObj : null,
+                typedArray
+            )
+        )
         {
             result = SetCanonicalNumericIndexOnTypedArrayForSet(typedArray, numericIndex, value);
             return true;
@@ -157,20 +197,33 @@ public partial class Intrinsics
         return true;
     }
 
-    internal static bool SetCanonicalNumericIndexOnTypedArrayForSet(JsTypedArrayObject typedArray,
+    internal static bool SetCanonicalNumericIndexOnTypedArrayForSet(
+        JsTypedArrayObject typedArray,
         double numericIndex,
-        in JsValue value)
+        in JsValue value
+    )
     {
-        var normalized = TypedArrayElementKindInfo.NormalizeValue(typedArray.Realm, typedArray.Kind, value);
-        if (typedArray.Buffer.IsDetached || !IsValidTypedArrayCanonicalNumericIndex(typedArray, numericIndex))
+        var normalized = TypedArrayElementKindInfo.NormalizeValue(
+            typedArray.Realm,
+            typedArray.Kind,
+            value
+        );
+        if (
+            typedArray.Buffer.IsDetached
+            || !IsValidTypedArrayCanonicalNumericIndex(typedArray, numericIndex)
+        )
             return true;
 
         typedArray.TrySetNormalizedElement((uint)numericIndex, normalized);
         return true;
     }
 
-    internal static bool OrdinarySetOwnWritableDataIndex(JsRealm realm, JsObject receiver, uint index,
-        in JsValue value)
+    internal static bool OrdinarySetOwnWritableDataIndex(
+        JsRealm realm,
+        JsObject receiver,
+        uint index,
+        in JsValue value
+    )
     {
         if (receiver.TryDefineOwnDataPropertyForSet(realm, index, value, out _))
             return true;
@@ -191,8 +244,13 @@ public partial class Intrinsics
         return true;
     }
 
-    private static bool TryDefineTypedArrayIntegerIndexedProperty(JsRealm realm, JsTypedArrayObject typedArray,
-        in JsValue key, in DescriptorSnapshot spec, out bool handled)
+    private static bool TryDefineTypedArrayIntegerIndexedProperty(
+        JsRealm realm,
+        JsTypedArrayObject typedArray,
+        in JsValue key,
+        in DescriptorSnapshot spec,
+        out bool handled
+    )
     {
         if (!TryGetCanonicalNumericIndexString(realm, key, out var numericIndex))
         {
@@ -206,14 +264,20 @@ public partial class Intrinsics
         if (spec.IsAccessorDescriptor)
             return false;
 
-        if (spec.HasConfigurable &&
-            !DescriptorUtilities.IsRequestedTrue(spec.HasConfigurable, spec.ConfigurableValue))
+        if (
+            spec.HasConfigurable
+            && !DescriptorUtilities.IsRequestedTrue(spec.HasConfigurable, spec.ConfigurableValue)
+        )
             return false;
-        if (spec.HasEnumerable &&
-            !DescriptorUtilities.IsRequestedTrue(spec.HasEnumerable, spec.EnumerableValue))
+        if (
+            spec.HasEnumerable
+            && !DescriptorUtilities.IsRequestedTrue(spec.HasEnumerable, spec.EnumerableValue)
+        )
             return false;
-        if (spec.HasWritable &&
-            !DescriptorUtilities.IsRequestedTrue(spec.HasWritable, spec.WritableValue))
+        if (
+            spec.HasWritable
+            && !DescriptorUtilities.IsRequestedTrue(spec.HasWritable, spec.WritableValue)
+        )
             return false;
 
         if (!spec.HasValue)
@@ -223,8 +287,13 @@ public partial class Intrinsics
         return true;
     }
 
-    private static bool TryGetTypedArrayOwnPropertyDescriptorByKey(JsRealm realm, JsTypedArrayObject typedArray,
-        in JsValue key, out JsValue descriptor, out bool handled)
+    private static bool TryGetTypedArrayOwnPropertyDescriptorByKey(
+        JsRealm realm,
+        JsTypedArrayObject typedArray,
+        in JsValue key,
+        out JsValue descriptor,
+        out bool handled
+    )
     {
         if (!TryGetCanonicalNumericIndexString(realm, key, out var numericIndex))
         {
@@ -244,32 +313,61 @@ public partial class Intrinsics
             typedArray.GetDirectElementValue((uint)numericIndex),
             true,
             true,
-            true);
+            true
+        );
         descriptor = CreateDescriptorObjectForTypedArray(realm, propertyDescriptor);
         return true;
     }
 
-    private static JsValue CreateDescriptorObjectForTypedArray(JsRealm realm, in PropertyDescriptor descriptor)
+    private static JsValue CreateDescriptorObjectForTypedArray(
+        JsRealm realm,
+        in PropertyDescriptor descriptor
+    )
     {
         var result = new JsPlainObject(realm);
         if (descriptor.IsAccessor)
         {
-            result.DefineDataPropertyAtom(realm, IdGet,
-                descriptor.Getter ?? JsValue.Undefined, JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(realm, IdSet,
-                descriptor.Setter ?? JsValue.Undefined, JsShapePropertyFlags.Open);
+            result.DefineDataPropertyAtom(
+                realm,
+                IdGet,
+                descriptor.Getter ?? JsValue.Undefined,
+                JsShapePropertyFlags.Open
+            );
+            result.DefineDataPropertyAtom(
+                realm,
+                IdSet,
+                descriptor.Setter ?? JsValue.Undefined,
+                JsShapePropertyFlags.Open
+            );
         }
         else
         {
-            result.DefineDataPropertyAtom(realm, IdValue, descriptor.Value, JsShapePropertyFlags.Open);
-            result.DefineDataPropertyAtom(realm, IdWritable, new(descriptor.Writable),
-                JsShapePropertyFlags.Open);
+            result.DefineDataPropertyAtom(
+                realm,
+                IdValue,
+                descriptor.Value,
+                JsShapePropertyFlags.Open
+            );
+            result.DefineDataPropertyAtom(
+                realm,
+                IdWritable,
+                new(descriptor.Writable),
+                JsShapePropertyFlags.Open
+            );
         }
 
-        result.DefineDataPropertyAtom(realm, IdEnumerable, new(descriptor.Enumerable),
-            JsShapePropertyFlags.Open);
-        result.DefineDataPropertyAtom(realm, IdConfigurable, new(descriptor.Configurable),
-            JsShapePropertyFlags.Open);
+        result.DefineDataPropertyAtom(
+            realm,
+            IdEnumerable,
+            new(descriptor.Enumerable),
+            JsShapePropertyFlags.Open
+        );
+        result.DefineDataPropertyAtom(
+            realm,
+            IdConfigurable,
+            new(descriptor.Configurable),
+            JsShapePropertyFlags.Open
+        );
         return result;
     }
 }

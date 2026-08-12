@@ -5,7 +5,8 @@ public sealed partial class OkojoDebugServerIntegrationTests
     [Test]
     public async Task Step_Stops_On_Next_Caller_Line()
     {
-        await using var workspace = new TempWorkspace("""
+        await using var workspace = new TempWorkspace(
+            """
             function helper() {
               console.log("inside helper");
             }
@@ -17,13 +18,13 @@ public sealed partial class OkojoDebugServerIntegrationTests
             }
 
             outer();
-            """);
+            """
+        );
 
-        await using var server = DebugServerProcess.Start(workspace.ScriptPath, new[]
-        {
-            "--cwd", workspace.Root,
-            "--check-interval", "1"
-        });
+        await using var server = DebugServerProcess.Start(
+            workspace.ScriptPath,
+            new[] { "--cwd", workspace.Root, "--check-interval", "1" }
+        );
 
         var entry = await server.WaitForJsonEventAsync("stopped", TimeSpan.FromSeconds(10));
         Assert.That(GetString(entry, "kind"), Is.EqualTo("debugger-statement"));
@@ -43,7 +44,8 @@ public sealed partial class OkojoDebugServerIntegrationTests
     [Test]
     public async Task StepIn_Enters_Callee_Line()
     {
-        await using var workspace = new TempWorkspace("""
+        await using var workspace = new TempWorkspace(
+            """
             function helper() {
               console.log("inside helper");
             }
@@ -55,13 +57,13 @@ public sealed partial class OkojoDebugServerIntegrationTests
             }
 
             outer();
-            """);
+            """
+        );
 
-        await using var server = DebugServerProcess.Start(workspace.ScriptPath, new[]
-        {
-            "--cwd", workspace.Root,
-            "--check-interval", "1"
-        });
+        await using var server = DebugServerProcess.Start(
+            workspace.ScriptPath,
+            new[] { "--cwd", workspace.Root, "--check-interval", "1" }
+        );
 
         _ = await server.WaitForJsonEventAsync("stopped", TimeSpan.FromSeconds(10));
 
@@ -83,7 +85,8 @@ public sealed partial class OkojoDebugServerIntegrationTests
     [Test]
     public async Task StepOver_Call_Stops_On_Following_Caller_Line()
     {
-        await using var workspace = new TempWorkspace("""
+        await using var workspace = new TempWorkspace(
+            """
             function helper() {
               console.log("inside helper");
             }
@@ -95,13 +98,13 @@ public sealed partial class OkojoDebugServerIntegrationTests
             }
 
             outer();
-            """);
+            """
+        );
 
-        await using var server = DebugServerProcess.Start(workspace.ScriptPath, new[]
-        {
-            "--cwd", workspace.Root,
-            "--check-interval", "1"
-        });
+        await using var server = DebugServerProcess.Start(
+            workspace.ScriptPath,
+            new[] { "--cwd", workspace.Root, "--check-interval", "1" }
+        );
 
         _ = await server.WaitForJsonEventAsync("stopped", TimeSpan.FromSeconds(10));
 
@@ -123,7 +126,8 @@ public sealed partial class OkojoDebugServerIntegrationTests
     [Test]
     public async Task StepOut_Returns_To_Caller_Line()
     {
-        await using var workspace = new TempWorkspace("""
+        await using var workspace = new TempWorkspace(
+            """
             function helper() {
               debugger;
               console.log("inside helper");
@@ -135,13 +139,13 @@ public sealed partial class OkojoDebugServerIntegrationTests
             }
 
             outer();
-            """);
+            """
+        );
 
-        await using var server = DebugServerProcess.Start(workspace.ScriptPath, new[]
-        {
-            "--cwd", workspace.Root,
-            "--check-interval", "1"
-        });
+        await using var server = DebugServerProcess.Start(
+            workspace.ScriptPath,
+            new[] { "--cwd", workspace.Root, "--check-interval", "1" }
+        );
 
         var stopped = await server.WaitForJsonEventAsync("stopped", TimeSpan.FromSeconds(10));
         Assert.That(GetString(stopped, "kind"), Is.EqualTo("debugger-statement"));
@@ -161,25 +165,29 @@ public sealed partial class OkojoDebugServerIntegrationTests
     [Test]
     public async Task Instruction_Granularity_Steps_Within_Same_Source_Line()
     {
-        await using var workspace = new TempWorkspace("""
+        await using var workspace = new TempWorkspace(
+            """
             function outer() {
               debugger; const left = 1, right = 2;
               console.log(left + right);
             }
 
             outer();
-            """);
+            """
+        );
 
-        await using var server = DebugServerProcess.Start(workspace.ScriptPath, new[]
-        {
-            "--cwd", workspace.Root,
-            "--check-interval", "1"
-        });
+        await using var server = DebugServerProcess.Start(
+            workspace.ScriptPath,
+            new[] { "--cwd", workspace.Root, "--check-interval", "1" }
+        );
 
         _ = await server.WaitForJsonEventAsync("stopped", TimeSpan.FromSeconds(10));
 
         server.SendCommand("stepmode instruction");
-        var optionUpdated = await server.WaitForJsonEventAsync("option-updated", TimeSpan.FromSeconds(10));
+        var optionUpdated = await server.WaitForJsonEventAsync(
+            "option-updated",
+            TimeSpan.FromSeconds(10)
+        );
         Assert.That(GetString(optionUpdated, "name"), Is.EqualTo("stepGranularity"));
         Assert.That(GetString(optionUpdated, "value"), Is.EqualTo("Instruction"));
 
@@ -196,7 +204,8 @@ public sealed partial class OkojoDebugServerIntegrationTests
     [Test]
     public async Task StepOver_Still_Stops_On_Explicit_DebuggerStatement()
     {
-        await using var workspace = new TempWorkspace("""
+        await using var workspace = new TempWorkspace(
+            """
             function helper() {
               debugger;
               return 1;
@@ -209,13 +218,13 @@ public sealed partial class OkojoDebugServerIntegrationTests
             }
 
             outer();
-            """);
+            """
+        );
 
-        await using var server = DebugServerProcess.Start(workspace.ScriptPath, new[]
-        {
-            "--cwd", workspace.Root,
-            "--check-interval", "1"
-        });
+        await using var server = DebugServerProcess.Start(
+            workspace.ScriptPath,
+            new[] { "--cwd", workspace.Root, "--check-interval", "1" }
+        );
 
         _ = await server.WaitForJsonEventAsync("stopped", TimeSpan.FromSeconds(10));
 
@@ -227,7 +236,10 @@ public sealed partial class OkojoDebugServerIntegrationTests
         server.SendCommand("step");
         var debuggerStop = await server.WaitForJsonEventAsync("stopped", TimeSpan.FromSeconds(10));
         Assert.That(GetString(debuggerStop, "kind"), Is.EqualTo("debugger-statement"));
-        Assert.That(GetNestedString(debuggerStop, "currentFrame", "functionName"), Is.EqualTo("helper"));
+        Assert.That(
+            GetNestedString(debuggerStop, "currentFrame", "functionName"),
+            Is.EqualTo("helper")
+        );
         Assert.That(GetNestedInt(debuggerStop, "sourceLocation", "line"), Is.EqualTo(2));
 
         server.SendCommand("continue");
@@ -238,7 +250,8 @@ public sealed partial class OkojoDebugServerIntegrationTests
     [Test]
     public async Task LineStep_Ignores_Unmapped_Instructions()
     {
-        await using var workspace = new TempWorkspace("""
+        await using var workspace = new TempWorkspace(
+            """
             function outer() {
               debugger;
               const left = 1;
@@ -247,13 +260,13 @@ public sealed partial class OkojoDebugServerIntegrationTests
             }
 
             outer();
-            """);
+            """
+        );
 
-        await using var server = DebugServerProcess.Start(workspace.ScriptPath, new[]
-        {
-            "--cwd", workspace.Root,
-            "--check-interval", "1"
-        });
+        await using var server = DebugServerProcess.Start(
+            workspace.ScriptPath,
+            new[] { "--cwd", workspace.Root, "--check-interval", "1" }
+        );
 
         var stopped = await server.WaitForJsonEventAsync("stopped", TimeSpan.FromSeconds(10));
         Assert.That(GetString(stopped, "kind"), Is.EqualTo("debugger-statement"));
@@ -277,7 +290,8 @@ public sealed partial class OkojoDebugServerIntegrationTests
     [Test]
     public async Task LineStep_Does_Not_Fall_Back_To_Line_One_Inside_Template_Literal_Evaluation()
     {
-        await using var workspace = new TempWorkspace("""
+        await using var workspace = new TempWorkspace(
+            """
             function outer() {
               const message = "answer";
               debugger;
@@ -286,13 +300,13 @@ public sealed partial class OkojoDebugServerIntegrationTests
             }
 
             outer();
-            """);
+            """
+        );
 
-        await using var server = DebugServerProcess.Start(workspace.ScriptPath, new[]
-        {
-            "--cwd", workspace.Root,
-            "--check-interval", "1"
-        });
+        await using var server = DebugServerProcess.Start(
+            workspace.ScriptPath,
+            new[] { "--cwd", workspace.Root, "--check-interval", "1" }
+        );
 
         var stopped = await server.WaitForJsonEventAsync("stopped", TimeSpan.FromSeconds(10));
         Assert.That(GetString(stopped, "kind"), Is.EqualTo("debugger-statement"));
@@ -316,18 +330,19 @@ public sealed partial class OkojoDebugServerIntegrationTests
     [Test]
     public async Task LineStep_From_Breakpoint_Skips_Adjacent_Same_Line_Stop()
     {
-        await using var workspace = new TempWorkspace("""
+        await using var workspace = new TempWorkspace(
+            """
             const message = "answer";
             debugger;
             console.log(`entry: ${message}`);
             console.log("after");
-            """);
+            """
+        );
 
-        await using var server = DebugServerProcess.Start(workspace.ScriptPath, new[]
-        {
-            "--cwd", workspace.Root,
-            "--check-interval", "1"
-        });
+        await using var server = DebugServerProcess.Start(
+            workspace.ScriptPath,
+            new[] { "--cwd", workspace.Root, "--check-interval", "1" }
+        );
 
         var debuggerStop = await server.WaitForJsonEventAsync("stopped", TimeSpan.FromSeconds(10));
         Assert.That(GetString(debuggerStop, "kind"), Is.EqualTo("debugger-statement"));

@@ -14,16 +14,24 @@ public sealed partial class JsAgent
     private readonly object moduleRuntimeBindingsGate = new();
     private int nextModuleAsyncEvaluationOrder;
 
-    internal JsValue EvaluateModule(JsRealm realm, string specifier, string? referrer = null,
-        bool waitForAsyncCompletion = true, string? importType = null)
+    internal JsValue EvaluateModule(
+        JsRealm realm,
+        string specifier,
+        string? referrer = null,
+        bool waitForAsyncCompletion = true,
+        string? importType = null
+    )
     {
-        if (!string.IsNullOrEmpty(importType) &&
-            !string.Equals(importType, "json", StringComparison.Ordinal) &&
-            !string.Equals(importType, "text", StringComparison.Ordinal))
+        if (
+            !string.IsNullOrEmpty(importType)
+            && !string.Equals(importType, "json", StringComparison.Ordinal)
+            && !string.Equals(importType, "text", StringComparison.Ordinal)
+        )
             throw new JsRuntimeException(
                 JsErrorKind.TypeError,
                 $"Unsupported dynamic import type '{importType}'",
-                "DYNAMIC_IMPORT_UNSUPPORTED_TYPE");
+                "DYNAMIC_IMPORT_UNSUPPORTED_TYPE"
+            );
 
         if (string.Equals(importType, "json", StringComparison.Ordinal))
         {
@@ -32,7 +40,8 @@ public sealed partial class JsAgent
                 throw new JsRuntimeException(
                     JsErrorKind.TypeError,
                     $"Dynamic import type 'json' requires a JSON module: '{resolvedImportId}'",
-                    "DYNAMIC_IMPORT_JSON_TYPE_MISMATCH");
+                    "DYNAMIC_IMPORT_JSON_TYPE_MISMATCH"
+                );
         }
 
         if (string.Equals(importType, "text", StringComparison.Ordinal))
@@ -56,8 +65,11 @@ public sealed partial class JsAgent
             if (node.LastError is not null)
                 ExceptionDispatchInfo.Capture(node.LastError).Throw();
 
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Module evaluation previously failed",
-                "MODULE_EVAL_FAILED");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Module evaluation previously failed",
+                "MODULE_EVAL_FAILED"
+            );
         }
 
         try
@@ -69,8 +81,11 @@ public sealed partial class JsAgent
                 if (node.LastError is not null)
                     ExceptionDispatchInfo.Capture(node.LastError).Throw();
 
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Module evaluation failed",
-                    "MODULE_EVAL_FAILED");
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Module evaluation failed",
+                    "MODULE_EVAL_FAILED"
+                );
             }
 
             return node.ExportsObject;
@@ -83,7 +98,11 @@ public sealed partial class JsAgent
             throw;
         }
 
-        void PrepareModuleEvaluation(ModuleRecordNode targetNode, JsRealm targetRealm, ModuleLinkPlan targetPlan)
+        void PrepareModuleEvaluation(
+            ModuleRecordNode targetNode,
+            JsRealm targetRealm,
+            ModuleLinkPlan targetPlan
+        )
         {
             if (targetNode.ExecutionBindings is not null)
                 return;
@@ -95,20 +114,26 @@ public sealed partial class JsAgent
             {
                 var importsObject = new JsPlainObject(targetRealm);
                 var importMeta = new JsPlainObject(targetRealm);
-                importMeta.DefineDataProperty("url", JsValue.FromString(targetNode.ResolvedId),
-                    JsShapePropertyFlags.Open);
+                importMeta.DefineDataProperty(
+                    "url",
+                    JsValue.FromString(targetNode.ResolvedId),
+                    JsShapePropertyFlags.Open
+                );
                 importsObject.DefineDataPropertyAtom(
                     targetRealm,
                     IdOkojoMeta,
                     JsValue.FromObject(importMeta),
-                    JsShapePropertyFlags.Open);
+                    JsShapePropertyFlags.Open
+                );
                 var (moduleVariableBindings, regularExports, regularImports) =
                     BuildModuleVariableSlots(
                         targetPlan.ResolvedImportBindings,
                         targetPlan.ExecutionPlan.ExportLocalByName,
-                        targetPlan.ExecutionPlan.PreinitializedLocalExportNames);
-                var defaultNameEligibleLocals =
-                    CollectDefaultNameEligibleExportLocals(targetPlan.ExecutionPlan.Operations);
+                        targetPlan.ExecutionPlan.PreinitializedLocalExportNames
+                    );
+                var defaultNameEligibleLocals = CollectDefaultNameEligibleExportLocals(
+                    targetPlan.ExecutionPlan.Operations
+                );
                 var compileModuleBindings = moduleVariableBindings;
                 var setFunctionNameFn = CreateSetFunctionNameHelper(targetRealm);
                 var moduleExecutionBindings = new ModuleExecutionBindings(
@@ -117,7 +142,8 @@ public sealed partial class JsAgent
                     JsValue.Undefined,
                     regularExports,
                     regularImports,
-                    JsValue.FromObject(setFunctionNameFn));
+                    JsValue.FromObject(setFunctionNameFn)
+                );
 
                 InstallLocalSlotBackedLiveExports(
                     targetRealm,
@@ -126,7 +152,8 @@ public sealed partial class JsAgent
                     targetPlan.ExecutionPlan.ExportLocalByName,
                     moduleVariableBindings,
                     moduleExecutionBindings,
-                    defaultNameEligibleLocals);
+                    defaultNameEligibleLocals
+                );
 
                 InstantiateHoistedLocalExportFunctions(
                     targetRealm,
@@ -135,19 +162,38 @@ public sealed partial class JsAgent
                     targetNode.Program.IdentifierTable,
                     targetPlan.ExecutionPlan,
                     compileModuleBindings,
-                    moduleExecutionBindings);
+                    moduleExecutionBindings
+                );
 
                 JsValue EnsureDependencyExports(ResolvedModuleDependency dependency)
                 {
-                    var cacheKey = GetDependencyCacheKey(dependency.ResolvedId, dependency.ImportType);
-                    if (!importsObject.TryGetPropertyAtom(targetRealm, Atoms.InternNoCheck(cacheKey),
+                    var cacheKey = GetDependencyCacheKey(
+                        dependency.ResolvedId,
+                        dependency.ImportType
+                    );
+                    if (
+                        !importsObject.TryGetPropertyAtom(
+                            targetRealm,
+                            Atoms.InternNoCheck(cacheKey),
                             out var depExports,
-                            out _))
+                            out _
+                        )
+                    )
                     {
-                        depExports = EvaluateModule(targetRealm, dependency.ResolvedId, null, false,
-                            dependency.ImportType);
-                        if (string.IsNullOrEmpty(dependency.ImportType) &&
-                            TryGetActiveDependencyNode(dependency.ResolvedId, out var activeDependencyNode))
+                        depExports = EvaluateModule(
+                            targetRealm,
+                            dependency.ResolvedId,
+                            null,
+                            false,
+                            dependency.ImportType
+                        );
+                        if (
+                            string.IsNullOrEmpty(dependency.ImportType)
+                            && TryGetActiveDependencyNode(
+                                dependency.ResolvedId,
+                                out var activeDependencyNode
+                            )
+                        )
                         {
                             activeDependencyNode.AsyncCycleRoot ??= activeDependencyNode;
                             targetNode.AsyncCycleRoot ??= activeDependencyNode.AsyncCycleRoot;
@@ -157,7 +203,8 @@ public sealed partial class JsAgent
                             targetRealm,
                             Atoms.InternNoCheck(cacheKey),
                             depExports,
-                            JsShapePropertyFlags.Open);
+                            JsShapePropertyFlags.Open
+                        );
                     }
 
                     return depExports;
@@ -174,7 +221,8 @@ public sealed partial class JsAgent
                     targetPlan.ExecutionPlan.ExportLocalByName,
                     targetPlan.ExportFromBindings,
                     targetPlan.ExportNamespaceFromBindings,
-                    targetPlan.ExportStarResolvedIds);
+                    targetPlan.ExportStarResolvedIds
+                );
 
                 InstallLinkedReExports(
                     targetRealm,
@@ -183,38 +231,61 @@ public sealed partial class JsAgent
                     targetPlan.ExportFromBindings,
                     targetPlan.ExportNamespaceFromBindings,
                     targetPlan.ExportStarResolvedIds,
-                    ambiguousStarNames);
+                    ambiguousStarNames
+                );
 
                 for (var i = 0; i < targetPlan.ResolvedImportBindings.Count; i++)
                 {
                     var binding = targetPlan.ResolvedImportBindings[i];
-                    _ = EnsureDependencyExports(new(binding.ResolvedDependencyId, binding.ImportType));
-                    if (binding.Kind == ModuleImportBindingKind.Named &&
-                        !CanResolveExportName(binding.ResolvedDependencyId, binding.ImportedName, binding.ImportType))
-                        linkDiagnostics.Add(ModuleLinker.CreateDiagnostic(
-                            "MODULE_IMPORT_NAME_NOT_FOUND",
-                            targetNode.ResolvedId,
-                            targetNode.Program,
-                            binding.Position,
-                            $"Module '{targetNode.ResolvedId}' imports '{binding.ImportedName}' from '{binding.ResolvedDependencyId}', but it is not exported."));
+                    _ = EnsureDependencyExports(
+                        new(binding.ResolvedDependencyId, binding.ImportType)
+                    );
+                    if (
+                        binding.Kind == ModuleImportBindingKind.Named
+                        && !CanResolveExportName(
+                            binding.ResolvedDependencyId,
+                            binding.ImportedName,
+                            binding.ImportType
+                        )
+                    )
+                        linkDiagnostics.Add(
+                            ModuleLinker.CreateDiagnostic(
+                                "MODULE_IMPORT_NAME_NOT_FOUND",
+                                targetNode.ResolvedId,
+                                targetNode.Program,
+                                binding.Position,
+                                $"Module '{targetNode.ResolvedId}' imports '{binding.ImportedName}' from '{binding.ResolvedDependencyId}', but it is not exported."
+                            )
+                        );
                 }
 
                 for (var i = 0; i < targetPlan.ExportFromBindings.Count; i++)
                 {
                     var from = targetPlan.ExportFromBindings[i];
                     _ = EnsureDependencyExports(new(from.ResolvedDependencyId, from.ImportType));
-                    if (!CanResolveExportName(from.ResolvedDependencyId, from.ImportedName, from.ImportType))
-                        linkDiagnostics.Add(ModuleLinker.CreateDiagnostic(
-                            "MODULE_EXPORT_NAME_NOT_FOUND",
-                            targetNode.ResolvedId,
-                            targetNode.Program,
-                            from.Position,
-                            $"Module '{targetNode.ResolvedId}' re-exports '{from.ImportedName}' from '{from.ResolvedDependencyId}', but it is not exported."));
+                    if (
+                        !CanResolveExportName(
+                            from.ResolvedDependencyId,
+                            from.ImportedName,
+                            from.ImportType
+                        )
+                    )
+                        linkDiagnostics.Add(
+                            ModuleLinker.CreateDiagnostic(
+                                "MODULE_EXPORT_NAME_NOT_FOUND",
+                                targetNode.ResolvedId,
+                                targetNode.Program,
+                                from.Position,
+                                $"Module '{targetNode.ResolvedId}' re-exports '{from.ImportedName}' from '{from.ResolvedDependencyId}', but it is not exported."
+                            )
+                        );
                 }
 
                 if (linkDiagnostics.Count != 0)
-                    throw WrapModuleLinkException(targetNode.ResolvedId,
-                        ModuleLinker.ToRuntimeException(linkDiagnostics[0]));
+                    throw WrapModuleLinkException(
+                        targetNode.ResolvedId,
+                        ModuleLinker.ToRuntimeException(linkDiagnostics[0])
+                    );
                 targetNode.ExportsObject.LockForRuntimeMutation();
                 targetNode.ExecutionBindings = moduleExecutionBindings;
                 targetNode.CompileModuleBindings = compileModuleBindings;
@@ -234,7 +305,8 @@ public sealed partial class JsAgent
             JsIdentifierTable? moduleIdentifierTable,
             ModuleExecutionPlan executionPlan,
             IReadOnlyDictionary<string, ModuleVariableBinding>? compileModuleBindings,
-            ModuleExecutionBindings moduleExecutionBindings)
+            ModuleExecutionBindings moduleExecutionBindings
+        )
         {
             if (compileModuleBindings is null || compileModuleBindings.Count == 0)
                 return;
@@ -246,8 +318,14 @@ public sealed partial class JsAgent
             try
             {
                 compiler = JsCompiler.CreateForModuleExecution(targetRealm, compileModuleBindings);
-                var environment = compiler.DescribeModuleExecutionEnvironment(executionPlan, moduleIdentifierTable);
-                moduleFunctionContext = CreateTopLevelModuleContext(environment, moduleExecutionBindings);
+                var environment = compiler.DescribeModuleExecutionEnvironment(
+                    executionPlan,
+                    moduleIdentifierTable
+                );
+                moduleFunctionContext = CreateTopLevelModuleContext(
+                    environment,
+                    moduleExecutionBindings
+                );
                 moduleExecutionBindings.TopLevelContext = moduleFunctionContext;
 
                 for (var i = 0; i < executionPlan.Operations.Count; i++)
@@ -261,33 +339,44 @@ public sealed partial class JsAgent
                     switch (op.Kind)
                     {
                         case ModuleExecutionOpKind.ExecuteStatement
-                            when op.Statement is JsFunctionDeclaration declaration &&
-                                 compileModuleBindings.TryGetValue(declaration.Name, out var namedBinding) &&
-                                 namedBinding.CellIndex > 0:
+                            when op.Statement is JsFunctionDeclaration declaration
+                                && compileModuleBindings.TryGetValue(
+                                    declaration.Name,
+                                    out var namedBinding
+                                )
+                                && namedBinding.CellIndex > 0:
                             exportIndex = namedBinding.CellIndex - 1;
                             template = compiler.CompileHoistedFunctionTemplate(
                                 declaration,
                                 moduleSourceText,
                                 moduleResolvedId,
-                                moduleIdentifierTable);
+                                moduleIdentifierTable
+                            );
                             break;
 
                         case ModuleExecutionOpKind.InitializeHoistedDefaultExport
-                            when op.Expression is JsFunctionExpression declaration &&
-                                 !string.IsNullOrEmpty(op.ExportLocalName) &&
-                                 compileModuleBindings.TryGetValue(op.ExportLocalName, out var defaultBinding) &&
-                                 defaultBinding.CellIndex > 0:
+                            when op.Expression is JsFunctionExpression declaration
+                                && !string.IsNullOrEmpty(op.ExportLocalName)
+                                && compileModuleBindings.TryGetValue(
+                                    op.ExportLocalName,
+                                    out var defaultBinding
+                                )
+                                && defaultBinding.CellIndex > 0:
                             exportIndex = defaultBinding.CellIndex - 1;
                             template = compiler.CompileHoistedFunctionTemplate(
                                 declaration,
                                 "default",
                                 moduleSourceText,
                                 moduleResolvedId,
-                                moduleIdentifierTable);
+                                moduleIdentifierTable
+                            );
                             break;
                     }
 
-                    if (template is null || (uint)exportIndex >= (uint)moduleExecutionBindings.RegularExports.Length)
+                    if (
+                        template is null
+                        || (uint)exportIndex >= (uint)moduleExecutionBindings.RegularExports.Length
+                    )
                         return;
 
                     var slot = moduleExecutionBindings.RegularExports[exportIndex];
@@ -307,22 +396,27 @@ public sealed partial class JsAgent
 
         static bool HasHoistedLocalExportFunctionsToInstantiate(
             ModuleExecutionPlan executionPlan,
-            IReadOnlyDictionary<string, ModuleVariableBinding> compileModuleBindings)
+            IReadOnlyDictionary<string, ModuleVariableBinding> compileModuleBindings
+        )
         {
             for (var i = 0; i < executionPlan.Operations.Count; i++)
             {
                 var op = executionPlan.Operations[i];
-                if (op.Kind == ModuleExecutionOpKind.ExecuteStatement &&
-                    op.Statement is JsFunctionDeclaration declaration &&
-                    compileModuleBindings.TryGetValue(declaration.Name, out var binding) &&
-                    binding.CellIndex > 0)
+                if (
+                    op.Kind == ModuleExecutionOpKind.ExecuteStatement
+                    && op.Statement is JsFunctionDeclaration declaration
+                    && compileModuleBindings.TryGetValue(declaration.Name, out var binding)
+                    && binding.CellIndex > 0
+                )
                     return true;
 
-                if (op.Kind == ModuleExecutionOpKind.InitializeHoistedDefaultExport &&
-                    op.Expression is JsFunctionExpression &&
-                    !string.IsNullOrEmpty(op.ExportLocalName) &&
-                    compileModuleBindings.TryGetValue(op.ExportLocalName, out binding) &&
-                    binding.CellIndex > 0)
+                if (
+                    op.Kind == ModuleExecutionOpKind.InitializeHoistedDefaultExport
+                    && op.Expression is JsFunctionExpression
+                    && !string.IsNullOrEmpty(op.ExportLocalName)
+                    && compileModuleBindings.TryGetValue(op.ExportLocalName, out binding)
+                    && binding.CellIndex > 0
+                )
                     return true;
             }
 
@@ -331,19 +425,25 @@ public sealed partial class JsAgent
 
         static JsContext CreateTopLevelModuleContext(
             ModuleExecutionEnvironment environment,
-            ModuleExecutionBindings moduleExecutionBindings)
+            ModuleExecutionBindings moduleExecutionBindings
+        )
         {
             var context = new JsContext(null, environment.SlotCount)
             {
-                ModuleBindings = moduleExecutionBindings
+                ModuleBindings = moduleExecutionBindings,
             };
             for (var i = 0; i < environment.InitialSlotValues.Length; i++)
                 context.Slots[i] = environment.InitialSlotValues[i];
             return context;
         }
 
-        void StartOrQueueModuleEvaluation(ModuleRecordNode targetNode, JsRealm targetRealm, string targetResolvedId,
-            ModuleLinkPlan targetPlan, bool shouldWait)
+        void StartOrQueueModuleEvaluation(
+            ModuleRecordNode targetNode,
+            JsRealm targetRealm,
+            string targetResolvedId,
+            ModuleLinkPlan targetPlan,
+            bool shouldWait
+        )
         {
             if (targetNode.EvaluationStarted)
             {
@@ -352,7 +452,11 @@ public sealed partial class JsAgent
                 return;
             }
 
-            RegisterPendingImportDependencies(targetNode, targetRealm, targetPlan.RequestedDependencies);
+            RegisterPendingImportDependencies(
+                targetNode,
+                targetRealm,
+                targetPlan.RequestedDependencies
+            );
             if (targetNode.PendingAsyncDependencies > 0)
             {
                 EnsureAsyncEvaluationState(targetNode, targetRealm);
@@ -365,8 +469,13 @@ public sealed partial class JsAgent
             StartModuleExecution(targetNode, targetRealm, targetResolvedId, targetPlan, shouldWait);
         }
 
-        void StartModuleExecution(ModuleRecordNode targetNode, JsRealm targetRealm, string targetResolvedId,
-            ModuleLinkPlan targetPlan, bool shouldWait)
+        void StartModuleExecution(
+            ModuleRecordNode targetNode,
+            JsRealm targetRealm,
+            string targetResolvedId,
+            ModuleLinkPlan targetPlan,
+            bool shouldWait
+        )
         {
             if (targetNode.EvaluationStarted)
                 return;
@@ -390,37 +499,56 @@ public sealed partial class JsAgent
                         targetNode.Program.IdentifierTable,
                         targetPlan.ExecutionPlan,
                         targetNode.CompileModuleBindings,
-                        false);
+                        false
+                    );
                 }
                 catch (Exception ex)
                 {
                     var wrapped = WrapModuleExecutionException(targetResolvedId, ex);
-                    FinalizeModuleExecution(targetNode, targetResolvedId, targetRealm,
+                    FinalizeModuleExecution(
+                        targetNode,
+                        targetResolvedId,
+                        targetRealm,
                         new(
                             ModuleExecutionCompletionKind.Throw,
-                            wrapped.ThrownValue ?? targetRealm.CreateErrorObjectFromException(wrapped),
-                            wrapped));
+                            wrapped.ThrownValue
+                                ?? targetRealm.CreateErrorObjectFromException(wrapped),
+                            wrapped
+                        )
+                    );
                     if (shouldWait)
                     {
-                        if (wrapped == ex) throw;
+                        if (wrapped == ex)
+                            throw;
                         throw wrapped;
                     }
 
                     return;
                 }
 
-                if (targetNode.RequiresTopLevelAwait &&
-                    executionResult.TryGetObject(out var executionObj) &&
-                    executionObj is JsPromiseObject executionPromise)
+                if (
+                    targetNode.RequiresTopLevelAwait
+                    && executionResult.TryGetObject(out var executionObj)
+                    && executionObj is JsPromiseObject executionPromise
+                )
                 {
-                    AttachModuleExecutionPromise(targetNode, targetResolvedId, targetRealm, executionPromise);
+                    AttachModuleExecutionPromise(
+                        targetNode,
+                        targetResolvedId,
+                        targetRealm,
+                        executionPromise
+                    );
                     if (shouldWait)
                         WaitForPendingTopLevelAwait(targetNode, targetResolvedId, targetRealm);
                     return;
                 }
 
-                FinalizeModuleExecution(targetNode, targetResolvedId, targetRealm,
-                    new(ModuleExecutionCompletionKind.Normal, JsValue.Undefined, null));
+                FinalizeModuleExecution(
+                    targetNode,
+                    targetResolvedId,
+                    targetRealm,
+                    new(ModuleExecutionCompletionKind.Normal, JsValue.Undefined, null)
+                );
                 if (shouldWait)
                     WaitForPendingTopLevelAwait(targetNode, targetResolvedId, targetRealm);
             }
@@ -430,36 +558,69 @@ public sealed partial class JsAgent
             }
         }
 
-        void AttachModuleExecutionPromise(ModuleRecordNode targetNode, string targetResolvedId, JsRealm targetRealm,
-            JsPromiseObject executionPromise)
+        void AttachModuleExecutionPromise(
+            ModuleRecordNode targetNode,
+            string targetResolvedId,
+            JsRealm targetRealm,
+            JsPromiseObject executionPromise
+        )
         {
-            var onFulfilled = new JsHostFunction(targetRealm, (in info) =>
-            {
-                FinalizeModuleExecution(targetNode, targetResolvedId, info.Realm,
-                    new(ModuleExecutionCompletionKind.Normal, JsValue.Undefined, null));
-                return JsValue.Undefined;
-            }, string.Empty, 0);
-            var onRejected = new JsHostFunction(targetRealm, (in info) =>
-            {
-                var reason = info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0];
-                FinalizeModuleExecution(targetNode, targetResolvedId, info.Realm,
-                    new(ModuleExecutionCompletionKind.Throw, reason, null));
-                return JsValue.Undefined;
-            }, string.Empty, 1);
+            var onFulfilled = new JsHostFunction(
+                targetRealm,
+                (in info) =>
+                {
+                    FinalizeModuleExecution(
+                        targetNode,
+                        targetResolvedId,
+                        info.Realm,
+                        new(ModuleExecutionCompletionKind.Normal, JsValue.Undefined, null)
+                    );
+                    return JsValue.Undefined;
+                },
+                string.Empty,
+                0
+            );
+            var onRejected = new JsHostFunction(
+                targetRealm,
+                (in info) =>
+                {
+                    var reason = info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0];
+                    FinalizeModuleExecution(
+                        targetNode,
+                        targetResolvedId,
+                        info.Realm,
+                        new(ModuleExecutionCompletionKind.Throw, reason, null)
+                    );
+                    return JsValue.Undefined;
+                },
+                string.Empty,
+                1
+            );
             _ = targetRealm.PromiseThen(
                 executionPromise,
                 JsValue.FromObject(onFulfilled),
-                JsValue.FromObject(onRejected));
+                JsValue.FromObject(onRejected)
+            );
         }
 
-        void FinalizeModuleExecution(ModuleRecordNode targetNode, string targetResolvedId, JsRealm targetRealm,
-            ModuleExecutionCompletion completion)
+        void FinalizeModuleExecution(
+            ModuleRecordNode targetNode,
+            string targetResolvedId,
+            JsRealm targetRealm,
+            ModuleExecutionCompletion completion
+        )
         {
             var explicitResourceStack = targetNode.ExecutionBindings?.ExplicitResourceStack;
             if (explicitResourceStack is null || explicitResourceStack.IsDisposed)
             {
                 if (completion.IsAbrupt)
-                    FailModuleEvaluation(targetNode, targetResolvedId, targetRealm, completion.Value, completion.Failure);
+                    FailModuleEvaluation(
+                        targetNode,
+                        targetResolvedId,
+                        targetRealm,
+                        completion.Value,
+                        completion.Failure
+                    );
                 else
                     CompleteModuleEvaluation(targetNode, targetRealm);
                 return;
@@ -471,55 +632,103 @@ public sealed partial class JsAgent
                 cleanupResult = targetRealm.Intrinsics.DisposeCompilerDisposableStack(
                     explicitResourceStack,
                     (int)completion.Kind,
-                    completion.Value);
+                    completion.Value
+                );
             }
             catch (Exception ex)
             {
                 var cleanupReason = GetModuleCleanupExceptionReason(targetRealm, ex);
-                var cleanupFailure = ex as JsRuntimeException ??
-                                     CreateModuleAwaitRejectedException(targetResolvedId, cleanupReason);
-                FailModuleEvaluation(targetNode, targetResolvedId, targetRealm, cleanupReason, cleanupFailure);
+                var cleanupFailure =
+                    ex as JsRuntimeException
+                    ?? CreateModuleAwaitRejectedException(targetResolvedId, cleanupReason);
+                FailModuleEvaluation(
+                    targetNode,
+                    targetResolvedId,
+                    targetRealm,
+                    cleanupReason,
+                    cleanupFailure
+                );
                 return;
             }
 
-            if (cleanupResult.TryGetObject(out var cleanupObj) && cleanupObj is JsPromiseObject cleanupPromise)
+            if (
+                cleanupResult.TryGetObject(out var cleanupObj)
+                && cleanupObj is JsPromiseObject cleanupPromise
+            )
             {
                 EnsureAsyncEvaluationState(targetNode, targetRealm);
-                AttachModuleCleanupPromise(targetNode, targetResolvedId, targetRealm, cleanupPromise, completion);
+                AttachModuleCleanupPromise(
+                    targetNode,
+                    targetResolvedId,
+                    targetRealm,
+                    cleanupPromise,
+                    completion
+                );
                 return;
             }
 
             if (completion.IsAbrupt)
-                FailModuleEvaluation(targetNode, targetResolvedId, targetRealm, completion.Value, completion.Failure);
+                FailModuleEvaluation(
+                    targetNode,
+                    targetResolvedId,
+                    targetRealm,
+                    completion.Value,
+                    completion.Failure
+                );
             else
                 CompleteModuleEvaluation(targetNode, targetRealm);
         }
 
-        void AttachModuleCleanupPromise(ModuleRecordNode targetNode, string targetResolvedId, JsRealm targetRealm,
-            JsPromiseObject cleanupPromise, ModuleExecutionCompletion completion)
+        void AttachModuleCleanupPromise(
+            ModuleRecordNode targetNode,
+            string targetResolvedId,
+            JsRealm targetRealm,
+            JsPromiseObject cleanupPromise,
+            ModuleExecutionCompletion completion
+        )
         {
-            var onFulfilled = new JsHostFunction(targetRealm, (in info) =>
-            {
-                if (completion.IsAbrupt)
-                    FailModuleEvaluation(targetNode, targetResolvedId, info.Realm, completion.Value, completion.Failure);
-                else
-                    CompleteModuleEvaluation(targetNode, info.Realm);
-                return JsValue.Undefined;
-            }, string.Empty, 0);
-            var onRejected = new JsHostFunction(targetRealm, (in info) =>
-            {
-                var reason = info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0];
-                FailModuleEvaluation(targetNode, targetResolvedId, info.Realm, reason, null);
-                return JsValue.Undefined;
-            }, string.Empty, 1);
+            var onFulfilled = new JsHostFunction(
+                targetRealm,
+                (in info) =>
+                {
+                    if (completion.IsAbrupt)
+                        FailModuleEvaluation(
+                            targetNode,
+                            targetResolvedId,
+                            info.Realm,
+                            completion.Value,
+                            completion.Failure
+                        );
+                    else
+                        CompleteModuleEvaluation(targetNode, info.Realm);
+                    return JsValue.Undefined;
+                },
+                string.Empty,
+                0
+            );
+            var onRejected = new JsHostFunction(
+                targetRealm,
+                (in info) =>
+                {
+                    var reason = info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0];
+                    FailModuleEvaluation(targetNode, targetResolvedId, info.Realm, reason, null);
+                    return JsValue.Undefined;
+                },
+                string.Empty,
+                1
+            );
             _ = targetRealm.PromiseThen(
                 cleanupPromise,
                 JsValue.FromObject(onFulfilled),
-                JsValue.FromObject(onRejected));
+                JsValue.FromObject(onRejected)
+            );
         }
 
-        void EnsureModuleExplicitResourceStack(ModuleRecordNode targetNode, JsRealm targetRealm,
-            ModuleExecutionPlan executionPlan)
+        void EnsureModuleExplicitResourceStack(
+            ModuleRecordNode targetNode,
+            JsRealm targetRealm,
+            ModuleExecutionPlan executionPlan
+        )
         {
             if (!executionPlan.HasTopLevelUsingLike)
                 return;
@@ -527,8 +736,10 @@ public sealed partial class JsAgent
             var bindings = targetNode.ExecutionBindings!;
             if (bindings.ExplicitResourceStack is null)
             {
-                bindings.ExplicitResourceStack = targetRealm.Intrinsics.CreateCompilerDisposableStack(
-                    executionPlan.HasTopLevelAwaitUsingLike);
+                bindings.ExplicitResourceStack =
+                    targetRealm.Intrinsics.CreateCompilerDisposableStack(
+                        executionPlan.HasTopLevelAwaitUsingLike
+                    );
             }
         }
 
@@ -552,23 +763,41 @@ public sealed partial class JsAgent
             if (readyAncestors.Count == 0)
                 return;
 
-            readyAncestors.Sort(static (left, right) =>
-                left.AsyncEvaluationOrder.CompareTo(right.AsyncEvaluationOrder));
+            readyAncestors.Sort(
+                static (left, right) =>
+                    left.AsyncEvaluationOrder.CompareTo(right.AsyncEvaluationOrder)
+            );
             for (var i = 0; i < readyAncestors.Count; i++)
             {
                 var ancestor = readyAncestors[i];
-                targetRealm.Agent.EnqueuePromiseJob(static stateObj => ((Action)stateObj!).Invoke(),
-                    (Action)(() =>
-                    {
-                        var ancestorPlan = ancestor.LinkPlan ??
-                                           ModuleLinker.BuildPlan(ancestor.ResolvedId, ancestor.Program);
-                        StartModuleExecution(ancestor, targetRealm, ancestor.ResolvedId, ancestorPlan, false);
-                    }));
+                targetRealm.Agent.EnqueuePromiseJob(
+                    static stateObj => ((Action)stateObj!).Invoke(),
+                    (Action)(
+                        () =>
+                        {
+                            var ancestorPlan =
+                                ancestor.LinkPlan
+                                ?? ModuleLinker.BuildPlan(ancestor.ResolvedId, ancestor.Program);
+                            StartModuleExecution(
+                                ancestor,
+                                targetRealm,
+                                ancestor.ResolvedId,
+                                ancestorPlan,
+                                false
+                            );
+                        }
+                    )
+                );
             }
         }
 
-        void FailModuleEvaluation(ModuleRecordNode targetNode, string targetResolvedId, JsRealm targetRealm,
-            in JsValue reason, JsRuntimeException? failure)
+        void FailModuleEvaluation(
+            ModuleRecordNode targetNode,
+            string targetResolvedId,
+            JsRealm targetRealm,
+            in JsValue reason,
+            JsRuntimeException? failure
+        )
         {
             if (targetNode.State == ModuleEvalState.Failed)
                 return;
@@ -577,7 +806,8 @@ public sealed partial class JsAgent
 
             targetNode.State = ModuleEvalState.Failed;
             targetNode.PendingAsyncDependencies = 0;
-            targetNode.LastError = failure ?? CreateModuleAwaitRejectedException(targetResolvedId, reason);
+            targetNode.LastError =
+                failure ?? CreateModuleAwaitRejectedException(targetResolvedId, reason);
             targetNode.EvaluationStarted = true;
             var completionPromise = targetNode.PendingTopLevelAwaitPromise;
             targetNode.PendingTopLevelAwaitPromise = null;
@@ -589,14 +819,27 @@ public sealed partial class JsAgent
 
             var parents = new List<ModuleRecordNode>(targetNode.AsyncParentModules);
             targetNode.AsyncParentModules.Clear();
-            parents.Sort(static (left, right) => left.AsyncEvaluationOrder.CompareTo(right.AsyncEvaluationOrder));
+            parents.Sort(
+                static (left, right) =>
+                    left.AsyncEvaluationOrder.CompareTo(right.AsyncEvaluationOrder)
+            );
             var rejectionReason = reason;
             for (var i = 0; i < parents.Count; i++)
             {
                 var parent = parents[i];
-                targetRealm.Agent.EnqueuePromiseJob(static stateObj => ((Action)stateObj!).Invoke(),
-                    (Action)(() =>
-                        FailModuleEvaluation(parent, parent.ResolvedId, targetRealm, rejectionReason, null)));
+                targetRealm.Agent.EnqueuePromiseJob(
+                    static stateObj => ((Action)stateObj!).Invoke(),
+                    (Action)(
+                        () =>
+                            FailModuleEvaluation(
+                                parent,
+                                parent.ResolvedId,
+                                targetRealm,
+                                rejectionReason,
+                                null
+                            )
+                    )
+                );
             }
         }
 
@@ -613,17 +856,22 @@ public sealed partial class JsAgent
                 var parent = parents[i];
                 if (parent.PendingAsyncDependencies > 0)
                     parent.PendingAsyncDependencies--;
-                if (parent.PendingAsyncDependencies == 0 &&
-                    parent.State == ModuleEvalState.Evaluating &&
-                    !parent.EvaluationStarted)
+                if (
+                    parent.PendingAsyncDependencies == 0
+                    && parent.State == ModuleEvalState.Evaluating
+                    && !parent.EvaluationStarted
+                )
                     ready.Add(parent);
             }
 
             return ready;
         }
 
-        void RegisterPendingImportDependencies(ModuleRecordNode targetNode, JsRealm targetRealm,
-            IReadOnlyList<ResolvedModuleDependency> dependencies)
+        void RegisterPendingImportDependencies(
+            ModuleRecordNode targetNode,
+            JsRealm targetRealm,
+            IReadOnlyList<ResolvedModuleDependency> dependencies
+        )
         {
             for (var i = 0; i < dependencies.Count; i++)
             {
@@ -658,8 +906,11 @@ public sealed partial class JsAgent
                 targetNode.AsyncEvaluationOrder = ++nextModuleAsyncEvaluationOrder;
         }
 
-        static void WaitForPendingTopLevelAwait(ModuleRecordNode targetNode, string targetResolvedId,
-            JsRealm targetRealm)
+        static void WaitForPendingTopLevelAwait(
+            ModuleRecordNode targetNode,
+            string targetResolvedId,
+            JsRealm targetRealm
+        )
         {
             if (targetNode.PendingTopLevelAwaitPromise is null)
             {
@@ -681,12 +932,21 @@ public sealed partial class JsAgent
             throw CreateModuleAwaitRejectedException(targetResolvedId, promise.Result);
         }
 
-        bool TryGetActiveDependencyNode(string dependencyResolvedId, out ModuleRecordNode activeDependencyNode)
+        bool TryGetActiveDependencyNode(
+            string dependencyResolvedId,
+            out ModuleRecordNode activeDependencyNode
+        )
         {
             for (var i = moduleEvaluationStack.Count - 1; i >= 0; i--)
             {
                 var candidate = moduleEvaluationStack[i];
-                if (string.Equals(candidate.ResolvedId, dependencyResolvedId, StringComparison.Ordinal))
+                if (
+                    string.Equals(
+                        candidate.ResolvedId,
+                        dependencyResolvedId,
+                        StringComparison.Ordinal
+                    )
+                )
                 {
                     activeDependencyNode = candidate;
                     return true;
@@ -697,27 +957,34 @@ public sealed partial class JsAgent
             return false;
         }
 
-        ModuleRecordNode? GetPendingDependencyWaitNode(ModuleRecordNode targetNode,
-            ModuleRecordNode? dependencyNode)
+        ModuleRecordNode? GetPendingDependencyWaitNode(
+            ModuleRecordNode targetNode,
+            ModuleRecordNode? dependencyNode
+        )
         {
             if (dependencyNode is null)
                 return null;
 
             var cycleRoot = dependencyNode.AsyncCycleRoot;
-            var sharesAsyncCycle = cycleRoot is not null &&
-                                   CanReachModule(targetNode, cycleRoot) &&
-                                   CanReachModule(cycleRoot, targetNode);
+            var sharesAsyncCycle =
+                cycleRoot is not null
+                && CanReachModule(targetNode, cycleRoot)
+                && CanReachModule(cycleRoot, targetNode);
             if (sharesAsyncCycle && ReferenceEquals(dependencyNode, cycleRoot))
                 return null;
 
-            if (cycleRoot is not null &&
-                !sharesAsyncCycle &&
-                cycleRoot.State != ModuleEvalState.Evaluated &&
-                cycleRoot.State != ModuleEvalState.Failed)
+            if (
+                cycleRoot is not null
+                && !sharesAsyncCycle
+                && cycleRoot.State != ModuleEvalState.Evaluated
+                && cycleRoot.State != ModuleEvalState.Failed
+            )
                 return cycleRoot;
 
-            if (dependencyNode.State == ModuleEvalState.Evaluated ||
-                dependencyNode.State == ModuleEvalState.Failed)
+            if (
+                dependencyNode.State == ModuleEvalState.Evaluated
+                || dependencyNode.State == ModuleEvalState.Failed
+            )
                 return null;
 
             return dependencyNode;
@@ -753,15 +1020,20 @@ public sealed partial class JsAgent
         }
     }
 
-    internal JsValue EvaluateJsonModule(JsRealm realm, string specifier, string? referrer = null,
-        bool requireJsonType = false)
+    internal JsValue EvaluateJsonModule(
+        JsRealm realm,
+        string specifier,
+        string? referrer = null,
+        bool requireJsonType = false
+    )
     {
         var resolvedId = ResolveModuleSpecifierOrThrow(specifier, referrer);
         if (requireJsonType && !resolvedId.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
             throw new JsRuntimeException(
                 JsErrorKind.TypeError,
                 $"Dynamic import type 'json' requires a JSON module: '{resolvedId}'",
-                "DYNAMIC_IMPORT_JSON_TYPE_MISMATCH");
+                "DYNAMIC_IMPORT_JSON_TYPE_MISMATCH"
+            );
         lock (moduleCacheGate)
         {
             if (jsonModuleNamespaceCache.TryGetValue(resolvedId, out var cachedNamespace))
@@ -771,8 +1043,12 @@ public sealed partial class JsAgent
         var source = LoadModuleSourceByResolvedIdOrThrow(resolvedId);
         var defaultExport = realm.ParseJsonModuleSource(source);
         var moduleNamespace = new JsModuleNamespaceObject(realm);
-        moduleNamespace.DefineDataPropertyAtom(realm, realm.Atoms.InternNoCheck("default"), defaultExport,
-            JsShapePropertyFlags.Open);
+        moduleNamespace.DefineDataPropertyAtom(
+            realm,
+            realm.Atoms.InternNoCheck("default"),
+            defaultExport,
+            JsShapePropertyFlags.Open
+        );
         moduleNamespace.LockForRuntimeMutation();
 
         lock (moduleCacheGate)
@@ -797,8 +1073,12 @@ public sealed partial class JsAgent
 
         var source = LoadModuleSourceByResolvedIdOrThrow(resolvedId);
         var moduleNamespace = new JsModuleNamespaceObject(realm);
-        moduleNamespace.DefineDataPropertyAtom(realm, realm.Atoms.InternNoCheck("default"), JsValue.FromString(source),
-            JsShapePropertyFlags.Open);
+        moduleNamespace.DefineDataPropertyAtom(
+            realm,
+            realm.Atoms.InternNoCheck("default"),
+            JsValue.FromString(source),
+            JsShapePropertyFlags.Open
+        );
         moduleNamespace.LockForRuntimeMutation();
 
         lock (moduleCacheGate)
@@ -844,8 +1124,10 @@ public sealed partial class JsAgent
                 {
                     var linkResult = ModuleLinker.BuildPlanResult(resolvedId, node.Program);
                     if (linkResult.Diagnostics.Count != 0)
-                        throw WrapModuleLinkException(resolvedId,
-                            ModuleLinker.ToRuntimeException(linkResult.Diagnostics[0]));
+                        throw WrapModuleLinkException(
+                            resolvedId,
+                            ModuleLinker.ToRuntimeException(linkResult.Diagnostics[0])
+                        );
                     lock (moduleCacheGate)
                     {
                         if (node.LinkPlan is null)
@@ -873,7 +1155,9 @@ public sealed partial class JsAgent
         }
     }
 
-    private static IEnumerable<ResolvedModuleDependency> EnumerateLinkDependencies(ModuleLinkPlan plan)
+    private static IEnumerable<ResolvedModuleDependency> EnumerateLinkDependencies(
+        ModuleLinkPlan plan
+    )
     {
         var seen = new HashSet<string>(StringComparer.Ordinal);
 
@@ -886,19 +1170,22 @@ public sealed partial class JsAgent
         }
     }
 
-    internal bool TryGetPendingModuleEvaluationPromise(string specifier, string? referrer,
-        out JsPromiseObject pendingPromise)
+    internal bool TryGetPendingModuleEvaluationPromise(
+        string specifier,
+        string? referrer,
+        out JsPromiseObject pendingPromise
+    )
     {
         var resolvedId = ResolveModuleSpecifierOrThrow(specifier, referrer);
         lock (moduleCacheGate)
         {
             if (ModuleGraph.TryGet(resolvedId, out var node))
             {
-                var waitNode = node.PendingTopLevelAwaitPromise is not null
-                    ? node
+                var waitNode =
+                    node.PendingTopLevelAwaitPromise is not null ? node
                     : node.AsyncCycleRoot?.PendingTopLevelAwaitPromise is not null
                         ? node.AsyncCycleRoot
-                        : node;
+                    : node;
                 if (waitNode.PendingTopLevelAwaitPromise is not null)
                 {
                     pendingPromise = waitNode.PendingTopLevelAwaitPromise;
@@ -911,13 +1198,17 @@ public sealed partial class JsAgent
         return false;
     }
 
-    private static JsRuntimeException CreateModuleAwaitRejectedException(string resolvedId, in JsValue reason)
+    private static JsRuntimeException CreateModuleAwaitRejectedException(
+        string resolvedId,
+        in JsValue reason
+    )
     {
         return new(
             JsErrorKind.TypeError,
             $"Top-level await module '{resolvedId}' rejected",
             "MODULE_TOP_LEVEL_AWAIT_REJECTED",
-            reason);
+            reason
+        );
     }
 
     private static JsValue GetModuleCleanupExceptionReason(JsRealm realm, Exception ex)
@@ -925,13 +1216,11 @@ public sealed partial class JsAgent
         return ex switch
         {
             PromiseRejectedException promiseRejected => promiseRejected.Reason,
-            JsRuntimeException runtime => runtime.ThrownValue ?? realm.CreateErrorObjectFromException(runtime),
-            _ => realm.CreateErrorObjectFromException(new JsRuntimeException(
-                JsErrorKind.InternalError,
-                ex.Message,
-                null,
-                null,
-                ex))
+            JsRuntimeException runtime => runtime.ThrownValue
+                ?? realm.CreateErrorObjectFromException(runtime),
+            _ => realm.CreateErrorObjectFromException(
+                new JsRuntimeException(JsErrorKind.InternalError, ex.Message, null, null, ex)
+            ),
         };
     }
 
@@ -952,7 +1241,8 @@ public sealed partial class JsAgent
                 JsErrorKind.TypeError,
                 $"Failed to resolve module specifier '{specifier}' from '{from}': {ex.Message}",
                 "MODULE_RESOLVE_FAILED",
-                innerException: ex);
+                innerException: ex
+            );
         }
     }
 
@@ -972,18 +1262,24 @@ public sealed partial class JsAgent
                 JsErrorKind.TypeError,
                 $"Failed to load module '{resolvedId}': {ex.Message}",
                 "MODULE_LOAD_FAILED",
-                innerException: ex);
+                innerException: ex
+            );
         }
     }
 
-    private ModuleRecordNode GetOrCreateModuleNodeOrThrow(string resolvedId, string source, JsRealm realm)
+    private ModuleRecordNode GetOrCreateModuleNodeOrThrow(
+        string resolvedId,
+        string source,
+        JsRealm realm
+    )
     {
         try
         {
             return ModuleGraph.GetOrCreate(
                 resolvedId,
                 PrepareSourceForModuleParsing(resolvedId, source, realm),
-                new(realm));
+                new(realm)
+            );
         }
         catch (JsParseException ex)
         {
@@ -991,11 +1287,16 @@ public sealed partial class JsAgent
                 JsErrorKind.TypeError,
                 $"Failed to parse module '{resolvedId}': {ex.Message}",
                 "MODULE_PARSE_FAILED",
-                innerException: ex);
+                innerException: ex
+            );
         }
     }
 
-    private static string PrepareSourceForModuleParsing(string resolvedId, string source, JsRealm realm)
+    private static string PrepareSourceForModuleParsing(
+        string resolvedId,
+        string source,
+        JsRealm realm
+    )
     {
         if (!resolvedId.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
             return source;
@@ -1015,21 +1316,28 @@ public sealed partial class JsAgent
                 JsErrorKind.TypeError,
                 $"Failed to evaluate module '{resolvedId}': {runtimeEx.InnerException.Message}",
                 "MODULE_EXEC_FAILED",
-                innerException: runtimeEx.InnerException);
+                innerException: runtimeEx.InnerException
+            );
         }
 
         return new(
             JsErrorKind.TypeError,
             $"Failed to evaluate module '{resolvedId}': {ex.Message}",
             "MODULE_EXEC_FAILED",
-            innerException: ex);
+            innerException: ex
+        );
     }
 
     private static JsRuntimeException WrapModuleLinkException(string resolvedId, Exception ex)
     {
         if (ex is JsRuntimeException runtimeEx)
         {
-            if (runtimeEx.DetailCode is "MODULE_RESOLVE_FAILED" or "MODULE_LOAD_FAILED" or "MODULE_PARSE_FAILED")
+            if (
+                runtimeEx.DetailCode
+                is "MODULE_RESOLVE_FAILED"
+                    or "MODULE_LOAD_FAILED"
+                    or "MODULE_PARSE_FAILED"
+            )
                 return runtimeEx;
             if (runtimeEx.DetailCode == "MODULE_LINK_FAILED")
                 return runtimeEx;
@@ -1038,22 +1346,33 @@ public sealed partial class JsAgent
                 runtimeEx.Kind,
                 $"Failed to link module '{resolvedId}': {runtimeEx.Message}",
                 "MODULE_LINK_FAILED",
-                innerException: runtimeEx);
+                innerException: runtimeEx
+            );
         }
 
         return new(
             JsErrorKind.TypeError,
             $"Failed to link module '{resolvedId}': {ex.Message}",
             "MODULE_LINK_FAILED",
-            innerException: ex);
+            innerException: ex
+        );
     }
 
-    private bool CanResolveExportName(string moduleResolvedId, string exportName, string? importType = null)
+    private bool CanResolveExportName(
+        string moduleResolvedId,
+        string exportName,
+        string? importType = null
+    )
     {
         var visited = new HashSet<string>(StringComparer.Ordinal);
-        return TryResolvePlannedExportBindingIdentity(moduleResolvedId, exportName, importType, visited, out _,
-                   out var ambiguous) &&
-               !ambiguous;
+        return TryResolvePlannedExportBindingIdentity(
+                moduleResolvedId,
+                exportName,
+                importType,
+                visited,
+                out _,
+                out var ambiguous
+            ) && !ambiguous;
     }
 
     private bool TryResolvePlannedExportBindingIdentity(
@@ -1062,7 +1381,8 @@ public sealed partial class JsAgent
         string? importType,
         HashSet<string> visited,
         out ExportBindingIdentity identity,
-        out bool ambiguous)
+        out bool ambiguous
+    )
     {
         identity = default;
         ambiguous = false;
@@ -1100,7 +1420,10 @@ public sealed partial class JsAgent
 
                 if (binding.Kind == ModuleImportBindingKind.Namespace)
                 {
-                    identity = ExportBindingIdentity.Namespace(binding.ResolvedDependencyId, binding.ImportType);
+                    identity = ExportBindingIdentity.Namespace(
+                        binding.ResolvedDependencyId,
+                        binding.ImportType
+                    );
                     return true;
                 }
 
@@ -1110,7 +1433,8 @@ public sealed partial class JsAgent
                     binding.ImportType,
                     visited,
                     out identity,
-                    out ambiguous);
+                    out ambiguous
+                );
             }
 
             identity = ExportBindingIdentity.Named(moduleResolvedId, localName);
@@ -1122,7 +1446,10 @@ public sealed partial class JsAgent
             var binding = plan.ExportNamespaceFromBindings[i];
             if (!string.Equals(binding.ExportedName, exportName, StringComparison.Ordinal))
                 continue;
-            identity = ExportBindingIdentity.Namespace(binding.ResolvedDependencyId, binding.ImportType);
+            identity = ExportBindingIdentity.Namespace(
+                binding.ResolvedDependencyId,
+                binding.ImportType
+            );
             return true;
         }
 
@@ -1137,7 +1464,8 @@ public sealed partial class JsAgent
                 binding.ImportType,
                 visited,
                 out identity,
-                out ambiguous);
+                out ambiguous
+            );
         }
 
         if (string.Equals(exportName, "default", StringComparison.Ordinal))
@@ -1147,13 +1475,16 @@ public sealed partial class JsAgent
         ExportBindingIdentity starIdentity = default;
         for (var i = 0; i < plan.ExportStarResolvedIds.Count; i++)
         {
-            if (!TryResolvePlannedExportBindingIdentity(
+            if (
+                !TryResolvePlannedExportBindingIdentity(
                     plan.ExportStarResolvedIds[i],
                     exportName,
                     null,
                     visited,
                     out var candidate,
-                    out var candidateAmbiguous))
+                    out var candidateAmbiguous
+                )
+            )
                 continue;
 
             if (candidateAmbiguous)
@@ -1185,9 +1516,7 @@ public sealed partial class JsAgent
 
     private static string GetDependencyCacheKey(string resolvedId, string? importType)
     {
-        return string.IsNullOrEmpty(importType)
-            ? resolvedId
-            : resolvedId + "\u0000" + importType;
+        return string.IsNullOrEmpty(importType) ? resolvedId : resolvedId + "\u0000" + importType;
     }
 
     private static HashSet<string>? ComputeAmbiguousStarExportNames(
@@ -1196,7 +1525,8 @@ public sealed partial class JsAgent
         IReadOnlyDictionary<string, string> explicitLocalExports,
         IReadOnlyList<ExportFromBindingResolved> exportFromBindings,
         IReadOnlyList<ExportNamespaceFromBindingResolved> exportNamespaceFromBindings,
-        IReadOnlyList<string> exportStars)
+        IReadOnlyList<string> exportStars
+    )
     {
         if (exportStars.Count == 0)
             return null;
@@ -1211,8 +1541,14 @@ public sealed partial class JsAgent
         HashSet<string>? ambiguous = null;
         for (var i = 0; i < exportStars.Count; i++)
         {
-            if (!importsObject.TryGetPropertyAtom(realm, realm.Atoms.InternNoCheck(exportStars[i]), out var depNsValue,
-                    out _))
+            if (
+                !importsObject.TryGetPropertyAtom(
+                    realm,
+                    realm.Atoms.InternNoCheck(exportStars[i]),
+                    out var depNsValue,
+                    out _
+                )
+            )
                 continue;
             if (!depNsValue.TryGetObject(out var depNs))
                 continue;
@@ -1250,12 +1586,22 @@ public sealed partial class JsAgent
         return ambiguous;
     }
 
-    private static bool TryResolveExportBindingIdentity(JsRealm realm, JsObject namespaceObject, string exportName,
-        out ExportBindingIdentity identity)
+    private static bool TryResolveExportBindingIdentity(
+        JsRealm realm,
+        JsObject namespaceObject,
+        string exportName,
+        out ExportBindingIdentity identity
+    )
     {
         identity = default;
         var visited = new HashSet<string>(StringComparer.Ordinal);
-        return TryResolveExportBindingIdentityCore(realm, namespaceObject, exportName, visited, out identity);
+        return TryResolveExportBindingIdentityCore(
+            realm,
+            namespaceObject,
+            exportName,
+            visited,
+            out identity
+        );
     }
 
     private static bool TryResolveExportBindingIdentityCore(
@@ -1263,7 +1609,8 @@ public sealed partial class JsAgent
         JsObject namespaceObject,
         string exportName,
         HashSet<string> visited,
-        out ExportBindingIdentity identity)
+        out ExportBindingIdentity identity
+    )
     {
         identity = default;
         var visitKey = $"{RuntimeHelpers.GetHashCode(namespaceObject)}:{exportName}";
@@ -1295,42 +1642,66 @@ public sealed partial class JsAgent
         switch (userData)
         {
             case LocalExportSlotGetterCapture local:
+            {
+                if (local.CellIndex > 0)
                 {
-                    if (local.CellIndex > 0)
-                    {
-                        identity = ExportBindingIdentity.Named(local.ModuleResolvedId, local.ExportedName);
-                        return true;
-                    }
+                    identity = ExportBindingIdentity.Named(
+                        local.ModuleResolvedId,
+                        local.ExportedName
+                    );
+                    return true;
+                }
 
-                    var importIndex = -local.CellIndex - 1;
-                    if ((uint)importIndex >= (uint)local.Bindings.RegularImports.Length)
-                        return false;
-                    var slot = local.Bindings.RegularImports[importIndex];
-                    if (slot.Kind == ModuleVariableSlotKind.NamespaceImport &&
-                        slot.ResolvedDependencyId is not null)
-                    {
-                        identity = ExportBindingIdentity.Namespace(slot.ResolvedDependencyId, slot.ImportType);
-                        return true;
-                    }
-
-                    if (slot.Kind == ModuleVariableSlotKind.NamedImport &&
-                        slot.ResolvedDependencyId is not null &&
-                        slot.ImportedName is not null)
-                    {
-                        identity = ExportBindingIdentity.Named(slot.ResolvedDependencyId, slot.ImportedName);
-                        return true;
-                    }
-
+                var importIndex = -local.CellIndex - 1;
+                if ((uint)importIndex >= (uint)local.Bindings.RegularImports.Length)
                     return false;
-                }
-            case ExportFromGetterCapture from:
-                return TryResolveExportBindingIdentityCore(realm, from.Dependency, from.ImportedName, visited,
-                    out identity);
-            case ExportStarGetterCapture star:
+                var slot = local.Bindings.RegularImports[importIndex];
+                if (
+                    slot.Kind == ModuleVariableSlotKind.NamespaceImport
+                    && slot.ResolvedDependencyId is not null
+                )
                 {
-                    var starName = realm.Atoms.AtomToString(star.Atom);
-                    return TryResolveExportBindingIdentityCore(realm, star.Dependency, starName, visited, out identity);
+                    identity = ExportBindingIdentity.Namespace(
+                        slot.ResolvedDependencyId,
+                        slot.ImportType
+                    );
+                    return true;
                 }
+
+                if (
+                    slot.Kind == ModuleVariableSlotKind.NamedImport
+                    && slot.ResolvedDependencyId is not null
+                    && slot.ImportedName is not null
+                )
+                {
+                    identity = ExportBindingIdentity.Named(
+                        slot.ResolvedDependencyId,
+                        slot.ImportedName
+                    );
+                    return true;
+                }
+
+                return false;
+            }
+            case ExportFromGetterCapture from:
+                return TryResolveExportBindingIdentityCore(
+                    realm,
+                    from.Dependency,
+                    from.ImportedName,
+                    visited,
+                    out identity
+                );
+            case ExportStarGetterCapture star:
+            {
+                var starName = realm.Atoms.AtomToString(star.Atom);
+                return TryResolveExportBindingIdentityCore(
+                    realm,
+                    star.Dependency,
+                    starName,
+                    visited,
+                    out identity
+                );
+            }
             case NamespaceExportGetterCapture nsCapture:
                 if (nsCapture.NamespaceValue.TryGetObject(out var nsObj))
                 {
@@ -1349,13 +1720,17 @@ public sealed partial class JsAgent
         index = 0;
         if (string.IsNullOrEmpty(text))
             return false;
-        if (!uint.TryParse(text, NumberStyles.None,
-                CultureInfo.InvariantCulture, out var parsed))
+        if (!uint.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var parsed))
             return false;
         if (parsed == uint.MaxValue)
             return false;
-        if (!string.Equals(parsed.ToString(CultureInfo.InvariantCulture), text,
-                StringComparison.Ordinal))
+        if (
+            !string.Equals(
+                parsed.ToString(CultureInfo.InvariantCulture),
+                text,
+                StringComparison.Ordinal
+            )
+        )
             return false;
         index = parsed;
         return true;
@@ -1363,26 +1738,37 @@ public sealed partial class JsAgent
 
     private static JsHostFunction CreateSetFunctionNameHelper(JsRealm realm)
     {
-        return new(realm, static (in info) =>
-        {
-            var innerRealm = info.Realm;
-            var thisValue = info.ThisValue;
-            var args = info.Arguments;
-            var callee = info.Function;
-            if (args.Length < 2)
-                return JsValue.Undefined;
-            if (!args[0].TryGetObject(out var targetObj) || targetObj is not JsFunction targetFn)
-                return JsValue.Undefined;
-            if (!args[1].IsString)
-                return JsValue.Undefined;
+        return new(
+            realm,
+            static (in info) =>
+            {
+                var innerRealm = info.Realm;
+                var thisValue = info.ThisValue;
+                var args = info.Arguments;
+                var callee = info.Function;
+                if (args.Length < 2)
+                    return JsValue.Undefined;
+                if (
+                    !args[0].TryGetObject(out var targetObj) || targetObj is not JsFunction targetFn
+                )
+                    return JsValue.Undefined;
+                if (!args[1].IsString)
+                    return JsValue.Undefined;
 
-            if (!ShouldSetModuleDefaultExportName(innerRealm, targetFn))
+                if (!ShouldSetModuleDefaultExportName(innerRealm, targetFn))
+                    return JsValue.Undefined;
+                const int nameAtom = IdName;
+                targetFn.DefineDataPropertyAtom(
+                    innerRealm,
+                    nameAtom,
+                    JsValue.FromString(args[1].AsString()),
+                    JsShapePropertyFlags.Configurable
+                );
                 return JsValue.Undefined;
-            const int nameAtom = IdName;
-            targetFn.DefineDataPropertyAtom(innerRealm, nameAtom, JsValue.FromString(args[1].AsString()),
-                JsShapePropertyFlags.Configurable);
-            return JsValue.Undefined;
-        }, "moduleSetFunctionName", 2);
+            },
+            "moduleSetFunctionName",
+            2
+        );
     }
 
     private static bool ShouldSetModuleDefaultExportName(JsRealm realm, JsFunction targetFn)
@@ -1396,15 +1782,18 @@ public sealed partial class JsAgent
     }
 
     private static HashSet<string>? CollectDefaultNameEligibleExportLocals(
-        IReadOnlyList<ModuleExecutionOp> operations)
+        IReadOnlyList<ModuleExecutionOp> operations
+    )
     {
         HashSet<string>? result = null;
         for (var i = 0; i < operations.Count; i++)
         {
             var op = operations[i];
-            if (op.Kind != ModuleExecutionOpKind.ExportDefaultExpression ||
-                !op.SetDefaultName ||
-                string.IsNullOrEmpty(op.ExportLocalName))
+            if (
+                op.Kind != ModuleExecutionOpKind.ExportDefaultExpression
+                || !op.SetDefaultName
+                || string.IsNullOrEmpty(op.ExportLocalName)
+            )
                 continue;
 
             result ??= new(StringComparer.Ordinal);
@@ -1413,7 +1802,6 @@ public sealed partial class JsAgent
 
         return result;
     }
-
 
     private void PushModuleRuntimeBindings(ModuleExecutionBindings bindings)
     {
@@ -1458,26 +1846,36 @@ public sealed partial class JsAgent
     {
         var bindings = GetModuleBindingsFromContextDepth(realm, depth);
         if (cellIndex <= 0)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Unsupported module import store",
-                "MODULE_IMPORT_STORE_UNSUPPORTED");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Unsupported module import store",
+                "MODULE_IMPORT_STORE_UNSUPPORTED"
+            );
 
         var exportIndex = cellIndex - 1;
         if ((uint)exportIndex >= (uint)bindings.RegularExports.Length)
-            throw new JsRuntimeException(JsErrorKind.TypeError,
-                $"Module export cell index out of range: {cellIndex}", "MODULE_SLOT_OOB");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                $"Module export cell index out of range: {cellIndex}",
+                "MODULE_SLOT_OOB"
+            );
 
         var cell = bindings.RegularExports[exportIndex];
         cell.LocalValue = value;
     }
 
-    private static ModuleExecutionBindings GetModuleBindingsFromContextDepth(JsRealm realm, int depth)
+    private static ModuleExecutionBindings GetModuleBindingsFromContextDepth(
+        JsRealm realm,
+        int depth
+    )
     {
         var moduleContext = realm.GetContextAtDepth(depth);
         if (moduleContext.ModuleBindings is null)
             throw new JsRuntimeException(
                 JsErrorKind.TypeError,
                 "Module runtime binding requested without active module context",
-                "MODULE_RUNTIME_BINDING_NO_CONTEXT");
+                "MODULE_RUNTIME_BINDING_NO_CONTEXT"
+            );
         return moduleContext.ModuleBindings;
     }
 
@@ -1485,9 +1883,11 @@ public sealed partial class JsAgent
     {
         var bindings = context?.ModuleBindings ?? GetCurrentModuleRuntimeBindings();
         var imports = bindings.Imports;
-        if (imports.TryGetObject(out var importsObj) &&
-            importsObj is JsObject importsOkojo &&
-            importsOkojo.TryGetPropertyAtom(realm, IdOkojoMeta, out var importMeta, out _))
+        if (
+            imports.TryGetObject(out var importsObj)
+            && importsObj is JsObject importsOkojo
+            && importsOkojo.TryGetPropertyAtom(realm, IdOkojoMeta, out var importMeta, out _)
+        )
             return importMeta;
 
         return JsValue.Undefined;
@@ -1515,7 +1915,8 @@ public sealed partial class JsAgent
         {
             throw new JsRuntimeException(
                 JsErrorKind.InternalError,
-                "Current module does not have an explicit resource stack");
+                "Current module does not have an explicit resource stack"
+            );
         }
 
         return bindings.ExplicitResourceStack;
@@ -1538,9 +1939,11 @@ public sealed partial class JsAgent
         lock (moduleRuntimeBindingsGate)
         {
             if (moduleRuntimeBindings.Count == 0)
-                throw new JsRuntimeException(JsErrorKind.TypeError,
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
                     "Module runtime binding requested outside active module execution",
-                    "MODULE_RUNTIME_BINDING_NO_CONTEXT");
+                    "MODULE_RUNTIME_BINDING_NO_CONTEXT"
+                );
             return moduleRuntimeBindings.Peek();
         }
     }
@@ -1565,7 +1968,10 @@ public sealed partial class JsAgent
             return new(1, moduleResolvedId, bindingName, 0);
         }
 
-        public static ExportBindingIdentity Namespace(string moduleResolvedId, string? importType = null)
+        public static ExportBindingIdentity Namespace(
+            string moduleResolvedId,
+            string? importType = null
+        )
         {
             return new(2, GetDependencyCacheKey(moduleResolvedId, importType), null, 0);
         }
@@ -1582,10 +1988,10 @@ public sealed partial class JsAgent
 
         public bool Equals(ExportBindingIdentity other)
         {
-            return kind == other.kind &&
-                   objectId == other.objectId &&
-                   string.Equals(key1, other.key1, StringComparison.Ordinal) &&
-                   string.Equals(key2, other.key2, StringComparison.Ordinal);
+            return kind == other.kind
+                && objectId == other.objectId
+                && string.Equals(key1, other.key1, StringComparison.Ordinal)
+                && string.Equals(key2, other.key2, StringComparison.Ordinal);
         }
 
         public override bool Equals(object? obj)

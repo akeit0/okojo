@@ -6,19 +6,28 @@ public partial class Intrinsics
 {
     private JsHostFunction CreateBigIntConstructor()
     {
-        return new(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            if (info.IsConstruct)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "BigInt is not a constructor");
+        return new(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                if (info.IsConstruct)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "BigInt is not a constructor"
+                    );
 
-            var value = args.Length == 0 ? JsValue.Undefined : args[0];
-            var primitive = realm.ToPrimitiveSlowPath(value, false);
-            if (primitive.IsNumber)
-                return JsValue.FromBigInt(NumberToBigInt(primitive.NumberValue));
-            return JsValue.FromBigInt(ToBigIntPrimitive(realm, primitive));
-        }, "BigInt", 1, true);
+                var value = args.Length == 0 ? JsValue.Undefined : args[0];
+                var primitive = realm.ToPrimitiveSlowPath(value, false);
+                if (primitive.IsNumber)
+                    return JsValue.FromBigInt(NumberToBigInt(primitive.NumberValue));
+                return JsValue.FromBigInt(ToBigIntPrimitive(realm, primitive));
+            },
+            "BigInt",
+            1,
+            true
+        );
     }
 
     private void InstallBigIntConstructorBuiltins()
@@ -26,28 +35,38 @@ public partial class Intrinsics
         const int atomAsIntN = IdAsIntN;
         const int atomAsUintN = IdAsUintN;
 
-        var asIntNFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            var bits = realm.ToIndexForBigInt(BigIntArgValue(args, 0));
-            var bigint = ToBigIntValue(realm, BigIntArgValue(args, 1)).Value;
-            return JsValue.FromBigInt(new(BigIntAsIntN(bits, bigint)));
-        }, "asIntN", 2);
+        var asIntNFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                var bits = realm.ToIndexForBigInt(BigIntArgValue(args, 0));
+                var bigint = ToBigIntValue(realm, BigIntArgValue(args, 1)).Value;
+                return JsValue.FromBigInt(new(BigIntAsIntN(bits, bigint)));
+            },
+            "asIntN",
+            2
+        );
 
-        var asUintNFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            var bits = realm.ToIndexForBigInt(BigIntArgValue(args, 0));
-            var bigint = ToBigIntValue(realm, BigIntArgValue(args, 1)).Value;
-            return JsValue.FromBigInt(new(BigIntAsUintN(bits, bigint)));
-        }, "asUintN", 2);
+        var asUintNFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                var bits = realm.ToIndexForBigInt(BigIntArgValue(args, 0));
+                var bigint = ToBigIntValue(realm, BigIntArgValue(args, 1)).Value;
+                return JsValue.FromBigInt(new(BigIntAsUintN(bits, bigint)));
+            },
+            "asUintN",
+            2
+        );
 
         Span<PropertyDefinition> defs =
         [
             PropertyDefinition.Mutable(atomAsIntN, JsValue.FromObject(asIntNFn)),
-            PropertyDefinition.Mutable(atomAsUintN, JsValue.FromObject(asUintNFn))
+            PropertyDefinition.Mutable(atomAsUintN, JsValue.FromObject(asUintNFn)),
         ];
         BigIntConstructor.InitializePrototypeProperty(BigIntPrototype);
         BigIntConstructor.DefineNewPropertiesNoCollision(Realm, defs);
@@ -57,63 +76,94 @@ public partial class Intrinsics
     {
         const int atomToLocaleString = IdToLocaleString;
 
-        var toStringFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var thisValue = info.ThisValue;
-            var args = info.Arguments;
-            var bigint = ThisBigIntValue(realm, thisValue).Value;
-            var radix = 10;
-            if (args.Length != 0 && !args[0].IsUndefined)
+        var toStringFn = new JsHostFunction(
+            Realm,
+            (in info) =>
             {
-                var radixNum = realm.ToIntegerOrInfinity(args[0]);
-                if (double.IsInfinity(radixNum) || radixNum < 2d || radixNum > 36d)
-                    throw new JsRuntimeException(JsErrorKind.RangeError,
-                        "toString() radix argument must be between 2 and 36");
-                radix = (int)radixNum;
-            }
+                var realm = info.Realm;
+                var thisValue = info.ThisValue;
+                var args = info.Arguments;
+                var bigint = ThisBigIntValue(realm, thisValue).Value;
+                var radix = 10;
+                if (args.Length != 0 && !args[0].IsUndefined)
+                {
+                    var radixNum = realm.ToIntegerOrInfinity(args[0]);
+                    if (double.IsInfinity(radixNum) || radixNum < 2d || radixNum > 36d)
+                        throw new JsRuntimeException(
+                            JsErrorKind.RangeError,
+                            "toString() radix argument must be between 2 and 36"
+                        );
+                    radix = (int)radixNum;
+                }
 
-            return BigIntToString(bigint, radix);
-        }, "toString", 0);
+                return BigIntToString(bigint, radix);
+            },
+            "toString",
+            0
+        );
 
-        var toLocaleStringFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var thisValue = info.ThisValue;
-            var bigint = ThisBigIntValue(realm, thisValue).Value;
-            if (!realm.GlobalObject.TryGetPropertyAtom(realm, realm.Atoms.InternNoCheck("Intl"), out var intlValue,
-                    out _) ||
-                !intlValue.TryGetObject(out var intlObject) ||
-                !intlObject.TryGetPropertyAtom(realm, realm.Atoms.InternNoCheck("NumberFormat"), out var ctorValue,
-                    out _) ||
-                !ctorValue.TryGetObject(out var ctorObject) ||
-                ctorObject is not JsFunction ctorFn)
+        var toLocaleStringFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var thisValue = info.ThisValue;
+                var bigint = ThisBigIntValue(realm, thisValue).Value;
+                if (
+                    !realm.GlobalObject.TryGetPropertyAtom(
+                        realm,
+                        realm.Atoms.InternNoCheck("Intl"),
+                        out var intlValue,
+                        out _
+                    )
+                    || !intlValue.TryGetObject(out var intlObject)
+                    || !intlObject.TryGetPropertyAtom(
+                        realm,
+                        realm.Atoms.InternNoCheck("NumberFormat"),
+                        out var ctorValue,
+                        out _
+                    )
+                    || !ctorValue.TryGetObject(out var ctorObject)
+                    || ctorObject is not JsFunction ctorFn
+                )
+                    return BigIntToString(bigint, 10);
+
+                var locales = info.Arguments.Length > 0 ? info.Arguments[0] : JsValue.Undefined;
+                var options = info.Arguments.Length > 1 ? info.Arguments[1] : JsValue.Undefined;
+                var numberFormatValue = realm.ConstructWithExplicitNewTarget(
+                    ctorFn,
+                    [locales, options],
+                    JsValue.FromObject(ctorFn),
+                    -1
+                );
+                if (
+                    numberFormatValue.TryGetObject(out var numberFormatObject)
+                    && numberFormatObject is JsNumberFormatObject numberFormat
+                )
+                {
+                    var exactValue = JsValue.FromBigInt(new(bigint));
+                    if (numberFormat.TryFormatExactValue(exactValue, out var exact))
+                        return JsValue.FromString(exact);
+                    return JsValue.FromString(numberFormat.Format((double)bigint));
+                }
+
                 return BigIntToString(bigint, 10);
+            },
+            "toLocaleString",
+            0
+        );
 
-            var locales = info.Arguments.Length > 0 ? info.Arguments[0] : JsValue.Undefined;
-            var options = info.Arguments.Length > 1 ? info.Arguments[1] : JsValue.Undefined;
-            var numberFormatValue =
-                realm.ConstructWithExplicitNewTarget(ctorFn, [locales, options], JsValue.FromObject(ctorFn), -1);
-            if (numberFormatValue.TryGetObject(out var numberFormatObject) &&
-                numberFormatObject is JsNumberFormatObject numberFormat)
-            {
-                var exactValue = JsValue.FromBigInt(new(bigint));
-                if (numberFormat.TryFormatExactValue(exactValue, out var exact))
-                    return JsValue.FromString(exact);
-                return JsValue.FromString(numberFormat.Format((double)bigint));
-            }
-
-            return BigIntToString(bigint, 10);
-        }, "toLocaleString", 0);
-
-        var valueOfFn = new JsHostFunction(Realm,
+        var valueOfFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var thisValue = info.ThisValue;
                 return JsValue.FromBigInt(ThisBigIntValue(realm, thisValue));
             },
-            "valueOf", 0);
+            "valueOf",
+            0
+        );
 
         Span<PropertyDefinition> defs =
         [
@@ -121,7 +171,11 @@ public partial class Intrinsics
             PropertyDefinition.Mutable(IdToString, JsValue.FromObject(toStringFn)),
             PropertyDefinition.Mutable(atomToLocaleString, JsValue.FromObject(toLocaleStringFn)),
             PropertyDefinition.Mutable(IdValueOf, JsValue.FromObject(valueOfFn)),
-            PropertyDefinition.Const(IdSymbolToStringTag, JsValue.FromString("BigInt"), configurable: true)
+            PropertyDefinition.Const(
+                IdSymbolToStringTag,
+                JsValue.FromString("BigInt"),
+                configurable: true
+            ),
         ];
         BigIntPrototype.DefineNewPropertiesNoCollision(Realm, defs);
     }
@@ -132,8 +186,10 @@ public partial class Intrinsics
             return value.AsBigInt();
         if (value.TryGetObject(out var obj) && obj is JsBigIntObject boxed)
             return boxed.Value;
-        throw new JsRuntimeException(JsErrorKind.TypeError,
-            "BigInt.prototype method requires that 'this' be a BigInt");
+        throw new JsRuntimeException(
+            JsErrorKind.TypeError,
+            "BigInt.prototype method requires that 'this' be a BigInt"
+        );
     }
 
     internal static JsBigInt ToBigIntValue(JsRealm realm, in JsValue value)
@@ -189,7 +245,10 @@ public partial class Intrinsics
             negative = span[0] == '-';
             span = span[1..];
             if (span.Length == 0)
-                throw new JsRuntimeException(JsErrorKind.SyntaxError, "Cannot convert string to BigInt");
+                throw new JsRuntimeException(
+                    JsErrorKind.SyntaxError,
+                    "Cannot convert string to BigInt"
+                );
         }
 
         var radix = 10;
@@ -199,28 +258,40 @@ public partial class Intrinsics
                 case 'x':
                 case 'X':
                     if (sawExplicitSign)
-                        throw new JsRuntimeException(JsErrorKind.SyntaxError, "Cannot convert string to BigInt");
+                        throw new JsRuntimeException(
+                            JsErrorKind.SyntaxError,
+                            "Cannot convert string to BigInt"
+                        );
                     radix = 16;
                     span = span[2..];
                     break;
                 case 'o':
                 case 'O':
                     if (sawExplicitSign)
-                        throw new JsRuntimeException(JsErrorKind.SyntaxError, "Cannot convert string to BigInt");
+                        throw new JsRuntimeException(
+                            JsErrorKind.SyntaxError,
+                            "Cannot convert string to BigInt"
+                        );
                     radix = 8;
                     span = span[2..];
                     break;
                 case 'b':
                 case 'B':
                     if (sawExplicitSign)
-                        throw new JsRuntimeException(JsErrorKind.SyntaxError, "Cannot convert string to BigInt");
+                        throw new JsRuntimeException(
+                            JsErrorKind.SyntaxError,
+                            "Cannot convert string to BigInt"
+                        );
                     radix = 2;
                     span = span[2..];
                     break;
             }
 
         if (span.Length == 0)
-            throw new JsRuntimeException(JsErrorKind.SyntaxError, "Cannot convert string to BigInt");
+            throw new JsRuntimeException(
+                JsErrorKind.SyntaxError,
+                "Cannot convert string to BigInt"
+            );
 
         var result = BigInteger.Zero;
         for (var i = 0; i < span.Length; i++)
@@ -230,16 +301,18 @@ public partial class Intrinsics
                 >= '0' and <= '9' => span[i] - '0',
                 >= 'a' and <= 'z' => span[i] - 'a' + 10,
                 >= 'A' and <= 'Z' => span[i] - 'A' + 10,
-                _ => -1
+                _ => -1,
             };
             if (digit < 0 || digit >= radix)
-                throw new JsRuntimeException(JsErrorKind.SyntaxError, "Cannot convert string to BigInt");
+                throw new JsRuntimeException(
+                    JsErrorKind.SyntaxError,
+                    "Cannot convert string to BigInt"
+                );
             result = result * radix + digit;
         }
 
         return new(negative ? -result : result);
     }
-
 
     internal static string BigIntToString(BigInteger value, int radix)
     {

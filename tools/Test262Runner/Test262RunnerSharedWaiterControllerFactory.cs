@@ -14,7 +14,8 @@ internal sealed class Test262RunnerSharedWaiterControllerFactory : ISharedWaiter
     private sealed class Test262RunnerSharedWaiterController(JsRealm realm)
         : JsArrayBufferObject.ISharedWaiterController
     {
-        private readonly Test262RunnerTimeProvider? runnerTime = realm.Engine.TimeProvider as Test262RunnerTimeProvider;
+        private readonly Test262RunnerTimeProvider? runnerTime =
+            realm.Engine.TimeProvider as Test262RunnerTimeProvider;
         private ITimer? asyncTimeoutTimer;
 
         public void ArmAsyncTimeout(JsArrayBufferObject.SharedWaiter waiter, TimeSpan? timeout)
@@ -23,17 +24,22 @@ internal sealed class Test262RunnerSharedWaiterControllerFactory : ISharedWaiter
             if (timeout is null)
                 return;
 
-            var dueTime = timeout.Value <= TimeSpan.Zero
-                ? TimeSpan.Zero
+            var dueTime =
+                timeout.Value <= TimeSpan.Zero ? TimeSpan.Zero
                 : timeout.Value.TotalMilliseconds >= int.MaxValue
                     ? TimeSpan.FromMilliseconds(int.MaxValue)
-                    : timeout.Value;
-            asyncTimeoutTimer = realm.Engine.TimeProvider.CreateTimer(static state =>
-            {
-                var waiter = (JsArrayBufferObject.SharedWaiter)state!;
-                if (waiter.TryTimeout())
-                    waiter.Complete();
-            }, waiter, dueTime, Timeout.InfiniteTimeSpan);
+                : timeout.Value;
+            asyncTimeoutTimer = realm.Engine.TimeProvider.CreateTimer(
+                static state =>
+                {
+                    var waiter = (JsArrayBufferObject.SharedWaiter)state!;
+                    if (waiter.TryTimeout())
+                        waiter.Complete();
+                },
+                waiter,
+                dueTime,
+                Timeout.InfiniteTimeSpan
+            );
         }
 
         public bool Wait(JsArrayBufferObject.SharedWaiter waiter, TimeSpan? timeout)
@@ -50,17 +56,21 @@ internal sealed class Test262RunnerSharedWaiterControllerFactory : ISharedWaiter
                 return waiter.Notified;
             }
 
-            var dueTime = timeout.Value <= TimeSpan.Zero
-                ? TimeSpan.Zero
+            var dueTime =
+                timeout.Value <= TimeSpan.Zero ? TimeSpan.Zero
                 : timeout.Value.TotalMilliseconds >= int.MaxValue
                     ? TimeSpan.FromMilliseconds(int.MaxValue)
-                    : timeout.Value;
-            using var waitTimer = runnerTime.CreateWaitTimer(static state =>
-            {
-                var waiter = (JsArrayBufferObject.SharedWaiter)state!;
-                if (waiter.TryTimeout())
-                    waiter.Complete();
-            }, waiter, dueTime);
+                : timeout.Value;
+            using var waitTimer = runnerTime.CreateWaitTimer(
+                static state =>
+                {
+                    var waiter = (JsArrayBufferObject.SharedWaiter)state!;
+                    if (waiter.TryTimeout())
+                        waiter.Complete();
+                },
+                waiter,
+                dueTime
+            );
 
             while (!waiter.Event.Wait(0))
             {

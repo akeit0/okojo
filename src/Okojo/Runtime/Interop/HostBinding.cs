@@ -1,37 +1,41 @@
 using System.Diagnostics.CodeAnalysis;
+
 namespace Okojo.Runtime.Interop;
 
 public sealed class HostBinding(
     [DynamicallyAccessedMembers(
-        DynamicallyAccessedMemberTypes.PublicConstructors |
-        DynamicallyAccessedMemberTypes.NonPublicConstructors |
-        DynamicallyAccessedMemberTypes.PublicMethods |
-        DynamicallyAccessedMemberTypes.NonPublicMethods |
-        DynamicallyAccessedMemberTypes.PublicFields |
-        DynamicallyAccessedMemberTypes.NonPublicFields |
-        DynamicallyAccessedMemberTypes.PublicNestedTypes |
-        DynamicallyAccessedMemberTypes.NonPublicNestedTypes |
-        DynamicallyAccessedMemberTypes.PublicProperties |
-        DynamicallyAccessedMemberTypes.NonPublicProperties |
-        DynamicallyAccessedMemberTypes.PublicEvents |
-        DynamicallyAccessedMemberTypes.NonPublicEvents)]
-    Type clrType,
+        DynamicallyAccessedMemberTypes.PublicConstructors
+            | DynamicallyAccessedMemberTypes.NonPublicConstructors
+            | DynamicallyAccessedMemberTypes.PublicMethods
+            | DynamicallyAccessedMemberTypes.NonPublicMethods
+            | DynamicallyAccessedMemberTypes.PublicFields
+            | DynamicallyAccessedMemberTypes.NonPublicFields
+            | DynamicallyAccessedMemberTypes.PublicNestedTypes
+            | DynamicallyAccessedMemberTypes.NonPublicNestedTypes
+            | DynamicallyAccessedMemberTypes.PublicProperties
+            | DynamicallyAccessedMemberTypes.NonPublicProperties
+            | DynamicallyAccessedMemberTypes.PublicEvents
+            | DynamicallyAccessedMemberTypes.NonPublicEvents
+    )]
+        Type clrType,
     HostMemberBinding[] instanceMembers,
-    HostMemberBinding[] staticMembers)
+    HostMemberBinding[] staticMembers
+)
 {
     [DynamicallyAccessedMembers(
-        DynamicallyAccessedMemberTypes.PublicConstructors |
-        DynamicallyAccessedMemberTypes.NonPublicConstructors |
-        DynamicallyAccessedMemberTypes.PublicMethods |
-        DynamicallyAccessedMemberTypes.NonPublicMethods |
-        DynamicallyAccessedMemberTypes.PublicFields |
-        DynamicallyAccessedMemberTypes.NonPublicFields |
-        DynamicallyAccessedMemberTypes.PublicNestedTypes |
-        DynamicallyAccessedMemberTypes.NonPublicNestedTypes |
-        DynamicallyAccessedMemberTypes.PublicProperties |
-        DynamicallyAccessedMemberTypes.NonPublicProperties |
-        DynamicallyAccessedMemberTypes.PublicEvents |
-        DynamicallyAccessedMemberTypes.NonPublicEvents)]
+        DynamicallyAccessedMemberTypes.PublicConstructors
+            | DynamicallyAccessedMemberTypes.NonPublicConstructors
+            | DynamicallyAccessedMemberTypes.PublicMethods
+            | DynamicallyAccessedMemberTypes.NonPublicMethods
+            | DynamicallyAccessedMemberTypes.PublicFields
+            | DynamicallyAccessedMemberTypes.NonPublicFields
+            | DynamicallyAccessedMemberTypes.PublicNestedTypes
+            | DynamicallyAccessedMemberTypes.NonPublicNestedTypes
+            | DynamicallyAccessedMemberTypes.PublicProperties
+            | DynamicallyAccessedMemberTypes.NonPublicProperties
+            | DynamicallyAccessedMemberTypes.PublicEvents
+            | DynamicallyAccessedMemberTypes.NonPublicEvents
+    )]
     public Type ClrType { get; } = clrType;
 
     public HostMemberBinding[] InstanceMembers { get; } = instanceMembers;

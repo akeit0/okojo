@@ -84,7 +84,7 @@ public sealed class JsRuntimeCoreOptions
         {
             ClrAccessEnabled = ClrAccessEnabled,
             ClrAccessProvider = ClrAccessProvider,
-            clrAssembliesVersion = clrAssembliesVersion
+            clrAssembliesVersion = clrAssembliesVersion,
         };
         clone.clrAssemblies.AddRange(clrAssemblies);
         clone.realmApiModules.AddRange(realmApiModules);

@@ -5,4 +5,5 @@ internal readonly record struct SourceMapEntry(
     int GeneratedColumn,
     string OriginalSourcePath,
     int OriginalLine,
-    int OriginalColumn);
+    int OriginalColumn
+);

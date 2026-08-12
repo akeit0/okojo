@@ -14,6 +14,6 @@ public sealed class DotNetModuleImportOptions
         "net5.0",
         "netcoreapp3.1",
         "netstandard2.1",
-        "netstandard2.0"
+        "netstandard2.0",
     ];
 }

@@ -9,8 +9,11 @@ namespace Okojo.Hosting;
 ///     8.1.7.1 and leaves queue selection to the embedder.
 ///     https://html.spec.whatwg.org/multipage/webappapis.html#event-loops
 /// </summary>
-public sealed class ManualHostEventLoop : IHostTaskScheduler, IQueuedHostDelayScheduler, IHostTaskQueuePump,
-    IHostEventLoopDiagnostics
+public sealed class ManualHostEventLoop
+    : IHostTaskScheduler,
+        IQueuedHostDelayScheduler,
+        IHostTaskQueuePump,
+        IHostEventLoopDiagnostics
 {
     private readonly List<DelayedOperation> delayed = [];
     private readonly object gate = new();
@@ -29,7 +32,9 @@ public sealed class ManualHostEventLoop : IHostTaskScheduler, IQueuedHostDelaySc
         {
             var snapshots = new HostTaskQueueSnapshot[queues.Count];
             var index = 0;
-            foreach (var pair in queues.OrderBy(static pair => pair.Key.Name, StringComparer.Ordinal))
+            foreach (
+                var pair in queues.OrderBy(static pair => pair.Key.Name, StringComparer.Ordinal)
+            )
                 snapshots[index++] = new(pair.Key, pair.Value.Count);
 
             DateTimeOffset? nextDueAt = null;
@@ -101,17 +106,30 @@ public sealed class ManualHostEventLoop : IHostTaskScheduler, IQueuedHostDelaySc
         return new AgentScheduler(this, target);
     }
 
-    public IHostDelayedOperation ScheduleDelayed(TimeSpan delay, Action<object?> callback, object? state)
+    public IHostDelayedOperation ScheduleDelayed(
+        TimeSpan delay,
+        Action<object?> callback,
+        object? state
+    )
     {
         return ScheduleDelayed(delay, HostingTaskQueueKeys.Default, callback, state);
     }
 
-    public IHostDelayedOperation ScheduleDelayed(TimeSpan delay, HostTaskQueueKey targetQueue, Action<object?> callback,
-        object? state)
+    public IHostDelayedOperation ScheduleDelayed(
+        TimeSpan delay,
+        HostTaskQueueKey targetQueue,
+        Action<object?> callback,
+        object? state
+    )
     {
         ArgumentNullException.ThrowIfNull(callback);
-        var operation = new DelayedOperation(this, targetQueue, timeProvider.GetUtcNow() + NormalizeDelay(delay),
-            callback, state);
+        var operation = new DelayedOperation(
+            this,
+            targetQueue,
+            timeProvider.GetUtcNow() + NormalizeDelay(delay),
+            callback,
+            state
+        );
         lock (gate)
         {
             delayed.Add(operation);
@@ -164,7 +182,10 @@ public sealed class ManualHostEventLoop : IHostTaskScheduler, IQueuedHostDelaySc
         }
     }
 
-    public bool TryPumpOne(out HostTaskQueueKey pumpedQueueKey, ReadOnlySpan<HostTaskQueueKey> preferredOrder)
+    public bool TryPumpOne(
+        out HostTaskQueueKey pumpedQueueKey,
+        ReadOnlySpan<HostTaskQueueKey> preferredOrder
+    )
     {
         if (preferredOrder.Length != 0)
             for (var i = 0; i < preferredOrder.Length; i++)
@@ -207,7 +228,10 @@ public sealed class ManualHostEventLoop : IHostTaskScheduler, IQueuedHostDelaySc
         }
     }
 
-    public bool TryPumpOne(out HostTaskQueueKey pumpedQueueKey, params HostTaskQueueKey[] preferredOrder)
+    public bool TryPumpOne(
+        out HostTaskQueueKey pumpedQueueKey,
+        params HostTaskQueueKey[] preferredOrder
+    )
     {
         return TryPumpOne(out pumpedQueueKey, preferredOrder.AsSpan());
     }
@@ -248,7 +272,8 @@ public sealed class ManualHostEventLoop : IHostTaskScheduler, IQueuedHostDelaySc
         return next;
     }
 
-    private sealed class AgentScheduler(ManualHostEventLoop owner, HostTaskTarget target) : IQueuedHostAgentScheduler
+    private sealed class AgentScheduler(ManualHostEventLoop owner, HostTaskTarget target)
+        : IQueuedHostAgentScheduler
     {
         public void EnqueueTask(Action<object?> callback, object? state)
         {
@@ -258,11 +283,14 @@ public sealed class ManualHostEventLoop : IHostTaskScheduler, IQueuedHostDelaySc
         public void EnqueueTask(HostTaskQueueKey queueKey, Action<object?> callback, object? state)
         {
             ArgumentNullException.ThrowIfNull(callback);
-            owner.EnqueueReady(queueKey, () =>
-            {
-                if (!target.IsTerminated)
-                    target.EnqueueTask(callback, state);
-            });
+            owner.EnqueueReady(
+                queueKey,
+                () =>
+                {
+                    if (!target.IsTerminated)
+                        target.EnqueueTask(callback, state);
+                }
+            );
         }
     }
 
@@ -271,8 +299,8 @@ public sealed class ManualHostEventLoop : IHostTaskScheduler, IQueuedHostDelaySc
         HostTaskQueueKey targetQueue,
         DateTimeOffset dueAt,
         Action<object?> callback,
-        object? state)
-        : IHostDelayedOperation
+        object? state
+    ) : IHostDelayedOperation
     {
         private int status;
 

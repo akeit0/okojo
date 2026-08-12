@@ -13,7 +13,9 @@ internal static class ClrDisplay
 
         if (type.IsGenericType)
         {
-            var genericDefinition = type.IsGenericTypeDefinition ? type : type.GetGenericTypeDefinition();
+            var genericDefinition = type.IsGenericTypeDefinition
+                ? type
+                : type.GetGenericTypeDefinition();
             var baseName = (genericDefinition.FullName ?? genericDefinition.Name).Replace('+', '.');
             var tickIndex = baseName.IndexOf('`');
             if (tickIndex >= 0)

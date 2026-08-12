@@ -8,7 +8,12 @@ internal sealed class JsRawJsonObject : JsObject
         RawJson = rawJson;
         Prototype = null;
         const int atomRawJson = IdRawJson;
-        DefineDataPropertyAtom(realm, atomRawJson, JsValue.FromString(rawJson), JsShapePropertyFlags.Open);
+        DefineDataPropertyAtom(
+            realm,
+            atomRawJson,
+            JsValue.FromString(rawJson),
+            JsShapePropertyFlags.Open
+        );
         PreventExtensions();
     }
 

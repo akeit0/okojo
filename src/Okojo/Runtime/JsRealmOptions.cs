@@ -11,10 +11,6 @@ public sealed class JsRealmOptions
 
     internal JsRealmOptions Clone()
     {
-        return new()
-        {
-            HostDefined = HostDefined,
-            Initialize = Initialize
-        };
+        return new() { HostDefined = HostDefined, Initialize = Initialize };
     }
 }

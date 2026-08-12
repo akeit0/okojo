@@ -13,7 +13,11 @@ public sealed partial class JsCompiler
     private bool HasAmbientExplicitResourceScope =>
         HasActiveExplicitResourceScope || hasActiveModuleTopLevelExplicitResourceScope;
 
-    private void EmitExplicitResourceScope(Action emitBody, bool isAsyncScope, Action<int>? emitEnter = null)
+    private void EmitExplicitResourceScope(
+        Action emitBody,
+        bool isAsyncScope,
+        Action<int>? emitEnter = null
+    )
     {
         var stackReg = AllocateSyntheticLocal($"$erm.stack.{finallyTempUniqueId}");
         EmitCallRuntime(
@@ -21,7 +25,8 @@ public sealed partial class JsCompiler
                 ? RuntimeId.CreateAsyncDisposableResourceStack
                 : RuntimeId.CreateDisposableResourceStack,
             0,
-            0);
+            0
+        );
         EmitStarRegister(stackReg);
 
         EmitFinallyFlowScope(
@@ -52,7 +57,8 @@ public sealed partial class JsCompiler
                         ? RuntimeId.DisposeAsyncDisposableResourceStack
                         : RuntimeId.DisposeDisposableResourceStack,
                     finalizerArgStart,
-                    3);
+                    3
+                );
                 if (isAsyncScope)
                 {
                     var doneLabel = builder.CreateLabel();
@@ -60,7 +66,8 @@ public sealed partial class JsCompiler
                     EmitGeneratorSuspendResume(minimizeLiveRange: true, isAwaitSuspend: true);
                     builder.BindLabel(doneLabel);
                 }
-            });
+            }
+        );
     }
 
     private void EmitModuleTopLevelExplicitResourceScope(Action emitBody, bool isAsyncScope)
@@ -87,7 +94,8 @@ public sealed partial class JsCompiler
             switch (statements[i])
             {
                 case JsVariableDeclarationStatement decl when decl.Kind.IsUsingLike():
-                case JsEmptyObjectBindingDeclarationStatement emptyDecl when emptyDecl.Kind.IsUsingLike():
+                case JsEmptyObjectBindingDeclarationStatement emptyDecl
+                    when emptyDecl.Kind.IsUsingLike():
                     return true;
             }
         }
@@ -102,7 +110,10 @@ public sealed partial class JsCompiler
             switch (statements[i])
             {
                 case JsVariableDeclarationStatement { Kind: JsVariableDeclarationKind.AwaitUsing }:
-                case JsEmptyObjectBindingDeclarationStatement { Kind: JsVariableDeclarationKind.AwaitUsing }:
+                case JsEmptyObjectBindingDeclarationStatement
+                {
+                    Kind: JsVariableDeclarationKind.AwaitUsing
+                }:
                     return true;
             }
         }
@@ -115,9 +126,16 @@ public sealed partial class JsCompiler
         if (activeExplicitResourceScopes.Count == 0)
         {
             if (!hasActiveModuleTopLevelExplicitResourceScope)
-                throw new InvalidOperationException("using declaration requires an active explicit resource scope.");
-            if (kind == JsVariableDeclarationKind.AwaitUsing && !moduleTopLevelExplicitResourceScopeIsAsync)
-                throw new InvalidOperationException("await using declaration requires an async explicit resource scope.");
+                throw new InvalidOperationException(
+                    "using declaration requires an active explicit resource scope."
+                );
+            if (
+                kind == JsVariableDeclarationKind.AwaitUsing
+                && !moduleTopLevelExplicitResourceScopeIsAsync
+            )
+                throw new InvalidOperationException(
+                    "await using declaration requires an async explicit resource scope."
+                );
 
             var moduleArgStart = AllocateTemporaryRegisterBlock(1);
             EmitLdaRegister(valueRegister);
@@ -127,7 +145,8 @@ public sealed partial class JsCompiler
                     ? RuntimeId.AddCurrentModuleAsyncDisposableResource
                     : RuntimeId.AddCurrentModuleDisposableResource,
                 moduleArgStart,
-                1);
+                1
+            );
             return;
         }
 
@@ -142,13 +161,19 @@ public sealed partial class JsCompiler
                 ? RuntimeId.AddAsyncDisposableResource
                 : RuntimeId.AddDisposableResource,
             argStart,
-            2);
+            2
+        );
     }
 
-    private static bool TryGetUsingLikeForInOfLeft(JsForInOfStatement statement,
-        out JsVariableDeclarationStatement declaration)
+    private static bool TryGetUsingLikeForInOfLeft(
+        JsForInOfStatement statement,
+        out JsVariableDeclarationStatement declaration
+    )
     {
-        if (statement.Left is JsVariableDeclarationStatement leftDecl && leftDecl.Kind.IsUsingLike())
+        if (
+            statement.Left is JsVariableDeclarationStatement leftDecl
+            && leftDecl.Kind.IsUsingLike()
+        )
         {
             declaration = leftDecl;
             return true;

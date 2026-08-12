@@ -9,7 +9,11 @@ internal sealed class ModuleGraph(JsAgent agent)
 
     public int Count => nodes.Count;
 
-    public ModuleRecordNode GetOrCreate(string resolvedId, string source, JsModuleNamespaceObject exportsObject)
+    public ModuleRecordNode GetOrCreate(
+        string resolvedId,
+        string source,
+        JsModuleNamespaceObject exportsObject
+    )
     {
         if (nodes.TryGetValue(resolvedId, out var existing))
             return existing;
@@ -43,16 +47,24 @@ internal sealed class ModuleGraph(JsAgent agent)
             {
                 if (HasTextImportType(importDecl.Attributes))
                     continue;
-                var depResolved = agent.Engine.ModuleSourceLoader.ResolveSpecifier(importDecl.Source, node.ResolvedId);
+                var depResolved = agent.Engine.ModuleSourceLoader.ResolveSpecifier(
+                    importDecl.Source,
+                    node.ResolvedId
+                );
                 if (nodes.TryGetValue(depResolved, out var depNode))
                     deps.Add(depNode);
             }
-            else if (node.Program.Statements[i] is JsExportNamedDeclaration named &&
-                     !string.IsNullOrEmpty(named.Source))
+            else if (
+                node.Program.Statements[i] is JsExportNamedDeclaration named
+                && !string.IsNullOrEmpty(named.Source)
+            )
             {
                 if (HasTextImportType(named.Attributes))
                     continue;
-                var depResolved = agent.Engine.ModuleSourceLoader.ResolveSpecifier(named.Source!, node.ResolvedId);
+                var depResolved = agent.Engine.ModuleSourceLoader.ResolveSpecifier(
+                    named.Source!,
+                    node.ResolvedId
+                );
                 if (nodes.TryGetValue(depResolved, out var depNode))
                     deps.Add(depNode);
             }
@@ -60,7 +72,10 @@ internal sealed class ModuleGraph(JsAgent agent)
             {
                 if (HasTextImportType(star.Attributes))
                     continue;
-                var depResolved = agent.Engine.ModuleSourceLoader.ResolveSpecifier(star.Source, node.ResolvedId);
+                var depResolved = agent.Engine.ModuleSourceLoader.ResolveSpecifier(
+                    star.Source,
+                    node.ResolvedId
+                );
                 if (nodes.TryGetValue(depResolved, out var depNode))
                     deps.Add(depNode);
             }
@@ -132,8 +147,10 @@ internal sealed class ModuleGraph(JsAgent agent)
         for (var i = 0; i < attributes.Count; i++)
         {
             var attribute = attributes[i];
-            if (string.Equals(attribute.Key, "type", StringComparison.Ordinal) &&
-                string.Equals(attribute.Value, "text", StringComparison.Ordinal))
+            if (
+                string.Equals(attribute.Key, "type", StringComparison.Ordinal)
+                && string.Equals(attribute.Value, "text", StringComparison.Ordinal)
+            )
                 return true;
         }
 
@@ -147,10 +164,14 @@ internal enum ModuleEvalState
     Instantiating = 1,
     Evaluating = 2,
     Evaluated = 3,
-    Failed = 4
+    Failed = 4,
 }
 
-internal sealed class ModuleRecordNode(string resolvedId, JsProgram program, JsModuleNamespaceObject exportsObject)
+internal sealed class ModuleRecordNode(
+    string resolvedId,
+    JsProgram program,
+    JsModuleNamespaceObject exportsObject
+)
 {
     public string ResolvedId { get; } = resolvedId;
     public JsProgram Program { get; } = program;

@@ -175,7 +175,10 @@ public sealed class ReplFormatter(JsRealm realm, int? indent = null)
 
     private string? TryGetDisplayTag(JsObject obj)
     {
-        if (obj.TryGetPropertyAtom(realm, AtomTable.IdSymbolToStringTag, out var value, out _) && value.IsString)
+        if (
+            obj.TryGetPropertyAtom(realm, AtomTable.IdSymbolToStringTag, out var value, out _)
+            && value.IsString
+        )
             return value.AsString();
         return null;
     }

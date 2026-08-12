@@ -6,7 +6,8 @@ internal readonly struct JsToken(
     int sourceLength,
     double numberLiteral = 0,
     int dataIndex = -1,
-    bool hasLineTerminatorBefore = false)
+    bool hasLineTerminatorBefore = false
+)
 {
     public JsTokenKind Kind { get; } = kind;
     public int Position { get; } = position;

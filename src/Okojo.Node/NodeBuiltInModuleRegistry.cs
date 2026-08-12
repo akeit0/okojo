@@ -133,7 +133,8 @@ internal sealed class NodeBuiltInModuleRegistry
             terminalOptions.StdoutColumns,
             terminalOptions.StdoutRows,
             terminalOptions.StderrColumns,
-            terminalOptions.StderrRows);
+            terminalOptions.StderrRows
+        );
         consoleBuiltIn = new(runtime, ttyBuiltIn);
         replBuiltIn = new(runtime);
     }
@@ -152,18 +153,22 @@ internal sealed class NodeBuiltInModuleRegistry
             "node:os" or "os" => JsValue.FromObject(osBuiltIn.GetModule()),
             "node:perf_hooks" or "perf_hooks" => JsValue.FromObject(performanceBuiltIn.GetModule()),
             "node:fs" or "fs" => JsValue.FromObject(fsBuiltIn.GetModule()),
-            "node:child_process" or "child_process" => JsValue.FromObject(childProcessBuiltIn.GetModule()),
+            "node:child_process" or "child_process" => JsValue.FromObject(
+                childProcessBuiltIn.GetModule()
+            ),
             "node:buffer" or "buffer" => JsValue.FromObject(GetBufferModule()),
             "node:events" or "events" => JsValue.FromObject(eventsBuiltIn.GetModule()),
             "node:module" or "module" => JsValue.FromObject(moduleBuiltIn.GetModule()),
             "node:stream" or "stream" => JsValue.FromObject(streamBuiltIn.GetModule()),
             "node:timers" or "timers" => JsValue.FromObject(timersBuiltIn.GetTimersModule()),
-            "node:timers/promises" or "timers/promises" => JsValue.FromObject(timersBuiltIn.GetTimersPromisesModule()),
+            "node:timers/promises" or "timers/promises" => JsValue.FromObject(
+                timersBuiltIn.GetTimersPromisesModule()
+            ),
             "node:tty" or "tty" => JsValue.FromObject(ttyBuiltIn.GetTtyModule()),
             "node:url" or "url" => JsValue.FromObject(urlBuiltIn.GetModule()),
             "node:util" or "util" => JsValue.FromObject(utilBuiltIn.GetModule()),
             "node:repl" or "repl" => JsValue.FromObject(replBuiltIn.GetModule()),
-            _ => JsValue.Undefined
+            _ => JsValue.Undefined,
         };
 
         if (exports.IsUndefined)
@@ -182,15 +187,39 @@ internal sealed class NodeBuiltInModuleRegistry
         var shape = processShape ??= CreateProcessShape(realm);
         var process = new JsPlainObject(shape);
         process.SetNamedSlotUnchecked(ProcessCwdSlot, JsValue.FromObject(CreateCwdFunction(realm)));
-        process.SetNamedSlotUnchecked(ProcessEnvSlot, JsValue.FromObject(CreateProcessEnvObject(realm)));
-        process.SetNamedSlotUnchecked(ProcessArgvSlot, JsValue.FromObject(CreateArgvArray(realm, null, null)));
+        process.SetNamedSlotUnchecked(
+            ProcessEnvSlot,
+            JsValue.FromObject(CreateProcessEnvObject(realm))
+        );
+        process.SetNamedSlotUnchecked(
+            ProcessArgvSlot,
+            JsValue.FromObject(CreateArgvArray(realm, null, null))
+        );
         process.SetNamedSlotUnchecked(ProcessPlatformSlot, JsValue.FromString(GetPlatformString()));
-        process.SetNamedSlotUnchecked(ProcessVersionSlot, JsValue.FromString(reportedProcessVersion));
-        process.SetNamedSlotUnchecked(ProcessVersionsSlot, JsValue.FromObject(GetProcessVersionsObject()));
-        process.SetNamedSlotUnchecked(ProcessNextTickSlot, JsValue.FromObject(CreateNextTickFunction(realm)));
-        process.SetNamedSlotUnchecked(ProcessStdinSlot, JsValue.FromObject(ttyBuiltIn.GetStdinObject()));
-        process.SetNamedSlotUnchecked(ProcessStdoutSlot, JsValue.FromObject(ttyBuiltIn.GetStdoutObject()));
-        process.SetNamedSlotUnchecked(ProcessStderrSlot, JsValue.FromObject(ttyBuiltIn.GetStderrObject()));
+        process.SetNamedSlotUnchecked(
+            ProcessVersionSlot,
+            JsValue.FromString(reportedProcessVersion)
+        );
+        process.SetNamedSlotUnchecked(
+            ProcessVersionsSlot,
+            JsValue.FromObject(GetProcessVersionsObject())
+        );
+        process.SetNamedSlotUnchecked(
+            ProcessNextTickSlot,
+            JsValue.FromObject(CreateNextTickFunction(realm))
+        );
+        process.SetNamedSlotUnchecked(
+            ProcessStdinSlot,
+            JsValue.FromObject(ttyBuiltIn.GetStdinObject())
+        );
+        process.SetNamedSlotUnchecked(
+            ProcessStdoutSlot,
+            JsValue.FromObject(ttyBuiltIn.GetStdoutObject())
+        );
+        process.SetNamedSlotUnchecked(
+            ProcessStderrSlot,
+            JsValue.FromObject(ttyBuiltIn.GetStderrObject())
+        );
         processObject = process;
         return process;
     }
@@ -216,15 +245,42 @@ internal sealed class NodeBuiltInModuleRegistry
         var realm = runtime.MainRealm;
         var shape = pathShape ??= CreatePathShape(realm);
         var pathModuleObject = new JsPlainObject(shape);
-        pathModuleObject.SetNamedSlotUnchecked(PathJoinSlot, JsValue.FromObject(CreateJoinFunction(realm)));
-        pathModuleObject.SetNamedSlotUnchecked(PathNormalizeSlot, JsValue.FromObject(CreateNormalizeFunction(realm)));
-        pathModuleObject.SetNamedSlotUnchecked(PathDirnameSlot, JsValue.FromObject(CreateDirnameFunction(realm)));
-        pathModuleObject.SetNamedSlotUnchecked(PathBasenameSlot, JsValue.FromObject(CreateBasenameFunction(realm)));
-        pathModuleObject.SetNamedSlotUnchecked(PathExtnameSlot, JsValue.FromObject(CreateExtnameFunction(realm)));
-        pathModuleObject.SetNamedSlotUnchecked(PathResolveSlot, JsValue.FromObject(CreateResolveFunction(realm)));
-        pathModuleObject.SetNamedSlotUnchecked(PathRelativeSlot, JsValue.FromObject(CreateRelativeFunction(realm)));
-        pathModuleObject.SetNamedSlotUnchecked(PathSepSlot, JsValue.FromString(Path.DirectorySeparatorChar.ToString()));
-        pathModuleObject.SetNamedSlotUnchecked(PathDelimiterSlot, JsValue.FromString(Path.PathSeparator.ToString()));
+        pathModuleObject.SetNamedSlotUnchecked(
+            PathJoinSlot,
+            JsValue.FromObject(CreateJoinFunction(realm))
+        );
+        pathModuleObject.SetNamedSlotUnchecked(
+            PathNormalizeSlot,
+            JsValue.FromObject(CreateNormalizeFunction(realm))
+        );
+        pathModuleObject.SetNamedSlotUnchecked(
+            PathDirnameSlot,
+            JsValue.FromObject(CreateDirnameFunction(realm))
+        );
+        pathModuleObject.SetNamedSlotUnchecked(
+            PathBasenameSlot,
+            JsValue.FromObject(CreateBasenameFunction(realm))
+        );
+        pathModuleObject.SetNamedSlotUnchecked(
+            PathExtnameSlot,
+            JsValue.FromObject(CreateExtnameFunction(realm))
+        );
+        pathModuleObject.SetNamedSlotUnchecked(
+            PathResolveSlot,
+            JsValue.FromObject(CreateResolveFunction(realm))
+        );
+        pathModuleObject.SetNamedSlotUnchecked(
+            PathRelativeSlot,
+            JsValue.FromObject(CreateRelativeFunction(realm))
+        );
+        pathModuleObject.SetNamedSlotUnchecked(
+            PathSepSlot,
+            JsValue.FromString(Path.DirectorySeparatorChar.ToString())
+        );
+        pathModuleObject.SetNamedSlotUnchecked(
+            PathDelimiterSlot,
+            JsValue.FromString(Path.PathSeparator.ToString())
+        );
         pathModule = pathModuleObject;
         return pathModuleObject;
     }
@@ -237,10 +293,22 @@ internal sealed class NodeBuiltInModuleRegistry
         var realm = runtime.MainRealm;
         var shape = bufferShape ??= CreateBufferShape(realm);
         var buffer = new JsPlainObject(shape);
-        buffer.SetNamedSlotUnchecked(BufferFromSlot, JsValue.FromObject(CreateBufferFromFunction(realm)));
-        buffer.SetNamedSlotUnchecked(BufferAllocSlot, JsValue.FromObject(CreateBufferAllocFunction(realm)));
-        buffer.SetNamedSlotUnchecked(BufferIsBufferSlot, JsValue.FromObject(CreateBufferIsBufferFunction(realm)));
-        buffer.SetNamedSlotUnchecked(BufferByteLengthSlot, JsValue.FromObject(CreateBufferByteLengthFunction(realm)));
+        buffer.SetNamedSlotUnchecked(
+            BufferFromSlot,
+            JsValue.FromObject(CreateBufferFromFunction(realm))
+        );
+        buffer.SetNamedSlotUnchecked(
+            BufferAllocSlot,
+            JsValue.FromObject(CreateBufferAllocFunction(realm))
+        );
+        buffer.SetNamedSlotUnchecked(
+            BufferIsBufferSlot,
+            JsValue.FromObject(CreateBufferIsBufferFunction(realm))
+        );
+        buffer.SetNamedSlotUnchecked(
+            BufferByteLengthSlot,
+            JsValue.FromObject(CreateBufferByteLengthFunction(realm))
+        );
         bufferObject = buffer;
         return buffer;
     }
@@ -262,25 +330,43 @@ internal sealed class NodeBuiltInModuleRegistry
 
     public JsHostFunction CreateSetImmediateFunction(JsRealm realm)
     {
-        return new(realm, "setImmediate", 1, (in info) =>
-        {
-            var callbackValue = info.GetArgument(0);
-            if (!callbackValue.TryGetObject(out var callbackObject) || callbackObject is not JsFunction callback)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "setImmediate callback must be callable");
+        return new(
+            realm,
+            "setImmediate",
+            1,
+            (in info) =>
+            {
+                var callbackValue = info.GetArgument(0);
+                if (
+                    !callbackValue.TryGetObject(out var callbackObject)
+                    || callbackObject is not JsFunction callback
+                )
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "setImmediate callback must be callable"
+                    );
 
-            var args = info.Arguments.Length <= 1 ? [] : info.Arguments[1..].ToArray();
-            return JsValue.FromInt32(CreateImmediateRequest(info.Realm, callback, args));
-        }, false);
+                var args = info.Arguments.Length <= 1 ? [] : info.Arguments[1..].ToArray();
+                return JsValue.FromInt32(CreateImmediateRequest(info.Realm, callback, args));
+            },
+            false
+        );
     }
 
     public JsHostFunction CreateClearImmediateFunction(JsRealm realm)
     {
-        return new(realm, "clearImmediate", 1, (in info) =>
-        {
-            if (info.Arguments.Length != 0)
-                CancelImmediateRequest(info.Realm, ToImmediateRequestId(info.Arguments[0]));
-            return JsValue.Undefined;
-        }, false);
+        return new(
+            realm,
+            "clearImmediate",
+            1,
+            (in info) =>
+            {
+                if (info.Arguments.Length != 0)
+                    CancelImmediateRequest(info.Realm, ToImmediateRequestId(info.Arguments[0]));
+                return JsValue.Undefined;
+            },
+            false
+        );
     }
 
     public JsPlainObject GetBuiltInEventsModule()
@@ -356,8 +442,14 @@ internal sealed class NodeBuiltInModuleRegistry
         var realm = runtime.MainRealm;
         var shape = processVersionsShape ??= CreateProcessVersionsShape(realm);
         var versions = new JsPlainObject(shape);
-        versions.SetNamedSlotUnchecked(ProcessVersionsNodeSlot, JsValue.FromString(reportedNodeVersion));
-        versions.SetNamedSlotUnchecked(ProcessVersionsOkojoSlot, JsValue.FromString(reportedOkojoVersion));
+        versions.SetNamedSlotUnchecked(
+            ProcessVersionsNodeSlot,
+            JsValue.FromString(reportedNodeVersion)
+        );
+        versions.SetNamedSlotUnchecked(
+            ProcessVersionsOkojoSlot,
+            JsValue.FromString(reportedOkojoVersion)
+        );
         processVersionsObject = versions;
         return versions;
     }
@@ -414,13 +506,33 @@ internal sealed class NodeBuiltInModuleRegistry
     private StaticNamedPropertyLayout CreateProcessShape(JsRealm realm)
     {
         EnsureAtoms(realm);
-        var shape = realm.EmptyShape.GetOrAddTransition(atomCwd, JsShapePropertyFlags.Open, out var cwdInfo);
+        var shape = realm.EmptyShape.GetOrAddTransition(
+            atomCwd,
+            JsShapePropertyFlags.Open,
+            out var cwdInfo
+        );
         shape = shape.GetOrAddTransition(atomEnv, JsShapePropertyFlags.Open, out var envInfo);
         shape = shape.GetOrAddTransition(atomArgv, JsShapePropertyFlags.Open, out var argvInfo);
-        shape = shape.GetOrAddTransition(atomPlatform, JsShapePropertyFlags.Open, out var platformInfo);
-        shape = shape.GetOrAddTransition(atomVersion, JsShapePropertyFlags.Open, out var versionInfo);
-        shape = shape.GetOrAddTransition(atomVersions, JsShapePropertyFlags.Open, out var versionsInfo);
-        shape = shape.GetOrAddTransition(atomNextTick, JsShapePropertyFlags.Open, out var nextTickInfo);
+        shape = shape.GetOrAddTransition(
+            atomPlatform,
+            JsShapePropertyFlags.Open,
+            out var platformInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomVersion,
+            JsShapePropertyFlags.Open,
+            out var versionInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomVersions,
+            JsShapePropertyFlags.Open,
+            out var versionsInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomNextTick,
+            JsShapePropertyFlags.Open,
+            out var nextTickInfo
+        );
         shape = shape.GetOrAddTransition(atomStdin, JsShapePropertyFlags.Open, out var stdinInfo);
         shape = shape.GetOrAddTransition(atomStdout, JsShapePropertyFlags.Open, out var stdoutInfo);
         shape = shape.GetOrAddTransition(atomStderr, JsShapePropertyFlags.Open, out var stderrInfo);
@@ -440,7 +552,11 @@ internal sealed class NodeBuiltInModuleRegistry
     private StaticNamedPropertyLayout CreateProcessVersionsShape(JsRealm realm)
     {
         EnsureAtoms(realm);
-        var shape = realm.EmptyShape.GetOrAddTransition(atomNode, JsShapePropertyFlags.Open, out var nodeInfo);
+        var shape = realm.EmptyShape.GetOrAddTransition(
+            atomNode,
+            JsShapePropertyFlags.Open,
+            out var nodeInfo
+        );
         shape = shape.GetOrAddTransition(atomOkojo, JsShapePropertyFlags.Open, out var okojoInfo);
         Debug.Assert(nodeInfo.Slot == ProcessVersionsNodeSlot);
         Debug.Assert(okojoInfo.Slot == ProcessVersionsOkojoSlot);
@@ -450,15 +566,47 @@ internal sealed class NodeBuiltInModuleRegistry
     private StaticNamedPropertyLayout CreatePathShape(JsRealm realm)
     {
         EnsureAtoms(realm);
-        var shape = realm.EmptyShape.GetOrAddTransition(atomJoin, JsShapePropertyFlags.Open, out var joinInfo);
-        shape = shape.GetOrAddTransition(atomNormalize, JsShapePropertyFlags.Open, out var normalizeInfo);
-        shape = shape.GetOrAddTransition(atomDirname, JsShapePropertyFlags.Open, out var dirnameInfo);
-        shape = shape.GetOrAddTransition(atomBasename, JsShapePropertyFlags.Open, out var basenameInfo);
-        shape = shape.GetOrAddTransition(atomExtname, JsShapePropertyFlags.Open, out var extnameInfo);
-        shape = shape.GetOrAddTransition(atomResolve, JsShapePropertyFlags.Open, out var resolveInfo);
-        shape = shape.GetOrAddTransition(atomRelative, JsShapePropertyFlags.Open, out var relativeInfo);
+        var shape = realm.EmptyShape.GetOrAddTransition(
+            atomJoin,
+            JsShapePropertyFlags.Open,
+            out var joinInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomNormalize,
+            JsShapePropertyFlags.Open,
+            out var normalizeInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomDirname,
+            JsShapePropertyFlags.Open,
+            out var dirnameInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomBasename,
+            JsShapePropertyFlags.Open,
+            out var basenameInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomExtname,
+            JsShapePropertyFlags.Open,
+            out var extnameInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomResolve,
+            JsShapePropertyFlags.Open,
+            out var resolveInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomRelative,
+            JsShapePropertyFlags.Open,
+            out var relativeInfo
+        );
         shape = shape.GetOrAddTransition(atomSep, JsShapePropertyFlags.Open, out var sepInfo);
-        shape = shape.GetOrAddTransition(atomDelimiter, JsShapePropertyFlags.Open, out var delimiterInfo);
+        shape = shape.GetOrAddTransition(
+            atomDelimiter,
+            JsShapePropertyFlags.Open,
+            out var delimiterInfo
+        );
         Debug.Assert(joinInfo.Slot == PathJoinSlot);
         Debug.Assert(normalizeInfo.Slot == PathNormalizeSlot);
         Debug.Assert(dirnameInfo.Slot == PathDirnameSlot);
@@ -474,10 +622,22 @@ internal sealed class NodeBuiltInModuleRegistry
     private StaticNamedPropertyLayout CreateBufferShape(JsRealm realm)
     {
         EnsureAtoms(realm);
-        var shape = realm.EmptyShape.GetOrAddTransition(atomFrom, JsShapePropertyFlags.Open, out var fromInfo);
+        var shape = realm.EmptyShape.GetOrAddTransition(
+            atomFrom,
+            JsShapePropertyFlags.Open,
+            out var fromInfo
+        );
         shape = shape.GetOrAddTransition(atomAlloc, JsShapePropertyFlags.Open, out var allocInfo);
-        shape = shape.GetOrAddTransition(atomIsBuffer, JsShapePropertyFlags.Open, out var isBufferInfo);
-        shape = shape.GetOrAddTransition(atomByteLength, JsShapePropertyFlags.Open, out var byteLengthInfo);
+        shape = shape.GetOrAddTransition(
+            atomIsBuffer,
+            JsShapePropertyFlags.Open,
+            out var isBufferInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomByteLength,
+            JsShapePropertyFlags.Open,
+            out var byteLengthInfo
+        );
         Debug.Assert(fromInfo.Slot == BufferFromSlot);
         Debug.Assert(allocInfo.Slot == BufferAllocSlot);
         Debug.Assert(isBufferInfo.Slot == BufferIsBufferSlot);
@@ -488,9 +648,21 @@ internal sealed class NodeBuiltInModuleRegistry
     private StaticNamedPropertyLayout CreateBufferModuleShape(JsRealm realm)
     {
         EnsureAtoms(realm);
-        var shape = realm.EmptyShape.GetOrAddTransition(atomBuffer, JsShapePropertyFlags.Open, out var bufferInfo);
-        shape = shape.GetOrAddTransition(atomKMaxLength, JsShapePropertyFlags.Open, out var maxLengthInfo);
-        shape = shape.GetOrAddTransition(atomKStringMaxLength, JsShapePropertyFlags.Open, out var maxStringLengthInfo);
+        var shape = realm.EmptyShape.GetOrAddTransition(
+            atomBuffer,
+            JsShapePropertyFlags.Open,
+            out var bufferInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomKMaxLength,
+            JsShapePropertyFlags.Open,
+            out var maxLengthInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomKStringMaxLength,
+            JsShapePropertyFlags.Open,
+            out var maxStringLengthInfo
+        );
         Debug.Assert(bufferInfo.Slot == BufferModuleBufferSlot);
         Debug.Assert(maxLengthInfo.Slot == BufferModuleMaxLengthSlot);
         Debug.Assert(maxStringLengthInfo.Slot == BufferModuleStringMaxLengthSlot);
@@ -549,26 +721,53 @@ internal sealed class NodeBuiltInModuleRegistry
 
     private static JsHostFunction CreateCwdFunction(JsRealm realm)
     {
-        return new(realm, "cwd", 0, static (in info) => { return JsValue.FromString(Environment.CurrentDirectory); },
-            false);
+        return new(
+            realm,
+            "cwd",
+            0,
+            static (in info) =>
+            {
+                return JsValue.FromString(Environment.CurrentDirectory);
+            },
+            false
+        );
     }
 
     private static JsHostFunction CreateNextTickFunction(JsRealm realm)
     {
-        return new(realm, "nextTick", 1, static (in info) =>
-        {
-            var callbackValue = info.GetArgument(0);
-            if (!callbackValue.TryGetObject(out var callbackObject) || callbackObject is not JsFunction callback)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "process.nextTick callback must be callable");
-
-            var args = info.Arguments.Length <= 1 ? [] : info.Arguments[1..].ToArray();
-            info.Realm.Agent.EnqueueHostPriorityJob(static state =>
+        return new(
+            realm,
+            "nextTick",
+            1,
+            static (in info) =>
             {
-                var invocation = (NextTickInvocation)state!;
-                _ = invocation.Realm.Call(invocation.Callback, JsValue.Undefined, invocation.Args);
-            }, new NextTickInvocation(info.Realm, callback, args));
-            return JsValue.Undefined;
-        }, false);
+                var callbackValue = info.GetArgument(0);
+                if (
+                    !callbackValue.TryGetObject(out var callbackObject)
+                    || callbackObject is not JsFunction callback
+                )
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "process.nextTick callback must be callable"
+                    );
+
+                var args = info.Arguments.Length <= 1 ? [] : info.Arguments[1..].ToArray();
+                info.Realm.Agent.EnqueueHostPriorityJob(
+                    static state =>
+                    {
+                        var invocation = (NextTickInvocation)state!;
+                        _ = invocation.Realm.Call(
+                            invocation.Callback,
+                            JsValue.Undefined,
+                            invocation.Args
+                        );
+                    },
+                    new NextTickInvocation(info.Realm, callback, args)
+                );
+                return JsValue.Undefined;
+            },
+            false
+        );
     }
 
     private int CreateImmediateRequest(JsRealm realm, JsFunction callback, JsValue[] args)
@@ -584,14 +783,16 @@ internal sealed class NodeBuiltInModuleRegistry
                 Realm = realm,
                 PublicRequestId = requestId,
                 Callback = callback,
-                Arguments = args
+                Arguments = args,
             };
             state.Requests.Add(requestId, request);
         }
 
         realm.QueueHostTask(
             NodeTaskQueueKeys.Check,
-            CreateImmediateDriver(realm), JsValue.FromInt32(request.PublicRequestId));
+            CreateImmediateDriver(realm),
+            JsValue.FromInt32(request.PublicRequestId)
+        );
         return request.PublicRequestId;
     }
 
@@ -609,14 +810,20 @@ internal sealed class NodeBuiltInModuleRegistry
 
     private JsHostFunction CreateImmediateDriver(JsRealm realm)
     {
-        return new(realm, "setImmediate callback", 1, (in info) =>
+        return new(
+            realm,
+            "setImmediate callback",
+            1,
+            (in info) =>
+            {
+                var registry = (NodeBuiltInModuleRegistry)((JsHostFunction)info.Function).UserData!;
+                registry.InvokeImmediate(info.Realm, ToImmediateRequestId(info.GetArgument(0)));
+                return JsValue.Undefined;
+            },
+            false
+        )
         {
-            var registry = (NodeBuiltInModuleRegistry)((JsHostFunction)info.Function).UserData!;
-            registry.InvokeImmediate(info.Realm, ToImmediateRequestId(info.GetArgument(0)));
-            return JsValue.Undefined;
-        }, false)
-        {
-            UserData = this
+            UserData = this,
         };
     }
 
@@ -642,86 +849,135 @@ internal sealed class NodeBuiltInModuleRegistry
 
     private static JsHostFunction CreateJoinFunction(JsRealm realm)
     {
-        return new(realm, "join", 0, static (in info) =>
-        {
-            if (info.Arguments.Length == 0)
-                return JsValue.FromString(".");
+        return new(
+            realm,
+            "join",
+            0,
+            static (in info) =>
+            {
+                if (info.Arguments.Length == 0)
+                    return JsValue.FromString(".");
 
-            var parts = new string[info.Arguments.Length];
-            for (var i = 0; i < parts.Length; i++)
-                parts[i] = info.GetArgumentString(i);
-            return JsValue.FromString(Path.Combine(parts));
-        }, false);
+                var parts = new string[info.Arguments.Length];
+                for (var i = 0; i < parts.Length; i++)
+                    parts[i] = info.GetArgumentString(i);
+                return JsValue.FromString(Path.Combine(parts));
+            },
+            false
+        );
     }
 
     private static JsHostFunction CreateDirnameFunction(JsRealm realm)
     {
-        return new(realm, "dirname", 1, static (in info) =>
-        {
-            var path = info.GetArgumentString(0);
-            var directory = Path.GetDirectoryName(path);
-            return JsValue.FromString(string.IsNullOrEmpty(directory) ? "." : directory);
-        }, false);
+        return new(
+            realm,
+            "dirname",
+            1,
+            static (in info) =>
+            {
+                var path = info.GetArgumentString(0);
+                var directory = Path.GetDirectoryName(path);
+                return JsValue.FromString(string.IsNullOrEmpty(directory) ? "." : directory);
+            },
+            false
+        );
     }
 
     private static JsHostFunction CreateNormalizeFunction(JsRealm realm)
     {
-        return new(realm, "normalize", 1,
-            static (in info) => { return JsValue.FromString(NormalizeNodePath(info.GetArgumentString(0))); }, false);
+        return new(
+            realm,
+            "normalize",
+            1,
+            static (in info) =>
+            {
+                return JsValue.FromString(NormalizeNodePath(info.GetArgumentString(0)));
+            },
+            false
+        );
     }
 
     private static JsHostFunction CreateBasenameFunction(JsRealm realm)
     {
-        return new(realm, "basename", 2, static (in info) =>
-        {
-            var path = info.GetArgumentString(0);
-            var basename = Path.GetFileName(path);
-            if (info.Arguments.Length > 1)
+        return new(
+            realm,
+            "basename",
+            2,
+            static (in info) =>
             {
-                var suffix = info.GetArgumentString(1);
-                if (!string.IsNullOrEmpty(suffix) && basename.EndsWith(suffix, StringComparison.Ordinal))
-                    basename = basename[..^suffix.Length];
-            }
+                var path = info.GetArgumentString(0);
+                var basename = Path.GetFileName(path);
+                if (info.Arguments.Length > 1)
+                {
+                    var suffix = info.GetArgumentString(1);
+                    if (
+                        !string.IsNullOrEmpty(suffix)
+                        && basename.EndsWith(suffix, StringComparison.Ordinal)
+                    )
+                        basename = basename[..^suffix.Length];
+                }
 
-            return JsValue.FromString(basename);
-        }, false);
+                return JsValue.FromString(basename);
+            },
+            false
+        );
     }
 
     private static JsHostFunction CreateExtnameFunction(JsRealm realm)
     {
-        return new(realm, "extname", 1,
-            static (in info) => { return JsValue.FromString(Path.GetExtension(info.GetArgumentString(0))); }, false);
+        return new(
+            realm,
+            "extname",
+            1,
+            static (in info) =>
+            {
+                return JsValue.FromString(Path.GetExtension(info.GetArgumentString(0)));
+            },
+            false
+        );
     }
 
     private static JsHostFunction CreateResolveFunction(JsRealm realm)
     {
-        return new(realm, "resolve", 0, static (in info) =>
-        {
-            var resolved = Environment.CurrentDirectory;
-            if (info.Arguments.Length == 0)
-                return JsValue.FromString(Path.GetFullPath(resolved));
-
-            for (var i = 0; i < info.Arguments.Length; i++)
+        return new(
+            realm,
+            "resolve",
+            0,
+            static (in info) =>
             {
-                var segment = info.GetArgumentString(i);
-                resolved = Path.IsPathRooted(segment)
-                    ? segment
-                    : Path.Combine(resolved, segment);
-            }
+                var resolved = Environment.CurrentDirectory;
+                if (info.Arguments.Length == 0)
+                    return JsValue.FromString(Path.GetFullPath(resolved));
 
-            return JsValue.FromString(Path.GetFullPath(resolved));
-        }, false);
+                for (var i = 0; i < info.Arguments.Length; i++)
+                {
+                    var segment = info.GetArgumentString(i);
+                    resolved = Path.IsPathRooted(segment)
+                        ? segment
+                        : Path.Combine(resolved, segment);
+                }
+
+                return JsValue.FromString(Path.GetFullPath(resolved));
+            },
+            false
+        );
     }
 
     private static JsHostFunction CreateRelativeFunction(JsRealm realm)
     {
-        return new(realm, "relative", 2, static (in info) =>
-        {
-            var from = Path.GetFullPath(info.GetArgumentString(0));
-            var to = Path.GetFullPath(info.GetArgumentString(1));
-            var relative = Path.GetRelativePath(from, to);
-            return JsValue.FromString(NormalizeNodePath(relative));
-        }, false);
+        return new(
+            realm,
+            "relative",
+            2,
+            static (in info) =>
+            {
+                var from = Path.GetFullPath(info.GetArgumentString(0));
+                var to = Path.GetFullPath(info.GetArgumentString(1));
+                var relative = Path.GetRelativePath(from, to);
+                return JsValue.FromString(NormalizeNodePath(relative));
+            },
+            false
+        );
     }
 
     private static string NormalizeNodePath(string value)
@@ -774,128 +1030,176 @@ internal sealed class NodeBuiltInModuleRegistry
 
     private static JsHostFunction CreateBufferFromFunction(JsRealm realm)
     {
-        return new(realm, "from", 1, static (in info) =>
-        {
-            if (info.Arguments.Length == 0)
-                return JsValue.FromObject(new JsTypedArrayObject(info.Realm, 0));
-
-            var source = info.Arguments[0];
-            if (source.IsString)
+        return new(
+            realm,
+            "from",
+            1,
+            static (in info) =>
             {
-                var bytes = Encoding.UTF8.GetBytes(source.AsString());
-                return JsValue.FromObject(CreateUint8Array(info.Realm, bytes));
-            }
+                if (info.Arguments.Length == 0)
+                    return JsValue.FromObject(new JsTypedArrayObject(info.Realm, 0));
 
-            if (source.TryGetObject(out var sourceObj) && sourceObj is JsArrayBufferObject arrayBuffer)
-            {
-                var byteOffset = info.Arguments.Length > 1 ? ToNonNegativeUint(info.Realm, info.Arguments[1]) : 0u;
-                var available = arrayBuffer.ByteLength;
-                if (byteOffset > available)
-                    throw new JsRuntimeException(JsErrorKind.RangeError, "Buffer.from offset is out of range");
+                var source = info.Arguments[0];
+                if (source.IsString)
+                {
+                    var bytes = Encoding.UTF8.GetBytes(source.AsString());
+                    return JsValue.FromObject(CreateUint8Array(info.Realm, bytes));
+                }
 
-                var length = info.Arguments.Length > 2
-                    ? ToNonNegativeUint(info.Realm, info.Arguments[2])
-                    : available - byteOffset;
-                if (length > available - byteOffset)
-                    throw new JsRuntimeException(JsErrorKind.RangeError, "Buffer.from length is out of range");
+                if (
+                    source.TryGetObject(out var sourceObj)
+                    && sourceObj is JsArrayBufferObject arrayBuffer
+                )
+                {
+                    var byteOffset =
+                        info.Arguments.Length > 1
+                            ? ToNonNegativeUint(info.Realm, info.Arguments[1])
+                            : 0u;
+                    var available = arrayBuffer.ByteLength;
+                    if (byteOffset > available)
+                        throw new JsRuntimeException(
+                            JsErrorKind.RangeError,
+                            "Buffer.from offset is out of range"
+                        );
 
-                return JsValue.FromObject(new JsTypedArrayObject(
-                    info.Realm,
-                    arrayBuffer,
-                    byteOffset,
-                    length,
-                    TypedArrayElementKind.Uint8,
-                    info.Realm.Uint8ArrayPrototype));
-            }
+                    var length =
+                        info.Arguments.Length > 2
+                            ? ToNonNegativeUint(info.Realm, info.Arguments[2])
+                            : available - byteOffset;
+                    if (length > available - byteOffset)
+                        throw new JsRuntimeException(
+                            JsErrorKind.RangeError,
+                            "Buffer.from length is out of range"
+                        );
 
-            if (source.TryGetObject(out var typedArraySourceObj) &&
-                typedArraySourceObj is JsTypedArrayObject typedArray)
-            {
-                var bytes = new byte[typedArray.ByteLength];
-                for (uint i = 0; i < typedArray.Length; i++)
-                    bytes[i] = CoerceByte(info.Realm, typedArray.GetDirectElementValue(i));
-                return JsValue.FromObject(CreateUint8Array(info.Realm, bytes));
-            }
+                    return JsValue.FromObject(
+                        new JsTypedArrayObject(
+                            info.Realm,
+                            arrayBuffer,
+                            byteOffset,
+                            length,
+                            TypedArrayElementKind.Uint8,
+                            info.Realm.Uint8ArrayPrototype
+                        )
+                    );
+                }
 
-            if (!info.Realm.TryToObject(source, out sourceObj))
-                return JsValue.FromObject(new JsTypedArrayObject(info.Realm, 0));
+                if (
+                    source.TryGetObject(out var typedArraySourceObj)
+                    && typedArraySourceObj is JsTypedArrayObject typedArray
+                )
+                {
+                    var bytes = new byte[typedArray.ByteLength];
+                    for (uint i = 0; i < typedArray.Length; i++)
+                        bytes[i] = CoerceByte(info.Realm, typedArray.GetDirectElementValue(i));
+                    return JsValue.FromObject(CreateUint8Array(info.Realm, bytes));
+                }
 
-            var arrayLikeLength = info.Realm.GetArrayLikeLengthLong(sourceObj);
-            if (arrayLikeLength < 0)
-                arrayLikeLength = 0;
-            var arrayLikeBytes = new byte[arrayLikeLength];
-            for (var i = 0; i < arrayLikeLength; i++)
-                if (sourceObj.TryGetProperty(i.ToString(), out var element))
-                    arrayLikeBytes[i] = CoerceByte(info.Realm, element);
+                if (!info.Realm.TryToObject(source, out sourceObj))
+                    return JsValue.FromObject(new JsTypedArrayObject(info.Realm, 0));
 
-            return JsValue.FromObject(CreateUint8Array(info.Realm, arrayLikeBytes));
-        }, false);
+                var arrayLikeLength = info.Realm.GetArrayLikeLengthLong(sourceObj);
+                if (arrayLikeLength < 0)
+                    arrayLikeLength = 0;
+                var arrayLikeBytes = new byte[arrayLikeLength];
+                for (var i = 0; i < arrayLikeLength; i++)
+                    if (sourceObj.TryGetProperty(i.ToString(), out var element))
+                        arrayLikeBytes[i] = CoerceByte(info.Realm, element);
+
+                return JsValue.FromObject(CreateUint8Array(info.Realm, arrayLikeBytes));
+            },
+            false
+        );
     }
 
     private static JsHostFunction CreateBufferAllocFunction(JsRealm realm)
     {
-        return new(realm, "alloc", 2, static (in info) =>
-        {
-            var length = 0;
-            if (info.Arguments.Length != 0)
+        return new(
+            realm,
+            "alloc",
+            2,
+            static (in info) =>
             {
-                var requestedLength = info.Realm.ToIntegerOrInfinity(info.Arguments[0]);
-                if (!double.IsPositiveInfinity(requestedLength))
-                    length = (int)Math.Max(0d, Math.Min(int.MaxValue, requestedLength));
-            }
+                var length = 0;
+                if (info.Arguments.Length != 0)
+                {
+                    var requestedLength = info.Realm.ToIntegerOrInfinity(info.Arguments[0]);
+                    if (!double.IsPositiveInfinity(requestedLength))
+                        length = (int)Math.Max(0d, Math.Min(int.MaxValue, requestedLength));
+                }
 
-            byte fill = 0;
-            if (info.Arguments.Length > 1)
-            {
-                var fillValue = info.Arguments[1];
-                fill = fillValue.IsString && fillValue.AsString().Length != 0
-                    ? (byte)fillValue.AsString()[0]
-                    : CoerceByte(info.Realm, fillValue);
-            }
+                byte fill = 0;
+                if (info.Arguments.Length > 1)
+                {
+                    var fillValue = info.Arguments[1];
+                    fill =
+                        fillValue.IsString && fillValue.AsString().Length != 0
+                            ? (byte)fillValue.AsString()[0]
+                            : CoerceByte(info.Realm, fillValue);
+                }
 
-            var bytes = new byte[length];
-            if (fill != 0)
-                Array.Fill(bytes, fill);
-            return JsValue.FromObject(CreateUint8Array(info.Realm, bytes));
-        }, false);
+                var bytes = new byte[length];
+                if (fill != 0)
+                    Array.Fill(bytes, fill);
+                return JsValue.FromObject(CreateUint8Array(info.Realm, bytes));
+            },
+            false
+        );
     }
 
     private static JsHostFunction CreateBufferIsBufferFunction(JsRealm realm)
     {
-        return new(realm, "isBuffer", 1, static (in info) =>
-        {
-            var result = info.Arguments.Length != 0 &&
-                         info.Arguments[0].TryGetObject(out var obj) &&
-                         obj is JsTypedArrayObject typedArray &&
-                         typedArray.Kind == TypedArrayElementKind.Uint8;
-            return result ? JsValue.True : JsValue.False;
-        }, false);
+        return new(
+            realm,
+            "isBuffer",
+            1,
+            static (in info) =>
+            {
+                var result =
+                    info.Arguments.Length != 0
+                    && info.Arguments[0].TryGetObject(out var obj)
+                    && obj is JsTypedArrayObject typedArray
+                    && typedArray.Kind == TypedArrayElementKind.Uint8;
+                return result ? JsValue.True : JsValue.False;
+            },
+            false
+        );
     }
 
     private static JsHostFunction CreateBufferByteLengthFunction(JsRealm realm)
     {
-        return new(realm, "byteLength", 1, static (in info) =>
-        {
-            if (info.Arguments.Length == 0)
+        return new(
+            realm,
+            "byteLength",
+            1,
+            static (in info) =>
+            {
+                if (info.Arguments.Length == 0)
+                    return JsValue.FromInt32(0);
+
+                var value = info.Arguments[0];
+                if (value.IsString)
+                    return JsValue.FromInt32(Encoding.UTF8.GetByteCount(value.AsString()));
+                if (value.TryGetObject(out var obj) && obj is JsTypedArrayObject typedArray)
+                    return JsValue.FromInt32((int)typedArray.ByteLength);
+
+                if (info.Realm.TryToObject(value, out obj))
+                    return JsValue.FromInt32((int)info.Realm.GetArrayLikeLengthLong(obj));
+
                 return JsValue.FromInt32(0);
-
-            var value = info.Arguments[0];
-            if (value.IsString)
-                return JsValue.FromInt32(Encoding.UTF8.GetByteCount(value.AsString()));
-            if (value.TryGetObject(out var obj) && obj is JsTypedArrayObject typedArray)
-                return JsValue.FromInt32((int)typedArray.ByteLength);
-
-            if (info.Realm.TryToObject(value, out obj))
-                return JsValue.FromInt32((int)info.Realm.GetArrayLikeLengthLong(obj));
-
-            return JsValue.FromInt32(0);
-        }, false);
+            },
+            false
+        );
     }
 
     private static JsTypedArrayObject CreateUint8Array(JsRealm realm, byte[] bytes)
     {
-        var array = new JsTypedArrayObject(realm, (uint)bytes.Length, TypedArrayElementKind.Uint8,
-            realm.Uint8ArrayPrototype);
+        var array = new JsTypedArrayObject(
+            realm,
+            (uint)bytes.Length,
+            TypedArrayElementKind.Uint8,
+            realm.Uint8ArrayPrototype
+        );
         for (uint i = 0; i < bytes.Length; i++)
             array.TrySetNormalizedElement(i, JsValue.FromInt32(bytes[i]));
         return array;

@@ -10,8 +10,10 @@ internal sealed partial class JsParser
         return decorators;
     }
 
-    private JsClassDeclaration ParseClassDeclaration(IReadOnlyList<JsExpression>? decorators = null,
-        int? startOverride = null)
+    private JsClassDeclaration ParseClassDeclaration(
+        IReadOnlyList<JsExpression>? decorators = null,
+        int? startOverride = null
+    )
     {
         MarkNestedFunctionSyntaxSeen();
         var start = startOverride ?? current.Position;
@@ -21,12 +23,20 @@ internal sealed partial class JsParser
         Next();
         var classNameToken = Expect(JsTokenKind.Identifier);
         var className = ParseCheckedIdentifierName(classNameToken);
-        var classExpr = ParseClassExpressionCore(className.Name, className.NameId, start, decorators);
+        var classExpr = ParseClassExpressionCore(
+            className.Name,
+            className.NameId,
+            start,
+            decorators
+        );
         return At(new JsClassDeclaration(className.Name, classExpr, className.NameId), start);
     }
 
-    private JsClassExpression ParseClassExpression(bool allowUnnamed, IReadOnlyList<JsExpression>? decorators = null,
-        int? startOverride = null)
+    private JsClassExpression ParseClassExpression(
+        bool allowUnnamed,
+        IReadOnlyList<JsExpression>? decorators = null,
+        int? startOverride = null
+    )
     {
         MarkNestedFunctionSyntaxSeen();
         var start = startOverride ?? current.Position;

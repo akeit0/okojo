@@ -1,6 +1,10 @@
 namespace Okojo.Objects;
 
-internal sealed class JsForInEnumeratorObject(JsRealm realm, string[] keys, JsObject[]? owners = null) : JsObject(realm)
+internal sealed class JsForInEnumeratorObject(
+    JsRealm realm,
+    string[] keys,
+    JsObject[]? owners = null
+) : JsObject(realm)
 {
     private readonly JsObject[] owners = owners ?? Array.Empty<JsObject>();
     private bool hasPeekedKey;
@@ -28,8 +32,10 @@ internal sealed class JsForInEnumeratorObject(JsRealm realm, string[] keys, JsOb
         {
             var currentIndex = index;
             var candidate = keys[currentIndex];
-            if ((uint)currentIndex < (uint)owners.Length &&
-                !realm.IsForInOwnEnumerableStringKey(owners[currentIndex], candidate))
+            if (
+                (uint)currentIndex < (uint)owners.Length
+                && !realm.IsForInOwnEnumerableStringKey(owners[currentIndex], candidate)
+            )
             {
                 index++;
                 continue;

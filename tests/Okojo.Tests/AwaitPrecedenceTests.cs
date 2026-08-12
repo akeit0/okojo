@@ -10,15 +10,20 @@ public class AwaitPrecedenceTests
     public void Await_Operand_IsUnaryExpression()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-                                                                   globalThis.value = 0;
-                                                                   async function foo() {
-                                                                     let x = 2;
-                                                                     let y = await Promise.resolve(2) * x;
-                                                                     globalThis.value = y;
-                                                                   }
-                                                                   foo();
-                                                                   """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                globalThis.value = 0;
+                async function foo() {
+                  let x = 2;
+                  let y = await Promise.resolve(2) * x;
+                  globalThis.value = y;
+                }
+                foo();
+                """
+            )
+        );
 
         realm.Execute(script);
         realm.PumpJobs();
@@ -29,19 +34,24 @@ public class AwaitPrecedenceTests
     public void Await_Binds_Tighter_Than_ConditionalOperators()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-                                                                   globalThis.x = "initial value";
-                                                                   var shouldNotBeAwaited = {
-                                                                     then: function(onFulfilled) {
-                                                                       globalThis.x = "unexpected then() call";
-                                                                       Promise.resolve().then(onFulfilled);
-                                                                     }
-                                                                   };
-                                                                   async function foo() {
-                                                                     await false || shouldNotBeAwaited;
-                                                                   }
-                                                                   foo();
-                                                                   """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                globalThis.x = "initial value";
+                var shouldNotBeAwaited = {
+                  then: function(onFulfilled) {
+                    globalThis.x = "unexpected then() call";
+                    Promise.resolve().then(onFulfilled);
+                  }
+                };
+                async function foo() {
+                  await false || shouldNotBeAwaited;
+                }
+                foo();
+                """
+            )
+        );
 
         realm.Execute(script);
         realm.PumpJobs();

@@ -5,15 +5,26 @@ namespace Okojo.Runtime;
 
 internal static class JsScriptDebugInfo
 {
-    internal static bool TryGetExactSourceLocation(JsScript script, int opcodePc, out int line, out int column)
+    internal static bool TryGetExactSourceLocation(
+        JsScript script,
+        int opcodePc,
+        out int line,
+        out int column
+    )
     {
         line = 0;
         column = 0;
 
-        if (script.SourceCode is not { Source: not null } sourceCode ||
-            script.DebugPcOffsets is null || script.DebugSourceOffsets is null)
+        if (
+            script.SourceCode is not { Source: not null } sourceCode
+            || script.DebugPcOffsets is null
+            || script.DebugSourceOffsets is null
+        )
             return false;
-        if (script.DebugPcOffsets.Length == 0 || script.DebugSourceOffsets.Length != script.DebugPcOffsets.Length)
+        if (
+            script.DebugPcOffsets.Length == 0
+            || script.DebugSourceOffsets.Length != script.DebugPcOffsets.Length
+        )
             return false;
 
         var index = Array.BinarySearch(script.DebugPcOffsets, opcodePc);
@@ -25,15 +36,26 @@ internal static class JsScriptDebugInfo
         return true;
     }
 
-    internal static bool TryGetSourceLocation(JsScript script, int opcodePc, out int line, out int column)
+    internal static bool TryGetSourceLocation(
+        JsScript script,
+        int opcodePc,
+        out int line,
+        out int column
+    )
     {
         line = 0;
         column = 0;
 
-        if (script.SourceCode is not { Source: not null } sourceCode ||
-            script.DebugPcOffsets is null || script.DebugSourceOffsets is null)
+        if (
+            script.SourceCode is not { Source: not null } sourceCode
+            || script.DebugPcOffsets is null
+            || script.DebugSourceOffsets is null
+        )
             return false;
-        if (script.DebugPcOffsets.Length == 0 || script.DebugSourceOffsets.Length != script.DebugPcOffsets.Length)
+        if (
+            script.DebugPcOffsets.Length == 0
+            || script.DebugSourceOffsets.Length != script.DebugPcOffsets.Length
+        )
             return false;
 
         var pcOffsets = script.DebugPcOffsets;
@@ -48,20 +70,37 @@ internal static class JsScriptDebugInfo
         return true;
     }
 
-    internal static bool TryFindFirstPcForSourceLine(JsScript script, int line, out int pc, out int column,
-        out int actualLine)
+    internal static bool TryFindFirstPcForSourceLine(
+        JsScript script,
+        int line,
+        out int pc,
+        out int column,
+        out int actualLine
+    )
     {
         pc = -1;
         column = 0;
         actualLine = 0;
 
-        if (script.SourceCode is not { Source: not null } sourceCode ||
-            script.DebugPcOffsets is null || script.DebugSourceOffsets is null)
+        if (
+            script.SourceCode is not { Source: not null } sourceCode
+            || script.DebugPcOffsets is null
+            || script.DebugSourceOffsets is null
+        )
             return false;
-        if (script.DebugPcOffsets.Length == 0 || script.DebugSourceOffsets.Length != script.DebugPcOffsets.Length)
+        if (
+            script.DebugPcOffsets.Length == 0
+            || script.DebugSourceOffsets.Length != script.DebugPcOffsets.Length
+        )
             return false;
-        if (!SourceLocation.TryGetLineOffsetRange(sourceCode, line, out var lineStartOffset,
-                out var lineEndOffsetExclusive))
+        if (
+            !SourceLocation.TryGetLineOffsetRange(
+                sourceCode,
+                line,
+                out var lineStartOffset,
+                out var lineEndOffsetExclusive
+            )
+        )
             return false;
 
         var fallbackPc = -1;
@@ -84,7 +123,10 @@ internal static class JsScriptDebugInfo
             if (fallbackPc < 0)
             {
                 fallbackPc = script.DebugPcOffsets[i];
-                (fallbackLine, fallbackColumn) = SourceLocation.GetLineColumn(sourceCode, sourceOffset);
+                (fallbackLine, fallbackColumn) = SourceLocation.GetLineColumn(
+                    sourceCode,
+                    sourceOffset
+                );
             }
         }
 
@@ -99,13 +141,25 @@ internal static class JsScriptDebugInfo
 
     internal static bool HasExactSourceLine(JsScript script, int line)
     {
-        if (script.SourceCode is not { Source: not null } sourceCode ||
-            script.DebugPcOffsets is null || script.DebugSourceOffsets is null)
+        if (
+            script.SourceCode is not { Source: not null } sourceCode
+            || script.DebugPcOffsets is null
+            || script.DebugSourceOffsets is null
+        )
             return false;
-        if (script.DebugPcOffsets.Length == 0 || script.DebugSourceOffsets.Length != script.DebugPcOffsets.Length)
+        if (
+            script.DebugPcOffsets.Length == 0
+            || script.DebugSourceOffsets.Length != script.DebugPcOffsets.Length
+        )
             return false;
-        if (!SourceLocation.TryGetLineOffsetRange(sourceCode, line, out var lineStartOffset,
-                out var lineEndOffsetExclusive))
+        if (
+            !SourceLocation.TryGetLineOffsetRange(
+                sourceCode,
+                line,
+                out var lineStartOffset,
+                out var lineEndOffsetExclusive
+            )
+        )
             return false;
 
         for (var i = 0; i < script.DebugPcOffsets.Length; i++)
@@ -118,20 +172,37 @@ internal static class JsScriptDebugInfo
         return false;
     }
 
-    internal static bool TryFindFirstPcForExactSourceLine(JsScript script, int line, out int pc, out int column,
-        out int actualLine)
+    internal static bool TryFindFirstPcForExactSourceLine(
+        JsScript script,
+        int line,
+        out int pc,
+        out int column,
+        out int actualLine
+    )
     {
         pc = -1;
         column = 0;
         actualLine = 0;
 
-        if (script.SourceCode is not { Source: not null } sourceCode ||
-            script.DebugPcOffsets is null || script.DebugSourceOffsets is null)
+        if (
+            script.SourceCode is not { Source: not null } sourceCode
+            || script.DebugPcOffsets is null
+            || script.DebugSourceOffsets is null
+        )
             return false;
-        if (script.DebugPcOffsets.Length == 0 || script.DebugSourceOffsets.Length != script.DebugPcOffsets.Length)
+        if (
+            script.DebugPcOffsets.Length == 0
+            || script.DebugSourceOffsets.Length != script.DebugPcOffsets.Length
+        )
             return false;
-        if (!SourceLocation.TryGetLineOffsetRange(sourceCode, line, out var lineStartOffset,
-                out var lineEndOffsetExclusive))
+        if (
+            !SourceLocation.TryGetLineOffsetRange(
+                sourceCode,
+                line,
+                out var lineStartOffset,
+                out var lineEndOffsetExclusive
+            )
+        )
             return false;
 
         for (var i = 0; i < script.DebugPcOffsets.Length; i++)
@@ -149,7 +220,10 @@ internal static class JsScriptDebugInfo
         return false;
     }
 
-    internal static IReadOnlyList<JsLocalDebugInfo>? GetVisibleLocalInfos(JsScript script, int opcodePc)
+    internal static IReadOnlyList<JsLocalDebugInfo>? GetVisibleLocalInfos(
+        JsScript script,
+        int opcodePc
+    )
     {
         if (script.LocalDebugInfos is not { Length: > 0 } localDebugInfos)
             return null;
@@ -169,15 +243,26 @@ internal static class JsScriptDebugInfo
         return visible.Count == 0 ? null : visible;
     }
 
-    internal static IReadOnlyList<int>? GetInstructionOperandRegisters(JsScript script, int opcodePc)
+    internal static IReadOnlyList<int>? GetInstructionOperandRegisters(
+        JsScript script,
+        int opcodePc
+    )
     {
         var bytecode = script.Bytecode;
         if ((uint)opcodePc >= (uint)bytecode.Length)
             return null;
 
-        if (!BytecodeInfo.TryDecodeInstructionHeader(bytecode, opcodePc, out var op, out var scale,
+        if (
+            !BytecodeInfo.TryDecodeInstructionHeader(
+                bytecode,
+                opcodePc,
+                out var op,
+                out var scale,
                 out var operandStart,
-                out var operandByteCount, out _))
+                out var operandByteCount,
+                out _
+            )
+        )
             return null;
 
         var operands = bytecode.AsSpan(operandStart, operandByteCount);
@@ -206,28 +291,36 @@ internal static class JsScriptDebugInfo
                 break;
             case JsOpCode.CallUndefinedReceiver:
             case JsOpCode.Construct:
-                AddCallRegisters(registers,
+                AddCallRegisters(
+                    registers,
                     BytecodeInfo.ReadUnsignedOperand(operands, 0, scale),
                     BytecodeInfo.ReadUnsignedOperand(operands, 1, scale),
-                    BytecodeInfo.ReadUnsignedOperand(operands, 2, scale));
+                    BytecodeInfo.ReadUnsignedOperand(operands, 2, scale)
+                );
                 break;
             case JsOpCode.CallProperty:
                 registers.Add(BytecodeInfo.ReadUnsignedOperand(operands, 1, scale));
-                AddCallRegisters(registers,
+                AddCallRegisters(
+                    registers,
                     BytecodeInfo.ReadUnsignedOperand(operands, 0, scale),
                     BytecodeInfo.ReadUnsignedOperand(operands, 2, scale),
-                    BytecodeInfo.ReadUnsignedOperand(operands, 3, scale));
+                    BytecodeInfo.ReadUnsignedOperand(operands, 3, scale)
+                );
                 break;
             case JsOpCode.CallRuntime:
-                AddRegisterRange(registers,
+                AddRegisterRange(
+                    registers,
                     BytecodeInfo.ReadUnsignedOperand(operands, 1, scale),
-                    BytecodeInfo.ReadUnsignedOperand(operands, 2, scale));
+                    BytecodeInfo.ReadUnsignedOperand(operands, 2, scale)
+                );
                 break;
             case JsOpCode.CallAny:
-                AddCallRegisters(registers,
+                AddCallRegisters(
+                    registers,
                     BytecodeInfo.ReadUnsignedOperand(operands, 0, scale),
                     BytecodeInfo.ReadUnsignedOperand(operands, 1, scale),
-                    BytecodeInfo.ReadUnsignedOperand(operands, 2, scale));
+                    BytecodeInfo.ReadUnsignedOperand(operands, 2, scale)
+                );
                 break;
             case JsOpCode.LdaNamedProperty:
             case JsOpCode.StaNamedProperty:
@@ -263,7 +356,12 @@ internal static class JsScriptDebugInfo
         return result;
     }
 
-    private static void AddCallRegisters(HashSet<int> registers, int functionRegister, int argStart, int argCount)
+    private static void AddCallRegisters(
+        HashSet<int> registers,
+        int functionRegister,
+        int argStart,
+        int argCount
+    )
     {
         registers.Add(functionRegister);
         AddRegisterRange(registers, argStart, argCount);

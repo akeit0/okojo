@@ -58,7 +58,9 @@ public partial class Intrinsics
         Realm.Global["Iterator"] = IteratorConstructor;
         Realm.Global["Int8Array"] = GetTypedArrayConstructor(TypedArrayElementKind.Int8);
         Realm.Global["Uint8Array"] = GetTypedArrayConstructor(TypedArrayElementKind.Uint8);
-        Realm.Global["Uint8ClampedArray"] = GetTypedArrayConstructor(TypedArrayElementKind.Uint8Clamped);
+        Realm.Global["Uint8ClampedArray"] = GetTypedArrayConstructor(
+            TypedArrayElementKind.Uint8Clamped
+        );
         Realm.Global["Int16Array"] = GetTypedArrayConstructor(TypedArrayElementKind.Int16);
         Realm.Global["Uint16Array"] = GetTypedArrayConstructor(TypedArrayElementKind.Uint16);
         Realm.Global["Int32Array"] = GetTypedArrayConstructor(TypedArrayElementKind.Int32);
@@ -91,18 +93,33 @@ public partial class Intrinsics
         Span<PropertyDefinition> numberParseDefs =
         [
             PropertyDefinition.Mutable(IdParseInt, JsValue.FromObject(parseIntFn)),
-            PropertyDefinition.Mutable(IdParseFloat, JsValue.FromObject(parseFloatFn))
+            PropertyDefinition.Mutable(IdParseFloat, JsValue.FromObject(parseFloatFn)),
         ];
         NumberConstructor.DefineNewPropertiesNoCollision(Realm, numberParseDefs);
         const int atomNaN = IdNaN;
         const int atomInfinity = IdInfinity;
         const int atomUndefined = IdUndefined;
-        Realm.GlobalObject.DefineOwnGlobalDataPropertyAtom(atomNaN, JsValue.NaN, false, false,
-            false);
-        Realm.GlobalObject.DefineOwnGlobalDataPropertyAtom(atomInfinity, new(double.PositiveInfinity),
-            false, false, false);
-        Realm.GlobalObject.DefineOwnGlobalDataPropertyAtom(atomUndefined, JsValue.Undefined, false,
-            false, false);
+        Realm.GlobalObject.DefineOwnGlobalDataPropertyAtom(
+            atomNaN,
+            JsValue.NaN,
+            false,
+            false,
+            false
+        );
+        Realm.GlobalObject.DefineOwnGlobalDataPropertyAtom(
+            atomInfinity,
+            new(double.PositiveInfinity),
+            false,
+            false,
+            false
+        );
+        Realm.GlobalObject.DefineOwnGlobalDataPropertyAtom(
+            atomUndefined,
+            JsValue.Undefined,
+            false,
+            false,
+            false
+        );
         Realm.Global["Symbol"] = SymbolConstructor;
         Realm.Global["Promise"] = PromiseConstructor;
         Realm.Global["Proxy"] = ProxyConstructor;
@@ -126,135 +143,191 @@ public partial class Intrinsics
             apiModules[i].Install(Realm);
     }
 
-
     private JsHostFunction CreateObjectConstructor()
     {
-        return JsHostFunction.CreateEmptyShapedFunction(Realm, static (in info) =>
-        {
-            var realm = info.Realm;
-            var callee = (JsHostFunction)info.Function;
-            var args = info.Arguments;
-            if (info.IsConstruct &&
-                info.NewTarget.TryGetObject(out var newTargetObj) &&
-                !ReferenceEquals(newTargetObj, callee))
+        return JsHostFunction.CreateEmptyShapedFunction(
+            Realm,
+            static (in info) =>
             {
-                var prototype = info.Realm.Intrinsics.GetPrototypeFromConstructorOrIntrinsic(info.NewTarget, callee,
-                    callee.Realm.ObjectPrototype);
-                return new JsPlainObject(realm, false)
+                var realm = info.Realm;
+                var callee = (JsHostFunction)info.Function;
+                var args = info.Arguments;
+                if (
+                    info.IsConstruct
+                    && info.NewTarget.TryGetObject(out var newTargetObj)
+                    && !ReferenceEquals(newTargetObj, callee)
+                )
                 {
-                    Prototype = prototype
-                };
-            }
+                    var prototype = info.Realm.Intrinsics.GetPrototypeFromConstructorOrIntrinsic(
+                        info.NewTarget,
+                        callee,
+                        callee.Realm.ObjectPrototype
+                    );
+                    return new JsPlainObject(realm, false) { Prototype = prototype };
+                }
 
-            if (args.Length == 0 || args[0].IsUndefined || args[0].IsNull)
-                return new JsPlainObject(realm);
-            if (args[0].TryGetObject(out _))
-                return args[0];
-            return realm.BoxPrimitive(args[0]);
-        }, "Object", 1);
+                if (args.Length == 0 || args[0].IsUndefined || args[0].IsNull)
+                    return new JsPlainObject(realm);
+                if (args[0].TryGetObject(out _))
+                    return args[0];
+                return realm.BoxPrimitive(args[0]);
+            },
+            "Object",
+            1
+        );
     }
 
     private JsHostFunction CreateBooleanConstructor()
     {
-        return new(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            var value = args.Length > 0 && JsRealm.ToBoolean(args[0]);
-            if (info.IsConstruct)
+        return new(
+            Realm,
+            (in info) =>
             {
-                var callee = (JsHostFunction)info.Function;
-                var prototype = GetPrototypeFromConstructorOrIntrinsic(info.NewTarget, callee,
-                    callee.Realm.BooleanPrototype);
-                return new JsBooleanObject(realm, value, prototype);
-            }
+                var realm = info.Realm;
+                var args = info.Arguments;
+                var value = args.Length > 0 && JsRealm.ToBoolean(args[0]);
+                if (info.IsConstruct)
+                {
+                    var callee = (JsHostFunction)info.Function;
+                    var prototype = GetPrototypeFromConstructorOrIntrinsic(
+                        info.NewTarget,
+                        callee,
+                        callee.Realm.BooleanPrototype
+                    );
+                    return new JsBooleanObject(realm, value, prototype);
+                }
 
-            return value ? JsValue.True : JsValue.False;
-        }, "Boolean", 1, true);
+                return value ? JsValue.True : JsValue.False;
+            },
+            "Boolean",
+            1,
+            true
+        );
     }
 
     private JsHostFunction CreateNumberConstructor()
     {
-        return new(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            var value = args.Length == 0 ? 0d : realm.ToNumberConstructorValue(args[0]);
-            if (info.IsConstruct)
+        return new(
+            Realm,
+            (in info) =>
             {
-                var callee = (JsHostFunction)info.Function;
-                var prototype = GetPrototypeFromConstructorOrIntrinsic(info.NewTarget, callee,
-                    callee.Realm.NumberPrototype);
-                return new JsNumberObject(realm, value, prototype);
-            }
+                var realm = info.Realm;
+                var args = info.Arguments;
+                var value = args.Length == 0 ? 0d : realm.ToNumberConstructorValue(args[0]);
+                if (info.IsConstruct)
+                {
+                    var callee = (JsHostFunction)info.Function;
+                    var prototype = GetPrototypeFromConstructorOrIntrinsic(
+                        info.NewTarget,
+                        callee,
+                        callee.Realm.NumberPrototype
+                    );
+                    return new JsNumberObject(realm, value, prototype);
+                }
 
-            return new(value);
-        }, "Number", 1, true);
+                return new(value);
+            },
+            "Number",
+            1,
+            true
+        );
     }
 
     private JsHostFunction CreateStringConstructor()
     {
-        return new(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            var callee = (JsHostFunction)info.Function;
-            JsString value;
-            if (args.Length == 0)
-                value = JsString.Empty;
-            else if (!info.IsConstruct && args[0].IsSymbol)
-                value = args[0].AsSymbol().ToString();
-            else
-                value = realm.ToJsStringSlowPath(args[0]);
+        return new(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                var callee = (JsHostFunction)info.Function;
+                JsString value;
+                if (args.Length == 0)
+                    value = JsString.Empty;
+                else if (!info.IsConstruct && args[0].IsSymbol)
+                    value = args[0].AsSymbol().ToString();
+                else
+                    value = realm.ToJsStringSlowPath(args[0]);
 
-            if (!info.IsConstruct)
-                return JsValue.FromString(value);
+                if (!info.IsConstruct)
+                    return JsValue.FromString(value);
 
-            var prototype = GetPrototypeFromConstructorOrIntrinsic(info.NewTarget, callee,
-                callee.Realm.StringPrototype);
-            return new JsStringObject(realm, value, prototype);
-        }, "String", 1, true);
+                var prototype = GetPrototypeFromConstructorOrIntrinsic(
+                    info.NewTarget,
+                    callee,
+                    callee.Realm.StringPrototype
+                );
+                return new JsStringObject(realm, value, prototype);
+            },
+            "String",
+            1,
+            true
+        );
     }
 
     private JsHostFunction CreateFunctionConstructor()
     {
-        return CreateDynamicFunctionConstructor("Function", JsBytecodeFunctionKind.Normal,
-            FunctionPrototype, "function");
+        return CreateDynamicFunctionConstructor(
+            "Function",
+            JsBytecodeFunctionKind.Normal,
+            FunctionPrototype,
+            "function"
+        );
     }
 
     private JsHostFunction CreateGeneratorFunctionConstructor()
     {
-        return CreateDynamicFunctionConstructor("GeneratorFunction", JsBytecodeFunctionKind.Generator,
-            GeneratorFunctionPrototype, "function*");
+        return CreateDynamicFunctionConstructor(
+            "GeneratorFunction",
+            JsBytecodeFunctionKind.Generator,
+            GeneratorFunctionPrototype,
+            "function*"
+        );
     }
 
     private JsHostFunction CreateAsyncFunctionConstructor()
     {
-        return CreateDynamicFunctionConstructor("AsyncFunction", JsBytecodeFunctionKind.Async,
-            AsyncFunctionPrototype, "async function");
+        return CreateDynamicFunctionConstructor(
+            "AsyncFunction",
+            JsBytecodeFunctionKind.Async,
+            AsyncFunctionPrototype,
+            "async function"
+        );
     }
 
     private JsHostFunction CreateAsyncGeneratorFunctionConstructor()
     {
-        return CreateDynamicFunctionConstructor("AsyncGeneratorFunction", JsBytecodeFunctionKind.AsyncGenerator,
-            AsyncGeneratorFunctionPrototype, "async function*");
+        return CreateDynamicFunctionConstructor(
+            "AsyncGeneratorFunction",
+            JsBytecodeFunctionKind.AsyncGenerator,
+            AsyncGeneratorFunctionPrototype,
+            "async function*"
+        );
     }
 
     private JsHostFunction CreateDynamicFunctionConstructor(
         string name,
         JsBytecodeFunctionKind kind,
         JsObject intrinsicPrototype,
-        string prefix)
+        string prefix
+    )
     {
-        return new(Realm, (in info) =>
+        return new(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var callee = (JsHostFunction)info.Function;
+                var data = (DynamicFunctionConstructorData)callee.UserData!;
+                return CreateDynamicFunction(callee, info.NewTarget, info.Arguments, data);
+            },
+            name,
+            1,
+            true
+        )
         {
-            var realm = info.Realm;
-            var callee = (JsHostFunction)info.Function;
-            var data = (DynamicFunctionConstructorData)callee.UserData!;
-            return CreateDynamicFunction(callee, info.NewTarget, info.Arguments, data);
-        }, name, 1, true)
-        {
-            UserData = new DynamicFunctionConstructorData(kind, intrinsicPrototype, prefix)
+            UserData = new DynamicFunctionConstructorData(kind, intrinsicPrototype, prefix),
         };
     }
 
@@ -264,40 +337,64 @@ public partial class Intrinsics
 
         GeneratorFunctionConstructor.InitializePrototypeProperty(GeneratorFunctionPrototype);
         AsyncFunctionConstructor.InitializePrototypeProperty(AsyncFunctionPrototype);
-        AsyncGeneratorFunctionConstructor.InitializePrototypeProperty(AsyncGeneratorFunctionPrototype);
+        AsyncGeneratorFunctionConstructor.InitializePrototypeProperty(
+            AsyncGeneratorFunctionPrototype
+        );
         Span<PropertyDefinition> generatorPrototypeDefs =
         [
-            PropertyDefinition.Const(IdConstructor, JsValue.FromObject(GeneratorFunctionConstructor),
-                configurable: true),
-            PropertyDefinition.Const(IdSymbolToStringTag, JsValue.FromString("GeneratorFunction"),
-                configurable: true)
+            PropertyDefinition.Const(
+                IdConstructor,
+                JsValue.FromObject(GeneratorFunctionConstructor),
+                configurable: true
+            ),
+            PropertyDefinition.Const(
+                IdSymbolToStringTag,
+                JsValue.FromString("GeneratorFunction"),
+                configurable: true
+            ),
         ];
         GeneratorFunctionPrototype.DefineNewPropertiesNoCollision(Realm, generatorPrototypeDefs);
 
         Span<PropertyDefinition> asyncPrototypeDefs =
         [
-            PropertyDefinition.Const(IdConstructor, JsValue.FromObject(AsyncFunctionConstructor),
-                configurable: true),
-            PropertyDefinition.Const(IdSymbolToStringTag, JsValue.FromString("AsyncFunction"),
-                configurable: true)
+            PropertyDefinition.Const(
+                IdConstructor,
+                JsValue.FromObject(AsyncFunctionConstructor),
+                configurable: true
+            ),
+            PropertyDefinition.Const(
+                IdSymbolToStringTag,
+                JsValue.FromString("AsyncFunction"),
+                configurable: true
+            ),
         ];
         AsyncFunctionPrototype.DefineNewPropertiesNoCollision(Realm, asyncPrototypeDefs);
 
         Span<PropertyDefinition> asyncGeneratorPrototypeDefs =
         [
-            PropertyDefinition.Const(IdConstructor, JsValue.FromObject(AsyncGeneratorFunctionConstructor),
-                configurable: true),
-            PropertyDefinition.Const(IdSymbolToStringTag, JsValue.FromString("AsyncGeneratorFunction"),
-                configurable: true)
+            PropertyDefinition.Const(
+                IdConstructor,
+                JsValue.FromObject(AsyncGeneratorFunctionConstructor),
+                configurable: true
+            ),
+            PropertyDefinition.Const(
+                IdSymbolToStringTag,
+                JsValue.FromString("AsyncGeneratorFunction"),
+                configurable: true
+            ),
         ];
-        AsyncGeneratorFunctionPrototype.DefineNewPropertiesNoCollision(Realm, asyncGeneratorPrototypeDefs);
+        AsyncGeneratorFunctionPrototype.DefineNewPropertiesNoCollision(
+            Realm,
+            asyncGeneratorPrototypeDefs
+        );
     }
 
     private JsValue CreateDynamicFunction(
         JsHostFunction callee,
         in JsValue newTarget,
         ReadOnlySpan<JsValue> args,
-        DynamicFunctionConstructorData data)
+        DynamicFunctionConstructorData data
+    )
     {
         var functionRealm = callee.Realm;
         var parameters = Array.Empty<string>();
@@ -310,73 +407,133 @@ public partial class Intrinsics
 
         var body = args.Length == 0 ? string.Empty : functionRealm.ToJsStringSlowPath(args[^1]);
 
-        var sourceText = $"{data.Prefix} anonymous({string.Join(",", parameters)}\n) {{\n{body}\n}}";
+        var sourceText =
+            $"{data.Prefix} anonymous({string.Join(",", parameters)}\n) {{\n{body}\n}}";
         var wrappedSource = $"({sourceText});";
         JsProgram program;
         var script = default(JsScript)!;
         try
         {
-            if (data.Kind is JsBytecodeFunctionKind.Generator or JsBytecodeFunctionKind.AsyncGenerator &&
-                DynamicFunctionParameterTextContainsYield(parameters))
-                throw new JsParseException("Yield expression not allowed in formal parameter", 0, wrappedSource);
+            if (
+                data.Kind
+                    is JsBytecodeFunctionKind.Generator
+                        or JsBytecodeFunctionKind.AsyncGenerator
+                && DynamicFunctionParameterTextContainsYield(parameters)
+            )
+                throw new JsParseException(
+                    "Yield expression not allowed in formal parameter",
+                    0,
+                    wrappedSource
+                );
 
             program = JavaScriptParser.ParseScript(wrappedSource);
-            if (TryGetDynamicFunctionExpression(program, out var functionExpression) &&
-                functionExpression.Body.StrictDeclared &&
-                functionExpression.HasDuplicateParameters)
-                throw new JsParseException("Duplicate parameter name not allowed in this context",
+            if (
+                TryGetDynamicFunctionExpression(program, out var functionExpression)
+                && functionExpression.Body.StrictDeclared
+                && functionExpression.HasDuplicateParameters
+            )
+                throw new JsParseException(
+                    "Duplicate parameter name not allowed in this context",
                     functionExpression.Position,
-                    wrappedSource);
-            if (TryGetDynamicFunctionExpression(program, out functionExpression) &&
-                data.Kind is JsBytecodeFunctionKind.Generator or JsBytecodeFunctionKind.AsyncGenerator &&
-                DynamicFunctionParametersContainYield(functionExpression))
-                throw new JsParseException("YieldExpression not permitted in this context", functionExpression.Position,
-                    wrappedSource);
+                    wrappedSource
+                );
+            if (
+                TryGetDynamicFunctionExpression(program, out functionExpression)
+                && data.Kind
+                    is JsBytecodeFunctionKind.Generator
+                        or JsBytecodeFunctionKind.AsyncGenerator
+                && DynamicFunctionParametersContainYield(functionExpression)
+            )
+                throw new JsParseException(
+                    "YieldExpression not permitted in this context",
+                    functionExpression.Position,
+                    wrappedSource
+                );
 
             script = JsCompiler.Compile(functionRealm, program);
         }
         catch (JsParseException ex)
         {
-            throw new JsRuntimeException(JsErrorKind.SyntaxError, ex.Message, "FUNCTION_PARSE_ERROR");
+            throw new JsRuntimeException(
+                JsErrorKind.SyntaxError,
+                ex.Message,
+                "FUNCTION_PARSE_ERROR"
+            );
         }
-        catch (JsRuntimeException ex) when (ex.Kind == JsErrorKind.InternalError &&
-                                            ex.Message.Contains("Private name '#", StringComparison.Ordinal))
+        catch (JsRuntimeException ex)
+            when (ex.Kind == JsErrorKind.InternalError
+                && ex.Message.Contains("Private name '#", StringComparison.Ordinal)
+            )
         {
-            throw new JsRuntimeException(JsErrorKind.SyntaxError, ex.Message, "FUNCTION_PARSE_ERROR");
+            throw new JsRuntimeException(
+                JsErrorKind.SyntaxError,
+                ex.Message,
+                "FUNCTION_PARSE_ERROR"
+            );
         }
-        catch (NotSupportedException ex) when (ex.Message.Contains("Private name '#", StringComparison.Ordinal))
+        catch (NotSupportedException ex)
+            when (ex.Message.Contains("Private name '#", StringComparison.Ordinal))
         {
-            throw new JsRuntimeException(JsErrorKind.SyntaxError, ex.Message, "FUNCTION_PARSE_ERROR");
+            throw new JsRuntimeException(
+                JsErrorKind.SyntaxError,
+                ex.Message,
+                "FUNCTION_PARSE_ERROR"
+            );
         }
 
         var root = new JsBytecodeFunction(functionRealm, script, "__function_ctor__");
         JsValue result;
         try
         {
-            result = functionRealm.InvokeBytecodeFunction(root, JsValue.Undefined, ReadOnlySpan<JsValue>.Empty,
-                JsValue.Undefined);
+            result = functionRealm.InvokeBytecodeFunction(
+                root,
+                JsValue.Undefined,
+                ReadOnlySpan<JsValue>.Empty,
+                JsValue.Undefined
+            );
         }
-        catch (JsRuntimeException ex) when (ex.Kind == JsErrorKind.InternalError &&
-                                            ex.Message.Contains("Private name '#", StringComparison.Ordinal))
+        catch (JsRuntimeException ex)
+            when (ex.Kind == JsErrorKind.InternalError
+                && ex.Message.Contains("Private name '#", StringComparison.Ordinal)
+            )
         {
-            throw new JsRuntimeException(JsErrorKind.SyntaxError, ex.Message, "FUNCTION_PARSE_ERROR");
+            throw new JsRuntimeException(
+                JsErrorKind.SyntaxError,
+                ex.Message,
+                "FUNCTION_PARSE_ERROR"
+            );
         }
 
         if (result.TryGetObject(out var resultObj) && resultObj is JsBytecodeFunction fn)
         {
-            fn.Script = fn.Script with { FunctionSourceText = FunctionSourceTextSegment.FromWholeString(sourceText) };
-            fn.Prototype = GetPrototypeFromConstructorOrIntrinsic(newTarget, callee, data.IntrinsicPrototype);
+            fn.Script = fn.Script with
+            {
+                FunctionSourceText = FunctionSourceTextSegment.FromWholeString(sourceText),
+            };
+            fn.Prototype = GetPrototypeFromConstructorOrIntrinsic(
+                newTarget,
+                callee,
+                data.IntrinsicPrototype
+            );
             return result;
         }
 
-        throw new JsRuntimeException(JsErrorKind.InternalError,
-            "Dynamic function constructor did not produce a bytecode function");
+        throw new JsRuntimeException(
+            JsErrorKind.InternalError,
+            "Dynamic function constructor did not produce a bytecode function"
+        );
     }
 
-    private static bool TryGetDynamicFunctionExpression(JsProgram program, out JsFunctionExpression functionExpression)
+    private static bool TryGetDynamicFunctionExpression(
+        JsProgram program,
+        out JsFunctionExpression functionExpression
+    )
     {
-        if (program.Statements.Count == 1 &&
-            program.Statements[0] is JsExpressionStatement { Expression: JsFunctionExpression expr })
+        if (
+            program.Statements.Count == 1
+            && program.Statements[0]
+                is JsExpressionStatement { Expression: JsFunctionExpression expr }
+        )
         {
             functionExpression = expr;
             return true;
@@ -395,7 +552,9 @@ public partial class Intrinsics
         return false;
     }
 
-    private static bool DynamicFunctionParametersContainYield(JsFunctionExpression functionExpression)
+    private static bool DynamicFunctionParametersContainYield(
+        JsFunctionExpression functionExpression
+    )
     {
         var initializers = functionExpression.ParameterInitializers;
         for (var i = 0; i < initializers.Count; i++)
@@ -410,27 +569,32 @@ public partial class Intrinsics
         return expression switch
         {
             JsYieldExpression => true,
-            JsAssignmentExpression a => ExpressionContainsYield(a.Left) || ExpressionContainsYield(a.Right),
-            JsBinaryExpression b => ExpressionContainsYield(b.Left) || ExpressionContainsYield(b.Right),
-            JsCallExpression c => ExpressionContainsYield(c.Callee) || AnyYieldExpression(c.Arguments),
-            JsConditionalExpression c => ExpressionContainsYield(c.Test) || ExpressionContainsYield(c.Consequent) ||
-                                         ExpressionContainsYield(c.Alternate),
-            JsMemberExpression m => ExpressionContainsYield(m.Object) ||
-                                    (m.IsComputed && ExpressionContainsYield(m.Property)),
+            JsAssignmentExpression a => ExpressionContainsYield(a.Left)
+                || ExpressionContainsYield(a.Right),
+            JsBinaryExpression b => ExpressionContainsYield(b.Left)
+                || ExpressionContainsYield(b.Right),
+            JsCallExpression c => ExpressionContainsYield(c.Callee)
+                || AnyYieldExpression(c.Arguments),
+            JsConditionalExpression c => ExpressionContainsYield(c.Test)
+                || ExpressionContainsYield(c.Consequent)
+                || ExpressionContainsYield(c.Alternate),
+            JsMemberExpression m => ExpressionContainsYield(m.Object)
+                || (m.IsComputed && ExpressionContainsYield(m.Property)),
             JsArrayExpression a => AnyNullableYieldExpression(a.Elements),
             JsObjectExpression o => ObjectExpressionContainsYield(o),
             JsSequenceExpression s => AnyYieldExpression(s.Expressions),
             JsSpreadExpression s => ExpressionContainsYield(s.Argument),
-            JsTaggedTemplateExpression t => ExpressionContainsYield(t.Tag) ||
-                                            AnyYieldExpression(t.Template.Expressions),
+            JsTaggedTemplateExpression t => ExpressionContainsYield(t.Tag)
+                || AnyYieldExpression(t.Template.Expressions),
             JsTemplateExpression t => AnyYieldExpression(t.Expressions),
             JsUnaryExpression u => ExpressionContainsYield(u.Argument),
             JsUpdateExpression u => ExpressionContainsYield(u.Argument),
             JsAwaitExpression a => ExpressionContainsYield(a.Argument),
-            JsNewExpression n => ExpressionContainsYield(n.Callee) || AnyYieldExpression(n.Arguments),
+            JsNewExpression n => ExpressionContainsYield(n.Callee)
+                || AnyYieldExpression(n.Arguments),
             JsParameterInitializerExpression p => ExpressionContainsYield(p.Expression),
             JsFunctionExpression => false,
-            _ => false
+            _ => false,
         };
     }
 
@@ -488,48 +652,70 @@ public partial class Intrinsics
         return ch == '_' || ch == '$' || char.IsLetterOrDigit(ch);
     }
 
-
     private JsHostFunction CreateSymbolConstructor()
     {
-        return new(Realm, (in info) =>
-        {
-            if (!info.NewTarget.IsUndefined)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Symbol is not a constructor");
+        return new(
+            Realm,
+            (in info) =>
+            {
+                if (!info.NewTarget.IsUndefined)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Symbol is not a constructor"
+                    );
 
-            var realm = info.Realm;
-            var args = info.Arguments;
-            string? description = null;
-            if (args.Length > 0 && !args[0].IsUndefined) description = realm.ToJsStringSlowPath(args[0]);
+                var realm = info.Realm;
+                var args = info.Arguments;
+                string? description = null;
+                if (args.Length > 0 && !args[0].IsUndefined)
+                    description = realm.ToJsStringSlowPath(args[0]);
 
-            var atom = realm.Atoms.InternSymbolString(description);
-            var symbol = realm.Atoms.TryGetSymbolByAtom(atom, out var existing)
-                ? existing
-                : new(atom, description);
-            return JsValue.FromSymbol(symbol);
-        }, "Symbol", 0, true);
+                var atom = realm.Atoms.InternSymbolString(description);
+                var symbol = realm.Atoms.TryGetSymbolByAtom(atom, out var existing)
+                    ? existing
+                    : new(atom, description);
+                return JsValue.FromSymbol(symbol);
+            },
+            "Symbol",
+            0,
+            true
+        );
     }
 
     private void InstallSymbolConstructorBuiltins()
     {
-        var symbolForFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            var key = args.Length == 0 ? string.Empty : realm.ToJsStringSlowPath(args[0]);
-            return JsValue.FromSymbol(realm.Agent.GetOrCreateRegisteredSymbol(key));
-        }, "for", 1);
+        var symbolForFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                var key = args.Length == 0 ? string.Empty : realm.ToJsStringSlowPath(args[0]);
+                return JsValue.FromSymbol(realm.Agent.GetOrCreateRegisteredSymbol(key));
+            },
+            "for",
+            1
+        );
 
-        var symbolKeyForFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            if (args.Length == 0 || !args[0].IsSymbol)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Symbol.keyFor requires a symbol");
+        var symbolKeyForFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                if (args.Length == 0 || !args[0].IsSymbol)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Symbol.keyFor requires a symbol"
+                    );
 
-            return realm.Agent.TryGetRegisteredSymbolKey(args[0].AsSymbol(), out var key)
-                ? JsValue.FromString(key)
-                : JsValue.Undefined;
-        }, "keyFor", 1);
+                return realm.Agent.TryGetRegisteredSymbolKey(args[0].AsSymbol(), out var key)
+                    ? JsValue.FromString(key)
+                    : JsValue.Undefined;
+            },
+            "keyFor",
+            1
+        );
 
         var iterator = JsValue.FromSymbol(Realm.SymbolIteratorSymbol);
         var asyncIterator = JsValue.FromSymbol(Realm.SymbolAsyncIteratorSymbol);
@@ -576,7 +762,7 @@ public partial class Intrinsics
             PropertyDefinition.Const(atomReplace, replace),
             PropertyDefinition.Const(atomMatchAll, matchAll),
             PropertyDefinition.Const(atomSplit, split),
-            PropertyDefinition.Const(atomSearch, search)
+            PropertyDefinition.Const(atomSearch, search),
         ];
         SymbolConstructor.InitializePrototypeProperty(SymbolPrototype);
         SymbolConstructor.DefineNewPropertiesNoCollision(Realm, defs);
@@ -584,57 +770,85 @@ public partial class Intrinsics
 
     private void InstallSymbolPrototypeBuiltins()
     {
-        var toStringFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var thisValue = info.ThisValue;
-            if (thisValue.IsSymbol)
-                return thisValue.AsSymbol().ToString();
-            if (thisValue.TryGetObject(out var obj) && obj is JsSymbolObject boxed)
-                return boxed.Value.ToString();
-            throw new JsRuntimeException(JsErrorKind.TypeError,
-                "Symbol.prototype.toString requires that 'this' be a Symbol",
-                "SYMBOL_TOSTRING_BAD_RECEIVER");
-        }, "toString", 0);
+        var toStringFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var thisValue = info.ThisValue;
+                if (thisValue.IsSymbol)
+                    return thisValue.AsSymbol().ToString();
+                if (thisValue.TryGetObject(out var obj) && obj is JsSymbolObject boxed)
+                    return boxed.Value.ToString();
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Symbol.prototype.toString requires that 'this' be a Symbol",
+                    "SYMBOL_TOSTRING_BAD_RECEIVER"
+                );
+            },
+            "toString",
+            0
+        );
 
-        var valueOfFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var thisValue = info.ThisValue;
-            if (thisValue.IsSymbol)
-                return thisValue;
-            if (thisValue.TryGetObject(out var obj) && obj is JsSymbolObject boxed)
-                return JsValue.FromSymbol(boxed.Value);
-            throw new JsRuntimeException(JsErrorKind.TypeError,
-                "Symbol.prototype.valueOf requires that 'this' be a Symbol",
-                "SYMBOL_VALUEOF_BAD_RECEIVER");
-        }, "valueOf", 0);
+        var valueOfFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var thisValue = info.ThisValue;
+                if (thisValue.IsSymbol)
+                    return thisValue;
+                if (thisValue.TryGetObject(out var obj) && obj is JsSymbolObject boxed)
+                    return JsValue.FromSymbol(boxed.Value);
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Symbol.prototype.valueOf requires that 'this' be a Symbol",
+                    "SYMBOL_VALUEOF_BAD_RECEIVER"
+                );
+            },
+            "valueOf",
+            0
+        );
 
-        var descriptionGetFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var thisValue = info.ThisValue;
-            if (thisValue.IsSymbol)
-                return thisValue.AsSymbol().Description is string symbolDescription
-                    ? JsValue.FromString(symbolDescription)
-                    : JsValue.Undefined;
-            if (thisValue.TryGetObject(out var obj) && obj is JsSymbolObject boxed)
-                return boxed.Value.Description is string boxedDescription
-                    ? JsValue.FromString(boxedDescription)
-                    : JsValue.Undefined;
-            throw new JsRuntimeException(JsErrorKind.TypeError,
-                "Symbol.prototype.description requires that 'this' be a Symbol",
-                "SYMBOL_DESCRIPTION_BAD_RECEIVER");
-        }, "get description", 0);
+        var descriptionGetFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var thisValue = info.ThisValue;
+                if (thisValue.IsSymbol)
+                    return thisValue.AsSymbol().Description is string symbolDescription
+                        ? JsValue.FromString(symbolDescription)
+                        : JsValue.Undefined;
+                if (thisValue.TryGetObject(out var obj) && obj is JsSymbolObject boxed)
+                    return boxed.Value.Description is string boxedDescription
+                        ? JsValue.FromString(boxedDescription)
+                        : JsValue.Undefined;
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Symbol.prototype.description requires that 'this' be a Symbol",
+                    "SYMBOL_DESCRIPTION_BAD_RECEIVER"
+                );
+            },
+            "get description",
+            0
+        );
 
-        var toPrimitiveFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var thisValue = info.ThisValue;
-            if (thisValue.IsSymbol)
-                return thisValue;
-            if (thisValue.TryGetObject(out var obj) && obj is JsSymbolObject boxed)
-                return JsValue.FromSymbol(boxed.Value);
-            throw new JsRuntimeException(JsErrorKind.TypeError,
-                "Symbol.prototype[Symbol.toPrimitive] requires that 'this' be a Symbol",
-                "SYMBOL_TOPRIMITIVE_BAD_RECEIVER");
-        }, "[Symbol.toPrimitive]", 1);
+        var toPrimitiveFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var thisValue = info.ThisValue;
+                if (thisValue.IsSymbol)
+                    return thisValue;
+                if (thisValue.TryGetObject(out var obj) && obj is JsSymbolObject boxed)
+                    return JsValue.FromSymbol(boxed.Value);
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Symbol.prototype[Symbol.toPrimitive] requires that 'this' be a Symbol",
+                    "SYMBOL_TOPRIMITIVE_BAD_RECEIVER"
+                );
+            },
+            "[Symbol.toPrimitive]",
+            1
+        );
 
         Span<PropertyDefinition> defs =
         [
@@ -642,8 +856,16 @@ public partial class Intrinsics
             PropertyDefinition.Mutable(IdToString, toStringFn),
             PropertyDefinition.Mutable(IdValueOf, valueOfFn),
             PropertyDefinition.GetterData(IdDescription, descriptionGetFn, configurable: true),
-            PropertyDefinition.Const(IdSymbolToPrimitive, JsValue.FromObject(toPrimitiveFn), configurable: true),
-            PropertyDefinition.Const(IdSymbolToStringTag, JsValue.FromString("Symbol"), configurable: true)
+            PropertyDefinition.Const(
+                IdSymbolToPrimitive,
+                JsValue.FromObject(toPrimitiveFn),
+                configurable: true
+            ),
+            PropertyDefinition.Const(
+                IdSymbolToStringTag,
+                JsValue.FromString("Symbol"),
+                configurable: true
+            ),
         ];
         SymbolPrototype.DefineNewPropertiesNoCollision(Realm, defs);
     }
@@ -651,5 +873,6 @@ public partial class Intrinsics
     private readonly record struct DynamicFunctionConstructorData(
         JsBytecodeFunctionKind Kind,
         JsObject IntrinsicPrototype,
-        string Prefix);
+        string Prefix
+    );
 }

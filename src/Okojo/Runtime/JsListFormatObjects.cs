@@ -11,7 +11,9 @@ internal sealed class JsListFormatObject : JsObject
         JsObject prototype,
         string locale,
         string type,
-        string style) : base(realm)
+        string style
+    )
+        : base(realm)
     {
         Prototype = prototype;
         Locale = locale;
@@ -40,14 +42,19 @@ internal sealed class JsListFormatObject : JsObject
 
     private JsPlainObject CreatePartObject(string type, string value)
     {
-        var part = new JsPlainObject(Realm)
-        {
-            Prototype = Realm.ObjectPrototype
-        };
-        part.DefineDataPropertyAtom(Realm, Realm.Atoms.InternNoCheck("type"), JsValue.FromString(type),
-            JsShapePropertyFlags.Open);
-        part.DefineDataPropertyAtom(Realm, Realm.Atoms.InternNoCheck("value"), JsValue.FromString(value),
-            JsShapePropertyFlags.Open);
+        var part = new JsPlainObject(Realm) { Prototype = Realm.ObjectPrototype };
+        part.DefineDataPropertyAtom(
+            Realm,
+            Realm.Atoms.InternNoCheck("type"),
+            JsValue.FromString(type),
+            JsShapePropertyFlags.Open
+        );
+        part.DefineDataPropertyAtom(
+            Realm,
+            Realm.Atoms.InternNoCheck("value"),
+            JsValue.FromString(value),
+            JsShapePropertyFlags.Open
+        );
         return part;
     }
 }

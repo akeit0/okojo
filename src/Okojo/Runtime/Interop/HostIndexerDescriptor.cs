@@ -5,7 +5,8 @@ internal sealed class HostIndexerDescriptor
     internal HostIndexerDescriptor(
         Func<JsRealm, object, uint, (bool Success, JsValue Value)> getter,
         Func<JsRealm, object, uint, JsValue, bool>? setter,
-        Action<object, List<uint>>? collectOwnIndices)
+        Action<object, List<uint>>? collectOwnIndices
+    )
     {
         Getter = getter;
         Setter = setter;

@@ -7,12 +7,18 @@ namespace Okojo.Runtime;
 
 internal static class JsStringLocaleCaseOperations
 {
-    public static JsString ToLocaleUpperCase(JsRealm realm, JsString value, ReadOnlySpan<JsValue> arguments)
+    public static JsString ToLocaleUpperCase(
+        JsRealm realm,
+        JsString value,
+        ReadOnlySpan<JsValue> arguments
+    )
     {
         var culture = Intrinsics.ResolveRequestedLocaleCulture(realm, arguments);
         var langName = culture.TwoLetterISOLanguageName;
-        if (string.Equals(langName, "tr", StringComparison.Ordinal) ||
-            string.Equals(langName, "az", StringComparison.Ordinal))
+        if (
+            string.Equals(langName, "tr", StringComparison.Ordinal)
+            || string.Equals(langName, "az", StringComparison.Ordinal)
+        )
             return ToUpperCaseTurkic(value);
 
         if (string.Equals("lt", culture.Name, StringComparison.OrdinalIgnoreCase))
@@ -20,7 +26,11 @@ internal static class JsStringLocaleCaseOperations
         return JsStringCaseOperations.ToUpperCaseUnicodeDefault(value);
     }
 
-    public static JsString ToLocaleLowerCase(JsRealm realm, JsString value, ReadOnlySpan<JsValue> arguments)
+    public static JsString ToLocaleLowerCase(
+        JsRealm realm,
+        JsString value,
+        ReadOnlySpan<JsValue> arguments
+    )
     {
         var culture = Intrinsics.ResolveRequestedLocaleCulture(realm, arguments);
         return ToLowerCaseWithSpecialCasing(value, culture);
@@ -29,8 +39,9 @@ internal static class JsStringLocaleCaseOperations
     private static JsString ToLowerCaseWithSpecialCasing(JsString value, CultureInfo culture)
     {
         var langName = culture.TwoLetterISOLanguageName;
-        var isTurkishOrAzeri = string.Equals(langName, "tr", StringComparison.Ordinal) ||
-                               string.Equals(langName, "az", StringComparison.Ordinal);
+        var isTurkishOrAzeri =
+            string.Equals(langName, "tr", StringComparison.Ordinal)
+            || string.Equals(langName, "az", StringComparison.Ordinal);
         var isLithuanian = string.Equals(langName, "lt", StringComparison.Ordinal);
 
         if (!isTurkishOrAzeri && !isLithuanian && !NeedsSpecialCasing(value))
@@ -40,7 +51,9 @@ internal static class JsStringLocaleCaseOperations
         var chars = value.Flatten(out pooledChars);
         try
         {
-            using var builder = new PooledCharBuilder(stackalloc char[Math.Min(chars.Length + 8, 256)]);
+            using var builder = new PooledCharBuilder(
+                stackalloc char[Math.Min(chars.Length + 8, 256)]
+            );
             for (var i = 0; i < chars.Length; i++)
             {
                 var c = chars[i];
@@ -104,7 +117,10 @@ internal static class JsStringLocaleCaseOperations
                         continue;
                     }
 
-                    if ((c == 'I' || c == 'J' || c == '\u012E') && FollowedByCombiningClass230(chars, i))
+                    if (
+                        (c == 'I' || c == 'J' || c == '\u012E')
+                        && FollowedByCombiningClass230(chars, i)
+                    )
                     {
                         builder.Append(char.ToLower(c, culture));
                         builder.Append('\u0307');
@@ -118,7 +134,11 @@ internal static class JsStringLocaleCaseOperations
                     continue;
                 }
 
-                if (char.IsHighSurrogate(c) && i + 1 < chars.Length && char.IsLowSurrogate(chars[i + 1]))
+                if (
+                    char.IsHighSurrogate(c)
+                    && i + 1 < chars.Length
+                    && char.IsLowSurrogate(chars[i + 1])
+                )
                 {
                     builder.Append(c);
                     builder.Append(chars[i + 1]);
@@ -168,7 +188,10 @@ internal static class JsStringLocaleCaseOperations
             var replaceableCursor = 0;
             for (var i = 0; i < chars.Length; i++)
             {
-                if (replaceableCursor < replaceableIndices.Count && replaceableIndices[replaceableCursor] == i)
+                if (
+                    replaceableCursor < replaceableIndices.Count
+                    && replaceableIndices[replaceableCursor] == i
+                )
                 {
                     replaceableCursor++;
                     continue;
@@ -216,9 +239,12 @@ internal static class JsStringLocaleCaseOperations
                         continue;
                     }
 
-                    var consumed =
-                        JsStringCaseOperations.AppendUpperCaseUnicodeDefault(ref builder, chars, i,
-                            out var unitChanged);
+                    var consumed = JsStringCaseOperations.AppendUpperCaseUnicodeDefault(
+                        ref builder,
+                        chars,
+                        i,
+                        out var unitChanged
+                    );
                     if (consumed == 2)
                         i++;
                     if (unitChanged)
@@ -262,7 +288,11 @@ internal static class JsStringLocaleCaseOperations
     {
         for (var j = index + 1; j < value.Length; j++)
         {
-            if (char.IsHighSurrogate(value[j]) && j + 1 < value.Length && char.IsLowSurrogate(value[j + 1]))
+            if (
+                char.IsHighSurrogate(value[j])
+                && j + 1 < value.Length
+                && char.IsLowSurrogate(value[j + 1])
+            )
             {
                 var codePoint = char.ConvertToUtf32(value[j], value[j + 1]);
                 var combiningClass = GetCombiningClass(codePoint);
@@ -289,7 +319,11 @@ internal static class JsStringLocaleCaseOperations
         for (var j = index + 1; j < value.Length; j++)
         {
             int codePoint;
-            if (char.IsHighSurrogate(value[j]) && j + 1 < value.Length && char.IsLowSurrogate(value[j + 1]))
+            if (
+                char.IsHighSurrogate(value[j])
+                && j + 1 < value.Length
+                && char.IsLowSurrogate(value[j + 1])
+            )
             {
                 codePoint = char.ConvertToUtf32(value[j], value[j + 1]);
                 j++;
@@ -346,10 +380,10 @@ internal static class JsStringLocaleCaseOperations
             >= 0x1D17B and <= 0x1D182 => 220,
             >= 0x1D185 and <= 0x1D189 => 230,
             >= 0x1D18A and <= 0x1D18B => 220,
-            _ => codePoint <= 0xFFFF &&
-                 CharUnicodeInfo.GetUnicodeCategory((char)codePoint) == UnicodeCategory.NonSpacingMark
+            _ => codePoint <= 0xFFFF
+            && CharUnicodeInfo.GetUnicodeCategory((char)codePoint) == UnicodeCategory.NonSpacingMark
                 ? 230
-                : 0
+                : 0,
         };
     }
 
@@ -365,7 +399,7 @@ internal static class JsStringLocaleCaseOperations
             0x05C4 => 230,
             0x05C5 => 220,
             0x05C7 => 220,
-            _ => 0
+            _ => 0,
         };
     }
 
@@ -398,7 +432,11 @@ internal static class JsStringLocaleCaseOperations
         for (var i = index + 1; i < value.Length; i++)
         {
             Rune rune;
-            if (char.IsHighSurrogate(value[i]) && i + 1 < value.Length && char.IsLowSurrogate(value[i + 1]))
+            if (
+                char.IsHighSurrogate(value[i])
+                && i + 1 < value.Length
+                && char.IsLowSurrogate(value[i + 1])
+            )
             {
                 rune = new(value[i], value[i + 1]);
                 i++;
@@ -420,7 +458,9 @@ internal static class JsStringLocaleCaseOperations
     private static bool IsCased(Rune rune)
     {
         var category = Rune.GetUnicodeCategory(rune);
-        return category is UnicodeCategory.UppercaseLetter or UnicodeCategory.LowercaseLetter
-            or UnicodeCategory.TitlecaseLetter;
+        return category
+            is UnicodeCategory.UppercaseLetter
+                or UnicodeCategory.LowercaseLetter
+                or UnicodeCategory.TitlecaseLetter;
     }
 }

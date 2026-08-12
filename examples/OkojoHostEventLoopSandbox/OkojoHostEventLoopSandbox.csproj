@@ -7,13 +7,13 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\src\Okojo\Okojo.csproj"/>
-        <ProjectReference Include="..\..\src\Okojo.Hosting\Okojo.Hosting.csproj"/>
-        <ProjectReference Include="..\..\src\Okojo.WebPlatform\Okojo.WebPlatform.csproj"/>
-        <ProjectReference Include="..\..\src\Okojo.Browser\Okojo.Browser.csproj"/>
+        <ProjectReference Include="..\..\src\Okojo\Okojo.csproj" />
+        <ProjectReference Include="..\..\src\Okojo.Hosting\Okojo.Hosting.csproj" />
+        <ProjectReference Include="..\..\src\Okojo.WebPlatform\Okojo.WebPlatform.csproj" />
+        <ProjectReference Include="..\..\src\Okojo.Browser\Okojo.Browser.csproj" />
     </ItemGroup>
 
     <ItemGroup>
-        <None Include="scripts\**\*.js" CopyToOutputDirectory="PreserveNewest"/>
+        <None Include="scripts\**\*.js" CopyToOutputDirectory="PreserveNewest" />
     </ItemGroup>
 </Project>

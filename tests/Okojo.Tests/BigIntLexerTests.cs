@@ -13,7 +13,11 @@ public class BigIntLexerTests
     [TestCase("0o7_7n", "0o7_7n", "63")]
     [TestCase("0xffn", "0xffn", "255")]
     [TestCase("0xff_ffn", "0xff_ffn", "65535")]
-    public void Lexer_Produces_BigInt_Token_For_Integer_N_Suffix(string source, string text, string expected)
+    public void Lexer_Produces_BigInt_Token_For_Integer_N_Suffix(
+        string source,
+        string text,
+        string expected
+    )
     {
         var lexer = new JsLexer(source);
 

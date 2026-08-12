@@ -4,7 +4,8 @@ public readonly record struct PausedScopeSnapshot(
     int FramePointer,
     StackFrameInfo FrameInfo,
     IReadOnlyList<JsLocalDebugInfo>? Locals,
-    IReadOnlyList<PausedLocalValue>? LocalValues)
+    IReadOnlyList<PausedLocalValue>? LocalValues
+)
 {
     public bool TryGetLocalValue(string name, out PausedLocalValue value)
     {

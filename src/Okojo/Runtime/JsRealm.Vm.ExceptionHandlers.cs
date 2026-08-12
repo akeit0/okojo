@@ -51,7 +51,10 @@ public sealed partial class JsRealm
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void PopCurrentExceptionHandlerForFrame(int frameFp)
     {
-        if (exceptionHandlerCount != 0 && exceptionHandlerStack[exceptionHandlerCount - 1].FrameFp == frameFp)
+        if (
+            exceptionHandlerCount != 0
+            && exceptionHandlerStack[exceptionHandlerCount - 1].FrameFp == frameFp
+        )
         {
             exceptionHandlerCount--;
             return;
@@ -70,7 +73,13 @@ public sealed partial class JsRealm
 
             exceptionHandlerCount--;
             if (i != exceptionHandlerCount)
-                Array.Copy(exceptionHandlerStack, i + 1, exceptionHandlerStack, i, exceptionHandlerCount - i);
+                Array.Copy(
+                    exceptionHandlerStack,
+                    i + 1,
+                    exceptionHandlerStack,
+                    i,
+                    exceptionHandlerCount - i
+                );
 
             return;
         }
@@ -79,21 +88,31 @@ public sealed partial class JsRealm
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void RemoveExceptionHandlersForFrame(int frameFp)
     {
-        while (exceptionHandlerCount != 0 && exceptionHandlerStack[exceptionHandlerCount - 1].FrameFp == frameFp)
+        while (
+            exceptionHandlerCount != 0
+            && exceptionHandlerStack[exceptionHandlerCount - 1].FrameFp == frameFp
+        )
             exceptionHandlerCount--;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool HasActiveExceptionHandlersForFrame(int frameFp)
     {
-        return exceptionHandlerCount != 0 && exceptionHandlerStack[exceptionHandlerCount - 1].FrameFp == frameFp;
+        return exceptionHandlerCount != 0
+            && exceptionHandlerStack[exceptionHandlerCount - 1].FrameFp == frameFp;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private GeneratorObjectCore.SuspendedExceptionHandler[]? CaptureExceptionHandlersForFrame(int frameFp)
+    private GeneratorObjectCore.SuspendedExceptionHandler[]? CaptureExceptionHandlersForFrame(
+        int frameFp
+    )
     {
         var count = 0;
-        for (var i = exceptionHandlerCount - 1; i >= 0 && exceptionHandlerStack[i].FrameFp == frameFp; i--)
+        for (
+            var i = exceptionHandlerCount - 1;
+            i >= 0 && exceptionHandlerStack[i].FrameFp == frameFp;
+            i--
+        )
             count++;
 
         if (count == 0)
@@ -104,16 +123,17 @@ public sealed partial class JsRealm
         for (var dest = count - 1; dest >= 0; dest--, source--)
         {
             var entry = exceptionHandlerStack[source];
-            handlers[dest] = new(entry.CatchPc,
-                entry.SavedSp - frameFp);
+            handlers[dest] = new(entry.CatchPc, entry.SavedSp - frameFp);
         }
 
         return handlers;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void RestoreExceptionHandlersForFrame(int frameFp,
-        GeneratorObjectCore.SuspendedExceptionHandler[]? handlers)
+    private void RestoreExceptionHandlersForFrame(
+        int frameFp,
+        GeneratorObjectCore.SuspendedExceptionHandler[]? handlers
+    )
     {
         if (handlers is null || handlers.Length == 0)
             return;
@@ -129,7 +149,8 @@ public sealed partial class JsRealm
         Span<JsValue> fullStack,
         int stopAtCallerFp,
         ref int fp,
-        out int pc)
+        out int pc
+    )
     {
         while (TryPeekExceptionHandler(out var topHandler) && topHandler.FrameFp > fp)
             PopExceptionHandler();

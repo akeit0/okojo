@@ -2,8 +2,10 @@ using Okojo.Runtime;
 
 namespace Okojo.DotNet.Modules;
 
-internal sealed class DotNetModuleSourceLoader(IModuleSourceLoader inner, DotNetModuleImportBridge bridge)
-    : IModuleSourceLoader
+internal sealed class DotNetModuleSourceLoader(
+    IModuleSourceLoader inner,
+    DotNetModuleImportBridge bridge
+) : IModuleSourceLoader
 {
     public string ResolveSpecifier(string specifier, string? referrer)
     {

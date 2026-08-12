@@ -15,7 +15,8 @@ internal sealed class NodeTtyBuiltIn(
     int? stdoutColumns,
     int? stdoutRows,
     int? stderrColumns,
-    int? stderrRows)
+    int? stderrRows
+)
 {
     private const int TtyModuleIsAttySlot = 0;
 
@@ -69,21 +70,36 @@ internal sealed class NodeTtyBuiltIn(
         var realm = runtime.MainRealm;
         var shape = ttyModuleShape ??= CreateTtyModuleShape(realm);
         var module = new JsPlainObject(shape);
-        module.SetNamedSlotUnchecked(TtyModuleIsAttySlot, JsValue.FromObject(CreateIsAttyFunction(realm)));
+        module.SetNamedSlotUnchecked(
+            TtyModuleIsAttySlot,
+            JsValue.FromObject(CreateIsAttyFunction(realm))
+        );
         ttyModule = module;
         return module;
     }
 
     public JsObject GetStdoutObject()
     {
-        return stdoutObject ??=
-            CreateStreamObject(runtime.MainRealm, stdoutWriter, 1, stdoutIsTty, stdoutColumns, stdoutRows);
+        return stdoutObject ??= CreateStreamObject(
+            runtime.MainRealm,
+            stdoutWriter,
+            1,
+            stdoutIsTty,
+            stdoutColumns,
+            stdoutRows
+        );
     }
 
     public JsObject GetStderrObject()
     {
-        return stderrObject ??=
-            CreateStreamObject(runtime.MainRealm, stderrWriter, 2, stderrIsTty, stderrColumns, stderrRows);
+        return stderrObject ??= CreateStreamObject(
+            runtime.MainRealm,
+            stderrWriter,
+            2,
+            stderrIsTty,
+            stderrColumns,
+            stderrRows
+        );
     }
 
     public JsObject GetStdinObject()
@@ -97,24 +113,44 @@ internal sealed class NodeTtyBuiltIn(
         int fd,
         bool isTty,
         int? columns,
-        int? rows)
+        int? rows
+    )
     {
         var shape = streamShape ??= CreateStreamShape(realm);
         var stream = new JsUserDataObject<StreamState>(shape);
         stream.Prototype = eventsBuiltIn.GetPrototypeObject();
         eventsBuiltIn.InitializeEmitterReceiver(realm, stream);
         stream.UserData = new(writer, fd, isTty, columns, rows);
-        stream.SetNamedSlotUnchecked(StreamWriteSlot, JsValue.FromObject(CreateWriteFunction(realm)));
-        stream.SetNamedSlotUnchecked(StreamCursorToSlot, JsValue.FromObject(CreateCursorToFunction(realm)));
-        stream.SetNamedSlotUnchecked(StreamMoveCursorSlot, JsValue.FromObject(CreateMoveCursorFunction(realm)));
-        stream.SetNamedSlotUnchecked(StreamClearLineSlot, JsValue.FromObject(CreateClearLineFunction(realm)));
-        stream.SetNamedSlotUnchecked(StreamClearScreenDownSlot,
-            JsValue.FromObject(CreateClearScreenDownFunction(realm)));
+        stream.SetNamedSlotUnchecked(
+            StreamWriteSlot,
+            JsValue.FromObject(CreateWriteFunction(realm))
+        );
+        stream.SetNamedSlotUnchecked(
+            StreamCursorToSlot,
+            JsValue.FromObject(CreateCursorToFunction(realm))
+        );
+        stream.SetNamedSlotUnchecked(
+            StreamMoveCursorSlot,
+            JsValue.FromObject(CreateMoveCursorFunction(realm))
+        );
+        stream.SetNamedSlotUnchecked(
+            StreamClearLineSlot,
+            JsValue.FromObject(CreateClearLineFunction(realm))
+        );
+        stream.SetNamedSlotUnchecked(
+            StreamClearScreenDownSlot,
+            JsValue.FromObject(CreateClearScreenDownFunction(realm))
+        );
         stream.SetNamedSlotUnchecked(StreamFdSlot, JsValue.FromInt32(fd));
         stream.SetNamedSlotUnchecked(StreamIsTtySlot, isTty ? JsValue.True : JsValue.False);
-        stream.SetNamedSlotUnchecked(StreamColumnsSlot,
-            columns.HasValue ? JsValue.FromInt32(columns.Value) : JsValue.Undefined);
-        stream.SetNamedSlotUnchecked(StreamRowsSlot, rows.HasValue ? JsValue.FromInt32(rows.Value) : JsValue.Undefined);
+        stream.SetNamedSlotUnchecked(
+            StreamColumnsSlot,
+            columns.HasValue ? JsValue.FromInt32(columns.Value) : JsValue.Undefined
+        );
+        stream.SetNamedSlotUnchecked(
+            StreamRowsSlot,
+            rows.HasValue ? JsValue.FromInt32(rows.Value) : JsValue.Undefined
+        );
         return stream;
     }
 
@@ -126,8 +162,14 @@ internal sealed class NodeTtyBuiltIn(
         eventsBuiltIn.InitializeEmitterReceiver(realm, input);
         input.UserData = new(fd, isTty);
         input.SetNamedSlotUnchecked(InputReadSlot, JsValue.FromObject(CreateReadFunction(realm)));
-        input.SetNamedSlotUnchecked(InputSetEncodingSlot, JsValue.FromObject(CreateSetEncodingFunction(realm)));
-        input.SetNamedSlotUnchecked(InputSetRawModeSlot, JsValue.FromObject(CreateSetRawModeFunction(realm)));
+        input.SetNamedSlotUnchecked(
+            InputSetEncodingSlot,
+            JsValue.FromObject(CreateSetEncodingFunction(realm))
+        );
+        input.SetNamedSlotUnchecked(
+            InputSetRawModeSlot,
+            JsValue.FromObject(CreateSetRawModeFunction(realm))
+        );
         input.SetNamedSlotUnchecked(InputRefSlot, JsValue.FromObject(CreateRefFunction(realm)));
         input.SetNamedSlotUnchecked(InputUnrefSlot, JsValue.FromObject(CreateUnrefFunction(realm)));
         input.SetNamedSlotUnchecked(InputFdSlot, JsValue.FromInt32(fd));
@@ -138,7 +180,11 @@ internal sealed class NodeTtyBuiltIn(
     private StaticNamedPropertyLayout CreateTtyModuleShape(JsRealm realm)
     {
         EnsureAtoms(realm);
-        var shape = realm.EmptyShape.GetOrAddTransition(atomIsAtty, JsShapePropertyFlags.Open, out var isAttyInfo);
+        var shape = realm.EmptyShape.GetOrAddTransition(
+            atomIsAtty,
+            JsShapePropertyFlags.Open,
+            out var isAttyInfo
+        );
         Debug.Assert(isAttyInfo.Slot == TtyModuleIsAttySlot);
         return shape;
     }
@@ -146,14 +192,38 @@ internal sealed class NodeTtyBuiltIn(
     private StaticNamedPropertyLayout CreateStreamShape(JsRealm realm)
     {
         EnsureAtoms(realm);
-        var shape = realm.EmptyShape.GetOrAddTransition(atomWrite, JsShapePropertyFlags.Open, out var writeInfo);
-        shape = shape.GetOrAddTransition(atomCursorTo, JsShapePropertyFlags.Open, out var cursorToInfo);
-        shape = shape.GetOrAddTransition(atomMoveCursor, JsShapePropertyFlags.Open, out var moveCursorInfo);
-        shape = shape.GetOrAddTransition(atomClearLine, JsShapePropertyFlags.Open, out var clearLineInfo);
-        shape = shape.GetOrAddTransition(atomClearScreenDown, JsShapePropertyFlags.Open, out var clearScreenDownInfo);
+        var shape = realm.EmptyShape.GetOrAddTransition(
+            atomWrite,
+            JsShapePropertyFlags.Open,
+            out var writeInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomCursorTo,
+            JsShapePropertyFlags.Open,
+            out var cursorToInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomMoveCursor,
+            JsShapePropertyFlags.Open,
+            out var moveCursorInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomClearLine,
+            JsShapePropertyFlags.Open,
+            out var clearLineInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomClearScreenDown,
+            JsShapePropertyFlags.Open,
+            out var clearScreenDownInfo
+        );
         shape = shape.GetOrAddTransition(atomFd, JsShapePropertyFlags.Open, out var fdInfo);
         shape = shape.GetOrAddTransition(atomIsTty, JsShapePropertyFlags.Open, out var isTtyInfo);
-        shape = shape.GetOrAddTransition(atomColumns, JsShapePropertyFlags.Open, out var columnsInfo);
+        shape = shape.GetOrAddTransition(
+            atomColumns,
+            JsShapePropertyFlags.Open,
+            out var columnsInfo
+        );
         shape = shape.GetOrAddTransition(atomRows, JsShapePropertyFlags.Open, out var rowsInfo);
         Debug.Assert(writeInfo.Slot == StreamWriteSlot);
         Debug.Assert(cursorToInfo.Slot == StreamCursorToSlot);
@@ -170,9 +240,21 @@ internal sealed class NodeTtyBuiltIn(
     private StaticNamedPropertyLayout CreateInputShape(JsRealm realm)
     {
         EnsureAtoms(realm);
-        var shape = realm.EmptyShape.GetOrAddTransition(atomRead, JsShapePropertyFlags.Open, out var readInfo);
-        shape = shape.GetOrAddTransition(atomSetEncoding, JsShapePropertyFlags.Open, out var setEncodingInfo);
-        shape = shape.GetOrAddTransition(atomSetRawMode, JsShapePropertyFlags.Open, out var setRawModeInfo);
+        var shape = realm.EmptyShape.GetOrAddTransition(
+            atomRead,
+            JsShapePropertyFlags.Open,
+            out var readInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomSetEncoding,
+            JsShapePropertyFlags.Open,
+            out var setEncodingInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomSetRawMode,
+            JsShapePropertyFlags.Open,
+            out var setRawModeInfo
+        );
         shape = shape.GetOrAddTransition(atomRef, JsShapePropertyFlags.Open, out var refInfo);
         shape = shape.GetOrAddTransition(atomUnref, JsShapePropertyFlags.Open, out var unrefInfo);
         shape = shape.GetOrAddTransition(atomFd, JsShapePropertyFlags.Open, out var fdInfo);
@@ -213,158 +295,257 @@ internal sealed class NodeTtyBuiltIn(
 
     private static JsHostFunction CreateIsAttyFunction(JsRealm realm)
     {
-        return new(realm, "isatty", 1, static (in info) =>
-        {
-            var fd = info.Arguments.Length == 0 ? -1 : (int)info.Realm.ToIntegerOrInfinity(info.Arguments[0]);
-            var isTty = false;
-
-            if (info.Realm.GlobalObject.TryGetProperty("process", out var processValue) &&
-                processValue.TryGetObject(out var processObject))
+        return new(
+            realm,
+            "isatty",
+            1,
+            static (in info) =>
             {
-                if (fd == 1 && processObject.TryGetProperty("stdout", out var stdoutValue) &&
-                    stdoutValue.TryGetObject(out var stdoutObj) &&
-                    stdoutObj is JsUserDataObject<StreamState> stdoutStateObj &&
-                    stdoutStateObj.UserData is not null)
-                    isTty = stdoutStateObj.UserData.IsTty;
-                else if (fd == 2 && processObject.TryGetProperty("stderr", out var stderrValue) &&
-                         stderrValue.TryGetObject(out var stderrObj) &&
-                         stderrObj is JsUserDataObject<StreamState> stderrStateObj &&
-                         stderrStateObj.UserData is not null)
-                    isTty = stderrStateObj.UserData.IsTty;
-            }
+                var fd =
+                    info.Arguments.Length == 0
+                        ? -1
+                        : (int)info.Realm.ToIntegerOrInfinity(info.Arguments[0]);
+                var isTty = false;
 
-            return isTty ? JsValue.True : JsValue.False;
-        }, false);
+                if (
+                    info.Realm.GlobalObject.TryGetProperty("process", out var processValue)
+                    && processValue.TryGetObject(out var processObject)
+                )
+                {
+                    if (
+                        fd == 1
+                        && processObject.TryGetProperty("stdout", out var stdoutValue)
+                        && stdoutValue.TryGetObject(out var stdoutObj)
+                        && stdoutObj is JsUserDataObject<StreamState> stdoutStateObj
+                        && stdoutStateObj.UserData is not null
+                    )
+                        isTty = stdoutStateObj.UserData.IsTty;
+                    else if (
+                        fd == 2
+                        && processObject.TryGetProperty("stderr", out var stderrValue)
+                        && stderrValue.TryGetObject(out var stderrObj)
+                        && stderrObj is JsUserDataObject<StreamState> stderrStateObj
+                        && stderrStateObj.UserData is not null
+                    )
+                        isTty = stderrStateObj.UserData.IsTty;
+                }
+
+                return isTty ? JsValue.True : JsValue.False;
+            },
+            false
+        );
     }
 
     private static JsHostFunction CreateWriteFunction(JsRealm realm)
     {
-        return new(realm, "write", 1, static (in info) =>
-        {
-            var text = info.Arguments.Length == 0
-                ? string.Empty
-                : info.GetArgument(0).IsString
-                    ? info.GetArgument(0).AsString()
+        return new(
+            realm,
+            "write",
+            1,
+            static (in info) =>
+            {
+                var text =
+                    info.Arguments.Length == 0 ? string.Empty
+                    : info.GetArgument(0).IsString ? info.GetArgument(0).AsString()
                     : info.Realm.ToJsStringSlowPath(info.GetArgument(0));
 
-            WriteToStream(info.ThisValue, text);
-            return JsValue.True;
-        }, false);
+                WriteToStream(info.ThisValue, text);
+                return JsValue.True;
+            },
+            false
+        );
     }
 
     private static JsHostFunction CreateCursorToFunction(JsRealm realm)
     {
-        return new(realm, "cursorTo", 2, static (in info) =>
-        {
-            var x = info.Arguments.Length == 0 ? 0 : (int)info.Realm.ToIntegerOrInfinity(info.Arguments[0]);
-            int? y = info.Arguments.Length >= 2 ? (int)info.Realm.ToIntegerOrInfinity(info.Arguments[1]) : null;
-            WriteToStream(info.ThisValue, y.HasValue ? $"\u001b[{y.Value + 1};{x + 1}H" : $"\u001b[{x + 1}G");
-            return JsValue.True;
-        }, false);
+        return new(
+            realm,
+            "cursorTo",
+            2,
+            static (in info) =>
+            {
+                var x =
+                    info.Arguments.Length == 0
+                        ? 0
+                        : (int)info.Realm.ToIntegerOrInfinity(info.Arguments[0]);
+                int? y =
+                    info.Arguments.Length >= 2
+                        ? (int)info.Realm.ToIntegerOrInfinity(info.Arguments[1])
+                        : null;
+                WriteToStream(
+                    info.ThisValue,
+                    y.HasValue ? $"\u001b[{y.Value + 1};{x + 1}H" : $"\u001b[{x + 1}G"
+                );
+                return JsValue.True;
+            },
+            false
+        );
     }
 
     private static JsHostFunction CreateMoveCursorFunction(JsRealm realm)
     {
-        return new(realm, "moveCursor", 2, static (in info) =>
-        {
-            var dx = info.Arguments.Length == 0 ? 0 : (int)info.Realm.ToIntegerOrInfinity(info.Arguments[0]);
-            var dy = info.Arguments.Length < 2 ? 0 : (int)info.Realm.ToIntegerOrInfinity(info.Arguments[1]);
-            if (dx < 0)
-                WriteToStream(info.ThisValue, $"\u001b[{Math.Abs(dx)}D");
-            else if (dx > 0)
-                WriteToStream(info.ThisValue, $"\u001b[{dx}C");
+        return new(
+            realm,
+            "moveCursor",
+            2,
+            static (in info) =>
+            {
+                var dx =
+                    info.Arguments.Length == 0
+                        ? 0
+                        : (int)info.Realm.ToIntegerOrInfinity(info.Arguments[0]);
+                var dy =
+                    info.Arguments.Length < 2
+                        ? 0
+                        : (int)info.Realm.ToIntegerOrInfinity(info.Arguments[1]);
+                if (dx < 0)
+                    WriteToStream(info.ThisValue, $"\u001b[{Math.Abs(dx)}D");
+                else if (dx > 0)
+                    WriteToStream(info.ThisValue, $"\u001b[{dx}C");
 
-            if (dy < 0)
-                WriteToStream(info.ThisValue, $"\u001b[{Math.Abs(dy)}A");
-            else if (dy > 0)
-                WriteToStream(info.ThisValue, $"\u001b[{dy}B");
+                if (dy < 0)
+                    WriteToStream(info.ThisValue, $"\u001b[{Math.Abs(dy)}A");
+                else if (dy > 0)
+                    WriteToStream(info.ThisValue, $"\u001b[{dy}B");
 
-            return JsValue.True;
-        }, false);
+                return JsValue.True;
+            },
+            false
+        );
     }
 
     private static JsHostFunction CreateClearLineFunction(JsRealm realm)
     {
-        return new(realm, "clearLine", 1, static (in info) =>
-        {
-            var dir = info.Arguments.Length == 0 ? 0 : (int)info.Realm.ToIntegerOrInfinity(info.Arguments[0]);
-            var suffix = dir switch
+        return new(
+            realm,
+            "clearLine",
+            1,
+            static (in info) =>
             {
-                -1 => "1",
-                1 => "0",
-                _ => "2"
-            };
-            WriteToStream(info.ThisValue, $"\u001b[{suffix}K");
-            return JsValue.True;
-        }, false);
+                var dir =
+                    info.Arguments.Length == 0
+                        ? 0
+                        : (int)info.Realm.ToIntegerOrInfinity(info.Arguments[0]);
+                var suffix = dir switch
+                {
+                    -1 => "1",
+                    1 => "0",
+                    _ => "2",
+                };
+                WriteToStream(info.ThisValue, $"\u001b[{suffix}K");
+                return JsValue.True;
+            },
+            false
+        );
     }
 
     private static JsHostFunction CreateClearScreenDownFunction(JsRealm realm)
     {
-        return new(realm, "clearScreenDown", 0, static (in info) =>
-        {
-            WriteToStream(info.ThisValue, "\u001b[0J");
-            return JsValue.True;
-        }, false);
+        return new(
+            realm,
+            "clearScreenDown",
+            0,
+            static (in info) =>
+            {
+                WriteToStream(info.ThisValue, "\u001b[0J");
+                return JsValue.True;
+            },
+            false
+        );
     }
 
     private static JsHostFunction CreateReadFunction(JsRealm realm)
     {
-        return new(realm, "read", 0, static (in info) =>
-        {
-            _ = RequireInputObject(info.ThisValue);
-            return JsValue.Null;
-        }, false);
+        return new(
+            realm,
+            "read",
+            0,
+            static (in info) =>
+            {
+                _ = RequireInputObject(info.ThisValue);
+                return JsValue.Null;
+            },
+            false
+        );
     }
 
     private static JsHostFunction CreateSetEncodingFunction(JsRealm realm)
     {
-        return new(realm, "setEncoding", 1, static (in info) =>
-        {
-            var input = RequireInputObject(info.ThisValue);
-            input.UserData!.Encoding = info.Arguments.Length == 0
-                ? "utf8"
-                : info.GetArgument(0).IsString
-                    ? info.GetArgument(0).AsString()
+        return new(
+            realm,
+            "setEncoding",
+            1,
+            static (in info) =>
+            {
+                var input = RequireInputObject(info.ThisValue);
+                input.UserData!.Encoding =
+                    info.Arguments.Length == 0 ? "utf8"
+                    : info.GetArgument(0).IsString ? info.GetArgument(0).AsString()
                     : info.Realm.ToJsStringSlowPath(info.GetArgument(0));
-            return info.ThisValue;
-        }, false);
+                return info.ThisValue;
+            },
+            false
+        );
     }
 
     private static JsHostFunction CreateSetRawModeFunction(JsRealm realm)
     {
-        return new(realm, "setRawMode", 1, static (in info) =>
-        {
-            var input = RequireInputObject(info.ThisValue);
-            input.UserData!.RawModeEnabled = info.Arguments.Length != 0 && JsRealm.ToBoolean(info.GetArgument(0));
-            return info.ThisValue;
-        }, false);
+        return new(
+            realm,
+            "setRawMode",
+            1,
+            static (in info) =>
+            {
+                var input = RequireInputObject(info.ThisValue);
+                input.UserData!.RawModeEnabled =
+                    info.Arguments.Length != 0 && JsRealm.ToBoolean(info.GetArgument(0));
+                return info.ThisValue;
+            },
+            false
+        );
     }
 
     private static JsHostFunction CreateRefFunction(JsRealm realm)
     {
-        return new(realm, "ref", 0, static (in info) =>
-        {
-            _ = RequireInputObject(info.ThisValue);
-            return info.ThisValue;
-        }, false);
+        return new(
+            realm,
+            "ref",
+            0,
+            static (in info) =>
+            {
+                _ = RequireInputObject(info.ThisValue);
+                return info.ThisValue;
+            },
+            false
+        );
     }
 
     private static JsHostFunction CreateUnrefFunction(JsRealm realm)
     {
-        return new(realm, "unref", 0, static (in info) =>
-        {
-            _ = RequireInputObject(info.ThisValue);
-            return info.ThisValue;
-        }, false);
+        return new(
+            realm,
+            "unref",
+            0,
+            static (in info) =>
+            {
+                _ = RequireInputObject(info.ThisValue);
+                return info.ThisValue;
+            },
+            false
+        );
     }
 
     private static void WriteToStream(JsValue thisValue, string text)
     {
-        if (!thisValue.TryGetObject(out var thisObj) ||
-            thisObj is not JsUserDataObject<StreamState> streamObject ||
-            streamObject.UserData is null)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "stream method called on incompatible receiver");
+        if (
+            !thisValue.TryGetObject(out var thisObj)
+            || thisObj is not JsUserDataObject<StreamState> streamObject
+            || streamObject.UserData is null
+        )
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "stream method called on incompatible receiver"
+            );
 
         streamObject.UserData.Writer.Write(text);
         streamObject.UserData.Writer.Flush();
@@ -372,10 +553,15 @@ internal sealed class NodeTtyBuiltIn(
 
     private static JsUserDataObject<InputState> RequireInputObject(JsValue thisValue)
     {
-        if (!thisValue.TryGetObject(out var thisObj) ||
-            thisObj is not JsUserDataObject<InputState> inputObject ||
-            inputObject.UserData is null)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "stdin method called on incompatible receiver");
+        if (
+            !thisValue.TryGetObject(out var thisObj)
+            || thisObj is not JsUserDataObject<InputState> inputObject
+            || inputObject.UserData is null
+        )
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "stdin method called on incompatible receiver"
+            );
 
         return inputObject;
     }

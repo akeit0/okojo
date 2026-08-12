@@ -14,16 +14,21 @@ public class WebAssemblyFeatureTests
     public void WasmtimeBackend_Validate_And_Compile_Wat_Module()
     {
         var backend = new WasmtimeBackend();
-        var wasm = Module.ConvertText("""
-                                      (module
-                                        (func (export "run") (result i32)
-                                          i32.const 42))
-                                      """);
+        var wasm = Module.ConvertText(
+            """
+            (module
+              (func (export "run") (result i32)
+                i32.const 42))
+            """
+        );
 
         Assert.That(backend.Validate(wasm), Is.True);
 
         using var compiled = backend.Compile(wasm);
-        Assert.That(compiled.Exports.Any(x => x.Name == "run" && x.Kind == WasmExternalKind.Function), Is.True);
+        Assert.That(
+            compiled.Exports.Any(x => x.Name == "run" && x.Kind == WasmExternalKind.Function),
+            Is.True
+        );
     }
 
     [Test]
@@ -34,16 +39,22 @@ public class WebAssemblyFeatureTests
         var backing = new JsArrayBufferObject.DelegateExternalBufferBackingStore(
             () => bytes.AsSpan(),
             () => IntPtr.Zero,
-            new());
+            new()
+        );
 
         var buffer = JsArrayBufferObject.CreateExternal(realm, backing);
         realm.GlobalObject["ext"] = buffer;
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            const view = new Uint8Array(ext);
-            view[1] = 99;
-            view[0] === 1 && view[1] === 99 && ext.byteLength === 4;
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                const view = new Uint8Array(ext);
+                view[1] = 99;
+                view[0] === 1 && view[1] === 99 && ext.byteLength === 4;
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -59,16 +70,22 @@ public class WebAssemblyFeatureTests
         var backing = new JsArrayBufferObject.DelegateExternalBufferBackingStore(
             () => bytes.AsSpan(),
             () => IntPtr.Zero,
-            new());
+            new()
+        );
 
         var buffer = JsArrayBufferObject.CreateExternalShared(realm, backing);
         realm.GlobalObject["shared"] = buffer;
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            const view = new Int32Array(shared);
-            Atomics.store(view, 0, 7);
-            Atomics.add(view, 0, 5) === 7 && Atomics.load(view, 0) === 12;
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                const view = new Int32Array(shared);
+                Atomics.store(view, 0, 7);
+                Atomics.add(view, 0, 5) === 7 && Atomics.load(view, 0) === 12;
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -78,16 +95,19 @@ public class WebAssemblyFeatureTests
     [Test]
     public void UseWebAssembly_Installer_Exposes_WebAssembly_Validate_Compile_And_Instantiate()
     {
-        var wasm = Module.ConvertText("""
-                                      (module
-                                        (func (export "run") (result i32)
-                                          i32.const 42))
-                                      """);
+        var wasm = Module.ConvertText(
+            """
+            (module
+              (func (export "run") (result i32)
+                i32.const 42))
+            """
+        );
 
-        using var runtime = JsRuntime.CreateBuilder()
-            .UseWebAssembly(wasmBuilder => wasmBuilder
-                .UseBackend(static () => new WasmtimeBackend())
-                .InstallGlobals())
+        using var runtime = JsRuntime
+            .CreateBuilder()
+            .UseWebAssembly(wasmBuilder =>
+                wasmBuilder.UseBackend(static () => new WasmtimeBackend()).InstallGlobals()
+            )
             .Build();
 
         var realm = runtime.DefaultRealm;
@@ -96,18 +116,25 @@ public class WebAssemblyFeatureTests
             new JsArrayBufferObject.DelegateExternalBufferBackingStore(
                 () => wasm.AsSpan(),
                 () => IntPtr.Zero,
-                new()));
+                new()
+            )
+        );
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            const valid = WebAssembly.validate(wasmBytes);
-            globalThis.ok = false;
-            WebAssembly.compile(wasmBytes)
-              .then(mod => WebAssembly.instantiate(mod))
-              .then(instance => {
-                globalThis.ok = valid && instance.exports.run() === 42;
-              });
-            globalThis.ok;
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                const valid = WebAssembly.validate(wasmBytes);
+                globalThis.ok = false;
+                WebAssembly.compile(wasmBytes)
+                  .then(mod => WebAssembly.instantiate(mod))
+                  .then(instance => {
+                    globalThis.ok = valid && instance.exports.run() === 42;
+                  });
+                globalThis.ok;
+                """
+            )
+        );
 
         realm.Execute(script);
         runtime.DefaultRealm.PumpJobs();
@@ -118,23 +145,29 @@ public class WebAssemblyFeatureTests
     [Test]
     public void UseWebAssembly_Installer_Exposes_Memory_Wrapper_And_Error_Constructors()
     {
-        using var runtime = JsRuntime.CreateBuilder()
-            .UseWebAssembly(wasmBuilder => wasmBuilder
-                .UseBackend(static () => new WasmtimeBackend())
-                .InstallGlobals())
+        using var runtime = JsRuntime
+            .CreateBuilder()
+            .UseWebAssembly(wasmBuilder =>
+                wasmBuilder.UseBackend(static () => new WasmtimeBackend()).InstallGlobals()
+            )
             .Build();
 
         var realm = runtime.DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            const mem = new WebAssembly.Memory({ initial: 1, maximum: 2 });
-            const view = new Uint8Array(mem.buffer);
-            view[0] = 17;
-            const err = new WebAssembly.RuntimeError("boom");
-            mem.buffer instanceof ArrayBuffer &&
-              view[0] === 17 &&
-              err.name === "RuntimeError" &&
-              err.message === "boom";
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                const mem = new WebAssembly.Memory({ initial: 1, maximum: 2 });
+                const view = new Uint8Array(mem.buffer);
+                view[0] = 17;
+                const err = new WebAssembly.RuntimeError("boom");
+                mem.buffer instanceof ArrayBuffer &&
+                  view[0] === 17 &&
+                  err.name === "RuntimeError" &&
+                  err.message === "boom";
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -144,25 +177,28 @@ public class WebAssemblyFeatureTests
     [Test]
     public void UseWebAssembly_Installer_Supports_MultiArgument_Function_Imports()
     {
-        var wasm = Module.ConvertText("""
-                                      (module
-                                        (import "env" "fn" (func $fn (param i32 i32 i32 i32 i32 i32 i32 i32)))
-                                        (func (export "run")
-                                          i32.const 1
-                                          i32.const 2
-                                          i32.const 3
-                                          i32.const 4
-                                          i32.const 5
-                                          i32.const 6
-                                          i32.const 7
-                                          i32.const 8
-                                          call $fn))
-                                      """);
+        var wasm = Module.ConvertText(
+            """
+            (module
+              (import "env" "fn" (func $fn (param i32 i32 i32 i32 i32 i32 i32 i32)))
+              (func (export "run")
+                i32.const 1
+                i32.const 2
+                i32.const 3
+                i32.const 4
+                i32.const 5
+                i32.const 6
+                i32.const 7
+                i32.const 8
+                call $fn))
+            """
+        );
 
-        using var runtime = JsRuntime.CreateBuilder()
-            .UseWebAssembly(wasmBuilder => wasmBuilder
-                .UseBackend(static () => new WasmtimeBackend())
-                .InstallGlobals())
+        using var runtime = JsRuntime
+            .CreateBuilder()
+            .UseWebAssembly(wasmBuilder =>
+                wasmBuilder.UseBackend(static () => new WasmtimeBackend()).InstallGlobals()
+            )
             .Build();
 
         var realm = runtime.DefaultRealm;
@@ -171,23 +207,30 @@ public class WebAssemblyFeatureTests
             new JsArrayBufferObject.DelegateExternalBufferBackingStore(
                 () => wasm.AsSpan(),
                 () => IntPtr.Zero,
-                new()));
+                new()
+            )
+        );
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            globalThis.argCount = -1;
-            globalThis.argSum = -1;
-            WebAssembly.instantiate(wasmBytes, {
-              env: {
-                fn(a, b, c, d, e, f, g, h) {
-                  globalThis.argCount = arguments.length;
-                  globalThis.argSum = a + b + c + d + e + f + g + h;
-                }
-              }
-            }).then(result => {
-              result.instance ? result.instance.exports.run() : result.exports.run();
-            });
-            0;
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                globalThis.argCount = -1;
+                globalThis.argSum = -1;
+                WebAssembly.instantiate(wasmBytes, {
+                  env: {
+                    fn(a, b, c, d, e, f, g, h) {
+                      globalThis.argCount = arguments.length;
+                      globalThis.argSum = a + b + c + d + e + f + g + h;
+                    }
+                  }
+                }).then(result => {
+                  result.instance ? result.instance.exports.run() : result.exports.run();
+                });
+                0;
+                """
+            )
+        );
 
         realm.Execute(script);
         runtime.DefaultRealm.PumpJobs();
@@ -199,21 +242,24 @@ public class WebAssemblyFeatureTests
     [Test]
     public void UseWebAssembly_Import_Callback_Can_Spread_Arguments_Into_Inner_Js_Call()
     {
-        var wasm = Module.ConvertText("""
-                                      (module
-                                        (import "env" "fn" (func $fn (param i32 i32 i32 i32)))
-                                        (func (export "run")
-                                          i32.const 1
-                                          i32.const 2
-                                          i32.const 3
-                                          i32.const 4
-                                          call $fn))
-                                      """);
+        var wasm = Module.ConvertText(
+            """
+            (module
+              (import "env" "fn" (func $fn (param i32 i32 i32 i32)))
+              (func (export "run")
+                i32.const 1
+                i32.const 2
+                i32.const 3
+                i32.const 4
+                call $fn))
+            """
+        );
 
-        using var runtime = JsRuntime.CreateBuilder()
-            .UseWebAssembly(wasmBuilder => wasmBuilder
-                .UseBackend(static () => new WasmtimeBackend())
-                .InstallGlobals())
+        using var runtime = JsRuntime
+            .CreateBuilder()
+            .UseWebAssembly(wasmBuilder =>
+                wasmBuilder.UseBackend(static () => new WasmtimeBackend()).InstallGlobals()
+            )
             .Build();
 
         var realm = runtime.DefaultRealm;
@@ -222,31 +268,38 @@ public class WebAssemblyFeatureTests
             new JsArrayBufferObject.DelegateExternalBufferBackingStore(
                 () => wasm.AsSpan(),
                 () => IntPtr.Zero,
-                new()));
+                new()
+            )
+        );
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            globalThis.outerCount = -1;
-            globalThis.innerCount = -1;
-            globalThis.innerSum = -1;
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                globalThis.outerCount = -1;
+                globalThis.innerCount = -1;
+                globalThis.innerSum = -1;
 
-            function target(a, b, c, d) {
-              globalThis.innerCount = arguments.length;
-              globalThis.innerSum = a + b + c + d;
-            }
-
-            WebAssembly.instantiate(wasmBytes, {
-              env: {
-                fn: function() {
-                  globalThis.outerCount = arguments.length;
-                  target(...arguments);
+                function target(a, b, c, d) {
+                  globalThis.innerCount = arguments.length;
+                  globalThis.innerSum = a + b + c + d;
                 }
-              }
-            }).then(result => {
-              result.instance ? result.instance.exports.run() : result.exports.run();
-            });
 
-            0;
-            """));
+                WebAssembly.instantiate(wasmBytes, {
+                  env: {
+                    fn: function() {
+                      globalThis.outerCount = arguments.length;
+                      target(...arguments);
+                    }
+                  }
+                }).then(result => {
+                  result.instance ? result.instance.exports.run() : result.exports.run();
+                });
+
+                0;
+                """
+            )
+        );
 
         realm.Execute(script);
         runtime.DefaultRealm.PumpJobs();
@@ -259,21 +312,24 @@ public class WebAssemblyFeatureTests
     [Test]
     public void UseWebAssembly_Import_Callback_Can_Apply_Arguments_Into_Inner_Js_Call()
     {
-        var wasm = Module.ConvertText("""
-                                      (module
-                                        (import "env" "fn" (func $fn (param i32 i32 i32 i32)))
-                                        (func (export "run")
-                                          i32.const 1
-                                          i32.const 2
-                                          i32.const 3
-                                          i32.const 4
-                                          call $fn))
-                                      """);
+        var wasm = Module.ConvertText(
+            """
+            (module
+              (import "env" "fn" (func $fn (param i32 i32 i32 i32)))
+              (func (export "run")
+                i32.const 1
+                i32.const 2
+                i32.const 3
+                i32.const 4
+                call $fn))
+            """
+        );
 
-        using var runtime = JsRuntime.CreateBuilder()
-            .UseWebAssembly(wasmBuilder => wasmBuilder
-                .UseBackend(static () => new WasmtimeBackend())
-                .InstallGlobals())
+        using var runtime = JsRuntime
+            .CreateBuilder()
+            .UseWebAssembly(wasmBuilder =>
+                wasmBuilder.UseBackend(static () => new WasmtimeBackend()).InstallGlobals()
+            )
             .Build();
 
         var realm = runtime.DefaultRealm;
@@ -282,31 +338,38 @@ public class WebAssemblyFeatureTests
             new JsArrayBufferObject.DelegateExternalBufferBackingStore(
                 () => wasm.AsSpan(),
                 () => IntPtr.Zero,
-                new()));
+                new()
+            )
+        );
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            globalThis.outerCount = -1;
-            globalThis.innerCount = -1;
-            globalThis.innerSum = -1;
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                globalThis.outerCount = -1;
+                globalThis.innerCount = -1;
+                globalThis.innerSum = -1;
 
-            function target(a, b, c, d) {
-              globalThis.innerCount = arguments.length;
-              globalThis.innerSum = a + b + c + d;
-            }
-
-            WebAssembly.instantiate(wasmBytes, {
-              env: {
-                fn: function() {
-                  globalThis.outerCount = arguments.length;
-                  target.apply(this, arguments);
+                function target(a, b, c, d) {
+                  globalThis.innerCount = arguments.length;
+                  globalThis.innerSum = a + b + c + d;
                 }
-              }
-            }).then(result => {
-              result.instance ? result.instance.exports.run() : result.exports.run();
-            });
 
-            0;
-            """));
+                WebAssembly.instantiate(wasmBytes, {
+                  env: {
+                    fn: function() {
+                      globalThis.outerCount = arguments.length;
+                      target.apply(this, arguments);
+                    }
+                  }
+                }).then(result => {
+                  result.instance ? result.instance.exports.run() : result.exports.run();
+                });
+
+                0;
+                """
+            )
+        );
 
         realm.Execute(script);
         runtime.DefaultRealm.PumpJobs();
@@ -320,17 +383,22 @@ public class WebAssemblyFeatureTests
     public void WasmtimeBackend_Exported_Function_Writes_Into_Caller_Provided_Result_Buffer()
     {
         var backend = new WasmtimeBackend();
-        var wasm = Module.ConvertText("""
-                                      (module
-                                        (func (export "pair") (result i32 i32)
-                                          i32.const 4
-                                          i32.const 7))
-                                      """);
+        var wasm = Module.ConvertText(
+            """
+            (module
+              (func (export "pair") (result i32 i32)
+                i32.const 4
+                i32.const 7))
+            """
+        );
 
         using var compiled = backend.Compile(wasm);
         using var instance = backend.Instantiate(
             compiled,
-            new DictionaryImportResolver(new Dictionary<(string ModuleName, string Name), IWasmExtern>()));
+            new DictionaryImportResolver(
+                new Dictionary<(string ModuleName, string Name), IWasmExtern>()
+            )
+        );
 
         Assert.That(instance.TryGetExport("pair", out var wasmExtern), Is.True);
         Assert.That(wasmExtern, Is.InstanceOf<IWasmFunction>());
@@ -347,13 +415,15 @@ public class WebAssemblyFeatureTests
     public void WasmtimeBackend_Host_Function_Can_Write_Multi_Value_Results_Into_Result_Buffer()
     {
         var backend = new WasmtimeBackend();
-        var wasm = Module.ConvertText("""
-                                      (module
-                                        (import "env" "pair" (func $pair (param i32) (result i32 i32)))
-                                        (func (export "run") (param i32) (result i32 i32)
-                                          local.get 0
-                                          call $pair))
-                                      """);
+        var wasm = Module.ConvertText(
+            """
+            (module
+              (import "env" "pair" (func $pair (param i32) (result i32 i32)))
+              (func (export "run") (param i32) (result i32 i32)
+                local.get 0
+                call $pair))
+            """
+        );
 
         using var compiled = backend.Compile(wasm);
         var importFunction = backend.CreateFunction(
@@ -362,14 +432,18 @@ public class WebAssemblyFeatureTests
             {
                 returnValues[0] = WasmValue.FromInt32(arguments[0].Int32Value + 1);
                 returnValues[1] = WasmValue.FromInt32(arguments[0].Int32Value + 2);
-            });
+            }
+        );
 
         using var instance = backend.Instantiate(
             compiled,
-            new DictionaryImportResolver(new Dictionary<(string ModuleName, string Name), IWasmExtern>
-            {
-                [("env", "pair")] = importFunction
-            }));
+            new DictionaryImportResolver(
+                new Dictionary<(string ModuleName, string Name), IWasmExtern>
+                {
+                    [("env", "pair")] = importFunction,
+                }
+            )
+        );
 
         Assert.That(instance.TryGetExport("run", out var wasmExtern), Is.True);
         Assert.That(wasmExtern, Is.InstanceOf<IWasmFunction>());
@@ -389,26 +463,42 @@ public class WebAssemblyFeatureTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
 
-        realm.GlobalObject["hostCapture"] = JsValue.FromObject(new JsHostFunction(realm, static (in info) =>
-        {
-            info.Realm.GlobalObject["hostArgCount"] = JsValue.FromInt32(info.Arguments.Length);
-            info.Realm.GlobalObject["hostArg0"] = info.Arguments.Length > 0 ? info.Arguments[0] : JsValue.Undefined;
-            info.Realm.GlobalObject["hostArg1"] = info.Arguments.Length > 1 ? info.Arguments[1] : JsValue.Undefined;
-            return JsValue.Undefined;
-        }, "hostCapture", 0));
+        realm.GlobalObject["hostCapture"] = JsValue.FromObject(
+            new JsHostFunction(
+                realm,
+                static (in info) =>
+                {
+                    info.Realm.GlobalObject["hostArgCount"] = JsValue.FromInt32(
+                        info.Arguments.Length
+                    );
+                    info.Realm.GlobalObject["hostArg0"] =
+                        info.Arguments.Length > 0 ? info.Arguments[0] : JsValue.Undefined;
+                    info.Realm.GlobalObject["hostArg1"] =
+                        info.Arguments.Length > 1 ? info.Arguments[1] : JsValue.Undefined;
+                    return JsValue.Undefined;
+                },
+                "hostCapture",
+                0
+            )
+        );
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            globalThis.hostArgCount = -1;
-            globalThis.hostArg0 = undefined;
-            globalThis.hostArg1 = undefined;
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                globalThis.hostArgCount = -1;
+                globalThis.hostArg0 = undefined;
+                globalThis.hostArg1 = undefined;
 
-            function outer() {
-              return hostCapture.apply(undefined, arguments);
-            }
+                function outer() {
+                  return hostCapture.apply(undefined, arguments);
+                }
 
-            outer(11, 22);
-            0;
-            """));
+                outer(11, 22);
+                0;
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -439,8 +529,8 @@ public class WebAssemblyFeatureTests
     }
 
     private sealed class DictionaryImportResolver(
-        IReadOnlyDictionary<(string ModuleName, string Name), IWasmExtern> imports)
-        : IWasmImportResolver
+        IReadOnlyDictionary<(string ModuleName, string Name), IWasmExtern> imports
+    ) : IWasmImportResolver
     {
         public bool TryResolveImport(WasmImportDescriptor descriptor, out IWasmExtern wasmExtern)
         {

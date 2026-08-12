@@ -11,14 +11,17 @@ internal static class RealmExtensions
     internal static double StringToNumberSlowPath(string s)
     {
         var span = s.AsSpan().Trim();
-        if (span.Length == 0) return 0d;
+        if (span.Length == 0)
+            return 0d;
         if (span.SequenceEqual("Infinity".AsSpan()) || span.SequenceEqual("+Infinity".AsSpan()))
             return double.PositiveInfinity;
         if (span.SequenceEqual("-Infinity".AsSpan()))
             return double.NegativeInfinity;
-        if (span.Equals("Infinity".AsSpan(), StringComparison.OrdinalIgnoreCase) ||
-            span.Equals("+Infinity".AsSpan(), StringComparison.OrdinalIgnoreCase) ||
-            span.Equals("-Infinity".AsSpan(), StringComparison.OrdinalIgnoreCase))
+        if (
+            span.Equals("Infinity".AsSpan(), StringComparison.OrdinalIgnoreCase)
+            || span.Equals("+Infinity".AsSpan(), StringComparison.OrdinalIgnoreCase)
+            || span.Equals("-Infinity".AsSpan(), StringComparison.OrdinalIgnoreCase)
+        )
             return double.NaN;
         if (TryParseHexLiteral(span, out var hex))
             return hex;
@@ -26,8 +29,7 @@ internal static class RealmExtensions
             return binary;
         if (TryParseOctalLiteral(span, out var octal))
             return octal;
-        if (double.TryParse(span, NumberStyles.Float,
-                CultureInfo.InvariantCulture, out var n))
+        if (double.TryParse(span, NumberStyles.Float, CultureInfo.InvariantCulture, out var n))
             return n;
         return double.NaN;
 
@@ -49,7 +51,7 @@ internal static class RealmExtensions
                     >= '0' and <= '9' => text[i] - '0',
                     >= 'a' and <= 'f' => text[i] - 'a' + 10,
                     >= 'A' and <= 'F' => text[i] - 'A' + 10,
-                    _ => -1
+                    _ => -1,
                 };
                 if (digit < 0)
                     return false;
@@ -70,8 +72,13 @@ internal static class RealmExtensions
             return TryParseRadixLiteral(text, 'o', 'O', 8, out number);
         }
 
-        static bool TryParseRadixLiteral(ReadOnlySpan<char> text, char lowerPrefix, char upperPrefix, int radix,
-            out double number)
+        static bool TryParseRadixLiteral(
+            ReadOnlySpan<char> text,
+            char lowerPrefix,
+            char upperPrefix,
+            int radix,
+            out double number
+        )
         {
             number = 0;
             if (text.Length < 3)
@@ -87,7 +94,7 @@ internal static class RealmExtensions
                 var digit = text[i] switch
                 {
                     >= '0' and <= '9' => text[i] - '0',
-                    _ => -1
+                    _ => -1,
                 };
                 if (digit < 0 || digit >= radix)
                     return false;
@@ -99,7 +106,6 @@ internal static class RealmExtensions
         }
     }
 
-
     private static double BigIntToNumber(JsBigInt value)
     {
         return double.Parse(value.Value.ToString(), CultureInfo.InvariantCulture);
@@ -107,13 +113,22 @@ internal static class RealmExtensions
 
     extension(JsRealm realm)
     {
-        internal JsValue InvokeObjectConstructorMethod(string methodName, ReadOnlySpan<JsValue> args)
+        internal JsValue InvokeObjectConstructorMethod(
+            string methodName,
+            ReadOnlySpan<JsValue> args
+        )
         {
             var atom = realm.Atoms.InternNoCheck(methodName);
             var objectConstructor = realm.Intrinsics.ObjectConstructor;
-            if (!objectConstructor.TryGetPropertyAtom(realm, atom, out var methodValue, out _) ||
-                !methodValue.TryGetObject(out var methodObj) || methodObj is not JsFunction methodFn)
-                throw new JsRuntimeException(JsErrorKind.TypeError, $"Object.{methodName} is not callable");
+            if (
+                !objectConstructor.TryGetPropertyAtom(realm, atom, out var methodValue, out _)
+                || !methodValue.TryGetObject(out var methodObj)
+                || methodObj is not JsFunction methodFn
+            )
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    $"Object.{methodName} is not callable"
+                );
             return realm.InvokeFunction(methodFn, objectConstructor, args);
         }
 
@@ -123,13 +138,25 @@ internal static class RealmExtensions
             {
                 var parsedFlags = JsRegExpRuntime.ParseFlags(flags);
                 var canonicalFlags = JsRegExpRuntime.CanonicalizeFlags(parsedFlags);
-                return new(realm, pattern, canonicalFlags,
-                    parsedFlags.Global, parsedFlags.IgnoreCase, parsedFlags.Multiline,
-                    parsedFlags.Sticky, parsedFlags.Unicode, parsedFlags.DotAll);
+                return new(
+                    realm,
+                    pattern,
+                    canonicalFlags,
+                    parsedFlags.Global,
+                    parsedFlags.IgnoreCase,
+                    parsedFlags.Multiline,
+                    parsedFlags.Sticky,
+                    parsedFlags.Unicode,
+                    parsedFlags.DotAll
+                );
             }
             catch (ArgumentException ex)
             {
-                throw new JsRuntimeException(JsErrorKind.SyntaxError, ex.Message, "REGEXP_INVALID_PATTERN");
+                throw new JsRuntimeException(
+                    JsErrorKind.SyntaxError,
+                    ex.Message,
+                    "REGEXP_INVALID_PATTERN"
+                );
             }
         }
 
@@ -144,9 +171,11 @@ internal static class RealmExtensions
             if (info.IsConstruct)
             {
                 var callee = (JsHostFunction)info.Function;
-                rx.Prototype =
-                    realm.Intrinsics.GetPrototypeFromConstructorOrIntrinsic(info.NewTarget, callee,
-                        realm.Intrinsics.RegExpPrototype);
+                rx.Prototype = realm.Intrinsics.GetPrototypeFromConstructorOrIntrinsic(
+                    info.NewTarget,
+                    callee,
+                    realm.Intrinsics.RegExpPrototype
+                );
             }
 
             return rx;
@@ -281,24 +310,38 @@ internal static class RealmExtensions
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal double ToNumber(in JsValue value)
         {
-            if (value.IsFloat64) return value.FastFloat64Value;
-            if (value.IsInt32) return value.Int32Value;
+            if (value.IsFloat64)
+                return value.FastFloat64Value;
+            if (value.IsInt32)
+                return value.Int32Value;
             return realm.ToNumberSlowPath(value);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         internal double ToNumberSlowPath(in JsValue value)
         {
-            if (value.IsNumber) return value.NumberValue;
-            if (value.IsBool) return value.IsTrue ? 1d : 0d;
-            if (value.IsNull) return 0d;
-            if (value.IsUndefined) return double.NaN;
-            if (value.IsString) return StringToNumberSlowPath(value.AsString());
+            if (value.IsNumber)
+                return value.NumberValue;
+            if (value.IsBool)
+                return value.IsTrue ? 1d : 0d;
+            if (value.IsNull)
+                return 0d;
+            if (value.IsUndefined)
+                return double.NaN;
+            if (value.IsString)
+                return StringToNumberSlowPath(value.AsString());
             if (value.IsSymbol)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Cannot convert a Symbol value to a number");
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Cannot convert a Symbol value to a number"
+                );
             if (value.IsBigInt)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Cannot convert a BigInt value to a number");
-            if (value.IsObject) return realm.ToNumberSlowPath(realm.ToPrimitiveSlowPath(value, false));
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Cannot convert a BigInt value to a number"
+                );
+            if (value.IsObject)
+                return realm.ToNumberSlowPath(realm.ToPrimitiveSlowPath(value, false));
             return double.NaN;
         }
 
@@ -317,7 +360,10 @@ internal static class RealmExtensions
         {
             var primitive = realm.ToPrimitiveSlowPath(value, false);
             if (primitive.IsBigInt)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Cannot convert a BigInt value to an index");
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Cannot convert a BigInt value to an index"
+                );
 
             var number = realm.ToNumberSlowPath(primitive);
             if (double.IsNaN(number))
@@ -344,8 +390,10 @@ internal static class RealmExtensions
             if (double.IsNaN(number) || number == 0d)
                 return 0;
             if (number < 0d || double.IsInfinity(number) || number > uint.MaxValue)
-                throw new JsRuntimeException(JsErrorKind.RangeError,
-                    $"Start offset {number} is outside the bounds of the buffer");
+                throw new JsRuntimeException(
+                    JsErrorKind.RangeError,
+                    $"Start offset {number} is outside the bounds of the buffer"
+                );
             return (uint)number;
         }
 
@@ -364,15 +412,27 @@ internal static class RealmExtensions
             uint length,
             JsObject source,
             JsFunction? mapFn,
-            in JsValue thisArg)
+            in JsValue thisArg
+        )
         {
             for (uint index = 0; index < length; index++)
             {
-                var value = Intrinsics.TryGetArrayLikeIndex(realm, source, index, out var elementValue)
+                var value = Intrinsics.TryGetArrayLikeIndex(
+                    realm,
+                    source,
+                    index,
+                    out var elementValue
+                )
                     ? elementValue
                     : JsValue.Undefined;
                 var mappedValue = JsRealm.MapArrayFromValue(realm, mapFn, thisArg, value, index);
-                Intrinsics.CreateDataPropertyOrThrowForArrayLike(realm, result, index, mappedValue, "Array.from");
+                Intrinsics.CreateDataPropertyOrThrowForArrayLike(
+                    realm,
+                    result,
+                    index,
+                    mappedValue,
+                    "Array.from"
+                );
             }
 
             Intrinsics.SetArrayLikeLengthOrThrow(realm, result, length, "Array.from");
@@ -393,12 +453,18 @@ internal static class RealmExtensions
             return realm.Intrinsics.CreatePromiseCapability(ctor);
         }
 
-        internal void ResolvePromiseCapability(JsPromiseObject.PromiseCapability capability, in JsValue value)
+        internal void ResolvePromiseCapability(
+            JsPromiseObject.PromiseCapability capability,
+            in JsValue value
+        )
         {
             realm.Intrinsics.ResolvePromiseCapability(capability, value);
         }
 
-        internal void RejectPromiseCapability(JsPromiseObject.PromiseCapability capability, in JsValue reason)
+        internal void RejectPromiseCapability(
+            JsPromiseObject.PromiseCapability capability,
+            in JsValue reason
+        )
         {
             realm.Intrinsics.RejectPromiseCapability(capability, reason);
         }
@@ -418,7 +484,11 @@ internal static class RealmExtensions
             realm.Intrinsics.ResolvePromiseWithAssimilation(target, resolution);
         }
 
-        internal void PromiseThenNoCapability(JsPromiseObject promise, in JsValue onFulfilled, in JsValue onRejected)
+        internal void PromiseThenNoCapability(
+            JsPromiseObject promise,
+            in JsValue onFulfilled,
+            in JsValue onRejected
+        )
         {
             realm.Intrinsics.PromiseThenNoCapability(promise, onFulfilled, onRejected);
         }
@@ -442,10 +512,15 @@ internal static class RealmExtensions
             in JsValue value,
             bool done,
             JsObject? iteratorToClose = null,
-            bool closeOnRejection = false)
+            bool closeOnRejection = false
+        )
         {
-            return realm.Intrinsics.CreateAsyncFromSyncIteratorResultPromise(value, done, iteratorToClose,
-                closeOnRejection);
+            return realm.Intrinsics.CreateAsyncFromSyncIteratorResultPromise(
+                value,
+                done,
+                iteratorToClose,
+                closeOnRejection
+            );
         }
 
         internal JsValue CreateAsyncFromSyncIteratorResultPromise(in JsValue value, bool done)
@@ -456,10 +531,14 @@ internal static class RealmExtensions
         internal JsValue CreateAsyncFromSyncIteratorResultPromise(
             JsObject resultObject,
             JsObject? iteratorToClose = null,
-            bool closeOnRejection = false)
+            bool closeOnRejection = false
+        )
         {
-            return realm.Intrinsics.CreateAsyncFromSyncIteratorResultPromise(resultObject, iteratorToClose,
-                closeOnRejection);
+            return realm.Intrinsics.CreateAsyncFromSyncIteratorResultPromise(
+                resultObject,
+                iteratorToClose,
+                closeOnRejection
+            );
         }
 
         internal JsPlainObject CreateIteratorResultObject(JsValue value, bool done)
@@ -467,18 +546,29 @@ internal static class RealmExtensions
             return JsIteratorHelperOperations.CreateIteratorResultObject(realm, value, done);
         }
 
-        internal void StartOrResumeAsyncDriver(JsGeneratorObject generator, GeneratorResumeMode mode, JsValue value)
+        internal void StartOrResumeAsyncDriver(
+            JsGeneratorObject generator,
+            GeneratorResumeMode mode,
+            JsValue value
+        )
         {
             realm.StartOrResumeAsyncDriver(generator, mode, value);
         }
 
-        internal JsValue ResumeGeneratorObject(JsGeneratorObject generator, GeneratorResumeMode mode, JsValue input)
+        internal JsValue ResumeGeneratorObject(
+            JsGeneratorObject generator,
+            GeneratorResumeMode mode,
+            JsValue input
+        )
         {
             return realm.ResumeGeneratorObject(generator, mode, input);
         }
 
-        internal void ContinueActiveAsyncGeneratorRequest(JsGeneratorObject generator, GeneratorResumeMode mode,
-            JsValue value)
+        internal void ContinueActiveAsyncGeneratorRequest(
+            JsGeneratorObject generator,
+            GeneratorResumeMode mode,
+            JsValue value
+        )
         {
             realm.ContinueActiveAsyncGeneratorRequest(generator, mode, value);
         }
@@ -492,12 +582,20 @@ internal static class RealmExtensions
             JsGeneratorObject generator,
             GeneratorResumeMode originalMode,
             JsPromiseObject.PromiseState settledState,
-            JsValue settledResult)
+            JsValue settledResult
+        )
         {
-            realm.ContinueAsyncGeneratorYieldDelegateAfterAwait(generator, originalMode, settledState, settledResult);
+            realm.ContinueAsyncGeneratorYieldDelegateAfterAwait(
+                generator,
+                originalMode,
+                settledState,
+                settledResult
+            );
         }
 
-        internal void ClearDelegateIteratorRegisterInContinuationSnapshot(JsGeneratorObject generator)
+        internal void ClearDelegateIteratorRegisterInContinuationSnapshot(
+            JsGeneratorObject generator
+        )
         {
             realm.ClearDelegateIteratorRegisterInContinuationSnapshot(generator);
         }
@@ -512,12 +610,19 @@ internal static class RealmExtensions
             return realm.ExecuteGeneratorFromContinuation(generator);
         }
 
-        internal void EnqueuePromiseReactionJob(JsPromiseObject sourcePromise, JsPromiseObject.Reaction reaction)
+        internal void EnqueuePromiseReactionJob(
+            JsPromiseObject sourcePromise,
+            JsPromiseObject.Reaction reaction
+        )
         {
             realm.Intrinsics.EnqueuePromiseReactionJob(sourcePromise, reaction);
         }
 
-        internal JsValue PromiseThen(JsPromiseObject promise, in JsValue onFulfilled, in JsValue onRejected)
+        internal JsValue PromiseThen(
+            JsPromiseObject promise,
+            in JsValue onFulfilled,
+            in JsValue onRejected
+        )
         {
             return realm.Intrinsics.PromiseThen(promise, onFulfilled, onRejected);
         }
@@ -530,7 +635,10 @@ internal static class RealmExtensions
         internal JsValue GetPromiseAbruptReason(JsRuntimeException ex)
         {
             for (Exception? current = ex; current is not null; current = current.InnerException)
-                if (current is JsRuntimeException runtime && runtime.ThrownValue is JsValue thrownValue)
+                if (
+                    current is JsRuntimeException runtime
+                    && runtime.ThrownValue is JsValue thrownValue
+                )
                     return thrownValue;
 
             return realm.CreateErrorObjectFromException(ex);
@@ -541,7 +649,10 @@ internal static class RealmExtensions
             realm.Intrinsics.ExecuteUnhandledRejectionCheckJob(promise);
         }
 
-        internal void ExecutePromiseReactionJob(JsPromiseObject sourcePromise, JsPromiseObject.Reaction reaction)
+        internal void ExecutePromiseReactionJob(
+            JsPromiseObject sourcePromise,
+            JsPromiseObject.Reaction reaction
+        )
         {
             realm.Intrinsics.ExecutePromiseReactionJob(sourcePromise, reaction);
         }
@@ -549,9 +660,14 @@ internal static class RealmExtensions
         internal void ExecuteFireAndForgetHandlerReaction(
             JsPromiseObject.Reaction reaction,
             JsPromiseObject.PromiseState settledState,
-            in JsValue settledResult)
+            in JsValue settledResult
+        )
         {
-            realm.Intrinsics.ExecuteFireAndForgetHandlerReaction(reaction, settledState, settledResult);
+            realm.Intrinsics.ExecuteFireAndForgetHandlerReaction(
+                reaction,
+                settledState,
+                settledResult
+            );
         }
 
         internal bool TryGetCanonicalNumericIndexString(in JsValue key, out double numericIndex)
@@ -563,26 +679,44 @@ internal static class RealmExtensions
             JsTypedArrayObject typedArray,
             in JsValue key,
             out bool hasProperty,
-            out bool handled)
+            out bool handled
+        )
         {
-            return Intrinsics.TryHasTypedArrayIntegerIndexedElement(realm, typedArray, key, out hasProperty,
-                out handled);
+            return Intrinsics.TryHasTypedArrayIntegerIndexedElement(
+                realm,
+                typedArray,
+                key,
+                out hasProperty,
+                out handled
+            );
         }
 
         internal bool SetCanonicalNumericIndexOnTypedArrayForSet(
             JsTypedArrayObject typedArray,
             double numericIndex,
-            in JsValue value)
+            in JsValue value
+        )
         {
-            return Intrinsics.SetCanonicalNumericIndexOnTypedArrayForSet(typedArray, numericIndex, value);
+            return Intrinsics.SetCanonicalNumericIndexOnTypedArrayForSet(
+                typedArray,
+                numericIndex,
+                value
+            );
         }
 
-        internal bool IsValidTypedArrayCanonicalNumericIndex(JsTypedArrayObject typedArray, double numericIndex)
+        internal bool IsValidTypedArrayCanonicalNumericIndex(
+            JsTypedArrayObject typedArray,
+            double numericIndex
+        )
         {
             return Intrinsics.IsValidTypedArrayCanonicalNumericIndex(typedArray, numericIndex);
         }
 
-        internal bool OrdinarySetOwnWritableDataIndex(JsObject receiver, uint index, in JsValue value)
+        internal bool OrdinarySetOwnWritableDataIndex(
+            JsObject receiver,
+            uint index,
+            in JsValue value
+        )
         {
             return Intrinsics.OrdinarySetOwnWritableDataIndex(realm, receiver, index, value);
         }
@@ -592,51 +726,83 @@ internal static class RealmExtensions
             return Intrinsics.ResolveRequestedLocaleCulture(realm, args);
         }
 
-        internal static bool TryTimeClipToEpochMillisecondsForIntl(double timeValue, out long epochMilliseconds)
+        internal static bool TryTimeClipToEpochMillisecondsForIntl(
+            double timeValue,
+            out long epochMilliseconds
+        )
         {
-            return Intrinsics.TryTimeClipToEpochMillisecondsForIntl(timeValue, out epochMilliseconds);
+            return Intrinsics.TryTimeClipToEpochMillisecondsForIntl(
+                timeValue,
+                out epochMilliseconds
+            );
         }
 
-        internal static JsValue CallIteratorHelperMethod(JsRealm ownerRealm, in JsValue methodValue, JsObject thisObj,
-            string typeErrorMessage)
+        internal static JsValue CallIteratorHelperMethod(
+            JsRealm ownerRealm,
+            in JsValue methodValue,
+            JsObject thisObj,
+            string typeErrorMessage
+        )
         {
-            return Intrinsics.CallIteratorHelperMethod(ownerRealm, methodValue, thisObj, typeErrorMessage);
+            return Intrinsics.CallIteratorHelperMethod(
+                ownerRealm,
+                methodValue,
+                thisObj,
+                typeErrorMessage
+            );
         }
 
         internal JsObject CreateArrayFromTarget(
             in JsValue thisValue,
             bool iterablePath,
             long length,
-            string methodName)
+            string methodName
+        )
         {
-            if (thisValue.TryGetObject(out var ctorObj) && ctorObj is JsFunction ctor && ctor.IsConstructor)
+            if (
+                thisValue.TryGetObject(out var ctorObj)
+                && ctorObj is JsFunction ctor
+                && ctor.IsConstructor
+            )
             {
                 JsValue created;
                 if (iterablePath)
                 {
-                    created = realm.ConstructWithExplicitNewTarget(ctor, ReadOnlySpan<JsValue>.Empty, ctor, 0);
+                    created = realm.ConstructWithExplicitNewTarget(
+                        ctor,
+                        ReadOnlySpan<JsValue>.Empty,
+                        ctor,
+                        0
+                    );
                 }
                 else
                 {
                     var lenArg = new InlineJsValueArray1
                     {
-                        Item0 = length <= int.MaxValue ? JsValue.FromInt32((int)length) : new(length)
+                        Item0 =
+                            length <= int.MaxValue ? JsValue.FromInt32((int)length) : new(length),
                     };
                     created = realm.ConstructWithExplicitNewTarget(ctor, lenArg.AsSpan(), ctor, 0);
                 }
 
                 if (!created.TryGetObject(out var target))
-                    throw new JsRuntimeException(JsErrorKind.TypeError,
-                        $"{methodName} constructor must return an object");
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        $"{methodName} constructor must return an object"
+                    );
                 return target;
             }
 
             return realm.CreateArrayObject();
         }
 
-        private static JsValue MapArrayFromValue(JsRealm ownerRealm, JsFunction? mapFn, in JsValue thisArg,
+        private static JsValue MapArrayFromValue(
+            JsRealm ownerRealm,
+            JsFunction? mapFn,
+            in JsValue thisArg,
             in JsValue value,
-            long index)
+            long index
+        )
         {
             if (mapFn is null)
                 return value;
@@ -644,39 +810,70 @@ internal static class RealmExtensions
             var callbackArgs = new InlineJsValueArray2
             {
                 Item0 = value,
-                Item1 = index <= int.MaxValue ? JsValue.FromInt32((int)index) : new(index)
+                Item1 = index <= int.MaxValue ? JsValue.FromInt32((int)index) : new(index),
             };
             return ownerRealm.InvokeFunction(mapFn, thisArg, callbackArgs.AsSpan());
         }
 
-        internal static bool TryGetIteratorMethodForArrayFrom(JsRealm ownerRealm, JsObject items,
-            out JsFunction iteratorMethod)
+        internal static bool TryGetIteratorMethodForArrayFrom(
+            JsRealm ownerRealm,
+            JsObject items,
+            out JsFunction iteratorMethod
+        )
         {
             iteratorMethod = null!;
-            if (!items.TryGetPropertyAtom(ownerRealm, IdSymbolIterator, out var iteratorMethodValue, out _) ||
-                iteratorMethodValue.IsUndefined || iteratorMethodValue.IsNull)
+            if (
+                !items.TryGetPropertyAtom(
+                    ownerRealm,
+                    IdSymbolIterator,
+                    out var iteratorMethodValue,
+                    out _
+                )
+                || iteratorMethodValue.IsUndefined
+                || iteratorMethodValue.IsNull
+            )
                 return false;
-            if (!iteratorMethodValue.TryGetObject(out var iteratorMethodObj) ||
-                iteratorMethodObj is not JsFunction iteratorFn)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Array.from items is not iterable");
+            if (
+                !iteratorMethodValue.TryGetObject(out var iteratorMethodObj)
+                || iteratorMethodObj is not JsFunction iteratorFn
+            )
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Array.from items is not iterable"
+                );
 
             iteratorMethod = iteratorFn;
             return true;
         }
 
-        internal static JsObject GetIteratorObjectForArrayFrom(JsRealm ownerRealm, JsObject items,
-            JsFunction iteratorMethod)
+        internal static JsObject GetIteratorObjectForArrayFrom(
+            JsRealm ownerRealm,
+            JsObject items,
+            JsFunction iteratorMethod
+        )
         {
-            var iteratorValue =
-                ownerRealm.InvokeFunction(iteratorMethod, JsValue.FromObject(items), ReadOnlySpan<JsValue>.Empty);
+            var iteratorValue = ownerRealm.InvokeFunction(
+                iteratorMethod,
+                JsValue.FromObject(items),
+                ReadOnlySpan<JsValue>.Empty
+            );
             if (!iteratorValue.TryGetObject(out var iteratorObject))
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Array.from iterator result must be object");
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Array.from iterator result must be object"
+                );
             return iteratorObject;
         }
 
-        internal static bool TryGetIteratorObjectForArrayFrom(JsRealm ownerRealm, JsObject items, out JsObject iterator)
+        internal static bool TryGetIteratorObjectForArrayFrom(
+            JsRealm ownerRealm,
+            JsObject items,
+            out JsObject iterator
+        )
         {
-            if (!JsRealm.TryGetIteratorMethodForArrayFrom(ownerRealm, items, out var iteratorMethod))
+            if (
+                !JsRealm.TryGetIteratorMethodForArrayFrom(ownerRealm, items, out var iteratorMethod)
+            )
             {
                 iterator = null!;
                 return false;
@@ -689,13 +886,29 @@ internal static class RealmExtensions
         internal JsValue StepIteratorForArrayFrom(JsObject iterator, out bool done)
         {
             if (!iterator.TryGetPropertyAtom(realm, IdNext, out var nextMethod, out _))
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Array.from iterator.next is not a function");
-            if (!nextMethod.TryGetObject(out var nextMethodObj) || nextMethodObj is not JsFunction nextFn)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Array.from iterator.next is not a function");
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Array.from iterator.next is not a function"
+                );
+            if (
+                !nextMethod.TryGetObject(out var nextMethodObj)
+                || nextMethodObj is not JsFunction nextFn
+            )
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Array.from iterator.next is not a function"
+                );
 
-            var stepResult = realm.InvokeFunction(nextFn, JsValue.FromObject(iterator), ReadOnlySpan<JsValue>.Empty);
+            var stepResult = realm.InvokeFunction(
+                nextFn,
+                JsValue.FromObject(iterator),
+                ReadOnlySpan<JsValue>.Empty
+            );
             if (!stepResult.TryGetObject(out var resultObj))
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Array.from iterator result must be object");
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Array.from iterator result must be object"
+                );
 
             _ = resultObj.TryGetPropertyAtom(realm, IdDone, out var doneValue, out _);
             done = doneValue.ToBoolean();
@@ -716,23 +929,35 @@ internal static class RealmExtensions
             if (double.IsNaN(length) || length <= 0)
                 return 0;
             if (double.IsPositiveInfinity(length) || length >= uint.MaxValue)
-                throw new JsRuntimeException(JsErrorKind.RangeError, "Invalid array length", "ARRAY_LENGTH_INVALID");
+                throw new JsRuntimeException(
+                    JsErrorKind.RangeError,
+                    "Invalid array length",
+                    "ARRAY_LENGTH_INVALID"
+                );
             return (uint)length;
         }
 
         internal JsObject GetIteratorObjectForIterable(
             JsObject iterable,
             string notIterableMessage,
-            string iteratorResultMessage)
+            string iteratorResultMessage
+        )
         {
-            if (!iterable.TryGetPropertyAtom(realm, IdSymbolIterator, out var iteratorMethod, out _))
+            if (
+                !iterable.TryGetPropertyAtom(realm, IdSymbolIterator, out var iteratorMethod, out _)
+            )
                 throw new JsRuntimeException(JsErrorKind.TypeError, notIterableMessage);
-            if (!iteratorMethod.TryGetObject(out var iteratorMethodObj) ||
-                iteratorMethodObj is not JsFunction iteratorFn)
+            if (
+                !iteratorMethod.TryGetObject(out var iteratorMethodObj)
+                || iteratorMethodObj is not JsFunction iteratorFn
+            )
                 throw new JsRuntimeException(JsErrorKind.TypeError, notIterableMessage);
 
-            var iteratorValue =
-                realm.InvokeFunction(iteratorFn, JsValue.FromObject(iterable), ReadOnlySpan<JsValue>.Empty);
+            var iteratorValue = realm.InvokeFunction(
+                iteratorFn,
+                JsValue.FromObject(iterable),
+                ReadOnlySpan<JsValue>.Empty
+            );
             if (!iteratorValue.TryGetObject(out var iterator))
                 throw new JsRuntimeException(JsErrorKind.TypeError, iteratorResultMessage);
             return iterator;
@@ -822,21 +1047,32 @@ internal static class RealmExtensions
         [MethodImpl(MethodImplOptions.NoInlining)]
         internal string ToJsStringSlowPath(in JsValue value)
         {
-            if (value.IsString) return value.AsJsString().Flatten();
-            if (value.IsNumber) return NumberFormatting.ToString(value.NumberValue);
-            if (value.IsBool) return value.IsTrue ? "true" : "false";
-            if (value.IsNull) return "null";
-            if (value.IsUndefined) return "undefined";
+            if (value.IsString)
+                return value.AsJsString().Flatten();
+            if (value.IsNumber)
+                return NumberFormatting.ToString(value.NumberValue);
+            if (value.IsBool)
+                return value.IsTrue ? "true" : "false";
+            if (value.IsNull)
+                return "null";
+            if (value.IsUndefined)
+                return "undefined";
             if (value.IsSymbol)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Cannot convert a Symbol value to a string");
-            if (value.IsBigInt) return value.AsBigInt().Value.ToString();
-            if (value.IsObject) return realm.ToJsStringSlowPath(realm.ToPrimitiveSlowPath(value, true));
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Cannot convert a Symbol value to a string"
+                );
+            if (value.IsBigInt)
+                return value.AsBigInt().Value.ToString();
+            if (value.IsObject)
+                return realm.ToJsStringSlowPath(realm.ToPrimitiveSlowPath(value, true));
             return value.ToString();
         }
 
         internal JsString ToJsStringValue(in JsValue value)
         {
-            if (value.IsString) return value.AsJsString();
+            if (value.IsString)
+                return value.AsJsString();
             return realm.ToJsStringValueSlowPath(value);
         }
 
@@ -848,18 +1084,29 @@ internal static class RealmExtensions
 
             var obj = value.AsObject();
 
-            if (obj.TryGetPropertyAtom(realm, IdSymbolToPrimitive, out var exoticToPrim, out _) &&
-                !exoticToPrim.IsUndefined && !exoticToPrim.IsNull)
+            if (
+                obj.TryGetPropertyAtom(realm, IdSymbolToPrimitive, out var exoticToPrim, out _)
+                && !exoticToPrim.IsUndefined
+                && !exoticToPrim.IsNull
+            )
             {
-                if (!exoticToPrim.TryGetObject(out var exoticObj) || exoticObj is not JsFunction exoticFn)
-                    throw new JsRuntimeException(JsErrorKind.TypeError, "@@toPrimitive is not callable");
+                if (
+                    !exoticToPrim.TryGetObject(out var exoticObj)
+                    || exoticObj is not JsFunction exoticFn
+                )
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "@@toPrimitive is not callable"
+                    );
 
                 var hint = JsValue.FromString(preferString ? "string" : "number");
                 var hintArgs = MemoryMarshal.CreateReadOnlySpan(ref hint, 1);
                 var exoticResult = realm.InvokeFunction(exoticFn, obj, hintArgs);
                 if (exoticResult.IsObject)
-                    throw new JsRuntimeException(JsErrorKind.TypeError,
-                        "@@toPrimitive must return a primitive value");
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "@@toPrimitive must return a primitive value"
+                    );
                 return exoticResult;
             }
 
@@ -872,7 +1119,10 @@ internal static class RealmExtensions
             if (realm.TryInvokePrimitiveMethodSlowPath(obj, thisValue, second, out primitive))
                 return primitive;
 
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Cannot convert object to primitive value");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Cannot convert object to primitive value"
+            );
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -883,18 +1133,29 @@ internal static class RealmExtensions
 
             var obj = value.AsObject();
 
-            if (obj.TryGetPropertyAtom(realm, IdSymbolToPrimitive, out var exoticToPrim, out _) &&
-                !exoticToPrim.IsUndefined && !exoticToPrim.IsNull)
+            if (
+                obj.TryGetPropertyAtom(realm, IdSymbolToPrimitive, out var exoticToPrim, out _)
+                && !exoticToPrim.IsUndefined
+                && !exoticToPrim.IsNull
+            )
             {
-                if (!exoticToPrim.TryGetObject(out var exoticObj) || exoticObj is not JsFunction exoticFn)
-                    throw new JsRuntimeException(JsErrorKind.TypeError, "@@toPrimitive is not callable");
+                if (
+                    !exoticToPrim.TryGetObject(out var exoticObj)
+                    || exoticObj is not JsFunction exoticFn
+                )
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "@@toPrimitive is not callable"
+                    );
 
                 var hint = JsValue.FromString("default");
                 var hintArgs = MemoryMarshal.CreateReadOnlySpan(ref hint, 1);
                 var exoticResult = realm.InvokeFunction(exoticFn, obj, hintArgs);
                 if (exoticResult.IsObject)
-                    throw new JsRuntimeException(JsErrorKind.TypeError,
-                        "@@toPrimitive must return a primitive value");
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "@@toPrimitive must return a primitive value"
+                    );
                 return exoticResult;
             }
 
@@ -903,15 +1164,25 @@ internal static class RealmExtensions
             if (realm.TryInvokePrimitiveMethodSlowPath(obj, obj, IdToString, out primitive))
                 return primitive;
 
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Cannot convert object to primitive value");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Cannot convert object to primitive value"
+            );
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private bool TryInvokePrimitiveMethodSlowPath(JsObject obj, JsValue thisValue,
-            int methodAtom, out JsValue primitive)
+        private bool TryInvokePrimitiveMethodSlowPath(
+            JsObject obj,
+            JsValue thisValue,
+            int methodAtom,
+            out JsValue primitive
+        )
         {
-            if (obj.TryGetPropertyAtom(realm, methodAtom, out var candidate, out _) &&
-                candidate.TryGetObject(out var fnObj) && fnObj is JsFunction fn)
+            if (
+                obj.TryGetPropertyAtom(realm, methodAtom, out var candidate, out _)
+                && candidate.TryGetObject(out var fnObj)
+                && fnObj is JsFunction fn
+            )
             {
                 var value = realm.InvokeFunction(fn, thisValue, ReadOnlySpan<JsValue>.Empty);
                 if (!value.IsObject)
@@ -928,14 +1199,23 @@ internal static class RealmExtensions
         [MethodImpl(MethodImplOptions.NoInlining)]
         internal JsString ToJsStringValueSlowPath(in JsValue value)
         {
-            if (value.IsString) return value.AsJsString();
-            if (value.IsNumber) return NumberFormatting.ToString(value.NumberValue);
-            if (value.IsBool) return value.IsTrue ? "true" : "false";
-            if (value.IsNull) return "null";
-            if (value.IsUndefined) return "undefined";
+            if (value.IsString)
+                return value.AsJsString();
+            if (value.IsNumber)
+                return NumberFormatting.ToString(value.NumberValue);
+            if (value.IsBool)
+                return value.IsTrue ? "true" : "false";
+            if (value.IsNull)
+                return "null";
+            if (value.IsUndefined)
+                return "undefined";
             if (value.IsSymbol)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Cannot convert a Symbol value to a string");
-            if (value.IsBigInt) return value.AsBigInt().Value.ToString();
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Cannot convert a Symbol value to a string"
+                );
+            if (value.IsBigInt)
+                return value.AsBigInt().Value.ToString();
             if (value.IsObject)
                 return realm.ToJsStringValueSlowPath(realm.ToPrimitiveSlowPath(value, true));
             return value.ToString() ?? string.Empty;

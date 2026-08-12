@@ -20,9 +20,11 @@ public static class LikelySubtagsData
     {
         var assembly = typeof(LikelySubtagsData).Assembly;
         const string resourceName = "Okojo.Globalization.Data.LikelySubtags.txt";
-        using var stream = assembly.GetManifestResourceStream(resourceName)
-                           ?? throw new InvalidOperationException(
-                               "Could not load embedded Intl likely-subtags data.");
+        using var stream =
+            assembly.GetManifestResourceStream(resourceName)
+            ?? throw new InvalidOperationException(
+                "Could not load embedded Intl likely-subtags data."
+            );
 
         using var reader = new StreamReader(stream);
         var data = new Dictionary<string, string>(8000, StringComparer.Ordinal);
@@ -30,7 +32,8 @@ public static class LikelySubtagsData
         string? line;
         while ((line = reader.ReadLine()) != null)
         {
-            if (line.Length == 0) continue;
+            if (line.Length == 0)
+                continue;
 
             var eqIndex = line.IndexOf('=');
             if (eqIndex > 0)

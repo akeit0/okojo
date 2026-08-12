@@ -25,7 +25,8 @@ public sealed partial class JsAgent
     {
         if (value.TryGetObject(out var obj))
             AddToKeptObjects(obj);
-        else if (value.IsSymbol) AddToKeptObjects(value.AsSymbol());
+        else if (value.IsSymbol)
+            AddToKeptObjects(value.AsSymbol());
     }
 
     internal void ClearKeptObjects()

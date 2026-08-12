@@ -20,7 +20,10 @@ internal sealed class NodeUrlBuiltIn(NodeRuntime runtime)
         var realm = runtime.MainRealm;
         var shape = moduleShape ??= CreateModuleShape(realm);
         var module = new JsPlainObject(shape);
-        module.SetNamedSlotUnchecked(ModuleFileUrlToPathSlot, JsValue.FromObject(CreateFileUrlToPathFunction(realm)));
+        module.SetNamedSlotUnchecked(
+            ModuleFileUrlToPathSlot,
+            JsValue.FromObject(CreateFileUrlToPathFunction(realm))
+        );
         moduleObject = module;
         return module;
     }
@@ -28,8 +31,11 @@ internal sealed class NodeUrlBuiltIn(NodeRuntime runtime)
     private StaticNamedPropertyLayout CreateModuleShape(JsRealm realm)
     {
         EnsureAtoms(realm);
-        var shape = realm.EmptyShape.GetOrAddTransition(atomFileUrlToPath, JsShapePropertyFlags.Open,
-            out var fileUrlToPathInfo);
+        var shape = realm.EmptyShape.GetOrAddTransition(
+            atomFileUrlToPath,
+            JsShapePropertyFlags.Open,
+            out var fileUrlToPathInfo
+        );
         Debug.Assert(fileUrlToPathInfo.Slot == ModuleFileUrlToPathSlot);
         return shape;
     }
@@ -46,13 +52,22 @@ internal sealed class NodeUrlBuiltIn(NodeRuntime runtime)
 
     private static JsHostFunction CreateFileUrlToPathFunction(JsRealm realm)
     {
-        return new(realm, "fileURLToPath", 1, static (in info) =>
-        {
-            var value = info.GetArgumentString(0);
-            if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) || !uri.IsFile)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "fileURLToPath requires a file:// URL");
+        return new(
+            realm,
+            "fileURLToPath",
+            1,
+            static (in info) =>
+            {
+                var value = info.GetArgumentString(0);
+                if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) || !uri.IsFile)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "fileURLToPath requires a file:// URL"
+                    );
 
-            return JsValue.FromString(uri.LocalPath);
-        }, false);
+                return JsValue.FromString(uri.LocalPath);
+            },
+            false
+        );
     }
 }

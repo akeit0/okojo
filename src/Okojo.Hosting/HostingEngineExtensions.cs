@@ -22,7 +22,8 @@ public static class HostingEngineExtensions
 
     public static WorkerRuntime CreateWorkerRuntime(
         this JsRuntime engine,
-        Action<WorkerRuntimeOptions>? configure = null)
+        Action<WorkerRuntimeOptions>? configure = null
+    )
     {
         return WorkerRuntimeFactory.CreateWorkerRuntime(engine, configure);
     }

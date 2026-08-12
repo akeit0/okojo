@@ -34,11 +34,19 @@ public class WorkerAgentThreadTests
 
         main.PostMessage(worker, "ping");
 
-        Assert.That(received.Wait(TimeSpan.FromSeconds(2)), Is.True, "worker message was not processed in time");
+        Assert.That(
+            received.Wait(TimeSpan.FromSeconds(2)),
+            Is.True,
+            "worker message was not processed in time"
+        );
         Assert.That(handlerThreadId, Is.EqualTo(workerThreadId));
 
         cts.Cancel();
-        Assert.That(thread.Join(TimeSpan.FromSeconds(2)), Is.True, "worker thread did not stop in time");
+        Assert.That(
+            thread.Join(TimeSpan.FromSeconds(2)),
+            Is.True,
+            "worker thread did not stop in time"
+        );
     }
 
     [Test]
@@ -54,7 +62,11 @@ public class WorkerAgentThreadTests
 
         cts.Cancel();
 
-        Assert.That(thread.Join(TimeSpan.FromSeconds(2)), Is.True, "worker thread did not stop in time");
+        Assert.That(
+            thread.Join(TimeSpan.FromSeconds(2)),
+            Is.True,
+            "worker thread did not stop in time"
+        );
     }
 
     [Test]
@@ -90,12 +102,20 @@ public class WorkerAgentThreadTests
         for (var i = 0; i < 50; i++)
             main.PostMessage(worker, i);
 
-        Assert.That(done.Wait(TimeSpan.FromSeconds(2)), Is.True, "worker did not receive all messages in time");
+        Assert.That(
+            done.Wait(TimeSpan.FromSeconds(2)),
+            Is.True,
+            "worker did not receive all messages in time"
+        );
         Assert.That(failure, Is.Null);
         Assert.That(seen, Is.EqualTo(50));
 
         cts.Cancel();
-        Assert.That(thread.Join(TimeSpan.FromSeconds(2)), Is.True, "worker thread did not stop in time");
+        Assert.That(
+            thread.Join(TimeSpan.FromSeconds(2)),
+            Is.True,
+            "worker thread did not stop in time"
+        );
     }
 
     [Test]
@@ -111,6 +131,10 @@ public class WorkerAgentThreadTests
 
         worker.Terminate();
 
-        Assert.That(thread.Join(TimeSpan.FromSeconds(2)), Is.True, "worker thread did not stop after terminate");
+        Assert.That(
+            thread.Join(TimeSpan.FromSeconds(2)),
+            Is.True,
+            "worker thread did not stop after terminate"
+        );
     }
 }

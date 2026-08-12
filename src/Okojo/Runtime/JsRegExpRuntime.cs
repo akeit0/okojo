@@ -96,7 +96,11 @@ internal static class JsRegExpRuntime
         return match is null ? JsValue.Null : BuildExecResult(realm, rx, match, input);
     }
 
-    internal static RegExpMatchResult? ExecMatchResult(JsRealm realm, JsRegExpObject rx, string input)
+    internal static RegExpMatchResult? ExecMatchResult(
+        JsRealm realm,
+        JsRegExpObject rx,
+        string input
+    )
     {
         var lastIndex = GetLastIndex(realm, rx);
         var global = rx.Global;
@@ -124,7 +128,12 @@ internal static class JsRegExpRuntime
         return engineMatch;
     }
 
-    private static JsValue BuildExecResult(JsRealm realm, JsRegExpObject rx, RegExpMatchResult match, string input)
+    private static JsValue BuildExecResult(
+        JsRealm realm,
+        JsRegExpObject rx,
+        RegExpMatchResult match,
+        string input
+    )
     {
         var array = realm.CreateArrayObject();
         var values = array.InitializeDenseElementsNoCollision(match.Groups.Length);
@@ -146,19 +155,28 @@ internal static class JsRegExpRuntime
                 string? groupValue = null;
                 if (match.NamedGroups is not null)
                     match.NamedGroups.TryGetValue(groupName, out groupValue);
-                groups.DefineDataProperty(groupName,
+                groups.DefineDataProperty(
+                    groupName,
                     groupValue is null ? JsValue.Undefined : JsValue.FromString(groupValue),
-                    JsShapePropertyFlags.Open);
+                    JsShapePropertyFlags.Open
+                );
             }
 
             groupsValue = JsValue.FromObject(groups);
         }
 
-        array.DefineDataPropertyAtom(realm, AtomTable.IdGroups, groupsValue, JsShapePropertyFlags.Open);
+        array.DefineDataPropertyAtom(
+            realm,
+            AtomTable.IdGroups,
+            groupsValue,
+            JsShapePropertyFlags.Open
+        );
         if (rx.CompiledPattern.ParsedFlags.HasIndices)
         {
-            var indices = CreateMatchIndicesArray(realm,
-                match.GroupIndices ?? new RegExpMatchRange?[match.Groups.Length]);
+            var indices = CreateMatchIndicesArray(
+                realm,
+                match.GroupIndices ?? new RegExpMatchRange?[match.Groups.Length]
+            );
             var indexGroupsValue = JsValue.Undefined;
 
             if (rx.NamedGroupNames.Length != 0)
@@ -173,21 +191,36 @@ internal static class JsRegExpRuntime
                     RegExpMatchRange? range = null;
                     if (match.NamedGroupIndices is not null)
                         match.NamedGroupIndices.TryGetValue(groupName, out range);
-                    groups.DefineDataProperty(groupName,
+                    groups.DefineDataProperty(
+                        groupName,
                         range.HasValue
                             ? CreateMatchIndexPairArray(realm, range.Value)
                             : JsValue.Undefined,
-                        JsShapePropertyFlags.Open);
+                        JsShapePropertyFlags.Open
+                    );
                 }
 
                 indexGroupsValue = JsValue.FromObject(groups);
             }
 
-            indices.DefineDataPropertyAtom(realm, AtomTable.IdGroups, indexGroupsValue, JsShapePropertyFlags.Open);
-            array.DefineDataProperty("indices", JsValue.FromObject(indices), JsShapePropertyFlags.Open);
+            indices.DefineDataPropertyAtom(
+                realm,
+                AtomTable.IdGroups,
+                indexGroupsValue,
+                JsShapePropertyFlags.Open
+            );
+            array.DefineDataProperty(
+                "indices",
+                JsValue.FromObject(indices),
+                JsShapePropertyFlags.Open
+            );
         }
 
-        array.DefineDataProperty("index", JsValue.FromInt32(match.Index), JsShapePropertyFlags.Open);
+        array.DefineDataProperty(
+            "index",
+            JsValue.FromInt32(match.Index),
+            JsShapePropertyFlags.Open
+        );
         array.DefineDataProperty("input", JsValue.FromString(input), JsShapePropertyFlags.Open);
         return array;
     }
@@ -229,20 +262,30 @@ internal static class JsRegExpRuntime
     private static void SetLastIndex(JsRealm realm, JsRegExpObject rx, int value)
     {
         if (!rx.TrySetPropertyAtom(realm, IdLastIndex, JsValue.FromInt32(value), out _))
-            throw new JsRuntimeException(JsErrorKind.TypeError,
-                "RegExp.prototype.exec failed to set required property");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "RegExp.prototype.exec failed to set required property"
+            );
     }
 
     private static void ThrowInvalidFlags()
     {
-        throw new JsRuntimeException(JsErrorKind.SyntaxError, "Invalid regular expression flags",
-            "REGEXP_INVALID_FLAGS");
+        throw new JsRuntimeException(
+            JsErrorKind.SyntaxError,
+            "Invalid regular expression flags",
+            "REGEXP_INVALID_FLAGS"
+        );
     }
 
     internal static int Search(JsRealm realm, JsRegExpObject rx, string input)
     {
         // String.prototype.search should not persist lastIndex side effects.
-        var oldLastIndex = rx.TryGetPropertyAtom(realm, IdLastIndex, out var currentLastIndex, out _)
+        var oldLastIndex = rx.TryGetPropertyAtom(
+            realm,
+            IdLastIndex,
+            out var currentLastIndex,
+            out _
+        )
             ? currentLastIndex
             : JsValue.Undefined;
         try
@@ -258,8 +301,10 @@ internal static class JsRegExpRuntime
         finally
         {
             if (!rx.TrySetPropertyAtom(realm, IdLastIndex, oldLastIndex, out _))
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "RegExp.prototype.search failed to restore lastIndex");
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "RegExp.prototype.search failed to restore lastIndex"
+                );
         }
     }
 
@@ -274,8 +319,16 @@ internal static class JsRegExpRuntime
         internal readonly bool UnicodeSets;
         internal readonly bool DotAll;
 
-        internal Flags(bool global, bool ignoreCase, bool multiline, bool hasIndices, bool sticky, bool unicode,
-            bool unicodeSets, bool dotAll)
+        internal Flags(
+            bool global,
+            bool ignoreCase,
+            bool multiline,
+            bool hasIndices,
+            bool sticky,
+            bool unicode,
+            bool unicodeSets,
+            bool dotAll
+        )
         {
             Global = global;
             IgnoreCase = ignoreCase;

@@ -13,6 +13,6 @@
         <PackageTags>javascript;ecmascript;regexp;dotnet</PackageTags>
     </PropertyGroup>
     <ItemGroup>
-        <ProjectReference Include="..\Okojo.Text.Unicode\Okojo.Text.Unicode.csproj"/>
+        <ProjectReference Include="..\Okojo.Text.Unicode\Okojo.Text.Unicode.csproj" />
     </ItemGroup>
 </Project>

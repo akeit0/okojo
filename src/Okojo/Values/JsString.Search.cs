@@ -14,8 +14,10 @@ public readonly partial struct JsString
         if (leftLength != GetLength(rightObject))
             return false;
 
-        if (TryGetFlatSpan(leftObject, out var leftSpan) &&
-            TryGetFlatSpan(rightObject, out var rightSpan))
+        if (
+            TryGetFlatSpan(leftObject, out var leftSpan)
+            && TryGetFlatSpan(rightObject, out var rightSpan)
+        )
             return leftSpan.SequenceEqual(rightSpan);
 
         return CompareRanges(leftObject, 0, rightObject, 0, leftLength) == 0;
@@ -26,8 +28,10 @@ public readonly partial struct JsString
         if (ReferenceEquals(left.StringLikeObject, right.StringLikeObject))
             return 0;
 
-        if (TryGetFlatSpan(left.StringLikeObject, out var leftSpan) &&
-            TryGetFlatSpan(right.StringLikeObject, out var rightSpan))
+        if (
+            TryGetFlatSpan(left.StringLikeObject, out var leftSpan)
+            && TryGetFlatSpan(right.StringLikeObject, out var rightSpan)
+        )
             return leftSpan.SequenceCompareTo(rightSpan);
 
         var commonLength = Math.Min(left.Length, right.Length);
@@ -37,23 +41,33 @@ public readonly partial struct JsString
 
     public static bool StartsWith(JsString value, JsString prefix)
     {
-        if (TryGetFlatSpan(value.StringLikeObject, out var valueSpan) &&
-            TryGetFlatSpan(prefix.StringLikeObject, out var prefixSpan))
+        if (
+            TryGetFlatSpan(value.StringLikeObject, out var valueSpan)
+            && TryGetFlatSpan(prefix.StringLikeObject, out var prefixSpan)
+        )
             return valueSpan.StartsWith(prefixSpan, StringComparison.Ordinal);
 
-        return prefix.Length <= value.Length &&
-               CompareRanges(value.StringLikeObject, 0, prefix.StringLikeObject, 0, prefix.Length) == 0;
+        return prefix.Length <= value.Length
+            && CompareRanges(value.StringLikeObject, 0, prefix.StringLikeObject, 0, prefix.Length)
+                == 0;
     }
 
     public static bool EndsWith(JsString value, JsString suffix)
     {
-        if (TryGetFlatSpan(value.StringLikeObject, out var valueSpan) &&
-            TryGetFlatSpan(suffix.StringLikeObject, out var suffixSpan))
+        if (
+            TryGetFlatSpan(value.StringLikeObject, out var valueSpan)
+            && TryGetFlatSpan(suffix.StringLikeObject, out var suffixSpan)
+        )
             return valueSpan.EndsWith(suffixSpan, StringComparison.Ordinal);
 
-        return suffix.Length <= value.Length &&
-               CompareRanges(value.StringLikeObject, value.Length - suffix.Length, suffix.StringLikeObject, 0,
-                   suffix.Length) == 0;
+        return suffix.Length <= value.Length
+            && CompareRanges(
+                value.StringLikeObject,
+                value.Length - suffix.Length,
+                suffix.StringLikeObject,
+                0,
+                suffix.Length
+            ) == 0;
     }
 
     public static int IndexOf(JsString value, JsString needle, int startIndex = 0)
@@ -70,9 +84,14 @@ public readonly partial struct JsString
         if (needleLength > valueLength - startIndex)
             return -1;
 
-        if (TryGetFlatSpan(value.StringLikeObject, out var valueSpan) &&
-            TryGetFlatSpan(needle.StringLikeObject, out var needleSpan))
-            return valueSpan.Slice(startIndex).IndexOf(needleSpan, StringComparison.Ordinal) is int index && index >= 0
+        if (
+            TryGetFlatSpan(value.StringLikeObject, out var valueSpan)
+            && TryGetFlatSpan(needle.StringLikeObject, out var needleSpan)
+        )
+            return
+                valueSpan.Slice(startIndex).IndexOf(needleSpan, StringComparison.Ordinal)
+                    is int index
+                && index >= 0
                 ? startIndex + index
                 : -1;
 
@@ -105,9 +124,12 @@ public readonly partial struct JsString
         if (searchStart < 0)
             return -1;
 
-        if (TryGetFlatSpan(value.StringLikeObject, out var valueSpan) &&
-            TryGetFlatSpan(needle.StringLikeObject, out var needleSpan))
-            return valueSpan[..(searchStart + needleLength)].LastIndexOf(needleSpan, StringComparison.Ordinal);
+        if (
+            TryGetFlatSpan(value.StringLikeObject, out var valueSpan)
+            && TryGetFlatSpan(needle.StringLikeObject, out var needleSpan)
+        )
+            return valueSpan[..(searchStart + needleLength)]
+                .LastIndexOf(needleSpan, StringComparison.Ordinal);
 
         var flatNeedle = needle.Flatten();
         for (var position = searchStart; position >= 0; position--)
@@ -117,7 +139,13 @@ public readonly partial struct JsString
         return -1;
     }
 
-    private static int CompareRanges(object left, int leftStart, object right, int rightStart, int length)
+    private static int CompareRanges(
+        object left,
+        int leftStart,
+        object right,
+        int rightStart,
+        int length
+    )
     {
         var leftChunks = new ChunkEnumerator(left, leftStart, length);
         var rightChunks = new ChunkEnumerator(right, rightStart, length);
@@ -146,7 +174,9 @@ public readonly partial struct JsString
             }
 
             var count = Math.Min(leftSpan.Length - leftOffset, rightSpan.Length - rightOffset);
-            var cmp = leftSpan.Slice(leftOffset, count).SequenceCompareTo(rightSpan.Slice(rightOffset, count));
+            var cmp = leftSpan
+                .Slice(leftOffset, count)
+                .SequenceCompareTo(rightSpan.Slice(rightOffset, count));
             if (cmp != 0)
                 return cmp;
 

@@ -3,9 +3,12 @@ namespace Okojo.Runtime;
 public sealed class JsSetObject : JsObject
 {
     private readonly List<Entry> entries = new(4);
-    private readonly Dictionary<JsValue, int> entryIndexByValue = new(JsValueSameValueZeroComparer.Instance);
+    private readonly Dictionary<JsValue, int> entryIndexByValue = new(
+        JsValueSameValueZeroComparer.Instance
+    );
 
-    public JsSetObject(JsRealm realm, JsObject? prototype = null) : base(realm)
+    public JsSetObject(JsRealm realm, JsObject? prototype = null)
+        : base(realm)
     {
         Prototype = prototype ?? realm.SetPrototype;
     }

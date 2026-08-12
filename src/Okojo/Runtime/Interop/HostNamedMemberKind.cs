@@ -4,5 +4,5 @@ internal enum HostNamedMemberKind : byte
 {
     Field,
     Property,
-    Method
+    Method,
 }

@@ -28,7 +28,8 @@ public class RuntimeApiRefineTests
         var timeProvider = new FakeTimeProvider();
         var workerLoader = new InlineWorkerScriptLoader();
 
-        using var engine = JsRuntime.CreateBuilder()
+        using var engine = JsRuntime
+            .CreateBuilder()
             .UseHost(host =>
             {
                 host.UseTimeProvider(timeProvider);
@@ -43,7 +44,8 @@ public class RuntimeApiRefineTests
     [Test]
     public void Builder_UseCore_ComposesCoreConfiguration()
     {
-        using var engine = JsRuntime.CreateBuilder()
+        using var engine = JsRuntime
+            .CreateBuilder()
             .UseCore(core =>
             {
                 core.AllowClrAccess();
@@ -58,9 +60,7 @@ public class RuntimeApiRefineTests
     [Test]
     public void Realm_AddClrAssembly_And_TryGetClrValue_Enable_RuntimeClrLoads()
     {
-        using var engine = JsRuntime.CreateBuilder()
-            .UseCore(core => core.AllowClrAccess())
-            .Build();
+        using var engine = JsRuntime.CreateBuilder().UseCore(core => core.AllowClrAccess()).Build();
 
         engine.MainRealm.AddClrAssembly(typeof(Uri).Assembly);
 
@@ -72,12 +72,17 @@ public class RuntimeApiRefineTests
     [Test]
     public void Builder_UseAgent_And_UseRealm_ComposesAgentAndRealmConfiguration()
     {
-        using var engine = JsRuntime.CreateBuilder()
-            .UseAgent(agent => { agent.HostDefined = "agent-meta"; })
+        using var engine = JsRuntime
+            .CreateBuilder()
+            .UseAgent(agent =>
+            {
+                agent.HostDefined = "agent-meta";
+            })
             .UseRealm(realm =>
             {
                 realm.HostDefined = "realm-meta";
-                realm.Initialize = realmInstance => realmInstance.Global["booted"] = JsValue.FromString("yes");
+                realm.Initialize = realmInstance =>
+                    realmInstance.Global["booted"] = JsValue.FromString("yes");
             })
             .Build();
 
@@ -89,15 +94,28 @@ public class RuntimeApiRefineTests
     [Test]
     public void Builder_UseGlobals_Installs_GlobalValues_And_HostFunctions()
     {
-        using var engine = JsRuntime.CreateBuilder()
-            .UseGlobals(globals => globals
-                .Value("answer", JsValue.FromInt32(42))
-                .Function("sum", 2, static (in info) =>
-                {
-                    var left = info.GetArgumentOrDefault(0, JsValue.FromInt32(0)).Int32Value;
-                    var right = info.GetArgumentOrDefault(1, JsValue.FromInt32(0)).Int32Value;
-                    return JsValue.FromInt32(left + right);
-                }))
+        using var engine = JsRuntime
+            .CreateBuilder()
+            .UseGlobals(globals =>
+                globals
+                    .Value("answer", JsValue.FromInt32(42))
+                    .Function(
+                        "sum",
+                        2,
+                        static (in info) =>
+                        {
+                            var left = info.GetArgumentOrDefault(
+                                0,
+                                JsValue.FromInt32(0)
+                            ).Int32Value;
+                            var right = info.GetArgumentOrDefault(
+                                1,
+                                JsValue.FromInt32(0)
+                            ).Int32Value;
+                            return JsValue.FromInt32(left + right);
+                        }
+                    )
+            )
             .Build();
 
         var result = engine.MainRealm.Eval("answer + sum(5, 7)");
@@ -109,13 +127,19 @@ public class RuntimeApiRefineTests
     {
         using var engine = JsRuntime.Create();
 
-        engine.MainRealm.InstallGlobals(globals => globals
-            .Value("label", JsValue.FromString("ok"))
-            .Function("twice", 1, static (in info) =>
-            {
-                var value = info.GetArgumentOrDefault(0, JsValue.FromInt32(0)).Int32Value;
-                return JsValue.FromInt32(value * 2);
-            }));
+        engine.MainRealm.InstallGlobals(globals =>
+            globals
+                .Value("label", JsValue.FromString("ok"))
+                .Function(
+                    "twice",
+                    1,
+                    static (in info) =>
+                    {
+                        var value = info.GetArgumentOrDefault(0, JsValue.FromInt32(0)).Int32Value;
+                        return JsValue.FromInt32(value * 2);
+                    }
+                )
+        );
 
         var result = engine.MainRealm.Eval("`${label}:${twice(9)}`");
         Assert.That(result.AsString(), Is.EqualTo("ok:18"));

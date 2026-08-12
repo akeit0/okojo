@@ -7,7 +7,8 @@ internal sealed class ModuleExecutionOp(
     JsStatement? statement,
     JsExpression? expression,
     string? exportLocalName,
-    bool setDefaultName)
+    bool setDefaultName
+)
 {
     public ModuleExecutionOpKind Kind { get; } = kind;
     public JsStatement? Statement { get; } = statement;

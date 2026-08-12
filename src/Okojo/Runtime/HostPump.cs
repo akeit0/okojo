@@ -65,12 +65,14 @@ public sealed class HostPump
         if (completed())
             return true;
 
-        var timeoutMs = timeout == Timeout.InfiniteTimeSpan
-            ? Timeout.Infinite
-            : checked((long)Math.Ceiling(timeout.TotalMilliseconds));
-        var deadline = timeout == Timeout.InfiniteTimeSpan
-            ? long.MaxValue
-            : Environment.TickCount64 + timeoutMs;
+        var timeoutMs =
+            timeout == Timeout.InfiniteTimeSpan
+                ? Timeout.Infinite
+                : checked((long)Math.Ceiling(timeout.TotalMilliseconds));
+        var deadline =
+            timeout == Timeout.InfiniteTimeSpan
+                ? long.MaxValue
+                : Environment.TickCount64 + timeoutMs;
 
         while (timeout == Timeout.InfiniteTimeSpan || Environment.TickCount64 < deadline)
         {
@@ -79,7 +81,8 @@ public sealed class HostPump
 
             if (Agent.PendingJobCount > 0)
                 Agent.PumpJobs();
-            else if (idleSleepMilliseconds != 0) Thread.Sleep(idleSleepMilliseconds);
+            else if (idleSleepMilliseconds != 0)
+                Thread.Sleep(idleSleepMilliseconds);
 
             if (completed())
                 return true;
@@ -88,7 +91,11 @@ public sealed class HostPump
         return completed();
     }
 
-    public void RunUntilOrThrow(Func<bool> completed, TimeSpan timeout, int idleSleepMilliseconds = 5)
+    public void RunUntilOrThrow(
+        Func<bool> completed,
+        TimeSpan timeout,
+        int idleSleepMilliseconds = 5
+    )
     {
         if (RunUntil(completed, timeout, idleSleepMilliseconds))
             return;
@@ -98,8 +105,11 @@ public sealed class HostPump
 
     public async Task WaitForWorkAsync(CancellationToken cancellationToken = default)
     {
-        await Agent.Engine.Options.HostServices.BackgroundScheduler
-            .WaitHandleAsync(Agent.JobsAvailableWaitHandle, cancellationToken)
+        await Agent
+            .Engine.Options.HostServices.BackgroundScheduler.WaitHandleAsync(
+                Agent.JobsAvailableWaitHandle,
+                cancellationToken
+            )
             .ConfigureAwait(false);
     }
 

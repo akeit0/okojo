@@ -26,8 +26,14 @@ public class FileModuleSourceLoaderTests
 
             var loader = new FileModuleSourceLoader();
 
-            Assert.That(loader.ResolveSpecifier("./util", entry), Is.EqualTo(Path.GetFullPath(util)));
-            Assert.That(loader.ResolveSpecifier("./lib", entry), Is.EqualTo(Path.GetFullPath(index)));
+            Assert.That(
+                loader.ResolveSpecifier("./util", entry),
+                Is.EqualTo(Path.GetFullPath(util))
+            );
+            Assert.That(
+                loader.ResolveSpecifier("./lib", entry),
+                Is.EqualTo(Path.GetFullPath(index))
+            );
         }
         finally
         {

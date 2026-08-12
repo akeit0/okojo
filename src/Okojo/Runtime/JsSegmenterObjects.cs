@@ -9,7 +9,9 @@ internal sealed class JsSegmenterObject : JsObject
         JsObject prototype,
         string locale,
         string granularity,
-        CultureInfo cultureInfo) : base(realm)
+        CultureInfo cultureInfo
+    )
+        : base(realm)
     {
         Prototype = prototype;
         Locale = locale;
@@ -34,7 +36,9 @@ internal sealed class JsSegmentsObject : JsObject
         JsObject prototype,
         JsObject iteratorPrototype,
         JsSegmenterObject segmenter,
-        string input) : base(realm)
+        string input
+    )
+        : base(realm)
     {
         Prototype = prototype;
         this.segmenter = segmenter;
@@ -73,22 +77,34 @@ internal sealed class JsSegmentsObject : JsObject
 
     internal JsPlainObject CreateSegmentDataObject(in SegmentData data)
     {
-        var obj = new JsPlainObject(Realm)
-        {
-            Prototype = Realm.ObjectPrototype
-        };
+        var obj = new JsPlainObject(Realm) { Prototype = Realm.ObjectPrototype };
 
-        obj.DefineDataPropertyAtom(Realm, Realm.Atoms.InternNoCheck("segment"), JsValue.FromString(data.Segment),
-            JsShapePropertyFlags.Open);
-        obj.DefineDataPropertyAtom(Realm, Realm.Atoms.InternNoCheck("index"), JsValue.FromInt32(data.Index),
-            JsShapePropertyFlags.Open);
-        obj.DefineDataPropertyAtom(Realm, Realm.Atoms.InternNoCheck("input"), JsValue.FromString(input),
-            JsShapePropertyFlags.Open);
+        obj.DefineDataPropertyAtom(
+            Realm,
+            Realm.Atoms.InternNoCheck("segment"),
+            JsValue.FromString(data.Segment),
+            JsShapePropertyFlags.Open
+        );
+        obj.DefineDataPropertyAtom(
+            Realm,
+            Realm.Atoms.InternNoCheck("index"),
+            JsValue.FromInt32(data.Index),
+            JsShapePropertyFlags.Open
+        );
+        obj.DefineDataPropertyAtom(
+            Realm,
+            Realm.Atoms.InternNoCheck("input"),
+            JsValue.FromString(input),
+            JsShapePropertyFlags.Open
+        );
 
         if (string.Equals(segmenter.Granularity, "word", StringComparison.Ordinal))
-            obj.DefineDataPropertyAtom(Realm, Realm.Atoms.InternNoCheck("isWordLike"),
+            obj.DefineDataPropertyAtom(
+                Realm,
+                Realm.Atoms.InternNoCheck("isWordLike"),
                 data.IsWordLike ? JsValue.True : JsValue.False,
-                JsShapePropertyFlags.Open);
+                JsShapePropertyFlags.Open
+            );
 
         return obj;
     }
@@ -102,7 +118,7 @@ internal sealed class JsSegmentsObject : JsObject
         {
             "word" => ComputeWordSegments(input),
             "sentence" => ComputeSentenceSegments(input),
-            _ => ComputeGraphemeSegments(input)
+            _ => ComputeGraphemeSegments(input),
         };
     }
 
@@ -111,10 +127,7 @@ internal sealed class JsSegmentsObject : JsObject
         List<SegmentData> result = [];
         var enumerator = StringInfo.GetTextElementEnumerator(input);
         while (enumerator.MoveNext())
-            result.Add(new(
-                enumerator.GetTextElement(),
-                enumerator.ElementIndex,
-                false));
+            result.Add(new(enumerator.GetTextElement(), enumerator.ElementIndex, false));
 
         return result;
     }
@@ -124,7 +137,8 @@ internal sealed class JsSegmentsObject : JsObject
         List<SegmentData> result = [];
         List<GraphemeInfo> graphemes = [];
         var enumerator = StringInfo.GetTextElementEnumerator(input);
-        while (enumerator.MoveNext()) graphemes.Add(new(enumerator.GetTextElement(), enumerator.ElementIndex));
+        while (enumerator.MoveNext())
+            graphemes.Add(new(enumerator.GetTextElement(), enumerator.ElementIndex));
 
         var i = 0;
         while (i < graphemes.Count)
@@ -137,17 +151,26 @@ internal sealed class JsSegmentsObject : JsObject
             {
                 var endIndex = startIndex + grapheme.Length;
                 i++;
-                while (i < graphemes.Count && graphemes[i].Text.Length > 0 && char.IsWhiteSpace(graphemes[i].Text[0]))
+                while (
+                    i < graphemes.Count
+                    && graphemes[i].Text.Length > 0
+                    && char.IsWhiteSpace(graphemes[i].Text[0])
+                )
                 {
                     endIndex = graphemes[i].Index + graphemes[i].Text.Length;
                     i++;
                 }
 
-                result.Add(new(input.Substring(startIndex, endIndex - startIndex), startIndex, false));
+                result.Add(
+                    new(input.Substring(startIndex, endIndex - startIndex), startIndex, false)
+                );
                 continue;
             }
 
-            if (char.IsLetterOrDigit(firstChar) || char.GetUnicodeCategory(firstChar) == UnicodeCategory.ModifierLetter)
+            if (
+                char.IsLetterOrDigit(firstChar)
+                || char.GetUnicodeCategory(firstChar) == UnicodeCategory.ModifierLetter
+            )
             {
                 var endIndex = startIndex + grapheme.Length;
                 i++;
@@ -158,10 +181,13 @@ internal sealed class JsSegmentsObject : JsObject
                         break;
 
                     var nextChar = nextGrapheme[0];
-                    if (char.IsLetterOrDigit(nextChar) ||
-                        nextChar == '\'' || nextChar == '-' ||
-                        char.GetUnicodeCategory(nextChar) == UnicodeCategory.ModifierLetter ||
-                        char.GetUnicodeCategory(nextChar) == UnicodeCategory.NonSpacingMark)
+                    if (
+                        char.IsLetterOrDigit(nextChar)
+                        || nextChar == '\''
+                        || nextChar == '-'
+                        || char.GetUnicodeCategory(nextChar) == UnicodeCategory.ModifierLetter
+                        || char.GetUnicodeCategory(nextChar) == UnicodeCategory.NonSpacingMark
+                    )
                     {
                         endIndex = graphemes[i].Index + nextGrapheme.Length;
                         i++;
@@ -182,7 +208,9 @@ internal sealed class JsSegmentsObject : JsObject
                     break;
                 }
 
-                result.Add(new(input.Substring(startIndex, endIndex - startIndex), startIndex, true));
+                result.Add(
+                    new(input.Substring(startIndex, endIndex - startIndex), startIndex, true)
+                );
                 continue;
             }
 
@@ -227,7 +255,8 @@ internal sealed class JsSegmentIteratorObject : JsObject
     private readonly JsSegmentsObject segments;
     private int index;
 
-    internal JsSegmentIteratorObject(JsRealm realm, JsObject prototype, JsSegmentsObject segments) : base(realm)
+    internal JsSegmentIteratorObject(JsRealm realm, JsObject prototype, JsSegmentsObject segments)
+        : base(realm)
     {
         Prototype = prototype;
         this.segments = segments;
@@ -239,6 +268,8 @@ internal sealed class JsSegmentIteratorObject : JsObject
             return JsValue.FromObject(Realm.CreateIteratorResultObject(JsValue.Undefined, true));
 
         var value = segments.CreateSegmentDataObject(segments.GetSegmentAt(index++));
-        return JsValue.FromObject(Realm.CreateIteratorResultObject(JsValue.FromObject(value), false));
+        return JsValue.FromObject(
+            Realm.CreateIteratorResultObject(JsValue.FromObject(value), false)
+        );
     }
 }

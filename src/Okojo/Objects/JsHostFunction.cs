@@ -1,7 +1,6 @@
 namespace Okojo.Objects;
 
-public delegate JsValue JsHostFunctionBody(
-    scoped in CallInfo info);
+public delegate JsValue JsHostFunctionBody(scoped in CallInfo info);
 
 public sealed class JsHostFunction : JsFunction, ILazyHostMethodProvider
 {
@@ -11,10 +10,11 @@ public sealed class JsHostFunction : JsFunction, ILazyHostMethodProvider
         JsRealm realm,
         JsHostFunctionBody body,
         string name,
-        int length, bool assignFunctionPrototype,
-        bool isConstructor)
-        : base(realm, name, assignFunctionPrototype, length,
-            isConstructor: isConstructor)
+        int length,
+        bool assignFunctionPrototype,
+        bool isConstructor
+    )
+        : base(realm, name, assignFunctionPrototype, length, isConstructor: isConstructor)
     {
         BodyField = body;
     }
@@ -24,14 +24,16 @@ public sealed class JsHostFunction : JsFunction, ILazyHostMethodProvider
         JsHostFunctionBody body,
         string name,
         int length,
-        bool isConstructor = false)
+        bool isConstructor = false
+    )
         : base(realm, name, length: length, isConstructor: isConstructor)
     {
         BodyField = body;
     }
 
     public JsHostFunction(
-        JsRealm realm, string name,
+        JsRealm realm,
+        string name,
         int length,
         JsHostFunctionBody body,
         bool isConstructor = true
@@ -45,8 +47,10 @@ public sealed class JsHostFunction : JsFunction, ILazyHostMethodProvider
         JsRealm realm,
         JsHostFunctionBody body,
         string name,
-        int length, StaticNamedPropertyLayout shape,
-        bool isConstructor = true)
+        int length,
+        StaticNamedPropertyLayout shape,
+        bool isConstructor = true
+    )
         : base(realm, name, length, shape, isConstructor)
     {
         BodyField = body;
@@ -57,22 +61,35 @@ public sealed class JsHostFunction : JsFunction, ILazyHostMethodProvider
 
     public bool TryGetOrCreateLazyHostMethod(JsRealm realm, int atom, out JsValue method)
     {
-        if (UserData is IClrTypeFunctionData typeData &&
-            typeData.LayoutInfo.TryGetOrCreateMethodValue(realm, atom, out method))
+        if (
+            UserData is IClrTypeFunctionData typeData
+            && typeData.LayoutInfo.TryGetOrCreateMethodValue(realm, atom, out method)
+        )
             return true;
 
         method = JsValue.TheHole;
         return false;
     }
 
-    public static JsHostFunction CreateEmptyShapedFunction(JsRealm realm, JsHostFunctionBody body, string name,
-        int length, bool isConstructor = true)
+    public static JsHostFunction CreateEmptyShapedFunction(
+        JsRealm realm,
+        JsHostFunctionBody body,
+        string name,
+        int length,
+        bool isConstructor = true
+    )
     {
         return new(realm, body, name, length, realm.EmptyShape, isConstructor);
     }
 
-    internal static JsHostFunction CreateShapedFunction(JsRealm realm, JsHostFunctionBody body, string name,
-        int length, StaticNamedPropertyLayout shape, bool isConstructor = true)
+    internal static JsHostFunction CreateShapedFunction(
+        JsRealm realm,
+        JsHostFunctionBody body,
+        string name,
+        int length,
+        StaticNamedPropertyLayout shape,
+        bool isConstructor = true
+    )
     {
         return new(realm, body, name, length, shape, isConstructor);
     }
@@ -82,8 +99,13 @@ public sealed class JsHostFunction : JsFunction, ILazyHostMethodProvider
         return BodyField(in info);
     }
 
-    internal override bool TryGetPropertyAtomWithReceiverValue(JsRealm realm, in JsValue receiverValue, int atom,
-        out JsValue value, out SlotInfo slotInfo)
+    internal override bool TryGetPropertyAtomWithReceiverValue(
+        JsRealm realm,
+        in JsValue receiverValue,
+        int atom,
+        out JsValue value,
+        out SlotInfo slotInfo
+    )
     {
         if (atom == IdSymbolToStringTag && UserData is IClrTypeFunctionData typeData)
         {
@@ -92,7 +114,15 @@ public sealed class JsHostFunction : JsFunction, ILazyHostMethodProvider
             return true;
         }
 
-        if (!base.TryGetPropertyAtomWithReceiverValue(realm, receiverValue, atom, out value, out slotInfo))
+        if (
+            !base.TryGetPropertyAtomWithReceiverValue(
+                realm,
+                receiverValue,
+                atom,
+                out value,
+                out slotInfo
+            )
+        )
             return false;
 
         if (value.IsTheHole)
@@ -100,15 +130,22 @@ public sealed class JsHostFunction : JsFunction, ILazyHostMethodProvider
         return true;
     }
 
-    internal override bool TryGetOwnNamedPropertyDescriptorAtom(JsRealm realm, int atom,
+    internal override bool TryGetOwnNamedPropertyDescriptorAtom(
+        JsRealm realm,
+        int atom,
         out PropertyDescriptor descriptor,
-        bool needDescriptor = true)
+        bool needDescriptor = true
+    )
     {
         if (atom == IdSymbolToStringTag && UserData is IClrTypeFunctionData typeData)
         {
             descriptor = needDescriptor
-                ? PropertyDescriptor.Const(JsValue.FromString(typeData.DisplayTag), false, false,
-                    true)
+                ? PropertyDescriptor.Const(
+                    JsValue.FromString(typeData.DisplayTag),
+                    false,
+                    false,
+                    true
+                )
                 : default;
             return true;
         }
@@ -126,23 +163,50 @@ public sealed class JsHostFunction : JsFunction, ILazyHostMethodProvider
         return true;
     }
 
-    internal override void CollectOwnNamedPropertyAtoms(JsRealm realm, List<int> atomsOut, bool enumerableOnly)
+    internal override void CollectOwnNamedPropertyAtoms(
+        JsRealm realm,
+        List<int> atomsOut,
+        bool enumerableOnly
+    )
     {
         base.CollectOwnNamedPropertyAtoms(realm, atomsOut, enumerableOnly);
         if (!enumerableOnly && UserData is IClrTypeFunctionData)
             atomsOut.Add(IdSymbolToStringTag);
     }
 
-    internal override JsValue InvokeNonBytecodeCall(JsRealm realm, JsValue thisValue, ReadOnlySpan<JsValue> args,
-        int callerPc)
+    internal override JsValue InvokeNonBytecodeCall(
+        JsRealm realm,
+        JsValue thisValue,
+        ReadOnlySpan<JsValue> args,
+        int callerPc
+    )
     {
-        return realm.InvokeHostFunctionWithExitFrame(this, thisValue, args, callerPc, JsValue.Undefined);
+        return realm.InvokeHostFunctionWithExitFrame(
+            this,
+            thisValue,
+            args,
+            callerPc,
+            JsValue.Undefined
+        );
     }
 
-    internal override JsValue InvokeNonBytecodeConstruct(JsRealm realm, JsValue thisValue, ReadOnlySpan<JsValue> args,
-        JsValue newTarget, int callerPc, CallFrameFlag flags)
+    internal override JsValue InvokeNonBytecodeConstruct(
+        JsRealm realm,
+        JsValue thisValue,
+        ReadOnlySpan<JsValue> args,
+        JsValue newTarget,
+        int callerPc,
+        CallFrameFlag flags
+    )
     {
-        return realm.InvokeHostFunctionWithExitFrame(this, thisValue, args, callerPc, newTarget, flags);
+        return realm.InvokeHostFunctionWithExitFrame(
+            this,
+            thisValue,
+            args,
+            callerPc,
+            newTarget,
+            flags
+        );
     }
 
     public override string ToString()
@@ -152,7 +216,12 @@ public sealed class JsHostFunction : JsFunction, ILazyHostMethodProvider
         return base.ToString();
     }
 
-    private JsValue MaterializeLazyMethodValueIfNeeded(JsRealm realm, int atom, in SlotInfo slotInfo, in JsValue value)
+    private JsValue MaterializeLazyMethodValueIfNeeded(
+        JsRealm realm,
+        int atom,
+        in SlotInfo slotInfo,
+        in JsValue value
+    )
     {
         if (!value.IsTheHole)
             return value;
@@ -160,7 +229,10 @@ public sealed class JsHostFunction : JsFunction, ILazyHostMethodProvider
             return value;
 
         var flags = slotInfo.Flags;
-        if ((flags & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter)) != JsShapePropertyFlags.None)
+        if (
+            (flags & (JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter))
+            != JsShapePropertyFlags.None
+        )
             return value;
 
         if (typeData.LayoutInfo.TryGetOrCreateMethodValue(realm, atom, out var methodValue))

@@ -1,6 +1,6 @@
+using Okojo.Bytecode;
 using Okojo.Compiler;
 using Okojo.Parsing;
-using Okojo.Bytecode;
 using Okojo.Runtime;
 
 namespace Okojo.Tests;
@@ -11,43 +11,63 @@ public class FunctionPrototypeToStringTests
     public void FunctionPrototypeToString_ClassDeclarationPreservesFullClassSource()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-                                                                   class /* a */ A /* b */ extends /* c */ B /* d */ { /* e */ constructor /* f */ ( /* g */ ) /* h */ { /* i */ ; /* j */ } /* k */ m /* l */ ( /* m */ ) /* n */ { /* o */ } /* p */ }
-                                                                   function B() {}
-                                                                   Function.prototype.toString.call(A);
-                                                                   """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                class /* a */ A /* b */ extends /* c */ B /* d */ { /* e */ constructor /* f */ ( /* g */ ) /* h */ { /* i */ ; /* j */ } /* k */ m /* l */ ( /* m */ ) /* n */ { /* o */ } /* p */ }
+                function B() {}
+                Function.prototype.toString.call(A);
+                """
+            )
+        );
 
         realm.Execute(script);
-        Assert.That(realm.Accumulator.ToString(), Is.EqualTo(
-            "class /* a */ A /* b */ extends /* c */ B /* d */ { /* e */ constructor /* f */ ( /* g */ ) /* h */ { /* i */ ; /* j */ } /* k */ m /* l */ ( /* m */ ) /* n */ { /* o */ } /* p */ }"));
+        Assert.That(
+            realm.Accumulator.ToString(),
+            Is.EqualTo(
+                "class /* a */ A /* b */ extends /* c */ B /* d */ { /* e */ constructor /* f */ ( /* g */ ) /* h */ { /* i */ ; /* j */ } /* k */ m /* l */ ( /* m */ ) /* n */ { /* o */ } /* p */ }"
+            )
+        );
     }
 
     [Test]
     public void FunctionPrototypeToString_AnonymousAsyncGeneratorExpression_PreservesExpressionSource()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-                                                                   let f = /* before */async /* a */ function /* b */ * /* c */ F /* d */ ( /* e */ x /* f */ , /* g */ y /* h */ ) /* i */ { /* j */ ; /* k */ ; /* l */ }/* after */;
-                                                                   let g = /* before */async /* a */ function /* b */ * /* c */ ( /* d */ x /* e */ , /* f */ y /* g */ ) /* h */ { /* i */ ; /* j */ ; /* k */ }/* after */;
-                                                                   [f.toString(), g.toString()].join("|");
-                                                                   """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                let f = /* before */async /* a */ function /* b */ * /* c */ F /* d */ ( /* e */ x /* f */ , /* g */ y /* h */ ) /* i */ { /* j */ ; /* k */ ; /* l */ }/* after */;
+                let g = /* before */async /* a */ function /* b */ * /* c */ ( /* d */ x /* e */ , /* f */ y /* g */ ) /* h */ { /* i */ ; /* j */ ; /* k */ }/* after */;
+                [f.toString(), g.toString()].join("|");
+                """
+            )
+        );
 
         realm.Execute(script);
-        Assert.That(realm.Accumulator.AsString(), Is.EqualTo(
-            "async /* a */ function /* b */ * /* c */ F /* d */ ( /* e */ x /* f */ , /* g */ y /* h */ ) /* i */ { /* j */ ; /* k */ ; /* l */ }|" +
-            "async /* a */ function /* b */ * /* c */ ( /* d */ x /* e */ , /* f */ y /* g */ ) /* h */ { /* i */ ; /* j */ ; /* k */ }"));
+        Assert.That(
+            realm.Accumulator.AsString(),
+            Is.EqualTo(
+                "async /* a */ function /* b */ * /* c */ F /* d */ ( /* e */ x /* f */ , /* g */ y /* h */ ) /* i */ { /* j */ ; /* k */ ; /* l */ }|"
+                    + "async /* a */ function /* b */ * /* c */ ( /* d */ x /* e */ , /* f */ y /* g */ ) /* h */ { /* i */ ; /* j */ ; /* k */ }"
+            )
+        );
     }
 
     [Test]
     public void FunctionPrototypeToString_ArrowFunctions_FallBack_ToNativeSyntax()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var result = realm.Eval("""
-                                let f = (a, b) => a + b;
-                                let g = async a => a;
-                                /native code/.test(Function.prototype.toString.call(f)) &&
-                                /native code/.test(Function.prototype.toString.call(g));
-                                """);
+        var result = realm.Eval(
+            """
+            let f = (a, b) => a + b;
+            let g = async a => a;
+            /native code/.test(Function.prototype.toString.call(f)) &&
+            /native code/.test(Function.prototype.toString.call(g));
+            """
+        );
 
         Assert.That(result.IsTrue, Is.True);
     }
@@ -62,8 +82,12 @@ public class FunctionPrototypeToStringTests
 
         realm.Execute(script);
 
-        Assert.That(realm.Accumulator.AsString(), Is.EqualTo(
-            "function\r\n// a\r\nf\r\n// b\r\n(\r\n// c\r\nx\r\n// d\r\n,\r\n// e\r\ny\r\n// f\r\n)\r\n// g\r\n{\r\n// h\r\n;\r\n// i\r\n;\r\n// j\r\n}"));
+        Assert.That(
+            realm.Accumulator.AsString(),
+            Is.EqualTo(
+                "function\r\n// a\r\nf\r\n// b\r\n(\r\n// c\r\nx\r\n// d\r\n,\r\n// e\r\ny\r\n// f\r\n)\r\n// g\r\n{\r\n// h\r\n;\r\n// i\r\n;\r\n// j\r\n}"
+            )
+        );
     }
 
     [Test]
@@ -76,7 +100,8 @@ public class FunctionPrototypeToStringTests
             [],
             0,
             [],
-            FunctionSourceText: new FunctionSourceTextSegment(source, 7, 18));
+            FunctionSourceText: new FunctionSourceTextSegment(source, 7, 18)
+        );
 
         var first = script.GetFunctionSourceTextString();
         var second = script.GetFunctionSourceTextString();

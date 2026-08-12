@@ -185,5 +185,5 @@ public enum JsOpCode : byte
     LdaLexicalLocalWide, // [reg_lo] [reg_hi] lexical local read with TDZ check
     StarWide, // acc -> [reg_lo] [reg_hi]
     StaLexicalLocalWide, // [reg_lo] [reg_hi] lexical local write with TDZ check
-    MovWide // [src_reg_lo] [src_reg_hi] [dst_reg_lo] [dst_reg_hi]
+    MovWide, // [src_reg_lo] [src_reg_hi] [dst_reg_lo] [dst_reg_hi]
 }

@@ -4,11 +4,13 @@ internal sealed class DefaultWorkerHost : IWorkerHost
 {
     public static readonly DefaultWorkerHost Shared = new();
 
-    private DefaultWorkerHost()
-    {
-    }
+    private DefaultWorkerHost() { }
 
-    public WorkerHostBinding CreateWorker(JsRealm ownerRealm, string? moduleEntry, string? ownerReferrer)
+    public WorkerHostBinding CreateWorker(
+        JsRealm ownerRealm,
+        string? moduleEntry,
+        string? ownerReferrer
+    )
     {
         var agent = ownerRealm.Engine.CreateWorkerAgent();
         var realm = agent.MainRealm;
@@ -23,11 +25,18 @@ internal sealed class DefaultWorkerHost : IWorkerHost
             Eval = source => realm.Eval(source),
             LoadModule = (ownerRealm, specifier) =>
             {
-                var moduleNs = agent.EvaluateModule(realm, specifier, ownerRealm.GetCurrentModuleResolvedIdOrNull());
+                var moduleNs = agent.EvaluateModule(
+                    realm,
+                    specifier,
+                    ownerRealm.GetCurrentModuleResolvedIdOrNull()
+                );
                 return ownerRealm.BridgeFromOtherRealm(moduleNs);
             },
-            Pump = callerRealm => { workerPump.PumpUntilIdleWith(new(callerRealm.Agent)); },
-            Terminate = agent.Terminate
+            Pump = callerRealm =>
+            {
+                workerPump.PumpUntilIdleWith(new(callerRealm.Agent));
+            },
+            Terminate = agent.Terminate,
         };
     }
 }

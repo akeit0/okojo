@@ -10,13 +10,15 @@ internal sealed record NodeCliOptions(
     string? EnvFilePath,
     bool PrintBytecode,
     bool EnableSourceMaps,
-    NodeCliInspectMode InspectMode)
+    NodeCliInspectMode InspectMode
+)
 {
     public bool IsInspectEnabled => InspectMode != NodeCliInspectMode.None;
 
     public static NodeCliOptions Parse(string[] args)
     {
-        var inspectCommand = args.Length > 0 && string.Equals(args[0], "inspect", StringComparison.Ordinal);
+        var inspectCommand =
+            args.Length > 0 && string.Equals(args[0], "inspect", StringComparison.Ordinal);
         if (inspectCommand)
             args = args[1..];
 
@@ -31,7 +33,8 @@ internal sealed record NodeCliOptions(
                 null,
                 false,
                 false,
-                inspectCommand ? NodeCliInspectMode.Break : NodeCliInspectMode.None);
+                inspectCommand ? NodeCliInspectMode.Break : NodeCliInspectMode.None
+            );
 
         string? scriptPath = null;
         var expressions = new List<string>();
@@ -88,7 +91,8 @@ internal sealed record NodeCliOptions(
                     case "-p":
                     case "--print":
                         printEvalResult = true;
-                        if (i + 1 < args.Length && !LooksLikeOption(args[i + 1])) expressions.Add(args[++i]);
+                        if (i + 1 < args.Length && !LooksLikeOption(args[i + 1]))
+                            expressions.Add(args[++i]);
                         continue;
                     case "--strict":
                         strict = true;
@@ -97,7 +101,10 @@ internal sealed record NodeCliOptions(
                         noStrict = true;
                         continue;
                     case "--env-file":
-                        envFilePath = i + 1 < args.Length && !LooksLikeOption(args[i + 1]) ? args[++i] : ".env";
+                        envFilePath =
+                            i + 1 < args.Length && !LooksLikeOption(args[i + 1])
+                                ? args[++i]
+                                : ".env";
                         continue;
                     case "--print-bytecode":
                         printBytecode = true;
@@ -128,9 +135,14 @@ internal sealed record NodeCliOptions(
         if (strict && noStrict)
             throw new ArgumentException("Cannot combine --strict and --no-strict.");
         if (printEvalResult && expressions.Count == 0 && scriptPath is null)
-            throw new ArgumentException("Expected an expression after -p/--print or combine it with -e.");
+            throw new ArgumentException(
+                "Expected an expression after -p/--print or combine it with -e."
+            );
 
-        var strictMode = strict ? ReplStrictMode.Strict : noStrict ? ReplStrictMode.Sloppy : ReplStrictMode.Auto;
+        var strictMode =
+            strict ? ReplStrictMode.Strict
+            : noStrict ? ReplStrictMode.Sloppy
+            : ReplStrictMode.Auto;
         return new(
             scriptPath,
             expressions,
@@ -141,7 +153,8 @@ internal sealed record NodeCliOptions(
             envFilePath,
             printBytecode,
             enableSourceMaps,
-            inspectMode);
+            inspectMode
+        );
     }
 
     private static bool TryReadInlineOption(string arg, string optionName, out string? value)
@@ -167,7 +180,7 @@ internal enum NodeCliInspectMode
 {
     None = 0,
     Inspect = 1,
-    Break = 2
+    Break = 2,
 }
 
 internal static class ReplStrictMode

@@ -8,4 +8,5 @@ internal readonly record struct RegExpRuntimeFlags(
     bool Sticky,
     bool Unicode,
     bool UnicodeSets,
-    bool DotAll);
+    bool DotAll
+);

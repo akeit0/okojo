@@ -5,7 +5,7 @@ namespace Okojo.Node;
 internal enum NodeModuleFormat
 {
     CommonJs = 0,
-    EsModule = 1
+    EsModule = 1,
 }
 
 internal sealed class NodeModuleFormatResolver(Func<string, string> loadSource)
@@ -55,8 +55,12 @@ internal sealed class NodeModuleFormatResolver(Func<string, string> loadSource)
             source = loadSource(resolvedId);
             return true;
         }
-        catch (Exception ex) when (ex is InvalidOperationException or FileNotFoundException
-                                       or DirectoryNotFoundException)
+        catch (Exception ex)
+            when (ex
+                    is InvalidOperationException
+                        or FileNotFoundException
+                        or DirectoryNotFoundException
+            )
         {
             source = null;
             return false;

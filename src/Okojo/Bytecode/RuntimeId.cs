@@ -7,7 +7,6 @@ internal enum RuntimeId : byte
     GeneratorGetResumeMode = 1,
     GeneratorClearResumeState = 2,
 
-
     // Iteration helpers.
     // Generic indexed-iteration fast-path probe for `for...of`.
     // Returns non-negative length when fast indexed iteration is available;
@@ -170,7 +169,6 @@ internal enum RuntimeId : byte
     // Close an async iterator while preserving an original throw completion.
     AsyncIteratorCloseBestEffort,
 
-
     // Attach a method-environment parent context (homeObject + optional class lexical binding) to a closure.
     SetFunctionMethodEnvironment,
 
@@ -191,5 +189,5 @@ internal enum RuntimeId : byte
     DisposeDisposableResourceStack,
     DisposeAsyncDisposableResourceStack,
     AddCurrentModuleDisposableResource,
-    AddCurrentModuleAsyncDisposableResource
+    AddCurrentModuleAsyncDisposableResource,
 }

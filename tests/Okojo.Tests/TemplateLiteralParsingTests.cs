@@ -10,7 +10,10 @@ public class TemplateLiteralParsingTests
     public void TemplateLiteral_Interpolation_Can_Contain_Regex_Literal()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("`type=${typeof (/'/g)}`;"));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript("`type=${typeof (/'/g)}`;")
+        );
 
         realm.Execute(script);
         Assert.That(realm.Accumulator.IsString, Is.True);
@@ -21,11 +24,16 @@ public class TemplateLiteralParsingTests
     public void TemplateLiteral_Interpolation_Still_Allows_Division_Expression()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            var a = 12;
-            var b = 3;
-            `value=${a / b}`;
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                var a = 12;
+                var b = 3;
+                `value=${a / b}`;
+                """
+            )
+        );
 
         realm.Execute(script);
         Assert.That(realm.Accumulator.IsString, Is.True);
@@ -36,10 +44,15 @@ public class TemplateLiteralParsingTests
     public void TemplateLiteral_Interpolation_Uses_ToString_Semantics_For_Boxed_Symbols()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            Object.defineProperty(Symbol.prototype, Symbol.toPrimitive, { value: null });
-            `${Object(Symbol())}`;
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                Object.defineProperty(Symbol.prototype, Symbol.toPrimitive, { value: null });
+                `${Object(Symbol())}`;
+                """
+            )
+        );
 
         realm.Execute(script);
         Assert.That(realm.Accumulator.IsString, Is.True);

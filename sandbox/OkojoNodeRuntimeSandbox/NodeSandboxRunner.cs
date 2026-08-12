@@ -1,5 +1,5 @@
-using Okojo.Node;
 using Okojo;
+using Okojo.Node;
 
 namespace OkojoNodeRuntimeSandbox;
 
@@ -12,17 +12,11 @@ internal sealed class NodeSandboxRunner(string baseDirectory)
         Console.WriteLine("OkojoNodeRuntimeSandbox");
         Console.WriteLine();
 
-        RunScenario(
-            "CommonJS app",
-            Path.Combine(fixturesRoot, "cjs-app"),
-            "main.js");
+        RunScenario("CommonJS app", Path.Combine(fixturesRoot, "cjs-app"), "main.js");
 
         Console.WriteLine();
 
-        RunScenario(
-            "ESM app",
-            Path.Combine(fixturesRoot, "esm-app"),
-            "main.mjs");
+        RunScenario("ESM app", Path.Combine(fixturesRoot, "esm-app"), "main.mjs");
 
         Console.WriteLine();
 
@@ -30,35 +24,36 @@ internal sealed class NodeSandboxRunner(string baseDirectory)
             "nextTick + events app",
             Path.Combine(fixturesRoot, "tick-events-app"),
             "main.js",
-            "status");
+            "status"
+        );
 
         Console.WriteLine();
 
-        RunScenario(
-            "stream app",
-            Path.Combine(fixturesRoot, "stream-app"),
-            "main.js");
+        RunScenario("stream app", Path.Combine(fixturesRoot, "stream-app"), "main.js");
 
         Console.WriteLine();
 
         RunScenario(
             "json require repro",
             Path.Combine(fixturesRoot, "json-require-repro"),
-            "main.js");
+            "main.js"
+        );
 
         Console.WriteLine();
 
         RunScenario(
             "chalk getter repro",
             Path.Combine(fixturesRoot, "chalk-getter-repro"),
-            "main.mjs");
+            "main.mjs"
+        );
 
         Console.WriteLine();
 
         RunScenarioWithCapturedTerminal(
             "stdout + tty app",
             Path.Combine(fixturesRoot, "tty-app"),
-            "main.js");
+            "main.js"
+        );
     }
 
     private static IDisposable PushCurrentDirectory(string directory)
@@ -74,7 +69,8 @@ internal sealed class NodeSandboxRunner(string baseDirectory)
         Console.WriteLine($"appRoot: {appRoot}");
 
         using var _ = PushCurrentDirectory(appRoot);
-        using var runtime = OkojoNodeRuntime.CreateBuilder()
+        using var runtime = OkojoNodeRuntime
+            .CreateBuilder()
             .ConfigureTerminal(static options =>
             {
                 options.StdoutIsTty = true;
@@ -90,13 +86,19 @@ internal sealed class NodeSandboxRunner(string baseDirectory)
         Console.WriteLine($"result: {FormatResult(result)}");
     }
 
-    private void RunScenarioWithPump(string name, string appRoot, string entryFile, string globalKey)
+    private void RunScenarioWithPump(
+        string name,
+        string appRoot,
+        string entryFile,
+        string globalKey
+    )
     {
         Console.WriteLine($"[{name}]");
         Console.WriteLine($"appRoot: {appRoot}");
 
         using var _ = PushCurrentDirectory(appRoot);
-        using var runtime = OkojoNodeRuntime.CreateBuilder()
+        using var runtime = OkojoNodeRuntime
+            .CreateBuilder()
             .ConfigureTerminal(static options =>
             {
                 options.StdoutIsTty = true;
@@ -123,7 +125,8 @@ internal sealed class NodeSandboxRunner(string baseDirectory)
         var stderr = new StringWriter();
 
         using var _ = PushCurrentDirectory(appRoot);
-        using var runtime = OkojoNodeRuntime.CreateBuilder()
+        using var runtime = OkojoNodeRuntime
+            .CreateBuilder()
             .ConfigureTerminal(options =>
             {
                 options.Stdout = stdout;
@@ -145,9 +148,11 @@ internal sealed class NodeSandboxRunner(string baseDirectory)
 
     private static string FormatResult(JsValue value)
     {
-        if (value.TryGetObject(out var obj) &&
-            obj.TryGetProperty("default", out var defaultValue) &&
-            !defaultValue.IsUndefined)
+        if (
+            value.TryGetObject(out var obj)
+            && obj.TryGetProperty("default", out var defaultValue)
+            && !defaultValue.IsUndefined
+        )
         {
             return defaultValue.ToString();
         }
@@ -157,8 +162,7 @@ internal sealed class NodeSandboxRunner(string baseDirectory)
 
     private static string EscapeControl(string text)
     {
-        return text
-            .Replace("\u001b", "\\u001b", StringComparison.Ordinal)
+        return text.Replace("\u001b", "\\u001b", StringComparison.Ordinal)
             .Replace("\r", "\\r", StringComparison.Ordinal)
             .Replace("\n", "\\n", StringComparison.Ordinal);
     }

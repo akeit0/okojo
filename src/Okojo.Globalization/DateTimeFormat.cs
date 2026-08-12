@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Text;
 
-
 namespace Okojo.Globalization;
 
 public sealed class DateTimeFormat
@@ -9,7 +8,9 @@ public sealed class DateTimeFormat
     private const long MinNativeEpochMilliseconds = -62135596800000L;
     private const long MaxNativeEpochMilliseconds = 253402300799999L;
 
-    private static readonly Dictionary<string, TimeSpan> KnownTimeZones = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, TimeSpan> KnownTimeZones = new(
+        StringComparer.Ordinal
+    )
     {
         ["Asia/Tokyo"] = TimeSpan.FromHours(9),
         ["Asia/Calcutta"] = TimeSpan.FromHours(5.5),
@@ -17,12 +18,8 @@ public sealed class DateTimeFormat
         ["Pacific/Apia"] = TimeSpan.FromHours(13),
         ["America/Los_Angeles"] = TimeSpan.FromHours(-8),
         ["America/Vancouver"] = TimeSpan.FromHours(-8),
-        ["Europe/Prague"] = TimeSpan.FromHours(1)
+        ["Europe/Prague"] = TimeSpan.FromHours(1),
     };
-
-    
-
-
 
     internal string Locale { get; }
     internal string Calendar { get; }
@@ -47,26 +44,12 @@ public sealed class DateTimeFormat
     internal string? TimeStyle { get; }
     internal CultureInfo CultureInfo { get; }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     /// <summary>Creates a date-time formatter for a locale.</summary>
-    public DateTimeFormat(string locale, DateTimeFormatOptions? options = null, CultureInfo? cultureInfo = null)
+    public DateTimeFormat(
+        string locale,
+        DateTimeFormatOptions? options = null,
+        CultureInfo? cultureInfo = null
+    )
     {
         ArgumentNullException.ThrowIfNull(locale);
         options ??= new();
@@ -116,32 +99,35 @@ public sealed class DateTimeFormat
         string? formatMatcher,
         string? dateStyle,
         string? timeStyle,
-        CultureInfo cultureInfo)
-        : this(locale, new DateTimeFormatOptions
-        {
-            Calendar = calendar,
-            NumberingSystem = numberingSystem,
-            TimeZone = timeZone,
-            UseDefaultTimeZoneForFormatting = useDefaultTimeZoneForFormatting,
-            HourCycle = hourCycle,
-            Hour12 = hour12,
-            Weekday = weekday,
-            Era = era,
-            Year = year,
-            Month = month,
-            Day = day,
-            DayPeriod = dayPeriod,
-            Hour = hour,
-            Minute = minute,
-            Second = second,
-            FractionalSecondDigits = fractionalSecondDigits,
-            TimeZoneName = timeZoneName,
-            FormatMatcher = formatMatcher,
-            DateStyle = dateStyle,
-            TimeStyle = timeStyle
-        }, cultureInfo)
-    {
-    }
+        CultureInfo cultureInfo
+    )
+        : this(
+            locale,
+            new DateTimeFormatOptions
+            {
+                Calendar = calendar,
+                NumberingSystem = numberingSystem,
+                TimeZone = timeZone,
+                UseDefaultTimeZoneForFormatting = useDefaultTimeZoneForFormatting,
+                HourCycle = hourCycle,
+                Hour12 = hour12,
+                Weekday = weekday,
+                Era = era,
+                Year = year,
+                Month = month,
+                Day = day,
+                DayPeriod = dayPeriod,
+                Hour = hour,
+                Minute = minute,
+                Second = second,
+                FractionalSecondDigits = fractionalSecondDigits,
+                TimeZoneName = timeZoneName,
+                FormatMatcher = formatMatcher,
+                DateStyle = dateStyle,
+                TimeStyle = timeStyle,
+            },
+            cultureInfo
+        ) { }
 
     /// <summary>Builds the formatted part stream for a date-time value.</summary>
     public List<IntlPart> BuildParts(DateTimeValue dateTime)
@@ -150,8 +136,12 @@ public sealed class DateTimeFormat
             return BuildStyleParts(dateTime);
 
         var parts = new List<IntlPart>();
-        var hasDate = Weekday is not null || Era is not null || Year is not null || Month is not null ||
-                      Day is not null;
+        var hasDate =
+            Weekday is not null
+            || Era is not null
+            || Year is not null
+            || Month is not null
+            || Day is not null;
         var hasTime = Hour is not null || Minute is not null || Second is not null;
 
         if (!hasDate && DayPeriod is not null && !hasTime)
@@ -223,45 +213,54 @@ public sealed class DateTimeFormat
         return builder.ToString();
     }
 
-
-
     /// <summary>
     ///     Attempts to compress a text month range (e.g. "Dec 17 – Jan 3") into shared parts.
     ///     Returns true with a compacted part stream when applicable.
     /// </summary>
-    public bool TryCreateCompressedTextMonthRange(List<IntlPart> startParts, List<IntlPart> endParts,
-        out List<RangeIntlPart> result)
+    public bool TryCreateCompressedTextMonthRange(
+        List<IntlPart> startParts,
+        List<IntlPart> endParts,
+        out List<RangeIntlPart> result
+    )
     {
         result = [];
-        if (!(Locale.StartsWith("en-US", StringComparison.OrdinalIgnoreCase) &&
-              DateStyle is null &&
-              TimeStyle is null &&
-              Month is "short" or "long" or "narrow" &&
-              Day is not null &&
-              Year is not null &&
-              Weekday is null &&
-              Era is null &&
-              Hour is null &&
-              Minute is null &&
-              Second is null &&
-              DayPeriod is null &&
-              TimeZoneName is null))
+        if (
+            !(
+                Locale.StartsWith("en-US", StringComparison.OrdinalIgnoreCase)
+                && DateStyle is null
+                && TimeStyle is null
+                && Month is "short" or "long" or "narrow"
+                && Day is not null
+                && Year is not null
+                && Weekday is null
+                && Era is null
+                && Hour is null
+                && Minute is null
+                && Second is null
+                && DayPeriod is null
+                && TimeZoneName is null
+            )
+        )
             return false;
 
         var prefixLength = 0;
-        while (prefixLength < startParts.Count &&
-               prefixLength < endParts.Count &&
-               startParts[prefixLength].Type == endParts[prefixLength].Type &&
-               startParts[prefixLength].Value == endParts[prefixLength].Value)
+        while (
+            prefixLength < startParts.Count
+            && prefixLength < endParts.Count
+            && startParts[prefixLength].Type == endParts[prefixLength].Type
+            && startParts[prefixLength].Value == endParts[prefixLength].Value
+        )
             prefixLength++;
 
         var suffixLength = 0;
-        while (suffixLength < startParts.Count - prefixLength &&
-               suffixLength < endParts.Count - prefixLength &&
-               startParts[startParts.Count - 1 - suffixLength].Type ==
-               endParts[endParts.Count - 1 - suffixLength].Type &&
-               startParts[startParts.Count - 1 - suffixLength].Value ==
-               endParts[endParts.Count - 1 - suffixLength].Value)
+        while (
+            suffixLength < startParts.Count - prefixLength
+            && suffixLength < endParts.Count - prefixLength
+            && startParts[startParts.Count - 1 - suffixLength].Type
+                == endParts[endParts.Count - 1 - suffixLength].Type
+            && startParts[startParts.Count - 1 - suffixLength].Value
+                == endParts[endParts.Count - 1 - suffixLength].Value
+        )
             suffixLength++;
 
         if (suffixLength == 0)
@@ -292,7 +291,12 @@ public sealed class DateTimeFormat
                     parts.Add(new("literal", " "));
                     parts.Add(new("day", dateTime.Day.ToString(CultureInfo.InvariantCulture)));
                     parts.Add(new("literal", ", "));
-                    parts.Add(new("year", GetDisplayYear(dateTime.Year).ToString(CultureInfo.InvariantCulture)));
+                    parts.Add(
+                        new(
+                            "year",
+                            GetDisplayYear(dateTime.Year).ToString(CultureInfo.InvariantCulture)
+                        )
+                    );
                     return;
                 case "long":
                 case "medium":
@@ -300,15 +304,27 @@ public sealed class DateTimeFormat
                     parts.Add(new("literal", " "));
                     parts.Add(new("day", dateTime.Day.ToString(CultureInfo.InvariantCulture)));
                     parts.Add(new("literal", ", "));
-                    parts.Add(new("year", GetDisplayYear(dateTime.Year).ToString(CultureInfo.InvariantCulture)));
+                    parts.Add(
+                        new(
+                            "year",
+                            GetDisplayYear(dateTime.Year).ToString(CultureInfo.InvariantCulture)
+                        )
+                    );
                     return;
                 case "short":
                     parts.Add(new("month", dateTime.Month.ToString(CultureInfo.InvariantCulture)));
                     parts.Add(new("literal", "/"));
                     parts.Add(new("day", dateTime.Day.ToString(CultureInfo.InvariantCulture)));
                     parts.Add(new("literal", "/"));
-                    parts.Add(new("year",
-                        (GetDisplayYear(dateTime.Year) % 100).ToString("00", CultureInfo.InvariantCulture)));
+                    parts.Add(
+                        new(
+                            "year",
+                            (GetDisplayYear(dateTime.Year) % 100).ToString(
+                                "00",
+                                CultureInfo.InvariantCulture
+                            )
+                        )
+                    );
                     return;
             }
 
@@ -316,7 +332,9 @@ public sealed class DateTimeFormat
         parts.Add(new("literal", "."));
         parts.Add(new("month", dateTime.Month.ToString(CultureInfo.InvariantCulture)));
         parts.Add(new("literal", "."));
-        parts.Add(new("year", GetDisplayYear(dateTime.Year).ToString(CultureInfo.InvariantCulture)));
+        parts.Add(
+            new("year", GetDisplayYear(dateTime.Year).ToString(CultureInfo.InvariantCulture))
+        );
     }
 
     private void AppendTimeStyleParts(List<IntlPart> parts, DateTimeValue dateTime)
@@ -384,7 +402,10 @@ public sealed class DateTimeFormat
         }
     }
 
-    private bool TryGetLunisolarDate(DateTimeValue dateTime, out LunisolarCalendar.LunisolarDate date)
+    private bool TryGetLunisolarDate(
+        DateTimeValue dateTime,
+        out LunisolarCalendar.LunisolarDate date
+    )
     {
         if (!dateTime.NativeDateTime.HasValue)
         {
@@ -408,7 +429,10 @@ public sealed class DateTimeFormat
         return false;
     }
 
-    private void AppendLunisolarDateParts(List<IntlPart> parts, LunisolarCalendar.LunisolarDate date)
+    private void AppendLunisolarDateParts(
+        List<IntlPart> parts,
+        LunisolarCalendar.LunisolarDate date
+    )
     {
         if (Locale.StartsWith("en-US", StringComparison.OrdinalIgnoreCase))
         {
@@ -453,21 +477,41 @@ public sealed class DateTimeFormat
         {
             if (parts.Count > 0 && parts[^1].Type != "literal")
                 parts.Add(new("literal", "."));
-            AppendLunisolarYearParts(parts, date, Locale.StartsWith("zh", StringComparison.OrdinalIgnoreCase));
+            AppendLunisolarYearParts(
+                parts,
+                date,
+                Locale.StartsWith("zh", StringComparison.OrdinalIgnoreCase)
+            );
         }
     }
 
-    private void AppendLunisolarYearParts(List<IntlPart> parts, LunisolarCalendar.LunisolarDate date,
-        bool includeYearLiteral)
+    private void AppendLunisolarYearParts(
+        List<IntlPart> parts,
+        LunisolarCalendar.LunisolarDate date,
+        bool includeYearLiteral
+    )
     {
-        parts.Add(new("relatedYear", Year switch
-        {
-            "2-digit" => (date.RelatedYear % 100).ToString("00", CultureInfo.InvariantCulture),
-            _ => date.RelatedYear.ToString(CultureInfo.InvariantCulture)
-        }));
+        parts.Add(
+            new(
+                "relatedYear",
+                Year switch
+                {
+                    "2-digit" => (date.RelatedYear % 100).ToString(
+                        "00",
+                        CultureInfo.InvariantCulture
+                    ),
+                    _ => date.RelatedYear.ToString(CultureInfo.InvariantCulture),
+                }
+            )
+        );
 
-        if (string.Equals(Calendar, "chinese", StringComparison.OrdinalIgnoreCase) &&
-            (Locale.StartsWith("zh", StringComparison.OrdinalIgnoreCase) || (Month is null && Day is null)))
+        if (
+            string.Equals(Calendar, "chinese", StringComparison.OrdinalIgnoreCase)
+            && (
+                Locale.StartsWith("zh", StringComparison.OrdinalIgnoreCase)
+                || (Month is null && Day is null)
+            )
+        )
         {
             parts.Add(new("yearName", date.YearName));
             if (includeYearLiteral)
@@ -477,16 +521,33 @@ public sealed class DateTimeFormat
 
     private void AppendTimeParts(List<IntlPart> parts, DateTimeValue dateTime)
     {
-        AppendTimeCoreParts(parts, dateTime, Second is not null, TimeZoneName is not null, Uses12HourClock());
+        AppendTimeCoreParts(
+            parts,
+            dateTime,
+            Second is not null,
+            TimeZoneName is not null,
+            Uses12HourClock()
+        );
     }
 
-    private void AppendTimeCoreParts(List<IntlPart> parts, DateTimeValue dateTime, bool includeSeconds,
-        bool includeZone, bool use12Hour)
+    private void AppendTimeCoreParts(
+        List<IntlPart> parts,
+        DateTimeValue dateTime,
+        bool includeSeconds,
+        bool includeZone,
+        bool use12Hour
+    )
     {
         var includeHour = Hour is not null || TimeStyle is not null;
-        var hourValue = use12Hour ? dateTime.Hour % 12 == 0 ? 12 : dateTime.Hour % 12 : dateTime.Hour;
+        var hourValue = use12Hour
+            ? dateTime.Hour % 12 == 0
+                ? 12
+                : dateTime.Hour % 12
+            : dateTime.Hour;
         if (includeHour)
-            parts.Add(new("hour", FormatInteger(hourValue, Hour, TimeStyle is not null ? 1 : null)));
+            parts.Add(
+                new("hour", FormatInteger(hourValue, Hour, TimeStyle is not null ? 1 : null))
+            );
         if (Minute is not null || TimeStyle is not null)
         {
             if (parts.Count > 0 && parts[^1].Type == "hour")
@@ -502,8 +563,9 @@ public sealed class DateTimeFormat
 
         if (FractionalSecondDigits is not null)
         {
-            var milliseconds =
-                dateTime.Millisecond.ToString("000", CultureInfo.InvariantCulture)[..FractionalSecondDigits.Value];
+            var milliseconds = dateTime.Millisecond.ToString("000", CultureInfo.InvariantCulture)[
+                ..FractionalSecondDigits.Value
+            ];
             parts.Add(new("literal", "."));
             parts.Add(new("fractionalSecond", milliseconds));
         }
@@ -532,7 +594,7 @@ public sealed class DateTimeFormat
         {
             "narrow" => GetWeekdayText(dateTime, false)[0].ToString(),
             "short" => GetWeekdayText(dateTime, false),
-            _ => GetWeekdayText(dateTime, true)
+            _ => GetWeekdayText(dateTime, true),
         };
     }
 
@@ -542,7 +604,7 @@ public sealed class DateTimeFormat
         return Year switch
         {
             "2-digit" => (year % 100).ToString("00", CultureInfo.InvariantCulture),
-            _ => year.ToString(CultureInfo.InvariantCulture)
+            _ => year.ToString(CultureInfo.InvariantCulture),
         };
     }
 
@@ -554,7 +616,7 @@ public sealed class DateTimeFormat
             "numeric" => dateTime.Month.ToString(CultureInfo.InvariantCulture),
             "narrow" => GetMonthText(dateTime, "long")[0].ToString(),
             "short" => GetMonthText(dateTime, "short"),
-            _ => GetMonthText(dateTime, "long")
+            _ => GetMonthText(dateTime, "long"),
         };
     }
 
@@ -563,7 +625,7 @@ public sealed class DateTimeFormat
         return Day switch
         {
             "2-digit" => dateTime.Day.ToString("00", CultureInfo.InvariantCulture),
-            _ => dateTime.Day.ToString(CultureInfo.InvariantCulture)
+            _ => dateTime.Day.ToString(CultureInfo.InvariantCulture),
         };
     }
 
@@ -584,7 +646,9 @@ public sealed class DateTimeFormat
         if (dateTime.NativeDateTime.HasValue)
             return dateTime.NativeDateTime.Value.ToString(longForm ? "dddd" : "ddd", CultureInfo);
 
-        var names = longForm ? CultureInfo.DateTimeFormat.DayNames : CultureInfo.DateTimeFormat.AbbreviatedDayNames;
+        var names = longForm
+            ? CultureInfo.DateTimeFormat.DayNames
+            : CultureInfo.DateTimeFormat.AbbreviatedDayNames;
         return names[dateTime.WeekdayIndex];
     }
 
@@ -594,13 +658,13 @@ public sealed class DateTimeFormat
             return width switch
             {
                 "short" => dateTime.NativeDateTime.Value.ToString("MMM", CultureInfo),
-                _ => dateTime.NativeDateTime.Value.ToString("MMMM", CultureInfo)
+                _ => dateTime.NativeDateTime.Value.ToString("MMMM", CultureInfo),
             };
 
         return width switch
         {
             "short" => CultureInfo.DateTimeFormat.AbbreviatedMonthNames[dateTime.Month - 1],
-            _ => CultureInfo.DateTimeFormat.MonthNames[dateTime.Month - 1]
+            _ => CultureInfo.DateTimeFormat.MonthNames[dateTime.Month - 1],
         };
     }
 
@@ -630,7 +694,7 @@ public sealed class DateTimeFormat
         return Month switch
         {
             "2-digit" => date.Month.ToString("00", CultureInfo.InvariantCulture),
-            _ => date.Month.ToString(CultureInfo.InvariantCulture)
+            _ => date.Month.ToString(CultureInfo.InvariantCulture),
         };
     }
 
@@ -639,7 +703,7 @@ public sealed class DateTimeFormat
         return Day switch
         {
             "2-digit" => date.Day.ToString("00", CultureInfo.InvariantCulture),
-            _ => date.Day.ToString(CultureInfo.InvariantCulture)
+            _ => date.Day.ToString(CultureInfo.InvariantCulture),
         };
     }
 
@@ -662,7 +726,7 @@ public sealed class DateTimeFormat
             {
                 "narrow" => "n",
                 "short" => "noon",
-                _ => "noon"
+                _ => "noon",
             };
 
         if (hour >= 6 && hour < 12)
@@ -684,13 +748,20 @@ public sealed class DateTimeFormat
     private string GetTimeZoneName()
     {
         var effectiveTimeZoneName =
-            TimeZoneName ?? (TimeStyle == "full" ? "full" : TimeStyle == "long" ? "long" : "short");
-        if (string.Equals(TimeZone, "UTC", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(TimeZone, "Etc/UTC", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(TimeZone, "GMT", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(TimeZone, "Etc/GMT", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(TimeZone, "Etc/UCT", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(TimeZone, "Etc/GMT0", StringComparison.OrdinalIgnoreCase))
+            TimeZoneName
+            ?? (
+                TimeStyle == "full" ? "full"
+                : TimeStyle == "long" ? "long"
+                : "short"
+            );
+        if (
+            string.Equals(TimeZone, "UTC", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(TimeZone, "Etc/UTC", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(TimeZone, "GMT", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(TimeZone, "Etc/GMT", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(TimeZone, "Etc/UCT", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(TimeZone, "Etc/GMT0", StringComparison.OrdinalIgnoreCase)
+        )
             return effectiveTimeZoneName switch
             {
                 "full" => "Coordinated Universal Time",
@@ -700,15 +771,16 @@ public sealed class DateTimeFormat
                 "longOffset" => "GMT+00:00",
                 "shortGeneric" => "GMT",
                 "longGeneric" => "GMT",
-                _ => "UTC"
+                _ => "UTC",
             };
 
         if (TryParseOffsetTimeZone(TimeZone, out var offset))
         {
             var sign = offset < TimeSpan.Zero ? "-" : "+";
             var abs = offset.Duration();
-            return (TimeZoneName is "longOffset" ? "GMT" : "GMT") + sign +
-                   abs.ToString(@"hh\:mm", CultureInfo.InvariantCulture);
+            return (TimeZoneName is "longOffset" ? "GMT" : "GMT")
+                + sign
+                + abs.ToString(@"hh\:mm", CultureInfo.InvariantCulture);
         }
 
         if (TryParseEtcGmtTimeZone(TimeZone, out var etcGmtOffset))
@@ -724,8 +796,10 @@ public sealed class DateTimeFormat
             var abs = knownOffset.Duration();
             return effectiveTimeZoneName switch
             {
-                "long" or "full" => "GMT" + sign + abs.ToString(@"hh\:mm", CultureInfo.InvariantCulture),
-                _ => "GMT" + sign + abs.ToString(@"hh\:mm", CultureInfo.InvariantCulture)
+                "long" or "full" => "GMT"
+                    + sign
+                    + abs.ToString(@"hh\:mm", CultureInfo.InvariantCulture),
+                _ => "GMT" + sign + abs.ToString(@"hh\:mm", CultureInfo.InvariantCulture),
             };
         }
 
@@ -742,7 +816,15 @@ public sealed class DateTimeFormat
         if (suffix.Length < 2 || (suffix[0] != '+' && suffix[0] != '-'))
             return false;
 
-        if (!int.TryParse(suffix[1..], NumberStyles.None, CultureInfo.InvariantCulture, out var hours) || hours > 23)
+        if (
+            !int.TryParse(
+                suffix[1..],
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out var hours
+            )
+            || hours > 23
+        )
             return false;
 
         var sign = suffix[0] == '+' ? -1 : 1;
@@ -757,19 +839,21 @@ public sealed class DateTimeFormat
             : NumberingSystemData.TransliterateDigits(text, NumberingSystem);
     }
 
-
-
-
-
-
-
     private static bool TryParseOffsetTimeZone(string timeZone, out TimeSpan offset)
     {
         offset = default;
-        if (timeZone.Length != 6 || (timeZone[0] != '+' && timeZone[0] != '-') || timeZone[3] != ':')
+        if (
+            timeZone.Length != 6
+            || (timeZone[0] != '+' && timeZone[0] != '-')
+            || timeZone[3] != ':'
+        )
             return false;
-        if (!char.IsAsciiDigit(timeZone[1]) || !char.IsAsciiDigit(timeZone[2]) ||
-            !char.IsAsciiDigit(timeZone[4]) || !char.IsAsciiDigit(timeZone[5]))
+        if (
+            !char.IsAsciiDigit(timeZone[1])
+            || !char.IsAsciiDigit(timeZone[2])
+            || !char.IsAsciiDigit(timeZone[4])
+            || !char.IsAsciiDigit(timeZone[5])
+        )
             return false;
 
         var hours = (timeZone[1] - '0') * 10 + (timeZone[2] - '0');
@@ -784,7 +868,6 @@ public sealed class DateTimeFormat
     }
 }
 
-
 public readonly record struct RangeIntlPart(string Type, string Value, string Source);
 
 public readonly record struct DateTimeValue(
@@ -796,7 +879,8 @@ public readonly record struct DateTimeValue(
     int Second,
     int Millisecond,
     int WeekdayIndex,
-    DateTimeOffset? NativeDateTime)
+    DateTimeOffset? NativeDateTime
+)
 {
     /// <summary>Builds a <see cref="DateTimeValue"/> from a .NET <see cref="DateTimeOffset"/>.</summary>
     public static DateTimeValue FromDateTimeOffset(DateTimeOffset value)
@@ -810,8 +894,7 @@ public readonly record struct DateTimeValue(
             value.Second,
             value.Millisecond,
             (int)value.DayOfWeek,
-            value);
+            value
+        );
     }
 }
-
-

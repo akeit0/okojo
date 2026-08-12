@@ -6,7 +6,8 @@ internal sealed class ModuleExecutionBindings(
     JsValue defineLiveExport,
     ModuleVariableSlot[] regularExports,
     ModuleVariableSlot[] regularImports,
-    JsValue setFunctionName)
+    JsValue setFunctionName
+)
 {
     public string ModuleResolvedId { get; } = moduleResolvedId;
     public JsValue Imports { get; } = imports;

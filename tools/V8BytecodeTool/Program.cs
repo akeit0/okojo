@@ -13,7 +13,10 @@ namespace V8BytecodeTool;
 
 internal class Program
 {
-    private static readonly Regex SourcePositionRegex = new(@"^\s*(\d+)\s+[SE]>", RegexOptions.Compiled);
+    private static readonly Regex SourcePositionRegex = new(
+        @"^\s*(\d+)\s+[SE]>",
+        RegexOptions.Compiled
+    );
 
     private static async Task Main(string[] args)
     {
@@ -90,7 +93,6 @@ internal class Program
                     break;
             }
 
-
         var tempPath = Path.GetFullPath(esm ? "v8_bytecode_temp.mjs" : "v8_bytecode_temp.js");
         try
         {
@@ -106,7 +108,6 @@ internal class Program
                 Console.WriteLine(okojo.Evaluate(sourceContent));
                 return;
             }
-
 
             var content = sourceContent;
             if (filter != null && !noInvoke)
@@ -131,28 +132,59 @@ internal class Program
             else
             {
                 parsedBlocks = ParseBytecodeBlocks(output);
-                var selectedBlocks = SelectBlocksForOutput(parsedBlocks, filter, filterContains, grep,
-                    sourceContent.Length, allBlocks);
+                var selectedBlocks = SelectBlocksForOutput(
+                    parsedBlocks,
+                    filter,
+                    filterContains,
+                    grep,
+                    sourceContent.Length,
+                    allBlocks
+                );
                 finalOutput = jsonOutput
-                    ? RenderJsonOutput(selectedBlocks, parsedBlocks.Count, filter, filterContains, grep, listFunctions)
-                    : CleanBytecodeOutput(selectedBlocks, parsedBlocks.Count, filter, grep, listFunctions,
-                        normalizeOutput);
+                    ? RenderJsonOutput(
+                        selectedBlocks,
+                        parsedBlocks.Count,
+                        filter,
+                        filterContains,
+                        grep,
+                        listFunctions
+                    )
+                    : CleanBytecodeOutput(
+                        selectedBlocks,
+                        parsedBlocks.Count,
+                        filter,
+                        grep,
+                        listFunctions,
+                        normalizeOutput
+                    );
             }
 
             if (compareOkojo && !showRaw && !jsonOutput)
             {
                 var all = parsedBlocks ?? new List<BytecodeBlock>();
-                var selectedForCompare =
-                    SelectBlocksForOutput(all, filter, filterContains, grep, sourceContent.Length, allBlocks);
-                finalOutput = TryRenderPairedComparison(selectedForCompare, sourceContent, filter, listFunctions,
-                    compareOkojoNormalized);
+                var selectedForCompare = SelectBlocksForOutput(
+                    all,
+                    filter,
+                    filterContains,
+                    grep,
+                    sourceContent.Length,
+                    allBlocks
+                );
+                finalOutput = TryRenderPairedComparison(
+                    selectedForCompare,
+                    sourceContent,
+                    filter,
+                    listFunctions,
+                    compareOkojoNormalized
+                );
             }
 
             if (!string.IsNullOrWhiteSpace(savePath))
             {
                 var fullSavePath = Path.GetFullPath(savePath);
                 var directory = Path.GetDirectoryName(fullSavePath);
-                if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
+                if (!string.IsNullOrEmpty(directory))
+                    Directory.CreateDirectory(directory);
 
                 File.WriteAllText(fullSavePath, finalOutput, Encoding.UTF8);
                 Console.Error.WriteLine($"Saved output to: {fullSavePath}");
@@ -162,36 +194,51 @@ internal class Program
         }
         finally
         {
-            if (File.Exists(tempPath)) File.Delete(tempPath);
+            if (File.Exists(tempPath))
+                File.Delete(tempPath);
         }
     }
 
     private static void PrintUsage()
     {
         Console.WriteLine(
-            "Usage: V8BytecodeTool <js-file-or-string> [--filter <func-name>] [--filter-contains] [--grep <text>] [--raw] [--list] [--json] [--save <path>] [--no-invoke] [--all-blocks] [--normalized] [--esm] [--node-args \"<flags>\"] [--compare-okojo] [--compare-okojo-normalized] [-e] [--help]");
+            "Usage: V8BytecodeTool <js-file-or-string> [--filter <func-name>] [--filter-contains] [--grep <text>] [--raw] [--list] [--json] [--save <path>] [--no-invoke] [--all-blocks] [--normalized] [--esm] [--node-args \"<flags>\"] [--compare-okojo] [--compare-okojo-normalized] [-e] [--help]"
+        );
         Console.WriteLine("  <js-file-or-string>  File path or inline JavaScript source.");
-        Console.WriteLine("  --filter <name>     Filter by function name (exact match by default).");
+        Console.WriteLine(
+            "  --filter <name>     Filter by function name (exact match by default)."
+        );
         Console.WriteLine("  --filter-contains   Make --filter use substring matching.");
         Console.WriteLine("  --grep <text>       Filter bytecode blocks by header/content text.");
         Console.WriteLine("  --raw               Print raw node --print-bytecode output.");
         Console.WriteLine("  --list              List discovered function names only.");
         Console.WriteLine("  --json              Emit structured JSON instead of text.");
         Console.WriteLine("  --save <path>       Save rendered output to a file.");
-        Console.WriteLine("  --no-invoke         Do not append a guarded call for the filtered function.");
-        Console.WriteLine("  --all-blocks        Disable the default user-code focus filter in unfiltered mode.");
+        Console.WriteLine(
+            "  --no-invoke         Do not append a guarded call for the filtered function."
+        );
+        Console.WriteLine(
+            "  --all-blocks        Disable the default user-code focus filter in unfiltered mode."
+        );
         Console.WriteLine("  --normalized        Normalize opcode rendering for easier diffs.");
         Console.WriteLine("  --compare-okojo      Append Okojo disassembly for the same source.");
-        Console.WriteLine("  --compare-okojo-normalized  Compare V8 and Okojo with normalized opcode sequences.");
+        Console.WriteLine(
+            "  --compare-okojo-normalized  Compare V8 and Okojo with normalized opcode sequences."
+        );
         Console.WriteLine("  --esm               Treat input as ESM (temporary file uses .mjs).");
-        Console.WriteLine("  --node-args <flags> Extra flags passed to node before the script path.");
-        Console.WriteLine("  -e                  Evaluate with Okojo and print the result instead of using Node.");
+        Console.WriteLine(
+            "  --node-args <flags> Extra flags passed to node before the script path."
+        );
+        Console.WriteLine(
+            "  -e                  Evaluate with Okojo and print the result instead of using Node."
+        );
     }
 
     private static async Task<string> GetV8Bytecode(string filePath, string? nodeArgsExtra)
     {
         var nodeArgs = "--print-bytecode";
-        if (!string.IsNullOrWhiteSpace(nodeArgsExtra)) nodeArgs += " " + nodeArgsExtra.Trim();
+        if (!string.IsNullOrWhiteSpace(nodeArgsExtra))
+            nodeArgs += " " + nodeArgsExtra.Trim();
         // Passing filter to node directly often suppresses too much if not called correctly.
         // We prefer to capture more and filter in C# for reliability.
         nodeArgs += $" \"{filePath}\"";
@@ -205,11 +252,12 @@ internal class Program
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8,
             UseShellExecute = false,
-            CreateNoWindow = true
+            CreateNoWindow = true,
         };
 
         using var process = Process.Start(startInfo);
-        if (process == null) return "Failed to start node.";
+        if (process == null)
+            return "Failed to start node.";
 
         var stdoutTask = process.StandardOutput.ReadToEndAsync();
         var stderrTask = process.StandardError.ReadToEndAsync();
@@ -233,17 +281,25 @@ internal class Program
             if (line.Contains("[generated bytecode for function:"))
             {
                 if (inBytecode && currentBlock.Length > 0)
-                    blocks.Add(new(currentFunctionName ?? "", currentHeaderLine ?? "",
-                        currentBlock.ToString()));
+                    blocks.Add(
+                        new(
+                            currentFunctionName ?? "",
+                            currentHeaderLine ?? "",
+                            currentBlock.ToString()
+                        )
+                    );
 
                 currentBlock.Clear();
                 inBytecode = true;
                 currentHeaderLine = line;
 
-                // Extract function name: [generated bytecode for function: name (0x...)] 
+                // Extract function name: [generated bytecode for function: name (0x...)]
                 // OR [generated bytecode for function: (0x...)]
                 var match = Regex.Match(line, @"function: ([^ \(]+)?");
-                currentFunctionName = match.Success && match.Groups[1].Success ? match.Groups[1].Value : "<anonymous>";
+                currentFunctionName =
+                    match.Success && match.Groups[1].Success
+                        ? match.Groups[1].Value
+                        : "<anonymous>";
                 currentBlock.AppendLine(line);
                 continue;
             }
@@ -253,8 +309,13 @@ internal class Program
                 currentBlock.AppendLine(line);
                 if (line.Contains("Source Position Table"))
                 {
-                    blocks.Add(new(currentFunctionName ?? "", currentHeaderLine ?? "",
-                        currentBlock.ToString()));
+                    blocks.Add(
+                        new(
+                            currentFunctionName ?? "",
+                            currentHeaderLine ?? "",
+                            currentBlock.ToString()
+                        )
+                    );
                     currentBlock.Clear();
                     inBytecode = false;
                     currentHeaderLine = null;
@@ -263,25 +324,36 @@ internal class Program
         }
 
         if (inBytecode && currentBlock.Length > 0)
-            blocks.Add(new(currentFunctionName ?? "", currentHeaderLine ?? "", currentBlock.ToString()));
+            blocks.Add(
+                new(currentFunctionName ?? "", currentHeaderLine ?? "", currentBlock.ToString())
+            );
 
         return blocks;
     }
 
-    private static string CleanBytecodeOutput(List<BytecodeBlock> blocks, int totalBlocks, string? filter, string? grep,
-        bool listOnly, bool normalized)
+    private static string CleanBytecodeOutput(
+        List<BytecodeBlock> blocks,
+        int totalBlocks,
+        string? filter,
+        string? grep,
+        bool listOnly,
+        bool normalized
+    )
     {
         var result = new StringBuilder();
 
         if (listOnly)
         {
-            foreach (var b in blocks.Select(x => x.Name).Distinct()) result.AppendLine(b);
+            foreach (var b in blocks.Select(x => x.Name).Distinct())
+                result.AppendLine(b);
             return result.ToString();
         }
 
         if (string.IsNullOrWhiteSpace(filter) && string.IsNullOrWhiteSpace(grep))
         {
-            result.AppendLine($"(showing {blocks.Count}/{totalBlocks} blocks; use --all-blocks to show everything)");
+            result.AppendLine(
+                $"(showing {blocks.Count}/{totalBlocks} blocks; use --all-blocks to show everything)"
+            );
             result.AppendLine();
         }
 
@@ -299,15 +371,28 @@ internal class Program
         return result.ToString();
     }
 
-    private static List<BytecodeBlock> SelectBlocks(List<BytecodeBlock> blocks, string filter, bool containsMode)
+    private static List<BytecodeBlock> SelectBlocks(
+        List<BytecodeBlock> blocks,
+        string filter,
+        bool containsMode
+    )
     {
-        var exact = blocks.Where(b => b.Name.Equals(filter, StringComparison.OrdinalIgnoreCase)).ToList();
-        if (exact.Count > 0 || !containsMode) return exact;
+        var exact = blocks
+            .Where(b => b.Name.Equals(filter, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (exact.Count > 0 || !containsMode)
+            return exact;
 
-        return blocks.Where(b => b.Name.Contains(filter, StringComparison.OrdinalIgnoreCase)).ToList();
+        return blocks
+            .Where(b => b.Name.Contains(filter, StringComparison.OrdinalIgnoreCase))
+            .ToList();
     }
 
-    private static string RenderJsonOutput(List<BytecodeBlock> blocks, string? filter, bool listOnly)
+    private static string RenderJsonOutput(
+        List<BytecodeBlock> blocks,
+        string? filter,
+        bool listOnly
+    )
     {
         object payload;
         if (listOnly)
@@ -315,7 +400,7 @@ internal class Program
             payload = new
             {
                 mode = "list",
-                functions = blocks.Select(b => b.Name).Distinct().ToArray()
+                functions = blocks.Select(b => b.Name).Distinct().ToArray(),
             };
         }
         else if (!string.IsNullOrWhiteSpace(filter))
@@ -326,12 +411,14 @@ internal class Program
                 mode = "filtered",
                 filter,
                 count = matched.Count,
-                blocks = matched.Select(b => new
-                {
-                    name = b.Name,
-                    header = b.HeaderLine,
-                    content = b.Content
-                }).ToArray()
+                blocks = matched
+                    .Select(b => new
+                    {
+                        name = b.Name,
+                        header = b.HeaderLine,
+                        content = b.Content,
+                    })
+                    .ToArray(),
             };
         }
         else
@@ -340,24 +427,31 @@ internal class Program
             {
                 mode = "all",
                 count = blocks.Count,
-                blocks = blocks.Select(b => new
-                {
-                    name = b.Name,
-                    header = b.HeaderLine,
-                    content = b.Content
-                }).ToArray()
+                blocks = blocks
+                    .Select(b => new
+                    {
+                        name = b.Name,
+                        header = b.HeaderLine,
+                        content = b.Content,
+                    })
+                    .ToArray(),
             };
         }
 
-        return JsonSerializer.Serialize(payload, new JsonSerializerOptions
-        {
-            WriteIndented = true
-        });
+        return JsonSerializer.Serialize(
+            payload,
+            new JsonSerializerOptions { WriteIndented = true }
+        );
     }
 
-    private static string RenderJsonOutput(List<BytecodeBlock> blocks, int totalBlocks, string? filter,
+    private static string RenderJsonOutput(
+        List<BytecodeBlock> blocks,
+        int totalBlocks,
+        string? filter,
         bool filterContains,
-        string? grep, bool listOnly)
+        string? grep,
+        bool listOnly
+    )
     {
         object payload;
         if (listOnly)
@@ -366,7 +460,7 @@ internal class Program
                 mode = "list",
                 selectedCount = blocks.Count,
                 totalCount = totalBlocks,
-                functions = blocks.Select(b => b.Name).Distinct().ToArray()
+                functions = blocks.Select(b => b.Name).Distinct().ToArray(),
             };
         else
             payload = new
@@ -377,23 +471,30 @@ internal class Program
                 grep,
                 selectedCount = blocks.Count,
                 totalCount = totalBlocks,
-                blocks = blocks.Select(b => new
-                {
-                    name = b.Name,
-                    header = b.HeaderLine,
-                    content = b.Content
-                }).ToArray()
+                blocks = blocks
+                    .Select(b => new
+                    {
+                        name = b.Name,
+                        header = b.HeaderLine,
+                        content = b.Content,
+                    })
+                    .ToArray(),
             };
 
-        return JsonSerializer.Serialize(payload, new JsonSerializerOptions
-        {
-            WriteIndented = true
-        });
+        return JsonSerializer.Serialize(
+            payload,
+            new JsonSerializerOptions { WriteIndented = true }
+        );
     }
 
-    private static List<BytecodeBlock> SelectBlocksForOutput(List<BytecodeBlock> blocks, string? filter,
+    private static List<BytecodeBlock> SelectBlocksForOutput(
+        List<BytecodeBlock> blocks,
+        string? filter,
         bool filterContains,
-        string? grep, int sourceLength, bool allBlocks)
+        string? grep,
+        int sourceLength,
+        bool allBlocks
+    )
     {
         IEnumerable<BytecodeBlock> selected = blocks;
 
@@ -409,37 +510,52 @@ internal class Program
 
         {
             var focused = SelectLikelyUserBlocks(selectedList, sourceLength);
-            if (focused.Count > 0) return focused;
+            if (focused.Count > 0)
+                return focused;
         }
 
         return selectedList;
     }
 
-    private static List<BytecodeBlock> SelectLikelyUserBlocks(List<BytecodeBlock> blocks, int sourceLength)
+    private static List<BytecodeBlock> SelectLikelyUserBlocks(
+        List<BytecodeBlock> blocks,
+        int sourceLength
+    )
     {
         var maxExpectedPosition = Math.Max(64, sourceLength + 32);
         var filtered = blocks.Where(b => IsLikelyUserBlock(b, maxExpectedPosition)).ToList();
-        if (filtered.Count > 0) return filtered;
+        if (filtered.Count > 0)
+            return filtered;
 
-        return blocks.Where(b =>
-                !(string.IsNullOrEmpty(b.Name) || b.Name.Contains("validate", StringComparison.OrdinalIgnoreCase) ||
-                  b.Name.Contains("internal", StringComparison.OrdinalIgnoreCase) || b.Name.Length > 80))
+        return blocks
+            .Where(b =>
+                !(
+                    string.IsNullOrEmpty(b.Name)
+                    || b.Name.Contains("validate", StringComparison.OrdinalIgnoreCase)
+                    || b.Name.Contains("internal", StringComparison.OrdinalIgnoreCase)
+                    || b.Name.Length > 80
+                )
+            )
             .ToList();
     }
 
     private static bool IsLikelyUserBlock(BytecodeBlock block, int maxExpectedPosition)
     {
-        if (ContainsInternalMarker(block.Content)) return false;
+        if (ContainsInternalMarker(block.Content))
+            return false;
 
         var positions = ExtractSourcePositions(block.Content);
-        if (positions.Count == 0) return false;
+        if (positions.Count == 0)
+            return false;
 
         var min = int.MaxValue;
         var max = int.MinValue;
         foreach (var pos in positions)
         {
-            if (pos < min) min = pos;
-            if (pos > max) max = pos;
+            if (pos < min)
+                min = pos;
+            if (pos > max)
+                max = pos;
         }
 
         return min >= 0 && max <= maxExpectedPosition;
@@ -447,10 +563,10 @@ internal class Program
 
     private static bool ContainsInternalMarker(string content)
     {
-        return content.Contains("internal/", StringComparison.OrdinalIgnoreCase) ||
-               content.Contains("internal\\", StringComparison.OrdinalIgnoreCase) ||
-               content.Contains("node:internal", StringComparison.OrdinalIgnoreCase) ||
-               content.Contains("bootstrap", StringComparison.OrdinalIgnoreCase);
+        return content.Contains("internal/", StringComparison.OrdinalIgnoreCase)
+            || content.Contains("internal\\", StringComparison.OrdinalIgnoreCase)
+            || content.Contains("node:internal", StringComparison.OrdinalIgnoreCase)
+            || content.Contains("bootstrap", StringComparison.OrdinalIgnoreCase);
     }
 
     private static List<int> ExtractSourcePositions(string content)
@@ -459,8 +575,10 @@ internal class Program
         foreach (var line in content.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None))
         {
             var match = SourcePositionRegex.Match(line);
-            if (!match.Success) continue;
-            if (int.TryParse(match.Groups[1].Value, out var value)) list.Add(value);
+            if (!match.Success)
+                continue;
+            if (int.TryParse(match.Groups[1].Value, out var value))
+                list.Add(value);
         }
 
         return list;
@@ -468,9 +586,9 @@ internal class Program
 
     private static bool BlockContainsText(BytecodeBlock block, string text)
     {
-        return block.Name.Contains(text, StringComparison.OrdinalIgnoreCase) ||
-               block.HeaderLine.Contains(text, StringComparison.OrdinalIgnoreCase) ||
-               block.Content.Contains(text, StringComparison.OrdinalIgnoreCase);
+        return block.Name.Contains(text, StringComparison.OrdinalIgnoreCase)
+            || block.HeaderLine.Contains(text, StringComparison.OrdinalIgnoreCase)
+            || block.Content.Contains(text, StringComparison.OrdinalIgnoreCase);
     }
 
     private static List<(string name, JsScript script)> CollectOkojoFunctions(JsScript root)
@@ -480,7 +598,8 @@ internal class Program
 
         void Walk(JsScript script, string name)
         {
-            if (!seen.Add(script)) return;
+            if (!seen.Add(script))
+                return;
             result.Add((name, script));
 
             foreach (var obj in script.ObjectConstants)
@@ -492,8 +611,13 @@ internal class Program
         return result;
     }
 
-    private static string TryRenderPairedComparison(List<BytecodeBlock> allV8Blocks, string source, string? filter,
-        bool listOnly, bool normalized)
+    private static string TryRenderPairedComparison(
+        List<BytecodeBlock> allV8Blocks,
+        string source,
+        string? filter,
+        bool listOnly,
+        bool normalized
+    )
     {
         try
         {
@@ -511,15 +635,19 @@ internal class Program
 
             if (listOnly)
             {
-                var v8Names = SelectV8ForCompare(allV8Blocks, filter).Select(b => b.Name)
+                var v8Names = SelectV8ForCompare(allV8Blocks, filter)
+                    .Select(b => b.Name)
                     .Distinct(StringComparer.OrdinalIgnoreCase);
-                var okojoNames = SelectOkojoForCompare(okojoBlocks, filter).Select(b => b.Name)
+                var okojoNames = SelectOkojoForCompare(okojoBlocks, filter)
+                    .Select(b => b.Name)
                     .Distinct(StringComparer.OrdinalIgnoreCase);
                 var sbList = new StringBuilder();
                 sbList.AppendLine("V8:");
-                foreach (var n in v8Names) sbList.AppendLine(n);
+                foreach (var n in v8Names)
+                    sbList.AppendLine(n);
                 sbList.AppendLine("Okojo:");
-                foreach (var n in okojoNames) sbList.AppendLine(n);
+                foreach (var n in okojoNames)
+                    sbList.AppendLine(n);
                 if (!string.IsNullOrWhiteSpace(okojoError))
                 {
                     sbList.AppendLine("Okojo compile error:");
@@ -550,53 +678,75 @@ internal class Program
         var result = new List<OkojoDumpBlock>(functions.Count);
         foreach (var (name, okojoScript) in functions)
         {
-            var content = Disassembler.Dump(okojoScript, new()
-            {
-                UnitKind = name == "<script>" ? "script" : "function",
-                UnitName = name
-            });
+            var content = Disassembler.Dump(
+                okojoScript,
+                new() { UnitKind = name == "<script>" ? "script" : "function", UnitName = name }
+            );
             result.Add(new(name, content, ExtractOkojoOpcodes(content)));
         }
 
         return result;
     }
 
-    private static List<BytecodeBlock> SelectV8ForCompare(List<BytecodeBlock> blocks, string? filter)
+    private static List<BytecodeBlock> SelectV8ForCompare(
+        List<BytecodeBlock> blocks,
+        string? filter
+    )
     {
-        if (!string.IsNullOrWhiteSpace(filter)) return SelectBlocks(blocks, filter, true);
+        if (!string.IsNullOrWhiteSpace(filter))
+            return SelectBlocks(blocks, filter, true);
 
-        return blocks.Where(b =>
-                !(string.IsNullOrEmpty(b.Name) || b.Name.Contains("validate") || b.Name.Contains("internal") ||
-                  b.Name.Length > 50))
+        return blocks
+            .Where(b =>
+                !(
+                    string.IsNullOrEmpty(b.Name)
+                    || b.Name.Contains("validate")
+                    || b.Name.Contains("internal")
+                    || b.Name.Length > 50
+                )
+            )
             .ToList();
     }
 
-    private static List<OkojoDumpBlock> SelectOkojoForCompare(List<OkojoDumpBlock> blocks, string? filter)
+    private static List<OkojoDumpBlock> SelectOkojoForCompare(
+        List<OkojoDumpBlock> blocks,
+        string? filter
+    )
     {
         if (!string.IsNullOrWhiteSpace(filter))
         {
-            var exact = blocks.Where(b => b.Name.Equals(filter, StringComparison.OrdinalIgnoreCase)).ToList();
+            var exact = blocks
+                .Where(b => b.Name.Equals(filter, StringComparison.OrdinalIgnoreCase))
+                .ToList();
             return exact;
         }
 
         return blocks;
     }
 
-    private static string RenderPairedComparisonOutput(List<BytecodeBlock> v8Blocks, List<OkojoDumpBlock> okojoBlocks,
-        bool normalized, string? okojoError = null)
+    private static string RenderPairedComparisonOutput(
+        List<BytecodeBlock> v8Blocks,
+        List<OkojoDumpBlock> okojoBlocks,
+        bool normalized,
+        string? okojoError = null
+    )
     {
         var sb = new StringBuilder();
         sb.AppendLine("##############################");
         sb.AppendLine("## V8 <-> Okojo Compare");
         sb.AppendLine("##############################");
-        if (!string.IsNullOrWhiteSpace(okojoError)) sb.AppendLine($"## Okojo compile error: {okojoError}");
+        if (!string.IsNullOrWhiteSpace(okojoError))
+            sb.AppendLine($"## Okojo compile error: {okojoError}");
 
-        var v8Groups = v8Blocks.GroupBy(b => b.Name, StringComparer.OrdinalIgnoreCase)
+        var v8Groups = v8Blocks
+            .GroupBy(b => b.Name, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
-        var okojoGroups = okojoBlocks.GroupBy(b => b.Name, StringComparer.OrdinalIgnoreCase)
+        var okojoGroups = okojoBlocks
+            .GroupBy(b => b.Name, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
 
-        var orderedNames = v8Blocks.Select(b => b.Name)
+        var orderedNames = v8Blocks
+            .Select(b => b.Name)
             .Concat(okojoBlocks.Select(b => b.Name))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -606,7 +756,8 @@ internal class Program
             v8Groups.TryGetValue(name, out var v8List);
             okojoGroups.TryGetValue(name, out var okojoList);
             var pairCount = Math.Max(v8List?.Count ?? 0, okojoList?.Count ?? 0);
-            if (pairCount == 0) continue;
+            if (pairCount == 0)
+                continue;
 
             for (var i = 0; i < pairCount; i++)
             {
@@ -619,23 +770,25 @@ internal class Program
                 if (normalized)
                 {
                     sb.AppendLine("-- V8 Opcodes (normalized) --");
-                    sb.AppendLine(v8 is null ? "(missing)" : string.Join(" -> ", ExtractV8Opcodes(v8.Content)));
+                    sb.AppendLine(
+                        v8 is null ? "(missing)" : string.Join(" -> ", ExtractV8Opcodes(v8.Content))
+                    );
                     sb.AppendLine("-- Okojo Opcodes (normalized) --");
                     sb.AppendLine(okojo is null ? "(missing)" : string.Join(" -> ", okojo.Opcodes));
                 }
 
                 sb.AppendLine("-- V8 Ignition --");
-                sb.AppendLine(v8 is null
-                    ? "(missing)"
-                    : normalized
-                        ? NormalizeV8BlockText(v8.Content).TrimEnd()
-                        : v8.Content.TrimEnd());
+                sb.AppendLine(
+                    v8 is null ? "(missing)"
+                    : normalized ? NormalizeV8BlockText(v8.Content).TrimEnd()
+                    : v8.Content.TrimEnd()
+                );
                 sb.AppendLine("-- Okojo Disasm --");
-                sb.AppendLine(okojo is null
-                    ? "(missing)"
-                    : normalized
-                        ? NormalizeOkojoDisasmText(okojo.Content).TrimEnd()
-                        : okojo.Content.TrimEnd());
+                sb.AppendLine(
+                    okojo is null ? "(missing)"
+                    : normalized ? NormalizeOkojoDisasmText(okojo.Content).TrimEnd()
+                    : okojo.Content.TrimEnd()
+                );
             }
         }
 
@@ -649,7 +802,8 @@ internal class Program
         {
             // Example: "... : 0d 03             LdaSmi [3]"
             var m = Regex.Match(line, @":\s+[0-9a-fA-F ]+\s{2,}([A-Za-z][A-Za-z0-9]*)\b");
-            if (m.Success) list.Add(m.Groups[1].Value);
+            if (m.Success)
+                list.Add(m.Groups[1].Value);
         }
 
         return list;
@@ -661,7 +815,8 @@ internal class Program
         foreach (var line in disasm.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None))
         {
             var m = Regex.Match(line, @"^\d{4}\s+([A-Za-z][A-Za-z0-9]*)\b");
-            if (m.Success) list.Add(m.Groups[1].Value);
+            if (m.Success)
+                list.Add(m.Groups[1].Value);
         }
 
         return list;
@@ -717,5 +872,9 @@ internal class Program
 
     private sealed record BytecodeBlock(string Name, string HeaderLine, string Content);
 
-    private sealed record OkojoDumpBlock(string Name, string Content, IReadOnlyList<string> Opcodes);
+    private sealed record OkojoDumpBlock(
+        string Name,
+        string Content,
+        IReadOnlyList<string> Opcodes
+    );
 }

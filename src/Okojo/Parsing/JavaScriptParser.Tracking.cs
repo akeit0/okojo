@@ -109,7 +109,7 @@ internal sealed partial class JsParser
             {
                 [firstKey] = firstMask,
                 [secondKey] = secondMask,
-                [key] = mask
+                [key] = mask,
             };
             firstKey = null;
             secondKey = null;
@@ -163,7 +163,9 @@ internal sealed partial class JsParser
         }
     }
 
-    private ref struct PooledBinaryParseOperatorInfoStack(Span<BinaryParseOperatorInfo> initialBuffer)
+    private ref struct PooledBinaryParseOperatorInfoStack(
+        Span<BinaryParseOperatorInfo> initialBuffer
+    )
     {
         private Span<BinaryParseOperatorInfo> buffer = initialBuffer;
         private BinaryParseOperatorInfo[]? rented = null;
@@ -243,7 +245,7 @@ internal sealed partial class JsParser
             {
                 0 => TakeFirst(),
                 1 => TakeSecond(),
-                _ => TakeRented(index - 2)
+                _ => TakeRented(index - 2),
             };
         }
 
@@ -293,7 +295,9 @@ internal sealed partial class JsParser
             if (requiredRentedLength <= rented.Length)
                 return;
 
-            var newBuffer = ArrayPool<JsExpression>.Shared.Rent(Math.Max(requiredRentedLength, rented.Length * 2));
+            var newBuffer = ArrayPool<JsExpression>.Shared.Rent(
+                Math.Max(requiredRentedLength, rented.Length * 2)
+            );
             rented.AsSpan(0, Count - 2).CopyTo(newBuffer);
             ArrayPool<JsExpression>.Shared.Return(rented, clearArray: true);
             rented = newBuffer;

@@ -43,11 +43,26 @@ internal sealed class NodeFsBuiltIn(NodeRuntime runtime)
         var realm = runtime.MainRealm;
         var shape = moduleShape ??= CreateModuleShape(realm);
         var module = new JsPlainObject(shape);
-        module.SetNamedSlotUnchecked(ModuleReadFileSyncSlot, JsValue.FromObject(CreateReadFileSyncFunction(realm)));
-        module.SetNamedSlotUnchecked(ModuleWriteFileSlot, JsValue.FromObject(CreateWriteFileFunction(realm)));
-        module.SetNamedSlotUnchecked(ModuleOpenSyncSlot, JsValue.FromObject(CreateOpenSyncFunction(realm)));
-        module.SetNamedSlotUnchecked(ModuleReaddirSyncSlot, JsValue.FromObject(CreateReaddirSyncFunction(realm)));
-        module.SetNamedSlotUnchecked(ModuleStatSyncSlot, JsValue.FromObject(CreateStatSyncFunction(realm)));
+        module.SetNamedSlotUnchecked(
+            ModuleReadFileSyncSlot,
+            JsValue.FromObject(CreateReadFileSyncFunction(realm))
+        );
+        module.SetNamedSlotUnchecked(
+            ModuleWriteFileSlot,
+            JsValue.FromObject(CreateWriteFileFunction(realm))
+        );
+        module.SetNamedSlotUnchecked(
+            ModuleOpenSyncSlot,
+            JsValue.FromObject(CreateOpenSyncFunction(realm))
+        );
+        module.SetNamedSlotUnchecked(
+            ModuleReaddirSyncSlot,
+            JsValue.FromObject(CreateReaddirSyncFunction(realm))
+        );
+        module.SetNamedSlotUnchecked(
+            ModuleStatSyncSlot,
+            JsValue.FromObject(CreateStatSyncFunction(realm))
+        );
         module.SetNamedSlotUnchecked(ModuleConstantsSlot, JsValue.FromObject(GetConstantsObject()));
         moduleObject = module;
         return module;
@@ -70,12 +85,28 @@ internal sealed class NodeFsBuiltIn(NodeRuntime runtime)
     private StaticNamedPropertyLayout CreateModuleShape(JsRealm realm)
     {
         EnsureAtoms(realm);
-        var shape = realm.EmptyShape.GetOrAddTransition(atomReadFileSync, JsShapePropertyFlags.Open, out var readInfo);
-        shape = shape.GetOrAddTransition(atomWriteFile, JsShapePropertyFlags.Open, out var writeInfo);
+        var shape = realm.EmptyShape.GetOrAddTransition(
+            atomReadFileSync,
+            JsShapePropertyFlags.Open,
+            out var readInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomWriteFile,
+            JsShapePropertyFlags.Open,
+            out var writeInfo
+        );
         shape = shape.GetOrAddTransition(atomOpenSync, JsShapePropertyFlags.Open, out var openInfo);
-        shape = shape.GetOrAddTransition(atomReaddirSync, JsShapePropertyFlags.Open, out var readdirInfo);
+        shape = shape.GetOrAddTransition(
+            atomReaddirSync,
+            JsShapePropertyFlags.Open,
+            out var readdirInfo
+        );
         shape = shape.GetOrAddTransition(atomStatSync, JsShapePropertyFlags.Open, out var statInfo);
-        shape = shape.GetOrAddTransition(atomConstants, JsShapePropertyFlags.Open, out var constantsInfo);
+        shape = shape.GetOrAddTransition(
+            atomConstants,
+            JsShapePropertyFlags.Open,
+            out var constantsInfo
+        );
         Debug.Assert(readInfo.Slot == ModuleReadFileSyncSlot);
         Debug.Assert(writeInfo.Slot == ModuleWriteFileSlot);
         Debug.Assert(openInfo.Slot == ModuleOpenSyncSlot);
@@ -88,8 +119,16 @@ internal sealed class NodeFsBuiltIn(NodeRuntime runtime)
     private StaticNamedPropertyLayout CreateConstantsShape(JsRealm realm)
     {
         EnsureAtoms(realm);
-        var shape = realm.EmptyShape.GetOrAddTransition(atomONonBlock, JsShapePropertyFlags.Open, out var nonBlockInfo);
-        shape = shape.GetOrAddTransition(atomOEvtOnly, JsShapePropertyFlags.Open, out var evtOnlyInfo);
+        var shape = realm.EmptyShape.GetOrAddTransition(
+            atomONonBlock,
+            JsShapePropertyFlags.Open,
+            out var nonBlockInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomOEvtOnly,
+            JsShapePropertyFlags.Open,
+            out var evtOnlyInfo
+        );
         Debug.Assert(nonBlockInfo.Slot == ConstantsONonBlockSlot);
         Debug.Assert(evtOnlyInfo.Slot == ConstantsOEvtOnlySlot);
         return shape;
@@ -98,8 +137,11 @@ internal sealed class NodeFsBuiltIn(NodeRuntime runtime)
     private StaticNamedPropertyLayout CreateStatsShape(JsRealm realm)
     {
         EnsureAtoms(realm);
-        var shape = realm.EmptyShape.GetOrAddTransition(atomIsDirectory, JsShapePropertyFlags.Open,
-            out var isDirectoryInfo);
+        var shape = realm.EmptyShape.GetOrAddTransition(
+            atomIsDirectory,
+            JsShapePropertyFlags.Open,
+            out var isDirectoryInfo
+        );
         shape = shape.GetOrAddTransition(atomIsFile, JsShapePropertyFlags.Open, out var isFileInfo);
         Debug.Assert(isDirectoryInfo.Slot == StatsIsDirectorySlot);
         Debug.Assert(isFileInfo.Slot == StatsIsFileSlot);
@@ -127,126 +169,190 @@ internal sealed class NodeFsBuiltIn(NodeRuntime runtime)
 
     private static JsHostFunction CreateReadFileSyncFunction(JsRealm realm)
     {
-        return new(realm, "readFileSync", 2, static (in info) =>
-        {
-            var path = info.GetArgumentString(0);
-            string? encoding = null;
-            if (info.Arguments.Length > 1 && !info.Arguments[1].IsUndefined && !info.Arguments[1].IsNull)
-                encoding = info.GetArgument(1).IsString
-                    ? info.GetArgument(1).AsString()
-                    : info.Realm.ToJsStringSlowPath(info.GetArgument(1));
+        return new(
+            realm,
+            "readFileSync",
+            2,
+            static (in info) =>
+            {
+                var path = info.GetArgumentString(0);
+                string? encoding = null;
+                if (
+                    info.Arguments.Length > 1
+                    && !info.Arguments[1].IsUndefined
+                    && !info.Arguments[1].IsNull
+                )
+                    encoding = info.GetArgument(1).IsString
+                        ? info.GetArgument(1).AsString()
+                        : info.Realm.ToJsStringSlowPath(info.GetArgument(1));
 
-            if (string.Equals(encoding, "utf8", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(encoding, "utf-8", StringComparison.OrdinalIgnoreCase))
-                return JsValue.FromString(File.ReadAllText(path));
+                if (
+                    string.Equals(encoding, "utf8", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(encoding, "utf-8", StringComparison.OrdinalIgnoreCase)
+                )
+                    return JsValue.FromString(File.ReadAllText(path));
 
-            var bytes = File.ReadAllBytes(path);
-            return JsValue.FromObject(CreateUint8Array(info.Realm, bytes));
-        }, false);
+                var bytes = File.ReadAllBytes(path);
+                return JsValue.FromObject(CreateUint8Array(info.Realm, bytes));
+            },
+            false
+        );
     }
 
     private static JsHostFunction CreateWriteFileFunction(JsRealm realm)
     {
-        return new(realm, "writeFile", 4, static (in info) =>
-        {
-            var path = info.GetArgumentString(0);
-            var content = GetWriteFileContent(info.GetArgument(1), info.Realm);
-            string? encoding = null;
-            JsFunction? callback = null;
-
-            if (info.ArgumentCount > 2)
+        return new(
+            realm,
+            "writeFile",
+            4,
+            static (in info) =>
             {
-                var third = info.GetArgument(2);
-                if (third.TryGetObject(out var thirdObj) && thirdObj is JsFunction thirdFn)
-                    callback = thirdFn;
-                else if (!third.IsUndefined && !third.IsNull)
-                    encoding = third.IsString ? third.AsString() : info.Realm.ToJsStringSlowPath(third);
-            }
+                var path = info.GetArgumentString(0);
+                var content = GetWriteFileContent(info.GetArgument(1), info.Realm);
+                string? encoding = null;
+                JsFunction? callback = null;
 
-            if (info.ArgumentCount > 3)
-            {
-                var fourth = info.GetArgument(3);
-                if (fourth.TryGetObject(out var fourthObj) && fourthObj is JsFunction fourthFn)
-                    callback = fourthFn;
-            }
+                if (info.ArgumentCount > 2)
+                {
+                    var third = info.GetArgument(2);
+                    if (third.TryGetObject(out var thirdObj) && thirdObj is JsFunction thirdFn)
+                        callback = thirdFn;
+                    else if (!third.IsUndefined && !third.IsNull)
+                        encoding = third.IsString
+                            ? third.AsString()
+                            : info.Realm.ToJsStringSlowPath(third);
+                }
 
-            if (encoding is not null &&
-                !string.Equals(encoding, "utf8", StringComparison.OrdinalIgnoreCase) &&
-                !string.Equals(encoding, "utf-8", StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException($"Unsupported fs.writeFile encoding '{encoding}'.");
+                if (info.ArgumentCount > 3)
+                {
+                    var fourth = info.GetArgument(3);
+                    if (fourth.TryGetObject(out var fourthObj) && fourthObj is JsFunction fourthFn)
+                        callback = fourthFn;
+                }
 
-            File.WriteAllText(path, content);
+                if (
+                    encoding is not null
+                    && !string.Equals(encoding, "utf8", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(encoding, "utf-8", StringComparison.OrdinalIgnoreCase)
+                )
+                    throw new InvalidOperationException(
+                        $"Unsupported fs.writeFile encoding '{encoding}'."
+                    );
 
-            if (callback is not null)
-                info.Realm.InvokeFunction(callback, JsValue.Undefined, [JsValue.Undefined]);
+                File.WriteAllText(path, content);
 
-            return JsValue.Undefined;
-        }, false);
+                if (callback is not null)
+                    info.Realm.InvokeFunction(callback, JsValue.Undefined, [JsValue.Undefined]);
+
+                return JsValue.Undefined;
+            },
+            false
+        );
     }
 
     private static JsHostFunction CreateOpenSyncFunction(JsRealm realm)
     {
-        return new(realm, "openSync", 2, static (in info) =>
-        {
-            var path = info.GetArgumentString(0);
-            if (!File.Exists(path) && !Directory.Exists(path))
-                throw new InvalidOperationException($"ENOENT: no such file or directory, open '{path}'");
+        return new(
+            realm,
+            "openSync",
+            2,
+            static (in info) =>
+            {
+                var path = info.GetArgumentString(0);
+                if (!File.Exists(path) && !Directory.Exists(path))
+                    throw new InvalidOperationException(
+                        $"ENOENT: no such file or directory, open '{path}'"
+                    );
 
-            return JsValue.FromInt32(1);
-        }, false);
+                return JsValue.FromInt32(1);
+            },
+            false
+        );
     }
 
     private static JsHostFunction CreateReaddirSyncFunction(JsRealm realm)
     {
-        return new(realm, "readdirSync", 2, static (in info) =>
-        {
-            var path = info.GetArgumentString(0);
-            var entries = Directory.GetFileSystemEntries(path);
-            var result = new JsArray(info.Realm);
-            for (var i = 0; i < entries.Length; i++)
-                result[(uint)i] = JsValue.FromString(Path.GetFileName(entries[i]));
-            return JsValue.FromObject(result);
-        }, false);
+        return new(
+            realm,
+            "readdirSync",
+            2,
+            static (in info) =>
+            {
+                var path = info.GetArgumentString(0);
+                var entries = Directory.GetFileSystemEntries(path);
+                var result = new JsArray(info.Realm);
+                for (var i = 0; i < entries.Length; i++)
+                    result[(uint)i] = JsValue.FromString(Path.GetFileName(entries[i]));
+                return JsValue.FromObject(result);
+            },
+            false
+        );
     }
 
     private JsHostFunction CreateStatSyncFunction(JsRealm realm)
     {
-        return new(realm, "statSync", 2, (in info) =>
-        {
-            var path = info.GetArgumentString(0);
-            var isDirectory = Directory.Exists(path);
-            var isFile = !isDirectory && File.Exists(path);
-            if (!isDirectory && !isFile)
-                throw new InvalidOperationException($"ENOENT: no such file or directory, stat '{path}'");
+        return new(
+            realm,
+            "statSync",
+            2,
+            (in info) =>
+            {
+                var path = info.GetArgumentString(0);
+                var isDirectory = Directory.Exists(path);
+                var isFile = !isDirectory && File.Exists(path);
+                if (!isDirectory && !isFile)
+                    throw new InvalidOperationException(
+                        $"ENOENT: no such file or directory, stat '{path}'"
+                    );
 
-            var shape = statsShape ??= CreateStatsShape(info.Realm);
-            var stats = new JsPlainObject(shape);
-            stats.SetNamedSlotUnchecked(
-                StatsIsDirectorySlot,
-                JsValue.FromObject(CreateStatsPredicateFunction(info.Realm, "isDirectory", isDirectory)));
-            stats.SetNamedSlotUnchecked(
-                StatsIsFileSlot,
-                JsValue.FromObject(CreateStatsPredicateFunction(info.Realm, "isFile", isFile)));
-            return JsValue.FromObject(stats);
-        }, false);
+                var shape = statsShape ??= CreateStatsShape(info.Realm);
+                var stats = new JsPlainObject(shape);
+                stats.SetNamedSlotUnchecked(
+                    StatsIsDirectorySlot,
+                    JsValue.FromObject(
+                        CreateStatsPredicateFunction(info.Realm, "isDirectory", isDirectory)
+                    )
+                );
+                stats.SetNamedSlotUnchecked(
+                    StatsIsFileSlot,
+                    JsValue.FromObject(CreateStatsPredicateFunction(info.Realm, "isFile", isFile))
+                );
+                return JsValue.FromObject(stats);
+            },
+            false
+        );
     }
 
-    private static JsHostFunction CreateStatsPredicateFunction(JsRealm realm, string name, bool result)
+    private static JsHostFunction CreateStatsPredicateFunction(
+        JsRealm realm,
+        string name,
+        bool result
+    )
     {
-        return new(realm, name, 0, static (in info) =>
+        return new(
+            realm,
+            name,
+            0,
+            static (in info) =>
+            {
+                var flag = (bool)((JsHostFunction)info.Function).UserData!;
+                return flag ? JsValue.True : JsValue.False;
+            },
+            false
+        )
         {
-            var flag = (bool)((JsHostFunction)info.Function).UserData!;
-            return flag ? JsValue.True : JsValue.False;
-        }, false)
-        {
-            UserData = result
+            UserData = result,
         };
     }
 
     private static JsTypedArrayObject CreateUint8Array(JsRealm realm, byte[] bytes)
     {
-        var array = new JsTypedArrayObject(realm, (uint)bytes.Length, TypedArrayElementKind.Uint8,
-            realm.Uint8ArrayPrototype);
+        var array = new JsTypedArrayObject(
+            realm,
+            (uint)bytes.Length,
+            TypedArrayElementKind.Uint8,
+            realm.Uint8ArrayPrototype
+        );
         for (uint i = 0; i < bytes.Length; i++)
             array.TrySetNormalizedElement(i, JsValue.FromInt32(bytes[i]));
         return array;

@@ -1,7 +1,7 @@
 using System.Buffers;
 using System.Runtime.CompilerServices;
-
 using Okojo.Text.Unicode;
+
 namespace Okojo.Text.RegularExpressions.Internal;
 
 internal enum LinearOpCode : byte

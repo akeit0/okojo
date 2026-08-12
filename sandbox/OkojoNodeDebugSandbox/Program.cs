@@ -1,11 +1,11 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+using Okojo;
 using Okojo.Bytecode;
 using Okojo.Diagnostics;
 using Okojo.Node;
 using Okojo.Objects;
 using Okojo.Runtime;
-using Okojo;
 
 var options = NodeDebugOptions.Parse(args);
 
@@ -18,7 +18,9 @@ Console.WriteLine($"stops: {options.StopMask}");
 if (options.CheckInterval is not null)
     Console.WriteLine($"checkInterval: {options.CheckInterval.Value}");
 if (options.Breakpoints.Count != 0)
-    Console.WriteLine($"breakpoints: {string.Join(", ", options.Breakpoints.Select(static bp => $"{bp.SourcePath}:{bp.Line}"))}");
+    Console.WriteLine(
+        $"breakpoints: {string.Join(", ", options.Breakpoints.Select(static bp => $"{bp.SourcePath}:{bp.Line}"))}"
+    );
 if (options.LogPath is not null)
     Console.WriteLine($"debugLog: {options.LogPath}");
 Console.WriteLine();
@@ -56,9 +58,11 @@ static OkojoNodeRuntime CreateRuntime(
     NodeDebugOptions options,
     StringWriter stdout,
     StringWriter stderr,
-    TextWriter debugWriter)
+    TextWriter debugWriter
+)
 {
-    var builder = OkojoNodeRuntime.CreateBuilder()
+    var builder = OkojoNodeRuntime
+        .CreateBuilder()
         .ConfigureTerminal(terminal =>
         {
             terminal.Stdout = stdout;
@@ -79,7 +83,8 @@ static OkojoNodeRuntime CreateRuntime(
                     options.StopMask,
                     includeDisassembly: options.IncludeDisassembly,
                     includeLocals: options.IncludeLocals,
-                    includeStack: options.IncludeStack);
+                    includeStack: options.IncludeStack
+                );
 
                 if (options.CheckInterval is not null)
                     agent.SetCheckInterval(options.CheckInterval.Value);
@@ -107,10 +112,14 @@ static OkojoNodeRuntime CreateRuntime(
     {
         case NodeDebugSourceMode.Inline:
         case NodeDebugSourceMode.File:
-            builder.UseModuleSourceLoader(new InMemoryModuleLoader(new Dictionary<string, string>(StringComparer.Ordinal)
-            {
-                [options.EntryPath] = options.ReadSource()
-            }));
+            builder.UseModuleSourceLoader(
+                new InMemoryModuleLoader(
+                    new Dictionary<string, string>(StringComparer.Ordinal)
+                    {
+                        [options.EntryPath] = options.ReadSource(),
+                    }
+                )
+            );
             break;
         case NodeDebugSourceMode.AppRoot:
             break;
@@ -121,18 +130,25 @@ static OkojoNodeRuntime CreateRuntime(
     return builder.Build();
 }
 
-static void ApplyBreakpoints(OkojoNodeRuntime runtime, NodeDebugOptions options, TextWriter debugWriter)
+static void ApplyBreakpoints(
+    OkojoNodeRuntime runtime,
+    NodeDebugOptions options,
+    TextWriter debugWriter
+)
 {
     if (options.Breakpoints.Count == 0)
         return;
 
     foreach (var breakpoint in options.Breakpoints)
     {
-        string sourcePath = options.SourceMode == NodeDebugSourceMode.AppRoot
-            ? NormalizeFilesystemPath(options.AppRoot!, breakpoint.SourcePath)
-            : PathUtil.NormalizePath(breakpoint.SourcePath);
+        string sourcePath =
+            options.SourceMode == NodeDebugSourceMode.AppRoot
+                ? NormalizeFilesystemPath(options.AppRoot!, breakpoint.SourcePath)
+                : PathUtil.NormalizePath(breakpoint.SourcePath);
         var handle = runtime.Runtime.MainAgent.AddBreakpoint(sourcePath, breakpoint.Line);
-        debugWriter.WriteLine($"[node-debug] breakpoint-added: {sourcePath}:{breakpoint.Line} verified:{handle.IsVerified}");
+        debugWriter.WriteLine(
+            $"[node-debug] breakpoint-added: {sourcePath}:{breakpoint.Line} verified:{handle.IsVerified}"
+        );
     }
 }
 
@@ -187,9 +203,11 @@ static TextWriter CreateDebugWriter(NodeDebugOptions options)
 
 static string FormatResult(JsValue value)
 {
-    if (value.TryGetObject(out var obj) &&
-        obj.TryGetProperty("default", out var defaultValue) &&
-        !defaultValue.IsUndefined)
+    if (
+        value.TryGetObject(out var obj)
+        && obj.TryGetProperty("default", out var defaultValue)
+        && !defaultValue.IsUndefined
+    )
     {
         return defaultValue.ToString() ?? "<null>";
     }
@@ -199,8 +217,7 @@ static string FormatResult(JsValue value)
 
 static string EscapeControl(string text)
 {
-    return text
-        .Replace("\u001b", "\\u001b", StringComparison.Ordinal)
+    return text.Replace("\u001b", "\\u001b", StringComparison.Ordinal)
         .Replace("\r", "\\r", StringComparison.Ordinal)
         .Replace("\n", "\\n", StringComparison.Ordinal);
 }
@@ -218,14 +235,23 @@ file enum DebugStopMask
     SuspendGenerator = 1 << 6,
     ResumeGenerator = 1 << 7,
     Periodic = 1 << 8,
-    All = Debugger | Breakpoint | CaughtException | Call | Return | Pump | SuspendGenerator | ResumeGenerator | Periodic
+    All =
+        Debugger
+        | Breakpoint
+        | CaughtException
+        | Call
+        | Return
+        | Pump
+        | SuspendGenerator
+        | ResumeGenerator
+        | Periodic,
 }
 
 file enum NodeDebugSourceMode
 {
     Inline,
     File,
-    AppRoot
+    AppRoot,
 }
 
 file readonly record struct BreakpointSpec(string SourcePath, int Line);
@@ -237,7 +263,8 @@ file sealed class NodeDebugOptions
     public string? FilePath { get; init; }
     public string? AppRoot { get; init; }
     public required string EntryPath { get; init; }
-    public DebugStopMask StopMask { get; init; } = DebugStopMask.Debugger | DebugStopMask.CaughtException;
+    public DebugStopMask StopMask { get; init; } =
+        DebugStopMask.Debugger | DebugStopMask.CaughtException;
     public ulong? CheckInterval { get; init; }
     public string? LogPath { get; init; }
     public bool IncludeDisassembly { get; init; } = true;
@@ -249,9 +276,14 @@ file sealed class NodeDebugOptions
     {
         return SourceMode switch
         {
-            NodeDebugSourceMode.Inline => InlineSource ?? throw new InvalidOperationException("Inline source is missing."),
-            NodeDebugSourceMode.File => File.ReadAllText(FilePath ?? throw new InvalidOperationException("File path is missing.")),
-            _ => throw new InvalidOperationException("ReadSource is only valid for inline/file modes.")
+            NodeDebugSourceMode.Inline => InlineSource
+                ?? throw new InvalidOperationException("Inline source is missing."),
+            NodeDebugSourceMode.File => File.ReadAllText(
+                FilePath ?? throw new InvalidOperationException("File path is missing.")
+            ),
+            _ => throw new InvalidOperationException(
+                "ReadSource is only valid for inline/file modes."
+            ),
         };
     }
 
@@ -314,7 +346,9 @@ file sealed class NodeDebugOptions
                 case "-h":
                     throw new ArgumentException(GetUsage());
                 default:
-                    throw new ArgumentException($"Unknown argument '{args[i]}'.{Environment.NewLine}{GetUsage()}");
+                    throw new ArgumentException(
+                        $"Unknown argument '{args[i]}'.{Environment.NewLine}{GetUsage()}"
+                    );
             }
         }
 
@@ -330,15 +364,16 @@ file sealed class NodeDebugOptions
             InlineSource = inlineSource,
             FilePath = filePath,
             AppRoot = appRoot,
-            EntryPath = sourceMode == NodeDebugSourceMode.AppRoot
-                ? entryPath
-                : PathUtil.NormalizePath(entryPath),
+            EntryPath =
+                sourceMode == NodeDebugSourceMode.AppRoot
+                    ? entryPath
+                    : PathUtil.NormalizePath(entryPath),
             StopMask = stopMask,
             CheckInterval = checkInterval,
             LogPath = logPath,
             IncludeDisassembly = includeDisassembly,
             IncludeLocals = includeLocals,
-            IncludeStack = includeStack
+            IncludeStack = includeStack,
         };
     }
 
@@ -346,7 +381,9 @@ file sealed class NodeDebugOptions
     {
         int colonIndex = spec.LastIndexOf(':');
         if (colonIndex <= 0 || colonIndex == spec.Length - 1)
-            throw new ArgumentException($"Breakpoint must be in the form sourcePath:line. Got '{spec}'.");
+            throw new ArgumentException(
+                $"Breakpoint must be in the form sourcePath:line. Got '{spec}'."
+            );
 
         string sourcePath = spec[..colonIndex];
         int line = int.Parse(spec[(colonIndex + 1)..], CultureInfo.InvariantCulture);
@@ -359,7 +396,12 @@ file sealed class NodeDebugOptions
             return DebugStopMask.None;
 
         DebugStopMask result = DebugStopMask.None;
-        foreach (string part in value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        foreach (
+            string part in value.Split(
+                ',',
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+            )
+        )
         {
             result |= part.ToLowerInvariant() switch
             {
@@ -373,7 +415,7 @@ file sealed class NodeDebugOptions
                 "resume" or "resume-generator" => DebugStopMask.ResumeGenerator,
                 "periodic" => DebugStopMask.Periodic,
                 "all" => DebugStopMask.All,
-                _ => throw new ArgumentException($"Unknown stop kind '{part}'.")
+                _ => throw new ArgumentException($"Unknown stop kind '{part}'."),
             };
         }
 
@@ -382,13 +424,12 @@ file sealed class NodeDebugOptions
 
     private static string GetUsage()
     {
-        return
-            """
+        return """
             Usage:
               dotnet run --project sandbox\OkojoNodeDebugSandbox\OkojoNodeDebugSandbox.csproj -- --inline "<js>" [--entry /app/main.mjs]
               dotnet run --project sandbox\OkojoNodeDebugSandbox\OkojoNodeDebugSandbox.csproj -- --file <path> [--entry /app/main.mjs]
               dotnet run --project sandbox\OkojoNodeDebugSandbox\OkojoNodeDebugSandbox.csproj -- --app-root <dir> [--entry main.mjs]
-            
+
             Options:
               --stop debugger,caught,breakpoint,call,return,pump,suspend,resume,periodic,all
               --break <sourcePath:line>
@@ -397,7 +438,7 @@ file sealed class NodeDebugOptions
               --no-disasm
               --no-locals
               --no-stack
-            
+
             Notes:
               - Use `debugger;` in source and `--stop debugger` to pause on debugger statements.
               - Inline/file modes run a single in-memory Node entry module.
@@ -411,7 +452,8 @@ file sealed class NodeDebugSession(
     DebugStopMask stopMask,
     bool includeDisassembly,
     bool includeLocals,
-    bool includeStack) : IDebuggerSession
+    bool includeStack
+) : IDebuggerSession
 {
     private const int DisassemblyContextLines = 40;
     private static readonly Regex RegisterRegex = new(@"r(\d+)", RegexOptions.CultureInvariant);
@@ -430,7 +472,9 @@ file sealed class NodeDebugSession(
             output.WriteLine($"[node-debug] location: {FormatLocation(location)}");
 
         var frame = snapshot.CurrentFrameInfo;
-        output.WriteLine($"[node-debug] frame: {frame.FunctionName} pc:{frame.ProgramCounter} kind:{frame.FrameKind}");
+        output.WriteLine(
+            $"[node-debug] frame: {frame.FunctionName} pc:{frame.ProgramCounter} kind:{frame.FrameKind}"
+        );
 
         if (includeDisassembly)
             WriteNearbyDisassembly(snapshot);
@@ -446,15 +490,21 @@ file sealed class NodeDebugSession(
         {
             ExecutionCheckpointKind.DebuggerStatement => stopMask.HasFlag(DebugStopMask.Debugger),
             ExecutionCheckpointKind.Breakpoint => stopMask.HasFlag(DebugStopMask.Breakpoint),
-            ExecutionCheckpointKind.CaughtException => stopMask.HasFlag(DebugStopMask.CaughtException),
+            ExecutionCheckpointKind.CaughtException => stopMask.HasFlag(
+                DebugStopMask.CaughtException
+            ),
             ExecutionCheckpointKind.Call => stopMask.HasFlag(DebugStopMask.Call),
             ExecutionCheckpointKind.Return => stopMask.HasFlag(DebugStopMask.Return),
             ExecutionCheckpointKind.Pump => stopMask.HasFlag(DebugStopMask.Pump),
-            ExecutionCheckpointKind.SuspendGenerator => stopMask.HasFlag(DebugStopMask.SuspendGenerator),
-            ExecutionCheckpointKind.ResumeGenerator => stopMask.HasFlag(DebugStopMask.ResumeGenerator),
+            ExecutionCheckpointKind.SuspendGenerator => stopMask.HasFlag(
+                DebugStopMask.SuspendGenerator
+            ),
+            ExecutionCheckpointKind.ResumeGenerator => stopMask.HasFlag(
+                DebugStopMask.ResumeGenerator
+            ),
             ExecutionCheckpointKind.Periodic => stopMask.HasFlag(DebugStopMask.Periodic),
             ExecutionCheckpointKind.Step => true,
-            _ => false
+            _ => false,
         };
     }
 
@@ -471,7 +521,9 @@ file sealed class NodeDebugSession(
         for (int i = 0; i < locals.Count; i++)
         {
             var local = locals[i];
-            output.WriteLine($"  - {local.Name} [{local.StorageKind}:{local.StorageIndex}] = {FormatValue(local.Value)}");
+            output.WriteLine(
+                $"  - {local.Name} [{local.StorageKind}:{local.StorageIndex}] = {FormatValue(local.Value)}"
+            );
         }
     }
 
@@ -481,7 +533,9 @@ file sealed class NodeDebugSession(
         for (int i = 0; i < snapshot.StackFrames.Count; i++)
         {
             var frame = snapshot.StackFrames[i];
-            output.WriteLine($"  #{i} {frame.FunctionName} pc:{frame.ProgramCounter} {FormatFrameLocation(frame)}");
+            output.WriteLine(
+                $"  #{i} {frame.FunctionName} pc:{frame.ProgramCounter} {FormatFrameLocation(frame)}"
+            );
         }
     }
 
@@ -490,19 +544,29 @@ file sealed class NodeDebugSession(
         if (snapshot.Script is null || snapshot.ProgramCounter < 0)
             return;
 
-        var disasm = Disassembler.Dump(snapshot.Script, new DisassemblerOptions
-        {
-            UnitKind = "function",
-            UnitName = snapshot.CurrentFrameInfo.FunctionName,
-            IncludeConstants = false
-        });
+        var disasm = Disassembler.Dump(
+            snapshot.Script,
+            new DisassemblerOptions
+            {
+                UnitKind = "function",
+                UnitName = snapshot.CurrentFrameInfo.FunctionName,
+                IncludeConstants = false,
+            }
+        );
 
         var lines = disasm.Split(Environment.NewLine, StringSplitOptions.None);
-        int codeStart = Array.FindIndex(lines, static line => string.Equals(line, ".code", StringComparison.Ordinal));
+        int codeStart = Array.FindIndex(
+            lines,
+            static line => string.Equals(line, ".code", StringComparison.Ordinal)
+        );
         if (codeStart < 0)
             return;
 
-        int instructionIndex = FindNearestInstructionLine(lines, codeStart + 1, snapshot.ProgramCounter);
+        int instructionIndex = FindNearestInstructionLine(
+            lines,
+            codeStart + 1,
+            snapshot.ProgramCounter
+        );
         if (instructionIndex < 0)
             return;
 
@@ -521,7 +585,10 @@ file sealed class NodeDebugSession(
         WriteResolvedInstructionRegisters(snapshot, lines[instructionIndex]);
     }
 
-    private void WriteResolvedInstructionRegisters(PausedExecutionSnapshot snapshot, string instructionLine)
+    private void WriteResolvedInstructionRegisters(
+        PausedExecutionSnapshot snapshot,
+        string instructionLine
+    )
     {
         var locals = snapshot.LocalValues;
         if (locals is null || locals.Count == 0)
@@ -544,7 +611,10 @@ file sealed class NodeDebugSession(
             for (int i = 0; i < locals.Count; i++)
             {
                 var local = locals[i];
-                if (local.StorageKind != JsLocalDebugStorageKind.Register || local.StorageIndex != register)
+                if (
+                    local.StorageKind != JsLocalDebugStorageKind.Register
+                    || local.StorageIndex != register
+                )
                     continue;
 
                 resolved.Add($"r{register}={FormatValue(local.Value)} ({local.Name})");
@@ -558,7 +628,11 @@ file sealed class NodeDebugSession(
         output.WriteLine($"[node-debug] operands: {string.Join(", ", resolved)}");
     }
 
-    private static int FindNearestInstructionLine(string[] lines, int startIndex, int programCounter)
+    private static int FindNearestInstructionLine(
+        string[] lines,
+        int startIndex,
+        int programCounter
+    )
     {
         int nearestIndex = -1;
         int nearestPc = -1;
@@ -599,19 +673,25 @@ file sealed class NodeDebugSession(
 
     private static string FormatValue(in JsValue value)
     {
-        if (value.IsUndefined) return "undefined";
-        if (value.IsNull) return "null";
-        if (value.IsBool) return value.IsTrue ? "true" : "false";
-        if (value.IsInt32) return value.Int32Value.ToString(CultureInfo.InvariantCulture);
-        if (value.IsFloat64) return value.Float64Value.ToString(CultureInfo.InvariantCulture);
-        if (value.IsString) return $"\"{Escape(value.AsString())}\"";
+        if (value.IsUndefined)
+            return "undefined";
+        if (value.IsNull)
+            return "null";
+        if (value.IsBool)
+            return value.IsTrue ? "true" : "false";
+        if (value.IsInt32)
+            return value.Int32Value.ToString(CultureInfo.InvariantCulture);
+        if (value.IsFloat64)
+            return value.Float64Value.ToString(CultureInfo.InvariantCulture);
+        if (value.IsString)
+            return $"\"{Escape(value.AsString())}\"";
         if (value.TryGetObject(out var obj))
         {
             return obj switch
             {
                 JsFunction fn => $"Function({fn.Name ?? "<anonymous>"})",
                 JsObject jsObject => $"Object({jsObject.GetType().Name})",
-                _ => obj.GetType().Name
+                _ => obj.GetType().Name,
             };
         }
 
@@ -620,8 +700,7 @@ file sealed class NodeDebugSession(
 
     private static string Escape(string text)
     {
-        return text
-            .Replace("\\", "\\\\", StringComparison.Ordinal)
+        return text.Replace("\\", "\\\\", StringComparison.Ordinal)
             .Replace("\"", "\\\"", StringComparison.Ordinal)
             .Replace("\r", "\\r", StringComparison.Ordinal)
             .Replace("\n", "\\n", StringComparison.Ordinal);
@@ -634,8 +713,10 @@ file sealed class InMemoryModuleLoader(Dictionary<string, string> modules) : IMo
 
     public string ResolveSpecifier(string specifier, string? referrer)
     {
-        if (specifier.StartsWith("./", StringComparison.Ordinal) ||
-            specifier.StartsWith("../", StringComparison.Ordinal))
+        if (
+            specifier.StartsWith("./", StringComparison.Ordinal)
+            || specifier.StartsWith("../", StringComparison.Ordinal)
+        )
         {
             string basePath = referrer is null ? "/" : PathUtil.NormalizePath(referrer);
             int slash = basePath.LastIndexOf('/');

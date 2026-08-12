@@ -6,7 +6,7 @@ internal enum JsObjectMemberKind : byte
 {
     Field,
     Property,
-    Method
+    Method,
 }
 
 internal sealed class JsObjectParameterModel(string name, ITypeSymbol type)
@@ -23,7 +23,8 @@ internal sealed class JsObjectMemberModel(
     ITypeSymbol type,
     bool canRead,
     bool canWrite,
-    IReadOnlyList<JsObjectParameterModel>? parameters = null)
+    IReadOnlyList<JsObjectParameterModel>? parameters = null
+)
 {
     public string Name { get; } = name;
     public JsObjectMemberKind Kind { get; } = kind;
@@ -40,7 +41,8 @@ internal sealed class JsObjectMemberModel(
 internal sealed class JsObjectTypeModel(
     INamedTypeSymbol symbol,
     IReadOnlyList<JsObjectMemberModel> instanceMembers,
-    IReadOnlyList<JsObjectMemberModel> staticMembers)
+    IReadOnlyList<JsObjectMemberModel> staticMembers
+)
 {
     public INamedTypeSymbol Symbol { get; } = symbol;
     public IReadOnlyList<JsObjectMemberModel> InstanceMembers { get; } = instanceMembers;

@@ -19,7 +19,8 @@ public sealed class JsRuntime : IJsRuntimeHostInternal, IDisposable
         TimeProvider? timeProvider,
         IWorkerScriptSourceLoader? workerScriptLoader,
         IModuleSourceLoader? moduleLoader,
-        bool _)
+        bool _
+    )
     {
         ArgumentNullException.ThrowIfNull(options);
         Options = options.Clone();
@@ -33,8 +34,9 @@ public sealed class JsRuntime : IJsRuntimeHostInternal, IDisposable
         TimeProvider = Options.TimeProvider ?? TimeProvider.System;
         var baseModuleSourceLoader = Options.ModuleSourceLoader ?? new FileModuleSourceLoader();
         ModuleSourceLoader = Options.Host.ApplyModuleSourceLoaderDecorators(baseModuleSourceLoader);
-        WorkerScriptSourceLoader = Options.WorkerScriptSourceLoader ??
-                                   new WorkerScriptSourceLoaderFromModuleSourceLoader(ModuleSourceLoader);
+        WorkerScriptSourceLoader =
+            Options.WorkerScriptSourceLoader
+            ?? new WorkerScriptSourceLoaderFromModuleSourceLoader(ModuleSourceLoader);
         SourceMapRegistry = Options.Host.SourceMapRegistry;
         MainAgent = new(this, JsAgentKind.Main, 0, Options.Agent);
         lock (agentsGate)
@@ -178,13 +180,19 @@ public sealed class JsRuntime : IJsRuntimeHostInternal, IDisposable
         return Evaluate(source, pumpJobsAfterRun);
     }
 
-    public ValueTask<JsValue> EvaluateAsync(string source, CancellationToken cancellationToken = default)
+    public ValueTask<JsValue> EvaluateAsync(
+        string source,
+        CancellationToken cancellationToken = default
+    )
     {
         ThrowIfDisposed();
         return MainRealm.EvaluateAsync(source, cancellationToken);
     }
 
-    public ValueTask<JsValue> EvalAsync(string source, CancellationToken cancellationToken = default)
+    public ValueTask<JsValue> EvalAsync(
+        string source,
+        CancellationToken cancellationToken = default
+    )
     {
         return EvaluateAsync(source, cancellationToken);
     }
@@ -208,7 +216,13 @@ public sealed class JsRuntime : IJsRuntimeHostInternal, IDisposable
             ThrowIfDisposed();
             var agentOptions = Options.Agent.Clone();
             configure?.Invoke(agentOptions);
-            var agent = new JsAgent(this, JsAgentKind.Worker, nextAgentId++, agentOptions, MainAgent);
+            var agent = new JsAgent(
+                this,
+                JsAgentKind.Worker,
+                nextAgentId++,
+                agentOptions,
+                MainAgent
+            );
             agents.Add(agent);
             return agent;
         }
@@ -241,8 +255,9 @@ public sealed class JsRuntime : IJsRuntimeHostInternal, IDisposable
         return options;
     }
 
-    private sealed class WorkerScriptSourceLoaderFromModuleSourceLoader(IModuleSourceLoader moduleLoader)
-        : IWorkerScriptSourceLoader
+    private sealed class WorkerScriptSourceLoaderFromModuleSourceLoader(
+        IModuleSourceLoader moduleLoader
+    ) : IWorkerScriptSourceLoader
     {
         public string LoadScript(string path, string? referrer = null)
         {

@@ -111,7 +111,7 @@ internal static class JsStringCaseOperations
         [0x1FF4] = "\u038F\u0399",
         [0x1FB7] = "\u0391\u0342\u0399",
         [0x1FC7] = "\u0397\u0342\u0399",
-        [0x1FF7] = "\u03A9\u0342\u0399"
+        [0x1FF7] = "\u03A9\u0342\u0399",
     };
 
     public static JsString ToUpperCaseUnicodeDefault(JsString value)
@@ -143,18 +143,26 @@ internal static class JsStringCaseOperations
                 if (!anyAsciiLower)
                     return value;
 
-                using var builder = new PooledCharBuilder(stackalloc char[Math.Min(chars.Length, 256)]);
+                using var builder = new PooledCharBuilder(
+                    stackalloc char[Math.Min(chars.Length, 256)]
+                );
                 for (var i = 0; i < chars.Length; i++)
                     builder.Append(char.ToUpperInvariant(chars[i]));
                 return builder.ToString();
             }
 
-            using var pooled = new PooledCharBuilder(stackalloc char[Math.Min(chars.Length + 8, 256)]);
+            using var pooled = new PooledCharBuilder(
+                stackalloc char[Math.Min(chars.Length + 8, 256)]
+            );
             var changed = false;
             for (var i = 0; i < chars.Length; i++)
             {
                 var ch = chars[i];
-                if (char.IsHighSurrogate(ch) && i + 1 < chars.Length && char.IsLowSurrogate(chars[i + 1]))
+                if (
+                    char.IsHighSurrogate(ch)
+                    && i + 1 < chars.Length
+                    && char.IsLowSurrogate(chars[i + 1])
+                )
                 {
                     var rune = new Rune(ch, chars[i + 1]);
                     if (UpperSpecialCasing.TryGetValue(rune.Value, out var specialPair))
@@ -202,11 +210,19 @@ internal static class JsStringCaseOperations
         }
     }
 
-    internal static int AppendUpperCaseUnicodeDefault(ref PooledCharBuilder builder, ReadOnlySpan<char> value,
-        int index, out bool changed)
+    internal static int AppendUpperCaseUnicodeDefault(
+        ref PooledCharBuilder builder,
+        ReadOnlySpan<char> value,
+        int index,
+        out bool changed
+    )
     {
         var ch = value[index];
-        if (char.IsHighSurrogate(ch) && index + 1 < value.Length && char.IsLowSurrogate(value[index + 1]))
+        if (
+            char.IsHighSurrogate(ch)
+            && index + 1 < value.Length
+            && char.IsLowSurrogate(value[index + 1])
+        )
         {
             var rune = new Rune(ch, value[index + 1]);
             if (UpperSpecialCasing.TryGetValue(rune.Value, out var specialPair))
@@ -273,13 +289,17 @@ internal static class JsStringCaseOperations
                 if (!anyAsciiUpper)
                     return value;
 
-                using var builder = new PooledCharBuilder(stackalloc char[Math.Min(chars.Length, 256)]);
+                using var builder = new PooledCharBuilder(
+                    stackalloc char[Math.Min(chars.Length, 256)]
+                );
                 for (var i = 0; i < chars.Length; i++)
                     builder.Append(char.ToLowerInvariant(chars[i]));
                 return builder.ToString();
             }
 
-            using var pooled = new PooledCharBuilder(stackalloc char[Math.Min(chars.Length + 8, 256)]);
+            using var pooled = new PooledCharBuilder(
+                stackalloc char[Math.Min(chars.Length + 8, 256)]
+            );
             var changed = false;
             for (var i = 0; i < chars.Length; i++)
             {
@@ -300,7 +320,11 @@ internal static class JsStringCaseOperations
                     continue;
                 }
 
-                if (char.IsHighSurrogate(ch) && i + 1 < chars.Length && char.IsLowSurrogate(chars[i + 1]))
+                if (
+                    char.IsHighSurrogate(ch)
+                    && i + 1 < chars.Length
+                    && char.IsLowSurrogate(chars[i + 1])
+                )
                 {
                     var rune = new Rune(ch, chars[i + 1]);
                     var lower = Rune.ToLowerInvariant(rune);
@@ -361,7 +385,11 @@ internal static class JsStringCaseOperations
         for (var i = sigmaIndex + 1; i < value.Length; i++)
         {
             Rune rune;
-            if (char.IsHighSurrogate(value[i]) && i + 1 < value.Length && char.IsLowSurrogate(value[i + 1]))
+            if (
+                char.IsHighSurrogate(value[i])
+                && i + 1 < value.Length
+                && char.IsLowSurrogate(value[i + 1])
+            )
             {
                 rune = new(value[i], value[i + 1]);
                 i++;
@@ -383,7 +411,9 @@ internal static class JsStringCaseOperations
     private static bool IsCased(Rune rune)
     {
         var category = Rune.GetUnicodeCategory(rune);
-        return category is UnicodeCategory.UppercaseLetter or UnicodeCategory.LowercaseLetter
-            or UnicodeCategory.TitlecaseLetter;
+        return category
+            is UnicodeCategory.UppercaseLetter
+                or UnicodeCategory.LowercaseLetter
+                or UnicodeCategory.TitlecaseLetter;
     }
 }

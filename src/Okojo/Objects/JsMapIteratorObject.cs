@@ -8,7 +8,8 @@ internal sealed class JsMapIteratorObject : JsObject
     private int cursor;
     private bool exhausted;
 
-    internal JsMapIteratorObject(JsRealm realm, JsMapObject map, IterationKind kind) : base(realm)
+    internal JsMapIteratorObject(JsRealm realm, JsMapObject map, IterationKind kind)
+        : base(realm)
     {
         this.map = map;
         this.kind = kind;
@@ -29,9 +30,12 @@ internal sealed class JsMapIteratorObject : JsObject
         return kind switch
         {
             IterationKind.Keys => JsValue.FromObject(Realm.CreateIteratorResultObject(key, false)),
-            IterationKind.Values => JsValue.FromObject(Realm.CreateIteratorResultObject(value, false)),
-            _ => JsValue.FromObject(Realm.CreateIteratorResultObject(CreateEntryPair(key, value),
-                false))
+            IterationKind.Values => JsValue.FromObject(
+                Realm.CreateIteratorResultObject(value, false)
+            ),
+            _ => JsValue.FromObject(
+                Realm.CreateIteratorResultObject(CreateEntryPair(key, value), false)
+            ),
         };
     }
 
@@ -47,6 +51,6 @@ internal sealed class JsMapIteratorObject : JsObject
     {
         Keys,
         Values,
-        Entries
+        Entries,
     }
 }

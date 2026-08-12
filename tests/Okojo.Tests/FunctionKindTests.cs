@@ -11,9 +11,14 @@ public class FunctionKindTests
     public void GeneratorDeclaration_IsTaggedAsGeneratorKind()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-                                                                   function* G() {}
-                                                                   """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                function* G() {}
+                """
+            )
+        );
 
         var g = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(f => f.Name == "G");
         Assert.That(g.Kind, Is.EqualTo(JsBytecodeFunctionKind.Generator));
@@ -23,9 +28,14 @@ public class FunctionKindTests
     public void NormalDeclaration_IsTaggedAsNormalKind()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-                                                                   function F() {}
-                                                                   """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                function F() {}
+                """
+            )
+        );
 
         var f = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(fn => fn.Name == "F");
         Assert.That(f.Kind, Is.EqualTo(JsBytecodeFunctionKind.Normal));
@@ -35,9 +45,14 @@ public class FunctionKindTests
     public void GeneratorExpression_IsTaggedAsGeneratorKind()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-                                                                   let x = function* H() {};
-                                                                   """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                let x = function* H() {};
+                """
+            )
+        );
 
         var h = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(f => f.Name == "H");
         Assert.That(h.Kind, Is.EqualTo(JsBytecodeFunctionKind.Generator));

@@ -8,8 +8,15 @@ public sealed partial class JsRealm
 {
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void HandleRuntimeSetClassHeritage(
-        JsRealm realm, JsScript script, int opcodePc, ref JsValue registers, int fp, int argRegStart,
-        int argCount, ref JsValue acc)
+        JsRealm realm,
+        JsScript script,
+        int opcodePc,
+        ref JsValue registers,
+        int fp,
+        int argRegStart,
+        int argCount,
+        ref JsValue acc
+    )
     {
         if (argCount != 2)
             ThrowTypeError("CLASS_HERITAGE_ARGC", "SetClassHeritage requires two arguments");
@@ -28,8 +35,10 @@ public sealed partial class JsRealm
         else if (superValue.TryGetObject(out var superObj) && superObj is JsFunction superFn)
         {
             if (!superFn.IsConstructor)
-                ThrowTypeError("CLASS_HERITAGE_SUPER",
-                    "Class extends value is not a constructor or null");
+                ThrowTypeError(
+                    "CLASS_HERITAGE_SUPER",
+                    "Class extends value is not a constructor or null"
+                );
 
             ctorFn.Prototype = superFn;
             if (!superFn.TryGetPropertyAtom(realm, IdPrototype, out var superProtoValue, out _))
@@ -40,19 +49,28 @@ public sealed partial class JsRealm
             else if (superProtoValue.TryGetObject(out var superProtoObj))
                 superPrototypeObject = superProtoObj;
             else
-                ThrowTypeError("CLASS_HERITAGE_PROTO",
-                    "Class extends value does not have a valid prototype property");
+                ThrowTypeError(
+                    "CLASS_HERITAGE_PROTO",
+                    "Class extends value does not have a valid prototype property"
+                );
         }
         else
         {
-            ThrowTypeError("CLASS_HERITAGE_SUPER",
-                "Class extends value is not a constructor or null");
+            ThrowTypeError(
+                "CLASS_HERITAGE_SUPER",
+                "Class extends value is not a constructor or null"
+            );
         }
 
         JsObject? ctorProtoObjTemp = null;
-        if (!ctorFn.TryGetPropertyAtom(realm, IdPrototype, out var ctorProtoValue, out _) ||
-            !ctorProtoValue.TryGetObject(out ctorProtoObjTemp))
-            ThrowTypeError("CLASS_HERITAGE_CTOR_PROTO", "Class constructor prototype is not an object");
+        if (
+            !ctorFn.TryGetPropertyAtom(realm, IdPrototype, out var ctorProtoValue, out _)
+            || !ctorProtoValue.TryGetObject(out ctorProtoObjTemp)
+        )
+            ThrowTypeError(
+                "CLASS_HERITAGE_CTOR_PROTO",
+                "Class constructor prototype is not an object"
+            );
 
         var ctorProtoObj = ctorProtoObjTemp!;
         ctorProtoObj.Prototype = superPrototypeObject;
@@ -61,34 +79,64 @@ public sealed partial class JsRealm
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void HandleRuntimeCallSuperConstructor(
-        JsRealm realm, JsScript script, int opcodePc, ref JsValue registers, int fp, int argRegStart,
-        int argCount, ref JsValue acc)
+        JsRealm realm,
+        JsScript script,
+        int opcodePc,
+        ref JsValue registers,
+        int fp,
+        int argRegStart,
+        int argCount,
+        ref JsValue acc
+    )
     {
-        var args = argCount == 0
-            ? ReadOnlySpan<JsValue>.Empty
-            : MemoryMarshal.CreateReadOnlySpan(ref Unsafe.Add(ref registers, argRegStart), argCount);
+        var args =
+            argCount == 0
+                ? ReadOnlySpan<JsValue>.Empty
+                : MemoryMarshal.CreateReadOnlySpan(
+                    ref Unsafe.Add(ref registers, argRegStart),
+                    argCount
+                );
         acc = CallSuperConstructorCore(realm, fp, opcodePc, args);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void HandleRuntimeCallSuperConstructorForwardAll(
-        JsRealm realm, JsScript script, int opcodePc, ref JsValue registers, int fp, int argRegStart,
-        int argCount, ref JsValue acc)
+        JsRealm realm,
+        JsScript script,
+        int opcodePc,
+        ref JsValue registers,
+        int fp,
+        int argRegStart,
+        int argCount,
+        ref JsValue acc
+    )
     {
         if (argCount != 0)
-            ThrowTypeError("SUPER_CALL_FORWARD_ARGC", "CallSuperConstructorForwardAll expects zero explicit arguments");
+            ThrowTypeError(
+                "SUPER_CALL_FORWARD_ARGC",
+                "CallSuperConstructorForwardAll expects zero explicit arguments"
+            );
         var args = realm.GetFrameArgumentsSpan(fp);
         acc = CallSuperConstructorCore(realm, fp, opcodePc, args);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void HandleRuntimeCallSuperConstructorWithSpread(
-        JsRealm realm, JsScript script, int opcodePc, ref JsValue registers, int fp, int argRegStart,
-        int argCount, ref JsValue acc)
+        JsRealm realm,
+        JsScript script,
+        int opcodePc,
+        ref JsValue registers,
+        int fp,
+        int argRegStart,
+        int argCount,
+        ref JsValue acc
+    )
     {
         if (argCount < 1)
-            ThrowTypeError("SUPER_CALL_SPREAD_ARGC",
-                "CallSuperConstructorWithSpread requires flags and optional arguments");
+            ThrowTypeError(
+                "SUPER_CALL_SPREAD_ARGC",
+                "CallSuperConstructorWithSpread requires flags and optional arguments"
+            );
 
         var flagsValue = Unsafe.Add(ref registers, argRegStart);
         var savedSp = realm.StackTop;
@@ -96,11 +144,22 @@ public sealed partial class JsRealm
         int spreadArgCount;
         try
         {
-            spreadArgOffset = realm.CopySpreadArgumentsToStackTop(flagsValue, argCount == 1
+            spreadArgOffset = realm.CopySpreadArgumentsToStackTop(
+                flagsValue,
+                argCount == 1
                     ? ReadOnlySpan<JsValue>.Empty
-                    : MemoryMarshal.CreateReadOnlySpan(ref Unsafe.Add(ref registers, argRegStart + 1), argCount - 1),
-                out spreadArgCount);
-            acc = CallSuperConstructorCore(realm, fp, opcodePc, realm.Stack.AsSpan(spreadArgOffset, spreadArgCount));
+                    : MemoryMarshal.CreateReadOnlySpan(
+                        ref Unsafe.Add(ref registers, argRegStart + 1),
+                        argCount - 1
+                    ),
+                out spreadArgCount
+            );
+            acc = CallSuperConstructorCore(
+                realm,
+                fp,
+                opcodePc,
+                realm.Stack.AsSpan(spreadArgOffset, spreadArgCount)
+            );
         }
         finally
         {
@@ -109,8 +168,12 @@ public sealed partial class JsRealm
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static JsValue CallSuperConstructorCore(JsRealm realm, int fp, int opcodePc,
-        ReadOnlySpan<JsValue> args)
+    private static JsValue CallSuperConstructorCore(
+        JsRealm realm,
+        int fp,
+        int opcodePc,
+        ReadOnlySpan<JsValue> args
+    )
     {
         ref readonly var callFrame = ref Unsafe.As<JsValue, CallFrame>(ref realm.Stack[fp]);
         JsBytecodeFunction currentFunction;
@@ -119,29 +182,45 @@ public sealed partial class JsRealm
         int thisFramePointer;
         JsBytecodeFunction.DerivedSuperCallState? derivedSuperState = null;
 
-        if ((callFrame.Flags & (CallFrameFlag.IsConstructorCall | CallFrameFlag.IsDerivedConstructorCall)) ==
-            (CallFrameFlag.IsConstructorCall | CallFrameFlag.IsDerivedConstructorCall) &&
-            callFrame.Function is JsBytecodeFunction
-            {
-                IsClassConstructor: true, IsDerivedConstructor: true
-            } directFunction)
+        if (
+            (
+                callFrame.Flags
+                & (CallFrameFlag.IsConstructorCall | CallFrameFlag.IsDerivedConstructorCall)
+            ) == (CallFrameFlag.IsConstructorCall | CallFrameFlag.IsDerivedConstructorCall)
+            && callFrame.Function
+                is JsBytecodeFunction
+                {
+                    IsClassConstructor: true,
+                    IsDerivedConstructor: true
+                } directFunction
+        )
         {
             currentFunction = directFunction;
             newTarget = realm.Stack[fp + OffsetExtra0];
             thisAlreadyInitialized = !callFrame.ThisValue.IsTheHole;
             thisFramePointer = fp;
         }
-        else if (callFrame.Function is JsBytecodeFunction
-        {
-            IsArrow: true, BoundDerivedSuperCallState: not null
-        } arrowFunction &&
-                 arrowFunction.BoundDerivedSuperCallState is { } boundDerivedSuperState)
+        else if (
+            callFrame.Function
+                is JsBytecodeFunction
+                {
+                    IsArrow: true,
+                    BoundDerivedSuperCallState: not null
+                } arrowFunction
+            && arrowFunction.BoundDerivedSuperCallState is { } boundDerivedSuperState
+        )
         {
             derivedSuperState = boundDerivedSuperState;
             currentFunction = boundDerivedSuperState.ConstructorFunction;
             newTarget = boundDerivedSuperState.NewTarget;
-            if (TryGetLiveDerivedSuperCallFrameState(realm, boundDerivedSuperState, out var liveFramePointer,
-                    out var liveThisValue))
+            if (
+                TryGetLiveDerivedSuperCallFrameState(
+                    realm,
+                    boundDerivedSuperState,
+                    out var liveFramePointer,
+                    out var liveThisValue
+                )
+            )
             {
                 thisFramePointer = liveFramePointer;
                 thisAlreadyInitialized = !liveThisValue.IsTheHole;
@@ -149,12 +228,15 @@ public sealed partial class JsRealm
             else
             {
                 thisFramePointer = -1;
-                thisAlreadyInitialized = boundDerivedSuperState.DerivedThisContext is not null &&
-                                         boundDerivedSuperState.DerivedThisSlot >= 0 &&
-                                         (uint)boundDerivedSuperState.DerivedThisSlot <
-                                         (uint)boundDerivedSuperState.DerivedThisContext.Slots.Length &&
-                                         !boundDerivedSuperState.DerivedThisContext.Slots[
-                                             boundDerivedSuperState.DerivedThisSlot].IsTheHole;
+                thisAlreadyInitialized =
+                    boundDerivedSuperState.DerivedThisContext is not null
+                    && boundDerivedSuperState.DerivedThisSlot >= 0
+                    && (uint)boundDerivedSuperState.DerivedThisSlot
+                        < (uint)boundDerivedSuperState.DerivedThisContext.Slots.Length
+                    && !boundDerivedSuperState
+                        .DerivedThisContext
+                        .Slots[boundDerivedSuperState.DerivedThisSlot]
+                        .IsTheHole;
             }
         }
         else
@@ -175,11 +257,15 @@ public sealed partial class JsRealm
             realm.Stack[thisFramePointer + OffsetThisValue] = thisValue;
             realm.UpdateDerivedThisContextValue(thisFramePointer, currentFunction, thisValue);
         }
-        else if (derivedSuperState?.DerivedThisContext is not null &&
-                 derivedSuperState.DerivedThisSlot >= 0 &&
-                 (uint)derivedSuperState.DerivedThisSlot < (uint)derivedSuperState.DerivedThisContext.Slots.Length)
+        else if (
+            derivedSuperState?.DerivedThisContext is not null
+            && derivedSuperState.DerivedThisSlot >= 0
+            && (uint)derivedSuperState.DerivedThisSlot
+                < (uint)derivedSuperState.DerivedThisContext.Slots.Length
+        )
         {
-            derivedSuperState.DerivedThisContext.Slots[derivedSuperState.DerivedThisSlot] = thisValue;
+            derivedSuperState.DerivedThisContext.Slots[derivedSuperState.DerivedThisSlot] =
+                thisValue;
         }
 
         return thisValue;
@@ -190,11 +276,17 @@ public sealed partial class JsRealm
         JsRealm realm,
         JsBytecodeFunction.DerivedSuperCallState state,
         out int liveFramePointer,
-        out JsValue thisValue)
+        out JsValue thisValue
+    )
     {
         var framePointer = state.FramePointer;
-        if ((uint)framePointer < (uint)realm.StackTop &&
-            ReferenceEquals(realm.GetCallFrameAt(framePointer).Function, state.ConstructorFunction))
+        if (
+            (uint)framePointer < (uint)realm.StackTop
+            && ReferenceEquals(
+                realm.GetCallFrameAt(framePointer).Function,
+                state.ConstructorFunction
+            )
+        )
         {
             liveFramePointer = framePointer;
             thisValue = realm.Stack[framePointer + OffsetThisValue];

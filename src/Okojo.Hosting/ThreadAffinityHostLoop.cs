@@ -8,8 +8,12 @@ namespace Okojo.Hosting;
 ///     HTML event loops have one or more task queues. See WHATWG HTML 8.1.7.1:
 ///     https://html.spec.whatwg.org/multipage/webappapis.html#event-loops
 /// </summary>
-public sealed class ThreadAffinityHostLoop(TimeProvider? timeProvider = null) : IHostTaskScheduler,
-    IQueuedHostDelayScheduler, IHostTaskQueuePump, IHostEventLoopDiagnostics, IDisposable
+public sealed class ThreadAffinityHostLoop(TimeProvider? timeProvider = null)
+    : IHostTaskScheduler,
+        IQueuedHostDelayScheduler,
+        IHostTaskQueuePump,
+        IHostEventLoopDiagnostics,
+        IDisposable
 {
     private readonly object gate = new();
     private readonly Dictionary<HostTaskQueueKey, Queue<Action>> queues = [];
@@ -39,7 +43,9 @@ public sealed class ThreadAffinityHostLoop(TimeProvider? timeProvider = null) : 
         {
             var snapshots = new HostTaskQueueSnapshot[queues.Count];
             var index = 0;
-            foreach (var pair in queues.OrderBy(static pair => pair.Key.Name, StringComparer.Ordinal))
+            foreach (
+                var pair in queues.OrderBy(static pair => pair.Key.Name, StringComparer.Ordinal)
+            )
                 snapshots[index++] = new(pair.Key, pair.Value.Count);
 
             return new(snapshots, PendingDelayedCount, NextDelayedDueAt);
@@ -108,7 +114,11 @@ public sealed class ThreadAffinityHostLoop(TimeProvider? timeProvider = null) : 
         return new AgentScheduler(this, target);
     }
 
-    public IHostDelayedOperation ScheduleDelayed(TimeSpan delay, Action<object?> callback, object? state)
+    public IHostDelayedOperation ScheduleDelayed(
+        TimeSpan delay,
+        Action<object?> callback,
+        object? state
+    )
     {
         return ScheduleDelayed(delay, HostingTaskQueueKeys.Default, callback, state);
     }
@@ -117,7 +127,8 @@ public sealed class ThreadAffinityHostLoop(TimeProvider? timeProvider = null) : 
         TimeSpan delay,
         HostTaskQueueKey targetQueue,
         Action<object?> callback,
-        object? state)
+        object? state
+    )
     {
         ArgumentNullException.ThrowIfNull(callback);
         ThrowIfDisposed();
@@ -127,10 +138,15 @@ public sealed class ThreadAffinityHostLoop(TimeProvider? timeProvider = null) : 
     public void AssertOwnerThread()
     {
         if (Environment.CurrentManagedThreadId != OwnerThreadId)
-            throw new InvalidOperationException("ThreadAffinityHostLoop must run on its owner thread.");
+            throw new InvalidOperationException(
+                "ThreadAffinityHostLoop must run on its owner thread."
+            );
     }
 
-    public bool TryPumpOne(out HostTaskQueueKey pumpedQueueKey, ReadOnlySpan<HostTaskQueueKey> preferredOrder)
+    public bool TryPumpOne(
+        out HostTaskQueueKey pumpedQueueKey,
+        ReadOnlySpan<HostTaskQueueKey> preferredOrder
+    )
     {
         AssertOwnerThread();
 
@@ -194,16 +210,15 @@ public sealed class ThreadAffinityHostLoop(TimeProvider? timeProvider = null) : 
         return RunOneTurn(timeout, ReadOnlySpan<HostTaskQueueKey>.Empty, pumps);
     }
 
-    public bool RunOneTurn(TimeSpan timeout, ReadOnlySpan<HostTaskQueueKey> preferredOrder,
-        params ReadOnlySpan<HostPump> pumps)
+    public bool RunOneTurn(
+        TimeSpan timeout,
+        ReadOnlySpan<HostTaskQueueKey> preferredOrder,
+        params ReadOnlySpan<HostPump> pumps
+    )
     {
         AssertOwnerThread();
 
-        while (preferredOrder.Length == 0
-                   ? PumpOne()
-                   : TryPumpOne(out _, preferredOrder))
-        {
-        }
+        while (preferredOrder.Length == 0 ? PumpOne() : TryPumpOne(out _, preferredOrder)) { }
 
         for (var i = 0; i < pumps.Length; i++)
             pumps[i].PumpUntilIdle();
@@ -214,11 +229,7 @@ public sealed class ThreadAffinityHostLoop(TimeProvider? timeProvider = null) : 
         if (!WaitForWork(timeout))
             return false;
 
-        while (preferredOrder.Length == 0
-                   ? PumpOne()
-                   : TryPumpOne(out _, preferredOrder))
-        {
-        }
+        while (preferredOrder.Length == 0 ? PumpOne() : TryPumpOne(out _, preferredOrder)) { }
 
         for (var i = 0; i < pumps.Length; i++)
             pumps[i].PumpUntilIdle();
@@ -271,7 +282,8 @@ public sealed class ThreadAffinityHostLoop(TimeProvider? timeProvider = null) : 
         return false;
     }
 
-    private sealed class AgentScheduler(ThreadAffinityHostLoop owner, HostTaskTarget target) : IQueuedHostAgentScheduler
+    private sealed class AgentScheduler(ThreadAffinityHostLoop owner, HostTaskTarget target)
+        : IQueuedHostAgentScheduler
     {
         public void EnqueueTask(Action<object?> callback, object? state)
         {
@@ -281,11 +293,14 @@ public sealed class ThreadAffinityHostLoop(TimeProvider? timeProvider = null) : 
         public void EnqueueTask(HostTaskQueueKey queueKey, Action<object?> callback, object? state)
         {
             ArgumentNullException.ThrowIfNull(callback);
-            owner.EnqueueReady(queueKey, () =>
-            {
-                if (!target.IsTerminated)
-                    target.EnqueueTask(callback, state);
-            });
+            owner.EnqueueReady(
+                queueKey,
+                () =>
+                {
+                    if (!target.IsTerminated)
+                        target.EnqueueTask(callback, state);
+                }
+            );
         }
     }
 
@@ -293,8 +308,10 @@ public sealed class ThreadAffinityHostLoop(TimeProvider? timeProvider = null) : 
     {
         private static readonly object RegistryGate = new();
 
-        private static readonly Dictionary<ThreadAffinityHostLoop, HashSet<DelayedOperation>> Registry =
-            new(ReferenceEqualityComparer.Instance);
+        private static readonly Dictionary<
+            ThreadAffinityHostLoop,
+            HashSet<DelayedOperation>
+        > Registry = new(ReferenceEqualityComparer.Instance);
 
         private readonly Action<object?> callback;
         private readonly DateTimeOffset dueAt;
@@ -305,8 +322,13 @@ public sealed class ThreadAffinityHostLoop(TimeProvider? timeProvider = null) : 
         private int status;
         private ITimer? timer;
 
-        private DelayedOperation(ThreadAffinityHostLoop owner, HostTaskQueueKey targetQueue, DateTimeOffset dueAt,
-            Action<object?> callback, object? state)
+        private DelayedOperation(
+            ThreadAffinityHostLoop owner,
+            HostTaskQueueKey targetQueue,
+            DateTimeOffset dueAt,
+            Action<object?> callback,
+            object? state
+        )
         {
             this.owner = owner;
             this.targetQueue = targetQueue;
@@ -336,19 +358,32 @@ public sealed class ThreadAffinityHostLoop(TimeProvider? timeProvider = null) : 
             TimeSpan delay,
             HostTaskQueueKey targetQueue,
             Action<object?> callback,
-            object? state)
+            object? state
+        )
         {
             var normalizedDueTime = delay <= TimeSpan.Zero ? TimeSpan.FromTicks(1) : delay;
-            var operation = new DelayedOperation(owner, targetQueue, timeProvider.GetUtcNow() + normalizedDueTime,
-                callback, state);
+            var operation = new DelayedOperation(
+                owner,
+                targetQueue,
+                timeProvider.GetUtcNow() + normalizedDueTime,
+                callback,
+                state
+            );
             var dueTime = delay <= TimeSpan.Zero ? TimeSpan.FromTicks(1) : delay;
             Register(operation);
             operation.timer = timeProvider is ITimerFactory timerFactory
-                ? timerFactory.CreateJsTimer(static opState => ((DelayedOperation)opState!).OnReady(), operation,
+                ? timerFactory.CreateJsTimer(
+                    static opState => ((DelayedOperation)opState!).OnReady(),
+                    operation,
                     dueTime,
-                    Timeout.InfiniteTimeSpan)
-                : timeProvider.CreateTimer(static opState => ((DelayedOperation)opState!).OnReady(), operation, dueTime,
-                    Timeout.InfiniteTimeSpan);
+                    Timeout.InfiniteTimeSpan
+                )
+                : timeProvider.CreateTimer(
+                    static opState => ((DelayedOperation)opState!).OnReady(),
+                    operation,
+                    dueTime,
+                    Timeout.InfiniteTimeSpan
+                );
             return operation;
         }
 

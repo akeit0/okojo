@@ -2,19 +2,30 @@ namespace Okojo.Runtime;
 
 internal static class PropertyInitializationOperations
 {
-    internal static void DefineOwnDataPropertyByKey(JsRealm realm, JsObject target, in JsValue key,
-        in JsValue value)
+    internal static void DefineOwnDataPropertyByKey(
+        JsRealm realm,
+        JsObject target,
+        in JsValue key,
+        in JsValue value
+    )
     {
         var normalizedKey = JsRealm.NormalizePropertyKey(realm, key);
 
         if (normalizedKey.IsSymbol)
         {
-            JsRealm.AssignFunctionNameFromResolvedPropertyKey(realm, value,
+            JsRealm.AssignFunctionNameFromResolvedPropertyKey(
+                realm,
+                value,
                 normalizedKey.AsSymbol().Description is { Length: > 0 } description
                     ? $"[{description}]"
-                    : string.Empty);
-            _ = target.DefineOwnDataPropertyExact(realm, normalizedKey.AsSymbol().Atom, value,
-                JsShapePropertyFlags.Open);
+                    : string.Empty
+            );
+            _ = target.DefineOwnDataPropertyExact(
+                realm,
+                normalizedKey.AsSymbol().Atom,
+                value,
+                JsShapePropertyFlags.Open
+            );
             return;
         }
 
@@ -28,8 +39,12 @@ internal static class PropertyInitializationOperations
                 return;
             }
 
-            _ = target.DefineOwnDataPropertyExact(realm, realm.Atoms.InternNoCheck(text), value,
-                JsShapePropertyFlags.Open);
+            _ = target.DefineOwnDataPropertyExact(
+                realm,
+                realm.Atoms.InternNoCheck(text),
+                value,
+                JsShapePropertyFlags.Open
+            );
             return;
         }
 
@@ -43,10 +58,12 @@ internal static class PropertyInitializationOperations
                 return;
             }
 
-            _ = target.DefineOwnDataPropertyExact(realm,
+            _ = target.DefineOwnDataPropertyExact(
+                realm,
                 realm.Atoms.InternNoCheck(numberText),
                 value,
-                JsShapePropertyFlags.Open);
+                JsShapePropertyFlags.Open
+            );
             return;
         }
 
@@ -58,8 +75,12 @@ internal static class PropertyInitializationOperations
             return;
         }
 
-        _ = target.DefineOwnDataPropertyExact(realm, realm.Atoms.InternNoCheck(fallbackText), value,
-            JsShapePropertyFlags.Open);
+        _ = target.DefineOwnDataPropertyExact(
+            realm,
+            realm.Atoms.InternNoCheck(fallbackText),
+            value,
+            JsShapePropertyFlags.Open
+        );
     }
 
     private static bool TryGetArrayIndexFromNumber(double n, out uint index)

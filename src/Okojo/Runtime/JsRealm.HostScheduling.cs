@@ -6,17 +6,23 @@ public sealed partial class JsRealm
     {
         ArgumentNullException.ThrowIfNull(callback);
         var copiedArgs = args.Length == 0 ? Array.Empty<JsValue>() : args.ToArray();
-        Agent.EnqueuePromiseJob(static stateObj =>
-        {
-            var state = (QueuedRealmCallback)stateObj!;
-            _ = state.Realm.InvokeFunction(state.Callback, JsValue.FromObject(state.Realm.GlobalObject),
-                state.Arguments);
-        }, new QueuedRealmCallback
-        {
-            Realm = this,
-            Callback = callback,
-            Arguments = copiedArgs
-        });
+        Agent.EnqueuePromiseJob(
+            static stateObj =>
+            {
+                var state = (QueuedRealmCallback)stateObj!;
+                _ = state.Realm.InvokeFunction(
+                    state.Callback,
+                    JsValue.FromObject(state.Realm.GlobalObject),
+                    state.Arguments
+                );
+            },
+            new QueuedRealmCallback
+            {
+                Realm = this,
+                Callback = callback,
+                Arguments = copiedArgs,
+            }
+        );
     }
 
     public void QueueHostTask(JsFunction callback, params ReadOnlySpan<JsValue> args)
@@ -24,7 +30,11 @@ public sealed partial class JsRealm
         QueueHostTask(InternalHostTaskQueueDefaults.Default, callback, args);
     }
 
-    public void QueueHostTask(HostTaskQueueKey queueKey, JsFunction callback, params ReadOnlySpan<JsValue> args)
+    public void QueueHostTask(
+        HostTaskQueueKey queueKey,
+        JsFunction callback,
+        params ReadOnlySpan<JsValue> args
+    )
     {
         ArgumentNullException.ThrowIfNull(callback);
         EnqueueHostCallback(queueKey, callback, args);
@@ -35,21 +45,32 @@ public sealed partial class JsRealm
         EnqueueHostCallback(InternalHostTaskQueueDefaults.Default, callback, args);
     }
 
-    internal void EnqueueHostCallback(HostTaskQueueKey queueKey, JsFunction callback, params ReadOnlySpan<JsValue> args)
+    internal void EnqueueHostCallback(
+        HostTaskQueueKey queueKey,
+        JsFunction callback,
+        params ReadOnlySpan<JsValue> args
+    )
     {
         ArgumentNullException.ThrowIfNull(callback);
         var copiedArgs = args.Length == 0 ? Array.Empty<JsValue>() : args.ToArray();
-        Agent.EnqueueHostTask(queueKey, static stateObj =>
-        {
-            var state = (QueuedRealmCallback)stateObj!;
-            _ = state.Realm.InvokeFunction(state.Callback, JsValue.FromObject(state.Realm.GlobalObject),
-                state.Arguments);
-        }, new QueuedRealmCallback
-        {
-            Realm = this,
-            Callback = callback,
-            Arguments = copiedArgs
-        });
+        Agent.EnqueueHostTask(
+            queueKey,
+            static stateObj =>
+            {
+                var state = (QueuedRealmCallback)stateObj!;
+                _ = state.Realm.InvokeFunction(
+                    state.Callback,
+                    JsValue.FromObject(state.Realm.GlobalObject),
+                    state.Arguments
+                );
+            },
+            new QueuedRealmCallback
+            {
+                Realm = this,
+                Callback = callback,
+                Arguments = copiedArgs,
+            }
+        );
     }
 
     private sealed class QueuedRealmCallback

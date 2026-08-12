@@ -6,7 +6,8 @@ internal sealed class ModuleDiagnostic(
     string resolvedId,
     int position,
     int line,
-    int column)
+    int column
+)
 {
     public string Code { get; } = code;
     public string Message { get; } = message;

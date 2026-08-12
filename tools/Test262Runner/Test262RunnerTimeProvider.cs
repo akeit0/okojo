@@ -4,14 +4,15 @@ internal sealed class Test262RunnerTimeProvider(
     TimeSpan? startUtcOffset = null,
     TimeSpan? observationQuantum = null,
     TimeSpan? sleepQuantum = null,
-    TimeSpan? asyncPumpMinimumAdvanceQuantum = null)
-    : TimeProvider, ITimerFactory
+    TimeSpan? asyncPumpMinimumAdvanceQuantum = null
+) : TimeProvider, ITimerFactory
 {
     private readonly TimeSpan asyncPumpMinimumAdvanceQuantum =
         asyncPumpMinimumAdvanceQuantum ?? TimeSpan.FromMilliseconds(1);
 
     private readonly object gate = new();
-    private readonly TimeSpan observationQuantum = observationQuantum ?? TimeSpan.FromMilliseconds(1);
+    private readonly TimeSpan observationQuantum =
+        observationQuantum ?? TimeSpan.FromMilliseconds(1);
     private readonly TimeSpan sleepQuantum = sleepQuantum ?? TimeSpan.FromMilliseconds(100);
     private readonly List<RunnerTimer> timers = [];
     private long timestamp;
@@ -19,14 +20,25 @@ internal sealed class Test262RunnerTimeProvider(
 
     public override long TimestampFrequency => TimeSpan.TicksPerSecond;
 
-    public ITimer CreateJsTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+    public ITimer CreateJsTimer(
+        TimerCallback callback,
+        object? state,
+        TimeSpan dueTime,
+        TimeSpan period
+    )
     {
         return CreateTimerCore(RunnerTimerKind.Js, callback, state, dueTime, period);
     }
 
     public ITimer CreateWaitTimer(TimerCallback callback, object? state, TimeSpan dueTime)
     {
-        return CreateTimerCore(RunnerTimerKind.Wait, callback, state, dueTime, Timeout.InfiniteTimeSpan);
+        return CreateTimerCore(
+            RunnerTimerKind.Wait,
+            callback,
+            state,
+            dueTime,
+            Timeout.InfiniteTimeSpan
+        );
     }
 
     public override DateTimeOffset GetUtcNow()
@@ -71,7 +83,12 @@ internal sealed class Test262RunnerTimeProvider(
         Advance(requestedDelay < sleepQuantum ? sleepQuantum : requestedDelay);
     }
 
-    public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+    public override ITimer CreateTimer(
+        TimerCallback callback,
+        object? state,
+        TimeSpan dueTime,
+        TimeSpan period
+    )
     {
         return CreateTimerCore(RunnerTimerKind.Js, callback, state, dueTime, period);
     }
@@ -104,8 +121,13 @@ internal sealed class Test262RunnerTimeProvider(
         Advance(observationQuantum);
     }
 
-    private ITimer CreateTimerCore(RunnerTimerKind kind, TimerCallback callback, object? state, TimeSpan dueTime,
-        TimeSpan period)
+    private ITimer CreateTimerCore(
+        RunnerTimerKind kind,
+        TimerCallback callback,
+        object? state,
+        TimeSpan dueTime,
+        TimeSpan period
+    )
     {
         var timer = new RunnerTimer(this, kind, callback, state);
         timer.Change(dueTime, period);
@@ -188,15 +210,15 @@ internal sealed class Test262RunnerTimeProvider(
     private enum RunnerTimerKind
     {
         Js,
-        Wait
+        Wait,
     }
 
     private sealed class RunnerTimer(
         Test262RunnerTimeProvider owner,
         RunnerTimerKind kind,
         TimerCallback callback,
-        object? state)
-        : ITimer
+        object? state
+    ) : ITimer
     {
         private bool armed;
         private bool disposed;
@@ -221,7 +243,10 @@ internal sealed class Test262RunnerTimeProvider(
                 }
 
                 var dueTicks = dueTime <= TimeSpan.Zero ? 1 : dueTime.Ticks;
-                periodTicks = period <= TimeSpan.Zero || period == Timeout.InfiniteTimeSpan ? 0 : period.Ticks;
+                periodTicks =
+                    period <= TimeSpan.Zero || period == Timeout.InfiniteTimeSpan
+                        ? 0
+                        : period.Ticks;
                 NextDueTimestamp = owner.timestamp + dueTicks;
                 armed = true;
                 if (!owner.timers.Contains(this))

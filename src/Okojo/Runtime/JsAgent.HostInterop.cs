@@ -17,10 +17,14 @@ public sealed partial class JsAgent
                 return descriptor;
 
             descriptor =
-                EngineHost.ClrAccessProvider?.CreateHostTypeDescriptor(this, clrType,
-                    Interlocked.Increment(ref nextHostTypeId))
+                EngineHost.ClrAccessProvider?.CreateHostTypeDescriptor(
+                    this,
+                    clrType,
+                    Interlocked.Increment(ref nextHostTypeId)
+                )
                 ?? throw new InvalidOperationException(
-                    "CLR access is disabled. Configure JsRuntime with options => options.AllowClrAccess().");
+                    "CLR access is disabled. Configure JsRuntime with options => options.AllowClrAccess()."
+                );
             descriptors.Add(clrType, descriptor);
             return descriptor;
         }
@@ -28,38 +32,43 @@ public sealed partial class JsAgent
 
     internal HostTypeDescriptor GetOrCreateHostTypeDescriptor(
         [DynamicallyAccessedMembers(
-            DynamicallyAccessedMemberTypes.PublicConstructors |
-            DynamicallyAccessedMemberTypes.NonPublicConstructors |
-            DynamicallyAccessedMemberTypes.PublicMethods |
-            DynamicallyAccessedMemberTypes.NonPublicMethods |
-            DynamicallyAccessedMemberTypes.PublicFields |
-            DynamicallyAccessedMemberTypes.NonPublicFields |
-            DynamicallyAccessedMemberTypes.PublicNestedTypes |
-            DynamicallyAccessedMemberTypes.NonPublicNestedTypes |
-            DynamicallyAccessedMemberTypes.PublicProperties |
-            DynamicallyAccessedMemberTypes.NonPublicProperties |
-            DynamicallyAccessedMemberTypes.PublicEvents |
-            DynamicallyAccessedMemberTypes.NonPublicEvents)]
-        Type clrType)
+            DynamicallyAccessedMemberTypes.PublicConstructors
+                | DynamicallyAccessedMemberTypes.NonPublicConstructors
+                | DynamicallyAccessedMemberTypes.PublicMethods
+                | DynamicallyAccessedMemberTypes.NonPublicMethods
+                | DynamicallyAccessedMemberTypes.PublicFields
+                | DynamicallyAccessedMemberTypes.NonPublicFields
+                | DynamicallyAccessedMemberTypes.PublicNestedTypes
+                | DynamicallyAccessedMemberTypes.NonPublicNestedTypes
+                | DynamicallyAccessedMemberTypes.PublicProperties
+                | DynamicallyAccessedMemberTypes.NonPublicProperties
+                | DynamicallyAccessedMemberTypes.PublicEvents
+                | DynamicallyAccessedMemberTypes.NonPublicEvents
+        )]
+            Type clrType
+    )
     {
         return GetOrCreateHostTypeDescriptor(clrType, null);
     }
 
     internal HostTypeDescriptor GetOrCreateHostTypeDescriptor(
         [DynamicallyAccessedMembers(
-            DynamicallyAccessedMemberTypes.PublicConstructors |
-            DynamicallyAccessedMemberTypes.NonPublicConstructors |
-            DynamicallyAccessedMemberTypes.PublicMethods |
-            DynamicallyAccessedMemberTypes.NonPublicMethods |
-            DynamicallyAccessedMemberTypes.PublicFields |
-            DynamicallyAccessedMemberTypes.NonPublicFields |
-            DynamicallyAccessedMemberTypes.PublicNestedTypes |
-            DynamicallyAccessedMemberTypes.NonPublicNestedTypes |
-            DynamicallyAccessedMemberTypes.PublicProperties |
-            DynamicallyAccessedMemberTypes.NonPublicProperties |
-            DynamicallyAccessedMemberTypes.PublicEvents |
-            DynamicallyAccessedMemberTypes.NonPublicEvents)]
-        Type clrType, HostBinding? bindingOverride)
+            DynamicallyAccessedMemberTypes.PublicConstructors
+                | DynamicallyAccessedMemberTypes.NonPublicConstructors
+                | DynamicallyAccessedMemberTypes.PublicMethods
+                | DynamicallyAccessedMemberTypes.NonPublicMethods
+                | DynamicallyAccessedMemberTypes.PublicFields
+                | DynamicallyAccessedMemberTypes.NonPublicFields
+                | DynamicallyAccessedMemberTypes.PublicNestedTypes
+                | DynamicallyAccessedMemberTypes.NonPublicNestedTypes
+                | DynamicallyAccessedMemberTypes.PublicProperties
+                | DynamicallyAccessedMemberTypes.NonPublicProperties
+                | DynamicallyAccessedMemberTypes.PublicEvents
+                | DynamicallyAccessedMemberTypes.NonPublicEvents
+        )]
+            Type clrType,
+        HostBinding? bindingOverride
+    )
     {
         lock (hostTypeDescriptorLock)
         {
@@ -68,11 +77,19 @@ public sealed partial class JsAgent
                 return descriptor;
 
             descriptor = bindingOverride is not null
-                ? HostTypeDescriptor.Create(clrType, Interlocked.Increment(ref nextHostTypeId), bindingOverride)
-                : EngineHost.ClrAccessProvider?.CreateHostTypeDescriptor(this, clrType,
-                      Interlocked.Increment(ref nextHostTypeId))
-                  ?? throw new InvalidOperationException(
-                      "CLR access is disabled. Configure JsRuntime with options => options.AllowClrAccess().");
+                ? HostTypeDescriptor.Create(
+                    clrType,
+                    Interlocked.Increment(ref nextHostTypeId),
+                    bindingOverride
+                )
+                : EngineHost.ClrAccessProvider?.CreateHostTypeDescriptor(
+                    this,
+                    clrType,
+                    Interlocked.Increment(ref nextHostTypeId)
+                )
+                    ?? throw new InvalidOperationException(
+                        "CLR access is disabled. Configure JsRuntime with options => options.AllowClrAccess()."
+                    );
             descriptors.Add(clrType, descriptor);
             return descriptor;
         }

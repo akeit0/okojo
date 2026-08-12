@@ -9,12 +9,12 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\src\Okojo\Okojo.csproj"/>
+        <ProjectReference Include="..\..\src\Okojo\Okojo.csproj" />
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="BenchmarkDotNet" Version="0.15.8"/>
-        <PackageReference Include="Jint" Version="3.1.0"/>
+        <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
+        <PackageReference Include="Jint" Version="3.1.0" />
     </ItemGroup>
 
     <ItemGroup>

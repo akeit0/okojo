@@ -20,7 +20,8 @@ public sealed partial class JsCompiler
                 (byte)(register & 0xFF),
                 (byte)((register >> 8) & 0xFF),
                 (byte)(slot & 0xFF),
-                (byte)((slot >> 8) & 0xFF));
+                (byte)((slot >> 8) & 0xFF)
+            );
             return;
         }
 
@@ -38,14 +39,13 @@ public sealed partial class JsCompiler
         if ((uint)register <= ushort.MaxValue)
         {
             builder.Emit(JsOpCode.Wide);
-            builder.Emit(
-                opcode,
-                (byte)(register & 0xFF),
-                (byte)((register >> 8) & 0xFF));
+            builder.Emit(opcode, (byte)(register & 0xFF), (byte)((register >> 8) & 0xFF));
             return;
         }
 
-        throw new InvalidOperationException($"{opcode} register operand exceeds ushort operand capacity.");
+        throw new InvalidOperationException(
+            $"{opcode} register operand exceeds ushort operand capacity."
+        );
     }
 
     private void EmitRegisterRegisterOp(JsOpCode opcode, int register0, int register1)
@@ -64,11 +64,14 @@ public sealed partial class JsCompiler
                 (byte)(register0 & 0xFF),
                 (byte)((register0 >> 8) & 0xFF),
                 (byte)(register1 & 0xFF),
-                (byte)((register1 >> 8) & 0xFF));
+                (byte)((register1 >> 8) & 0xFF)
+            );
             return;
         }
 
-        throw new InvalidOperationException($"{opcode} register operands exceed ushort operand capacity.");
+        throw new InvalidOperationException(
+            $"{opcode} register operands exceed ushort operand capacity."
+        );
     }
 
     private void EmitImmediateSlotOp(JsOpCode opcode, int immediate, int slot = 0)
@@ -88,16 +91,20 @@ public sealed partial class JsCompiler
     {
         if ((uint)objectRegister > ushort.MaxValue)
             throw new InvalidOperationException(
-                "InitializeNamedProperty object register exceeds ushort operand capacity.");
+                "InitializeNamedProperty object register exceeds ushort operand capacity."
+            );
         if ((uint)slot > ushort.MaxValue)
-            throw new InvalidOperationException("InitializeNamedProperty slot exceeds ushort operand capacity.");
+            throw new InvalidOperationException(
+                "InitializeNamedProperty slot exceeds ushort operand capacity."
+            );
 
         EmitRaw(
             JsOpCode.InitializeNamedProperty,
             (byte)(objectRegister & 0xFF),
             (byte)((objectRegister >> 8) & 0xFF),
             (byte)(slot & 0xFF),
-            (byte)((slot >> 8) & 0xFF));
+            (byte)((slot >> 8) & 0xFF)
+        );
     }
 
     private void EmitStarRegister(int register)
@@ -110,9 +117,11 @@ public sealed partial class JsCompiler
 
         if ((uint)register <= ushort.MaxValue)
         {
-            builder.Emit(JsOpCode.StarWide,
+            builder.Emit(
+                JsOpCode.StarWide,
                 (byte)(register & 0xFF),
-                (byte)((register >> 8) & 0xFF));
+                (byte)((register >> 8) & 0xFF)
+            );
             return;
         }
 
@@ -132,7 +141,8 @@ public sealed partial class JsCompiler
             builder.EmitLda(
                 lexical ? JsOpCode.LdaLexicalLocalWide : JsOpCode.LdarWide,
                 (byte)(register & 0xFF),
-                (byte)((register >> 8) & 0xFF));
+                (byte)((register >> 8) & 0xFF)
+            );
             return;
         }
 
@@ -149,11 +159,13 @@ public sealed partial class JsCompiler
 
         if ((uint)sourceRegister <= ushort.MaxValue && (uint)targetRegister <= ushort.MaxValue)
         {
-            EmitRaw(JsOpCode.MovWide,
+            EmitRaw(
+                JsOpCode.MovWide,
                 (byte)(sourceRegister & 0xFF),
                 (byte)((sourceRegister >> 8) & 0xFF),
                 (byte)(targetRegister & 0xFF),
-                (byte)((targetRegister >> 8) & 0xFF));
+                (byte)((targetRegister >> 8) & 0xFF)
+            );
             return;
         }
 
@@ -176,11 +188,14 @@ public sealed partial class JsCompiler
                 (byte)(register & 0xFF),
                 (byte)((register >> 8) & 0xFF),
                 0,
-                0);
+                0
+            );
             return;
         }
 
-        throw new InvalidOperationException("TestEqualStrict register exceeds ushort operand capacity.");
+        throw new InvalidOperationException(
+            "TestEqualStrict register exceeds ushort operand capacity."
+        );
     }
 
     private void EmitToNumeric()
@@ -276,7 +291,9 @@ public sealed partial class JsCompiler
     private void EmitCreateArrayLiteralByIndex(int idx)
     {
         if ((uint)idx > ushort.MaxValue)
-            throw new InvalidOperationException("CreateArrayLiteral constant index exceeds ushort operand capacity.");
+            throw new InvalidOperationException(
+                "CreateArrayLiteral constant index exceeds ushort operand capacity."
+            );
 
         builder.Emit(JsOpCode.CreateArrayLiteral, (byte)(idx & 0xFF), (byte)((idx >> 8) & 0xFF));
     }
@@ -289,13 +306,17 @@ public sealed partial class JsCompiler
     private void EmitInitializeArrayElement(int targetRegister, int index)
     {
         if ((uint)targetRegister > ushort.MaxValue || (uint)index > ushort.MaxValue)
-            throw new InvalidOperationException("InitializeArrayElement operands exceed ushort operand capacity.");
+            throw new InvalidOperationException(
+                "InitializeArrayElement operands exceed ushort operand capacity."
+            );
 
-        builder.Emit(JsOpCode.InitializeArrayElement,
+        builder.Emit(
+            JsOpCode.InitializeArrayElement,
             (byte)targetRegister,
             (byte)(targetRegister >> 8),
             (byte)(index & 0xFF),
-            (byte)((index >> 8) & 0xFF));
+            (byte)((index >> 8) & 0xFF)
+        );
     }
 
     private void EmitLdaKeyedProperty(int targetRegister)
@@ -316,35 +337,57 @@ public sealed partial class JsCompiler
     private void EmitStaModuleVariable(int cellIndex, int depth)
     {
         if ((uint)cellIndex > byte.MaxValue || (uint)depth > byte.MaxValue)
-            throw new InvalidOperationException("StaModuleVariable operands exceed byte operand capacity.");
+            throw new InvalidOperationException(
+                "StaModuleVariable operands exceed byte operand capacity."
+            );
 
         EmitRaw(JsOpCode.StaModuleVariable, cellIndex, depth);
     }
 
     private void EmitSwitchOnGeneratorState(int generatorRegister, int tableStart, int tableLength)
     {
-        if ((uint)generatorRegister > byte.MaxValue || (uint)tableStart > byte.MaxValue ||
-            (uint)tableLength > byte.MaxValue)
-            throw new InvalidOperationException("SwitchOnGeneratorState operands exceed byte operand capacity.");
+        if (
+            (uint)generatorRegister > byte.MaxValue
+            || (uint)tableStart > byte.MaxValue
+            || (uint)tableLength > byte.MaxValue
+        )
+            throw new InvalidOperationException(
+                "SwitchOnGeneratorState operands exceed byte operand capacity."
+            );
 
         EmitRaw(JsOpCode.SwitchOnGeneratorState, generatorRegister, tableStart, tableLength);
     }
 
-    private void EmitSuspendGenerator(int generatorRegister, int firstRegister, int liveCount, int suspendId)
+    private void EmitSuspendGenerator(
+        int generatorRegister,
+        int firstRegister,
+        int liveCount,
+        int suspendId
+    )
     {
-        if ((uint)generatorRegister > byte.MaxValue || (uint)firstRegister > byte.MaxValue ||
-            (uint)liveCount > byte.MaxValue ||
-            (uint)suspendId > byte.MaxValue)
-            throw new InvalidOperationException("SuspendGenerator operands exceed byte operand capacity.");
+        if (
+            (uint)generatorRegister > byte.MaxValue
+            || (uint)firstRegister > byte.MaxValue
+            || (uint)liveCount > byte.MaxValue
+            || (uint)suspendId > byte.MaxValue
+        )
+            throw new InvalidOperationException(
+                "SuspendGenerator operands exceed byte operand capacity."
+            );
 
         EmitRaw(JsOpCode.SuspendGenerator, generatorRegister, firstRegister, liveCount, suspendId);
     }
 
     private void EmitResumeGenerator(int generatorRegister, int firstRegister, int liveCount)
     {
-        if ((uint)generatorRegister > byte.MaxValue || (uint)firstRegister > byte.MaxValue ||
-            (uint)liveCount > byte.MaxValue)
-            throw new InvalidOperationException("ResumeGenerator operands exceed byte operand capacity.");
+        if (
+            (uint)generatorRegister > byte.MaxValue
+            || (uint)firstRegister > byte.MaxValue
+            || (uint)liveCount > byte.MaxValue
+        )
+            throw new InvalidOperationException(
+                "ResumeGenerator operands exceed byte operand capacity."
+            );
 
         EmitRaw(JsOpCode.ResumeGenerator, generatorRegister, firstRegister, liveCount);
     }
@@ -359,53 +402,113 @@ public sealed partial class JsCompiler
 
         if ((uint)register <= ushort.MaxValue)
         {
-            builder.Emit(JsOpCode.StaLexicalLocalWide,
+            builder.Emit(
+                JsOpCode.StaLexicalLocalWide,
                 (byte)(register & 0xFF),
-                (byte)((register >> 8) & 0xFF));
+                (byte)((register >> 8) & 0xFF)
+            );
             return;
         }
 
         throw new InvalidOperationException("Register operand exceeds ushort operand capacity.");
     }
 
-    private void EmitPrivateFieldOp(JsOpCode op, int objReg, int valueReg, int brandId, int slotIndex)
+    private void EmitPrivateFieldOp(
+        JsOpCode op,
+        int objReg,
+        int valueReg,
+        int brandId,
+        int slotIndex
+    )
     {
-        if ((uint)objReg > byte.MaxValue || (uint)valueReg > byte.MaxValue || (uint)slotIndex > ushort.MaxValue ||
-            (uint)brandId > ushort.MaxValue)
+        if (
+            (uint)objReg > byte.MaxValue
+            || (uint)valueReg > byte.MaxValue
+            || (uint)slotIndex > ushort.MaxValue
+            || (uint)brandId > ushort.MaxValue
+        )
             throw new NotSupportedException("Private field operands exceeded bytecode capacity.");
 
-        EmitRaw(op, (byte)objReg, (byte)valueReg, (byte)(brandId & 0xFF), (byte)((brandId >> 8) & 0xFF),
-            (byte)(slotIndex & 0xFF), (byte)((slotIndex >> 8) & 0xFF));
+        EmitRaw(
+            op,
+            (byte)objReg,
+            (byte)valueReg,
+            (byte)(brandId & 0xFF),
+            (byte)((brandId >> 8) & 0xFF),
+            (byte)(slotIndex & 0xFF),
+            (byte)((slotIndex >> 8) & 0xFF)
+        );
     }
 
     private void EmitPrivateFieldOp(JsOpCode op, int objReg, int brandId, int slotIndex)
     {
-        if ((uint)objReg > byte.MaxValue || (uint)slotIndex > ushort.MaxValue || (uint)brandId > ushort.MaxValue)
+        if (
+            (uint)objReg > byte.MaxValue
+            || (uint)slotIndex > ushort.MaxValue
+            || (uint)brandId > ushort.MaxValue
+        )
             throw new NotSupportedException("Private field operands exceeded bytecode capacity.");
 
-        EmitRaw(op, (byte)objReg, (byte)(brandId & 0xFF), (byte)((brandId >> 8) & 0xFF),
-            (byte)(slotIndex & 0xFF), (byte)((slotIndex >> 8) & 0xFF));
+        EmitRaw(
+            op,
+            (byte)objReg,
+            (byte)(brandId & 0xFF),
+            (byte)((brandId >> 8) & 0xFF),
+            (byte)(slotIndex & 0xFF),
+            (byte)((slotIndex >> 8) & 0xFF)
+        );
     }
 
-    private void EmitPrivateAccessorInitOp(int objReg, int getterReg, int setterReg, int brandId, int slotIndex)
+    private void EmitPrivateAccessorInitOp(
+        int objReg,
+        int getterReg,
+        int setterReg,
+        int brandId,
+        int slotIndex
+    )
     {
-        if ((uint)objReg > byte.MaxValue || (uint)getterReg > byte.MaxValue || (uint)setterReg > byte.MaxValue ||
-            (uint)slotIndex > ushort.MaxValue || (uint)brandId > ushort.MaxValue)
-            throw new NotSupportedException("Private accessor operands exceeded bytecode capacity.");
+        if (
+            (uint)objReg > byte.MaxValue
+            || (uint)getterReg > byte.MaxValue
+            || (uint)setterReg > byte.MaxValue
+            || (uint)slotIndex > ushort.MaxValue
+            || (uint)brandId > ushort.MaxValue
+        )
+            throw new NotSupportedException(
+                "Private accessor operands exceeded bytecode capacity."
+            );
 
-        EmitRaw(JsOpCode.InitPrivateAccessor, (byte)objReg, (byte)getterReg, (byte)setterReg,
-            (byte)(brandId & 0xFF), (byte)((brandId >> 8) & 0xFF),
-            (byte)(slotIndex & 0xFF), (byte)((slotIndex >> 8) & 0xFF));
+        EmitRaw(
+            JsOpCode.InitPrivateAccessor,
+            (byte)objReg,
+            (byte)getterReg,
+            (byte)setterReg,
+            (byte)(brandId & 0xFF),
+            (byte)((brandId >> 8) & 0xFF),
+            (byte)(slotIndex & 0xFF),
+            (byte)((slotIndex >> 8) & 0xFF)
+        );
     }
 
     private void EmitPrivateMethodInitOp(int objReg, int methodReg, int brandId, int slotIndex)
     {
-        if ((uint)objReg > byte.MaxValue || (uint)methodReg > byte.MaxValue || (uint)slotIndex > ushort.MaxValue ||
-            (uint)brandId > ushort.MaxValue)
+        if (
+            (uint)objReg > byte.MaxValue
+            || (uint)methodReg > byte.MaxValue
+            || (uint)slotIndex > ushort.MaxValue
+            || (uint)brandId > ushort.MaxValue
+        )
             throw new NotSupportedException("Private method operands exceeded bytecode capacity.");
 
-        EmitRaw(JsOpCode.InitPrivateMethod, (byte)objReg, (byte)methodReg, (byte)(brandId & 0xFF),
-            (byte)((brandId >> 8) & 0xFF), (byte)(slotIndex & 0xFF), (byte)((slotIndex >> 8) & 0xFF));
+        EmitRaw(
+            JsOpCode.InitPrivateMethod,
+            (byte)objReg,
+            (byte)methodReg,
+            (byte)(brandId & 0xFF),
+            (byte)((brandId >> 8) & 0xFF),
+            (byte)(slotIndex & 0xFF),
+            (byte)((slotIndex >> 8) & 0xFF)
+        );
     }
 
     private void EmitCreateClosureByIndex(int idx, int feedbackSlot = 0, byte flags = 0)
@@ -418,13 +521,18 @@ public sealed partial class JsCompiler
 
         if ((uint)idx <= ushort.MaxValue)
         {
-            EmitRaw(JsOpCode.CreateClosureWide,
-                (byte)(idx & 0xFF), (byte)((idx >> 8) & 0xFF),
-                flags);
+            EmitRaw(
+                JsOpCode.CreateClosureWide,
+                (byte)(idx & 0xFF),
+                (byte)((idx >> 8) & 0xFF),
+                flags
+            );
             return;
         }
 
-        throw new InvalidOperationException("CreateClosure operands exceed ushort operand capacity.");
+        throw new InvalidOperationException(
+            "CreateClosure operands exceed ushort operand capacity."
+        );
     }
 
     private void EmitCreateFunctionContextWithCells(int slotCount, int feedbackSlot = 0)
@@ -437,32 +545,45 @@ public sealed partial class JsCompiler
 
         if ((uint)slotCount <= ushort.MaxValue)
         {
-            EmitRaw(JsOpCode.CreateFunctionContextWithCellsWide,
+            EmitRaw(
+                JsOpCode.CreateFunctionContextWithCellsWide,
                 (byte)(slotCount & 0xFF),
-                (byte)((slotCount >> 8) & 0xFF));
+                (byte)((slotCount >> 8) & 0xFF)
+            );
             return;
         }
 
-        throw new InvalidOperationException("CreateFunctionContextWithCells operands exceed ushort operand capacity.");
+        throw new InvalidOperationException(
+            "CreateFunctionContextWithCells operands exceed ushort operand capacity."
+        );
     }
 
     private void EmitLdaCurrentContextSlot(int slot, bool skipTdz = false)
     {
         if ((uint)slot <= byte.MaxValue)
         {
-            builder.EmitLda(skipTdz ? JsOpCode.LdaCurrentContextSlotNoTdz : JsOpCode.LdaCurrentContextSlot, (byte)slot);
+            builder.EmitLda(
+                skipTdz ? JsOpCode.LdaCurrentContextSlotNoTdz : JsOpCode.LdaCurrentContextSlot,
+                (byte)slot
+            );
             return;
         }
 
         if ((uint)slot <= ushort.MaxValue)
         {
-            EmitRaw(skipTdz ? JsOpCode.LdaCurrentContextSlotNoTdzWide : JsOpCode.LdaCurrentContextSlotWide,
+            EmitRaw(
+                skipTdz
+                    ? JsOpCode.LdaCurrentContextSlotNoTdzWide
+                    : JsOpCode.LdaCurrentContextSlotWide,
                 (byte)(slot & 0xFF),
-                (byte)((slot >> 8) & 0xFF));
+                (byte)((slot >> 8) & 0xFF)
+            );
             return;
         }
 
-        throw new InvalidOperationException("Current context slot operand exceeds ushort operand capacity.");
+        throw new InvalidOperationException(
+            "Current context slot operand exceeds ushort operand capacity."
+        );
     }
 
     private void EmitStaCurrentContextSlot(int slot)
@@ -475,19 +596,31 @@ public sealed partial class JsCompiler
 
         if ((uint)slot <= ushort.MaxValue)
         {
-            EmitRaw(JsOpCode.StaCurrentContextSlotWide,
+            EmitRaw(
+                JsOpCode.StaCurrentContextSlotWide,
                 (byte)(slot & 0xFF),
-                (byte)((slot >> 8) & 0xFF));
+                (byte)((slot >> 8) & 0xFF)
+            );
             return;
         }
 
-        throw new InvalidOperationException("Current context slot operand exceeds ushort operand capacity.");
+        throw new InvalidOperationException(
+            "Current context slot operand exceeds ushort operand capacity."
+        );
     }
 
-    private void EmitContextSlotAccess(JsOpCode narrowOp, JsOpCode wideOp, int contextRegister, int slot, int depth)
+    private void EmitContextSlotAccess(
+        JsOpCode narrowOp,
+        JsOpCode wideOp,
+        int contextRegister,
+        int slot,
+        int depth
+    )
     {
         if ((uint)depth > byte.MaxValue)
-            throw new InvalidOperationException("Context access operands exceed byte operand capacity.");
+            throw new InvalidOperationException(
+                "Context access operands exceed byte operand capacity."
+            );
 
         if ((uint)slot <= byte.MaxValue)
         {
@@ -497,14 +630,13 @@ public sealed partial class JsCompiler
 
         if ((uint)slot <= ushort.MaxValue)
         {
-            EmitRaw(wideOp,
-                (byte)(slot & 0xFF),
-                (byte)((slot >> 8) & 0xFF),
-                (byte)depth);
+            EmitRaw(wideOp, (byte)(slot & 0xFF), (byte)((slot >> 8) & 0xFF), (byte)depth);
             return;
         }
 
-        throw new InvalidOperationException("Context slot operand exceeds ushort operand capacity.");
+        throw new InvalidOperationException(
+            "Context slot operand exceeds ushort operand capacity."
+        );
     }
 
     private void EmitLdaContextSlot(int contextRegister, int slot, int depth, bool skipTdz = false)
@@ -514,12 +646,19 @@ public sealed partial class JsCompiler
             skipTdz ? JsOpCode.LdaContextSlotNoTdzWide : JsOpCode.LdaContextSlotWide,
             contextRegister,
             slot,
-            depth);
+            depth
+        );
     }
 
     private void EmitStaContextSlot(int contextRegister, int slot, int depth)
     {
-        EmitContextSlotAccess(JsOpCode.StaContextSlot, JsOpCode.StaContextSlotWide, contextRegister, slot, depth);
+        EmitContextSlotAccess(
+            JsOpCode.StaContextSlot,
+            JsOpCode.StaContextSlotWide,
+            contextRegister,
+            slot,
+            depth
+        );
     }
 
     private void EmitCreateObjectLiteralByIndex(int idx, int feedbackSlot = 0, byte flags = 0)
@@ -532,13 +671,18 @@ public sealed partial class JsCompiler
 
         if ((uint)idx <= ushort.MaxValue)
         {
-            EmitRaw(JsOpCode.CreateObjectLiteralWide,
-                (byte)(idx & 0xFF), (byte)((idx >> 8) & 0xFF),
-                flags);
+            EmitRaw(
+                JsOpCode.CreateObjectLiteralWide,
+                (byte)(idx & 0xFF),
+                (byte)((idx >> 8) & 0xFF),
+                flags
+            );
             return;
         }
 
-        throw new InvalidOperationException("CreateObjectLiteral operands exceed ushort operand capacity.");
+        throw new InvalidOperationException(
+            "CreateObjectLiteral operands exceed ushort operand capacity."
+        );
     }
 
     private void EmitLdaGlobalByIndex(int nameIdx, int feedbackSlot)
@@ -551,12 +695,19 @@ public sealed partial class JsCompiler
         EmitGlobalByIndex(
             isInitialization ? JsOpCode.StaGlobalInit : JsOpCode.StaGlobal,
             isInitialization ? JsOpCode.StaGlobalInitWide : JsOpCode.StaGlobalWide,
-            nameIdx, feedbackSlot);
+            nameIdx,
+            feedbackSlot
+        );
     }
 
     private void EmitStaGlobalFunctionDeclarationByIndex(int nameIdx, int feedbackSlot)
     {
-        EmitGlobalByIndex(JsOpCode.StaGlobalFuncDecl, JsOpCode.StaGlobalFuncDeclWide, nameIdx, feedbackSlot);
+        EmitGlobalByIndex(
+            JsOpCode.StaGlobalFuncDecl,
+            JsOpCode.StaGlobalFuncDeclWide,
+            nameIdx,
+            feedbackSlot
+        );
     }
 
     private void EmitTypeOfGlobalByIndex(int nameIdx, int feedbackSlot)
@@ -564,7 +715,12 @@ public sealed partial class JsCompiler
         EmitGlobalByIndex(JsOpCode.TypeOfGlobal, JsOpCode.TypeOfGlobalWide, nameIdx, feedbackSlot);
     }
 
-    private void EmitGlobalByIndex(JsOpCode narrowOp, JsOpCode wideOp, int nameIdx, int feedbackSlot)
+    private void EmitGlobalByIndex(
+        JsOpCode narrowOp,
+        JsOpCode wideOp,
+        int nameIdx,
+        int feedbackSlot
+    )
     {
         if ((uint)nameIdx <= byte.MaxValue && (uint)feedbackSlot <= byte.MaxValue)
         {
@@ -574,25 +730,41 @@ public sealed partial class JsCompiler
 
         if ((uint)nameIdx <= ushort.MaxValue && (uint)feedbackSlot <= ushort.MaxValue)
         {
-            EmitRaw(wideOp,
-                (byte)(nameIdx & 0xFF), (byte)((nameIdx >> 8) & 0xFF),
-                (byte)(feedbackSlot & 0xFF), (byte)((feedbackSlot >> 8) & 0xFF));
+            EmitRaw(
+                wideOp,
+                (byte)(nameIdx & 0xFF),
+                (byte)((nameIdx >> 8) & 0xFF),
+                (byte)(feedbackSlot & 0xFF),
+                (byte)((feedbackSlot >> 8) & 0xFF)
+            );
             return;
         }
 
-        throw new InvalidOperationException("Global name/feedback operands exceed ushort operand capacity.");
+        throw new InvalidOperationException(
+            "Global name/feedback operands exceed ushort operand capacity."
+        );
     }
 
     private void EmitLdaNamedPropertyByIndex(int objReg, int nameIdx, int feedbackSlot)
     {
-        EmitNamedPropertyByIndex(JsOpCode.LdaNamedProperty, JsOpCode.LdaNamedPropertyWide, objReg, nameIdx,
-            feedbackSlot);
+        EmitNamedPropertyByIndex(
+            JsOpCode.LdaNamedProperty,
+            JsOpCode.LdaNamedPropertyWide,
+            objReg,
+            nameIdx,
+            feedbackSlot
+        );
     }
 
     private void EmitStaNamedPropertyByIndex(int objReg, int nameIdx, int feedbackSlot)
     {
-        EmitNamedPropertyByIndex(JsOpCode.StaNamedProperty, JsOpCode.StaNamedPropertyWide, objReg, nameIdx,
-            feedbackSlot);
+        EmitNamedPropertyByIndex(
+            JsOpCode.StaNamedProperty,
+            JsOpCode.StaNamedPropertyWide,
+            objReg,
+            nameIdx,
+            feedbackSlot
+        );
     }
 
     private void EmitGetNamedPropertyFromSuperByIndex(int nameIdx, int feedbackSlot)
@@ -605,34 +777,57 @@ public sealed partial class JsCompiler
 
         if ((uint)nameIdx <= ushort.MaxValue && (uint)feedbackSlot <= ushort.MaxValue)
         {
-            EmitRaw(JsOpCode.GetNamedPropertyFromSuperWide,
-                (byte)(nameIdx & 0xFF), (byte)((nameIdx >> 8) & 0xFF));
+            EmitRaw(
+                JsOpCode.GetNamedPropertyFromSuperWide,
+                (byte)(nameIdx & 0xFF),
+                (byte)((nameIdx >> 8) & 0xFF)
+            );
             return;
         }
 
-        throw new InvalidOperationException("GetNamedPropertyFromSuper operands exceed ushort operand capacity.");
+        throw new InvalidOperationException(
+            "GetNamedPropertyFromSuper operands exceed ushort operand capacity."
+        );
     }
 
-    private void EmitNamedPropertyByIndex(JsOpCode narrowOp, JsOpCode wideOp, int objReg, int nameIdx,
-        int feedbackSlot)
+    private void EmitNamedPropertyByIndex(
+        JsOpCode narrowOp,
+        JsOpCode wideOp,
+        int objReg,
+        int nameIdx,
+        int feedbackSlot
+    )
     {
-        if ((uint)objReg <= byte.MaxValue && (uint)nameIdx <= byte.MaxValue && (uint)feedbackSlot <= byte.MaxValue)
+        if (
+            (uint)objReg <= byte.MaxValue
+            && (uint)nameIdx <= byte.MaxValue
+            && (uint)feedbackSlot <= byte.MaxValue
+        )
         {
             EmitRaw(narrowOp, (byte)objReg, (byte)nameIdx, (byte)feedbackSlot);
             return;
         }
 
-        if ((uint)objReg <= ushort.MaxValue && (uint)nameIdx <= ushort.MaxValue &&
-            (uint)feedbackSlot <= ushort.MaxValue)
+        if (
+            (uint)objReg <= ushort.MaxValue
+            && (uint)nameIdx <= ushort.MaxValue
+            && (uint)feedbackSlot <= ushort.MaxValue
+        )
         {
-            EmitRaw(wideOp,
+            EmitRaw(
+                wideOp,
                 (byte)(objReg & 0xFF),
                 (byte)((objReg >> 8) & 0xFF),
-                (byte)(nameIdx & 0xFF), (byte)((nameIdx >> 8) & 0xFF),
-                (byte)(feedbackSlot & 0xFF), (byte)((feedbackSlot >> 8) & 0xFF));
+                (byte)(nameIdx & 0xFF),
+                (byte)((nameIdx >> 8) & 0xFF),
+                (byte)(feedbackSlot & 0xFF),
+                (byte)((feedbackSlot >> 8) & 0xFF)
+            );
             return;
         }
 
-        throw new InvalidOperationException("Named property operands exceed ushort operand capacity.");
+        throw new InvalidOperationException(
+            "Named property operands exceed ushort operand capacity."
+        );
     }
 }

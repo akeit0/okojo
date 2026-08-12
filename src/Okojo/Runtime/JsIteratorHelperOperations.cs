@@ -2,7 +2,11 @@ namespace Okojo.Runtime;
 
 internal static class JsIteratorHelperOperations
 {
-    internal static JsPlainObject CreateIteratorResultObject(JsRealm realm, JsValue value, bool done)
+    internal static JsPlainObject CreateIteratorResultObject(
+        JsRealm realm,
+        JsValue value,
+        bool done
+    )
     {
         return realm.CreateIteratorResultObject(value, done);
     }

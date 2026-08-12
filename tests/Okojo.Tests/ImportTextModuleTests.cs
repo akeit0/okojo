@@ -8,14 +8,16 @@ public class ImportTextModuleTests
     public void EvaluateModule_TextImport_DefaultBinding_UsesRawSource()
     {
         const string textSource = "hello from text module";
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/main.js"] = """
-                                import value from './message.txt' with { type: 'text' };
-                                export default value;
-                                """,
-            ["/mods/message.txt"] = textSource
-        });
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal)
+            {
+                ["/mods/main.js"] = """
+                import value from './message.txt' with { type: 'text' };
+                export default value;
+                """,
+                ["/mods/message.txt"] = textSource,
+            }
+        );
 
         using var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var realm = engine.MainRealm;
@@ -29,15 +31,17 @@ public class ImportTextModuleTests
     public void EvaluateModule_TextImport_NamespaceBinding_ExposesDefaultOnly()
     {
         const string textSource = "namespaced text";
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/main.js"] = """
-                                import * as ns from './message.txt' with { type: 'text' };
-                                export const count = Object.getOwnPropertyNames(ns).length;
-                                export default ns.default;
-                                """,
-            ["/mods/message.txt"] = textSource
-        });
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal)
+            {
+                ["/mods/main.js"] = """
+                import * as ns from './message.txt' with { type: 'text' };
+                export const count = Object.getOwnPropertyNames(ns).length;
+                export default ns.default;
+                """,
+                ["/mods/message.txt"] = textSource,
+            }
+        );
 
         using var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var realm = engine.MainRealm;
@@ -53,19 +57,21 @@ public class ImportTextModuleTests
     public void EvaluateModule_TextImport_SupportsSelfImport_And_SkipsJavaScriptParsing()
     {
         const string selfSource = """
-                                  import value from './self.js' with { type: 'text' };
-                                  export default typeof value;
-                                  """;
+            import value from './self.js' with { type: 'text' };
+            export default typeof value;
+            """;
         const string invalidJavaScriptSource = "not { valid javascript";
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/self.js"] = selfSource,
-            ["/mods/main.js"] = """
-                                import value from './invalid.js' with { type: 'text' };
-                                export default value;
-                                """,
-            ["/mods/invalid.js"] = invalidJavaScriptSource
-        });
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal)
+            {
+                ["/mods/self.js"] = selfSource,
+                ["/mods/main.js"] = """
+                import value from './invalid.js' with { type: 'text' };
+                export default value;
+                """,
+                ["/mods/invalid.js"] = invalidJavaScriptSource,
+            }
+        );
 
         using var engine = JsRuntime.CreateBuilder().UseModuleSourceLoader(loader).Build();
         var realm = engine.MainRealm;
@@ -81,7 +87,8 @@ public class ImportTextModuleTests
         Assert.That(mainValue.AsString(), Is.EqualTo(invalidJavaScriptSource));
     }
 
-    private sealed class InMemoryModuleLoader(Dictionary<string, string> modules) : IModuleSourceLoader
+    private sealed class InMemoryModuleLoader(Dictionary<string, string> modules)
+        : IModuleSourceLoader
     {
         private readonly Dictionary<string, string> modules = modules;
 

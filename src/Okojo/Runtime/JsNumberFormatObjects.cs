@@ -34,14 +34,37 @@ internal sealed class JsNumberFormatObject : JsObject
         string roundingPriority,
         int roundingIncrement,
         string trailingZeroDisplay,
-        CultureInfo cultureInfo) : base(realm)
+        CultureInfo cultureInfo
+    )
+        : base(realm)
     {
         Prototype = prototype;
-        core = new(locale, numberingSystem, style, currency, currencyDisplay, currencySign, unit, unitDisplay,
-            notation, compactDisplay, minimumIntegerDigits, minimumFractionDigits, maximumFractionDigits,
-            minimumSignificantDigits, maximumSignificantDigits, minimumSignificantDigitsExplicit,
-            maximumSignificantDigitsExplicit, useGrouping, signDisplay, roundingMode, roundingPriority,
-            roundingIncrement, trailingZeroDisplay, cultureInfo);
+        core = new(
+            locale,
+            numberingSystem,
+            style,
+            currency,
+            currencyDisplay,
+            currencySign,
+            unit,
+            unitDisplay,
+            notation,
+            compactDisplay,
+            minimumIntegerDigits,
+            minimumFractionDigits,
+            maximumFractionDigits,
+            minimumSignificantDigits,
+            maximumSignificantDigits,
+            minimumSignificantDigitsExplicit,
+            maximumSignificantDigitsExplicit,
+            useGrouping,
+            signDisplay,
+            roundingMode,
+            roundingPriority,
+            roundingIncrement,
+            trailingZeroDisplay,
+            cultureInfo
+        );
     }
 
     internal string Locale => core.Locale;
@@ -99,8 +122,10 @@ internal sealed class JsNumberFormatObject : JsObject
         {
             parts = core.FormatParts(value);
         }
-        else if (TryToExactRawString(new(value), out var raw) &&
-                 core.TryFormatExactParts(raw, out var exactParts))
+        else if (
+            TryToExactRawString(new(value), out var raw)
+            && core.TryFormatExactParts(raw, out var exactParts)
+        )
         {
             parts = exactParts;
         }
@@ -118,14 +143,19 @@ internal sealed class JsNumberFormatObject : JsObject
 
     private JsPlainObject CreatePart(string type, string value)
     {
-        var obj = new JsPlainObject(Realm)
-        {
-            Prototype = Realm.ObjectPrototype
-        };
-        obj.DefineDataPropertyAtom(Realm, Realm.Atoms.InternNoCheck("type"), JsValue.FromString(type),
-            JsShapePropertyFlags.Open);
-        obj.DefineDataPropertyAtom(Realm, Realm.Atoms.InternNoCheck("value"), JsValue.FromString(value),
-            JsShapePropertyFlags.Open);
+        var obj = new JsPlainObject(Realm) { Prototype = Realm.ObjectPrototype };
+        obj.DefineDataPropertyAtom(
+            Realm,
+            Realm.Atoms.InternNoCheck("type"),
+            JsValue.FromString(type),
+            JsShapePropertyFlags.Open
+        );
+        obj.DefineDataPropertyAtom(
+            Realm,
+            Realm.Atoms.InternNoCheck("value"),
+            JsValue.FromString(value),
+            JsShapePropertyFlags.Open
+        );
         return obj;
     }
 

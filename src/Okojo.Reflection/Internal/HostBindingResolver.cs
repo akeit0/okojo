@@ -9,9 +9,16 @@ internal static class HostBindingResolver
 
     internal static HostBinding? TryGetHostBinding(Type clrType)
     {
-        var method = clrType.GetMethod(CreateBindingMethodName,
-            BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.FlattenHierarchy,
-            null, Type.EmptyTypes, null);
+        var method = clrType.GetMethod(
+            CreateBindingMethodName,
+            BindingFlags.Static
+                | BindingFlags.Public
+                | BindingFlags.NonPublic
+                | BindingFlags.FlattenHierarchy,
+            null,
+            Type.EmptyTypes,
+            null
+        );
         if (method is null || !typeof(HostBinding).IsAssignableFrom(method.ReturnType))
             return null;
 

@@ -22,9 +22,10 @@ public sealed class PluralRules
 
     /// <summary>Creates a plural-rules selector from explicit option strings.</summary>
     public PluralRules(string locale, string pluralRuleType, string notation)
-        : this(locale, new PluralRulesOptions { PluralRuleType = pluralRuleType, Notation = notation })
-    {
-    }
+        : this(
+            locale,
+            new PluralRulesOptions { PluralRuleType = pluralRuleType, Notation = notation }
+        ) { }
 
     /// <summary>The locale tag.</summary>
     public string Locale { get; }
@@ -51,7 +52,7 @@ public sealed class PluralRules
             return lang switch
             {
                 "en" => ["one", "two", "few", "other"],
-                _ => ["other"]
+                _ => ["other"],
             };
 
         return lang switch
@@ -62,7 +63,7 @@ public sealed class PluralRules
             "sl" => ["one", "two", "few", "other"],
             "fr" or "pt" => ["one", "many", "other"],
             "zh" or "ja" or "ko" or "vi" => ["other"],
-            _ => ["one", "other"]
+            _ => ["one", "other"],
         };
     }
 
@@ -78,8 +79,9 @@ public sealed class PluralRules
         var lang = languageCode;
         return lang switch
         {
-            "en" or "de" or "nl" or "sv" or "da" or "no" or "nb" or "nn" =>
-                i == 1 && v == 0 ? "one" : "other",
+            "en" or "de" or "nl" or "sv" or "da" or "no" or "nb" or "nn" => i == 1 && v == 0
+                ? "one"
+                : "other",
             "fr" => SelectFrenchCardinal(absN, i, v),
             "pt" or "fa" => SelectPortugueseOrPersianCardinal(absN, i, v),
             "es" or "it" => i == 1 && v == 0 ? "one" : "other",
@@ -89,7 +91,7 @@ public sealed class PluralRules
             "pl" => SelectPolishCardinal(i, v),
             "ar" => SelectArabicCardinal(i),
             "zh" or "ja" or "ko" or "vi" => "other",
-            _ => i == 1 && v == 0 ? "one" : "other"
+            _ => i == 1 && v == 0 ? "one" : "other",
         };
     }
 
@@ -103,7 +105,7 @@ public sealed class PluralRules
         return lang switch
         {
             "en" => SelectEnglishOrdinal(i),
-            _ => "other"
+            _ => "other",
         };
     }
 
@@ -125,7 +127,7 @@ public sealed class PluralRules
             1 => "one",
             2 => "two",
             3 => "few",
-            _ => "other"
+            _ => "other",
         };
     }
 

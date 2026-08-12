@@ -6,25 +6,41 @@ public partial class Intrinsics
 {
     private JsHostFunction CreateSetConstructor()
     {
-        return new(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var args = info.Arguments;
-            var callee = (JsHostFunction)info.Function;
-            if (!info.IsConstruct)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Set constructor must be called with new");
+        return new(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var args = info.Arguments;
+                var callee = (JsHostFunction)info.Function;
+                if (!info.IsConstruct)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Set constructor must be called with new"
+                    );
 
-            var prototype = GetPrototypeFromConstructorOrIntrinsic(info.NewTarget, callee, realm.SetPrototype);
-            var set = new JsSetObject(realm, prototype);
-            if (args.Length == 0 || args[0].IsUndefined || args[0].IsNull)
+                var prototype = GetPrototypeFromConstructorOrIntrinsic(
+                    info.NewTarget,
+                    callee,
+                    realm.SetPrototype
+                );
+                var set = new JsSetObject(realm, prototype);
+                if (args.Length == 0 || args[0].IsUndefined || args[0].IsNull)
+                    return set;
+
+                if (!realm.TryToObject(args[0], out var iterable))
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Set iterable must not be null or undefined"
+                    );
+
+                PopulateSetFromIterable(realm, set, iterable);
                 return set;
-
-            if (!realm.TryToObject(args[0], out var iterable))
-                throw new JsRuntimeException(JsErrorKind.TypeError, "Set iterable must not be null or undefined");
-
-            PopulateSetFromIterable(realm, set, iterable);
-            return set;
-        }, "Set", 0, true);
+            },
+            "Set",
+            0,
+            true
+        );
     }
 
     private void InstallSetConstructorBuiltins()
@@ -47,275 +63,425 @@ public partial class Intrinsics
         const int atomSymmetricDifference = IdSymmetricDifference;
         const int atomNextLocal = IdNext;
 
-        var addFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var thisValue = info.ThisValue;
-            var args = info.Arguments;
-            var set = ThisSetValue(realm, thisValue);
-            set.AddValue(args.Length != 0 ? args[0] : JsValue.Undefined);
-            return thisValue;
-        }, "add", 1);
-
-        var clearFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var thisValue = info.ThisValue;
-            ThisSetValue(realm, thisValue).ClearEntries();
-            return JsValue.Undefined;
-        }, "clear", 0);
-
-        var deleteFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var thisValue = info.ThisValue;
-            var args = info.Arguments;
-            var set = ThisSetValue(realm, thisValue);
-            return set.DeleteValue(args.Length != 0 ? args[0] : JsValue.Undefined) ? JsValue.True : JsValue.False;
-        }, "delete", 1);
-
-        var hasFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var thisValue = info.ThisValue;
-            var args = info.Arguments;
-            var set = ThisSetValue(realm, thisValue);
-            return set.HasValue(args.Length != 0 ? args[0] : JsValue.Undefined) ? JsValue.True : JsValue.False;
-        }, "has", 1);
-
-        var forEachFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var thisValue = info.ThisValue;
-            var args = info.Arguments;
-            var set = ThisSetValue(realm, thisValue);
-            if (args.Length == 0 || !args[0].TryGetObject(out var callbackObj) ||
-                callbackObj is not JsFunction callbackFn)
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Set.prototype.forEach callback must be a function");
-
-            var thisArg = args.Length > 1 ? args[1] : JsValue.Undefined;
-            var cursor = 0;
-            while (set.TryGetNextLiveValue(ref cursor, out var value))
+        var addFn = new JsHostFunction(
+            Realm,
+            (in info) =>
             {
-                var callbackArgs = new InlineJsValueArray3
+                var realm = info.Realm;
+                var thisValue = info.ThisValue;
+                var args = info.Arguments;
+                var set = ThisSetValue(realm, thisValue);
+                set.AddValue(args.Length != 0 ? args[0] : JsValue.Undefined);
+                return thisValue;
+            },
+            "add",
+            1
+        );
+
+        var clearFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var thisValue = info.ThisValue;
+                ThisSetValue(realm, thisValue).ClearEntries();
+                return JsValue.Undefined;
+            },
+            "clear",
+            0
+        );
+
+        var deleteFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var thisValue = info.ThisValue;
+                var args = info.Arguments;
+                var set = ThisSetValue(realm, thisValue);
+                return set.DeleteValue(args.Length != 0 ? args[0] : JsValue.Undefined)
+                    ? JsValue.True
+                    : JsValue.False;
+            },
+            "delete",
+            1
+        );
+
+        var hasFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var thisValue = info.ThisValue;
+                var args = info.Arguments;
+                var set = ThisSetValue(realm, thisValue);
+                return set.HasValue(args.Length != 0 ? args[0] : JsValue.Undefined)
+                    ? JsValue.True
+                    : JsValue.False;
+            },
+            "has",
+            1
+        );
+
+        var forEachFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var thisValue = info.ThisValue;
+                var args = info.Arguments;
+                var set = ThisSetValue(realm, thisValue);
+                if (
+                    args.Length == 0
+                    || !args[0].TryGetObject(out var callbackObj)
+                    || callbackObj is not JsFunction callbackFn
+                )
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Set.prototype.forEach callback must be a function"
+                    );
+
+                var thisArg = args.Length > 1 ? args[1] : JsValue.Undefined;
+                var cursor = 0;
+                while (set.TryGetNextLiveValue(ref cursor, out var value))
                 {
-                    Item0 = value,
-                    Item1 = value,
-                    Item2 = JsValue.FromObject(set)
-                };
-                realm.InvokeFunction(callbackFn, thisArg, callbackArgs.AsSpan());
-            }
+                    var callbackArgs = new InlineJsValueArray3
+                    {
+                        Item0 = value,
+                        Item1 = value,
+                        Item2 = JsValue.FromObject(set),
+                    };
+                    realm.InvokeFunction(callbackFn, thisArg, callbackArgs.AsSpan());
+                }
 
-            return JsValue.Undefined;
-        }, "forEach", 1);
+                return JsValue.Undefined;
+            },
+            "forEach",
+            1
+        );
 
-        var sizeGetter = new JsHostFunction(Realm,
+        var sizeGetter = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var thisValue = info.ThisValue;
                 return JsValue.FromInt32(ThisSetValue(realm, thisValue).Count);
             },
-            "get size", 0);
+            "get size",
+            0
+        );
 
-        var valuesFn = new JsHostFunction(Realm,
+        var valuesFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var thisValue = info.ThisValue;
-                return new JsSetIteratorObject(realm, ThisSetValue(realm, thisValue),
-                    JsSetIteratorObject.IterationKind.Values);
-            }, "values", 0);
+                return new JsSetIteratorObject(
+                    realm,
+                    ThisSetValue(realm, thisValue),
+                    JsSetIteratorObject.IterationKind.Values
+                );
+            },
+            "values",
+            0
+        );
 
-        var entriesFn = new JsHostFunction(Realm,
+        var entriesFn = new JsHostFunction(
+            Realm,
             static (in info) =>
             {
                 var realm = info.Realm;
                 var thisValue = info.ThisValue;
-                return new JsSetIteratorObject(realm, ThisSetValue(realm, thisValue),
-                    JsSetIteratorObject.IterationKind.Entries);
-            }, "entries", 0);
+                return new JsSetIteratorObject(
+                    realm,
+                    ThisSetValue(realm, thisValue),
+                    JsSetIteratorObject.IterationKind.Entries
+                );
+            },
+            "entries",
+            0
+        );
 
-        var differenceFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var thisValue = info.ThisValue;
-            var args = info.Arguments;
-            var set = ThisSetValue(realm, thisValue);
-            var other = GetSetLikeOperand(realm, args);
-            if (set.Count <= other.Size)
+        var differenceFn = new JsHostFunction(
+            Realm,
+            (in info) =>
             {
-                var filtered = new JsSetObject(realm);
+                var realm = info.Realm;
+                var thisValue = info.ThisValue;
+                var args = info.Arguments;
+                var set = ThisSetValue(realm, thisValue);
+                var other = GetSetLikeOperand(realm, args);
+                if (set.Count <= other.Size)
+                {
+                    var filtered = new JsSetObject(realm);
+                    var cursor = 0;
+                    while (set.TryGetNextLiveValue(ref cursor, out var value))
+                        if (!SetLikeHas(realm, other, value))
+                            filtered.AddValue(value);
+
+                    return filtered;
+                }
+
+                var result = CloneSet(realm, set);
+                IterateSetLikeKeys(
+                    realm,
+                    other,
+                    static (_, resultSet, _, value) =>
+                    {
+                        resultSet.DeleteValue(value);
+                    },
+                    result,
+                    set
+                );
+
+                return result;
+            },
+            "difference",
+            1
+        );
+
+        var intersectionFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var thisValue = info.ThisValue;
+                var args = info.Arguments;
+                var set = ThisSetValue(realm, thisValue);
+                var other = GetSetLikeOperand(realm, args);
+                var result = new JsSetObject(realm);
+                if (set.Count <= other.Size)
+                {
+                    var cursor = 0;
+                    while (set.TryGetNextLiveValue(ref cursor, out var value))
+                        if (SetLikeHas(realm, other, value))
+                            result.AddValue(value);
+                }
+                else
+                {
+                    IterateSetLikeKeys(
+                        realm,
+                        other,
+                        static (_, resultSet, receiverSet, value) =>
+                        {
+                            if (receiverSet.HasValue(value))
+                                resultSet.AddValue(value);
+                        },
+                        result,
+                        set
+                    );
+                }
+
+                return result;
+            },
+            "intersection",
+            1
+        );
+
+        var symmetricDifferenceFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var thisValue = info.ThisValue;
+                var args = info.Arguments;
+                var set = ThisSetValue(realm, thisValue);
+                var other = GetSetLikeOperand(realm, args);
+                var result = CloneSet(realm, set);
+
+                IterateSetLikeKeys(
+                    realm,
+                    other,
+                    static (_, resultSet, receiverSet, value) =>
+                    {
+                        if (receiverSet.HasValue(value))
+                            resultSet.DeleteValue(value);
+                        else
+                            resultSet.AddValue(value);
+                    },
+                    result,
+                    set
+                );
+
+                return result;
+            },
+            "symmetricDifference",
+            1
+        );
+
+        var unionFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var thisValue = info.ThisValue;
+                var args = info.Arguments;
+                var set = ThisSetValue(realm, thisValue);
+                var other = GetSetLikeOperand(realm, args);
+                var result = CloneSet(realm, set);
+
+                IterateSetLikeKeys(
+                    realm,
+                    other,
+                    static (_, resultSet, _, value) =>
+                    {
+                        resultSet.AddValue(value);
+                    },
+                    result,
+                    set
+                );
+
+                return result;
+            },
+            "union",
+            1
+        );
+
+        var isDisjointFromFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var thisValue = info.ThisValue;
+                var args = info.Arguments;
+                var set = ThisSetValue(realm, thisValue);
+                var other = GetSetLikeOperand(realm, args);
+                if (set.Count <= other.Size)
+                {
+                    var cursor = 0;
+                    while (set.TryGetNextLiveValue(ref cursor, out var value))
+                        if (SetLikeHas(realm, other, value))
+                            return JsValue.False;
+                }
+                else if (
+                    AnySetLikeKeyMatches(
+                        realm,
+                        other,
+                        static (receiverSet, value) => receiverSet.HasValue(value),
+                        set
+                    )
+                )
+                {
+                    return JsValue.False;
+                }
+
+                return JsValue.True;
+            },
+            "isDisjointFrom",
+            1
+        );
+
+        var isSubsetOfFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var realm = info.Realm;
+                var thisValue = info.ThisValue;
+                var args = info.Arguments;
+                var set = ThisSetValue(realm, thisValue);
+                var other = GetSetLikeOperand(realm, args);
+                if (set.Count > other.Size)
+                    return JsValue.False;
                 var cursor = 0;
                 while (set.TryGetNextLiveValue(ref cursor, out var value))
                     if (!SetLikeHas(realm, other, value))
-                        filtered.AddValue(value);
-
-                return filtered;
-            }
-
-            var result = CloneSet(realm, set);
-            IterateSetLikeKeys(realm, other, static (_, resultSet, _, value) => { resultSet.DeleteValue(value); },
-                result,
-                set);
-
-            return result;
-        }, "difference", 1);
-
-        var intersectionFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var thisValue = info.ThisValue;
-            var args = info.Arguments;
-            var set = ThisSetValue(realm, thisValue);
-            var other = GetSetLikeOperand(realm, args);
-            var result = new JsSetObject(realm);
-            if (set.Count <= other.Size)
-            {
-                var cursor = 0;
-                while (set.TryGetNextLiveValue(ref cursor, out var value))
-                    if (SetLikeHas(realm, other, value))
-                        result.AddValue(value);
-            }
-            else
-            {
-                IterateSetLikeKeys(realm, other, static (_, resultSet, receiverSet, value) =>
-                {
-                    if (receiverSet.HasValue(value))
-                        resultSet.AddValue(value);
-                }, result, set);
-            }
-
-            return result;
-        }, "intersection", 1);
-
-        var symmetricDifferenceFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var thisValue = info.ThisValue;
-            var args = info.Arguments;
-            var set = ThisSetValue(realm, thisValue);
-            var other = GetSetLikeOperand(realm, args);
-            var result = CloneSet(realm, set);
-
-            IterateSetLikeKeys(realm, other, static (_, resultSet, receiverSet, value) =>
-            {
-                if (receiverSet.HasValue(value))
-                    resultSet.DeleteValue(value);
-                else
-                    resultSet.AddValue(value);
-            }, result, set);
-
-            return result;
-        }, "symmetricDifference", 1);
-
-        var unionFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var thisValue = info.ThisValue;
-            var args = info.Arguments;
-            var set = ThisSetValue(realm, thisValue);
-            var other = GetSetLikeOperand(realm, args);
-            var result = CloneSet(realm, set);
-
-            IterateSetLikeKeys(realm, other, static (_, resultSet, _, value) => { resultSet.AddValue(value); }, result,
-                set);
-
-            return result;
-        }, "union", 1);
-
-        var isDisjointFromFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var thisValue = info.ThisValue;
-            var args = info.Arguments;
-            var set = ThisSetValue(realm, thisValue);
-            var other = GetSetLikeOperand(realm, args);
-            if (set.Count <= other.Size)
-            {
-                var cursor = 0;
-                while (set.TryGetNextLiveValue(ref cursor, out var value))
-                    if (SetLikeHas(realm, other, value))
                         return JsValue.False;
-            }
-            else if (AnySetLikeKeyMatches(realm, other, static (receiverSet, value) => receiverSet.HasValue(value),
-                         set))
+
+                return JsValue.True;
+            },
+            "isSubsetOf",
+            1
+        );
+
+        var isSupersetOfFn = new JsHostFunction(
+            Realm,
+            (in info) =>
             {
-                return JsValue.False;
-            }
-
-            return JsValue.True;
-        }, "isDisjointFrom", 1);
-
-        var isSubsetOfFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var thisValue = info.ThisValue;
-            var args = info.Arguments;
-            var set = ThisSetValue(realm, thisValue);
-            var other = GetSetLikeOperand(realm, args);
-            if (set.Count > other.Size)
-                return JsValue.False;
-            var cursor = 0;
-            while (set.TryGetNextLiveValue(ref cursor, out var value))
-                if (!SetLikeHas(realm, other, value))
+                var realm = info.Realm;
+                var thisValue = info.ThisValue;
+                var args = info.Arguments;
+                var set = ThisSetValue(realm, thisValue);
+                var other = GetSetLikeOperand(realm, args);
+                if (set.Count < other.Size)
                     return JsValue.False;
+                return AnySetLikeKeyMatches(
+                    realm,
+                    other,
+                    static (receiverSet, value) => !receiverSet.HasValue(value),
+                    set
+                )
+                    ? JsValue.False
+                    : JsValue.True;
+            },
+            "isSupersetOf",
+            1
+        );
 
-            return JsValue.True;
-        }, "isSubsetOf", 1);
-
-        var isSupersetOfFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var realm = info.Realm;
-            var thisValue = info.ThisValue;
-            var args = info.Arguments;
-            var set = ThisSetValue(realm, thisValue);
-            var other = GetSetLikeOperand(realm, args);
-            if (set.Count < other.Size)
-                return JsValue.False;
-            return AnySetLikeKeyMatches(realm, other, static (receiverSet, value) => !receiverSet.HasValue(value), set)
-                ? JsValue.False
-                : JsValue.True;
-        }, "isSupersetOf", 1);
-
-        var speciesGetter = new JsHostFunction(Realm, (in info) =>
+        var speciesGetter = new JsHostFunction(
+            Realm,
+            (in info) =>
             {
                 var thisValue = info.ThisValue;
                 return thisValue;
-            }, "get [Symbol.species]",
-            0);
+            },
+            "get [Symbol.species]",
+            0
+        );
 
-        var iteratorNextFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var thisValue = info.ThisValue;
-            if (!thisValue.TryGetObject(out var obj) || obj is not JsSetIteratorObject iterator)
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Set Iterator.prototype.next called on incompatible receiver");
-            return iterator.Next();
-        }, "next", 0);
+        var iteratorNextFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var thisValue = info.ThisValue;
+                if (!thisValue.TryGetObject(out var obj) || obj is not JsSetIteratorObject iterator)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Set Iterator.prototype.next called on incompatible receiver"
+                    );
+                return iterator.Next();
+            },
+            "next",
+            0
+        );
 
-        var iteratorSelfFn = new JsHostFunction(Realm, (in info) =>
-        {
-            var thisValue = info.ThisValue;
-            if (!thisValue.TryGetObject(out var obj) || obj is not JsSetIteratorObject)
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Set Iterator [Symbol.iterator] called on incompatible receiver");
-            return thisValue;
-        }, "[Symbol.iterator]", 0);
+        var iteratorSelfFn = new JsHostFunction(
+            Realm,
+            (in info) =>
+            {
+                var thisValue = info.ThisValue;
+                if (!thisValue.TryGetObject(out var obj) || obj is not JsSetIteratorObject)
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Set Iterator [Symbol.iterator] called on incompatible receiver"
+                    );
+                return thisValue;
+            },
+            "[Symbol.iterator]",
+            0
+        );
 
         Span<PropertyDefinition> iteratorProtoDefs =
         [
             PropertyDefinition.Mutable(atomNextLocal, JsValue.FromObject(iteratorNextFn)),
             PropertyDefinition.Mutable(IdSymbolIterator, JsValue.FromObject(iteratorSelfFn)),
-            PropertyDefinition.Const(IdSymbolToStringTag, JsValue.FromString("Set Iterator"),
-                configurable: true)
+            PropertyDefinition.Const(
+                IdSymbolToStringTag,
+                JsValue.FromString("Set Iterator"),
+                configurable: true
+            ),
         ];
         SetIteratorPrototype.DefineNewPropertiesNoCollision(Realm, iteratorProtoDefs);
 
         SetConstructor.InitializePrototypeProperty(SetPrototype);
-        SetConstructor.DefineAccessorPropertyAtom(Realm, IdSymbolSpecies, speciesGetter, null,
-            JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.Configurable);
+        SetConstructor.DefineAccessorPropertyAtom(
+            Realm,
+            IdSymbolSpecies,
+            speciesGetter,
+            null,
+            JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.Configurable
+        );
 
         Span<PropertyDefinition> protoDefs =
         [
@@ -333,11 +499,18 @@ public partial class Intrinsics
             PropertyDefinition.Mutable(atomIsSupersetOf, JsValue.FromObject(isSupersetOfFn)),
             PropertyDefinition.Mutable(atomKeys, JsValue.FromObject(valuesFn)),
             PropertyDefinition.Mutable(atomValues, JsValue.FromObject(valuesFn)),
-            PropertyDefinition.Mutable(atomSymmetricDifference, JsValue.FromObject(symmetricDifferenceFn)),
+            PropertyDefinition.Mutable(
+                atomSymmetricDifference,
+                JsValue.FromObject(symmetricDifferenceFn)
+            ),
             PropertyDefinition.Mutable(atomUnion, JsValue.FromObject(unionFn)),
             PropertyDefinition.Mutable(IdSymbolIterator, JsValue.FromObject(valuesFn)),
             PropertyDefinition.GetterData(atomSize, sizeGetter, configurable: true),
-            PropertyDefinition.Const(IdSymbolToStringTag, JsValue.FromString("Set"), configurable: true)
+            PropertyDefinition.Const(
+                IdSymbolToStringTag,
+                JsValue.FromString("Set"),
+                configurable: true
+            ),
         ];
         SetPrototype.DefineNewPropertiesNoCollision(Realm, protoDefs);
     }
@@ -346,7 +519,10 @@ public partial class Intrinsics
     {
         if (value.TryGetObject(out var obj) && obj is JsSetObject set)
             return set;
-        throw new JsRuntimeException(JsErrorKind.TypeError, "Set.prototype method called on incompatible receiver");
+        throw new JsRuntimeException(
+            JsErrorKind.TypeError,
+            "Set.prototype method called on incompatible receiver"
+        );
     }
 
     private static void PopulateSetFromIterable(JsRealm realm, JsSetObject set, JsObject iterable)
@@ -389,13 +565,24 @@ public partial class Intrinsics
     private static JsFunction GetSetAdder(JsRealm realm, JsSetObject set)
     {
         const int atomAdd = IdAdd;
-        if (!set.TryGetPropertyAtom(realm, atomAdd, out var adderValue, out _) ||
-            !adderValue.TryGetObject(out var adderObj) || adderObj is not JsFunction adder)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Set.prototype.add is not callable");
+        if (
+            !set.TryGetPropertyAtom(realm, atomAdd, out var adderValue, out _)
+            || !adderValue.TryGetObject(out var adderObj)
+            || adderObj is not JsFunction adder
+        )
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Set.prototype.add is not callable"
+            );
         return adder;
     }
 
-    private static void CallSetAdder(JsRealm realm, JsSetObject set, JsFunction adder, in JsValue value)
+    private static void CallSetAdder(
+        JsRealm realm,
+        JsSetObject set,
+        JsFunction adder,
+        in JsValue value
+    )
     {
         var args = new InlineJsValueArray1 { Item0 = value };
         realm.InvokeFunction(adder, JsValue.FromObject(set), args.AsSpan());
@@ -403,38 +590,61 @@ public partial class Intrinsics
 
     private static JsObject GetIteratorObjectForSet(JsRealm realm, JsObject iterable)
     {
-        return realm.GetIteratorObjectForIterable(iterable,
+        return realm.GetIteratorObjectForIterable(
+            iterable,
             "Set iterable is not iterable",
-            "Set iterator result must be object");
+            "Set iterator result must be object"
+        );
     }
 
     private static JsValue StepIteratorForSet(JsRealm realm, JsObject iterator, out bool done)
     {
-        return JsRealm.StepIteratorForIterable(realm, iterator,
+        return JsRealm.StepIteratorForIterable(
+            realm,
+            iterator,
             "Set iterator.next is not a function",
             "Set iterator result must be object",
-            out done);
+            out done
+        );
     }
 
     private static SetLikeOperand GetSetLikeOperand(JsRealm realm, ReadOnlySpan<JsValue> args)
     {
         if (args.Length == 0 || !args[0].TryGetObject(out var obj))
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Set operation operand must be an object");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Set operation operand must be an object"
+            );
 
         var rawSize = obj.TryGetPropertyAtom(realm, IdSize, out var sizeValue, out _)
             ? sizeValue
             : JsValue.Undefined;
         var size = realm.ToNumberSlowPath(rawSize);
         if (double.IsNaN(size))
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Set-like operand size must be numeric");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Set-like operand size must be numeric"
+            );
 
-        if (!obj.TryGetPropertyAtom(realm, IdHas, out var hasMethod, out _) ||
-            !hasMethod.TryGetObject(out var hasMethodObj) || hasMethodObj is not JsFunction hasFn)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Set-like operand has must be callable");
+        if (
+            !obj.TryGetPropertyAtom(realm, IdHas, out var hasMethod, out _)
+            || !hasMethod.TryGetObject(out var hasMethodObj)
+            || hasMethodObj is not JsFunction hasFn
+        )
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Set-like operand has must be callable"
+            );
 
-        if (!obj.TryGetPropertyAtom(realm, IdKeys, out var keysMethod, out _) ||
-            !keysMethod.TryGetObject(out var keysMethodObj) || keysMethodObj is not JsFunction keysFn)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Set-like operand keys must be callable");
+        if (
+            !obj.TryGetPropertyAtom(realm, IdKeys, out var keysMethod, out _)
+            || !keysMethod.TryGetObject(out var keysMethodObj)
+            || keysMethodObj is not JsFunction keysFn
+        )
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Set-like operand keys must be callable"
+            );
 
         return new(obj, size, hasFn, keysFn);
     }
@@ -442,7 +652,9 @@ public partial class Intrinsics
     private static bool SetLikeHas(JsRealm realm, in SetLikeOperand operand, in JsValue value)
     {
         var args = new InlineJsValueArray1 { Item0 = value };
-        return JsRealm.ToBoolean(realm.InvokeFunction(operand.Has, JsValue.FromObject(operand.Object), args.AsSpan()));
+        return JsRealm.ToBoolean(
+            realm.InvokeFunction(operand.Has, JsValue.FromObject(operand.Object), args.AsSpan())
+        );
     }
 
     private static void IterateSetLikeKeys(
@@ -450,7 +662,8 @@ public partial class Intrinsics
         in SetLikeOperand operand,
         Action<JsRealm, JsSetObject, JsSetObject, JsValue> visitor,
         JsSetObject result,
-        JsSetObject receiver)
+        JsSetObject receiver
+    )
     {
         var iteratorRecord = GetSetLikeKeysIterator(realm, operand);
         try
@@ -470,8 +683,12 @@ public partial class Intrinsics
         }
     }
 
-    private static bool AnySetLikeKeyMatches(JsRealm realm, in SetLikeOperand operand,
-        Func<JsSetObject, JsValue, bool> predicate, JsSetObject receiver)
+    private static bool AnySetLikeKeyMatches(
+        JsRealm realm,
+        in SetLikeOperand operand,
+        Func<JsSetObject, JsValue, bool> predicate,
+        JsSetObject receiver
+    )
     {
         var iteratorRecord = GetSetLikeKeysIterator(realm, operand);
         try
@@ -503,26 +720,50 @@ public partial class Intrinsics
         return clone;
     }
 
-    private static SetLikeIteratorRecord GetSetLikeKeysIterator(JsRealm realm, in SetLikeOperand operand)
+    private static SetLikeIteratorRecord GetSetLikeKeysIterator(
+        JsRealm realm,
+        in SetLikeOperand operand
+    )
     {
-        var iteratorValue =
-            realm.InvokeFunction(operand.Keys, JsValue.FromObject(operand.Object), ReadOnlySpan<JsValue>.Empty);
+        var iteratorValue = realm.InvokeFunction(
+            operand.Keys,
+            JsValue.FromObject(operand.Object),
+            ReadOnlySpan<JsValue>.Empty
+        );
         if (!iteratorValue.TryGetObject(out var iterator))
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Set-like keys iterator result must be object");
-        if (!iterator.TryGetPropertyAtom(realm, IdNext, out var nextMethod, out _) ||
-            !nextMethod.TryGetObject(out var nextMethodObj) || nextMethodObj is not JsFunction nextFn)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Set-like keys iterator.next is not a function");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Set-like keys iterator result must be object"
+            );
+        if (
+            !iterator.TryGetPropertyAtom(realm, IdNext, out var nextMethod, out _)
+            || !nextMethod.TryGetObject(out var nextMethodObj)
+            || nextMethodObj is not JsFunction nextFn
+        )
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Set-like keys iterator.next is not a function"
+            );
 
         return new(iterator, nextFn);
     }
 
-    private static JsValue StepSetLikeIterator(JsRealm realm, in SetLikeIteratorRecord iteratorRecord, out bool done)
+    private static JsValue StepSetLikeIterator(
+        JsRealm realm,
+        in SetLikeIteratorRecord iteratorRecord,
+        out bool done
+    )
     {
-        var stepResult =
-            realm.InvokeFunction(iteratorRecord.Next, JsValue.FromObject(iteratorRecord.Iterator),
-                ReadOnlySpan<JsValue>.Empty);
+        var stepResult = realm.InvokeFunction(
+            iteratorRecord.Next,
+            JsValue.FromObject(iteratorRecord.Iterator),
+            ReadOnlySpan<JsValue>.Empty
+        );
         if (!stepResult.TryGetObject(out var resultObj))
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Set-like keys iterator result must be object");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Set-like keys iterator result must be object"
+            );
 
         _ = resultObj.TryGetPropertyAtom(realm, IdDone, out var doneValue, out _);
         done = JsRealm.ToBoolean(doneValue);

@@ -192,7 +192,10 @@ internal static class HostValueConverter
 
         if (typeof(T) == typeof(string))
         {
-            score = value.IsString ? 0 : value.IsNull ? 1 : 30;
+            score =
+                value.IsString ? 0
+                : value.IsNull ? 1
+                : 30;
             return true;
         }
 
@@ -227,7 +230,10 @@ internal static class HostValueConverter
 
         if (typeof(T) == typeof(object))
         {
-            score = value.IsNullOrUndefined ? 50 : value.TryGetObject(out _) ? 10 : 20;
+            score =
+                value.IsNullOrUndefined ? 50
+                : value.TryGetObject(out _) ? 10
+                : 20;
             return true;
         }
 
@@ -261,14 +267,27 @@ internal static class HostValueConverter
         return TryGetConversionScoreSlow(realm, value, typeof(T), out score);
     }
 
-    internal static bool TryGetConversionScore(JsRealm realm, in JsValue value, Type targetType, out int score)
+    internal static bool TryGetConversionScore(
+        JsRealm realm,
+        in JsValue value,
+        Type targetType,
+        out int score
+    )
     {
         score = 0;
         var originalTargetType = targetType;
         if (TryConvertClrHelperValue(value, originalTargetType, out _, out score))
             return true;
 
-        if (JsRealm.TryConvertJsValueToTaskObject(realm, value, originalTargetType, out _, out score))
+        if (
+            JsRealm.TryConvertJsValueToTaskObject(
+                realm,
+                value,
+                originalTargetType,
+                out _,
+                out score
+            )
+        )
             return true;
 
         var nullableType = Nullable.GetUnderlyingType(targetType);
@@ -386,15 +405,28 @@ internal static class HostValueConverter
         return false;
     }
 
-    internal static bool TryConvertFromJsValue(JsRealm realm, JsValue value, Type targetType, out object? result,
-        out int score)
+    internal static bool TryConvertFromJsValue(
+        JsRealm realm,
+        JsValue value,
+        Type targetType,
+        out object? result,
+        out int score
+    )
     {
         score = 0;
         var originalTargetType = targetType;
         if (TryConvertClrHelperValue(value, originalTargetType, out result, out score))
             return true;
 
-        if (JsRealm.TryConvertJsValueToTaskObject(realm, value, originalTargetType, out result, out score))
+        if (
+            JsRealm.TryConvertJsValueToTaskObject(
+                realm,
+                value,
+                originalTargetType,
+                out result,
+                out score
+            )
+        )
             return true;
 
         var nullableType = Nullable.GetUnderlyingType(targetType);
@@ -539,7 +571,12 @@ internal static class HostValueConverter
         return false;
     }
 
-    private static bool TryConvertClrHelperValue(JsValue value, Type targetType, out object? result, out int score)
+    private static bool TryConvertClrHelperValue(
+        JsValue value,
+        Type targetType,
+        out object? result,
+        out int score
+    )
     {
         score = 0;
         if (!value.TryGetObject(out var obj))
@@ -740,12 +777,22 @@ internal static class HostValueConverter
         return false;
     }
 
-    private static bool TryGetConversionScoreSlow(JsRealm realm, in JsValue value, Type targetType, out int score)
+    private static bool TryGetConversionScoreSlow(
+        JsRealm realm,
+        in JsValue value,
+        Type targetType,
+        out int score
+    )
     {
         return TryConvertFromJsValue(realm, value, targetType, out _, out score);
     }
 
-    private static bool TryConvertNumeric(JsValue value, Type targetType, out object? result, out int score)
+    private static bool TryConvertNumeric(
+        JsValue value,
+        Type targetType,
+        out object? result,
+        out int score
+    )
     {
         score = 0;
         if (!JsValue.TryGetNumberValue(value, out var number))

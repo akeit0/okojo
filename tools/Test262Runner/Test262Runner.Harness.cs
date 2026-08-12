@@ -18,28 +18,31 @@ internal static partial class Program
         var harnessDirs = new[]
         {
             Path.Combine(repoRoot, "test262", "harness"),
-            Path.Combine(repoRoot, "test262", "test", "harness")
+            Path.Combine(repoRoot, "test262", "test", "harness"),
         };
 
-        var harnessFiles = new Dictionary<string, HarnessFileAsset>(StringComparer.OrdinalIgnoreCase);
+        var harnessFiles = new Dictionary<string, HarnessFileAsset>(
+            StringComparer.OrdinalIgnoreCase
+        );
         foreach (var dir in harnessDirs)
         {
-            if (!Directory.Exists(dir)) continue;
+            if (!Directory.Exists(dir))
+                continue;
 
-            foreach (var file in Directory.EnumerateFiles(dir, "*.js", SearchOption.TopDirectoryOnly))
+            foreach (
+                var file in Directory.EnumerateFiles(dir, "*.js", SearchOption.TopDirectoryOnly)
+            )
             {
                 var name = Path.GetFileName(file);
-                if (string.IsNullOrEmpty(name)) continue;
+                if (string.IsNullOrEmpty(name))
+                    continue;
 
-                if (!harnessFiles.ContainsKey(name)) harnessFiles[name] = new(file, File.ReadAllText(file));
+                if (!harnessFiles.ContainsKey(name))
+                    harnessFiles[name] = new(file, File.ReadAllText(file));
             }
         }
 
-        var pieces = new[]
-            {
-                "sta.js",
-                "assert.js"
-            }
+        var pieces = new[] { "sta.js", "assert.js" }
             .Where(harnessFiles.ContainsKey)
             .Select(name => harnessFiles[name].Source)
             .ToArray();
@@ -50,39 +53,42 @@ internal static partial class Program
         return new(string.Join(Environment.NewLine, pieces) + Environment.NewLine, harnessFiles);
     }
 
-    private static HarnessSourceBundle BuildHarnessSource(HarnessAssets assets, Test262Metadata metadata)
+    private static HarnessSourceBundle BuildHarnessSource(
+        HarnessAssets assets,
+        Test262Metadata metadata
+    )
     {
         const string assertThrowsOverrideSource = """
-                                                  assert.throws = function (expectedErrorConstructor, func, message) {
-                                                    var expectedName, actualName;
-                                                    if (typeof func !== "function") {
-                                                      throw new Test262Error("assert.throws requires two arguments: the error constructor and a function to run");
-                                                    }
-                                                    if (message === undefined) {
-                                                      message = "";
-                                                    } else {
-                                                      message += " ";
-                                                    }
+            assert.throws = function (expectedErrorConstructor, func, message) {
+              var expectedName, actualName;
+              if (typeof func !== "function") {
+                throw new Test262Error("assert.throws requires two arguments: the error constructor and a function to run");
+              }
+              if (message === undefined) {
+                message = "";
+              } else {
+                message += " ";
+              }
 
-                                                    try {
-                                                      func();
-                                                    } catch (thrown) {
-                                                      if (typeof thrown !== "object" || thrown === null) {
-                                                        throw new Test262Error(message + "Thrown value was not an object!");
-                                                      } else if (thrown.constructor !== expectedErrorConstructor) {
-                                                        expectedName = expectedErrorConstructor.name;
-                                                        actualName = thrown.constructor.name;
-                                                        if (expectedName === actualName) {
-                                                          throw new Test262Error(message + "Expected a " + expectedName + " but got a different error constructor with the same name");
-                                                        }
-                                                        throw new Test262Error(message + "Expected a " + expectedName + " but got a " + actualName);
-                                                      }
-                                                      return;
-                                                    }
+              try {
+                func();
+              } catch (thrown) {
+                if (typeof thrown !== "object" || thrown === null) {
+                  throw new Test262Error(message + "Thrown value was not an object!");
+                } else if (thrown.constructor !== expectedErrorConstructor) {
+                  expectedName = expectedErrorConstructor.name;
+                  actualName = thrown.constructor.name;
+                  if (expectedName === actualName) {
+                    throw new Test262Error(message + "Expected a " + expectedName + " but got a different error constructor with the same name");
+                  }
+                  throw new Test262Error(message + "Expected a " + expectedName + " but got a " + actualName);
+                }
+                return;
+              }
 
-                                                    throw new Test262Error(message + "Expected a " + expectedErrorConstructor.name + " to be thrown but no exception was thrown at all");
-                                                  };
-                                                  """;
+              throw new Test262Error(message + "Expected a " + expectedErrorConstructor.name + " to be thrown but no exception was thrown at all");
+            };
+            """;
 
         static int CountAppendedLines(string text)
         {
@@ -92,10 +98,7 @@ internal static partial class Program
         if (metadata.Includes.Count == 0)
         {
             var source = assets.BaseSource + assertThrowsOverrideSource + Environment.NewLine;
-            return new(
-                source,
-                new(),
-                CountAppendedLines(source));
+            return new(source, new(), CountAppendedLines(source));
         }
 
         var sb = new StringBuilder(assets.BaseSource.Length + 4096);
@@ -114,8 +117,13 @@ internal static partial class Program
             {
                 sb.AppendLine(includeSource.Source);
                 var includeLines = CountAppendedLines(includeSource.Source);
-                segments.Add(new(includeSource.Path.Replace('\\', '/'), lineCursor,
-                    lineCursor + includeLines - 1));
+                segments.Add(
+                    new(
+                        includeSource.Path.Replace('\\', '/'),
+                        lineCursor,
+                        lineCursor + includeLines - 1
+                    )
+                );
                 lineCursor += includeLines;
             }
 
@@ -133,302 +141,553 @@ internal static partial class Program
         }
 
         var test262Proto = new JsPlainObject(vm);
-        var test262Error = new JsHostFunction(vm, (in info) =>
-        {
-            var innerVm = info.Realm;
-            var args = info.Arguments;
-            var err = new JsPlainObject(innerVm, false)
+        var test262Error = new JsHostFunction(
+            vm,
+            (in info) =>
             {
-                Prototype = test262Proto
-            };
-            var msg = args.Length > 0 ? args[0].ToString() : string.Empty;
-            err.SetProperty("name", JsValue.FromString("Test262Error"));
-            err.SetProperty("message", JsValue.FromString(msg));
-            return JsValue.FromObject(err);
-        }, "Test262Error", 1, true);
+                var innerVm = info.Realm;
+                var args = info.Arguments;
+                var err = new JsPlainObject(innerVm, false) { Prototype = test262Proto };
+                var msg = args.Length > 0 ? args[0].ToString() : string.Empty;
+                err.SetProperty("name", JsValue.FromString("Test262Error"));
+                err.SetProperty("message", JsValue.FromString(msg));
+                return JsValue.FromObject(err);
+            },
+            "Test262Error",
+            1,
+            true
+        );
         test262Proto.SetProperty("constructor", JsValue.FromObject(test262Error));
         test262Error.SetProperty("prototype", JsValue.FromObject(test262Proto));
-        test262Error.SetProperty("thrower", JsValue.FromObject(new JsHostFunction(vm, (in info) =>
-        {
-            var args = info.Arguments;
-            var message = args.Length > 0 ? args[0].ToString() : string.Empty;
-            throw Test262Exception(message);
-        }, "thrower", 1)));
+        test262Error.SetProperty(
+            "thrower",
+            JsValue.FromObject(
+                new JsHostFunction(
+                    vm,
+                    (in info) =>
+                    {
+                        var args = info.Arguments;
+                        var message = args.Length > 0 ? args[0].ToString() : string.Empty;
+                        throw Test262Exception(message);
+                    },
+                    "thrower",
+                    1
+                )
+            )
+        );
         vm.Global["Test262Error"] = JsValue.FromObject(test262Error);
 
-        vm.Global["$ERROR"] = JsValue.FromObject(new JsHostFunction(vm, (in info) =>
-        {
-            var args = info.Arguments;
-            var message = args.Length > 0 ? args[0].ToString() : string.Empty;
-            throw Test262Exception(message);
-        }, "$ERROR", 1));
+        vm.Global["$ERROR"] = JsValue.FromObject(
+            new JsHostFunction(
+                vm,
+                (in info) =>
+                {
+                    var args = info.Arguments;
+                    var message = args.Length > 0 ? args[0].ToString() : string.Empty;
+                    throw Test262Exception(message);
+                },
+                "$ERROR",
+                1
+            )
+        );
         vm.Global["$FAIL"] = vm.Global["$ERROR"];
-        vm.Global["$PRINT"] =
-            JsValue.FromObject(new JsHostFunction(vm, (in info) => { return JsValue.Undefined; }, "$PRINT", 0));
+        vm.Global["$PRINT"] = JsValue.FromObject(
+            new JsHostFunction(
+                vm,
+                (in info) =>
+                {
+                    return JsValue.Undefined;
+                },
+                "$PRINT",
+                0
+            )
+        );
         vm.Global["print"] = vm.Global["$PRINT"];
-        vm.Global["test262update"] =
-            JsValue.FromObject(new JsHostFunction(vm, (in info) => { return JsValue.Undefined; }, "test262update", 0));
-        vm.Global["fnGlobalObject"] = JsValue.FromObject(new JsHostFunction(vm, (in info) =>
-        {
-            var innerVm = info.Realm;
-            return innerVm.Global["globalThis"];
-        }, "fnGlobalObject", 0));
+        vm.Global["test262update"] = JsValue.FromObject(
+            new JsHostFunction(
+                vm,
+                (in info) =>
+                {
+                    return JsValue.Undefined;
+                },
+                "test262update",
+                0
+            )
+        );
+        vm.Global["fnGlobalObject"] = JsValue.FromObject(
+            new JsHostFunction(
+                vm,
+                (in info) =>
+                {
+                    var innerVm = info.Realm;
+                    return innerVm.Global["globalThis"];
+                },
+                "fnGlobalObject",
+                0
+            )
+        );
         vm.Global["$262"] = JsValue.FromObject(CreateTest262HostObject(vm, hostContext));
         vm.Global["NotEarlyError"] = JsValue.FromString("NotEarlyError");
-        vm.Global["$DONOTEVALUATE"] = JsValue.FromObject(new JsHostFunction(vm, (in info) =>
-        {
-            throw new JsRuntimeException(JsErrorKind.InternalError,
-                "Test262: This statement should not be evaluated.", "TEST262_DONOTEVALUATE");
-        }, "$DONOTEVALUATE", 0));
-
-        var assertFn = new JsHostFunction(vm, (in info) =>
-        {
-            var args = info.Arguments;
-            var ok = args.Length > 0 && Test262AssertHelpers.IsTruthy(args[0]);
-            if (!ok)
-            {
-                var message = args.Length > 1 && !args[1].IsUndefined
-                    ? args[1].ToString()
-                    : "Expected true but got " + (args.Length > 0 ? args[0].ToString() : "undefined");
-                throw Test262Exception(message);
-            }
-
-            return JsValue.Undefined;
-        }, "assert", 2);
-
-        assertFn.SetProperty("sameValue", JsValue.FromObject(new JsHostFunction(vm, (in info) =>
-        {
-            var args = info.Arguments;
-            var actual = args.Length > 0 ? args[0] : JsValue.Undefined;
-            var expected = args.Length > 1 ? args[1] : JsValue.Undefined;
-            if (!Test262AssertHelpers.SameValue(actual, expected))
-            {
-                var prefix = args.Length > 2 && !args[2].IsUndefined ? args[2] + " " : string.Empty;
-                throw Test262Exception(prefix + "Expected SameValue(«" + FormatAssertValue(actual) + "», «" +
-                                       FormatAssertValue(expected) + "») to be true");
-            }
-
-            return JsValue.Undefined;
-        }, "sameValue", 3)));
-        assertFn.SetProperty("notSameValue", JsValue.FromObject(new JsHostFunction(vm, (in info) =>
-        {
-            var args = info.Arguments;
-            var actual = args.Length > 0 ? args[0] : JsValue.Undefined;
-            var unexpected = args.Length > 1 ? args[1] : JsValue.Undefined;
-            if (Test262AssertHelpers.SameValue(actual, unexpected))
-            {
-                var prefix = args.Length > 2 && !args[2].IsUndefined ? args[2] + " " : string.Empty;
-                throw Test262Exception(prefix + "Expected SameValue(«" + FormatAssertValue(actual) + "», «" +
-                                       FormatAssertValue(unexpected) + "») to be false");
-            }
-
-            return JsValue.Undefined;
-        }, "notSameValue", 3)));
-        assertFn.SetProperty("throws", JsValue.FromObject(new JsHostFunction(vm, (in info) =>
-        {
-            var innerVm = info.Realm;
-            var args = info.Arguments;
-            if (args.Length < 2 || !args[1].TryGetObject(out var fnObj) || fnObj is not JsFunction fn)
-                throw Test262Exception("assert.throws requires constructor and function");
-            var expectedCtor = args[0];
-            if (!expectedCtor.TryGetObject(out var expectedCtorObj))
-                throw Test262Exception("assert.throws requires an error constructor object as first argument");
-
-            try
-            {
-                _ = innerVm.Call(fn, JsValue.Undefined, ReadOnlySpan<JsValue>.Empty);
-            }
-            catch (JsRuntimeException ex)
-            {
-                var thrown = ex.ThrownValue ?? JsValue.Undefined;
-                if (!thrown.TryGetObject(out var thrownObj))
+        vm.Global["$DONOTEVALUATE"] = JsValue.FromObject(
+            new JsHostFunction(
+                vm,
+                (in info) =>
                 {
-                    var expectedByKindName = ex.Kind switch
-                    {
-                        JsErrorKind.TypeError => "TypeError",
-                        JsErrorKind.ReferenceError => "ReferenceError",
-                        JsErrorKind.RangeError => "RangeError",
-                        JsErrorKind.SyntaxError => "SyntaxError",
-                        _ => "Error"
-                    };
-                    var expectedName = expectedCtorObj is JsFunction expectedCtorFn
-                        ? expectedCtorFn.Name ?? "<anonymous>"
-                        : "<non-function>";
-                    if (!string.Equals(expectedName, expectedByKindName, StringComparison.Ordinal))
-                        throw Test262Exception($"Expected a {expectedName} but got a {expectedByKindName}");
-                    return JsValue.Undefined;
-                }
+                    throw new JsRuntimeException(
+                        JsErrorKind.InternalError,
+                        "Test262: This statement should not be evaluated.",
+                        "TEST262_DONOTEVALUATE"
+                    );
+                },
+                "$DONOTEVALUATE",
+                0
+            )
+        );
 
-                JsObject? actualCtorObj = null;
-                var sameCtor = thrownObj.TryGetProperty("constructor", out var ctorValue) &&
-                               ctorValue.TryGetObject(out actualCtorObj) &&
-                               ReferenceEquals(actualCtorObj, expectedCtorObj);
-                if (!sameCtor)
+        var assertFn = new JsHostFunction(
+            vm,
+            (in info) =>
+            {
+                var args = info.Arguments;
+                var ok = args.Length > 0 && Test262AssertHelpers.IsTruthy(args[0]);
+                if (!ok)
                 {
-                    var expectedName = expectedCtorObj is JsFunction expectedCtorFn
-                        ? expectedCtorFn.Name ?? "<anonymous>"
-                        : "<non-function>";
-                    var actualName = actualCtorObj is JsFunction actualCtorFn
-                        ? actualCtorFn.Name ?? "<anonymous>"
-                        : "<non-function>";
-                    throw Test262Exception($"Expected a {expectedName} but got a {actualName}");
+                    var message =
+                        args.Length > 1 && !args[1].IsUndefined
+                            ? args[1].ToString()
+                            : "Expected true but got "
+                                + (args.Length > 0 ? args[0].ToString() : "undefined");
+                    throw Test262Exception(message);
                 }
 
                 return JsValue.Undefined;
-            }
+            },
+            "assert",
+            2
+        );
 
-            throw Test262Exception("Expected throw");
-        }, "throws", 1)));
-        assertFn.SetProperty("compareArray", JsValue.FromObject(new JsHostFunction(vm, (in info) =>
-        {
-            var args = info.Arguments;
-            var actual = args.Length > 0 ? args[0] : JsValue.Undefined;
-            var expected = args.Length > 1 ? args[1] : JsValue.Undefined;
-            if (!Test262AssertHelpers.CompareArrayLikeValues(actual, expected))
-            {
-                var message = args.Length > 2 && !args[2].IsUndefined
-                    ? args[2].ToString()
-                    : "Actual and expected array-likes should have the same contents";
-                throw Test262Exception(message);
-            }
+        assertFn.SetProperty(
+            "sameValue",
+            JsValue.FromObject(
+                new JsHostFunction(
+                    vm,
+                    (in info) =>
+                    {
+                        var args = info.Arguments;
+                        var actual = args.Length > 0 ? args[0] : JsValue.Undefined;
+                        var expected = args.Length > 1 ? args[1] : JsValue.Undefined;
+                        if (!Test262AssertHelpers.SameValue(actual, expected))
+                        {
+                            var prefix =
+                                args.Length > 2 && !args[2].IsUndefined
+                                    ? args[2] + " "
+                                    : string.Empty;
+                            throw Test262Exception(
+                                prefix
+                                    + "Expected SameValue(«"
+                                    + FormatAssertValue(actual)
+                                    + "», «"
+                                    + FormatAssertValue(expected)
+                                    + "») to be true"
+                            );
+                        }
 
-            return JsValue.Undefined;
-        }, "compareArray", 3)));
+                        return JsValue.Undefined;
+                    },
+                    "sameValue",
+                    3
+                )
+            )
+        );
+        assertFn.SetProperty(
+            "notSameValue",
+            JsValue.FromObject(
+                new JsHostFunction(
+                    vm,
+                    (in info) =>
+                    {
+                        var args = info.Arguments;
+                        var actual = args.Length > 0 ? args[0] : JsValue.Undefined;
+                        var unexpected = args.Length > 1 ? args[1] : JsValue.Undefined;
+                        if (Test262AssertHelpers.SameValue(actual, unexpected))
+                        {
+                            var prefix =
+                                args.Length > 2 && !args[2].IsUndefined
+                                    ? args[2] + " "
+                                    : string.Empty;
+                            throw Test262Exception(
+                                prefix
+                                    + "Expected SameValue(«"
+                                    + FormatAssertValue(actual)
+                                    + "», «"
+                                    + FormatAssertValue(unexpected)
+                                    + "») to be false"
+                            );
+                        }
+
+                        return JsValue.Undefined;
+                    },
+                    "notSameValue",
+                    3
+                )
+            )
+        );
+        assertFn.SetProperty(
+            "throws",
+            JsValue.FromObject(
+                new JsHostFunction(
+                    vm,
+                    (in info) =>
+                    {
+                        var innerVm = info.Realm;
+                        var args = info.Arguments;
+                        if (
+                            args.Length < 2
+                            || !args[1].TryGetObject(out var fnObj)
+                            || fnObj is not JsFunction fn
+                        )
+                            throw Test262Exception(
+                                "assert.throws requires constructor and function"
+                            );
+                        var expectedCtor = args[0];
+                        if (!expectedCtor.TryGetObject(out var expectedCtorObj))
+                            throw Test262Exception(
+                                "assert.throws requires an error constructor object as first argument"
+                            );
+
+                        try
+                        {
+                            _ = innerVm.Call(fn, JsValue.Undefined, ReadOnlySpan<JsValue>.Empty);
+                        }
+                        catch (JsRuntimeException ex)
+                        {
+                            var thrown = ex.ThrownValue ?? JsValue.Undefined;
+                            if (!thrown.TryGetObject(out var thrownObj))
+                            {
+                                var expectedByKindName = ex.Kind switch
+                                {
+                                    JsErrorKind.TypeError => "TypeError",
+                                    JsErrorKind.ReferenceError => "ReferenceError",
+                                    JsErrorKind.RangeError => "RangeError",
+                                    JsErrorKind.SyntaxError => "SyntaxError",
+                                    _ => "Error",
+                                };
+                                var expectedName = expectedCtorObj is JsFunction expectedCtorFn
+                                    ? expectedCtorFn.Name ?? "<anonymous>"
+                                    : "<non-function>";
+                                if (
+                                    !string.Equals(
+                                        expectedName,
+                                        expectedByKindName,
+                                        StringComparison.Ordinal
+                                    )
+                                )
+                                    throw Test262Exception(
+                                        $"Expected a {expectedName} but got a {expectedByKindName}"
+                                    );
+                                return JsValue.Undefined;
+                            }
+
+                            JsObject? actualCtorObj = null;
+                            var sameCtor =
+                                thrownObj.TryGetProperty("constructor", out var ctorValue)
+                                && ctorValue.TryGetObject(out actualCtorObj)
+                                && ReferenceEquals(actualCtorObj, expectedCtorObj);
+                            if (!sameCtor)
+                            {
+                                var expectedName = expectedCtorObj is JsFunction expectedCtorFn
+                                    ? expectedCtorFn.Name ?? "<anonymous>"
+                                    : "<non-function>";
+                                var actualName = actualCtorObj is JsFunction actualCtorFn
+                                    ? actualCtorFn.Name ?? "<anonymous>"
+                                    : "<non-function>";
+                                throw Test262Exception(
+                                    $"Expected a {expectedName} but got a {actualName}"
+                                );
+                            }
+
+                            return JsValue.Undefined;
+                        }
+
+                        throw Test262Exception("Expected throw");
+                    },
+                    "throws",
+                    1
+                )
+            )
+        );
+        assertFn.SetProperty(
+            "compareArray",
+            JsValue.FromObject(
+                new JsHostFunction(
+                    vm,
+                    (in info) =>
+                    {
+                        var args = info.Arguments;
+                        var actual = args.Length > 0 ? args[0] : JsValue.Undefined;
+                        var expected = args.Length > 1 ? args[1] : JsValue.Undefined;
+                        if (!Test262AssertHelpers.CompareArrayLikeValues(actual, expected))
+                        {
+                            var message =
+                                args.Length > 2 && !args[2].IsUndefined
+                                    ? args[2].ToString()
+                                    : "Actual and expected array-likes should have the same contents";
+                            throw Test262Exception(message);
+                        }
+
+                        return JsValue.Undefined;
+                    },
+                    "compareArray",
+                    3
+                )
+            )
+        );
 
         vm.Global["assert"] = JsValue.FromObject(assertFn);
-        vm.Global["compareArray"] = JsValue.FromObject(new JsHostFunction(vm, (in info) =>
-        {
-            var args = info.Arguments;
-            var actual = args.Length > 0 ? args[0] : JsValue.Undefined;
-            var expected = args.Length > 1 ? args[1] : JsValue.Undefined;
-            return Test262AssertHelpers.CompareArrayLikeValues(actual, expected) ? JsValue.True : JsValue.False;
-        }, "compareArray", 2));
+        vm.Global["compareArray"] = JsValue.FromObject(
+            new JsHostFunction(
+                vm,
+                (in info) =>
+                {
+                    var args = info.Arguments;
+                    var actual = args.Length > 0 ? args[0] : JsValue.Undefined;
+                    var expected = args.Length > 1 ? args[1] : JsValue.Undefined;
+                    return Test262AssertHelpers.CompareArrayLikeValues(actual, expected)
+                        ? JsValue.True
+                        : JsValue.False;
+                },
+                "compareArray",
+                2
+            )
+        );
     }
 
     private static JsPlainObject CreateTest262HostObject(JsRealm vm, Test262HostContext hostContext)
     {
         var test262Obj = new JsPlainObject(vm);
         test262Obj.SetProperty("evalScript", JsValue.FromObject(CreateEvalScriptFunction(vm)));
-        test262Obj.SetProperty("detachArrayBuffer", JsValue.FromObject(CreateDetachArrayBufferFunction(vm)));
-        test262Obj.SetProperty("collectWeakTarget", JsValue.FromObject(CreateCollectWeakTargetFunction(vm)));
-        test262Obj.SetProperty("createRealm", JsValue.FromObject(new JsHostFunction(vm, (in info) =>
-        {
-            var childRealm = vm.Agent.CreateRealm();
-            InstallOkojoHarnessGlobals(childRealm, hostContext);
+        test262Obj.SetProperty(
+            "detachArrayBuffer",
+            JsValue.FromObject(CreateDetachArrayBufferFunction(vm))
+        );
+        test262Obj.SetProperty(
+            "collectWeakTarget",
+            JsValue.FromObject(CreateCollectWeakTargetFunction(vm))
+        );
+        test262Obj.SetProperty(
+            "createRealm",
+            JsValue.FromObject(
+                new JsHostFunction(
+                    vm,
+                    (in info) =>
+                    {
+                        var childRealm = vm.Agent.CreateRealm();
+                        InstallOkojoHarnessGlobals(childRealm, hostContext);
 
-            var realmObject = new JsPlainObject(childRealm);
-            realmObject.SetProperty("global", childRealm.Global["globalThis"]);
-            realmObject.SetProperty("evalScript", JsValue.FromObject(CreateEvalScriptFunction(childRealm)));
-            realmObject.SetProperty("detachArrayBuffer",
-                JsValue.FromObject(CreateDetachArrayBufferFunction(childRealm)));
-            realmObject.SetProperty("collectWeakTarget",
-                JsValue.FromObject(CreateCollectWeakTargetFunction(childRealm)));
-            return JsValue.FromObject(realmObject);
-        }, "createRealm", 0)));
-        test262Obj.SetProperty("agent", JsValue.FromObject(CreateTest262AgentHostObject(vm, hostContext)));
+                        var realmObject = new JsPlainObject(childRealm);
+                        realmObject.SetProperty("global", childRealm.Global["globalThis"]);
+                        realmObject.SetProperty(
+                            "evalScript",
+                            JsValue.FromObject(CreateEvalScriptFunction(childRealm))
+                        );
+                        realmObject.SetProperty(
+                            "detachArrayBuffer",
+                            JsValue.FromObject(CreateDetachArrayBufferFunction(childRealm))
+                        );
+                        realmObject.SetProperty(
+                            "collectWeakTarget",
+                            JsValue.FromObject(CreateCollectWeakTargetFunction(childRealm))
+                        );
+                        return JsValue.FromObject(realmObject);
+                    },
+                    "createRealm",
+                    0
+                )
+            )
+        );
+        test262Obj.SetProperty(
+            "agent",
+            JsValue.FromObject(CreateTest262AgentHostObject(vm, hostContext))
+        );
         return test262Obj;
     }
 
-    private static JsPlainObject CreateTest262AgentHostObject(JsRealm vm, Test262HostContext hostContext)
+    private static JsPlainObject CreateTest262AgentHostObject(
+        JsRealm vm,
+        Test262HostContext hostContext
+    )
     {
         var agentObj = new JsPlainObject(vm);
-        agentObj.SetProperty("start", JsValue.FromObject(new JsHostFunction(vm, (in info) =>
-        {
-            hostContext.ThrowIfFaulted();
+        agentObj.SetProperty(
+            "start",
+            JsValue.FromObject(
+                new JsHostFunction(
+                    vm,
+                    (in info) =>
+                    {
+                        hostContext.ThrowIfFaulted();
 
-            var args = info.Arguments;
-            var source = args.Length > 0 ? args[0].ToString() : string.Empty;
-            hostContext.StartWorker(info.Realm, source);
-            return JsValue.Undefined;
-        }, "start", 1)));
-        agentObj.SetProperty("broadcast", JsValue.FromObject(new JsHostFunction(vm, (in info) =>
-        {
-            hostContext.ThrowIfFaulted();
+                        var args = info.Arguments;
+                        var source = args.Length > 0 ? args[0].ToString() : string.Empty;
+                        hostContext.StartWorker(info.Realm, source);
+                        return JsValue.Undefined;
+                    },
+                    "start",
+                    1
+                )
+            )
+        );
+        agentObj.SetProperty(
+            "broadcast",
+            JsValue.FromObject(
+                new JsHostFunction(
+                    vm,
+                    (in info) =>
+                    {
+                        hostContext.ThrowIfFaulted();
 
-            var args = info.Arguments;
-            var payload = args.Length > 0 ? args[0] : JsValue.Undefined;
-            hostContext.Broadcast(info.Realm, payload);
-            return JsValue.Undefined;
-        }, "broadcast", 1)));
-        agentObj.SetProperty("getReport", JsValue.FromObject(new JsHostFunction(vm, (in info) =>
-        {
-            hostContext.ThrowIfFaulted();
-            info.Realm.PumpJobs();
-            return hostContext.TryDequeueReport(out var report) ? report : JsValue.Null;
-        }, "getReport", 0)));
-        agentObj.SetProperty("sleep", JsValue.FromObject(new JsHostFunction(vm, (in info) =>
-        {
-            var args = info.Arguments;
-            var delay = args.Length > 0 ? args[0] : JsValue.Undefined;
-            var milliseconds = delay.IsUndefined
-                ? 0d
-                : delay.IsInt32
-                    ? delay.Int32Value
-                    : delay.IsFloat64
-                        ? delay.Float64Value
-                        : delay.IsTrue
-                            ? 1d
+                        var args = info.Arguments;
+                        var payload = args.Length > 0 ? args[0] : JsValue.Undefined;
+                        hostContext.Broadcast(info.Realm, payload);
+                        return JsValue.Undefined;
+                    },
+                    "broadcast",
+                    1
+                )
+            )
+        );
+        agentObj.SetProperty(
+            "getReport",
+            JsValue.FromObject(
+                new JsHostFunction(
+                    vm,
+                    (in info) =>
+                    {
+                        hostContext.ThrowIfFaulted();
+                        info.Realm.PumpJobs();
+                        return hostContext.TryDequeueReport(out var report) ? report : JsValue.Null;
+                    },
+                    "getReport",
+                    0
+                )
+            )
+        );
+        agentObj.SetProperty(
+            "sleep",
+            JsValue.FromObject(
+                new JsHostFunction(
+                    vm,
+                    (in info) =>
+                    {
+                        var args = info.Arguments;
+                        var delay = args.Length > 0 ? args[0] : JsValue.Undefined;
+                        var milliseconds =
+                            delay.IsUndefined ? 0d
+                            : delay.IsInt32 ? delay.Int32Value
+                            : delay.IsFloat64 ? delay.Float64Value
+                            : delay.IsTrue ? 1d
                             : 0d;
-            hostContext.SleepMilliseconds(milliseconds);
-            return JsValue.Undefined;
-        }, "sleep", 1)));
-        agentObj.SetProperty("monotonicNow",
-            JsValue.FromObject(new JsHostFunction(vm, (in _) => { return new(hostContext.MonotonicNowMilliseconds); },
-                "monotonicNow", 0)));
+                        hostContext.SleepMilliseconds(milliseconds);
+                        return JsValue.Undefined;
+                    },
+                    "sleep",
+                    1
+                )
+            )
+        );
+        agentObj.SetProperty(
+            "monotonicNow",
+            JsValue.FromObject(
+                new JsHostFunction(
+                    vm,
+                    (in _) =>
+                    {
+                        return new(hostContext.MonotonicNowMilliseconds);
+                    },
+                    "monotonicNow",
+                    0
+                )
+            )
+        );
         return agentObj;
     }
 
     private static JsHostFunction CreateEvalScriptFunction(JsRealm vm)
     {
-        return new(vm, (in info) =>
-        {
-            var innerVm = info.Realm;
-            var args = info.Arguments;
-            var source = args.Length > 0 ? args[0].ToString() : string.Empty;
-            try
+        return new(
+            vm,
+            (in info) =>
             {
-                var program = JavaScriptParser.ParseScript(source);
-                return innerVm.ExecuteProgramInline(program);
-            }
-            catch (JsParseException ex)
-            {
-                throw new JsRuntimeException(JsErrorKind.SyntaxError, ex.Message, "TEST262_EVALSCRIPT_PARSE");
-            }
-        }, "evalScript", 1);
+                var innerVm = info.Realm;
+                var args = info.Arguments;
+                var source = args.Length > 0 ? args[0].ToString() : string.Empty;
+                try
+                {
+                    var program = JavaScriptParser.ParseScript(source);
+                    return innerVm.ExecuteProgramInline(program);
+                }
+                catch (JsParseException ex)
+                {
+                    throw new JsRuntimeException(
+                        JsErrorKind.SyntaxError,
+                        ex.Message,
+                        "TEST262_EVALSCRIPT_PARSE"
+                    );
+                }
+            },
+            "evalScript",
+            1
+        );
     }
 
     private static JsHostFunction CreateDetachArrayBufferFunction(JsRealm vm)
     {
-        return new(vm, (in info) =>
-        {
-            var args = info.Arguments;
-            if (args.Length == 0 || !args[0].TryGetObject(out var obj) || obj is not JsArrayBufferObject buffer)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "detachArrayBuffer requires an ArrayBuffer",
-                    "TEST262_DETACHARRAYBUFFER");
-            buffer.Detach();
-            return JsValue.Undefined;
-        }, "detachArrayBuffer", 1);
+        return new(
+            vm,
+            (in info) =>
+            {
+                var args = info.Arguments;
+                if (
+                    args.Length == 0
+                    || !args[0].TryGetObject(out var obj)
+                    || obj is not JsArrayBufferObject buffer
+                )
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "detachArrayBuffer requires an ArrayBuffer",
+                        "TEST262_DETACHARRAYBUFFER"
+                    );
+                buffer.Detach();
+                return JsValue.Undefined;
+            },
+            "detachArrayBuffer",
+            1
+        );
     }
 
     private static JsHostFunction CreateCollectWeakTargetFunction(JsRealm vm)
     {
-        return new(vm, (in info) =>
-        {
-            var args = info.Arguments;
-            if (args.Length == 0 || (!args[0].TryGetObject(out _) && !args[0].IsSymbol))
-                throw new JsRuntimeException(
-                    JsErrorKind.TypeError,
-                    "collectWeakTarget requires an object or symbol",
-                    "TEST262_COLLECTWEAKTARGET");
+        return new(
+            vm,
+            (in info) =>
+            {
+                var args = info.Arguments;
+                if (args.Length == 0 || (!args[0].TryGetObject(out _) && !args[0].IsSymbol))
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "collectWeakTarget requires an object or symbol",
+                        "TEST262_COLLECTWEAKTARGET"
+                    );
 
-            return vm.Agent.NotifyWeakTargetCollected(args[0])
-                ? JsValue.True
-                : JsValue.False;
-        }, "collectWeakTarget", 1);
+                return vm.Agent.NotifyWeakTargetCollected(args[0]) ? JsValue.True : JsValue.False;
+            },
+            "collectWeakTarget",
+            1
+        );
     }
 
-
-    private sealed class RunnerModuleLoader(string entryPath, string entrySource) : IModuleSourceLoader
+    private sealed class RunnerModuleLoader(string entryPath, string entrySource)
+        : IModuleSourceLoader
     {
         private readonly string entryPath = Path.GetFullPath(entryPath);
 
@@ -452,24 +711,20 @@ internal static partial class Program
         }
     }
 
-
     private sealed record HarnessAssets(
         string BaseSource,
-        Dictionary<string, HarnessFileAsset> HarnessFiles);
+        Dictionary<string, HarnessFileAsset> HarnessFiles
+    );
 
-    private sealed record HarnessFileAsset(
-        string Path,
-        string Source);
+    private sealed record HarnessFileAsset(string Path, string Source);
 
-    private sealed record HarnessSourceSegment(
-        string DisplayPath,
-        int StartLine,
-        int EndLine);
+    private sealed record HarnessSourceSegment(string DisplayPath, int StartLine, int EndLine);
 
     private sealed record HarnessSourceBundle(
         string Source,
         List<HarnessSourceSegment> Segments,
-        int TotalLines);
+        int TotalLines
+    );
 
     private sealed class Test262HostContext(TimeProvider timeProvider) : IDisposable
     {
@@ -501,9 +756,10 @@ internal static partial class Program
             if (double.IsNaN(milliseconds) || milliseconds <= 0d)
                 return;
 
-            var due = milliseconds >= int.MaxValue
-                ? TimeSpan.FromMilliseconds(int.MaxValue)
-                : TimeSpan.FromMilliseconds(milliseconds);
+            var due =
+                milliseconds >= int.MaxValue
+                    ? TimeSpan.FromMilliseconds(int.MaxValue)
+                    : TimeSpan.FromMilliseconds(milliseconds);
 
             if (timeProvider is FakeTimeProvider fakeTime)
             {
@@ -538,17 +794,30 @@ internal static partial class Program
             ThrowIfFaulted();
             ThrowIfDisposed();
 
-            var knownAgentIds = ((JsRuntime)mainRealm.Engine).Agents.Select(static a => a.Id).ToHashSet();
+            var knownAgentIds = ((JsRuntime)mainRealm.Engine)
+                .Agents.Select(static a => a.Id)
+                .ToHashSet();
             var createWorker = RequireFunction(mainRealm, "createWorker");
             var handleValue = mainRealm.Call(createWorker, JsValue.Undefined);
-            if (!handleValue.TryGetObject(out var handleObj) || handleObj is not JsPlainObject handle)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "createWorker did not return a worker handle",
-                    "TEST262_AGENT_START");
+            if (
+                !handleValue.TryGetObject(out var handleObj)
+                || handleObj is not JsPlainObject handle
+            )
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "createWorker did not return a worker handle",
+                    "TEST262_AGENT_START"
+                );
 
-            var workerAgent = ((JsRuntime)mainRealm.Engine).Agents.FirstOrDefault(agent => !knownAgentIds.Contains(agent.Id));
+            var workerAgent = ((JsRuntime)mainRealm.Engine).Agents.FirstOrDefault(agent =>
+                !knownAgentIds.Contains(agent.Id)
+            );
             if (workerAgent is null)
-                throw new JsRuntimeException(JsErrorKind.InternalError, "Failed to resolve created worker agent",
-                    "TEST262_AGENT_START");
+                throw new JsRuntimeException(
+                    JsErrorKind.InternalError,
+                    "Failed to resolve created worker agent",
+                    "TEST262_AGENT_START"
+                );
 
             var worker = new Test262WorkerHost(this, mainRealm, workerAgent, handle);
             workers[worker.Id] = worker;
@@ -604,7 +873,8 @@ internal static partial class Program
                 JsErrorKind.InternalError,
                 $"Test262 worker failure: {captured.GetType().Name}: {captured.Message}",
                 "TEST262_AGENT_WORKER",
-                innerException: captured);
+                innerException: captured
+            );
         }
 
         private void ThrowIfDisposed()
@@ -615,13 +885,16 @@ internal static partial class Program
 
         private static JsFunction RequireFunction(JsRealm realm, string globalName)
         {
-            if (!realm.Global.TryGetValue(globalName, out var value) ||
-                !value.TryGetObject(out var fnObj) ||
-                fnObj is not JsFunction fn)
+            if (
+                !realm.Global.TryGetValue(globalName, out var value)
+                || !value.TryGetObject(out var fnObj)
+                || fnObj is not JsFunction fn
+            )
                 throw new JsRuntimeException(
                     JsErrorKind.TypeError,
                     $"Required host function '{globalName}' is not callable",
-                    "TEST262_AGENT_HOST_FUNCTION");
+                    "TEST262_AGENT_HOST_FUNCTION"
+                );
 
             return fn;
         }
@@ -641,8 +914,12 @@ internal static partial class Program
         private volatile bool leaving;
         private Thread? workerThread;
 
-        public Test262WorkerHost(Test262HostContext context, JsRealm mainRealm, JsAgent workerAgent,
-            JsPlainObject handle)
+        public Test262WorkerHost(
+            Test262HostContext context,
+            JsRealm mainRealm,
+            JsAgent workerAgent,
+            JsPlainObject handle
+        )
         {
             this.context = context;
             this.mainRealm = mainRealm;
@@ -652,18 +929,31 @@ internal static partial class Program
             Id = workerAgent.Id;
             postMessageFn = RequireHandleFunction("postMessage");
 
-            handle.SetProperty("onmessage", JsValue.FromObject(new JsHostFunction(mainRealm, (in info) =>
-            {
-                var args = info.Arguments;
-                if (args.Length == 0 || !args[0].TryGetObject(out var evtObj))
-                    return JsValue.Undefined;
+            handle.SetProperty(
+                "onmessage",
+                JsValue.FromObject(
+                    new JsHostFunction(
+                        mainRealm,
+                        (in info) =>
+                        {
+                            var args = info.Arguments;
+                            if (args.Length == 0 || !args[0].TryGetObject(out var evtObj))
+                                return JsValue.Undefined;
 
-                if (!evtObj.TryGetProperty("data", out var dataValue) || !dataValue.IsString)
-                    return JsValue.Undefined;
+                            if (
+                                !evtObj.TryGetProperty("data", out var dataValue)
+                                || !dataValue.IsString
+                            )
+                                return JsValue.Undefined;
 
-                DecodeMessage(dataValue.AsString());
-                return JsValue.Undefined;
-            }, "onmessage", 1)));
+                            DecodeMessage(dataValue.AsString());
+                            return JsValue.Undefined;
+                        },
+                        "onmessage",
+                        1
+                    )
+                )
+            );
         }
 
         public int Id { get; }
@@ -684,47 +974,47 @@ internal static partial class Program
             {
                 workerAgent.Terminate();
             }
-            catch
-            {
-            }
+            catch { }
 
             if (threadToJoin is not null && !ReferenceEquals(threadToJoin, Thread.CurrentThread))
                 try
                 {
                     threadToJoin.Join(1000);
                 }
-                catch
-                {
-                }
+                catch { }
         }
 
         public void Start(string source)
         {
-            workerRealm.Global["__test262SleepHost"] = JsValue.FromObject(new JsHostFunction(workerRealm,
-                (in info) =>
-                {
-                    var args = info.Arguments;
-                    var milliseconds = args.Length == 0
-                        ? 0d
-                        : args[0].IsInt32
-                            ? args[0].Int32Value
-                            : args[0].IsFloat64
-                                ? args[0].Float64Value
-                                : args[0].IsTrue
-                                    ? 1d
-                                    : 0d;
-                    context.SleepMilliseconds(milliseconds);
-                    return JsValue.Undefined;
-                }, "__test262SleepHost", 1));
-            workerRealm.Global["__test262MonotonicNowHost"] = JsValue.FromObject(new JsHostFunction(workerRealm,
-                (in _) => new(context.MonotonicNowMilliseconds),
-                "__test262MonotonicNowHost", 0));
+            workerRealm.Global["__test262SleepHost"] = JsValue.FromObject(
+                new JsHostFunction(
+                    workerRealm,
+                    (in info) =>
+                    {
+                        var args = info.Arguments;
+                        var milliseconds =
+                            args.Length == 0 ? 0d
+                            : args[0].IsInt32 ? args[0].Int32Value
+                            : args[0].IsFloat64 ? args[0].Float64Value
+                            : args[0].IsTrue ? 1d
+                            : 0d;
+                        context.SleepMilliseconds(milliseconds);
+                        return JsValue.Undefined;
+                    },
+                    "__test262SleepHost",
+                    1
+                )
+            );
+            workerRealm.Global["__test262MonotonicNowHost"] = JsValue.FromObject(
+                new JsHostFunction(
+                    workerRealm,
+                    (in _) => new(context.MonotonicNowMilliseconds),
+                    "__test262MonotonicNowHost",
+                    0
+                )
+            );
             workerRealm.Eval(BuildWorkerBootstrapSource() + source);
-            workerThread = new(Run)
-            {
-                IsBackground = true,
-                Name = $"Test262AgentWorker-{Id}"
-            };
+            workerThread = new(Run) { IsBackground = true, Name = $"Test262AgentWorker-{Id}" };
             workerThread.Start();
         }
 
@@ -761,9 +1051,7 @@ internal static partial class Program
                 {
                     workerAgent.Terminate();
                 }
-                catch
-                {
-                }
+                catch { }
 
                 context.CompleteWorker(Id);
             }
@@ -791,27 +1079,34 @@ internal static partial class Program
                 return;
             }
 
-            context.EnqueueReport(tag switch
-            {
-                's' => JsValue.FromString(payload),
-                'n' => new(double.Parse(payload, CultureInfo.InvariantCulture)),
-                'i' => JsValue.FromBigInt(new(BigInteger.Parse(payload, CultureInfo.InvariantCulture))),
-                'b' => payload == "1" ? JsValue.True : JsValue.False,
-                'u' => JsValue.Undefined,
-                'l' => JsValue.Null,
-                _ => JsValue.FromString(encoded)
-            });
+            context.EnqueueReport(
+                tag switch
+                {
+                    's' => JsValue.FromString(payload),
+                    'n' => new(double.Parse(payload, CultureInfo.InvariantCulture)),
+                    'i' => JsValue.FromBigInt(
+                        new(BigInteger.Parse(payload, CultureInfo.InvariantCulture))
+                    ),
+                    'b' => payload == "1" ? JsValue.True : JsValue.False,
+                    'u' => JsValue.Undefined,
+                    'l' => JsValue.Null,
+                    _ => JsValue.FromString(encoded),
+                }
+            );
         }
 
         private JsFunction RequireHandleFunction(string name)
         {
-            if (!handle.TryGetProperty(name, out var value) ||
-                !value.TryGetObject(out var fnObj) ||
-                fnObj is not JsFunction fn)
+            if (
+                !handle.TryGetProperty(name, out var value)
+                || !value.TryGetObject(out var fnObj)
+                || fnObj is not JsFunction fn
+            )
                 throw new JsRuntimeException(
                     JsErrorKind.TypeError,
                     $"Worker handle member '{name}' is not callable",
-                    "TEST262_AGENT_HANDLE");
+                    "TEST262_AGENT_HANDLE"
+                );
 
             return fn;
         }
@@ -819,42 +1114,42 @@ internal static partial class Program
         private static string BuildWorkerBootstrapSource()
         {
             return """
-                   globalThis.$262 ??= {};
-                   const __test262Sleep = (ms) => {
-                     if (typeof __test262SleepHost === "function") {
-                       __test262SleepHost(ms);
-                       return;
-                     }
-                     const i32 = new Int32Array(new SharedArrayBuffer(4));
-                     Atomics.wait(i32, 0, 0, ms);
-                   };
-                   $262.agent = {
-                     receiveBroadcast(callback) {
-                       globalThis.onmessage = function(evt) {
-                         try {
-                           return callback(evt.data);
-                         } catch (error) {
-                           postMessage("e" + String(error && error.stack ? error.stack : error));
-                           throw error;
-                         }
-                       };
-                     },
-                     report(value) {
-                       postMessage("s" + String(value));
-                     },
-                     leaving() {
-                       postMessage("!");
-                     },
-                     sleep(ms) {
-                       __test262Sleep(ms);
-                     },
-                     monotonicNow() {
-                       if (typeof __test262MonotonicNowHost === "function")
-                         return __test262MonotonicNowHost();
-                       return Date.now();
-                     }
-                   };
-                   """;
+                globalThis.$262 ??= {};
+                const __test262Sleep = (ms) => {
+                  if (typeof __test262SleepHost === "function") {
+                    __test262SleepHost(ms);
+                    return;
+                  }
+                  const i32 = new Int32Array(new SharedArrayBuffer(4));
+                  Atomics.wait(i32, 0, 0, ms);
+                };
+                $262.agent = {
+                  receiveBroadcast(callback) {
+                    globalThis.onmessage = function(evt) {
+                      try {
+                        return callback(evt.data);
+                      } catch (error) {
+                        postMessage("e" + String(error && error.stack ? error.stack : error));
+                        throw error;
+                      }
+                    };
+                  },
+                  report(value) {
+                    postMessage("s" + String(value));
+                  },
+                  leaving() {
+                    postMessage("!");
+                  },
+                  sleep(ms) {
+                    __test262Sleep(ms);
+                  },
+                  monotonicNow() {
+                    if (typeof __test262MonotonicNowHost === "function")
+                      return __test262MonotonicNowHost();
+                    return Date.now();
+                  }
+                };
+                """;
         }
     }
 }

@@ -4,7 +4,9 @@ namespace Okojo.Compiler;
 
 public sealed partial class JsCompiler
 {
-    private int HideNonParameterLocalsForInitializerScope(out KeyValuePair<int, int>[]? hiddenLocals)
+    private int HideNonParameterLocalsForInitializerScope(
+        out KeyValuePair<int, int>[]? hiddenLocals
+    )
     {
         hiddenLocals = null;
         if (!functionHasParameterExpressions || locals.Count == 0)
@@ -14,20 +16,26 @@ public sealed partial class JsCompiler
         var hiddenCount = 0;
         foreach (var entry in locals)
         {
-            if (IsParameterLocalBinding(entry.Key) ||
-                IsImmutableFunctionNameBinding(entry.Key) ||
-                entry.Key == SyntheticArgumentsSymbolId)
+            if (
+                IsParameterLocalBinding(entry.Key)
+                || IsImmutableFunctionNameBinding(entry.Key)
+                || entry.Key == SyntheticArgumentsSymbolId
+            )
                 continue;
 
             hiddenLocals[hiddenCount++] = entry;
         }
 
-        for (var i = 0; i < hiddenCount; i++) locals.Remove(hiddenLocals[i].Key);
+        for (var i = 0; i < hiddenCount; i++)
+            locals.Remove(hiddenLocals[i].Key);
 
         return hiddenCount;
     }
 
-    private void RestoreHiddenLocalsAfterInitializerScope(KeyValuePair<int, int>[]? hiddenLocals, int hiddenCount)
+    private void RestoreHiddenLocalsAfterInitializerScope(
+        KeyValuePair<int, int>[]? hiddenLocals,
+        int hiddenCount
+    )
     {
         if (hiddenLocals is null)
             return;

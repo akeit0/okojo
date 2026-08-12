@@ -17,7 +17,8 @@ public class OkojoPromiseBenchmarks
     private double sink;
     private string source = string.Empty;
 
-    [Params("p-all", "p-any", "p-allset")] public string Scenario { get; set; } = "p-all";
+    [Params("p-all", "p-any", "p-allset")]
+    public string Scenario { get; set; } = "p-all";
 
     [GlobalSetup]
     public void Setup()

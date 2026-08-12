@@ -4,11 +4,17 @@ internal static class CompilerStoragePlanner
 {
     public static CompilerBindingPlan Plan(CompilerBindingCollectionResult collected)
     {
-        var planned = new PooledArrayBuilder<CompilerPlannedBinding>(collected.Bindings.Length == 0 ? 4 : collected.Bindings.Length);
+        var planned = new PooledArrayBuilder<CompilerPlannedBinding>(
+            collected.Bindings.Length == 0 ? 4 : collected.Bindings.Length
+        );
         var nextStorageIndexByScopeId = new Dictionary<int, int>();
         var scopeById = CreateScopeById(collected.Scopes);
         var bindingsByScopeId = CreateBindingsByScopeId(collected.Bindings);
-        var capturedBindingIndexes = CollectCapturedBindingIndexes(collected, scopeById, bindingsByScopeId);
+        var capturedBindingIndexes = CollectCapturedBindingIndexes(
+            collected,
+            scopeById,
+            bindingsByScopeId
+        );
 
         for (var bindingIndex = 0; bindingIndex < collected.Bindings.Length; bindingIndex++)
         {
@@ -17,25 +23,31 @@ internal static class CompilerStoragePlanner
             var storageKind = ClassifyStorage(binding.Kind);
             if (isCaptured && storageKind != CompilerPlannedStorageKind.ImportBinding)
                 storageKind = CompilerPlannedStorageKind.ContextSlot;
-            var storageIndex = storageKind == CompilerPlannedStorageKind.ImportBinding
-                ? -1
-                : GetNextStorageIndex(nextStorageIndexByScopeId, binding.ScopeId);
-            planned.Add(new CompilerPlannedBinding(
-                binding.ScopeId,
-                binding.Name,
-                binding.NameId,
-                binding.Kind,
-                storageKind,
-                storageIndex,
-                isCaptured,
-                binding.IsConst,
-                binding.Position));
+            var storageIndex =
+                storageKind == CompilerPlannedStorageKind.ImportBinding
+                    ? -1
+                    : GetNextStorageIndex(nextStorageIndexByScopeId, binding.ScopeId);
+            planned.Add(
+                new CompilerPlannedBinding(
+                    binding.ScopeId,
+                    binding.Name,
+                    binding.NameId,
+                    binding.Kind,
+                    storageKind,
+                    storageIndex,
+                    isCaptured,
+                    binding.IsConst,
+                    binding.Position
+                )
+            );
         }
 
         return new(planned);
     }
 
-    private static Dictionary<int, CompilerCollectedScope> CreateScopeById(ReadOnlySpan<CompilerCollectedScope> scopes)
+    private static Dictionary<int, CompilerCollectedScope> CreateScopeById(
+        ReadOnlySpan<CompilerCollectedScope> scopes
+    )
     {
         var result = new Dictionary<int, CompilerCollectedScope>(scopes.Length);
         for (var i = 0; i < scopes.Length; i++)
@@ -43,7 +55,9 @@ internal static class CompilerStoragePlanner
         return result;
     }
 
-    private static Dictionary<int, List<int>> CreateBindingsByScopeId(ReadOnlySpan<CompilerCollectedBinding> bindings)
+    private static Dictionary<int, List<int>> CreateBindingsByScopeId(
+        ReadOnlySpan<CompilerCollectedBinding> bindings
+    )
     {
         var result = new Dictionary<int, List<int>>();
         for (var i = 0; i < bindings.Length; i++)
@@ -64,13 +78,22 @@ internal static class CompilerStoragePlanner
     private static HashSet<int> CollectCapturedBindingIndexes(
         CompilerBindingCollectionResult collected,
         Dictionary<int, CompilerCollectedScope> scopeById,
-        Dictionary<int, List<int>> bindingsByScopeId)
+        Dictionary<int, List<int>> bindingsByScopeId
+    )
     {
         var captured = new HashSet<int>();
         for (var i = 0; i < collected.References.Length; i++)
         {
             var reference = collected.References[i];
-            if (!TryResolveBindingIndex(reference, collected.Bindings, scopeById, bindingsByScopeId, out var bindingIndex))
+            if (
+                !TryResolveBindingIndex(
+                    reference,
+                    collected.Bindings,
+                    scopeById,
+                    bindingsByScopeId,
+                    out var bindingIndex
+                )
+            )
                 continue;
 
             var bindingScopeId = collected.Bindings[bindingIndex].ScopeId;
@@ -86,16 +109,23 @@ internal static class CompilerStoragePlanner
         ReadOnlySpan<CompilerCollectedBinding> bindings,
         Dictionary<int, CompilerCollectedScope> scopeById,
         Dictionary<int, List<int>> bindingsByScopeId,
-        out int bindingIndex)
+        out int bindingIndex
+    )
     {
-        for (var scopeId = reference.ScopeId; scopeId >= 0;)
+        for (var scopeId = reference.ScopeId; scopeId >= 0; )
         {
             if (bindingsByScopeId.TryGetValue(scopeId, out var indexes))
             {
                 for (var i = indexes.Count - 1; i >= 0; i--)
                 {
                     var candidateIndex = indexes[i];
-                    if (!string.Equals(bindings[candidateIndex].Name, reference.Name, StringComparison.Ordinal))
+                    if (
+                        !string.Equals(
+                            bindings[candidateIndex].Name,
+                            reference.Name,
+                            StringComparison.Ordinal
+                        )
+                    )
                         continue;
                     bindingIndex = candidateIndex;
                     return true;
@@ -114,9 +144,10 @@ internal static class CompilerStoragePlanner
     private static bool HasInterveningFunctionScope(
         int referenceScopeId,
         int bindingScopeId,
-        Dictionary<int, CompilerCollectedScope> scopeById)
+        Dictionary<int, CompilerCollectedScope> scopeById
+    )
     {
-        for (var scopeId = referenceScopeId; scopeId >= 0 && scopeId != bindingScopeId;)
+        for (var scopeId = referenceScopeId; scopeId >= 0 && scopeId != bindingScopeId; )
         {
             if (!scopeById.TryGetValue(scopeId, out var scope))
                 break;
@@ -135,20 +166,23 @@ internal static class CompilerStoragePlanner
             CompilerCollectedBindingKind.Var or CompilerCollectedBindingKind.FunctionDeclaration =>
                 CompilerPlannedStorageKind.LocalRegister,
             CompilerCollectedBindingKind.Import => CompilerPlannedStorageKind.ImportBinding,
-            CompilerCollectedBindingKind.Parameter or
-                CompilerCollectedBindingKind.Lexical or
-                CompilerCollectedBindingKind.ClassDeclaration or
-                CompilerCollectedBindingKind.FunctionNameSelf or
-                CompilerCollectedBindingKind.BlockAlias or
-                CompilerCollectedBindingKind.LoopHeadAlias or
-                CompilerCollectedBindingKind.CatchAlias or
-                CompilerCollectedBindingKind.ClassLexicalAlias =>
+            CompilerCollectedBindingKind.Parameter
+            or CompilerCollectedBindingKind.Lexical
+            or CompilerCollectedBindingKind.ClassDeclaration
+            or CompilerCollectedBindingKind.FunctionNameSelf
+            or CompilerCollectedBindingKind.BlockAlias
+            or CompilerCollectedBindingKind.LoopHeadAlias
+            or CompilerCollectedBindingKind.CatchAlias
+            or CompilerCollectedBindingKind.ClassLexicalAlias =>
                 CompilerPlannedStorageKind.LexicalRegister,
-            _ => CompilerPlannedStorageKind.LocalRegister
+            _ => CompilerPlannedStorageKind.LocalRegister,
         };
     }
 
-    private static int GetNextStorageIndex(Dictionary<int, int> nextStorageIndexByScopeId, int scopeId)
+    private static int GetNextStorageIndex(
+        Dictionary<int, int> nextStorageIndexByScopeId,
+        int scopeId
+    )
     {
         if (!nextStorageIndexByScopeId.TryGetValue(scopeId, out var nextIndex))
             nextIndex = 0;

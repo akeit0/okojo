@@ -92,6 +92,11 @@ public sealed class NodeRuntimeBuilder
         var baseLoader = options.ModuleSourceLoader ?? new FileModuleSourceLoader();
         var nodeLoader = new NodeModuleSourceLoader(baseLoader, options.Host.SourceMapRegistry);
         options.Host.UseModuleSourceLoader(nodeLoader);
-        return new(JsRuntime.Create(options), nodeLoader, terminalOptions.Clone(), installNodeGlobals);
+        return new(
+            JsRuntime.Create(options),
+            nodeLoader,
+            terminalOptions.Clone(),
+            installNodeGlobals
+        );
     }
 }

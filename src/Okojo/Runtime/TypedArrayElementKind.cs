@@ -13,7 +13,7 @@ internal enum TypedArrayElementKind : byte
     Float32,
     Float64,
     BigInt64,
-    BigUint64
+    BigUint64,
 }
 
 internal static class TypedArrayElementKindInfo
@@ -34,7 +34,7 @@ internal static class TypedArrayElementKindInfo
             TypedArrayElementKind.Float64 => 8,
             TypedArrayElementKind.BigInt64 => 8,
             TypedArrayElementKind.BigUint64 => 8,
-            _ => 1
+            _ => 1,
         };
     }
 
@@ -54,7 +54,7 @@ internal static class TypedArrayElementKindInfo
             TypedArrayElementKind.Float64 => "Float64Array",
             TypedArrayElementKind.BigInt64 => "BigInt64Array",
             TypedArrayElementKind.BigUint64 => "BigUint64Array",
-            _ => "Uint8Array"
+            _ => "Uint8Array",
         };
     }
 
@@ -63,31 +63,43 @@ internal static class TypedArrayElementKindInfo
         return kind is TypedArrayElementKind.BigInt64 or TypedArrayElementKind.BigUint64;
     }
 
-    internal static JsValue NormalizeValue(JsRealm realm, TypedArrayElementKind kind, in JsValue value)
+    internal static JsValue NormalizeValue(
+        JsRealm realm,
+        TypedArrayElementKind kind,
+        in JsValue value
+    )
     {
         return kind switch
         {
             TypedArrayElementKind.Int8 => JsValue.FromInt32(
-                unchecked((sbyte)ToFixedWidthInteger(realm, value, 8, true))),
+                unchecked((sbyte)ToFixedWidthInteger(realm, value, 8, true))
+            ),
             TypedArrayElementKind.Uint8 => JsValue.FromInt32(
-                unchecked((byte)ToFixedWidthInteger(realm, value, 8, false))),
+                unchecked((byte)ToFixedWidthInteger(realm, value, 8, false))
+            ),
             TypedArrayElementKind.Uint8Clamped => JsValue.FromInt32(ToUint8Clamp(realm, value)),
             TypedArrayElementKind.Int16 => JsValue.FromInt32(
-                unchecked((short)ToFixedWidthInteger(realm, value, 16, true))),
+                unchecked((short)ToFixedWidthInteger(realm, value, 16, true))
+            ),
             TypedArrayElementKind.Uint16 => JsValue.FromInt32(
-                unchecked((ushort)ToFixedWidthInteger(realm, value, 16, false))),
+                unchecked((ushort)ToFixedWidthInteger(realm, value, 16, false))
+            ),
             TypedArrayElementKind.Int32 => JsValue.FromInt32(
-                unchecked((int)ToFixedWidthInteger(realm, value, 32, true))),
+                unchecked((int)ToFixedWidthInteger(realm, value, 32, true))
+            ),
             TypedArrayElementKind.Uint32 => new(
-                (double)unchecked((uint)ToFixedWidthInteger(realm, value, 32, false))),
+                (double)unchecked((uint)ToFixedWidthInteger(realm, value, 32, false))
+            ),
             TypedArrayElementKind.Float16 => new((double)(Half)realm.ToNumberSlowPath(value)),
             TypedArrayElementKind.Float32 => new((float)realm.ToNumberSlowPath(value)),
             TypedArrayElementKind.Float64 => new(realm.ToNumberSlowPath(value)),
             TypedArrayElementKind.BigInt64 => JsValue.FromBigInt(
-                new(Intrinsics.BigIntAsIntN(64, Intrinsics.ToBigIntValue(realm, value).Value))),
+                new(Intrinsics.BigIntAsIntN(64, Intrinsics.ToBigIntValue(realm, value).Value))
+            ),
             TypedArrayElementKind.BigUint64 => JsValue.FromBigInt(
-                new(Intrinsics.BigIntAsUintN(64, Intrinsics.ToBigIntValue(realm, value).Value))),
-            _ => value
+                new(Intrinsics.BigIntAsUintN(64, Intrinsics.ToBigIntValue(realm, value).Value))
+            ),
+            _ => value,
         };
     }
 

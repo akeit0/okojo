@@ -6,7 +6,8 @@ public sealed class JsContext
     {
         Parent = parent;
         Slots = new JsValue[slotCount];
-        for (var i = 0; i < slotCount; i++) Slots[i] = JsValue.Undefined;
+        for (var i = 0; i < slotCount; i++)
+            Slots[i] = JsValue.Undefined;
         ModuleBindings = parent?.ModuleBindings;
     }
 
@@ -31,7 +32,7 @@ public sealed class JsContext
                 PrivateBrandTokensByBrandId = PrivateBrandTokensByBrandId is null
                     ? null
                     : new Dictionary<int, JsObject>(PrivateBrandTokensByBrandId),
-                PrivateBrandToken = PrivateBrandToken
+                PrivateBrandToken = PrivateBrandToken,
             };
         }
     }

@@ -13,7 +13,8 @@ public static class JavaScriptParser
         string source,
         string? sourcePath,
         int basePosition,
-        string? locationSource)
+        string? locationSource
+    )
     {
         return new JsParser(
             source,
@@ -23,26 +24,40 @@ public static class JavaScriptParser
             false,
             sourcePath,
             basePosition,
-            locationSource).ParseProgram();
+            locationSource
+        ).ParseProgram();
     }
 
-    public static JsProgram ParseScript(string source, bool allowSuperProperty, bool allowSuperCall,
-        string? sourcePath = null)
+    public static JsProgram ParseScript(
+        string source,
+        bool allowSuperProperty,
+        bool allowSuperCall,
+        string? sourcePath = null
+    )
     {
         return new JsParser(source, allowSuperProperty, allowSuperCall, sourcePath).ParseProgram();
     }
 
-    public static JsProgram ParseScript(string source, bool allowSuperProperty, bool allowSuperCall,
-        bool allowTopLevelAwait, string? sourcePath = null)
+    public static JsProgram ParseScript(
+        string source,
+        bool allowSuperProperty,
+        bool allowSuperCall,
+        bool allowTopLevelAwait,
+        string? sourcePath = null
+    )
     {
-        return new JsParser(source, allowSuperProperty, allowSuperCall, allowTopLevelAwait, sourcePath: sourcePath)
-            .ParseProgram();
+        return new JsParser(
+            source,
+            allowSuperProperty,
+            allowSuperCall,
+            allowTopLevelAwait,
+            sourcePath: sourcePath
+        ).ParseProgram();
     }
 
     public static JsProgram ParseModule(string source, string? sourcePath = null)
     {
-        return new JsParser(source, false, false, true,
-            true, sourcePath).ParseProgram();
+        return new JsParser(source, false, false, true, true, sourcePath).ParseProgram();
     }
 }
 
@@ -62,7 +77,7 @@ internal sealed partial class JsParser
         "static",
         "yield",
         "eval",
-        "arguments"
+        "arguments",
     };
 
     private readonly bool allowTopLevelAwait;
@@ -88,18 +103,27 @@ internal sealed partial class JsParser
     private bool strictMode;
 
     internal JsParser(string source, string? sourcePath = null)
-        : this(source, false, false, sourcePath)
-    {
-    }
+        : this(source, false, false, sourcePath) { }
 
-    internal JsParser(string source, bool allowSuperProperty, bool allowSuperCall, string? sourcePath = null)
-        : this(source, allowSuperProperty, allowSuperCall, false, sourcePath: sourcePath)
-    {
-    }
+    internal JsParser(
+        string source,
+        bool allowSuperProperty,
+        bool allowSuperCall,
+        string? sourcePath = null
+    )
+        : this(source, allowSuperProperty, allowSuperCall, false, sourcePath: sourcePath) { }
 
-    internal JsParser(string source, bool allowSuperProperty, bool allowSuperCall, bool allowTopLevelAwait,
-        bool isModule = false, string? sourcePath = null, int basePosition = 0, string? locationSource = null,
-        ParserDepthState? parseDepthState = null)
+    internal JsParser(
+        string source,
+        bool allowSuperProperty,
+        bool allowSuperCall,
+        bool allowTopLevelAwait,
+        bool isModule = false,
+        string? sourcePath = null,
+        int basePosition = 0,
+        string? locationSource = null,
+        ParserDepthState? parseDepthState = null
+    )
     {
         this.source = source ?? throw new ArgumentNullException(nameof(source));
         this.locationSource = locationSource ?? source;
@@ -129,9 +153,15 @@ internal sealed partial class JsParser
             RegisterDirectLexicalDeclarations(statement, lexicalNames);
             if (allowsDirectives)
             {
-                if (statement is JsExpressionStatement { Expression: JsLiteralExpression { Text: var text } })
+                if (
+                    statement is JsExpressionStatement
+                    {
+                        Expression: JsLiteralExpression { Text: var text }
+                    }
+                )
                 {
-                    if (text is "\"use strict\"" or "\'use strict\'") strictMode = true;
+                    if (text is "\"use strict\"" or "\'use strict\'")
+                        strictMode = true;
                 }
                 else
                 {
@@ -145,14 +175,27 @@ internal sealed partial class JsParser
         if (!isModule)
             ValidateNoTopLevelUsingDeclarations(statements);
 
-        return At(new JsProgram(statements, strictMode, lexicalNames.ToArray(), sawTopLevelAwait, source, sourcePath,
-            lexer.IdentifierTable), start);
+        return At(
+            new JsProgram(
+                statements,
+                strictMode,
+                lexicalNames.ToArray(),
+                sawTopLevelAwait,
+                source,
+                sourcePath,
+                lexer.IdentifierTable
+            ),
+            start
+        );
     }
 
     private JsStatement ParseModuleItem()
     {
-        if (current.Kind == JsTokenKind.ReservedWord && CurrentSourceTextEquals("import") &&
-            Peek().Kind is not (JsTokenKind.LeftParen or JsTokenKind.Dot))
+        if (
+            current.Kind == JsTokenKind.ReservedWord
+            && CurrentSourceTextEquals("import")
+            && Peek().Kind is not (JsTokenKind.LeftParen or JsTokenKind.Dot)
+        )
             return ParseImportDeclaration();
         if (current.Kind == JsTokenKind.ReservedWord && CurrentSourceTextEquals("export"))
             return ParseExportDeclaration();
@@ -177,50 +220,58 @@ internal sealed partial class JsParser
         if (current.Kind == JsTokenKind.ReservedWord && CurrentSourceTextEquals("class"))
             return At(ParseClassDeclaration(), start);
 
-        if (current.Kind == JsTokenKind.Identifier &&
-            CurrentSourceTextEquals("async") &&
-            Peek().Kind == JsTokenKind.Function &&
-            !Peek().HasLineTerminatorBefore)
+        if (
+            current.Kind == JsTokenKind.Identifier
+            && CurrentSourceTextEquals("async")
+            && Peek().Kind == JsTokenKind.Function
+            && !Peek().HasLineTerminatorBefore
+        )
             return At(ParseFunctionDeclaration(true), start);
 
         if (current.Kind == JsTokenKind.Identifier && Peek().Kind == JsTokenKind.Colon)
             return At(ParseLabeledStatement(), start);
 
-        return At(current.Kind switch
-        {
-            JsTokenKind.Semicolon => ParseEmptyStatement(),
-            JsTokenKind.LeftBrace => ParseBlockStatement(false),
-            JsTokenKind.Var or JsTokenKind.Const => Peek().Kind is JsTokenKind.LeftBrace or JsTokenKind.LeftBracket
-                ? ParseBindingDeclarationStatement(true)
-                : ParseVariableDeclarationStatement(true),
-            JsTokenKind.Let => ShouldParseLetDeclarationStatement()
-                ? Peek().Kind is JsTokenKind.LeftBrace or JsTokenKind.LeftBracket
-                    ? Peek().Kind == JsTokenKind.LeftBrace && Peek().HasLineTerminatorBefore
-                        ? ParseExpressionStatement()
-                        : ParseBindingDeclarationStatement(true)
-                    : ParseVariableDeclarationStatement(true)
-                : ParseExpressionStatement(),
-            JsTokenKind.If => ParseIfStatement(),
-            JsTokenKind.Return => ParseReturnStatement(),
-            JsTokenKind.Function => ParseFunctionDeclaration(),
-            JsTokenKind.While => ParseWhileStatement(),
-            JsTokenKind.Do => ParseDoWhileStatement(),
-            JsTokenKind.For => ParseForStatement(),
-            JsTokenKind.Break => ParseBreakStatement(),
-            JsTokenKind.Continue => ParseContinueStatement(),
-            JsTokenKind.Debugger => ParseDebuggerStatement(),
-            JsTokenKind.Throw => ParseThrowStatement(),
-            JsTokenKind.Switch => ParseSwitchStatement(),
-            JsTokenKind.Try => ParseTryStatement(),
-            JsTokenKind.With => ParseWithStatement(),
-            _ => ParseExpressionStatement()
-        }, start);
+        return At(
+            current.Kind switch
+            {
+                JsTokenKind.Semicolon => ParseEmptyStatement(),
+                JsTokenKind.LeftBrace => ParseBlockStatement(false),
+                JsTokenKind.Var or JsTokenKind.Const => Peek().Kind
+                    is JsTokenKind.LeftBrace
+                        or JsTokenKind.LeftBracket
+                    ? ParseBindingDeclarationStatement(true)
+                    : ParseVariableDeclarationStatement(true),
+                JsTokenKind.Let => ShouldParseLetDeclarationStatement()
+                    ? Peek().Kind is JsTokenKind.LeftBrace or JsTokenKind.LeftBracket
+                        ? Peek().Kind == JsTokenKind.LeftBrace && Peek().HasLineTerminatorBefore
+                            ? ParseExpressionStatement()
+                            : ParseBindingDeclarationStatement(true)
+                        : ParseVariableDeclarationStatement(true)
+                    : ParseExpressionStatement(),
+                JsTokenKind.If => ParseIfStatement(),
+                JsTokenKind.Return => ParseReturnStatement(),
+                JsTokenKind.Function => ParseFunctionDeclaration(),
+                JsTokenKind.While => ParseWhileStatement(),
+                JsTokenKind.Do => ParseDoWhileStatement(),
+                JsTokenKind.For => ParseForStatement(),
+                JsTokenKind.Break => ParseBreakStatement(),
+                JsTokenKind.Continue => ParseContinueStatement(),
+                JsTokenKind.Debugger => ParseDebuggerStatement(),
+                JsTokenKind.Throw => ParseThrowStatement(),
+                JsTokenKind.Switch => ParseSwitchStatement(),
+                JsTokenKind.Try => ParseTryStatement(),
+                JsTokenKind.With => ParseWithStatement(),
+                _ => ParseExpressionStatement(),
+            },
+            start
+        );
     }
 
     private JsVariableDeclarationStatement ParseUsingDeclarationStatement(
         JsVariableDeclarationKind kind,
         bool requireSemicolon = true,
-        bool allowMissingInitializer = false)
+        bool allowMissingInitializer = false
+    )
     {
         var start = current.Position;
         if (kind == JsVariableDeclarationKind.AwaitUsing)
@@ -229,9 +280,11 @@ internal sealed partial class JsParser
                 sawTopLevelAwait = true;
 
             Expect(current.Kind);
-            if (current.HasLineTerminatorBefore ||
-                current.Kind != JsTokenKind.Identifier ||
-                !CurrentSourceTextEquals("using"))
+            if (
+                current.HasLineTerminatorBefore
+                || current.Kind != JsTokenKind.Identifier
+                || !CurrentSourceTextEquals("using")
+            )
                 throw Error("Expected using declaration", current.Position);
         }
 
@@ -242,12 +295,20 @@ internal sealed partial class JsParser
         {
             var identifier = ParseCheckedIdentifierName(ParseBindingIdentifierToken());
             JsExpression? initializer = null;
-            if (Match(JsTokenKind.Assign)) initializer = ParseAssignment(true);
+            if (Match(JsTokenKind.Assign))
+                initializer = ParseAssignment(true);
             else if (!allowMissingInitializer)
-                throw Error($"{GetDeclarationKeywordText(kind)} declaration requires initializer", identifier.Position);
+                throw Error(
+                    $"{GetDeclarationKeywordText(kind)} declaration requires initializer",
+                    identifier.Position
+                );
 
-            declarators.Add(At(new JsVariableDeclarator(identifier.Name, initializer, identifier.NameId),
-                identifier.Position));
+            declarators.Add(
+                At(
+                    new JsVariableDeclarator(identifier.Name, initializer, identifier.NameId),
+                    identifier.Position
+                )
+            );
         } while (Match(JsTokenKind.Comma));
 
         if (requireSemicolon)
@@ -257,8 +318,7 @@ internal sealed partial class JsParser
 
     private bool TryGetUsingDeclarationStatementKind(out JsVariableDeclarationKind kind)
     {
-        if (current.Kind == JsTokenKind.Identifier &&
-            CurrentSourceTextEquals("using"))
+        if (current.Kind == JsTokenKind.Identifier && CurrentSourceTextEquals("using"))
         {
             var next = Peek();
             if (!next.HasLineTerminatorBefore && IsUsingBindingStartToken(next))
@@ -273,11 +333,11 @@ internal sealed partial class JsParser
             var snapshot = CaptureSnapshot();
             Next();
             var isAwaitUsing =
-                !current.HasLineTerminatorBefore &&
-                current.Kind == JsTokenKind.Identifier &&
-                CurrentSourceTextEquals("using") &&
-                !Peek().HasLineTerminatorBefore &&
-                IsUsingBindingStartToken(Peek());
+                !current.HasLineTerminatorBefore
+                && current.Kind == JsTokenKind.Identifier
+                && CurrentSourceTextEquals("using")
+                && !Peek().HasLineTerminatorBefore
+                && IsUsingBindingStartToken(Peek());
             RestoreSnapshot(snapshot);
             if (isAwaitUsing)
             {
@@ -300,7 +360,10 @@ internal sealed partial class JsParser
         for (var i = 0; i < statements.Count; i++)
         {
             if (statements[i] is JsVariableDeclarationStatement decl && decl.Kind.IsUsingLike())
-                throw Error($"{GetDeclarationKeywordText(decl.Kind)} declarations are not allowed at the top level of scripts", decl.Position);
+                throw Error(
+                    $"{GetDeclarationKeywordText(decl.Kind)} declarations are not allowed at the top level of scripts",
+                    decl.Position
+                );
         }
     }
 
@@ -313,7 +376,7 @@ internal sealed partial class JsParser
             JsVariableDeclarationKind.Const => "const",
             JsVariableDeclarationKind.Let => "let",
             JsVariableDeclarationKind.Var => "var",
-            _ => throw new ArgumentOutOfRangeException(nameof(kind))
+            _ => throw new ArgumentOutOfRangeException(nameof(kind)),
         };
     }
 
@@ -342,9 +405,15 @@ internal sealed partial class JsParser
             RegisterDirectLexicalDeclarations(statement, lexicalNames);
             if (allowsDirectives)
             {
-                if (statement is JsExpressionStatement { Expression: JsLiteralExpression { Text: var text } })
+                if (
+                    statement is JsExpressionStatement
+                    {
+                        Expression: JsLiteralExpression { Text: var text }
+                    }
+                )
                 {
-                    if (text is "\"use strict\"" or "\'use strict\'") strictMode = true;
+                    if (text is "\"use strict\"" or "\'use strict\'")
+                        strictMode = true;
                 }
                 else
                 {
@@ -359,17 +428,26 @@ internal sealed partial class JsParser
         Expect(JsTokenKind.RightBrace);
         if (isFunctionBody)
             level--;
-        var bodyMayCreateNestedFunction = EndNestedFunctionSyntaxTracking(nestedFunctionTrackingMarker);
-        var block = At(new JsBlockStatement(
-            statements,
-            !strictBeforeBlock && strictMode,
-            bodyMayCreateNestedFunction), start);
+        var bodyMayCreateNestedFunction = EndNestedFunctionSyntaxTracking(
+            nestedFunctionTrackingMarker
+        );
+        var block = At(
+            new JsBlockStatement(
+                statements,
+                !strictBeforeBlock && strictMode,
+                bodyMayCreateNestedFunction
+            ),
+            start
+        );
         block.EndPosition = endPosition;
         return block;
     }
 
-    private JsVariableDeclarationStatement ParseVariableDeclarationStatement(bool requireSemicolon,
-        bool allowConstWithoutInitializer = false, bool allowInInitializer = true)
+    private JsVariableDeclarationStatement ParseVariableDeclarationStatement(
+        bool requireSemicolon,
+        bool allowConstWithoutInitializer = false,
+        bool allowInInitializer = true
+    )
     {
         var start = current.Position;
         var kind = current.Kind switch
@@ -377,20 +455,29 @@ internal sealed partial class JsParser
             JsTokenKind.Var => JsVariableDeclarationKind.Var,
             JsTokenKind.Let => JsVariableDeclarationKind.Let,
             JsTokenKind.Const => JsVariableDeclarationKind.Const,
-            _ => throw Error("Expected variable declaration", current.Position)
+            _ => throw Error("Expected variable declaration", current.Position),
         };
         Next();
 
         var declarators = new List<JsVariableDeclarator>();
         var lexicalDeclaratorIds = kind.IsLexical() ? new HashSet<int>() : null;
-        var lexicalDeclaratorNames = kind.IsLexical() ? new HashSet<string>(StringComparer.Ordinal) : null;
+        var lexicalDeclaratorNames = kind.IsLexical()
+            ? new HashSet<string>(StringComparer.Ordinal)
+            : null;
         do
         {
-            var nameTok =
-                ParseBindingIdentifierToken(
-                    kind == JsVariableDeclarationKind.Var && !strictMode);
+            var nameTok = ParseBindingIdentifierToken(
+                kind == JsVariableDeclarationKind.Var && !strictMode
+            );
             var identifier = ParseCheckedIdentifierName(nameTok);
-            if (!TryAddIdentifierKey(lexicalDeclaratorIds, lexicalDeclaratorNames, identifier.NameId, identifier.Name))
+            if (
+                !TryAddIdentifierKey(
+                    lexicalDeclaratorIds,
+                    lexicalDeclaratorNames,
+                    identifier.NameId,
+                    identifier.Name
+                )
+            )
                 throw Error($"Unexpected identifier '{identifier.Name}'", nameTok.Position);
 
             JsExpression? initializer = null;
@@ -402,11 +489,16 @@ internal sealed partial class JsParser
             if (kind.IsConstLike() && initializer is null && !allowConstWithoutInitializer)
                 throw Error("const declaration requires initializer", nameTok.Position);
 
-            declarators.Add(At(new JsVariableDeclarator(identifier.Name, initializer, identifier.NameId),
-                nameTok.Position));
+            declarators.Add(
+                At(
+                    new JsVariableDeclarator(identifier.Name, initializer, identifier.NameId),
+                    nameTok.Position
+                )
+            );
         } while (Match(JsTokenKind.Comma));
 
-        if (requireSemicolon) ConsumeOptionalSemicolon();
+        if (requireSemicolon)
+            ConsumeOptionalSemicolon();
 
         return At(new JsVariableDeclarationStatement(kind, declarators), start);
     }
@@ -419,7 +511,7 @@ internal sealed partial class JsParser
             JsTokenKind.Var => JsVariableDeclarationKind.Var,
             JsTokenKind.Let => JsVariableDeclarationKind.Let,
             JsTokenKind.Const => JsVariableDeclarationKind.Const,
-            _ => throw Error("Expected variable declaration", current.Position)
+            _ => throw Error("Expected variable declaration", current.Position),
         };
 
         Next();
@@ -427,22 +519,28 @@ internal sealed partial class JsParser
         {
             JsTokenKind.LeftBrace => ParseObjectBindingPattern(),
             JsTokenKind.LeftBracket => ParseArrayPatternExpression(),
-            _ => throw Error("Expected binding pattern", current.Position)
+            _ => throw Error("Expected binding pattern", current.Position),
         };
         Expect(JsTokenKind.Assign);
         var initializer = ParseAssignment(true);
 
-        if (requireSemicolon) ConsumeOptionalSemicolon();
+        if (requireSemicolon)
+            ConsumeOptionalSemicolon();
 
         var declarators = CollectBindingPatternDeclarators(pattern, kind);
-        return At(new JsVariableDeclarationStatement(kind, declarators, pattern, initializer), start);
+        return At(
+            new JsVariableDeclarationStatement(kind, declarators, pattern, initializer),
+            start
+        );
     }
 
     private JsToken ParseBindingIdentifierToken(bool allowKeywordLetToken = false)
     {
-        if (current.Kind == JsTokenKind.Identifier ||
-            current.Kind == JsTokenKind.Of ||
-            (allowKeywordLetToken && current.Kind == JsTokenKind.Let))
+        if (
+            current.Kind == JsTokenKind.Identifier
+            || current.Kind == JsTokenKind.Of
+            || (allowKeywordLetToken && current.Kind == JsTokenKind.Let)
+        )
         {
             var tok = current;
             Next();
@@ -452,7 +550,10 @@ internal sealed partial class JsParser
         throw Error($"Expected Identifier but found {current.Kind}", current.Position);
     }
 
-    private void RegisterDirectLexicalDeclarations(JsStatement statement, HashSet<string> lexicalNames)
+    private void RegisterDirectLexicalDeclarations(
+        JsStatement statement,
+        HashSet<string> lexicalNames
+    )
     {
         if (statement is JsExportDeclarationStatement exportDecl)
         {
@@ -463,7 +564,10 @@ internal sealed partial class JsParser
         if (statement is JsClassDeclaration classDeclaration)
         {
             if (!lexicalNames.Add(classDeclaration.Name))
-                throw Error($"Unexpected identifier '{classDeclaration.Name}'", classDeclaration.Position);
+                throw Error(
+                    $"Unexpected identifier '{classDeclaration.Name}'",
+                    classDeclaration.Position
+                );
 
             return;
         }
@@ -490,8 +594,17 @@ internal sealed partial class JsParser
             Next();
             var attributes = ParseOptionalImportAttributesClause();
             ConsumeOptionalSemicolon();
-            return At(new JsImportDeclaration(null, null, Array.Empty<JsImportSpecifier>(),
-                GetStringLiteralText(sourceToken), true, attributes), start);
+            return At(
+                new JsImportDeclaration(
+                    null,
+                    null,
+                    Array.Empty<JsImportSpecifier>(),
+                    GetStringLiteralText(sourceToken),
+                    true,
+                    attributes
+                ),
+                start
+            );
         }
 
         string? defaultBinding = null;
@@ -538,8 +651,17 @@ internal sealed partial class JsParser
         var source = Expect(JsTokenKind.String);
         var importAttributes = ParseOptionalImportAttributesClause();
         ConsumeOptionalSemicolon();
-        return At(new JsImportDeclaration(defaultBinding, namespaceBinding, named,
-            GetStringLiteralText(source), false, importAttributes), start);
+        return At(
+            new JsImportDeclaration(
+                defaultBinding,
+                namespaceBinding,
+                named,
+                GetStringLiteralText(source),
+                false,
+                importAttributes
+            ),
+            start
+        );
     }
 
     private void ParseImportSpecifierList(List<JsImportSpecifier> target)
@@ -585,7 +707,14 @@ internal sealed partial class JsParser
             var source = Expect(JsTokenKind.String);
             var exportAttributes = ParseOptionalImportAttributesClause();
             ConsumeOptionalSemicolon();
-            return At(new JsExportAllDeclaration(GetStringLiteralText(source), exportedName, exportAttributes), start);
+            return At(
+                new JsExportAllDeclaration(
+                    GetStringLiteralText(source),
+                    exportedName,
+                    exportAttributes
+                ),
+                start
+            );
         }
 
         if (Match(JsTokenKind.LeftBrace))
@@ -614,14 +743,17 @@ internal sealed partial class JsParser
                 source = GetStringLiteralText(Expect(JsTokenKind.String));
             }
 
-            var exportAttributes =
-                source is null ? Array.Empty<JsImportAttribute>() : ParseOptionalImportAttributesClause();
+            var exportAttributes = source is null
+                ? Array.Empty<JsImportAttribute>()
+                : ParseOptionalImportAttributesClause();
             ConsumeOptionalSemicolon();
             return At(new JsExportNamedDeclaration(specifiers, source, exportAttributes), start);
         }
 
-        if (current.Kind == JsTokenKind.Default ||
-            (current.Kind == JsTokenKind.Identifier && CurrentSourceTextEquals("default")))
+        if (
+            current.Kind == JsTokenKind.Default
+            || (current.Kind == JsTokenKind.Identifier && CurrentSourceTextEquals("default"))
+        )
         {
             Next();
             // Grammar split:
@@ -640,10 +772,12 @@ internal sealed partial class JsParser
                 return At(new JsExportDefaultDeclaration(fnExpr, true), start);
             }
 
-            if (current.Kind == JsTokenKind.Identifier &&
-                CurrentSourceTextEquals("async") &&
-                Peek().Kind == JsTokenKind.Function &&
-                !Peek().HasLineTerminatorBefore)
+            if (
+                current.Kind == JsTokenKind.Identifier
+                && CurrentSourceTextEquals("async")
+                && Peek().Kind == JsTokenKind.Function
+                && !Peek().HasLineTerminatorBefore
+            )
             {
                 var asyncFnExpr = ParseFunctionExpression(true);
                 return At(new JsExportDefaultDeclaration(asyncFnExpr, true), start);
@@ -658,12 +792,14 @@ internal sealed partial class JsParser
         {
             var decl = current.Kind switch
             {
-                JsTokenKind.Var or JsTokenKind.Const when Peek().Kind is JsTokenKind.LeftBrace
-                        or JsTokenKind.LeftBracket
-                    => ParseBindingDeclarationStatement(true),
-                JsTokenKind.Let when Peek().Kind is JsTokenKind.LeftBrace or JsTokenKind.LeftBracket
-                    => ParseBindingDeclarationStatement(true),
-                _ => ParseVariableDeclarationStatement(true)
+                JsTokenKind.Var
+                or JsTokenKind.Const
+                    when Peek().Kind is JsTokenKind.LeftBrace or JsTokenKind.LeftBracket =>
+                    ParseBindingDeclarationStatement(true),
+                JsTokenKind.Let
+                    when Peek().Kind is JsTokenKind.LeftBrace or JsTokenKind.LeftBracket =>
+                    ParseBindingDeclarationStatement(true),
+                _ => ParseVariableDeclarationStatement(true),
             };
             return At(new JsExportDeclarationStatement(decl), start);
         }
@@ -685,8 +821,12 @@ internal sealed partial class JsParser
 
     private IReadOnlyList<JsImportAttribute> ParseOptionalImportAttributesClause()
     {
-        if (!(current.Kind == JsTokenKind.With ||
-              (current.Kind == JsTokenKind.Identifier && CurrentSourceTextEquals("with"))))
+        if (
+            !(
+                current.Kind == JsTokenKind.With
+                || (current.Kind == JsTokenKind.Identifier && CurrentSourceTextEquals("with"))
+            )
+        )
             return Array.Empty<JsImportAttribute>();
 
         Next();
@@ -698,9 +838,10 @@ internal sealed partial class JsParser
         var seenKeys = new HashSet<string>(StringComparer.Ordinal);
         while (true)
         {
-            var key = current.Kind == JsTokenKind.String
-                ? GetStringLiteralText(Expect(JsTokenKind.String))
-                : ParseIdentifierName();
+            var key =
+                current.Kind == JsTokenKind.String
+                    ? GetStringLiteralText(Expect(JsTokenKind.String))
+                    : ParseIdentifierName();
             Expect(JsTokenKind.Colon);
             var value = GetStringLiteralText(Expect(JsTokenKind.String));
 
@@ -728,7 +869,8 @@ internal sealed partial class JsParser
         Expect(JsTokenKind.RightParen);
         var consequent = ParseStatement();
         JsStatement? alternate = null;
-        if (Match(JsTokenKind.Else)) alternate = ParseStatement();
+        if (Match(JsTokenKind.Else))
+            alternate = ParseStatement();
 
         return At(new JsIfStatement(test, consequent, alternate), start);
     }
@@ -739,8 +881,10 @@ internal sealed partial class JsParser
         if (level == 0)
             throw Error("'return' outside of function.", start);
         Expect(JsTokenKind.Return);
-        if (current.Kind is JsTokenKind.Semicolon or JsTokenKind.RightBrace or JsTokenKind.Eof ||
-            current.HasLineTerminatorBefore)
+        if (
+            current.Kind is JsTokenKind.Semicolon or JsTokenKind.RightBrace or JsTokenKind.Eof
+            || current.HasLineTerminatorBefore
+        )
         {
             ConsumeOptionalSemicolon();
             return At(new JsReturnStatement(null), start);
@@ -768,7 +912,8 @@ internal sealed partial class JsParser
         var identifier = ParseCheckedIdentifierName(Expect(JsTokenKind.Identifier));
         Expect(JsTokenKind.LeftParen);
         var generatorLevelBeforeParams = generatorFunctionLevel;
-        if (!isGenerator) generatorFunctionLevel = 0;
+        if (!isGenerator)
+            generatorFunctionLevel = 0;
 
         var parsedParams = ParseFormalParameterList();
         generatorFunctionLevel = generatorLevelBeforeParams;
@@ -795,7 +940,10 @@ internal sealed partial class JsParser
         if (!strictBeforeBody && strictMode)
             for (var i = 0; i < parameters.Count; i++)
                 if (IsEvalOrArguments(parameters[i], parameterIds[i]))
-                    throw Error("Unexpected eval or arguments in strict mode", parameterPositions[i]);
+                    throw Error(
+                        "Unexpected eval or arguments in strict mode",
+                        parameterPositions[i]
+                    );
 
         strictMode = strictBeforeBody;
         generatorFunctionLevel = generatorLevelBeforeBody;
@@ -803,11 +951,26 @@ internal sealed partial class JsParser
         allowSuperProperty = allowSuperPropertyBeforeBody;
         allowSuperCall = allowSuperCallBeforeBody;
 
-        return At(new JsFunctionDeclaration(identifier.Name, parameters, body, isGenerator, isAsync,
-                parameterInitializers, parameterPatterns, parameterPositions, parsedParams.ParameterBindingKinds,
-                functionLength, hasSimpleParameterList, hasDuplicateParameters,
-                restParameterIndex, identifier.NameId, parameterIds),
-            start);
+        return At(
+            new JsFunctionDeclaration(
+                identifier.Name,
+                parameters,
+                body,
+                isGenerator,
+                isAsync,
+                parameterInitializers,
+                parameterPatterns,
+                parameterPositions,
+                parsedParams.ParameterBindingKinds,
+                functionLength,
+                hasSimpleParameterList,
+                hasDuplicateParameters,
+                restParameterIndex,
+                identifier.NameId,
+                parameterIds
+            ),
+            start
+        );
     }
 
     private JsWhileStatement ParseWhileStatement()
@@ -839,9 +1002,11 @@ internal sealed partial class JsParser
         var start = current.Position;
         Expect(JsTokenKind.For);
         var isAwait = false;
-        if ((asyncFunctionLevel > 0 || (allowTopLevelAwait && asyncFunctionLevel == 0)) &&
-            (current.Kind == JsTokenKind.Identifier || current.Kind == JsTokenKind.ReservedWord) &&
-            CurrentSourceTextEquals("await"))
+        if (
+            (asyncFunctionLevel > 0 || (allowTopLevelAwait && asyncFunctionLevel == 0))
+            && (current.Kind == JsTokenKind.Identifier || current.Kind == JsTokenKind.ReservedWord)
+            && CurrentSourceTextEquals("await")
+        )
         {
             isAwait = true;
             Next();
@@ -856,9 +1021,14 @@ internal sealed partial class JsParser
         string? forHeadSyntheticName = null;
         if (current.Kind != JsTokenKind.Semicolon)
         {
-            if ((current.Kind == JsTokenKind.Var || current.Kind == JsTokenKind.Let ||
-                 current.Kind == JsTokenKind.Const) &&
-                Peek().Kind == JsTokenKind.LeftBracket)
+            if (
+                (
+                    current.Kind == JsTokenKind.Var
+                    || current.Kind == JsTokenKind.Let
+                    || current.Kind == JsTokenKind.Const
+                )
+                && Peek().Kind == JsTokenKind.LeftBracket
+            )
             {
                 initIsVarDecl = true;
                 var parsed = ParseForHeadBindingDeclaration(false);
@@ -867,9 +1037,14 @@ internal sealed partial class JsParser
                 forHeadSyntheticName = parsed.SyntheticName;
                 forHeadBindingPattern = parsed.Pattern;
             }
-            else if ((current.Kind == JsTokenKind.Var || current.Kind == JsTokenKind.Let ||
-                      current.Kind == JsTokenKind.Const) &&
-                     Peek().Kind == JsTokenKind.LeftBrace)
+            else if (
+                (
+                    current.Kind == JsTokenKind.Var
+                    || current.Kind == JsTokenKind.Let
+                    || current.Kind == JsTokenKind.Const
+                )
+                && Peek().Kind == JsTokenKind.LeftBrace
+            )
             {
                 initIsVarDecl = true;
                 var parsed = ParseForHeadBindingDeclaration(true);
@@ -878,20 +1053,23 @@ internal sealed partial class JsParser
                 forHeadSyntheticName = parsed.SyntheticName;
                 forHeadBindingPattern = parsed.Pattern;
             }
-            else if (current.Kind is JsTokenKind.Var or JsTokenKind.Const ||
-                     (current.Kind == JsTokenKind.Let && ShouldParseForHeadLetDeclaration()))
+            else if (
+                current.Kind is JsTokenKind.Var or JsTokenKind.Const
+                || (current.Kind == JsTokenKind.Let && ShouldParseForHeadLetDeclaration())
+            )
             {
                 initIsVarDecl = true;
-                init = ParseVariableDeclarationStatement(false, true,
-                    false);
+                init = ParseVariableDeclarationStatement(false, true, false);
             }
             else if (TryGetUsingDeclarationStatementKind(out var usingKind))
             {
                 var shouldTreatUsingAsExpression = false;
-                if (current.Kind == JsTokenKind.Identifier &&
-                    CurrentSourceTextEquals("using") &&
-                    Peek().Kind == JsTokenKind.Of &&
-                    !Peek().HasLineTerminatorBefore)
+                if (
+                    current.Kind == JsTokenKind.Identifier
+                    && CurrentSourceTextEquals("using")
+                    && Peek().Kind == JsTokenKind.Of
+                    && !Peek().HasLineTerminatorBefore
+                )
                 {
                     var snapshot = CaptureSnapshot();
                     Next();
@@ -907,7 +1085,11 @@ internal sealed partial class JsParser
                 else
                 {
                     initIsVarDecl = true;
-                    init = ParseUsingDeclarationStatement(usingKind, requireSemicolon: false, allowMissingInitializer: true);
+                    init = ParseUsingDeclarationStatement(
+                        usingKind,
+                        requireSemicolon: false,
+                        allowMissingInitializer: true
+                    );
                 }
             }
             else if (current.Kind == JsTokenKind.LeftBrace)
@@ -932,15 +1114,22 @@ internal sealed partial class JsParser
 
         if (current.Kind is JsTokenKind.In or JsTokenKind.Of)
         {
-            if (init is null) throw Error("Expected left side in for-in/of", current.Position);
+            if (init is null)
+                throw Error("Expected left side in for-in/of", current.Position);
 
-            if (initIsVarDecl &&
-                init is JsVariableDeclarationStatement { Declarators.Count: not 1 })
-                throw Error("for-in/of variable declaration must contain a single declarator", current.Position);
+            if (
+                initIsVarDecl && init is JsVariableDeclarationStatement { Declarators.Count: not 1 }
+            )
+                throw Error(
+                    "for-in/of variable declaration must contain a single declarator",
+                    current.Position
+                );
 
-            if (init is JsVariableDeclarationStatement leftDecl &&
-                leftDecl.Kind.IsUsingLike() &&
-                current.Kind == JsTokenKind.In)
+            if (
+                init is JsVariableDeclarationStatement leftDecl
+                && leftDecl.Kind.IsUsingLike()
+                && current.Kind == JsTokenKind.In
+            )
                 throw Error("using declarations are not allowed in for-in", current.Position);
 
             var isOf = current.Kind == JsTokenKind.Of;
@@ -949,46 +1138,72 @@ internal sealed partial class JsParser
             Next();
             var right = ParseExpression();
             Expect(JsTokenKind.RightParen);
-            if (forHeadBindingPattern is not null &&
-                init is JsVariableDeclarationStatement forInOfBindingDecl &&
-                forInOfBindingDecl.Declarators.Count == 1)
+            if (
+                forHeadBindingPattern is not null
+                && init is JsVariableDeclarationStatement forInOfBindingDecl
+                && forInOfBindingDecl.Declarators.Count == 1
+            )
             {
-                init = At(new JsVariableDeclarationStatement(
+                init = At(
+                    new JsVariableDeclarationStatement(
                         forHeadBindingKind!.Value,
-                        CollectBindingPatternDeclarators(forHeadBindingPattern, forHeadBindingKind.Value),
-                        forHeadBindingPattern),
-                    forInOfBindingDecl.Position);
+                        CollectBindingPatternDeclarators(
+                            forHeadBindingPattern,
+                            forHeadBindingKind.Value
+                        ),
+                        forHeadBindingPattern
+                    ),
+                    forInOfBindingDecl.Position
+                );
                 forHeadBindingPattern = null;
                 forHeadBindingKind = null;
                 forHeadSyntheticName = null;
             }
 
-            var bodyForInOf = ParseStatementTrackingNestedFunctionSyntax(out var bodyForInOfMayCreateNestedFunction);
+            var bodyForInOf = ParseStatementTrackingNestedFunctionSyntax(
+                out var bodyForInOfMayCreateNestedFunction
+            );
             if (forHeadBindingPattern is not null)
-                bodyForInOf = WrapForHeadBindingBody(forHeadSyntheticName!, forHeadBindingPattern,
-                    forHeadBindingKind!.Value, bodyForInOf);
-            return At(new JsForInOfStatement(
-                init,
-                right,
-                isOf,
-                bodyForInOf,
-                isAwait,
-                bodyForInOfMayCreateNestedFunction), start);
+                bodyForInOf = WrapForHeadBindingBody(
+                    forHeadSyntheticName!,
+                    forHeadBindingPattern,
+                    forHeadBindingKind!.Value,
+                    bodyForInOf
+                );
+            return At(
+                new JsForInOfStatement(
+                    init,
+                    right,
+                    isOf,
+                    bodyForInOf,
+                    isAwait,
+                    bodyForInOfMayCreateNestedFunction
+                ),
+                start
+            );
         }
 
         if (isAwait)
             throw Error("for await loops must use 'of'", current.Position);
 
-        if (forHeadBindingPattern is not null &&
-            init is JsVariableDeclarationStatement bindingDecl &&
-            bindingDecl.Declarators.Count == 1)
+        if (
+            forHeadBindingPattern is not null
+            && init is JsVariableDeclarationStatement bindingDecl
+            && bindingDecl.Declarators.Count == 1
+        )
         {
-            init = At(new JsVariableDeclarationStatement(
+            init = At(
+                new JsVariableDeclarationStatement(
                     forHeadBindingKind!.Value,
-                    CollectBindingPatternDeclarators(forHeadBindingPattern, forHeadBindingKind.Value),
+                    CollectBindingPatternDeclarators(
+                        forHeadBindingPattern,
+                        forHeadBindingKind.Value
+                    ),
                     forHeadBindingPattern,
-                    bindingDecl.Declarators[0].Initializer),
-                bindingDecl.Position);
+                    bindingDecl.Declarators[0].Initializer
+                ),
+                bindingDecl.Position
+            );
             forHeadBindingPattern = null;
             forHeadBindingKind = null;
             forHeadSyntheticName = null;
@@ -997,27 +1212,31 @@ internal sealed partial class JsParser
         Expect(JsTokenKind.Semicolon);
 
         JsExpression? test = null;
-        if (current.Kind != JsTokenKind.Semicolon) test = ParseExpression();
+        if (current.Kind != JsTokenKind.Semicolon)
+            test = ParseExpression();
 
         Expect(JsTokenKind.Semicolon);
 
         JsExpression? update = null;
-        if (current.Kind != JsTokenKind.RightParen) update = ParseExpression();
+        if (current.Kind != JsTokenKind.RightParen)
+            update = ParseExpression();
 
         Expect(JsTokenKind.RightParen);
         var body = ParseStatementTrackingNestedFunctionSyntax(out var bodyMayCreateNestedFunction);
         if (forHeadBindingPattern is not null)
-            body = WrapForHeadBindingBody(forHeadSyntheticName!, forHeadBindingPattern, forHeadBindingKind!.Value,
-                body);
-        return At(new JsForStatement(
-            init,
-            test,
-            update,
-            body,
-            bodyMayCreateNestedFunction), start);
+            body = WrapForHeadBindingBody(
+                forHeadSyntheticName!,
+                forHeadBindingPattern,
+                forHeadBindingKind!.Value,
+                body
+            );
+        return At(new JsForStatement(init, test, update, body, bodyMayCreateNestedFunction), start);
     }
 
-    private bool TryParseForInOfAssignmentHeadPattern(bool isObjectPattern, out JsExpression pattern)
+    private bool TryParseForInOfAssignmentHeadPattern(
+        bool isObjectPattern,
+        out JsExpression pattern
+    )
     {
         var snapshot = CaptureSnapshot();
         try
@@ -1028,9 +1247,7 @@ internal sealed partial class JsParser
             if (current.Kind is JsTokenKind.In or JsTokenKind.Of)
                 return true;
         }
-        catch (JsParseException ex) when (!IsDepthLimitExceeded(ex))
-        {
-        }
+        catch (JsParseException ex) when (!IsDepthLimitExceeded(ex)) { }
 
         RestoreSnapshot(snapshot);
         pattern = null!;
@@ -1042,7 +1259,10 @@ internal sealed partial class JsParser
         if (strictMode)
             return true;
 
-        return Peek().Kind is JsTokenKind.Identifier or JsTokenKind.ReservedWord or JsTokenKind.PrivateIdentifier;
+        return Peek().Kind
+            is JsTokenKind.Identifier
+                or JsTokenKind.ReservedWord
+                or JsTokenKind.PrivateIdentifier;
     }
 
     private bool ShouldParseLetDeclarationStatement()
@@ -1050,13 +1270,20 @@ internal sealed partial class JsParser
         if (strictMode)
             return true;
 
-        return Peek().Kind is JsTokenKind.Identifier or JsTokenKind.ReservedWord or JsTokenKind.PrivateIdentifier
-            or JsTokenKind.LeftBrace or JsTokenKind.LeftBracket;
+        return Peek().Kind
+            is JsTokenKind.Identifier
+                or JsTokenKind.ReservedWord
+                or JsTokenKind.PrivateIdentifier
+                or JsTokenKind.LeftBrace
+                or JsTokenKind.LeftBracket;
     }
 
-    private (JsVariableDeclarationStatement Declaration, JsExpression Pattern, JsVariableDeclarationKind Kind, string
-        SyntheticName)
-        ParseForHeadBindingDeclaration(bool isObjectPattern)
+    private (
+        JsVariableDeclarationStatement Declaration,
+        JsExpression Pattern,
+        JsVariableDeclarationKind Kind,
+        string SyntheticName
+    ) ParseForHeadBindingDeclaration(bool isObjectPattern)
     {
         var start = current.Position;
         var kind = current.Kind switch
@@ -1064,7 +1291,7 @@ internal sealed partial class JsParser
             JsTokenKind.Var => JsVariableDeclarationKind.Var,
             JsTokenKind.Let => JsVariableDeclarationKind.Let,
             JsTokenKind.Const => JsVariableDeclarationKind.Const,
-            _ => throw Error("Expected var, let, or const", current.Position)
+            _ => throw Error("Expected var, let, or const", current.Position),
         };
         Next();
         JsExpression pattern = isObjectPattern
@@ -1075,65 +1302,115 @@ internal sealed partial class JsParser
         if (Match(JsTokenKind.Assign))
             initializer = ParseAssignment(false);
         var declarator = At(CreateVariableDeclarator(syntheticName, initializer), pattern.Position);
-        return (At(new JsVariableDeclarationStatement(kind, new[] { declarator }), start),
-            pattern, kind, syntheticName);
+        return (
+            At(new JsVariableDeclarationStatement(kind, new[] { declarator }), start),
+            pattern,
+            kind,
+            syntheticName
+        );
     }
 
-    private JsStatement WrapForHeadBindingBody(string syntheticName, JsExpression pattern,
-        JsVariableDeclarationKind kind, JsStatement body)
+    private JsStatement WrapForHeadBindingBody(
+        string syntheticName,
+        JsExpression pattern,
+        JsVariableDeclarationKind kind,
+        JsStatement body
+    )
     {
         return pattern switch
         {
-            JsArrayExpression arrayPattern => WrapForHeadArrayBindingBody(syntheticName, arrayPattern, kind, body),
-            JsObjectExpression objectPattern => WrapForHeadObjectBindingBody(syntheticName, objectPattern, kind, body),
-            _ => throw Error("Unsupported for-head binding pattern.", pattern.Position)
+            JsArrayExpression arrayPattern => WrapForHeadArrayBindingBody(
+                syntheticName,
+                arrayPattern,
+                kind,
+                body
+            ),
+            JsObjectExpression objectPattern => WrapForHeadObjectBindingBody(
+                syntheticName,
+                objectPattern,
+                kind,
+                body
+            ),
+            _ => throw Error("Unsupported for-head binding pattern.", pattern.Position),
         };
     }
 
-    private JsStatement WrapForHeadArrayBindingBody(string syntheticName, JsArrayExpression pattern,
-        JsVariableDeclarationKind kind, JsStatement body)
+    private JsStatement WrapForHeadArrayBindingBody(
+        string syntheticName,
+        JsArrayExpression pattern,
+        JsVariableDeclarationKind kind,
+        JsStatement body
+    )
     {
         var statements = new List<JsStatement>();
         var declaredNames = new HashSet<string>(StringComparer.Ordinal);
         var declarationKind = kind.IsConstLike() ? JsVariableDeclarationKind.Let : kind;
         CollectArrayPatternBindingDeclarations(pattern, declaredNames, declarationKind, statements);
-        statements.Add(new JsExpressionStatement(
-            new JsAssignmentExpression(JsAssignmentOperator.Assign, pattern,
-                CreateIdentifierExpression(syntheticName))));
+        statements.Add(
+            new JsExpressionStatement(
+                new JsAssignmentExpression(
+                    JsAssignmentOperator.Assign,
+                    pattern,
+                    CreateIdentifierExpression(syntheticName)
+                )
+            )
+        );
 
         statements.Add(body);
         return new JsBlockStatement(statements, false);
     }
 
-    private JsStatement WrapForHeadObjectBindingBody(string syntheticName, JsObjectExpression pattern,
-        JsVariableDeclarationKind kind, JsStatement body)
+    private JsStatement WrapForHeadObjectBindingBody(
+        string syntheticName,
+        JsObjectExpression pattern,
+        JsVariableDeclarationKind kind,
+        JsStatement body
+    )
     {
         var statements = new List<JsStatement>();
         var declaredNames = new HashSet<string>(StringComparer.Ordinal);
         var declarationKind = kind.IsConstLike() ? JsVariableDeclarationKind.Let : kind;
-        CollectObjectPatternBindingDeclarations(pattern, declaredNames, declarationKind, statements);
-        statements.Add(new JsExpressionStatement(
-            new JsAssignmentExpression(JsAssignmentOperator.Assign, pattern,
-                CreateIdentifierExpression(syntheticName))));
+        CollectObjectPatternBindingDeclarations(
+            pattern,
+            declaredNames,
+            declarationKind,
+            statements
+        );
+        statements.Add(
+            new JsExpressionStatement(
+                new JsAssignmentExpression(
+                    JsAssignmentOperator.Assign,
+                    pattern,
+                    CreateIdentifierExpression(syntheticName)
+                )
+            )
+        );
 
         statements.Add(body);
         return new JsBlockStatement(statements, false);
     }
 
-    private bool TryBuildSimpleForHeadArrayBindingDeclarations(string syntheticName, JsArrayExpression pattern,
+    private bool TryBuildSimpleForHeadArrayBindingDeclarations(
+        string syntheticName,
+        JsArrayExpression pattern,
         JsVariableDeclarationKind kind,
-        List<JsStatement> statements)
+        List<JsStatement> statements
+    )
     {
         return TryBuildSimpleArrayBindingDeclarationsFromSource(
             CreateIdentifierExpression(syntheticName),
             pattern,
             kind,
-            statements);
+            statements
+        );
     }
 
-    private bool TryBuildSimpleArrayBindingDeclarationsFromSource(JsExpression source, JsArrayExpression pattern,
+    private bool TryBuildSimpleArrayBindingDeclarationsFromSource(
+        JsExpression source,
+        JsArrayExpression pattern,
         JsVariableDeclarationKind kind,
-        List<JsStatement> statements)
+        List<JsStatement> statements
+    )
     {
         for (var i = 0; i < pattern.Elements.Count; i++)
         {
@@ -1145,10 +1422,25 @@ internal sealed partial class JsParser
                 case JsIdentifierExpression:
                 case JsArrayExpression:
                 case JsObjectExpression:
-                case JsSpreadExpression { Argument: JsIdentifierExpression or JsArrayExpression or JsObjectExpression }:
-                case JsAssignmentExpression { Operator: JsAssignmentOperator.Assign, Left: JsIdentifierExpression }:
-                case JsAssignmentExpression { Operator: JsAssignmentOperator.Assign, Left: JsArrayExpression }:
-                case JsAssignmentExpression { Operator: JsAssignmentOperator.Assign, Left: JsObjectExpression }:
+                case JsSpreadExpression
+                {
+                    Argument: JsIdentifierExpression or JsArrayExpression or JsObjectExpression
+                }:
+                case JsAssignmentExpression
+                {
+                    Operator: JsAssignmentOperator.Assign,
+                    Left: JsIdentifierExpression
+                }:
+                case JsAssignmentExpression
+                {
+                    Operator: JsAssignmentOperator.Assign,
+                    Left: JsArrayExpression
+                }:
+                case JsAssignmentExpression
+                {
+                    Operator: JsAssignmentOperator.Assign,
+                    Left: JsObjectExpression
+                }:
                     break;
                 default:
                     return false;
@@ -1164,41 +1456,75 @@ internal sealed partial class JsParser
             JsExpression memberSource = new JsMemberExpression(
                 source,
                 new JsLiteralExpression((double)i, i.ToString()),
-                true);
+                true
+            );
 
             switch (element)
             {
                 case JsIdentifierExpression id:
-                    statements.Add(new JsVariableDeclarationStatement(
-                        kind,
-                        new[] { CreateVariableDeclarator(id, memberSource) }));
+                    statements.Add(
+                        new JsVariableDeclarationStatement(
+                            kind,
+                            new[] { CreateVariableDeclarator(id, memberSource) }
+                        )
+                    );
                     break;
                 case JsArrayExpression nestedArray:
-                    if (!TryBuildSimpleArrayBindingDeclarationsFromSource(memberSource, nestedArray, kind, statements))
+                    if (
+                        !TryBuildSimpleArrayBindingDeclarationsFromSource(
+                            memberSource,
+                            nestedArray,
+                            kind,
+                            statements
+                        )
+                    )
                         return false;
                     break;
                 case JsObjectExpression nestedObject:
-                    if (!TryBuildSimpleObjectBindingDeclarationsFromSource(memberSource, nestedObject, kind,
-                            statements))
+                    if (
+                        !TryBuildSimpleObjectBindingDeclarationsFromSource(
+                            memberSource,
+                            nestedObject,
+                            kind,
+                            statements
+                        )
+                    )
                         return false;
                     break;
                 case JsSpreadExpression { Argument: var restTarget }:
-                    var restSource = new JsArrayExpression(new JsExpression[] { new JsSpreadExpression(source) });
+                    var restSource = new JsArrayExpression(
+                        new JsExpression[] { new JsSpreadExpression(source) }
+                    );
                     switch (restTarget)
                     {
                         case JsIdentifierExpression restId:
-                            statements.Add(new JsVariableDeclarationStatement(
-                                kind,
-                                new[] { CreateVariableDeclarator(restId, restSource) }));
+                            statements.Add(
+                                new JsVariableDeclarationStatement(
+                                    kind,
+                                    new[] { CreateVariableDeclarator(restId, restSource) }
+                                )
+                            );
                             break;
                         case JsArrayExpression nestedRestArray:
-                            if (!TryBuildSimpleArrayBindingDeclarationsFromSource(restSource, nestedRestArray, kind,
-                                    statements))
+                            if (
+                                !TryBuildSimpleArrayBindingDeclarationsFromSource(
+                                    restSource,
+                                    nestedRestArray,
+                                    kind,
+                                    statements
+                                )
+                            )
                                 return false;
                             break;
                         case JsObjectExpression nestedRestObject:
-                            if (!TryBuildSimpleObjectBindingDeclarationsFromSource(restSource, nestedRestObject, kind,
-                                    statements))
+                            if (
+                                !TryBuildSimpleObjectBindingDeclarationsFromSource(
+                                    restSource,
+                                    nestedRestObject,
+                                    kind,
+                                    statements
+                                )
+                            )
                                 return false;
                             break;
                         default:
@@ -1208,47 +1534,83 @@ internal sealed partial class JsParser
                     break;
                 case JsAssignmentExpression
                 {
-                    Operator: JsAssignmentOperator.Assign, Left: JsIdentifierExpression leftId,
+                    Operator: JsAssignmentOperator.Assign,
+                    Left: JsIdentifierExpression leftId,
                     Right: var defaultValue
                 }:
                     var identifierInitializer = new JsConditionalExpression(
-                        new JsBinaryExpression(JsBinaryOperator.StrictEqual,
+                        new JsBinaryExpression(
+                            JsBinaryOperator.StrictEqual,
                             memberSource,
-                            new JsUnaryExpression(JsUnaryOperator.Void, new JsLiteralExpression(0, "0"))),
+                            new JsUnaryExpression(
+                                JsUnaryOperator.Void,
+                                new JsLiteralExpression(0, "0")
+                            )
+                        ),
                         defaultValue,
-                        memberSource);
-                    statements.Add(new JsVariableDeclarationStatement(
-                        kind,
-                        new[] { CreateVariableDeclarator(leftId, identifierInitializer) }));
+                        memberSource
+                    );
+                    statements.Add(
+                        new JsVariableDeclarationStatement(
+                            kind,
+                            new[] { CreateVariableDeclarator(leftId, identifierInitializer) }
+                        )
+                    );
                     break;
                 case JsAssignmentExpression
                 {
-                    Operator: JsAssignmentOperator.Assign, Left: JsArrayExpression nestedArrayWithDefault,
+                    Operator: JsAssignmentOperator.Assign,
+                    Left: JsArrayExpression nestedArrayWithDefault,
                     Right: var defaultArrayValue
                 }:
                     var arrayDefaultSource = new JsConditionalExpression(
-                        new JsBinaryExpression(JsBinaryOperator.StrictEqual,
+                        new JsBinaryExpression(
+                            JsBinaryOperator.StrictEqual,
                             memberSource,
-                            new JsUnaryExpression(JsUnaryOperator.Void, new JsLiteralExpression(0, "0"))),
+                            new JsUnaryExpression(
+                                JsUnaryOperator.Void,
+                                new JsLiteralExpression(0, "0")
+                            )
+                        ),
                         defaultArrayValue,
-                        memberSource);
-                    if (!TryBuildSimpleArrayBindingDeclarationsFromSource(arrayDefaultSource, nestedArrayWithDefault,
-                            kind, statements))
+                        memberSource
+                    );
+                    if (
+                        !TryBuildSimpleArrayBindingDeclarationsFromSource(
+                            arrayDefaultSource,
+                            nestedArrayWithDefault,
+                            kind,
+                            statements
+                        )
+                    )
                         return false;
                     break;
                 case JsAssignmentExpression
                 {
-                    Operator: JsAssignmentOperator.Assign, Left: JsObjectExpression nestedObjectWithDefault,
+                    Operator: JsAssignmentOperator.Assign,
+                    Left: JsObjectExpression nestedObjectWithDefault,
                     Right: var defaultObjectValue
                 }:
                     var objectDefaultSource = new JsConditionalExpression(
-                        new JsBinaryExpression(JsBinaryOperator.StrictEqual,
+                        new JsBinaryExpression(
+                            JsBinaryOperator.StrictEqual,
                             memberSource,
-                            new JsUnaryExpression(JsUnaryOperator.Void, new JsLiteralExpression(0, "0"))),
+                            new JsUnaryExpression(
+                                JsUnaryOperator.Void,
+                                new JsLiteralExpression(0, "0")
+                            )
+                        ),
                         defaultObjectValue,
-                        memberSource);
-                    if (!TryBuildSimpleObjectBindingDeclarationsFromSource(objectDefaultSource, nestedObjectWithDefault,
-                            kind, statements))
+                        memberSource
+                    );
+                    if (
+                        !TryBuildSimpleObjectBindingDeclarationsFromSource(
+                            objectDefaultSource,
+                            nestedObjectWithDefault,
+                            kind,
+                            statements
+                        )
+                    )
                         return false;
                     break;
             }
@@ -1257,50 +1619,70 @@ internal sealed partial class JsParser
         return true;
     }
 
-    private bool TryBuildSimpleObjectBindingDeclarations(string syntheticName, JsObjectExpression pattern,
+    private bool TryBuildSimpleObjectBindingDeclarations(
+        string syntheticName,
+        JsObjectExpression pattern,
         JsVariableDeclarationKind kind,
-        List<JsStatement> statements)
+        List<JsStatement> statements
+    )
     {
         return TryBuildSimpleObjectBindingDeclarationsFromSource(
             CreateIdentifierExpression(syntheticName),
             pattern,
             kind,
-            statements);
+            statements
+        );
     }
 
-    private bool TryBuildSimpleObjectBindingDeclarationsFromSource(JsExpression source, JsObjectExpression pattern,
+    private bool TryBuildSimpleObjectBindingDeclarationsFromSource(
+        JsExpression source,
+        JsObjectExpression pattern,
         JsVariableDeclarationKind kind,
-        List<JsStatement> statements)
+        List<JsStatement> statements
+    )
     {
         var declarators = new List<JsVariableDeclarator>();
         var nestedStatements = new List<JsStatement>();
-        if (!TryBuildSimpleObjectBindingDeclaratorsFromSource(source, pattern, declarators, kind, nestedStatements))
+        if (
+            !TryBuildSimpleObjectBindingDeclaratorsFromSource(
+                source,
+                pattern,
+                declarators,
+                kind,
+                nestedStatements
+            )
+        )
             return false;
 
         for (var i = 0; i < declarators.Count; i++)
-            statements.Add(new JsVariableDeclarationStatement(
-                kind,
-                new[] { declarators[i] }));
+            statements.Add(new JsVariableDeclarationStatement(kind, new[] { declarators[i] }));
 
         statements.AddRange(nestedStatements);
         return true;
     }
 
-    private bool TryBuildSimpleObjectBindingDeclarators(string syntheticName, JsObjectExpression pattern,
-        List<JsVariableDeclarator> declarators)
+    private bool TryBuildSimpleObjectBindingDeclarators(
+        string syntheticName,
+        JsObjectExpression pattern,
+        List<JsVariableDeclarator> declarators
+    )
     {
         return TryBuildSimpleObjectBindingDeclaratorsFromSource(
             CreateIdentifierExpression(syntheticName),
             pattern,
             declarators,
             JsVariableDeclarationKind.Const,
-            new());
+            new()
+        );
     }
 
-    private bool TryBuildSimpleObjectBindingDeclaratorsFromSource(JsExpression source, JsObjectExpression pattern,
+    private bool TryBuildSimpleObjectBindingDeclaratorsFromSource(
+        JsExpression source,
+        JsObjectExpression pattern,
         List<JsVariableDeclarator> declarators,
         JsVariableDeclarationKind kind,
-        List<JsStatement> nestedStatements)
+        List<JsStatement> nestedStatements
+    )
     {
         for (var i = 0; i < pattern.Properties.Count; i++)
         {
@@ -1313,9 +1695,21 @@ internal sealed partial class JsParser
                 case JsIdentifierExpression:
                 case JsArrayExpression:
                 case JsObjectExpression:
-                case JsAssignmentExpression { Operator: JsAssignmentOperator.Assign, Left: JsIdentifierExpression }:
-                case JsAssignmentExpression { Operator: JsAssignmentOperator.Assign, Left: JsArrayExpression }:
-                case JsAssignmentExpression { Operator: JsAssignmentOperator.Assign, Left: JsObjectExpression }:
+                case JsAssignmentExpression
+                {
+                    Operator: JsAssignmentOperator.Assign,
+                    Left: JsIdentifierExpression
+                }:
+                case JsAssignmentExpression
+                {
+                    Operator: JsAssignmentOperator.Assign,
+                    Left: JsArrayExpression
+                }:
+                case JsAssignmentExpression
+                {
+                    Operator: JsAssignmentOperator.Assign,
+                    Left: JsObjectExpression
+                }:
                     break;
                 default:
                     return false;
@@ -1328,7 +1722,8 @@ internal sealed partial class JsParser
             JsExpression memberSource = new JsMemberExpression(
                 source,
                 CreateIdentifierExpression(property.Key),
-                false);
+                false
+            );
 
             switch (property.Value)
             {
@@ -1336,56 +1731,103 @@ internal sealed partial class JsParser
                     declarators.Add(CreateVariableDeclarator(id, memberSource));
                     break;
                 case JsArrayExpression nestedArray:
-                    if (!TryBuildSimpleArrayBindingDeclarationsFromSource(memberSource, nestedArray, kind,
-                            nestedStatements))
+                    if (
+                        !TryBuildSimpleArrayBindingDeclarationsFromSource(
+                            memberSource,
+                            nestedArray,
+                            kind,
+                            nestedStatements
+                        )
+                    )
                         return false;
                     break;
                 case JsObjectExpression nestedObject:
-                    if (!TryBuildSimpleObjectBindingDeclaratorsFromSource(memberSource, nestedObject, declarators, kind,
-                            nestedStatements))
+                    if (
+                        !TryBuildSimpleObjectBindingDeclaratorsFromSource(
+                            memberSource,
+                            nestedObject,
+                            declarators,
+                            kind,
+                            nestedStatements
+                        )
+                    )
                         return false;
                     break;
                 case JsAssignmentExpression
                 {
-                    Operator: JsAssignmentOperator.Assign, Left: JsIdentifierExpression leftId,
+                    Operator: JsAssignmentOperator.Assign,
+                    Left: JsIdentifierExpression leftId,
                     Right: var defaultValue
                 }:
                     var initializer = new JsConditionalExpression(
-                        new JsBinaryExpression(JsBinaryOperator.StrictEqual,
+                        new JsBinaryExpression(
+                            JsBinaryOperator.StrictEqual,
                             memberSource,
-                            new JsUnaryExpression(JsUnaryOperator.Void, new JsLiteralExpression(0, "0"))),
+                            new JsUnaryExpression(
+                                JsUnaryOperator.Void,
+                                new JsLiteralExpression(0, "0")
+                            )
+                        ),
                         defaultValue,
-                        memberSource);
+                        memberSource
+                    );
                     declarators.Add(CreateVariableDeclarator(leftId, initializer));
                     break;
                 case JsAssignmentExpression
                 {
-                    Operator: JsAssignmentOperator.Assign, Left: JsArrayExpression nestedArrayWithDefault,
+                    Operator: JsAssignmentOperator.Assign,
+                    Left: JsArrayExpression nestedArrayWithDefault,
                     Right: var defaultArrayValue
                 }:
                     var arrayInitializerSource = new JsConditionalExpression(
-                        new JsBinaryExpression(JsBinaryOperator.StrictEqual,
+                        new JsBinaryExpression(
+                            JsBinaryOperator.StrictEqual,
                             memberSource,
-                            new JsUnaryExpression(JsUnaryOperator.Void, new JsLiteralExpression(0, "0"))),
+                            new JsUnaryExpression(
+                                JsUnaryOperator.Void,
+                                new JsLiteralExpression(0, "0")
+                            )
+                        ),
                         defaultArrayValue,
-                        memberSource);
-                    if (!TryBuildSimpleArrayBindingDeclarationsFromSource(arrayInitializerSource,
-                            nestedArrayWithDefault, kind, nestedStatements))
+                        memberSource
+                    );
+                    if (
+                        !TryBuildSimpleArrayBindingDeclarationsFromSource(
+                            arrayInitializerSource,
+                            nestedArrayWithDefault,
+                            kind,
+                            nestedStatements
+                        )
+                    )
                         return false;
                     break;
                 case JsAssignmentExpression
                 {
-                    Operator: JsAssignmentOperator.Assign, Left: JsObjectExpression nestedObjectWithDefault,
+                    Operator: JsAssignmentOperator.Assign,
+                    Left: JsObjectExpression nestedObjectWithDefault,
                     Right: var defaultObjectValue
                 }:
                     var objectInitializerSource = new JsConditionalExpression(
-                        new JsBinaryExpression(JsBinaryOperator.StrictEqual,
+                        new JsBinaryExpression(
+                            JsBinaryOperator.StrictEqual,
                             memberSource,
-                            new JsUnaryExpression(JsUnaryOperator.Void, new JsLiteralExpression(0, "0"))),
+                            new JsUnaryExpression(
+                                JsUnaryOperator.Void,
+                                new JsLiteralExpression(0, "0")
+                            )
+                        ),
                         defaultObjectValue,
-                        memberSource);
-                    if (!TryBuildSimpleObjectBindingDeclaratorsFromSource(objectInitializerSource,
-                            nestedObjectWithDefault, declarators, kind, nestedStatements))
+                        memberSource
+                    );
+                    if (
+                        !TryBuildSimpleObjectBindingDeclaratorsFromSource(
+                            objectInitializerSource,
+                            nestedObjectWithDefault,
+                            declarators,
+                            kind,
+                            nestedStatements
+                        )
+                    )
                         return false;
                     break;
             }
@@ -1394,9 +1836,12 @@ internal sealed partial class JsParser
         return true;
     }
 
-    private void CollectArrayPatternBindingDeclarations(JsArrayExpression pattern, HashSet<string> declaredNames,
+    private void CollectArrayPatternBindingDeclarations(
+        JsArrayExpression pattern,
+        HashSet<string> declaredNames,
         JsVariableDeclarationKind kind,
-        List<JsStatement> statements)
+        List<JsStatement> statements
+    )
     {
         for (var i = 0; i < pattern.Elements.Count; i++)
         {
@@ -1412,7 +1857,8 @@ internal sealed partial class JsParser
         var start = current.Position;
         Expect(JsTokenKind.Break);
         string? label = null;
-        if (current.Kind == JsTokenKind.Identifier && !current.HasLineTerminatorBefore) label = ConsumeIdentifierText();
+        if (current.Kind == JsTokenKind.Identifier && !current.HasLineTerminatorBefore)
+            label = ConsumeIdentifierText();
 
         ConsumeOptionalSemicolon();
         return At(new JsBreakStatement(label), start);
@@ -1423,7 +1869,8 @@ internal sealed partial class JsParser
         var start = current.Position;
         Expect(JsTokenKind.Continue);
         string? label = null;
-        if (current.Kind == JsTokenKind.Identifier && !current.HasLineTerminatorBefore) label = ConsumeIdentifierText();
+        if (current.Kind == JsTokenKind.Identifier && !current.HasLineTerminatorBefore)
+            label = ConsumeIdentifierText();
 
         ConsumeOptionalSemicolon();
         return At(new JsContinueStatement(label), start);
@@ -1442,7 +1889,8 @@ internal sealed partial class JsParser
     {
         var start = current.Position;
         Expect(JsTokenKind.Throw);
-        if (current.HasLineTerminatorBefore) throw Error("Illegal newline after throw", start);
+        if (current.HasLineTerminatorBefore)
+            throw Error("Illegal newline after throw", start);
 
         var argument = ParseExpression();
         ConsumeOptionalSemicolon();
@@ -1477,7 +1925,8 @@ internal sealed partial class JsParser
             }
             else if (Match(JsTokenKind.Default))
             {
-                if (defaultCaseFound) throw Error("Multiple default cases in switch statement", current.Position);
+                if (defaultCaseFound)
+                    throw Error("Multiple default cases in switch statement", current.Position);
 
                 defaultCaseFound = true;
                 test = null;
@@ -1489,8 +1938,15 @@ internal sealed partial class JsParser
 
             Expect(JsTokenKind.Colon);
             var consequent = new List<JsStatement>();
-            while (current.Kind is not (JsTokenKind.Case or JsTokenKind.Default or JsTokenKind.RightBrace
-                   or JsTokenKind.Eof))
+            while (
+                current.Kind
+                    is not (
+                        JsTokenKind.Case
+                        or JsTokenKind.Default
+                        or JsTokenKind.RightBrace
+                        or JsTokenKind.Eof
+                    )
+            )
                 consequent.Add(ParseStatement());
 
             cases.Add(At(new JsSwitchCase(test, consequent), test?.Position ?? current.Position));
@@ -1516,10 +1972,14 @@ internal sealed partial class JsParser
             {
                 if (current.Kind is JsTokenKind.LeftBrace or JsTokenKind.LeftBracket)
                 {
-                    bindingPattern = current.Kind == JsTokenKind.LeftBrace
-                        ? ParseObjectBindingPattern()
-                        : ParseArrayPatternExpression();
-                    catchDeclarators = CollectBindingPatternDeclarators(bindingPattern, JsVariableDeclarationKind.Let);
+                    bindingPattern =
+                        current.Kind == JsTokenKind.LeftBrace
+                            ? ParseObjectBindingPattern()
+                            : ParseArrayPatternExpression();
+                    catchDeclarators = CollectBindingPatternDeclarators(
+                        bindingPattern,
+                        JsVariableDeclarationKind.Let
+                    );
                 }
                 else
                 {
@@ -1529,12 +1989,20 @@ internal sealed partial class JsParser
                 Expect(JsTokenKind.RightParen);
             }
 
-            handler = At(new JsCatchClause(paramName, ParseBlockStatement(false), bindingPattern, catchDeclarators),
-                current.Position);
+            handler = At(
+                new JsCatchClause(
+                    paramName,
+                    ParseBlockStatement(false),
+                    bindingPattern,
+                    catchDeclarators
+                ),
+                current.Position
+            );
         }
 
         JsBlockStatement? finalizer = null;
-        if (Match(JsTokenKind.Finally)) finalizer = ParseBlockStatement(false);
+        if (Match(JsTokenKind.Finally))
+            finalizer = ParseBlockStatement(false);
 
         if (handler is null && finalizer is null)
             throw Error("try statement requires catch or finally", current.Position);
@@ -1565,7 +2033,8 @@ internal sealed partial class JsParser
     {
         var start = current.Position;
         var expr = ParseAssignment(allowIn);
-        if (!Match(JsTokenKind.Comma)) return expr;
+        if (!Match(JsTokenKind.Comma))
+            return expr;
 
         var list = new List<JsExpression> { expr };
         do
@@ -1580,7 +2049,8 @@ internal sealed partial class JsParser
     {
         using var depthCounter = AddDepth();
         var start = current.Position;
-        if (TryParseArrowFunctionExpression(start, out var arrowExpr)) return arrowExpr;
+        if (TryParseArrowFunctionExpression(start, out var arrowExpr))
+            return arrowExpr;
 
         if (current.Kind == JsTokenKind.LeftParen && Peek().Kind == JsTokenKind.RightParen)
         {
@@ -1589,15 +2059,20 @@ internal sealed partial class JsParser
             Expect(JsTokenKind.RightParen);
             if (Match(JsTokenKind.Arrow))
                 return At(
-                    ParseArrowFunctionExpressionCore(CreateSimpleArrowParameters(Array.Empty<string>(),
-                        Array.Empty<int>())), start);
+                    ParseArrowFunctionExpressionCore(
+                        CreateSimpleArrowParameters(Array.Empty<string>(), Array.Empty<int>())
+                    ),
+                    start
+                );
 
             throw Error("Unexpected token ')'", current.Position);
         }
 
-        if (generatorFunctionLevel > 0 &&
-            (current.Kind == JsTokenKind.Identifier || current.Kind == JsTokenKind.ReservedWord) &&
-            CurrentSourceTextEquals("yield"))
+        if (
+            generatorFunctionLevel > 0
+            && (current.Kind == JsTokenKind.Identifier || current.Kind == JsTokenKind.ReservedWord)
+            && CurrentSourceTextEquals("yield")
+        )
             return At(ParseYieldExpression(allowIn), start);
 
         var lhsStartsWithParen = current.Kind == JsTokenKind.LeftParen;
@@ -1612,16 +2087,33 @@ internal sealed partial class JsParser
 
             var arrowParameterIds = new int[arrowParameters.Count];
             Array.Fill(arrowParameterIds, -1);
-            return At(ParseArrowFunctionExpressionCore(CreateSimpleArrowParameters(arrowParameters, arrowParameterIds)),
-                start);
+            return At(
+                ParseArrowFunctionExpressionCore(
+                    CreateSimpleArrowParameters(arrowParameters, arrowParameterIds)
+                ),
+                start
+            );
         }
 
-        if (current.Kind is JsTokenKind.Assign or
-            JsTokenKind.PlusAssign or JsTokenKind.MinusAssign or JsTokenKind.StarAssign or JsTokenKind.SlashAssign
-            or JsTokenKind.PercentAssign or JsTokenKind.PowAssign or
-            JsTokenKind.ShlAssign or JsTokenKind.SarAssign or JsTokenKind.ShrAssign or
-            JsTokenKind.AmpersandAssign or JsTokenKind.PipeAssign or JsTokenKind.CaretAssign or
-            JsTokenKind.AndAndAssign or JsTokenKind.OrOrAssign or JsTokenKind.NullishCoalescingAssign)
+        if (
+            current.Kind
+            is JsTokenKind.Assign
+                or JsTokenKind.PlusAssign
+                or JsTokenKind.MinusAssign
+                or JsTokenKind.StarAssign
+                or JsTokenKind.SlashAssign
+                or JsTokenKind.PercentAssign
+                or JsTokenKind.PowAssign
+                or JsTokenKind.ShlAssign
+                or JsTokenKind.SarAssign
+                or JsTokenKind.ShrAssign
+                or JsTokenKind.AmpersandAssign
+                or JsTokenKind.PipeAssign
+                or JsTokenKind.CaretAssign
+                or JsTokenKind.AndAndAssign
+                or JsTokenKind.OrOrAssign
+                or JsTokenKind.NullishCoalescingAssign
+        )
         {
             var op = GetAssignmentOperator(current);
             EnsureStrictAssignmentTargetAllowed(left);
@@ -1646,7 +2138,8 @@ internal sealed partial class JsParser
             allowSuperProperty,
             allowSuperCall,
             nestedFunctionTrackingDepth,
-            nestedFunctionTrackingMask);
+            nestedFunctionTrackingMask
+        );
     }
 
     private void RestoreSnapshot(ParserSnapshot snapshot)
@@ -1664,9 +2157,12 @@ internal sealed partial class JsParser
         nestedFunctionTrackingMask = snapshot.NestedFunctionTrackingMask;
     }
 
-    private void CollectObjectPatternBindingDeclarations(JsObjectExpression pattern, HashSet<string> declaredNames,
+    private void CollectObjectPatternBindingDeclarations(
+        JsObjectExpression pattern,
+        HashSet<string> declaredNames,
         JsVariableDeclarationKind kind,
-        List<JsStatement> statements)
+        List<JsStatement> statements
+    )
     {
         for (var i = 0; i < pattern.Properties.Count; i++)
         {
@@ -1677,16 +2173,23 @@ internal sealed partial class JsParser
         }
     }
 
-    private void CollectPatternBindingDeclarations(JsExpression expression, HashSet<string> declaredNames,
+    private void CollectPatternBindingDeclarations(
+        JsExpression expression,
+        HashSet<string> declaredNames,
         JsVariableDeclarationKind kind,
-        List<JsStatement> statements)
+        List<JsStatement> statements
+    )
     {
         switch (expression)
         {
             case JsIdentifierExpression id:
                 if (declaredNames.Add(id.Name))
-                    statements.Add(new JsVariableDeclarationStatement(kind,
-                        new[] { CreateVariableDeclarator(id, null) }));
+                    statements.Add(
+                        new JsVariableDeclarationStatement(
+                            kind,
+                            new[] { CreateVariableDeclarator(id, null) }
+                        )
+                    );
                 break;
             case JsAssignmentExpression { Operator: JsAssignmentOperator.Assign, Left: var left }:
                 CollectPatternBindingDeclarations(left, declaredNames, kind, statements);
@@ -1695,17 +2198,28 @@ internal sealed partial class JsParser
                 CollectPatternBindingDeclarations(spread.Argument, declaredNames, kind, statements);
                 break;
             case JsArrayExpression arrayPattern:
-                CollectArrayPatternBindingDeclarations(arrayPattern, declaredNames, kind, statements);
+                CollectArrayPatternBindingDeclarations(
+                    arrayPattern,
+                    declaredNames,
+                    kind,
+                    statements
+                );
                 break;
             case JsObjectExpression objectPattern:
-                CollectObjectPatternBindingDeclarations(objectPattern, declaredNames, kind, statements);
+                CollectObjectPatternBindingDeclarations(
+                    objectPattern,
+                    declaredNames,
+                    kind,
+                    statements
+                );
                 break;
         }
     }
 
     private IReadOnlyList<JsVariableDeclarator> CollectBindingPatternDeclarators(
         JsExpression pattern,
-        JsVariableDeclarationKind kind)
+        JsVariableDeclarationKind kind
+    )
     {
         var statements = new List<JsStatement>();
         var declaredNames = new HashSet<string>(StringComparer.Ordinal);
@@ -1727,17 +2241,29 @@ internal sealed partial class JsParser
     private JsExpression ParseYieldExpression(bool allowIn)
     {
         var start = current.Position;
-        if ((current.Kind != JsTokenKind.Identifier && current.Kind != JsTokenKind.ReservedWord) ||
-            !CurrentSourceTextEquals("yield"))
+        if (
+            (current.Kind != JsTokenKind.Identifier && current.Kind != JsTokenKind.ReservedWord)
+            || !CurrentSourceTextEquals("yield")
+        )
             throw Error("Expected yield", current.Position);
 
         Next();
         var isDelegate = Match(JsTokenKind.Star);
 
-        if (!isDelegate &&
-            (current.Kind is JsTokenKind.Semicolon or JsTokenKind.Comma or JsTokenKind.Colon or JsTokenKind.RightParen
-                 or JsTokenKind.RightBrace or JsTokenKind.RightBracket or JsTokenKind.Eof ||
-             current.HasLineTerminatorBefore))
+        if (
+            !isDelegate
+            && (
+                current.Kind
+                    is JsTokenKind.Semicolon
+                        or JsTokenKind.Comma
+                        or JsTokenKind.Colon
+                        or JsTokenKind.RightParen
+                        or JsTokenKind.RightBrace
+                        or JsTokenKind.RightBracket
+                        or JsTokenKind.Eof
+                || current.HasLineTerminatorBefore
+            )
+        )
             return At(new JsYieldExpression(null, isDelegate), start);
 
         var argument = ParseAssignment(allowIn);
@@ -1747,7 +2273,8 @@ internal sealed partial class JsParser
     private JsExpression ParseAwaitExpression()
     {
         var start = current.Position;
-        if (allowTopLevelAwait && asyncFunctionLevel == 0) sawTopLevelAwait = true;
+        if (allowTopLevelAwait && asyncFunctionLevel == 0)
+            sawTopLevelAwait = true;
 
         Next(); // await
         var argument = ParseUnary();
@@ -1771,7 +2298,10 @@ internal sealed partial class JsParser
             var right = ParseBinaryExpressionInfo(allowIn);
             if (right.HasLogicalAndOr && !rhsStartsWithParen)
                 throw Error("Cannot mix '??' with '&&' or '||' without parentheses.", start);
-            test = At(new JsBinaryExpression(JsBinaryOperator.NullishCoalescing, test, right.Expression), start);
+            test = At(
+                new JsBinaryExpression(JsBinaryOperator.NullishCoalescing, test, right.Expression),
+                start
+            );
             lhsStartsWithParen = false;
             lhsHasLogicalAndOr = false;
         }
@@ -1803,13 +2333,20 @@ internal sealed partial class JsParser
 
                 hasLogicalAndOr |= operatorInfo.IsLogicalAndOr;
 
-                while (operators.Count > 0 && ShouldReduceBinaryOperator(operators.Peek(), operatorInfo))
+                while (
+                    operators.Count > 0
+                    && ShouldReduceBinaryOperator(operators.Peek(), operatorInfo)
+                )
                 {
                     var reducedOperator = operators.Pop();
                     var right = operands.Pop();
                     var left = operands.Pop();
                     operands.Push(
-                        At(new JsBinaryExpression(reducedOperator.Operator, left, right), left.Position - basePosition));
+                        At(
+                            new JsBinaryExpression(reducedOperator.Operator, left, right),
+                            left.Position - basePosition
+                        )
+                    );
                 }
 
                 operators.Push(operatorInfo);
@@ -1823,7 +2360,11 @@ internal sealed partial class JsParser
                 var right = operands.Pop();
                 var left = operands.Pop();
                 operands.Push(
-                    At(new JsBinaryExpression(reducedOperator.Operator, left, right), left.Position - basePosition));
+                    At(
+                        new JsBinaryExpression(reducedOperator.Operator, left, right),
+                        left.Position - basePosition
+                    )
+                );
             }
 
             return operators.Count == 0 && operands.Count == 0
@@ -1840,7 +2381,8 @@ internal sealed partial class JsParser
     private static bool TryGetBinaryParseOperatorInfo(
         in JsToken token,
         bool allowIn,
-        out BinaryParseOperatorInfo operatorInfo)
+        out BinaryParseOperatorInfo operatorInfo
+    )
     {
         operatorInfo = token.Kind switch
         {
@@ -1868,7 +2410,7 @@ internal sealed partial class JsParser
             JsTokenKind.Slash => new(JsBinaryOperator.Divide, 10),
             JsTokenKind.Percent => new(JsBinaryOperator.Modulo, 10),
             JsTokenKind.Pow => new(JsBinaryOperator.Exponentiate, 11, false, true),
-            _ => default
+            _ => default,
         };
 
         return operatorInfo.Precedence != 0;
@@ -1876,17 +2418,22 @@ internal sealed partial class JsParser
 
     private static bool ShouldReduceBinaryOperator(
         BinaryParseOperatorInfo stackedOperator,
-        BinaryParseOperatorInfo incomingOperator)
+        BinaryParseOperatorInfo incomingOperator
+    )
     {
-        return stackedOperator.Precedence > incomingOperator.Precedence ||
-               (stackedOperator.Precedence == incomingOperator.Precedence && !incomingOperator.IsRightAssociative);
+        return stackedOperator.Precedence > incomingOperator.Precedence
+            || (
+                stackedOperator.Precedence == incomingOperator.Precedence
+                && !incomingOperator.IsRightAssociative
+            );
     }
 
     private JsExpression ParseUnary()
     {
         using var depthCounter = AddDepth();
         var start = current.Position;
-        if (IsAwaitKeywordInCurrentScope()) return At(ParseAwaitExpression(), start);
+        if (IsAwaitKeywordInCurrentScope())
+            return At(ParseAwaitExpression(), start);
 
         if (current.Kind is JsTokenKind.PlusPlus or JsTokenKind.MinusMinus)
         {
@@ -1898,10 +2445,19 @@ internal sealed partial class JsParser
             return At(new JsUpdateExpression(op, arg, true), start);
         }
 
-        if (current.Kind == JsTokenKind.New) return ParseNewExpression();
+        if (current.Kind == JsTokenKind.New)
+            return ParseNewExpression();
 
-        if (current.Kind is JsTokenKind.Bang or JsTokenKind.Plus or JsTokenKind.Minus or JsTokenKind.Tilde
-            or JsTokenKind.Typeof or JsTokenKind.Void or JsTokenKind.Delete)
+        if (
+            current.Kind
+            is JsTokenKind.Bang
+                or JsTokenKind.Plus
+                or JsTokenKind.Minus
+                or JsTokenKind.Tilde
+                or JsTokenKind.Typeof
+                or JsTokenKind.Void
+                or JsTokenKind.Delete
+        )
         {
             var op = GetUnaryOperator(current);
             Next();
@@ -1912,8 +2468,11 @@ internal sealed partial class JsParser
         var inOptionalChain = false;
         while (true)
         {
-            if (current.Kind == JsTokenKind.Question && !Peek().HasLineTerminatorBefore &&
-                Peek().Kind == JsTokenKind.Dot)
+            if (
+                current.Kind == JsTokenKind.Question
+                && !Peek().HasLineTerminatorBefore
+                && Peek().Kind == JsTokenKind.Dot
+            )
             {
                 Next();
                 Expect(JsTokenKind.Dot);
@@ -1923,8 +2482,13 @@ internal sealed partial class JsParser
                 {
                     var privateName = GetPrivateIdentifierText(current);
                     Next();
-                    expr = new JsMemberExpression(expr, new JsLiteralExpression(privateName), false,
-                        true, true);
+                    expr = new JsMemberExpression(
+                        expr,
+                        new JsLiteralExpression(privateName),
+                        false,
+                        true,
+                        true
+                    );
                     continue;
                 }
 
@@ -1935,8 +2499,7 @@ internal sealed partial class JsParser
 
                     var propExpr = ParseExpression();
                     Expect(JsTokenKind.RightBracket);
-                    expr = new JsMemberExpression(expr, propExpr, true, false,
-                        true);
+                    expr = new JsMemberExpression(expr, propExpr, true, false, true);
                     continue;
                 }
 
@@ -1948,8 +2511,13 @@ internal sealed partial class JsParser
                 }
 
                 var optionalProp = ParseIdentifierName();
-                expr = new JsMemberExpression(expr, new JsLiteralExpression(optionalProp), false,
-                    false, true);
+                expr = new JsMemberExpression(
+                    expr,
+                    new JsLiteralExpression(optionalProp),
+                    false,
+                    false,
+                    true
+                );
                 continue;
             }
 
@@ -1962,14 +2530,24 @@ internal sealed partial class JsParser
                 {
                     var privateName = GetPrivateIdentifierText(current);
                     Next();
-                    expr = new JsMemberExpression(expr, new JsLiteralExpression(privateName), false,
-                        true, inOptionalChain);
+                    expr = new JsMemberExpression(
+                        expr,
+                        new JsLiteralExpression(privateName),
+                        false,
+                        true,
+                        inOptionalChain
+                    );
                     continue;
                 }
 
                 var prop = ParseIdentifierName();
-                expr = new JsMemberExpression(expr, new JsLiteralExpression(prop), false,
-                    false, inOptionalChain);
+                expr = new JsMemberExpression(
+                    expr,
+                    new JsLiteralExpression(prop),
+                    false,
+                    false,
+                    inOptionalChain
+                );
                 continue;
             }
 
@@ -1980,8 +2558,7 @@ internal sealed partial class JsParser
 
                 var propExpr = ParseExpression();
                 Expect(JsTokenKind.RightBracket);
-                expr = new JsMemberExpression(expr, propExpr, true, false,
-                    inOptionalChain);
+                expr = new JsMemberExpression(expr, propExpr, true, false, inOptionalChain);
                 continue;
             }
 
@@ -2007,10 +2584,13 @@ internal sealed partial class JsParser
             break;
         }
 
-        if (expr is JsSuperExpression) throw Error("Invalid use of super", current.Position);
+        if (expr is JsSuperExpression)
+            throw Error("Invalid use of super", current.Position);
 
-        if (current.Kind is JsTokenKind.PlusPlus or JsTokenKind.MinusMinus &&
-            !current.HasLineTerminatorBefore)
+        if (
+            current.Kind is JsTokenKind.PlusPlus or JsTokenKind.MinusMinus
+            && !current.HasLineTerminatorBefore
+        )
         {
             var op = GetUpdateOperator(current);
             EnsureUpdateTargetAllowed(expr, current.Position);
@@ -2024,9 +2604,9 @@ internal sealed partial class JsParser
 
     private bool IsAwaitKeywordInCurrentScope()
     {
-        return (asyncFunctionLevel > 0 || (allowTopLevelAwait && asyncFunctionLevel == 0)) &&
-               (current.Kind == JsTokenKind.Identifier || current.Kind == JsTokenKind.ReservedWord) &&
-               CurrentSourceTextEquals("await");
+        return (asyncFunctionLevel > 0 || (allowTopLevelAwait && asyncFunctionLevel == 0))
+            && (current.Kind == JsTokenKind.Identifier || current.Kind == JsTokenKind.ReservedWord)
+            && CurrentSourceTextEquals("await");
     }
 
     private static JsUnaryOperator GetUnaryOperator(in JsToken token)
@@ -2040,7 +2620,9 @@ internal sealed partial class JsParser
             JsTokenKind.Typeof => JsUnaryOperator.Typeof,
             JsTokenKind.Void => JsUnaryOperator.Void,
             JsTokenKind.Delete => JsUnaryOperator.Delete,
-            _ => throw new InvalidOperationException($"Unexpected unary operator token {token.Kind}.")
+            _ => throw new InvalidOperationException(
+                $"Unexpected unary operator token {token.Kind}."
+            ),
         };
     }
 
@@ -2050,7 +2632,9 @@ internal sealed partial class JsParser
         {
             JsTokenKind.PlusPlus => JsUpdateOperator.Increment,
             JsTokenKind.MinusMinus => JsUpdateOperator.Decrement,
-            _ => throw new InvalidOperationException($"Unexpected update operator token {token.Kind}.")
+            _ => throw new InvalidOperationException(
+                $"Unexpected update operator token {token.Kind}."
+            ),
         };
     }
 
@@ -2074,7 +2658,9 @@ internal sealed partial class JsParser
             JsTokenKind.AndAndAssign => JsAssignmentOperator.LogicalAndAssign,
             JsTokenKind.OrOrAssign => JsAssignmentOperator.LogicalOrAssign,
             JsTokenKind.NullishCoalescingAssign => JsAssignmentOperator.NullishCoalescingAssign,
-            _ => throw new InvalidOperationException($"Unexpected assignment operator token {token.Kind}.")
+            _ => throw new InvalidOperationException(
+                $"Unexpected assignment operator token {token.Kind}."
+            ),
         };
     }
 
@@ -2086,8 +2672,7 @@ internal sealed partial class JsParser
         JsExpression expr;
         if (Match(JsTokenKind.Dot))
         {
-            if (!(current.Kind == JsTokenKind.Identifier &&
-                  CurrentSourceTextEquals("target")))
+            if (!(current.Kind == JsTokenKind.Identifier && CurrentSourceTextEquals("target")))
                 throw Error($"Expected Identifier but found {current.Kind}", current.Position);
 
             Next();
@@ -2095,15 +2680,18 @@ internal sealed partial class JsParser
         }
         else
         {
-            expr = current.Kind == JsTokenKind.New
-                ? ParseNewExpression()
-                : ParseMemberNoCall();
+            expr = current.Kind == JsTokenKind.New ? ParseNewExpression() : ParseMemberNoCall();
             if (current.Kind == JsTokenKind.Template)
             {
                 var templateToken = current;
                 Next();
-                expr = At(new JsTaggedTemplateExpression(expr,
-                    ParseTemplateLiteralAsTemplate(templateToken, true)), expr.Position);
+                expr = At(
+                    new JsTaggedTemplateExpression(
+                        expr,
+                        ParseTemplateLiteralAsTemplate(templateToken, true)
+                    ),
+                    expr.Position
+                );
             }
 
             if (Match(JsTokenKind.LeftParen))
@@ -2120,8 +2708,11 @@ internal sealed partial class JsParser
         var inOptionalChain = false;
         while (true)
         {
-            if (current.Kind == JsTokenKind.Question && !Peek().HasLineTerminatorBefore &&
-                Peek().Kind == JsTokenKind.Dot)
+            if (
+                current.Kind == JsTokenKind.Question
+                && !Peek().HasLineTerminatorBefore
+                && Peek().Kind == JsTokenKind.Dot
+            )
             {
                 Next();
                 Expect(JsTokenKind.Dot);
@@ -2131,8 +2722,7 @@ internal sealed partial class JsParser
                 {
                     var propExpr = ParseExpression();
                     Expect(JsTokenKind.RightBracket);
-                    expr = new JsMemberExpression(expr, propExpr, true, false,
-                        true);
+                    expr = new JsMemberExpression(expr, propExpr, true, false, true);
                     continue;
                 }
 
@@ -2147,14 +2737,24 @@ internal sealed partial class JsParser
                 {
                     var privateName = GetPrivateIdentifierText(current);
                     Next();
-                    expr = new JsMemberExpression(expr, new JsLiteralExpression(privateName), false,
-                        true, true);
+                    expr = new JsMemberExpression(
+                        expr,
+                        new JsLiteralExpression(privateName),
+                        false,
+                        true,
+                        true
+                    );
                     continue;
                 }
 
                 var optionalProp = ParseIdentifierName();
-                expr = new JsMemberExpression(expr, new JsLiteralExpression(optionalProp), false,
-                    false, true);
+                expr = new JsMemberExpression(
+                    expr,
+                    new JsLiteralExpression(optionalProp),
+                    false,
+                    false,
+                    true
+                );
                 continue;
             }
 
@@ -2164,14 +2764,24 @@ internal sealed partial class JsParser
                 {
                     var privateName = GetPrivateIdentifierText(current);
                     Next();
-                    expr = new JsMemberExpression(expr, new JsLiteralExpression(privateName), false,
-                        true, inOptionalChain);
+                    expr = new JsMemberExpression(
+                        expr,
+                        new JsLiteralExpression(privateName),
+                        false,
+                        true,
+                        inOptionalChain
+                    );
                     continue;
                 }
 
                 var prop = ParseIdentifierName();
-                expr = new JsMemberExpression(expr, new JsLiteralExpression(prop), false,
-                    false, inOptionalChain);
+                expr = new JsMemberExpression(
+                    expr,
+                    new JsLiteralExpression(prop),
+                    false,
+                    false,
+                    inOptionalChain
+                );
                 continue;
             }
 
@@ -2179,8 +2789,7 @@ internal sealed partial class JsParser
             {
                 var propExpr = ParseExpression();
                 Expect(JsTokenKind.RightBracket);
-                expr = new JsMemberExpression(expr, propExpr, true, false,
-                    inOptionalChain);
+                expr = new JsMemberExpression(expr, propExpr, true, false, inOptionalChain);
                 continue;
             }
 
@@ -2203,8 +2812,11 @@ internal sealed partial class JsParser
         var inOptionalChain = false;
         while (true)
         {
-            if (current.Kind == JsTokenKind.Question && !Peek().HasLineTerminatorBefore &&
-                Peek().Kind == JsTokenKind.Dot)
+            if (
+                current.Kind == JsTokenKind.Question
+                && !Peek().HasLineTerminatorBefore
+                && Peek().Kind == JsTokenKind.Dot
+            )
             {
                 Next();
                 Expect(JsTokenKind.Dot);
@@ -2214,8 +2826,13 @@ internal sealed partial class JsParser
                 {
                     var privateName = GetPrivateIdentifierText(current);
                     Next();
-                    expr = new JsMemberExpression(expr, new JsLiteralExpression(privateName), false,
-                        true, true);
+                    expr = new JsMemberExpression(
+                        expr,
+                        new JsLiteralExpression(privateName),
+                        false,
+                        true,
+                        true
+                    );
                     continue;
                 }
 
@@ -2223,14 +2840,18 @@ internal sealed partial class JsParser
                 {
                     var propExpr = ParseExpression();
                     Expect(JsTokenKind.RightBracket);
-                    expr = new JsMemberExpression(expr, propExpr, true, false,
-                        true);
+                    expr = new JsMemberExpression(expr, propExpr, true, false, true);
                     continue;
                 }
 
                 var optionalProp = ParseIdentifierName();
-                expr = new JsMemberExpression(expr, new JsLiteralExpression(optionalProp), false,
-                    false, true);
+                expr = new JsMemberExpression(
+                    expr,
+                    new JsLiteralExpression(optionalProp),
+                    false,
+                    false,
+                    true
+                );
                 continue;
             }
 
@@ -2240,14 +2861,24 @@ internal sealed partial class JsParser
                 {
                     var privateName = GetPrivateIdentifierText(current);
                     Next();
-                    expr = new JsMemberExpression(expr, new JsLiteralExpression(privateName), false,
-                        true, inOptionalChain);
+                    expr = new JsMemberExpression(
+                        expr,
+                        new JsLiteralExpression(privateName),
+                        false,
+                        true,
+                        inOptionalChain
+                    );
                     continue;
                 }
 
                 var prop = ParseIdentifierName();
-                expr = new JsMemberExpression(expr, new JsLiteralExpression(prop), false,
-                    false, inOptionalChain);
+                expr = new JsMemberExpression(
+                    expr,
+                    new JsLiteralExpression(prop),
+                    false,
+                    false,
+                    inOptionalChain
+                );
                 continue;
             }
 
@@ -2255,8 +2886,7 @@ internal sealed partial class JsParser
             {
                 var propExpr = ParseExpression();
                 Expect(JsTokenKind.RightBracket);
-                expr = new JsMemberExpression(expr, propExpr, true, false,
-                    inOptionalChain);
+                expr = new JsMemberExpression(expr, propExpr, true, false, inOptionalChain);
                 continue;
             }
 
@@ -2268,9 +2898,11 @@ internal sealed partial class JsParser
 
     private void EnsureStrictAssignmentTargetAllowed(JsExpression target)
     {
-        if (!strictMode) return;
+        if (!strictMode)
+            return;
 
-        if (target is JsIdentifierExpression id) EnsureIdentifierAllowedInCurrentMode(id.Name, id.NameId, id.Position);
+        if (target is JsIdentifierExpression id)
+            EnsureIdentifierAllowedInCurrentMode(id.Name, id.NameId, id.Position);
     }
 
     private void EnsureUpdateTargetAllowed(JsExpression target, int position)
@@ -2291,10 +2923,12 @@ internal sealed partial class JsParser
                 else
                     args.Add(ParseAssignment(true));
 
-                if (!Match(JsTokenKind.Comma)) break;
+                if (!Match(JsTokenKind.Comma))
+                    break;
 
                 // Allow trailing comma in call/new argument lists.
-                if (current.Kind == JsTokenKind.RightParen) break;
+                if (current.Kind == JsTokenKind.RightParen)
+                    break;
             }
 
         Expect(JsTokenKind.RightParen);
@@ -2314,11 +2948,11 @@ internal sealed partial class JsParser
         if (current.Kind == JsTokenKind.ReservedWord && CurrentSourceTextEquals("import"))
             return ParseImportPrimaryExpression(start);
 
-        if (current.Kind == JsTokenKind.ReservedWord &&
-            CurrentSourceTextEquals("class"))
+        if (current.Kind == JsTokenKind.ReservedWord && CurrentSourceTextEquals("class"))
             return At(ParseClassExpression(true), start);
 
-        if (current.Kind is JsTokenKind.Slash or JsTokenKind.SlashAssign) return ParseRegExpLiteral();
+        if (current.Kind is JsTokenKind.Slash or JsTokenKind.SlashAssign)
+            return ParseRegExpLiteral();
 
         if (Match(JsTokenKind.LeftParen))
         {
@@ -2327,45 +2961,72 @@ internal sealed partial class JsParser
             return At(expr, start);
         }
 
-        if (current.Kind == JsTokenKind.LeftBracket) return At(ParseArrayPatternExpression(false), start);
+        if (current.Kind == JsTokenKind.LeftBracket)
+            return At(ParseArrayPatternExpression(false), start);
 
-        if (current.Kind == JsTokenKind.LeftBrace) return At(ParseObjectExpression(), start);
+        if (current.Kind == JsTokenKind.LeftBrace)
+            return At(ParseObjectExpression(), start);
 
-        if (current.Kind == JsTokenKind.Function) return At(ParseFunctionExpression(), start);
+        if (current.Kind == JsTokenKind.Function)
+            return At(ParseFunctionExpression(), start);
 
-        if (current.Kind == JsTokenKind.Identifier &&
-            CurrentSourceTextEquals("async") &&
-            Peek().Kind == JsTokenKind.Function &&
-            !Peek().HasLineTerminatorBefore)
+        if (
+            current.Kind == JsTokenKind.Identifier
+            && CurrentSourceTextEquals("async")
+            && Peek().Kind == JsTokenKind.Function
+            && !Peek().HasLineTerminatorBefore
+        )
             return At(ParseFunctionExpression(true), start);
 
         var tok = current;
-        if (tok.Kind == JsTokenKind.String) EnsureStringLiteralAllowedInCurrentMode(tok);
+        if (tok.Kind == JsTokenKind.String)
+            EnsureStringLiteralAllowedInCurrentMode(tok);
 
         Next();
-        return At<JsExpression>(tok.Kind switch
-        {
-            JsTokenKind.Identifier => CreateIdentifierExpression(tok),
-            JsTokenKind.Of => CreateIdentifierExpression(tok),
-            JsTokenKind.Let when !strictMode => CreateIdentifierExpression(tok),
-            JsTokenKind.PrivateIdentifier => new JsPrivateIdentifierExpression(GetPrivateIdentifierText(tok),
-                GetIdentifierId(tok)),
-            JsTokenKind.This => new JsThisExpression(),
-            JsTokenKind.ReservedWord when tok.SourceLength == 5 &&
-                                          GetTokenSourceSpan(tok).SequenceEqual("super".AsSpan()) =>
-                new JsSuperExpression(),
-            JsTokenKind.Number => new JsLiteralExpression(GetLiteralValue(tok), GetTokenSourceText(tok)),
-            JsTokenKind.BigInt => new JsLiteralExpression(GetLiteralValue(tok), GetTokenDisplayText(tok)),
-            JsTokenKind.String => new JsLiteralExpression(GetLiteralValue(tok), GetTokenDisplayText(tok)),
-            JsTokenKind.Template => ParseTemplateLiteral(tok),
-            JsTokenKind.True => new JsLiteralExpression(true, GetTokenDisplayText(tok)),
-            JsTokenKind.False => new JsLiteralExpression(false, GetTokenDisplayText(tok)),
-            JsTokenKind.Null => new JsLiteralExpression(null, GetTokenDisplayText(tok)),
-            JsTokenKind.Undefined => new JsLiteralExpression(JsValue.Undefined, GetTokenDisplayText(tok)),
-            JsTokenKind.NaN => new JsLiteralExpression(double.NaN, GetTokenDisplayText(tok)),
-            JsTokenKind.Infinity => new JsLiteralExpression(double.PositiveInfinity, GetTokenDisplayText(tok)),
-            _ => throw Error($"Unexpected token '{GetTokenDisplayText(tok)}'", tok.Position)
-        }, tok.Position);
+        return At<JsExpression>(
+            tok.Kind switch
+            {
+                JsTokenKind.Identifier => CreateIdentifierExpression(tok),
+                JsTokenKind.Of => CreateIdentifierExpression(tok),
+                JsTokenKind.Let when !strictMode => CreateIdentifierExpression(tok),
+                JsTokenKind.PrivateIdentifier => new JsPrivateIdentifierExpression(
+                    GetPrivateIdentifierText(tok),
+                    GetIdentifierId(tok)
+                ),
+                JsTokenKind.This => new JsThisExpression(),
+                JsTokenKind.ReservedWord
+                    when tok.SourceLength == 5
+                        && GetTokenSourceSpan(tok).SequenceEqual("super".AsSpan()) =>
+                    new JsSuperExpression(),
+                JsTokenKind.Number => new JsLiteralExpression(
+                    GetLiteralValue(tok),
+                    GetTokenSourceText(tok)
+                ),
+                JsTokenKind.BigInt => new JsLiteralExpression(
+                    GetLiteralValue(tok),
+                    GetTokenDisplayText(tok)
+                ),
+                JsTokenKind.String => new JsLiteralExpression(
+                    GetLiteralValue(tok),
+                    GetTokenDisplayText(tok)
+                ),
+                JsTokenKind.Template => ParseTemplateLiteral(tok),
+                JsTokenKind.True => new JsLiteralExpression(true, GetTokenDisplayText(tok)),
+                JsTokenKind.False => new JsLiteralExpression(false, GetTokenDisplayText(tok)),
+                JsTokenKind.Null => new JsLiteralExpression(null, GetTokenDisplayText(tok)),
+                JsTokenKind.Undefined => new JsLiteralExpression(
+                    JsValue.Undefined,
+                    GetTokenDisplayText(tok)
+                ),
+                JsTokenKind.NaN => new JsLiteralExpression(double.NaN, GetTokenDisplayText(tok)),
+                JsTokenKind.Infinity => new JsLiteralExpression(
+                    double.PositiveInfinity,
+                    GetTokenDisplayText(tok)
+                ),
+                _ => throw Error($"Unexpected token '{GetTokenDisplayText(tok)}'", tok.Position),
+            },
+            tok.Position
+        );
     }
 
     private JsExpression CreateIdentifierExpression(JsToken tok)
@@ -2392,14 +3053,16 @@ internal sealed partial class JsParser
                     inClass = true;
                 else if (ch == ']' && inClass)
                     inClass = false;
-                else if (ch == '/' && !inClass) break;
+                else if (ch == '/' && !inClass)
+                    break;
             }
 
             escaped = !escaped && ch == '\\';
             i++;
         }
 
-        if (i >= source.Length || source[i] != '/') throw Error("Unterminated regular expression literal", start);
+        if (i >= source.Length || source[i] != '/')
+            throw Error("Unterminated regular expression literal", start);
 
         var pattern = source.Substring(start + 1, i - start - 1);
         i++;
@@ -2414,19 +3077,21 @@ internal sealed partial class JsParser
                 continue;
             }
 
-            if (ch == '\\' &&
-                i + 5 < source.Length &&
-                source[i + 1] == 'u' &&
-                IsHexDigit(source[i + 2]) &&
-                IsHexDigit(source[i + 3]) &&
-                IsHexDigit(source[i + 4]) &&
-                IsHexDigit(source[i + 5]))
+            if (
+                ch == '\\'
+                && i + 5 < source.Length
+                && source[i + 1] == 'u'
+                && IsHexDigit(source[i + 2])
+                && IsHexDigit(source[i + 3])
+                && IsHexDigit(source[i + 4])
+                && IsHexDigit(source[i + 5])
+            )
             {
                 var codeUnit =
-                    (HexToInt(source[i + 2]) << 12) |
-                    (HexToInt(source[i + 3]) << 8) |
-                    (HexToInt(source[i + 4]) << 4) |
-                    HexToInt(source[i + 5]);
+                    (HexToInt(source[i + 2]) << 12)
+                    | (HexToInt(source[i + 3]) << 8)
+                    | (HexToInt(source[i + 4]) << 4)
+                    | HexToInt(source[i + 5]);
                 flagsBuilder.Append((char)codeUnit);
                 i += 6;
                 continue;
@@ -2458,11 +3123,17 @@ internal sealed partial class JsParser
             }
 
             if (Match(JsTokenKind.Ellipsis))
-                elements.Add(new JsSpreadExpression(isPattern
-                    ? ParsePatternExpressionElement()
-                    : ParseAssignment(true)));
+                elements.Add(
+                    new JsSpreadExpression(
+                        isPattern ? ParsePatternExpressionElement() : ParseAssignment(true)
+                    )
+                );
             else
-                elements.Add(isPattern ? ParsePatternExpressionElement() : ParseArrayLiteralElementExpression());
+                elements.Add(
+                    isPattern
+                        ? ParsePatternExpressionElement()
+                        : ParseArrayLiteralElementExpression()
+                );
 
             if (Match(JsTokenKind.Comma))
                 continue;
@@ -2476,8 +3147,10 @@ internal sealed partial class JsParser
 
     private JsExpression ParseArrayLiteralElementExpression()
     {
-        if (current.Kind is JsTokenKind.LeftBracket or JsTokenKind.LeftBrace &&
-            !LooksLikePatternAssignmentOrArrowHead())
+        if (
+            current.Kind is JsTokenKind.LeftBracket or JsTokenKind.LeftBrace
+            && !LooksLikePatternAssignmentOrArrowHead()
+        )
             return ParseConditionalExpression(true);
 
         return ParseAssignment(true);
@@ -2488,18 +3161,21 @@ internal sealed partial class JsParser
         using var depthCounter = AddDepth();
         var element = current.Kind switch
         {
-            JsTokenKind.LeftBrace or JsTokenKind.LeftBracket when LooksLikeLiteralAssignmentTargetExpression() =>
+            JsTokenKind.LeftBrace
+            or JsTokenKind.LeftBracket when LooksLikeLiteralAssignmentTargetExpression() =>
                 ParseAssignment(true),
             JsTokenKind.LeftBrace => ParseObjectBindingPattern(),
             JsTokenKind.LeftBracket => ParseArrayPatternExpression(),
-            _ => ParseAssignment(true)
+            _ => ParseAssignment(true),
         };
 
         if (element is JsObjectExpression or JsArrayExpression && Match(JsTokenKind.Assign))
         {
             var defaultValue = ParseAssignment(true);
-            element = At(new JsAssignmentExpression(JsAssignmentOperator.Assign, element, defaultValue),
-                element.Position);
+            element = At(
+                new JsAssignmentExpression(JsAssignmentOperator.Assign, element, defaultValue),
+                element.Position
+            );
         }
 
         return element;
@@ -2518,20 +3194,37 @@ internal sealed partial class JsParser
             if (Match(JsTokenKind.Ellipsis))
             {
                 var spreadValue = ParseAssignment(true);
-                properties.Add(At(new JsObjectProperty(string.Empty, spreadValue, JsObjectPropertyKind.Spread),
-                    keyStart));
+                properties.Add(
+                    At(
+                        new JsObjectProperty(
+                            string.Empty,
+                            spreadValue,
+                            JsObjectPropertyKind.Spread
+                        ),
+                        keyStart
+                    )
+                );
                 _ = Match(JsTokenKind.Comma);
-                if (current.Kind == JsTokenKind.RightBrace) break;
+                if (current.Kind == JsTokenKind.RightBrace)
+                    break;
 
                 continue;
             }
 
             var isAsyncMethod = false;
-            if (current.Kind == JsTokenKind.Identifier &&
-                CurrentSourceTextEquals("async") &&
-                !Peek().HasLineTerminatorBefore &&
-                Peek().Kind is not (JsTokenKind.LeftParen or JsTokenKind.Colon or JsTokenKind.Comma
-                    or JsTokenKind.RightBrace or JsTokenKind.Assign))
+            if (
+                current.Kind == JsTokenKind.Identifier
+                && CurrentSourceTextEquals("async")
+                && !Peek().HasLineTerminatorBefore
+                && Peek().Kind
+                    is not (
+                        JsTokenKind.LeftParen
+                        or JsTokenKind.Colon
+                        or JsTokenKind.Comma
+                        or JsTokenKind.RightBrace
+                        or JsTokenKind.Assign
+                    )
+            )
             {
                 isAsyncMethod = true;
                 Next();
@@ -2544,13 +3237,15 @@ internal sealed partial class JsParser
             var isComputedKey = parsedKey.IsComputed;
             var shorthandAllowed = parsedKey.ShorthandAllowed;
 
-            if (!isGeneratorMethod &&
-                !isComputedKey &&
-                (key == "get" || key == "set") &&
-                current.Kind != JsTokenKind.LeftParen &&
-                current.Kind != JsTokenKind.Colon &&
-                current.Kind != JsTokenKind.Comma &&
-                current.Kind != JsTokenKind.RightBrace)
+            if (
+                !isGeneratorMethod
+                && !isComputedKey
+                && (key == "get" || key == "set")
+                && current.Kind != JsTokenKind.LeftParen
+                && current.Kind != JsTokenKind.Colon
+                && current.Kind != JsTokenKind.Comma
+                && current.Kind != JsTokenKind.RightBrace
+            )
             {
                 var parsedAccessorKey = ParsePropertyName(false, false);
                 var accessorKey = parsedAccessorKey.Key ?? string.Empty;
@@ -2578,7 +3273,8 @@ internal sealed partial class JsParser
                     accessorFunctionLength = parsedAccessorParams.FunctionLength;
                     accessorHasSimpleParameterList = parsedAccessorParams.HasSimpleParameterList;
                     accessorHasDuplicateParameters = parsedAccessorParams.HasDuplicateParameters;
-                    if (accessorParameters.Count != 0) throw Error("Getter must not have parameters", current.Position);
+                    if (accessorParameters.Count != 0)
+                        throw Error("Getter must not have parameters", current.Position);
                 }
                 else
                 {
@@ -2592,14 +3288,22 @@ internal sealed partial class JsParser
                     accessorFunctionLength = parsedAccessorParams.FunctionLength;
                     accessorHasSimpleParameterList = parsedAccessorParams.HasSimpleParameterList;
                     accessorHasDuplicateParameters = parsedAccessorParams.HasDuplicateParameters;
-                    if (accessorParameters.Count != 1) throw Error("Expected setter parameter", current.Position);
+                    if (accessorParameters.Count != 1)
+                        throw Error("Expected setter parameter", current.Position);
 
                     var setterParamName = accessorParameters[0];
                     var setterParamId = accessorParameterIds[0];
                     var setterParamPosition = accessorParameterPositions[0];
-                    EnsureIdentifierAllowedInCurrentMode(setterParamName, setterParamId, setterParamPosition);
+                    EnsureIdentifierAllowedInCurrentMode(
+                        setterParamName,
+                        setterParamId,
+                        setterParamPosition
+                    );
                     if (strictMode && IsEvalOrArguments(setterParamName, setterParamId))
-                        throw Error("Unexpected eval or arguments in strict mode", setterParamPosition);
+                        throw Error(
+                            "Unexpected eval or arguments in strict mode",
+                            setterParamPosition
+                        );
 
                     var strictBeforeAccessorBody = strictMode;
                     var allowSuperPropertyBeforeBody = allowSuperProperty;
@@ -2609,37 +3313,56 @@ internal sealed partial class JsParser
                     var setterBody = ParseBlockStatement(true);
                     allowSuperProperty = allowSuperPropertyBeforeBody;
                     allowSuperCall = allowSuperCallBeforeBody;
-                    if (!strictBeforeAccessorBody &&
-                        FunctionBodyHasUseStrictDirective(setterBody.Statements) &&
-                        IsEvalOrArguments(setterParamName, setterParamId))
-                        throw Error("Unexpected eval or arguments in strict mode", setterParamPosition);
+                    if (
+                        !strictBeforeAccessorBody
+                        && FunctionBodyHasUseStrictDirective(setterBody.Statements)
+                        && IsEvalOrArguments(setterParamName, setterParamId)
+                    )
+                        throw Error(
+                            "Unexpected eval or arguments in strict mode",
+                            setterParamPosition
+                        );
 
-                    var setterFunction = At(new JsFunctionExpression(
-                        null,
-                        accessorParameters,
-                        setterBody,
-                        parameterInitializers: accessorInitializers,
-                        parameterPatterns: accessorParameterPatterns,
-                        parameterPositions: accessorParameterPositions,
-                        parameterBindingKinds: accessorParameterBindingKinds,
-                        functionLength: accessorFunctionLength,
-                        hasSimpleParameterList: accessorHasSimpleParameterList,
-                        hasDuplicateParameters: accessorHasDuplicateParameters,
-                        hasSuperBindingHint: true,
-                        parameterIds: accessorParameterIds), keyStart);
+                    var setterFunction = At(
+                        new JsFunctionExpression(
+                            null,
+                            accessorParameters,
+                            setterBody,
+                            parameterInitializers: accessorInitializers,
+                            parameterPatterns: accessorParameterPatterns,
+                            parameterPositions: accessorParameterPositions,
+                            parameterBindingKinds: accessorParameterBindingKinds,
+                            functionLength: accessorFunctionLength,
+                            hasSimpleParameterList: accessorHasSimpleParameterList,
+                            hasDuplicateParameters: accessorHasDuplicateParameters,
+                            hasSuperBindingHint: true,
+                            parameterIds: accessorParameterIds
+                        ),
+                        keyStart
+                    );
                     if (accessorComputedKey is null)
                         ApplyObjectLiteralDuplicateChecks(
                             ref propertyKinds,
                             accessorKey,
                             JsObjectPropertyKind.Setter,
                             keyStart,
-                            strictMode);
+                            strictMode
+                        );
 
-                    properties.Add(At(new JsObjectProperty(accessorKey, setterFunction, JsObjectPropertyKind.Setter,
-                            accessorComputedKey),
-                        keyStart));
+                    properties.Add(
+                        At(
+                            new JsObjectProperty(
+                                accessorKey,
+                                setterFunction,
+                                JsObjectPropertyKind.Setter,
+                                accessorComputedKey
+                            ),
+                            keyStart
+                        )
+                    );
                     _ = Match(JsTokenKind.Comma);
-                    if (current.Kind == JsTokenKind.RightBrace) break;
+                    if (current.Kind == JsTokenKind.RightBrace)
+                        break;
 
                     continue;
                 }
@@ -2651,31 +3374,45 @@ internal sealed partial class JsParser
                 var getterBody = ParseBlockStatement(true);
                 allowSuperProperty = allowSuperPropertyBeforeGetterBody;
                 allowSuperCall = allowSuperCallBeforeGetterBody;
-                var getterFunction = At(new JsFunctionExpression(
-                    null,
-                    accessorParameters,
-                    getterBody,
-                    parameterInitializers: accessorInitializers,
-                    parameterPatterns: accessorParameterPatterns,
-                    parameterPositions: accessorParameterPositions,
-                    parameterBindingKinds: accessorParameterBindingKinds,
-                    functionLength: accessorFunctionLength,
-                    hasSimpleParameterList: accessorHasSimpleParameterList,
-                    hasDuplicateParameters: accessorHasDuplicateParameters,
-                    hasSuperBindingHint: true), keyStart);
+                var getterFunction = At(
+                    new JsFunctionExpression(
+                        null,
+                        accessorParameters,
+                        getterBody,
+                        parameterInitializers: accessorInitializers,
+                        parameterPatterns: accessorParameterPatterns,
+                        parameterPositions: accessorParameterPositions,
+                        parameterBindingKinds: accessorParameterBindingKinds,
+                        functionLength: accessorFunctionLength,
+                        hasSimpleParameterList: accessorHasSimpleParameterList,
+                        hasDuplicateParameters: accessorHasDuplicateParameters,
+                        hasSuperBindingHint: true
+                    ),
+                    keyStart
+                );
                 if (accessorComputedKey is null)
                     ApplyObjectLiteralDuplicateChecks(
                         ref propertyKinds,
                         accessorKey,
                         JsObjectPropertyKind.Getter,
                         keyStart,
-                        strictMode);
+                        strictMode
+                    );
 
-                properties.Add(At(new JsObjectProperty(accessorKey, getterFunction, JsObjectPropertyKind.Getter,
-                        accessorComputedKey),
-                    keyStart));
+                properties.Add(
+                    At(
+                        new JsObjectProperty(
+                            accessorKey,
+                            getterFunction,
+                            JsObjectPropertyKind.Getter,
+                            accessorComputedKey
+                        ),
+                        keyStart
+                    )
+                );
                 _ = Match(JsTokenKind.Comma);
-                if (current.Kind == JsTokenKind.RightBrace) break;
+                if (current.Kind == JsTokenKind.RightBrace)
+                    break;
 
                 continue;
             }
@@ -2705,22 +3442,26 @@ internal sealed partial class JsParser
                 allowSuperCall = allowSuperCallBeforeMethodBody;
                 generatorFunctionLevel = generatorLevelBeforeMethodBody;
                 asyncFunctionLevel = asyncLevelBeforeMethodBody;
-                var methodFunction = At(new JsFunctionExpression(
-                    null,
-                    parameters,
-                    body,
-                    isGeneratorMethod,
-                    isAsyncMethod,
-                    parameterInitializers: parameterInitializers,
-                    parameterPatterns: parameterPatterns,
-                    parameterPositions: parsedParams.ParameterPositions,
-                    parameterBindingKinds: parsedParams.ParameterBindingKinds,
-                    functionLength: functionLength,
-                    hasSimpleParameterList: hasSimpleParameterList,
-                    hasSuperBindingHint: true,
-                    hasDuplicateParameters: hasDuplicateParameters,
-                    restParameterIndex: restParameterIndex,
-                    parameterIds: parameterIds), keyStart);
+                var methodFunction = At(
+                    new JsFunctionExpression(
+                        null,
+                        parameters,
+                        body,
+                        isGeneratorMethod,
+                        isAsyncMethod,
+                        parameterInitializers: parameterInitializers,
+                        parameterPatterns: parameterPatterns,
+                        parameterPositions: parsedParams.ParameterPositions,
+                        parameterBindingKinds: parsedParams.ParameterBindingKinds,
+                        functionLength: functionLength,
+                        hasSimpleParameterList: hasSimpleParameterList,
+                        hasSuperBindingHint: true,
+                        hasDuplicateParameters: hasDuplicateParameters,
+                        restParameterIndex: restParameterIndex,
+                        parameterIds: parameterIds
+                    ),
+                    keyStart
+                );
 
                 if (!isComputedKey)
                     ApplyObjectLiteralDuplicateChecks(
@@ -2728,12 +3469,23 @@ internal sealed partial class JsParser
                         key,
                         JsObjectPropertyKind.Data,
                         keyStart,
-                        strictMode);
+                        strictMode
+                    );
 
-                properties.Add(At(new JsObjectProperty(key, methodFunction, JsObjectPropertyKind.Data, computedKey),
-                    keyStart));
+                properties.Add(
+                    At(
+                        new JsObjectProperty(
+                            key,
+                            methodFunction,
+                            JsObjectPropertyKind.Data,
+                            computedKey
+                        ),
+                        keyStart
+                    )
+                );
                 _ = Match(JsTokenKind.Comma);
-                if (current.Kind == JsTokenKind.RightBrace) break;
+                if (current.Kind == JsTokenKind.RightBrace)
+                    break;
 
                 continue;
             }
@@ -2745,11 +3497,13 @@ internal sealed partial class JsParser
             }
             else
             {
-                if (!shorthandAllowed) throw Error("Expected ':' after object property key", current.Position);
+                if (!shorthandAllowed)
+                    throw Error("Expected ':' after object property key", current.Position);
 
-                var shorthandId = parsedKey.IdentifierId >= 0
-                    ? parsedKey.IdentifierId
-                    : lexer.AddIdentifierLiteral(key);
+                var shorthandId =
+                    parsedKey.IdentifierId >= 0
+                        ? parsedKey.IdentifierId
+                        : lexer.AddIdentifierLiteral(key);
                 value = At(new JsIdentifierExpression(key, shorthandId), current.Position);
             }
 
@@ -2759,16 +3513,18 @@ internal sealed partial class JsParser
                     key,
                     JsObjectPropertyKind.Data,
                     keyStart,
-                    strictMode);
+                    strictMode
+                );
 
-            properties.Add(At(new JsObjectProperty(
-                    key,
-                    value,
-                    JsObjectPropertyKind.Data,
-                    computedKey),
-                value.Position));
+            properties.Add(
+                At(
+                    new JsObjectProperty(key, value, JsObjectPropertyKind.Data, computedKey),
+                    value.Position
+                )
+            );
             _ = Match(JsTokenKind.Comma);
-            if (current.Kind == JsTokenKind.RightBrace) break;
+            if (current.Kind == JsTokenKind.RightBrace)
+                break;
         }
 
         Expect(JsTokenKind.RightBrace);
@@ -2788,8 +3544,16 @@ internal sealed partial class JsParser
             if (Match(JsTokenKind.Ellipsis))
             {
                 var spreadValue = ParseAssignment(true);
-                properties.Add(At(new JsObjectProperty(string.Empty, spreadValue, JsObjectPropertyKind.Spread),
-                    keyStart));
+                properties.Add(
+                    At(
+                        new JsObjectProperty(
+                            string.Empty,
+                            spreadValue,
+                            JsObjectPropertyKind.Spread
+                        ),
+                        keyStart
+                    )
+                );
                 _ = Match(JsTokenKind.Comma);
                 if (current.Kind == JsTokenKind.RightBrace)
                     break;
@@ -2808,13 +3572,19 @@ internal sealed partial class JsParser
                 {
                     JsTokenKind.LeftBrace => ParseObjectBindingPattern(),
                     JsTokenKind.LeftBracket => ParseArrayPatternExpression(),
-                    _ => ParseAssignment(true)
+                    _ => ParseAssignment(true),
                 };
                 if (Match(JsTokenKind.Assign))
                 {
                     var defaultValue = ParseAssignment(true);
-                    value = At(new JsAssignmentExpression(JsAssignmentOperator.Assign, value, defaultValue),
-                        value.Position);
+                    value = At(
+                        new JsAssignmentExpression(
+                            JsAssignmentOperator.Assign,
+                            value,
+                            defaultValue
+                        ),
+                        value.Position
+                    );
                 }
             }
             else
@@ -2822,24 +3592,31 @@ internal sealed partial class JsParser
                 if (!shorthandAllowed)
                     throw Error("Expected ':' after object property key", current.Position);
 
-                var shorthandId = parsedKey.IdentifierId >= 0
-                    ? parsedKey.IdentifierId
-                    : lexer.AddIdentifierLiteral(key);
+                var shorthandId =
+                    parsedKey.IdentifierId >= 0
+                        ? parsedKey.IdentifierId
+                        : lexer.AddIdentifierLiteral(key);
                 value = At(new JsIdentifierExpression(key, shorthandId), keyStart);
                 if (Match(JsTokenKind.Assign))
                 {
                     var defaultValue = ParseAssignment(true);
-                    value = At(new JsAssignmentExpression(JsAssignmentOperator.Assign, value, defaultValue),
-                        value.Position);
+                    value = At(
+                        new JsAssignmentExpression(
+                            JsAssignmentOperator.Assign,
+                            value,
+                            defaultValue
+                        ),
+                        value.Position
+                    );
                 }
             }
 
-            properties.Add(At(new JsObjectProperty(
-                    key,
-                    value,
-                    JsObjectPropertyKind.Data,
-                    computedKey),
-                value.Position));
+            properties.Add(
+                At(
+                    new JsObjectProperty(key, value, JsObjectPropertyKind.Data, computedKey),
+                    value.Position
+                )
+            );
             _ = Match(JsTokenKind.Comma);
             if (current.Kind == JsTokenKind.RightBrace)
                 break;
@@ -2901,9 +3678,10 @@ internal sealed partial class JsParser
                 if (current.Kind is JsTokenKind.LeftBracket or JsTokenKind.LeftBrace)
                 {
                     var patternPos = current.Position;
-                    JsExpression pattern = current.Kind == JsTokenKind.LeftBrace
-                        ? ParseObjectBindingPattern()
-                        : ParseArrayPatternExpression();
+                    JsExpression pattern =
+                        current.Kind == JsTokenKind.LeftBrace
+                            ? ParseObjectBindingPattern()
+                            : ParseArrayPatternExpression();
                     var syntheticPatternName = $"$rest_pattern_{level}_{patternPos}";
                     parameters.Add(syntheticPatternName);
                     parameterIds.Add(-1);
@@ -2914,7 +3692,10 @@ internal sealed partial class JsParser
                     restParameterIndex = parameters.Count - 1;
                     seenDefault = true;
                     if (current.Kind == JsTokenKind.Comma)
-                        throw Error("Rest parameter must be last formal parameter", current.Position);
+                        throw Error(
+                            "Rest parameter must be last formal parameter",
+                            current.Position
+                        );
                     break;
                 }
 
@@ -2937,9 +3718,10 @@ internal sealed partial class JsParser
             {
                 hasSimpleParameterList = false;
                 var patternPos = current.Position;
-                JsExpression pattern = current.Kind == JsTokenKind.LeftBrace
-                    ? ParseObjectBindingPattern()
-                    : ParseArrayPatternExpression();
+                JsExpression pattern =
+                    current.Kind == JsTokenKind.LeftBrace
+                        ? ParseObjectBindingPattern()
+                        : ParseArrayPatternExpression();
                 var syntheticPatternName = $"$param_pattern_{level}_{patternPos}";
                 parameters.Add(syntheticPatternName);
                 parameterIds.Add(lexer.AddIdentifierLiteral(syntheticPatternName));
@@ -2969,7 +3751,14 @@ internal sealed partial class JsParser
             var paramName = param.Name;
             var paramId = param.NameId;
             if (nameCrashIdCheckSet is not null)
-                if (!TryAddIdentifierKey(nameCrashIdCheckSet, nameCrashTextCheckSet, paramId, paramName))
+                if (
+                    !TryAddIdentifierKey(
+                        nameCrashIdCheckSet,
+                        nameCrashTextCheckSet,
+                        paramId,
+                        paramName
+                    )
+                )
                 {
                     nameCrashIdCheckSet.Clear();
                     nameCrashTextCheckSet!.Clear();
@@ -2981,7 +3770,8 @@ internal sealed partial class JsParser
             parameterPatterns.Add(null);
             parameterPositions.Add(param.Position);
             parameterBindingKinds.Add(JsFormalParameterBindingKind.Plain);
-            if (!strictMode && !duplicateTracker.Add(paramId, paramName)) hasDuplicateParameters = true;
+            if (!strictMode && !duplicateTracker.Add(paramId, paramName))
+                hasDuplicateParameters = true;
 
             JsExpression? initializer = null;
             if (Match(JsTokenKind.Assign))
@@ -2992,11 +3782,14 @@ internal sealed partial class JsParser
             }
 
             initializers.Add(initializer);
-            if (!seenDefault) functionLength++;
+            if (!seenDefault)
+                functionLength++;
 
-            if (!Match(JsTokenKind.Comma)) break;
+            if (!Match(JsTokenKind.Comma))
+                break;
 
-            if (current.Kind == JsTokenKind.RightParen) break;
+            if (current.Kind == JsTokenKind.RightParen)
+                break;
         }
 
         nameCrashIdCheckSet?.Clear();
@@ -3006,7 +3799,9 @@ internal sealed partial class JsParser
             parameters.Count == 0 ? Array.Empty<string>() : parameters.ToArray(),
             parameterIds.Count == 0 ? Array.Empty<int>() : parameterIds.ToArray(),
             initializers.Count == 0 ? Array.Empty<JsExpression?>() : initializers.ToArray(),
-            parameterPatterns.Count == 0 ? Array.Empty<JsExpression?>() : parameterPatterns.ToArray(),
+            parameterPatterns.Count == 0
+                ? Array.Empty<JsExpression?>()
+                : parameterPatterns.ToArray(),
             parameterPositions.Count == 0 ? Array.Empty<int>() : parameterPositions.ToArray(),
             parameterBindingKinds.Count == 0
                 ? Array.Empty<JsFormalParameterBindingKind>()
@@ -3014,7 +3809,8 @@ internal sealed partial class JsParser
             functionLength,
             hasSimpleParameterList,
             hasDuplicateParameters,
-            restParameterIndex);
+            restParameterIndex
+        );
     }
 
     private void SkipBindingPatternTokens()
@@ -3025,7 +3821,11 @@ internal sealed partial class JsParser
         var stack = new PooledTokenKindStack(stackalloc JsTokenKind[8]);
         try
         {
-            stack.Push(current.Kind == JsTokenKind.LeftBrace ? JsTokenKind.RightBrace : JsTokenKind.RightBracket);
+            stack.Push(
+                current.Kind == JsTokenKind.LeftBrace
+                    ? JsTokenKind.RightBrace
+                    : JsTokenKind.RightBracket
+            );
             Next();
 
             while (stack.Count > 0)
@@ -3045,14 +3845,14 @@ internal sealed partial class JsParser
                         break;
                     case JsTokenKind.RightBrace:
                     case JsTokenKind.RightBracket:
-                        {
-                            var expected = stack.Peek();
-                            if (current.Kind != expected)
-                                throw Error("Invalid binding pattern", current.Position);
-                            stack.Pop();
-                            Next();
-                            break;
-                        }
+                    {
+                        var expected = stack.Peek();
+                        if (current.Kind != expected)
+                            throw Error("Invalid binding pattern", current.Position);
+                        stack.Pop();
+                        Next();
+                        break;
+                    }
                     default:
                         Next();
                         break;
@@ -3069,22 +3869,36 @@ internal sealed partial class JsParser
     {
         var templateExpr = ParseTemplateLiteralAsTemplate(token);
         if (templateExpr.Expressions.Count == 0)
-            return At(new JsLiteralExpression(
-                templateExpr.Quasis.Count == 0 ? string.Empty : templateExpr.Quasis[0] ?? string.Empty,
-                GetTokenSourceText(token)), token.Position);
+            return At(
+                new JsLiteralExpression(
+                    templateExpr.Quasis.Count == 0
+                        ? string.Empty
+                        : templateExpr.Quasis[0] ?? string.Empty,
+                    GetTokenSourceText(token)
+                ),
+                token.Position
+            );
 
         return templateExpr;
     }
 
-    private JsTemplateExpression ParseTemplateLiteralAsTemplate(JsToken token, bool allowInvalidEscapes = false)
+    private JsTemplateExpression ParseTemplateLiteralAsTemplate(
+        JsToken token,
+        bool allowInvalidEscapes = false
+    )
     {
         var rawText = GetTokenSourceText(token);
         if (rawText.Length < 2 || rawText[0] != '`' || rawText[^1] != '`')
         {
             var literalText = GetStringLiteralText(token);
             return At(
-                new JsTemplateExpression(new[] { literalText }, Array.Empty<JsExpression>(), new[] { literalText }),
-                token.Position);
+                new JsTemplateExpression(
+                    new[] { literalText },
+                    Array.Empty<JsExpression>(),
+                    new[] { literalText }
+                ),
+                token.Position
+            );
         }
 
         var content = rawText.Substring(1, rawText.Length - 2);
@@ -3104,8 +3918,15 @@ internal sealed partial class JsParser
                 {
                     var consumed = 0;
                     var normalizeRawLineContinuation = false;
-                    if (TryDecodeTemplateEscape(content, i, out var cookedEscaped, out consumed,
-                            out normalizeRawLineContinuation))
+                    if (
+                        TryDecodeTemplateEscape(
+                            content,
+                            i,
+                            out var cookedEscaped,
+                            out consumed,
+                            out normalizeRawLineContinuation
+                        )
+                    )
                     {
                         if (normalizeRawLineContinuation)
                             rawBuilder.Append("\\\n".AsSpan());
@@ -3118,7 +3939,10 @@ internal sealed partial class JsParser
                     {
                         rawBuilder.Append(content.AsSpan(i, consumed));
                         if (!allowInvalidEscapes)
-                            throw Error("Invalid escape sequence in template literal", token.Position + i);
+                            throw Error(
+                                "Invalid escape sequence in template literal",
+                                token.Position + i
+                            );
                         cookedIsUndefined = true;
                     }
 
@@ -3146,7 +3970,8 @@ internal sealed partial class JsParser
 
                     var exprStart = i + 2;
                     var exprEnd = FindTemplateExpressionEnd(content, exprStart);
-                    if (exprEnd < 0) throw Error("Unterminated template expression", token.Position + i);
+                    if (exprEnd < 0)
+                        throw Error("Unterminated template expression", token.Position + i);
 
                     var exprText = content.Substring(exprStart, exprEnd - exprStart);
                     expressions.Add(ParseTemplateExpression(exprText, token.Position + exprStart));
@@ -3161,7 +3986,10 @@ internal sealed partial class JsParser
 
             cookedQuasis.Add(cookedIsUndefined ? null : cookedBuilder.ToString());
             rawQuasis.Add(rawBuilder.ToString());
-            return At(new JsTemplateExpression(cookedQuasis, expressions, rawQuasis), token.Position);
+            return At(
+                new JsTemplateExpression(cookedQuasis, expressions, rawQuasis),
+                token.Position
+            );
         }
         finally
         {
@@ -3175,7 +4003,8 @@ internal sealed partial class JsParser
         int slashIndex,
         out string decoded,
         out int consumed,
-        out bool normalizeRawLineContinuation)
+        out bool normalizeRawLineContinuation
+    )
     {
         decoded = string.Empty;
         consumed = 1;
@@ -3251,9 +4080,11 @@ internal sealed partial class JsParser
                 consumed = 2;
                 if (slashIndex + 2 < text.Length && char.IsDigit(text[slashIndex + 2]))
                 {
-                    while (slashIndex + consumed < text.Length &&
-                           consumed < 4 &&
-                           text[slashIndex + consumed] is >= '0' and <= '7')
+                    while (
+                        slashIndex + consumed < text.Length
+                        && consumed < 4
+                        && text[slashIndex + consumed] is >= '0' and <= '7'
+                    )
                         consumed++;
                     return false;
                 }
@@ -3262,18 +4093,23 @@ internal sealed partial class JsParser
                 return true;
             case >= '1' and <= '9':
                 consumed = 2;
-                while (slashIndex + consumed < text.Length &&
-                       consumed < 4 &&
-                       text[slashIndex + consumed] is >= '0' and <= '7')
+                while (
+                    slashIndex + consumed < text.Length
+                    && consumed < 4
+                    && text[slashIndex + consumed] is >= '0' and <= '7'
+                )
                     consumed++;
                 return false;
             case 'x':
                 consumed = 2;
-                if (slashIndex + 3 < text.Length &&
-                    IsHexDigit(text[slashIndex + 2]) &&
-                    IsHexDigit(text[slashIndex + 3]))
+                if (
+                    slashIndex + 3 < text.Length
+                    && IsHexDigit(text[slashIndex + 2])
+                    && IsHexDigit(text[slashIndex + 3])
+                )
                 {
-                    var value = HexToInt(text[slashIndex + 2]) * 16 + HexToInt(text[slashIndex + 3]);
+                    var value =
+                        HexToInt(text[slashIndex + 2]) * 16 + HexToInt(text[slashIndex + 3]);
                     decoded = ((char)value).ToString();
                     consumed = 4;
                     return true;
@@ -3314,16 +4150,19 @@ internal sealed partial class JsParser
                     return false;
                 }
 
-                if (slashIndex + 5 < text.Length &&
-                    IsHexDigit(text[slashIndex + 2]) &&
-                    IsHexDigit(text[slashIndex + 3]) &&
-                    IsHexDigit(text[slashIndex + 4]) &&
-                    IsHexDigit(text[slashIndex + 5]))
+                if (
+                    slashIndex + 5 < text.Length
+                    && IsHexDigit(text[slashIndex + 2])
+                    && IsHexDigit(text[slashIndex + 3])
+                    && IsHexDigit(text[slashIndex + 4])
+                    && IsHexDigit(text[slashIndex + 5])
+                )
                 {
-                    var value = (HexToInt(text[slashIndex + 2]) << 12) |
-                                (HexToInt(text[slashIndex + 3]) << 8) |
-                                (HexToInt(text[slashIndex + 4]) << 4) |
-                                HexToInt(text[slashIndex + 5]);
+                    var value =
+                        (HexToInt(text[slashIndex + 2]) << 12)
+                        | (HexToInt(text[slashIndex + 3]) << 8)
+                        | (HexToInt(text[slashIndex + 4]) << 4)
+                        | HexToInt(text[slashIndex + 5]);
                     decoded = ((char)value).ToString();
                     consumed = 6;
                     return true;
@@ -3349,12 +4188,20 @@ internal sealed partial class JsParser
 
     private JsParser CreateNestedExpressionParser(string nestedSource, int nestedBasePosition)
     {
-        return new(nestedSource, allowSuperProperty, allowSuperCall, allowTopLevelAwait, isModule, sourcePath,
-            nestedBasePosition, parseDepthState: parseDepthState)
+        return new(
+            nestedSource,
+            allowSuperProperty,
+            allowSuperCall,
+            allowTopLevelAwait,
+            isModule,
+            sourcePath,
+            nestedBasePosition,
+            parseDepthState: parseDepthState
+        )
         {
             strictMode = strictMode,
             generatorFunctionLevel = generatorFunctionLevel,
-            asyncFunctionLevel = asyncFunctionLevel
+            asyncFunctionLevel = asyncFunctionLevel,
         };
     }
 
@@ -3422,14 +4269,16 @@ internal sealed partial class JsParser
             if (c == '}')
             {
                 depth--;
-                if (depth == 0) return i;
+                if (depth == 0)
+                    return i;
 
                 i++;
                 lastSignificantChar = '}';
                 continue;
             }
 
-            if (!char.IsWhiteSpace(c)) lastSignificantChar = c;
+            if (!char.IsWhiteSpace(c))
+                lastSignificantChar = c;
 
             i++;
         }
@@ -3448,7 +4297,8 @@ internal sealed partial class JsParser
                 continue;
             }
 
-            if (text[i] == quote) return i + 1;
+            if (text[i] == quote)
+                return i + 1;
 
             i++;
         }
@@ -3467,7 +4317,8 @@ internal sealed partial class JsParser
                 continue;
             }
 
-            if (text[i] == '`') return i + 1;
+            if (text[i] == '`')
+                return i + 1;
 
             i++;
         }
@@ -3478,7 +4329,8 @@ internal sealed partial class JsParser
     private static int ConsumeLineComment(string text, int start)
     {
         var i = start + 2;
-        while (i < text.Length && text[i] != '\n' && text[i] != '\r') i++;
+        while (i < text.Length && text[i] != '\n' && text[i] != '\r')
+            i++;
 
         return i;
     }
@@ -3486,7 +4338,8 @@ internal sealed partial class JsParser
     private static int ConsumeBlockComment(string text, int start)
     {
         var i = start + 2;
-        while (i + 1 < text.Length && !(text[i] == '*' && text[i + 1] == '/')) i++;
+        while (i + 1 < text.Length && !(text[i] == '*' && text[i + 1] == '/'))
+            i++;
 
         return i + 1 < text.Length ? i + 2 : text.Length;
     }
@@ -3522,7 +4375,8 @@ internal sealed partial class JsParser
             if (c == '/' && !inCharacterClass)
             {
                 i++;
-                while (i < text.Length && IsIdentifierPartForRegExpFlag(text[i])) i++;
+                while (i < text.Length && IsIdentifierPartForRegExpFlag(text[i]))
+                    i++;
 
                 return i;
             }
@@ -3535,28 +4389,69 @@ internal sealed partial class JsParser
 
     private static bool CanStartRegexLiteral(char lastSignificantChar)
     {
-        return lastSignificantChar == '\0' ||
-               lastSignificantChar is
-                   '(' or '[' or '{' or ',' or ';' or ':' or '?' or
-                   '!' or '~' or '=' or '+' or '-' or '*' or '%' or '^' or '&' or '|' or '<' or '>';
+        return lastSignificantChar == '\0'
+            || lastSignificantChar
+                is '('
+                    or '['
+                    or '{'
+                    or ','
+                    or ';'
+                    or ':'
+                    or '?'
+                    or '!'
+                    or '~'
+                    or '='
+                    or '+'
+                    or '-'
+                    or '*'
+                    or '%'
+                    or '^'
+                    or '&'
+                    or '|'
+                    or '<'
+                    or '>';
     }
 
     private static bool IsIdentifierNameToken(JsTokenKind kind)
     {
-        return kind is
-            JsTokenKind.Identifier or
-            JsTokenKind.True or JsTokenKind.False or JsTokenKind.Null or JsTokenKind.Undefined or
-            JsTokenKind.NaN or JsTokenKind.Infinity or
-            JsTokenKind.Var or JsTokenKind.Let or JsTokenKind.Const or
-            JsTokenKind.If or JsTokenKind.Else or
-            JsTokenKind.Return or JsTokenKind.Function or
-            JsTokenKind.For or JsTokenKind.While or JsTokenKind.Do or
-            JsTokenKind.Break or JsTokenKind.Continue or JsTokenKind.Debugger or
-            JsTokenKind.Typeof or JsTokenKind.Void or JsTokenKind.Delete or
-            JsTokenKind.Switch or JsTokenKind.Case or JsTokenKind.Default or
-            JsTokenKind.Throw or JsTokenKind.Try or JsTokenKind.Catch or JsTokenKind.Finally or
-            JsTokenKind.With or JsTokenKind.In or JsTokenKind.Instanceof or JsTokenKind.Of or
-            JsTokenKind.New or JsTokenKind.This or JsTokenKind.ReservedWord;
+        return kind
+            is JsTokenKind.Identifier
+                or JsTokenKind.True
+                or JsTokenKind.False
+                or JsTokenKind.Null
+                or JsTokenKind.Undefined
+                or JsTokenKind.NaN
+                or JsTokenKind.Infinity
+                or JsTokenKind.Var
+                or JsTokenKind.Let
+                or JsTokenKind.Const
+                or JsTokenKind.If
+                or JsTokenKind.Else
+                or JsTokenKind.Return
+                or JsTokenKind.Function
+                or JsTokenKind.For
+                or JsTokenKind.While
+                or JsTokenKind.Do
+                or JsTokenKind.Break
+                or JsTokenKind.Continue
+                or JsTokenKind.Debugger
+                or JsTokenKind.Typeof
+                or JsTokenKind.Void
+                or JsTokenKind.Delete
+                or JsTokenKind.Switch
+                or JsTokenKind.Case
+                or JsTokenKind.Default
+                or JsTokenKind.Throw
+                or JsTokenKind.Try
+                or JsTokenKind.Catch
+                or JsTokenKind.Finally
+                or JsTokenKind.With
+                or JsTokenKind.In
+                or JsTokenKind.Instanceof
+                or JsTokenKind.Of
+                or JsTokenKind.New
+                or JsTokenKind.This
+                or JsTokenKind.ReservedWord;
     }
 
     private static bool IsIdentifierPartForRegExpFlag(char c)
@@ -3576,7 +4471,7 @@ internal sealed partial class JsParser
             >= '0' and <= '9' => c - '0',
             >= 'a' and <= 'f' => 10 + (c - 'a'),
             >= 'A' and <= 'F' => 10 + (c - 'A'),
-            _ => -1
+            _ => -1,
         };
     }
 
@@ -3599,17 +4494,24 @@ internal sealed partial class JsParser
 
     private void EnsureStringLiteralAllowedInCurrentMode(JsToken token)
     {
-        if (!strictMode) return;
+        if (!strictMode)
+            return;
 
-        if (!ContainsLegacyOctalEscape(GetTokenSourceText(token))) return;
+        if (!ContainsLegacyOctalEscape(GetTokenSourceText(token)))
+            return;
 
         throw Error("Octal escape sequences are not allowed in strict mode", token.Position);
     }
 
-    private void EnsureIdentifierAllowedInCurrentMode(string name, int nameId, int position,
-        bool isParamDeclaration = false)
+    private void EnsureIdentifierAllowedInCurrentMode(
+        string name,
+        int nameId,
+        int position,
+        bool isParamDeclaration = false
+    )
     {
-        if (!strictMode) return;
+        if (!strictMode)
+            return;
 
         if (isParamDeclaration)
         {
@@ -3621,7 +4523,8 @@ internal sealed partial class JsParser
 
         if (StrictModeReservedWords.Contains(name))
         {
-            if (IsEvalOrArguments(name, nameId)) throw Error("Unexpected eval or arguments in strict mode", position);
+            if (IsEvalOrArguments(name, nameId))
+                throw Error("Unexpected eval or arguments in strict mode", position);
 
             throw Error($"Unexpected strict mode reserved word '{name}'", position);
         }
@@ -3631,11 +4534,17 @@ internal sealed partial class JsParser
     {
         for (var i = 0; i < statements.Count; i++)
         {
-            if (statements[i] is not JsExpressionStatement { Expression: JsLiteralExpression literal }) return false;
+            if (
+                statements[i]
+                is not JsExpressionStatement { Expression: JsLiteralExpression literal }
+            )
+                return false;
 
-            if (literal.Value is not string text) return false;
+            if (literal.Value is not string text)
+                return false;
 
-            if (string.Equals(text, "use strict", StringComparison.Ordinal)) return true;
+            if (string.Equals(text, "use strict", StringComparison.Ordinal))
+                return true;
         }
 
         return false;
@@ -3643,15 +4552,18 @@ internal sealed partial class JsParser
 
     private bool IsEvalOrArguments(string name, int nameId)
     {
-        return IsIdentifierText(name, nameId, "eval", ref evalIdentifierId) ||
-               IsIdentifierText(name, nameId, "arguments", ref argumentsIdentifierId);
+        return IsIdentifierText(name, nameId, "eval", ref evalIdentifierId)
+            || IsIdentifierText(name, nameId, "arguments", ref argumentsIdentifierId);
     }
 
     private bool IsIdentifierText(string name, int nameId, string expected, ref int expectedIdCache)
     {
         if (nameId >= 0)
         {
-            if (expectedIdCache < 0 && lexer.IdentifierTable.TryGetIdentifierId(expected, out var expectedId))
+            if (
+                expectedIdCache < 0
+                && lexer.IdentifierTable.TryGetIdentifierId(expected, out var expectedId)
+            )
                 expectedIdCache = expectedId;
 
             if (expectedIdCache >= 0)
@@ -3666,7 +4578,8 @@ internal sealed partial class JsParser
         string key,
         JsObjectPropertyKind kind,
         int position,
-        bool strictMode)
+        bool strictMode
+    )
     {
         const byte dataMask = 1;
         const byte getMask = 2;
@@ -3677,7 +4590,7 @@ internal sealed partial class JsParser
             JsObjectPropertyKind.Data => dataMask,
             JsObjectPropertyKind.Getter => getMask,
             JsObjectPropertyKind.Setter => setMask,
-            _ => dataMask
+            _ => dataMask,
         };
 
         if (!propertyKinds.TryGetMask(key, out var previousMask))
@@ -3688,9 +4601,7 @@ internal sealed partial class JsParser
 
         var previousIsData = (previousMask & dataMask) != 0;
         var nextIsData = nextMask == dataMask;
-        if (key == "__proto__" && previousIsData && nextIsData)
-        {
-        }
+        if (key == "__proto__" && previousIsData && nextIsData) { }
 
         propertyKinds.SetMask(key, (byte)(previousMask | nextMask));
     }
@@ -3699,19 +4610,25 @@ internal sealed partial class JsParser
     {
         for (var i = 1; i + 1 < rawTokenText.Length; i++)
         {
-            if (rawTokenText[i] != '\\') continue;
+            if (rawTokenText[i] != '\\')
+                continue;
 
             var slashCount = 1;
-            for (var j = i - 1; j >= 0 && rawTokenText[j] == '\\'; j--) slashCount++;
+            for (var j = i - 1; j >= 0 && rawTokenText[j] == '\\'; j--)
+                slashCount++;
 
-            if ((slashCount & 1) == 0 || i + 1 >= rawTokenText.Length) continue;
+            if ((slashCount & 1) == 0 || i + 1 >= rawTokenText.Length)
+                continue;
 
             var next = rawTokenText[i + 1];
-            if (next is >= '1' and <= '9') return true;
+            if (next is >= '1' and <= '9')
+                return true;
 
-            if (next == '0' &&
-                i + 2 < rawTokenText.Length &&
-                rawTokenText[i + 2] is >= '0' and <= '9')
+            if (
+                next == '0'
+                && i + 2 < rawTokenText.Length
+                && rawTokenText[i + 2] is >= '0' and <= '9'
+            )
                 return true;
         }
 
@@ -3720,16 +4637,22 @@ internal sealed partial class JsParser
 
     private void ConsumeOptionalSemicolon()
     {
-        if (Match(JsTokenKind.Semicolon)) return;
+        if (Match(JsTokenKind.Semicolon))
+            return;
 
-        if (current.Kind is JsTokenKind.Eof or JsTokenKind.RightBrace || current.HasLineTerminatorBefore) return;
+        if (
+            current.Kind is JsTokenKind.Eof or JsTokenKind.RightBrace
+            || current.HasLineTerminatorBefore
+        )
+            return;
 
         throw Error($"Expected Semicolon but found {current.Kind}", current.Position);
     }
 
     private bool Match(JsTokenKind kind)
     {
-        if (current.Kind != kind) return false;
+        if (current.Kind != kind)
+            return false;
 
         Next();
         return true;
@@ -3737,7 +4660,8 @@ internal sealed partial class JsParser
 
     private JsToken Expect(JsTokenKind kind)
     {
-        if (current.Kind != kind) throw Error($"Expected {kind} but found {current.Kind}", current.Position);
+        if (current.Kind != kind)
+            throw Error($"Expected {kind} but found {current.Kind}", current.Position);
 
         var tok = current;
         Next();
@@ -3759,14 +4683,16 @@ internal sealed partial class JsParser
 
     private JsToken Peek()
     {
-        if (hasPeek) return peek;
+        if (hasPeek)
+            return peek;
 
         peek = lexer.NextToken();
         hasPeek = true;
         return peek;
     }
 
-    private T At<T>(T node, int position) where T : JsNode
+    private T At<T>(T node, int position)
+        where T : JsNode
     {
         node.Position = position + basePosition;
         return node;
@@ -3788,9 +4714,11 @@ internal sealed partial class JsParser
         var closeTokenStack = new PooledTokenKindStack(initialBuffer);
         try
         {
-            closeTokenStack.Push(current.Kind == JsTokenKind.LeftBrace
-                ? JsTokenKind.RightBrace
-                : JsTokenKind.RightBracket);
+            closeTokenStack.Push(
+                current.Kind == JsTokenKind.LeftBrace
+                    ? JsTokenKind.RightBrace
+                    : JsTokenKind.RightBracket
+            );
             Next();
 
             while (closeTokenStack.Count > 0)
@@ -3825,9 +4753,10 @@ internal sealed partial class JsParser
                 return false;
 
             RestoreSnapshot(snapshot);
-            left = current.Kind == JsTokenKind.LeftBrace
-                ? ParseObjectBindingPattern()
-                : ParseArrayPatternExpression();
+            left =
+                current.Kind == JsTokenKind.LeftBrace
+                    ? ParseObjectBindingPattern()
+                    : ParseArrayPatternExpression();
             return current.Kind is JsTokenKind.Assign or JsTokenKind.Arrow;
         }
         catch (JsParseException ex) when (!IsDepthLimitExceeded(ex))
@@ -3852,9 +4781,11 @@ internal sealed partial class JsParser
         var closeTokenStack = new PooledTokenKindStack(initialBuffer);
         try
         {
-            closeTokenStack.Push(current.Kind == JsTokenKind.LeftBrace
-                ? JsTokenKind.RightBrace
-                : JsTokenKind.RightBracket);
+            closeTokenStack.Push(
+                current.Kind == JsTokenKind.LeftBrace
+                    ? JsTokenKind.RightBrace
+                    : JsTokenKind.RightBracket
+            );
             Next();
 
             while (closeTokenStack.Count > 0)
@@ -3908,9 +4839,11 @@ internal sealed partial class JsParser
         var closeTokenStack = new PooledTokenKindStack(initialBuffer);
         try
         {
-            closeTokenStack.Push(current.Kind == JsTokenKind.LeftBrace
-                ? JsTokenKind.RightBrace
-                : JsTokenKind.RightBracket);
+            closeTokenStack.Push(
+                current.Kind == JsTokenKind.LeftBrace
+                    ? JsTokenKind.RightBrace
+                    : JsTokenKind.RightBracket
+            );
             Next();
 
             while (closeTokenStack.Count > 0)
@@ -3944,8 +4877,9 @@ internal sealed partial class JsParser
             if (current.Kind is JsTokenKind.Dot or JsTokenKind.LeftBracket)
                 return true;
 
-            return current.Kind == JsTokenKind.Question && !Peek().HasLineTerminatorBefore &&
-                   Peek().Kind == JsTokenKind.Dot;
+            return current.Kind == JsTokenKind.Question
+                && !Peek().HasLineTerminatorBefore
+                && Peek().Kind == JsTokenKind.Dot;
         }
         catch (JsParseException ex) when (!IsDepthLimitExceeded(ex))
         {
@@ -4003,7 +4937,8 @@ internal sealed partial class JsParser
         bool allowSuperProperty,
         bool allowSuperCall,
         int nestedFunctionTrackingDepth,
-        ulong nestedFunctionTrackingMask)
+        ulong nestedFunctionTrackingMask
+    )
     {
         public readonly int LexerIndex = lexerIndex;
         public readonly JsToken Current = current;
@@ -4019,9 +4954,11 @@ internal sealed partial class JsParser
     }
 
     private readonly record struct LogicalParseInfo(JsExpression Expression, bool HasLogicalAndOr);
+
     private readonly record struct BinaryParseOperatorInfo(
         JsBinaryOperator Operator,
         int Precedence,
         bool IsLogicalAndOr = false,
-        bool IsRightAssociative = false);
+        bool IsRightAssociative = false
+    );
 }

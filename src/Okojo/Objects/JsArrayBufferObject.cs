@@ -13,16 +13,16 @@ public class JsArrayBufferObject : JsObject
     private byte[] bytes;
 
     public JsArrayBufferObject(JsRealm realm, uint byteLength, JsObject? prototype = null)
-        : this(realm, byteLength, null, prototype)
-    {
-    }
+        : this(realm, byteLength, null, prototype) { }
 
     public JsArrayBufferObject(
         JsRealm realm,
         uint byteLength,
         uint? maxByteLength,
         JsObject? prototype = null,
-        bool immutable = false) : base(realm)
+        bool immutable = false
+    )
+        : base(realm)
     {
         if (maxByteLength.HasValue && maxByteLength.Value < byteLength)
             throw new JsRuntimeException(JsErrorKind.RangeError, "Invalid array buffer length");
@@ -33,7 +33,11 @@ public class JsArrayBufferObject : JsObject
         Prototype = prototype ?? realm.ArrayBufferPrototype;
     }
 
-    internal JsArrayBufferObject(JsRealm realm, SharedBufferStorage sharedStorage, JsObject? prototype = null)
+    internal JsArrayBufferObject(
+        JsRealm realm,
+        SharedBufferStorage sharedStorage,
+        JsObject? prototype = null
+    )
         : base(realm)
     {
         bytes = Array.Empty<byte>();
@@ -47,14 +51,19 @@ public class JsArrayBufferObject : JsObject
         IExternalBufferBackingStore externalBackingStore,
         uint? maxByteLength,
         bool isShared,
-        JsObject? prototype = null) : base(realm)
+        JsObject? prototype = null
+    )
+        : base(realm)
     {
         bytes = Array.Empty<byte>();
         this.externalBackingStore = externalBackingStore;
         externalIsShared = isShared;
-        externalSharedWaitersByByteIndex = isShared ? new Dictionary<uint, List<SharedWaiter>>() : null;
+        externalSharedWaitersByByteIndex = isShared
+            ? new Dictionary<uint, List<SharedWaiter>>()
+            : null;
         this.maxByteLength = maxByteLength;
-        Prototype = prototype ?? (isShared ? realm.SharedArrayBufferPrototype : realm.ArrayBufferPrototype);
+        Prototype =
+            prototype ?? (isShared ? realm.SharedArrayBufferPrototype : realm.ArrayBufferPrototype);
     }
 
     public uint ByteLength
@@ -79,7 +88,8 @@ public class JsArrayBufferObject : JsObject
     public bool IsImmutable { get; }
 
     public bool IsShared => sharedStorage is not null || externalIsShared;
-    public bool IsResizable => sharedStorage is null && externalBackingStore is null && maxByteLength.HasValue;
+    public bool IsResizable =>
+        sharedStorage is null && externalBackingStore is null && maxByteLength.HasValue;
     public bool IsGrowable => sharedStorage is not null && maxByteLength.HasValue;
     public uint? MaxByteLength => maxByteLength;
 
@@ -87,7 +97,8 @@ public class JsArrayBufferObject : JsObject
         JsRealm realm,
         IExternalBufferBackingStore externalBackingStore,
         uint? maxByteLength = null,
-        JsObject? prototype = null)
+        JsObject? prototype = null
+    )
     {
         return new(realm, externalBackingStore, maxByteLength, false, prototype);
     }
@@ -96,7 +107,8 @@ public class JsArrayBufferObject : JsObject
         JsRealm realm,
         IExternalBufferBackingStore externalBackingStore,
         uint? maxByteLength = null,
-        JsObject? prototype = null)
+        JsObject? prototype = null
+    )
     {
         return new(realm, externalBackingStore, maxByteLength, true, prototype);
     }
@@ -127,9 +139,15 @@ public class JsArrayBufferObject : JsObject
     internal void Resize(uint newByteLength)
     {
         if (sharedStorage is not null)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "SharedArrayBuffer cannot be resized");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "SharedArrayBuffer cannot be resized"
+            );
         if (externalBackingStore is not null)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "External ArrayBuffer cannot be resized");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "External ArrayBuffer cannot be resized"
+            );
         if (!maxByteLength.HasValue)
             throw new JsRuntimeException(JsErrorKind.TypeError, "ArrayBuffer is not resizable");
         if (IsDetached)
@@ -145,16 +163,24 @@ public class JsArrayBufferObject : JsObject
     internal void GrowShared(uint newByteLength)
     {
         if (sharedStorage is null)
-            throw new JsRuntimeException(JsErrorKind.TypeError,
-                "SharedArrayBuffer.prototype.grow called on incompatible receiver");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "SharedArrayBuffer.prototype.grow called on incompatible receiver"
+            );
 
         lock (sharedStorage.SyncRoot)
         {
             var current = (uint)sharedStorage.Bytes.Length;
             if (!sharedStorage.MaxByteLength.HasValue)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "SharedArrayBuffer is not growable");
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "SharedArrayBuffer is not growable"
+                );
             if (newByteLength < current || newByteLength > sharedStorage.MaxByteLength.Value)
-                throw new JsRuntimeException(JsErrorKind.RangeError, "Invalid shared array buffer length");
+                throw new JsRuntimeException(
+                    JsErrorKind.RangeError,
+                    "Invalid shared array buffer length"
+                );
             if (newByteLength == current)
                 return;
             Array.Resize(ref sharedStorage.Bytes, (int)newByteLength);
@@ -164,25 +190,36 @@ public class JsArrayBufferObject : JsObject
     public void Detach()
     {
         if (sharedStorage is not null)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "SharedArrayBuffer cannot be detached");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "SharedArrayBuffer cannot be detached"
+            );
         if (externalBackingStore is not null)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "External ArrayBuffer cannot be detached");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "External ArrayBuffer cannot be detached"
+            );
         IsDetached = true;
         bytes = Array.Empty<byte>();
     }
 
-    public void RefreshExternalBackingStore()
-    {
-    }
+    public void RefreshExternalBackingStore() { }
 
-    internal JsArrayBufferObject Slice(uint startByteIndex, uint newByteLength, JsObject? prototype = null,
-        uint? newMaxByteLength = null, bool immutableResult = false)
+    internal JsArrayBufferObject Slice(
+        uint startByteIndex,
+        uint newByteLength,
+        JsObject? prototype = null,
+        uint? newMaxByteLength = null,
+        bool immutableResult = false
+    )
     {
         if (sharedStorage is not null)
         {
-            var result = new JsArrayBufferObject(Shape.Owner,
+            var result = new JsArrayBufferObject(
+                Shape.Owner,
                 new SharedBufferStorage(newByteLength, newMaxByteLength),
-                prototype ?? Shape.Owner.SharedArrayBufferPrototype);
+                prototype ?? Shape.Owner.SharedArrayBufferPrototype
+            );
             if (newByteLength != 0)
                 CopyBytesTo(startByteIndex, result, 0, newByteLength);
             return result;
@@ -193,17 +230,30 @@ public class JsArrayBufferObject : JsObject
         if (startByteIndex > ByteLength || newByteLength > ByteLength - startByteIndex)
             throw new JsRuntimeException(JsErrorKind.RangeError, "Invalid array buffer length");
 
-        var output = new JsArrayBufferObject(Shape.Owner, newByteLength, newMaxByteLength, prototype, immutableResult);
+        var output = new JsArrayBufferObject(
+            Shape.Owner,
+            newByteLength,
+            newMaxByteLength,
+            prototype,
+            immutableResult
+        );
         if (newByteLength != 0)
             Array.Copy(bytes, (int)startByteIndex, output.bytes, 0, (int)newByteLength);
         return output;
     }
 
-    internal JsArrayBufferObject Transfer(uint newByteLength, bool fixedLength, JsObject? prototype = null,
-        bool immutableResult = false)
+    internal JsArrayBufferObject Transfer(
+        uint newByteLength,
+        bool fixedLength,
+        JsObject? prototype = null,
+        bool immutableResult = false
+    )
     {
         if (sharedStorage is not null)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "SharedArrayBuffer cannot be transferred");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "SharedArrayBuffer cannot be transferred"
+            );
         if (IsDetached)
             throw new JsRuntimeException(JsErrorKind.TypeError, "ArrayBuffer is detached");
         if (IsImmutable)
@@ -213,8 +263,13 @@ public class JsArrayBufferObject : JsObject
         if (targetMaxByteLength.HasValue && newByteLength > targetMaxByteLength.Value)
             throw new JsRuntimeException(JsErrorKind.RangeError, "Invalid array buffer length");
 
-        var result =
-            new JsArrayBufferObject(Shape.Owner, newByteLength, targetMaxByteLength, prototype, immutableResult);
+        var result = new JsArrayBufferObject(
+            Shape.Owner,
+            newByteLength,
+            targetMaxByteLength,
+            prototype,
+            immutableResult
+        );
         var copyLength = Math.Min((uint)bytes.Length, newByteLength);
         if (copyLength != 0)
             Array.Copy(bytes, 0, result.bytes, 0, (int)copyLength);
@@ -523,7 +578,11 @@ public class JsArrayBufferObject : JsObject
         SetUInt64(byteIndex, unchecked((ulong)BitConverter.DoubleToInt64Bits(value)), littleEndian);
     }
 
-    internal JsValue ReadTypedArrayElement(JsRealm realm, TypedArrayElementKind kind, uint byteIndex)
+    internal JsValue ReadTypedArrayElement(
+        JsRealm realm,
+        TypedArrayElementKind kind,
+        uint byteIndex
+    )
     {
         var nativeLittleEndian = BitConverter.IsLittleEndian;
         return kind switch
@@ -531,28 +590,45 @@ public class JsArrayBufferObject : JsObject
             TypedArrayElementKind.Int8 => JsValue.FromInt32(GetInt8(byteIndex)),
             TypedArrayElementKind.Uint8 => JsValue.FromInt32(GetByte(byteIndex)),
             TypedArrayElementKind.Uint8Clamped => JsValue.FromInt32(GetByte(byteIndex)),
-            TypedArrayElementKind.Int16 => JsValue.FromInt32(GetInt16(byteIndex, nativeLittleEndian)),
-            TypedArrayElementKind.Uint16 => JsValue.FromInt32(GetUInt16(byteIndex, nativeLittleEndian)),
-            TypedArrayElementKind.Int32 => JsValue.FromInt32(GetInt32(byteIndex, nativeLittleEndian)),
+            TypedArrayElementKind.Int16 => JsValue.FromInt32(
+                GetInt16(byteIndex, nativeLittleEndian)
+            ),
+            TypedArrayElementKind.Uint16 => JsValue.FromInt32(
+                GetUInt16(byteIndex, nativeLittleEndian)
+            ),
+            TypedArrayElementKind.Int32 => JsValue.FromInt32(
+                GetInt32(byteIndex, nativeLittleEndian)
+            ),
             TypedArrayElementKind.Uint32 => new((double)GetUInt32(byteIndex, nativeLittleEndian)),
             TypedArrayElementKind.Float16 => new((double)GetFloat16(byteIndex, nativeLittleEndian)),
             TypedArrayElementKind.Float32 => new(GetFloat32(byteIndex, nativeLittleEndian)),
             TypedArrayElementKind.Float64 => new(GetFloat64(byteIndex, nativeLittleEndian)),
             TypedArrayElementKind.BigInt64 => JsValue.FromBigInt(
-                new(new(GetInt64(byteIndex, nativeLittleEndian)))),
+                new(new(GetInt64(byteIndex, nativeLittleEndian)))
+            ),
             TypedArrayElementKind.BigUint64 => JsValue.FromBigInt(
-                new(new(GetUInt64(byteIndex, nativeLittleEndian)))),
-            _ => JsValue.Undefined
+                new(new(GetUInt64(byteIndex, nativeLittleEndian)))
+            ),
+            _ => JsValue.Undefined,
         };
     }
 
-    internal void WriteTypedArrayElement(JsRealm realm, TypedArrayElementKind kind, uint byteIndex, in JsValue value)
+    internal void WriteTypedArrayElement(
+        JsRealm realm,
+        TypedArrayElementKind kind,
+        uint byteIndex,
+        in JsValue value
+    )
     {
         var normalized = TypedArrayElementKindInfo.NormalizeValue(realm, kind, value);
         WriteNormalizedTypedArrayElement(kind, byteIndex, normalized);
     }
 
-    internal void WriteNormalizedTypedArrayElement(TypedArrayElementKind kind, uint byteIndex, in JsValue normalized)
+    internal void WriteNormalizedTypedArrayElement(
+        TypedArrayElementKind kind,
+        uint byteIndex,
+        in JsValue normalized
+    )
     {
         var nativeLittleEndian = BitConverter.IsLittleEndian;
         switch (kind)
@@ -586,10 +662,18 @@ public class JsArrayBufferObject : JsObject
                 SetFloat64(byteIndex, normalized.NumberValue, nativeLittleEndian);
                 break;
             case TypedArrayElementKind.BigInt64:
-                SetInt64(byteIndex, unchecked((long)normalized.AsBigInt().Value), nativeLittleEndian);
+                SetInt64(
+                    byteIndex,
+                    unchecked((long)normalized.AsBigInt().Value),
+                    nativeLittleEndian
+                );
                 break;
             case TypedArrayElementKind.BigUint64:
-                SetUInt64(byteIndex, unchecked((ulong)normalized.AsBigInt().Value), nativeLittleEndian);
+                SetUInt64(
+                    byteIndex,
+                    unchecked((ulong)normalized.AsBigInt().Value),
+                    nativeLittleEndian
+                );
                 break;
         }
     }
@@ -604,8 +688,13 @@ public class JsArrayBufferObject : JsObject
             {
                 EnsureReadableRange(sharedStorage, sourceByteIndex, checked((int)byteCount));
                 EnsureWritableRange(sharedStorage, targetByteIndex, checked((int)byteCount));
-                Array.Copy(sharedStorage.Bytes, (int)sourceByteIndex, sharedStorage.Bytes, (int)targetByteIndex,
-                    (int)byteCount);
+                Array.Copy(
+                    sharedStorage.Bytes,
+                    (int)sourceByteIndex,
+                    sharedStorage.Bytes,
+                    (int)targetByteIndex,
+                    (int)byteCount
+                );
                 return;
             }
 
@@ -614,7 +703,12 @@ public class JsArrayBufferObject : JsObject
         Array.Copy(bytes, (int)sourceByteIndex, bytes, (int)targetByteIndex, (int)byteCount);
     }
 
-    internal void CopyBytesTo(uint sourceByteIndex, JsArrayBufferObject target, uint targetByteIndex, uint byteCount)
+    internal void CopyBytesTo(
+        uint sourceByteIndex,
+        JsArrayBufferObject target,
+        uint targetByteIndex,
+        uint byteCount
+    )
     {
         if (byteCount == 0)
             return;
@@ -623,7 +717,12 @@ public class JsArrayBufferObject : JsObject
             lock (sharedStorage.SyncRoot)
             {
                 EnsureReadableRange(sharedStorage, sourceByteIndex, checked((int)byteCount));
-                target.CopyBytesFromShared(sharedStorage.Bytes, targetByteIndex, sourceByteIndex, byteCount);
+                target.CopyBytesFromShared(
+                    sharedStorage.Bytes,
+                    targetByteIndex,
+                    sourceByteIndex,
+                    byteCount
+                );
                 return;
             }
 
@@ -635,7 +734,9 @@ public class JsArrayBufferObject : JsObject
     {
         if (sharedStorage is null && externalSharedWaitersByByteIndex is null)
             throw new InvalidOperationException("ArrayBuffer is not shared.");
-        var waiter = new SharedWaiter(realm.Engine.Options.SharedWaiterControllerFactory.CreateController(realm));
+        var waiter = new SharedWaiter(
+            realm.Engine.Options.SharedWaiterControllerFactory.CreateController(realm)
+        );
         lock (GetSharedSyncRoot())
         {
             var waitersByByteIndex = sharedStorage is not null
@@ -666,7 +767,9 @@ public class JsArrayBufferObject : JsObject
             waitersByByteIndex[byteIndex] = waiters;
         }
 
-        var waiter = new SharedWaiter(realm.Engine.Options.SharedWaiterControllerFactory.CreateController(realm));
+        var waiter = new SharedWaiter(
+            realm.Engine.Options.SharedWaiterControllerFactory.CreateController(realm)
+        );
         waiters.Add(waiter);
         return waiter;
     }
@@ -721,13 +824,24 @@ public class JsArrayBufferObject : JsObject
         return waitersToWake.Count;
     }
 
-    private void CopyBytesFromShared(byte[] source, uint targetByteIndex, uint sourceByteIndex, uint byteCount)
+    private void CopyBytesFromShared(
+        byte[] source,
+        uint targetByteIndex,
+        uint sourceByteIndex,
+        uint byteCount
+    )
     {
         if (sharedStorage is not null)
             lock (sharedStorage.SyncRoot)
             {
                 EnsureWritableRange(sharedStorage, targetByteIndex, checked((int)byteCount));
-                Array.Copy(source, (int)sourceByteIndex, sharedStorage.Bytes, (int)targetByteIndex, (int)byteCount);
+                Array.Copy(
+                    source,
+                    (int)sourceByteIndex,
+                    sharedStorage.Bytes,
+                    (int)targetByteIndex,
+                    (int)byteCount
+                );
                 return;
             }
 
@@ -735,13 +849,24 @@ public class JsArrayBufferObject : JsObject
         Array.Copy(source, (int)sourceByteIndex, bytes, (int)targetByteIndex, (int)byteCount);
     }
 
-    private void CopyBytesFromLocal(byte[] source, uint targetByteIndex, uint sourceByteIndex, uint byteCount)
+    private void CopyBytesFromLocal(
+        byte[] source,
+        uint targetByteIndex,
+        uint sourceByteIndex,
+        uint byteCount
+    )
     {
         if (sharedStorage is not null)
             lock (sharedStorage.SyncRoot)
             {
                 EnsureWritableRange(sharedStorage, targetByteIndex, checked((int)byteCount));
-                Array.Copy(source, (int)sourceByteIndex, sharedStorage.Bytes, (int)targetByteIndex, (int)byteCount);
+                Array.Copy(
+                    source,
+                    (int)sourceByteIndex,
+                    sharedStorage.Bytes,
+                    (int)targetByteIndex,
+                    (int)byteCount
+                );
                 return;
             }
 
@@ -765,14 +890,20 @@ public class JsArrayBufferObject : JsObject
     {
         var byteLength = (uint)storage.Bytes.Length;
         if (byteIndex > byteLength || size > byteLength - byteIndex)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "SharedArrayBuffer is out of bounds");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "SharedArrayBuffer is out of bounds"
+            );
     }
 
     private static void EnsureWritableRange(SharedBufferStorage storage, uint byteIndex, int size)
     {
         var byteLength = (uint)storage.Bytes.Length;
         if (byteIndex > byteLength || size > byteLength - byteIndex)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "SharedArrayBuffer is out of bounds");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "SharedArrayBuffer is out of bounds"
+            );
     }
 
     public interface IExternalBufferBackingStore
@@ -786,17 +917,20 @@ public class JsArrayBufferObject : JsObject
     public sealed class DelegateExternalBufferBackingStore(
         Func<Span<byte>> getSpan,
         Func<IntPtr> getPointer,
-        object syncRoot)
-        : IExternalBufferBackingStore
+        object syncRoot
+    ) : IExternalBufferBackingStore
     {
-        private readonly Func<IntPtr> getPointer = getPointer ?? throw new ArgumentNullException(nameof(getPointer));
-        private readonly Func<Span<byte>> getSpan = getSpan ?? throw new ArgumentNullException(nameof(getSpan));
+        private readonly Func<IntPtr> getPointer =
+            getPointer ?? throw new ArgumentNullException(nameof(getPointer));
+        private readonly Func<Span<byte>> getSpan =
+            getSpan ?? throw new ArgumentNullException(nameof(getSpan));
 
         public int ByteLength => getSpan().Length;
 
         public IntPtr Pointer => getPointer();
 
-        public object SyncRoot { get; } = syncRoot ?? throw new ArgumentNullException(nameof(syncRoot));
+        public object SyncRoot { get; } =
+            syncRoot ?? throw new ArgumentNullException(nameof(syncRoot));
 
         public Span<byte> GetSpan()
         {

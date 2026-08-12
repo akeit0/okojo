@@ -7,7 +7,7 @@
         <LangVersion>14</LangVersion>
     </PropertyGroup>
     <ItemGroup>
-        <ProjectReference Include="..\..\src\Okojo\Okojo.csproj"/>
-        <ProjectReference Include="..\..\src\Okojo.Diagnostics\Okojo.Diagnostics.csproj"/>
+        <ProjectReference Include="..\..\src\Okojo\Okojo.csproj" />
+        <ProjectReference Include="..\..\src\Okojo.Diagnostics\Okojo.Diagnostics.csproj" />
     </ItemGroup>
 </Project>

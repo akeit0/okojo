@@ -23,7 +23,8 @@ public sealed partial class JsCompiler
         int privateBrandSourceReg = -1,
         IReadOnlyList<int>? inheritedPrivateBrandIds = null,
         int inheritedPrivateBrandSourceReg = -1,
-        IReadOnlyList<PrivateBrandSourceMapping>? explicitPrivateBrandMappings = null)
+        IReadOnlyList<PrivateBrandSourceMapping>? explicitPrivateBrandMappings = null
+    )
     {
         var needsMethodEnvironment = functionObj.UsesMethodEnvironmentCapture;
         if (!needsMethodEnvironment)
@@ -33,10 +34,14 @@ public sealed partial class JsCompiler
             if (privateBrandSourceReg >= 0)
                 EmitSetFunctionPrivateBrandTokenFromAccumulator(privateBrandSourceReg);
             if (inheritedPrivateBrandSourceReg >= 0 && inheritedPrivateBrandIds is not null)
-                EmitSetFunctionPrivateBrandMappingsFromAccumulator(inheritedPrivateBrandSourceReg,
-                    inheritedPrivateBrandIds);
+                EmitSetFunctionPrivateBrandMappingsFromAccumulator(
+                    inheritedPrivateBrandSourceReg,
+                    inheritedPrivateBrandIds
+                );
             if (explicitPrivateBrandMappings is not null)
-                EmitSetFunctionPrivateBrandMappingsFromAccumulatorExact(explicitPrivateBrandMappings);
+                EmitSetFunctionPrivateBrandMappingsFromAccumulatorExact(
+                    explicitPrivateBrandMappings
+                );
             return;
         }
 
@@ -56,8 +61,10 @@ public sealed partial class JsCompiler
         if (privateBrandSourceReg >= 0)
             EmitSetFunctionPrivateBrandTokenFromAccumulator(privateBrandSourceReg);
         if (inheritedPrivateBrandSourceReg >= 0 && inheritedPrivateBrandIds is not null)
-            EmitSetFunctionPrivateBrandMappingsFromAccumulator(inheritedPrivateBrandSourceReg,
-                inheritedPrivateBrandIds);
+            EmitSetFunctionPrivateBrandMappingsFromAccumulator(
+                inheritedPrivateBrandSourceReg,
+                inheritedPrivateBrandIds
+            );
         if (explicitPrivateBrandMappings is not null)
             EmitSetFunctionPrivateBrandMappingsFromAccumulatorExact(explicitPrivateBrandMappings);
         EmitPopContext();
@@ -97,7 +104,11 @@ public sealed partial class JsCompiler
         }
     }
 
-    private void EmitSetFunctionMethodEnvironment(int targetReg, int homeObjectReg, int classLexicalReg = -1)
+    private void EmitSetFunctionMethodEnvironment(
+        int targetReg,
+        int homeObjectReg,
+        int classLexicalReg = -1
+    )
     {
         var tempScope = BeginTemporaryRegisterScope();
         try
@@ -121,7 +132,8 @@ public sealed partial class JsCompiler
 
     private void EmitSetFunctionPrivateBrandMappingsFromAccumulator(
         int brandSourceReg,
-        IReadOnlyList<int> brandIds)
+        IReadOnlyList<int> brandIds
+    )
     {
         if (brandIds.Count == 0)
             return;
@@ -146,20 +158,23 @@ public sealed partial class JsCompiler
     }
 
     private void EmitSetFunctionPrivateBrandMappingsFromAccumulator(
-        IReadOnlyList<PrivateBrandSourceMapping> brandMappings)
+        IReadOnlyList<PrivateBrandSourceMapping> brandMappings
+    )
     {
         EmitSetFunctionPrivateBrandMappingsFromAccumulator(brandMappings, false);
     }
 
     private void EmitSetFunctionPrivateBrandMappingsFromAccumulatorExact(
-        IReadOnlyList<PrivateBrandSourceMapping> brandMappings)
+        IReadOnlyList<PrivateBrandSourceMapping> brandMappings
+    )
     {
         EmitSetFunctionPrivateBrandMappingsFromAccumulator(brandMappings, true);
     }
 
     private void EmitSetFunctionPrivateBrandMappingsFromAccumulatorExact(
         int brandSourceReg,
-        IReadOnlyList<int> brandIds)
+        IReadOnlyList<int> brandIds
+    )
     {
         if (brandIds.Count == 0)
             return;
@@ -185,7 +200,8 @@ public sealed partial class JsCompiler
 
     private void EmitSetFunctionPrivateBrandMappingsFromAccumulator(
         IReadOnlyList<PrivateBrandSourceMapping> brandMappings,
-        bool exactSource)
+        bool exactSource
+    )
     {
         if (brandMappings.Count == 0)
             return;
@@ -205,7 +221,8 @@ public sealed partial class JsCompiler
                         ? RuntimeId.SetFunctionPrivateBrandMappingExact
                         : RuntimeId.SetFunctionPrivateBrandMapping,
                     argStart,
-                    3);
+                    3
+                );
             }
         }
         finally
@@ -278,21 +295,32 @@ public sealed partial class JsCompiler
         {
             var parameterPlan = FunctionParameterPlan.FromFunction(methodExpr);
             var methodObj = CompileFunctionObject(
-                !property.IsComputed && string.IsNullOrEmpty(methodExpr.Name) ? property.Key : methodExpr.Name,
+                !property.IsComputed && string.IsNullOrEmpty(methodExpr.Name)
+                    ? property.Key
+                    : methodExpr.Name,
                 parameterPlan,
                 methodExpr.Body,
-                CreateFunctionShape(methodExpr.IsGenerator, methodExpr.IsAsync, methodExpr.IsArrow,
-                    true),
+                CreateFunctionShape(
+                    methodExpr.IsGenerator,
+                    methodExpr.IsAsync,
+                    methodExpr.IsArrow,
+                    true
+                ),
                 sourceStartPosition: methodExpr.Position,
-                useMethodEnvironmentCapture: true);
+                useMethodEnvironmentCapture: true
+            );
             if (methodObj.RequiresClosureBinding)
                 requiresClosureBinding = true;
             EmitCreateClosureForMethodWithEnvironment(methodObj, objectRegister);
             return;
         }
 
-        if (!property.IsComputed &&
-            property.Value is JsFunctionExpression { Name: null } or JsClassExpression { Name: null })
+        if (
+            !property.IsComputed
+            && property.Value
+                is JsFunctionExpression { Name: null }
+                    or JsClassExpression { Name: null }
+        )
         {
             VisitExpressionWithInferredName(property.Value, property.Key);
             return;
@@ -326,7 +354,8 @@ public sealed partial class JsCompiler
         int thisReg,
         int keyReg,
         string invalidKeyMessage,
-        out int namedSuperNameIdx)
+        out int namedSuperNameIdx
+    )
     {
         builder.EmitLda(JsOpCode.LdaThis);
         EmitStarRegister(thisReg);
@@ -356,7 +385,11 @@ public sealed partial class JsCompiler
         namedSuperNameIdx = builder.AddAtomizedStringConstant(namedSuperName);
     }
 
-    private void EmitLoadSuperPropertyFromPrepared(JsMemberExpression superMember, int thisReg, int namedSuperNameIdx)
+    private void EmitLoadSuperPropertyFromPrepared(
+        JsMemberExpression superMember,
+        int thisReg,
+        int namedSuperNameIdx
+    )
     {
         if (superMember.IsComputed)
             EmitCallRuntime(RuntimeId.LoadKeyedFromSuper, thisReg, 2);
@@ -374,8 +407,11 @@ public sealed partial class JsCompiler
         EmitArrayDestructuringAssignment(pattern, right, false);
     }
 
-    private void EmitArrayDestructuringAssignment(JsArrayExpression pattern, JsExpression right,
-        bool initializeIdentifiers)
+    private void EmitArrayDestructuringAssignment(
+        JsArrayExpression pattern,
+        JsExpression right,
+        bool initializeIdentifiers
+    )
     {
         var tempScope = BeginTemporaryRegisterScope();
         try
@@ -384,7 +420,12 @@ public sealed partial class JsCompiler
             VisitExpression(right);
             var rightReg = AllocateTemporaryRegister();
             EmitStarRegister(rightReg);
-            EmitArrayDestructuringAssignmentFromRegister(pattern, rightReg, elements, initializeIdentifiers);
+            EmitArrayDestructuringAssignmentFromRegister(
+                pattern,
+                rightReg,
+                elements,
+                initializeIdentifiers
+            );
         }
         finally
         {
@@ -397,8 +438,11 @@ public sealed partial class JsCompiler
         EmitObjectDestructuringAssignment(pattern, right, false);
     }
 
-    private void EmitObjectDestructuringAssignment(JsObjectExpression pattern, JsExpression right,
-        bool initializeIdentifiers)
+    private void EmitObjectDestructuringAssignment(
+        JsObjectExpression pattern,
+        JsExpression right,
+        bool initializeIdentifiers
+    )
     {
         var tempScope = BeginTemporaryRegisterScope();
         try
@@ -408,7 +452,12 @@ public sealed partial class JsCompiler
             VisitExpression(right);
             var rightReg = AllocateTemporaryRegister();
             EmitStarRegister(rightReg);
-            EmitObjectDestructuringAssignmentFromRegister(pattern, rightReg, elements, initializeIdentifiers);
+            EmitObjectDestructuringAssignmentFromRegister(
+                pattern,
+                rightReg,
+                elements,
+                initializeIdentifiers
+            );
         }
         finally
         {
@@ -430,9 +479,13 @@ public sealed partial class JsCompiler
 
             if (element is JsSpreadExpression spread)
             {
-                var (restTarget, restDefaultExpression) = ExtractAssignmentTargetWithDefault(spread.Argument);
+                var (restTarget, restDefaultExpression) = ExtractAssignmentTargetWithDefault(
+                    spread.Argument
+                );
                 if (restDefaultExpression is not null)
-                    throw new NotSupportedException("Array rest destructuring does not support defaults.");
+                    throw new NotSupportedException(
+                        "Array rest destructuring does not support defaults."
+                    );
                 elements[i] = new(restTarget, null, false, true);
                 continue;
             }
@@ -452,22 +505,22 @@ public sealed partial class JsCompiler
             var property = pattern.Properties[i];
             if (property.Kind == JsObjectPropertyKind.Spread)
             {
-                var (restTarget, restDefaultExpression) = ExtractAssignmentTargetWithDefault(property.Value);
+                var (restTarget, restDefaultExpression) = ExtractAssignmentTargetWithDefault(
+                    property.Value
+                );
                 if (restDefaultExpression is not null)
-                    throw new NotSupportedException("Object rest destructuring does not support defaults.");
+                    throw new NotSupportedException(
+                        "Object rest destructuring does not support defaults."
+                    );
 
-                elements[i] = new(
-                    null,
-                    null,
-                    restTarget,
-                    null,
-                    true);
+                elements[i] = new(null, null, restTarget, null, true);
                 continue;
             }
 
             if (property.Kind != JsObjectPropertyKind.Data)
                 throw new NotSupportedException(
-                    "Object destructuring assignment currently supports data properties and rest.");
+                    "Object destructuring assignment currently supports data properties and rest."
+                );
 
             var (target, defaultExpression) = ExtractAssignmentTargetWithDefault(property.Value);
             elements[i] = new(
@@ -475,27 +528,35 @@ public sealed partial class JsCompiler
                 property.ComputedKey,
                 target,
                 defaultExpression,
-                false);
+                false
+            );
         }
 
         return elements;
     }
 
-    private static (JsExpression Target, JsExpression? DefaultExpression) ExtractAssignmentTargetWithDefault(
-        JsExpression expression)
+    private static (
+        JsExpression Target,
+        JsExpression? DefaultExpression
+    ) ExtractAssignmentTargetWithDefault(JsExpression expression)
     {
         return expression switch
         {
-            JsIdentifierExpression or JsMemberExpression or JsArrayExpression or JsObjectExpression => (expression,
-                null),
+            JsIdentifierExpression
+            or JsMemberExpression
+            or JsArrayExpression
+            or JsObjectExpression => (expression, null),
             JsAssignmentExpression
             {
                 Operator: JsAssignmentOperator.Assign,
-                Left: JsIdentifierExpression or JsMemberExpression or JsArrayExpression or JsObjectExpression
-            } assign => (
-                assign.Left, assign.Right),
+                Left: JsIdentifierExpression
+                    or JsMemberExpression
+                    or JsArrayExpression
+                    or JsObjectExpression
+            } assign => (assign.Left, assign.Right),
             _ => throw new NotSupportedException(
-                "Destructuring assignment currently supports identifier/member/pattern targets and simple defaults only.")
+                "Destructuring assignment currently supports identifier/member/pattern targets and simple defaults only."
+            ),
         };
     }
 
@@ -509,7 +570,8 @@ public sealed partial class JsCompiler
 
         if (member.Object is JsSuperExpression)
             throw new NotSupportedException(
-                "Super destructuring assignment targets are not supported in Okojo Phase 1.");
+                "Super destructuring assignment targets are not supported in Okojo Phase 1."
+            );
         int objectReg;
         if (!TryGetPlainLocalReadRegister(member.Object, out objectReg))
         {
@@ -522,7 +584,8 @@ public sealed partial class JsCompiler
         {
             if (!TryResolvePrivateMemberBinding(member, out var privateBinding))
                 throw new NotSupportedException(
-                    "Private destructuring assignment target shape is not supported in Okojo Phase 1.");
+                    "Private destructuring assignment target shape is not supported in Okojo Phase 1."
+                );
 
             return new(null, objectReg, -1, null, privateBinding);
         }
@@ -536,12 +599,17 @@ public sealed partial class JsCompiler
         }
 
         if (!TryGetNamedMemberKey(member, out var memberName))
-            throw new NotSupportedException("Only named or computed destructuring member targets are supported.");
+            throw new NotSupportedException(
+                "Only named or computed destructuring member targets are supported."
+            );
 
         return new(null, objectReg, -1, memberName);
     }
 
-    private void EmitDestructuringDefaultIfNeeded(JsExpression? defaultExpression, string? inferredName = null)
+    private void EmitDestructuringDefaultIfNeeded(
+        JsExpression? defaultExpression,
+        string? inferredName = null
+    )
     {
         if (defaultExpression is null)
             return;
@@ -557,11 +625,17 @@ public sealed partial class JsCompiler
         builder.BindLabel(doneLabel);
     }
 
-    private void EmitStoreOrDestructureAssignmentTarget(JsExpression target, bool initializeIdentifiers = false)
+    private void EmitStoreOrDestructureAssignmentTarget(
+        JsExpression target,
+        bool initializeIdentifiers = false
+    )
     {
         if (target is JsIdentifierExpression or JsMemberExpression)
         {
-            EmitStorePreparedDestructuringTarget(PrepareDestructuringTarget(target), initializeIdentifiers);
+            EmitStorePreparedDestructuringTarget(
+                PrepareDestructuringTarget(target),
+                initializeIdentifiers
+            );
             return;
         }
 
@@ -570,20 +644,30 @@ public sealed partial class JsCompiler
         switch (target)
         {
             case JsObjectExpression objectPattern:
-                EmitObjectDestructuringAssignmentFromRegister(objectPattern, tempReg,
-                    initializeIdentifiers: initializeIdentifiers);
+                EmitObjectDestructuringAssignmentFromRegister(
+                    objectPattern,
+                    tempReg,
+                    initializeIdentifiers: initializeIdentifiers
+                );
                 break;
             case JsArrayExpression arrayPattern:
-                EmitArrayDestructuringAssignmentFromRegister(arrayPattern, tempReg,
-                    initializeIdentifiers: initializeIdentifiers);
+                EmitArrayDestructuringAssignmentFromRegister(
+                    arrayPattern,
+                    tempReg,
+                    initializeIdentifiers: initializeIdentifiers
+                );
                 break;
             default:
-                throw new NotSupportedException("Destructuring assignment target is not supported.");
+                throw new NotSupportedException(
+                    "Destructuring assignment target is not supported."
+                );
         }
     }
 
-    private void EmitStoreOrDestructureAssignmentTargetPreservingValue(JsExpression target,
-        bool initializeIdentifiers = false)
+    private void EmitStoreOrDestructureAssignmentTargetPreservingValue(
+        JsExpression target,
+        bool initializeIdentifiers = false
+    )
     {
         if (target is JsIdentifierExpression or JsMemberExpression)
         {
@@ -624,7 +708,11 @@ public sealed partial class JsCompiler
         {
             case IdentifierStoreBindingKind.ModuleVariable:
                 StoreIdentifier(identifier);
-                builder.EmitLda(JsOpCode.LdaModuleVariable, unchecked((byte)binding.Slot), (byte)binding.Depth);
+                builder.EmitLda(
+                    JsOpCode.LdaModuleVariable,
+                    unchecked((byte)binding.Slot),
+                    (byte)binding.Depth
+                );
                 return true;
             case IdentifierStoreBindingKind.CurrentLocal:
                 StoreIdentifier(identifier);
@@ -646,7 +734,8 @@ public sealed partial class JsCompiler
         JsArrayExpression pattern,
         int rightReg,
         ArrayAssignmentElement[]? precomputedElements = null,
-        bool initializeIdentifiers = false)
+        bool initializeIdentifiers = false
+    )
     {
         var elements = precomputedElements ?? ExtractArrayAssignmentElements(pattern);
         if (initializeIdentifiers)
@@ -674,7 +763,8 @@ public sealed partial class JsCompiler
     }
 
     private static bool RequiresGeneratorAwareArrayAssignment(
-        IReadOnlyList<ArrayAssignmentElement> elements)
+        IReadOnlyList<ArrayAssignmentElement> elements
+    )
     {
         for (var i = 0; i < elements.Count; i++)
         {
@@ -682,13 +772,22 @@ public sealed partial class JsCompiler
             if (element.Target is JsIdentifierExpression { Name: "arguments" })
                 return true;
 
-            if (element.DefaultExpression is not null &&
-                ExpressionRequiresCurrentGeneratorExecution(element.DefaultExpression))
+            if (
+                element.DefaultExpression is not null
+                && ExpressionRequiresCurrentGeneratorExecution(element.DefaultExpression)
+            )
                 return true;
 
-            if (element.Target is JsMemberExpression memberTarget &&
-                (ExpressionRequiresCurrentGeneratorExecution(memberTarget.Object) ||
-                 (memberTarget.IsComputed && ExpressionRequiresCurrentGeneratorExecution(memberTarget.Property))))
+            if (
+                element.Target is JsMemberExpression memberTarget
+                && (
+                    ExpressionRequiresCurrentGeneratorExecution(memberTarget.Object)
+                    || (
+                        memberTarget.IsComputed
+                        && ExpressionRequiresCurrentGeneratorExecution(memberTarget.Property)
+                    )
+                )
+            )
                 return true;
         }
 
@@ -696,7 +795,8 @@ public sealed partial class JsCompiler
     }
 
     private static bool RequiresSinglePhaseArrayAssignment(
-        IReadOnlyList<ArrayAssignmentElement> elements)
+        IReadOnlyList<ArrayAssignmentElement> elements
+    )
     {
         for (var i = 0; i < elements.Count; i++)
         {
@@ -712,7 +812,8 @@ public sealed partial class JsCompiler
 
     private void EmitArrayDestructuringAssignmentFromRegisterFastPath(
         int rightReg,
-        IReadOnlyList<ArrayAssignmentElement> elements)
+        IReadOnlyList<ArrayAssignmentElement> elements
+    )
     {
         var argStart = AllocateTemporaryRegisterBlock(1 + elements.Count);
         EmitMoveRegister(rightReg, argStart);
@@ -748,7 +849,8 @@ public sealed partial class JsCompiler
     private void EmitArrayDestructuringAssignmentFromRegisterGeneratorAware(
         int rightReg,
         IReadOnlyList<ArrayAssignmentElement> elements,
-        bool initializeIdentifiers = false)
+        bool initializeIdentifiers = false
+    )
     {
         var iteratorReg = AllocateTemporaryRegister();
         var doneReg = AllocateSyntheticLocal($"$destr.iter.done.{finallyTempUniqueId}");
@@ -779,12 +881,9 @@ public sealed partial class JsCompiler
 
         var routeMap = new FinallyJumpRouteMap();
         builder.EmitJump(JsOpCode.PushTry, catchLabel);
-        activeFinallyFlow.Push(new(
-            completionKindReg,
-            completionValueReg,
-            finallyFromTryLabel,
-            true,
-            routeMap));
+        activeFinallyFlow.Push(
+            new(completionKindReg, completionValueReg, finallyFromTryLabel, true, routeMap)
+        );
         try
         {
             var elementValueReg = AllocateTemporaryRegister();
@@ -820,10 +919,15 @@ public sealed partial class JsCompiler
                     {
                         EmitLdaRegister(restValueReg);
                         if (preparedTarget is { } preparedRestTarget)
-                            EmitStorePreparedDestructuringTarget(preparedRestTarget, initializeIdentifiers);
+                            EmitStorePreparedDestructuringTarget(
+                                preparedRestTarget,
+                                initializeIdentifiers
+                            );
                         else
-                            EmitStoreOrDestructureAssignmentTargetPreservingValue(element.Target,
-                                initializeIdentifiers);
+                            EmitStoreOrDestructureAssignmentTargetPreservingValue(
+                                element.Target,
+                                initializeIdentifiers
+                            );
                     }
 
                     continue;
@@ -845,16 +949,24 @@ public sealed partial class JsCompiler
                 EmitLdaRegister(elementValueReg);
                 builder.BindLabel(afterValueLabel);
 
-                EmitDestructuringDefaultIfNeeded(element.DefaultExpression,
+                EmitDestructuringDefaultIfNeeded(
+                    element.DefaultExpression,
                     TryGetIdentifierDestructuringTargetName(element.Target!, out var inferredName)
                         ? inferredName
-                        : null);
+                        : null
+                );
                 if (element.Target is not null)
                 {
                     if (preparedTarget is { } preparedElementTarget)
-                        EmitStorePreparedDestructuringTarget(preparedElementTarget, initializeIdentifiers);
+                        EmitStorePreparedDestructuringTarget(
+                            preparedElementTarget,
+                            initializeIdentifiers
+                        );
                     else
-                        EmitStoreOrDestructureAssignmentTargetPreservingValue(element.Target, initializeIdentifiers);
+                        EmitStoreOrDestructureAssignmentTargetPreservingValue(
+                            element.Target,
+                            initializeIdentifiers
+                        );
                 }
             }
         }
@@ -925,7 +1037,8 @@ public sealed partial class JsCompiler
 
     private void EmitArrayDestructuringAssignmentFromRegisterSinglePhase(
         int rightReg,
-        IReadOnlyList<ArrayAssignmentElement> elements)
+        IReadOnlyList<ArrayAssignmentElement> elements
+    )
     {
         var argStart = AllocateTemporaryRegisterBlock(1 + elements.Count * 4);
         EmitMoveRegister(rightReg, argStart);
@@ -974,14 +1087,16 @@ public sealed partial class JsCompiler
                     {
                         EmitZeroArgArrowThunk(memberTarget.Property);
                         EmitStarRegister(specStart + 1);
-                        flags |= ArrayAssignmentTargetFlagComputed | ArrayAssignmentTargetFlagKeyIsThunk;
+                        flags |=
+                            ArrayAssignmentTargetFlagComputed | ArrayAssignmentTargetFlagKeyIsThunk;
                     }
                 }
                 else
                 {
                     if (!TryGetNamedMemberKey(memberTarget, out var memberName))
                         throw new NotSupportedException(
-                            "Only named or computed destructuring member targets are supported.");
+                            "Only named or computed destructuring member targets are supported."
+                        );
                     var keyIdx = builder.AddObjectConstant(memberName);
                     EmitLdaStringConstantByIndex(keyIdx);
                     EmitStarRegister(specStart + 1);
@@ -1001,7 +1116,10 @@ public sealed partial class JsCompiler
 
             if (element.DefaultExpression is not null)
             {
-                var inferredName = TryGetIdentifierDestructuringTargetName(element.Target!, out var targetName)
+                var inferredName = TryGetIdentifierDestructuringTargetName(
+                    element.Target!,
+                    out var targetName
+                )
                     ? targetName
                     : null;
                 EmitZeroArgArrowThunk(element.DefaultExpression, inferredName);
@@ -1014,14 +1132,19 @@ public sealed partial class JsCompiler
             EmitStarRegister(specStart + 3);
         }
 
-        EmitCallRuntime(RuntimeId.DestructureArrayAssignmentMemberTargets, argStart, 1 + elements.Count * 4);
+        EmitCallRuntime(
+            RuntimeId.DestructureArrayAssignmentMemberTargets,
+            argStart,
+            1 + elements.Count * 4
+        );
     }
 
     private void EmitObjectDestructuringAssignmentFromRegister(
         JsObjectExpression pattern,
         int rightReg,
         ObjectAssignmentElement[]? precomputedElements = null,
-        bool initializeIdentifiers = false)
+        bool initializeIdentifiers = false
+    )
     {
         var elements = precomputedElements ?? ExtractObjectAssignmentElements(pattern);
         EmitCallRuntime(RuntimeId.RequireObjectCoercible, rightReg, 1);
@@ -1045,7 +1168,12 @@ public sealed partial class JsCompiler
 
             if (element.IsRest)
             {
-                EmitObjectRestDestructuringAssignment(element.Target, rightReg, excludedKeys, initializeIdentifiers);
+                EmitObjectRestDestructuringAssignment(
+                    element.Target,
+                    rightReg,
+                    excludedKeys,
+                    initializeIdentifiers
+                );
                 continue;
             }
 
@@ -1059,7 +1187,12 @@ public sealed partial class JsCompiler
             }
             else
             {
-                if (TryGetNumericStaticDestructuringIndex(element.StaticSourceKey!, out var numericIndex))
+                if (
+                    TryGetNumericStaticDestructuringIndex(
+                        element.StaticSourceKey!,
+                        out var numericIndex
+                    )
+                )
                 {
                     EmitLda(numericIndex);
                     EmitLdaKeyedProperty(rightReg);
@@ -1072,10 +1205,12 @@ public sealed partial class JsCompiler
                 }
             }
 
-            EmitDestructuringDefaultIfNeeded(element.DefaultExpression,
+            EmitDestructuringDefaultIfNeeded(
+                element.DefaultExpression,
                 TryGetIdentifierDestructuringTargetName(element.Target, out var inferredName)
                     ? inferredName
-                    : null);
+                    : null
+            );
             if (preparedTargets[i] is { } preparedTarget)
                 EmitStorePreparedDestructuringTarget(preparedTarget, initializeIdentifiers);
             else
@@ -1091,7 +1226,8 @@ public sealed partial class JsCompiler
         JsExpression target,
         int sourceObjectRegister,
         List<ObjectRestExcludedKey> excludedKeys,
-        bool initializeIdentifiers = false)
+        bool initializeIdentifiers = false
+    )
     {
         var restObjectReg = AllocateTemporaryRegister();
         EmitCreateEmptyObjectLiteral();
@@ -1122,48 +1258,57 @@ public sealed partial class JsCompiler
 
     private void VisitExpressionWithInferredName(JsExpression expression, string? inferredName)
     {
-        if (!string.IsNullOrEmpty(inferredName) &&
-            expression is JsFunctionExpression
-            {
-                Name: null,
-                Parameters: var parameters,
-                Body: var body,
-                IsGenerator: var isGenerator,
-                IsAsync: var isAsync,
-                IsArrow: var isArrow,
-                ParameterInitializers: var parameterInitializers,
-                ParameterPatterns: var parameterPatterns,
-                ParameterPositions: var parameterPositions,
-                ParameterBindingKinds: var parameterBindingKinds,
-                FunctionLength: var functionLength,
-                HasSimpleParameterList: var hasSimpleParameterList,
-                HasSuperBindingHint: var hasSuperBindingHint,
-                HasDuplicateParameters: var hasDuplicateParameters,
-                RestParameterIndex: var restParameterIndex
-            })
+        if (
+            !string.IsNullOrEmpty(inferredName)
+            && expression
+                is JsFunctionExpression
+                {
+                    Name: null,
+                    Parameters: var parameters,
+                    Body: var body,
+                    IsGenerator: var isGenerator,
+                    IsAsync: var isAsync,
+                    IsArrow: var isArrow,
+                    ParameterInitializers: var parameterInitializers,
+                    ParameterPatterns: var parameterPatterns,
+                    ParameterPositions: var parameterPositions,
+                    ParameterBindingKinds: var parameterBindingKinds,
+                    FunctionLength: var functionLength,
+                    HasSimpleParameterList: var hasSimpleParameterList,
+                    HasSuperBindingHint: var hasSuperBindingHint,
+                    HasDuplicateParameters: var hasDuplicateParameters,
+                    RestParameterIndex: var restParameterIndex
+                }
+        )
         {
-            EmitFunctionExpression(new(
-                inferredName,
-                parameters,
-                body,
-                isGenerator,
-                isAsync,
-                isArrow,
-                parameterInitializers,
-                parameterPatterns,
-                parameterPositions,
-                parameterBindingKinds,
-                functionLength,
-                hasSimpleParameterList,
-                hasSuperBindingHint,
-                hasDuplicateParameters,
-                restParameterIndex), false);
+            EmitFunctionExpression(
+                new(
+                    inferredName,
+                    parameters,
+                    body,
+                    isGenerator,
+                    isAsync,
+                    isArrow,
+                    parameterInitializers,
+                    parameterPatterns,
+                    parameterPositions,
+                    parameterBindingKinds,
+                    functionLength,
+                    hasSimpleParameterList,
+                    hasSuperBindingHint,
+                    hasDuplicateParameters,
+                    restParameterIndex
+                ),
+                false
+            );
             return;
         }
 
-        if (!string.IsNullOrEmpty(inferredName) &&
-            expression is JsClassExpression { Name: null, Elements: var classElements } classExpr &&
-            ShouldInferAnonymousClassName(classElements))
+        if (
+            !string.IsNullOrEmpty(inferredName)
+            && expression is JsClassExpression { Name: null, Elements: var classElements } classExpr
+            && ShouldInferAnonymousClassName(classElements)
+        )
         {
             VisitClassExpression(classExpr, inferredName);
             return;
@@ -1172,22 +1317,30 @@ public sealed partial class JsCompiler
         VisitExpression(expression);
     }
 
-    private void EmitFunctionExpression(JsFunctionExpression funcExpr, bool immutableSelfBinding = true)
+    private void EmitFunctionExpression(
+        JsFunctionExpression funcExpr,
+        bool immutableSelfBinding = true
+    )
     {
         var parameterPlan = FunctionParameterPlan.FromFunction(funcExpr);
-        var funcObj = CompileFunctionObject(funcExpr.Name, parameterPlan,
+        var funcObj = CompileFunctionObject(
+            funcExpr.Name,
+            parameterPlan,
             funcExpr.Body,
             CreateFunctionShape(funcExpr.IsGenerator, funcExpr.IsAsync, funcExpr.IsArrow),
             immutableSelfBinding,
             sourceStartPosition: funcExpr.Position,
-            useMethodEnvironmentCapture: funcExpr.HasSuperBindingHint && useMethodEnvironmentCapture);
-        if (funcObj.RequiresClosureBinding) requiresClosureBinding = true;
+            useMethodEnvironmentCapture: funcExpr.HasSuperBindingHint && useMethodEnvironmentCapture
+        );
+        if (funcObj.RequiresClosureBinding)
+            requiresClosureBinding = true;
         if (funcExpr.HasSuperBindingHint && useMethodEnvironmentCapture)
         {
             var tempScope = BeginTemporaryRegisterScope();
             try
             {
-                var depth = currentContextSlotById.Count == 0 && !forceModuleFunctionContext ? 0 : 1;
+                var depth =
+                    currentContextSlotById.Count == 0 && !forceModuleFunctionContext ? 0 : 1;
                 var homeObjectReg = AllocateTemporaryRegister();
                 builder.EmitLda(JsOpCode.LdaContextSlot, 0, (byte)depth);
                 EmitStarRegister(homeObjectReg);
@@ -1247,16 +1400,20 @@ public sealed partial class JsCompiler
         index = 0;
         if (key.Length == 0)
             return false;
-        if (!uint.TryParse(key, NumberStyles.None,
-                CultureInfo.InvariantCulture, out index))
+        if (!uint.TryParse(key, NumberStyles.None, CultureInfo.InvariantCulture, out index))
             return false;
 
-        return string.Equals(key, index.ToString(CultureInfo.InvariantCulture),
-            StringComparison.Ordinal);
+        return string.Equals(
+            key,
+            index.ToString(CultureInfo.InvariantCulture),
+            StringComparison.Ordinal
+        );
     }
 
-    private void EmitStorePreparedDestructuringTarget(in PreparedDestructuringTarget target,
-        bool initializeIdentifiers = false)
+    private void EmitStorePreparedDestructuringTarget(
+        in PreparedDestructuringTarget target,
+        bool initializeIdentifiers = false
+    )
     {
         if (target.Identifier is not null)
         {
@@ -1265,7 +1422,8 @@ public sealed partial class JsCompiler
                     ? resolvedTarget.Name
                     : target.Identifier.Value.Name,
                 initializeIdentifiers,
-                target.Identifier.Value.Name);
+                target.Identifier.Value.Name
+            );
             return;
         }
 
@@ -1282,8 +1440,13 @@ public sealed partial class JsCompiler
         {
             var valueReg = AllocateTemporaryRegister();
             EmitStarRegister(valueReg);
-            EmitPrivateFieldOp(JsOpCode.SetPrivateField, target.ObjectRegister, valueReg, privateBinding.BrandId,
-                privateBinding.SlotIndex);
+            EmitPrivateFieldOp(
+                JsOpCode.SetPrivateField,
+                target.ObjectRegister,
+                valueReg,
+                privateBinding.BrandId,
+                privateBinding.SlotIndex
+            );
             return;
         }
 
@@ -1295,26 +1458,29 @@ public sealed partial class JsCompiler
     private void EmitZeroArgArrowThunk(JsExpression expression, string? inferredName = null)
     {
         var thunkExpression = expression;
-        if (!string.IsNullOrEmpty(inferredName) &&
-            expression is JsFunctionExpression
-            {
-                Name: null,
-                Parameters: var parameters,
-                Body: var body,
-                IsGenerator: var isGenerator,
-                IsAsync: var isAsync,
-                IsArrow: var isArrow,
-                ParameterInitializers: var parameterInitializers,
-                ParameterPatterns: var parameterPatterns,
-                ParameterPositions: var parameterPositions,
-                ParameterBindingKinds: var parameterBindingKinds,
-                FunctionLength: var functionLength,
-                HasSimpleParameterList: var hasSimpleParameterList,
-                HasSuperBindingHint: var hasSuperBindingHint,
-                HasDuplicateParameters: var hasDuplicateParameters,
-                RestParameterIndex: var restParameterIndex,
-                ParameterIds: var parameterIds
-            })
+        if (
+            !string.IsNullOrEmpty(inferredName)
+            && expression
+                is JsFunctionExpression
+                {
+                    Name: null,
+                    Parameters: var parameters,
+                    Body: var body,
+                    IsGenerator: var isGenerator,
+                    IsAsync: var isAsync,
+                    IsArrow: var isArrow,
+                    ParameterInitializers: var parameterInitializers,
+                    ParameterPatterns: var parameterPatterns,
+                    ParameterPositions: var parameterPositions,
+                    ParameterBindingKinds: var parameterBindingKinds,
+                    FunctionLength: var functionLength,
+                    HasSimpleParameterList: var hasSimpleParameterList,
+                    HasSuperBindingHint: var hasSuperBindingHint,
+                    HasDuplicateParameters: var hasDuplicateParameters,
+                    RestParameterIndex: var restParameterIndex,
+                    ParameterIds: var parameterIds
+                }
+        )
             thunkExpression = new JsFunctionExpression(
                 inferredName,
                 parameters,
@@ -1332,25 +1498,29 @@ public sealed partial class JsCompiler
                 hasDuplicateParameters,
                 restParameterIndex,
                 -1,
-                parameterIds);
-        else if (!string.IsNullOrEmpty(inferredName) &&
-                 expression is JsClassExpression { Name: null, Elements: var classElements } classExpr &&
-                 ShouldInferAnonymousClassName(classElements))
+                parameterIds
+            );
+        else if (
+            !string.IsNullOrEmpty(inferredName)
+            && expression is JsClassExpression { Name: null, Elements: var classElements } classExpr
+            && ShouldInferAnonymousClassName(classElements)
+        )
             thunkExpression = new JsClassExpression(
                 inferredName,
                 classExpr.Elements,
                 classExpr.Decorators,
                 classExpr.HasExtends,
-                classExpr.ExtendsExpression)
+                classExpr.ExtendsExpression
+            )
             {
                 Position = classExpr.Position,
-                EndPosition = classExpr.EndPosition
+                EndPosition = classExpr.EndPosition,
             };
 
-        var thunkBody = new JsBlockStatement(new JsStatement[]
-        {
-            new JsReturnStatement(thunkExpression)
-        }, false);
+        var thunkBody = new JsBlockStatement(
+            new JsStatement[] { new JsReturnStatement(thunkExpression) },
+            false
+        );
 
         MarkCapturedNamesReferencedByNestedFunction(thunkExpression);
 
@@ -1359,7 +1529,8 @@ public sealed partial class JsCompiler
             null,
             parameterPlan,
             thunkBody,
-            CreateFunctionShape(false, false, true));
+            CreateFunctionShape(false, false, true)
+        );
         if (thunkObj.RequiresClosureBinding)
             requiresClosureBinding = true;
         var idx = builder.AddObjectConstant(thunkObj);
@@ -1373,8 +1544,10 @@ public sealed partial class JsCompiler
         {
             if (ShouldUseFunctionArgumentsBinding(id.Name))
                 target = new JsIdentifierExpression(SyntheticArgumentsBindingName);
-            else if (TryResolveLocalBinding(id.Name, out var resolvedIdentifier) &&
-                     !string.Equals(resolvedIdentifier.Name, id.Name, StringComparison.Ordinal))
+            else if (
+                TryResolveLocalBinding(id.Name, out var resolvedIdentifier)
+                && !string.Equals(resolvedIdentifier.Name, id.Name, StringComparison.Ordinal)
+            )
                 target = new JsIdentifierExpression(resolvedIdentifier.Name);
         }
 
@@ -1383,22 +1556,28 @@ public sealed partial class JsCompiler
 
         var valueName = $"$destr_value_{finallyTempUniqueId++}";
         var valueRef = new JsIdentifierExpression(valueName);
-        var body = new JsBlockStatement(new JsStatement[]
-        {
-            new JsExpressionStatement(
-                new JsAssignmentExpression(JsAssignmentOperator.Assign, target, valueRef))
-        }, false);
+        var body = new JsBlockStatement(
+            new JsStatement[]
+            {
+                new JsExpressionStatement(
+                    new JsAssignmentExpression(JsAssignmentOperator.Assign, target, valueRef)
+                ),
+            },
+            false
+        );
 
         var parameterPlan = FunctionParameterPlan.FromCompilerInputs(
             new[] { valueName },
             null,
             new JsExpression?[] { null },
-            -1);
+            -1
+        );
         var thunkObj = CompileFunctionObject(
             null,
             parameterPlan,
             body,
-            CreateFunctionShape(false, false, true));
+            CreateFunctionShape(false, false, true)
+        );
         if (thunkObj.RequiresClosureBinding)
             requiresClosureBinding = true;
         var idx = builder.AddObjectConstant(thunkObj);
@@ -1411,7 +1590,10 @@ public sealed partial class JsCompiler
         switch (target)
         {
             case JsIdentifierExpression id
-                when TryResolveLocalBinding(new CompilerIdentifierName(id.Name, id.NameId), out var resolvedIdentifier):
+                when TryResolveLocalBinding(
+                    new CompilerIdentifierName(id.Name, id.NameId),
+                    out var resolvedIdentifier
+                ):
                 EnsureCurrentContextSlotForLocal(resolvedIdentifier.SymbolId);
                 break;
             case JsArrayExpression arrayPattern:
@@ -1429,7 +1611,11 @@ public sealed partial class JsCompiler
         }
     }
 
-    private void VisitExpression(JsExpression expr, bool resultUsed = true, bool directReturn = false)
+    private void VisitExpression(
+        JsExpression expr,
+        bool resultUsed = true,
+        bool directReturn = false
+    )
     {
         EmitSourcePosition(expr.Position);
         switch (expr)
@@ -1444,7 +1630,9 @@ public sealed partial class JsCompiler
                     {
                         var argCount = importCall.Options is null ? 1 : 2;
                         var argReg = AllocateTemporaryRegister();
-                        var optionsReg = importCall.Options is null ? -1 : AllocateTemporaryRegister();
+                        var optionsReg = importCall.Options is null
+                            ? -1
+                            : AllocateTemporaryRegister();
 
                         VisitExpression(importCall.Argument);
                         EmitStarRegister(argReg);
@@ -1540,8 +1728,10 @@ public sealed partial class JsCompiler
                         }
                         else if (binding.Slot == -2)
                         {
-                            if (TryResolveLocalBinding(identifier, out var resolvedBinding) &&
-                                IsKnownInitializedLexical(resolvedBinding.SymbolId))
+                            if (
+                                TryResolveLocalBinding(identifier, out var resolvedBinding)
+                                && IsKnownInitializedLexical(resolvedBinding.SymbolId)
+                            )
                             {
                                 EmitLdaRegister(binding.Register);
                             }
@@ -1562,17 +1752,20 @@ public sealed partial class JsCompiler
                         switch (binding.Kind)
                         {
                             case IdentifierReadBindingKind.ModuleVariable:
-                                builder.EmitLda(JsOpCode.LdaModuleVariable, unchecked((byte)binding.Slot),
-                                    (byte)binding.Depth);
+                                builder.EmitLda(
+                                    JsOpCode.LdaModuleVariable,
+                                    unchecked((byte)binding.Slot),
+                                    (byte)binding.Depth
+                                );
                                 break;
                             case IdentifierReadBindingKind.CapturedContext:
-                                {
-                                    var readPc = builder.CodeLength;
-                                    EmitLdaContextSlot(0, binding.Slot, binding.Depth);
-                                    builder.AddTdzReadDebugName(readPc, id.Name);
-                                    requiresClosureBinding = true;
-                                    break;
-                                }
+                            {
+                                var readPc = builder.CodeLength;
+                                EmitLdaContextSlot(0, binding.Slot, binding.Depth);
+                                builder.AddTdzReadDebugName(readPc, id.Name);
+                                requiresClosureBinding = true;
+                                break;
+                            }
                             case IdentifierReadBindingKind.Arguments:
                                 _ = TryEmitArgumentsIdentifierLoad(id.Name);
                                 break;
@@ -1580,13 +1773,18 @@ public sealed partial class JsCompiler
                                 EmitLdaUndefined();
                                 break;
                             case IdentifierReadBindingKind.Global:
-                                {
-                                    var nameIdx = builder.AddAtomizedStringConstant(id.Name);
-                                    EmitLdaGlobalByIndex(nameIdx, builder.GetOrAllocateGlobalBindingFeedbackSlot(id.Name));
-                                    break;
-                                }
+                            {
+                                var nameIdx = builder.AddAtomizedStringConstant(id.Name);
+                                EmitLdaGlobalByIndex(
+                                    nameIdx,
+                                    builder.GetOrAllocateGlobalBindingFeedbackSlot(id.Name)
+                                );
+                                break;
+                            }
                             default:
-                                throw new InvalidOperationException("Unexpected identifier read binding kind.");
+                                throw new InvalidOperationException(
+                                    "Unexpected identifier read binding kind."
+                                );
                         }
                     }
                 }
@@ -1596,12 +1794,21 @@ public sealed partial class JsCompiler
                 if (assign.Left is JsIdentifierExpression idLeft)
                 {
                     var leftIdentifier = CompilerIdentifierName.From(idLeft);
-                    var resolvedLeft = TryResolveLocalBinding(leftIdentifier, out var resolvedLeftBinding)
+                    var resolvedLeft = TryResolveLocalBinding(
+                        leftIdentifier,
+                        out var resolvedLeftBinding
+                    )
                         ? resolvedLeftBinding.Name
                         : leftIdentifier.Name;
                     if (assign.Operator == JsAssignmentOperator.Assign)
                     {
-                        if (!TryEmitSelfBinaryAssignmentFastPath(resolvedLeft, idLeft.Name, assign.Right))
+                        if (
+                            !TryEmitSelfBinaryAssignmentFastPath(
+                                resolvedLeft,
+                                idLeft.Name,
+                                assign.Right
+                            )
+                        )
                         {
                             if (!assign.IsParenthesizedLeftHandSide)
                                 VisitExpressionWithInferredName(assign.Right, leftIdentifier.Name);
@@ -1617,23 +1824,40 @@ public sealed partial class JsCompiler
                         {
                             VisitExpression(idLeft);
                             var endLabel = builder.CreateLabel();
-                            var evalLabel =
-                                EmitLogicalAssignmentShortCircuitJump(assign.Operator, endLabel);
+                            var evalLabel = EmitLogicalAssignmentShortCircuitJump(
+                                assign.Operator,
+                                endLabel
+                            );
                             if (evalLabel is not null)
                                 builder.BindLabel(evalLabel.Value);
 
-                            VisitExpressionWithInferredName(assign.Right,
-                                assign.IsParenthesizedLeftHandSide ? null : leftIdentifier.Name);
+                            VisitExpressionWithInferredName(
+                                assign.Right,
+                                assign.IsParenthesizedLeftHandSide ? null : leftIdentifier.Name
+                            );
                             EmitStoreIdentifierPreservingValue(leftIdentifier);
                             builder.BindLabel(endLabel);
                             break;
                         }
 
-                        if (!TryEmitCompoundAssignmentFastPath(resolvedLeft, idLeft.Name, assign.Operator,
-                                assign.Right))
+                        if (
+                            !TryEmitCompoundAssignmentFastPath(
+                                resolvedLeft,
+                                idLeft.Name,
+                                assign.Operator,
+                                assign.Right
+                            )
+                        )
                         {
-                            if (!TryMapCompoundAssignmentOperatorToOkojoOpCode(assign.Operator, out var compoundOp))
-                                throw new NotImplementedException($"Assignment operator {assign.Operator}");
+                            if (
+                                !TryMapCompoundAssignmentOperatorToOkojoOpCode(
+                                    assign.Operator,
+                                    out var compoundOp
+                                )
+                            )
+                                throw new NotImplementedException(
+                                    $"Assignment operator {assign.Operator}"
+                                );
 
                             VisitExpression(idLeft);
                             var lhsValueReg = AllocateTemporaryRegister();
@@ -1652,9 +1876,17 @@ public sealed partial class JsCompiler
                         var isLogicalAssignment = IsLogicalAssignmentOperator(assign.Operator);
                         var isCompound = assign.Operator != JsAssignmentOperator.Assign;
                         JsOpCode compoundOp = default;
-                        if (isCompound && !isLogicalAssignment &&
-                            !TryMapCompoundAssignmentOperatorToOkojoOpCode(assign.Operator, out compoundOp))
-                            throw new NotImplementedException($"Assignment operator {assign.Operator}");
+                        if (
+                            isCompound
+                            && !isLogicalAssignment
+                            && !TryMapCompoundAssignmentOperatorToOkojoOpCode(
+                                assign.Operator,
+                                out compoundOp
+                            )
+                        )
+                            throw new NotImplementedException(
+                                $"Assignment operator {assign.Operator}"
+                            );
 
                         if (memberLeft.Object is JsSuperExpression)
                         {
@@ -1670,16 +1902,23 @@ public sealed partial class JsCompiler
                                 thisReg,
                                 keyReg,
                                 "Super assignment requires named or computed property key.",
-                                out var superNameIdx);
+                                out var superNameIdx
+                            );
 
                             if (isCompound)
                             {
-                                EmitLoadSuperPropertyFromPrepared(memberLeft, thisReg, superNameIdx);
+                                EmitLoadSuperPropertyFromPrepared(
+                                    memberLeft,
+                                    thisReg,
+                                    superNameIdx
+                                );
                                 if (isLogicalAssignment)
                                 {
                                     var endLabel = builder.CreateLabel();
-                                    var evalLabel =
-                                        EmitLogicalAssignmentShortCircuitJump(assign.Operator, endLabel);
+                                    var evalLabel = EmitLogicalAssignmentShortCircuitJump(
+                                        assign.Operator,
+                                        endLabel
+                                    );
                                     if (evalLabel is not null)
                                         builder.BindLabel(evalLabel.Value);
 
@@ -1720,26 +1959,37 @@ public sealed partial class JsCompiler
                         {
                             if (!TryResolvePrivateMemberBinding(memberLeft, out var privateBinding))
                                 throw new NotSupportedException(
-                                    "Private member assignment shape is not supported in Okojo Phase 1.");
+                                    "Private member assignment shape is not supported in Okojo Phase 1."
+                                );
 
                             if (isCompound)
                             {
-                                EmitPrivateFieldOp(JsOpCode.GetPrivateField, objReg, privateBinding.BrandId,
-                                    privateBinding.SlotIndex);
+                                EmitPrivateFieldOp(
+                                    JsOpCode.GetPrivateField,
+                                    objReg,
+                                    privateBinding.BrandId,
+                                    privateBinding.SlotIndex
+                                );
                                 if (isLogicalAssignment)
                                 {
                                     var endLabel = builder.CreateLabel();
-                                    var evalLabel =
-                                        EmitLogicalAssignmentShortCircuitJump(assign.Operator, endLabel);
+                                    var evalLabel = EmitLogicalAssignmentShortCircuitJump(
+                                        assign.Operator,
+                                        endLabel
+                                    );
                                     if (evalLabel is not null)
                                         builder.BindLabel(evalLabel.Value);
 
                                     VisitExpression(assign.Right);
                                     var valueReg = AllocateTemporaryRegister();
                                     EmitStarRegister(valueReg);
-                                    EmitPrivateFieldOp(JsOpCode.SetPrivateField, objReg, valueReg,
+                                    EmitPrivateFieldOp(
+                                        JsOpCode.SetPrivateField,
+                                        objReg,
+                                        valueReg,
                                         privateBinding.BrandId,
-                                        privateBinding.SlotIndex);
+                                        privateBinding.SlotIndex
+                                    );
                                     builder.BindLabel(endLabel);
                                 }
                                 else
@@ -1750,9 +2000,13 @@ public sealed partial class JsCompiler
                                     EmitRegisterSlotOp(compoundOp, lhsValueReg);
                                     var valueReg = AllocateTemporaryRegister();
                                     EmitStarRegister(valueReg);
-                                    EmitPrivateFieldOp(JsOpCode.SetPrivateField, objReg, valueReg,
+                                    EmitPrivateFieldOp(
+                                        JsOpCode.SetPrivateField,
+                                        objReg,
+                                        valueReg,
                                         privateBinding.BrandId,
-                                        privateBinding.SlotIndex);
+                                        privateBinding.SlotIndex
+                                    );
                                 }
                             }
                             else
@@ -1760,8 +2014,13 @@ public sealed partial class JsCompiler
                                 VisitExpression(assign.Right);
                                 var valueReg = AllocateTemporaryRegister();
                                 EmitStarRegister(valueReg);
-                                EmitPrivateFieldOp(JsOpCode.SetPrivateField, objReg, valueReg, privateBinding.BrandId,
-                                    privateBinding.SlotIndex);
+                                EmitPrivateFieldOp(
+                                    JsOpCode.SetPrivateField,
+                                    objReg,
+                                    valueReg,
+                                    privateBinding.BrandId,
+                                    privateBinding.SlotIndex
+                                );
                             }
                         }
                         else if (memberLeft.IsComputed)
@@ -1780,8 +2039,10 @@ public sealed partial class JsCompiler
                                 if (isLogicalAssignment)
                                 {
                                     var endLabel = builder.CreateLabel();
-                                    var evalLabel =
-                                        EmitLogicalAssignmentShortCircuitJump(assign.Operator, endLabel);
+                                    var evalLabel = EmitLogicalAssignmentShortCircuitJump(
+                                        assign.Operator,
+                                        endLabel
+                                    );
                                     if (evalLabel is not null)
                                         builder.BindLabel(evalLabel.Value);
 
@@ -1808,7 +2069,8 @@ public sealed partial class JsCompiler
                         {
                             if (!TryGetNamedMemberKey(memberLeft, out var memberName))
                                 throw new NotImplementedException(
-                                    "Only non-computed named member assignment is supported in Okojo Phase 1.");
+                                    "Only non-computed named member assignment is supported in Okojo Phase 1."
+                                );
                             var nameIdx = builder.AddAtomizedStringConstant(memberName);
                             var feedbackSlot = builder.AllocateFeedbackSlot();
                             if (isCompound)
@@ -1817,8 +2079,10 @@ public sealed partial class JsCompiler
                                 if (isLogicalAssignment)
                                 {
                                     var endLabel = builder.CreateLabel();
-                                    var evalLabel =
-                                        EmitLogicalAssignmentShortCircuitJump(assign.Operator, endLabel);
+                                    var evalLabel = EmitLogicalAssignmentShortCircuitJump(
+                                        assign.Operator,
+                                        endLabel
+                                    );
                                     if (evalLabel is not null)
                                         builder.BindLabel(evalLabel.Value);
 
@@ -1847,15 +2111,27 @@ public sealed partial class JsCompiler
                         EndTemporaryRegisterScope(tempScope);
                     }
                 }
-                else if (assign.Left is JsArrayExpression arrayLeft && assign.Operator == JsAssignmentOperator.Assign)
+                else if (
+                    assign.Left is JsArrayExpression arrayLeft
+                    && assign.Operator == JsAssignmentOperator.Assign
+                )
                 {
-                    EmitArrayDestructuringAssignment(arrayLeft, assign.Right,
-                        ShouldInitializeSyntheticForPatternAssignment(assign.Right));
+                    EmitArrayDestructuringAssignment(
+                        arrayLeft,
+                        assign.Right,
+                        ShouldInitializeSyntheticForPatternAssignment(assign.Right)
+                    );
                 }
-                else if (assign.Left is JsObjectExpression objectLeft && assign.Operator == JsAssignmentOperator.Assign)
+                else if (
+                    assign.Left is JsObjectExpression objectLeft
+                    && assign.Operator == JsAssignmentOperator.Assign
+                )
                 {
-                    EmitObjectDestructuringAssignment(objectLeft, assign.Right,
-                        ShouldInitializeSyntheticForPatternAssignment(assign.Right));
+                    EmitObjectDestructuringAssignment(
+                        objectLeft,
+                        assign.Right,
+                        ShouldInitializeSyntheticForPatternAssignment(assign.Right)
+                    );
                 }
                 else
                 {
@@ -1866,8 +2142,8 @@ public sealed partial class JsCompiler
 
                 static bool ShouldInitializeSyntheticForPatternAssignment(JsExpression right)
                 {
-                    return right is JsIdentifierExpression { Name: var name } &&
-                           name.StartsWith("$forpat_", StringComparison.Ordinal);
+                    return right is JsIdentifierExpression { Name: var name }
+                        && name.StartsWith("$forpat_", StringComparison.Ordinal);
                 }
 
             case JsCallExpression call:
@@ -1885,9 +2161,13 @@ public sealed partial class JsCompiler
                             if (HasSpreadArgument(call.Arguments))
                             {
                                 var argStart =
-                                    EmitSpreadAwareArgumentsIntoContiguousTemporaryRegisters(call.Arguments,
-                                        out var flagsReg);
-                                var runtimeArgStart = AllocateTemporaryRegisterBlock(1 + call.Arguments.Count);
+                                    EmitSpreadAwareArgumentsIntoContiguousTemporaryRegisters(
+                                        call.Arguments,
+                                        out var flagsReg
+                                    );
+                                var runtimeArgStart = AllocateTemporaryRegisterBlock(
+                                    1 + call.Arguments.Count
+                                );
                                 EmitLdaRegister(flagsReg);
                                 EmitStarRegister(runtimeArgStart);
                                 for (var i = 0; i < call.Arguments.Count; i++)
@@ -1896,19 +2176,29 @@ public sealed partial class JsCompiler
                                     EmitStarRegister(runtimeArgStart + 1 + i);
                                 }
 
-                                EmitCallRuntime(RuntimeId.CallSuperConstructorWithSpread, runtimeArgStart,
-                                    1 + call.Arguments.Count);
+                                EmitCallRuntime(
+                                    RuntimeId.CallSuperConstructorWithSpread,
+                                    runtimeArgStart,
+                                    1 + call.Arguments.Count
+                                );
                             }
                             else
                             {
-                                var argStart = EmitArgumentsIntoContiguousTemporaryRegisters(call.Arguments);
-                                EmitCallRuntime(RuntimeId.CallSuperConstructor, argStart == -1 ? 0 : argStart,
-                                    call.Arguments.Count);
+                                var argStart = EmitArgumentsIntoContiguousTemporaryRegisters(
+                                    call.Arguments
+                                );
+                                EmitCallRuntime(
+                                    RuntimeId.CallSuperConstructor,
+                                    argStart == -1 ? 0 : argStart,
+                                    call.Arguments.Count
+                                );
                             }
 
-                            if (isDerivedConstructor &&
-                                !hasEmittedDeferredInstanceInitializers &&
-                                HasPendingInstanceInitializers())
+                            if (
+                                isDerivedConstructor
+                                && !hasEmittedDeferredInstanceInitializers
+                                && HasPendingInstanceInitializers()
+                            )
                             {
                                 hasEmittedDeferredInstanceInitializers = true;
                                 EmitPendingInstanceInitializers();
@@ -1917,8 +2207,11 @@ public sealed partial class JsCompiler
                             break;
                         }
 
-                        if (call.Callee is JsMemberExpression { Object: JsSuperExpression } superMember &&
-                            !superMember.IsPrivate)
+                        if (
+                            call.Callee
+                                is JsMemberExpression { Object: JsSuperExpression } superMember
+                            && !superMember.IsPrivate
+                        )
                         {
                             var superGetArgsStart = AllocateTemporaryRegisterBlock(2);
                             var thisReg = superGetArgsStart;
@@ -1928,38 +2221,58 @@ public sealed partial class JsCompiler
                                 thisReg,
                                 keyReg,
                                 "Only named/computed super member calls are supported.",
-                                out var superNameIdx);
+                                out var superNameIdx
+                            );
                             EmitLoadSuperPropertyFromPrepared(superMember, thisReg, superNameIdx);
-                            var funcReg = AllocateCallStateRegister("$call.func", preserveCallState);
+                            var funcReg = AllocateCallStateRegister(
+                                "$call.func",
+                                preserveCallState
+                            );
                             EmitStarRegister(funcReg);
 
                             if (HasSpreadArgument(call.Arguments))
                             {
                                 var argStart =
-                                    EmitSpreadAwareArgumentsIntoContiguousTemporaryRegisters(call.Arguments,
-                                        out var flagsReg);
-                                var runtimeArgStart = AllocateTemporaryRegisterBlock(3 + call.Arguments.Count);
+                                    EmitSpreadAwareArgumentsIntoContiguousTemporaryRegisters(
+                                        call.Arguments,
+                                        out var flagsReg
+                                    );
+                                var runtimeArgStart = AllocateTemporaryRegisterBlock(
+                                    3 + call.Arguments.Count
+                                );
                                 EmitMoveRegister(funcReg, runtimeArgStart);
                                 EmitMoveRegister(thisReg, runtimeArgStart + 1);
                                 EmitMoveRegister(flagsReg, runtimeArgStart + 2);
                                 for (var i = 0; i < call.Arguments.Count; i++)
                                     EmitMoveRegister(argStart + i, runtimeArgStart + 3 + i);
 
-                                EmitCallRuntime(RuntimeId.CallWithSpread, runtimeArgStart, 3 + call.Arguments.Count);
+                                EmitCallRuntime(
+                                    RuntimeId.CallWithSpread,
+                                    runtimeArgStart,
+                                    3 + call.Arguments.Count
+                                );
                             }
                             else
                             {
                                 var argStart = GetCallArgumentStart(call.Arguments);
-                                EmitCallProperty(funcReg, thisReg, argStart == -1 ? 0 : argStart, call.Arguments.Count);
+                                EmitCallProperty(
+                                    funcReg,
+                                    thisReg,
+                                    argStart == -1 ? 0 : argStart,
+                                    call.Arguments.Count
+                                );
                             }
 
                             break;
                         }
 
-                        if (call.Callee is JsMemberExpression
+                        if (
+                            call.Callee is JsMemberExpression
                             {
-                                Object: JsSuperExpression, IsPrivate: true
-                            } superPrivateMember)
+                                Object: JsSuperExpression,
+                                IsPrivate: true
+                            } superPrivateMember
+                        )
                             ThrowUnexpectedPrivateFieldSyntaxError(superPrivateMember.Position);
 
                         if (call.Callee is JsMemberExpression memberCallee)
@@ -1973,18 +2286,32 @@ public sealed partial class JsCompiler
                             }
                             else if (argsMaySuspend)
                             {
-                                objReg = PreserveRegisterForCallState(objReg, "$call.obj", preserveCallState);
+                                objReg = PreserveRegisterForCallState(
+                                    objReg,
+                                    "$call.obj",
+                                    preserveCallState
+                                );
                             }
 
                             void EmitMemberCalleeLoad()
                             {
                                 if (memberCallee.IsPrivate)
                                 {
-                                    if (!TryResolvePrivateMemberBinding(memberCallee, out var privateBinding))
+                                    if (
+                                        !TryResolvePrivateMemberBinding(
+                                            memberCallee,
+                                            out var privateBinding
+                                        )
+                                    )
                                         throw new NotSupportedException(
-                                            "Private member call shape is not supported in Okojo Phase 2.");
-                                    EmitPrivateFieldOp(JsOpCode.GetPrivateField, objReg, privateBinding.BrandId,
-                                        privateBinding.SlotIndex);
+                                            "Private member call shape is not supported in Okojo Phase 2."
+                                        );
+                                    EmitPrivateFieldOp(
+                                        JsOpCode.GetPrivateField,
+                                        objReg,
+                                        privateBinding.BrandId,
+                                        privateBinding.SlotIndex
+                                    );
                                 }
                                 else if (memberCallee.IsComputed)
                                 {
@@ -1995,36 +2322,52 @@ public sealed partial class JsCompiler
                                 {
                                     if (!TryGetNamedMemberKey(memberCallee, out var memberName))
                                         throw new NotImplementedException(
-                                            "Only non-private member calls are supported in Okojo Phase 1.");
+                                            "Only non-private member calls are supported in Okojo Phase 1."
+                                        );
                                     var nameIdx = builder.AddAtomizedStringConstant(memberName);
                                     var feedbackSlot = builder.AllocateFeedbackSlot();
                                     EmitLdaNamedPropertyByIndex(objReg, nameIdx, feedbackSlot);
                                 }
                             }
 
-                            var loadedFuncReg = AllocateCallStateRegister("$call.func", preserveCallState);
+                            var loadedFuncReg = AllocateCallStateRegister(
+                                "$call.func",
+                                preserveCallState
+                            );
 
                             void EmitLoadedMemberCall()
                             {
                                 if (HasSpreadArgument(call.Arguments))
                                 {
                                     var argStart =
-                                        EmitSpreadAwareArgumentsIntoContiguousTemporaryRegisters(call.Arguments,
-                                            out var flagsReg);
-                                    var runtimeArgStart = AllocateTemporaryRegisterBlock(3 + call.Arguments.Count);
+                                        EmitSpreadAwareArgumentsIntoContiguousTemporaryRegisters(
+                                            call.Arguments,
+                                            out var flagsReg
+                                        );
+                                    var runtimeArgStart = AllocateTemporaryRegisterBlock(
+                                        3 + call.Arguments.Count
+                                    );
                                     EmitMoveRegister(loadedFuncReg, runtimeArgStart);
                                     EmitMoveRegister(objReg, runtimeArgStart + 1);
                                     EmitMoveRegister(flagsReg, runtimeArgStart + 2);
                                     for (var i = 0; i < call.Arguments.Count; i++)
                                         EmitMoveRegister(argStart + i, runtimeArgStart + 3 + i);
 
-                                    EmitCallRuntime(RuntimeId.CallWithSpread, runtimeArgStart, 3 + call.Arguments.Count);
+                                    EmitCallRuntime(
+                                        RuntimeId.CallWithSpread,
+                                        runtimeArgStart,
+                                        3 + call.Arguments.Count
+                                    );
                                 }
                                 else
                                 {
                                     var argStart = GetCallArgumentStart(call.Arguments);
-                                    EmitCallProperty(loadedFuncReg, objReg, argStart == -1 ? 0 : argStart,
-                                        call.Arguments.Count);
+                                    EmitCallProperty(
+                                        loadedFuncReg,
+                                        objReg,
+                                        argStart == -1 ? 0 : argStart,
+                                        call.Arguments.Count
+                                    );
                                 }
                             }
 
@@ -2034,7 +2377,10 @@ public sealed partial class JsCompiler
                                 EmitStarRegister(loadedFuncReg);
 
                                 if (call.IsOptionalChainSegment)
-                                    EmitOptionalChainShortCircuitLoad(loadedFuncReg, EmitLoadedMemberCall);
+                                    EmitOptionalChainShortCircuitLoad(
+                                        loadedFuncReg,
+                                        EmitLoadedMemberCall
+                                    );
                                 else
                                     EmitLoadedMemberCall();
                             }
@@ -2050,12 +2396,19 @@ public sealed partial class JsCompiler
                             if (!TryGetPlainLocalReadRegister(call.Callee, out funcReg))
                             {
                                 VisitExpression(call.Callee);
-                                funcReg = AllocateCallStateRegister("$call.func", preserveCallState);
+                                funcReg = AllocateCallStateRegister(
+                                    "$call.func",
+                                    preserveCallState
+                                );
                                 EmitStarRegister(funcReg);
                             }
                             else if (argsMaySuspend)
                             {
-                                funcReg = PreserveRegisterForCallState(funcReg, "$call.func", preserveCallState);
+                                funcReg = PreserveRegisterForCallState(
+                                    funcReg,
+                                    "$call.func",
+                                    preserveCallState
+                                );
                             }
 
                             void EmitDirectCall()
@@ -2063,9 +2416,13 @@ public sealed partial class JsCompiler
                                 if (HasSpreadArgument(call.Arguments))
                                 {
                                     var argStart =
-                                        EmitSpreadAwareArgumentsIntoContiguousTemporaryRegisters(call.Arguments,
-                                            out var flagsReg);
-                                    var runtimeArgStart = AllocateTemporaryRegisterBlock(3 + call.Arguments.Count);
+                                        EmitSpreadAwareArgumentsIntoContiguousTemporaryRegisters(
+                                            call.Arguments,
+                                            out var flagsReg
+                                        );
+                                    var runtimeArgStart = AllocateTemporaryRegisterBlock(
+                                        3 + call.Arguments.Count
+                                    );
                                     EmitMoveRegister(funcReg, runtimeArgStart);
                                     EmitLdaUndefined();
                                     EmitStarRegister(runtimeArgStart + 1);
@@ -2073,12 +2430,20 @@ public sealed partial class JsCompiler
                                     for (var i = 0; i < call.Arguments.Count; i++)
                                         EmitMoveRegister(argStart + i, runtimeArgStart + 3 + i);
 
-                                    EmitCallRuntime(RuntimeId.CallWithSpread, runtimeArgStart, 3 + call.Arguments.Count);
+                                    EmitCallRuntime(
+                                        RuntimeId.CallWithSpread,
+                                        runtimeArgStart,
+                                        3 + call.Arguments.Count
+                                    );
                                 }
                                 else
                                 {
                                     var argStart = GetCallArgumentStart(call.Arguments);
-                                    EmitCallUndefinedReceiver(funcReg, argStart == -1 ? 0 : argStart, call.Arguments.Count);
+                                    EmitCallUndefinedReceiver(
+                                        funcReg,
+                                        argStart == -1 ? 0 : argStart,
+                                        call.Arguments.Count
+                                    );
                                 }
                             }
 
@@ -2111,9 +2476,13 @@ public sealed partial class JsCompiler
 
                         if (HasSpreadArgument(@new.Arguments))
                         {
-                            var argStart =
-                                EmitSpreadAwareArgumentsIntoContiguousTemporaryRegisters(@new.Arguments, out var flagsReg);
-                            var runtimeArgStart = AllocateTemporaryRegisterBlock(2 + @new.Arguments.Count);
+                            var argStart = EmitSpreadAwareArgumentsIntoContiguousTemporaryRegisters(
+                                @new.Arguments,
+                                out var flagsReg
+                            );
+                            var runtimeArgStart = AllocateTemporaryRegisterBlock(
+                                2 + @new.Arguments.Count
+                            );
                             EmitLdaRegister(funcReg);
                             EmitStarRegister(runtimeArgStart);
                             EmitLdaRegister(flagsReg);
@@ -2124,12 +2493,20 @@ public sealed partial class JsCompiler
                                 EmitStarRegister(runtimeArgStart + 2 + i);
                             }
 
-                            EmitCallRuntime(RuntimeId.ConstructWithSpread, runtimeArgStart, 2 + @new.Arguments.Count);
+                            EmitCallRuntime(
+                                RuntimeId.ConstructWithSpread,
+                                runtimeArgStart,
+                                2 + @new.Arguments.Count
+                            );
                         }
                         else
                         {
                             var argStart = GetCallArgumentStart(@new.Arguments);
-                            EmitConstruct(funcReg, argStart == -1 ? 0 : argStart, @new.Arguments.Count);
+                            EmitConstruct(
+                                funcReg,
+                                argStart == -1 ? 0 : argStart,
+                                @new.Arguments.Count
+                            );
                         }
                     }
                     finally
@@ -2146,8 +2523,16 @@ public sealed partial class JsCompiler
                 break;
             case JsYieldExpression yield:
                 {
-                    if (functionKind is not (JsBytecodeFunctionKind.Generator or JsBytecodeFunctionKind.AsyncGenerator))
-                        throw new NotSupportedException("yield is only valid inside generator functions.");
+                    if (
+                        functionKind
+                        is not (
+                            JsBytecodeFunctionKind.Generator
+                            or JsBytecodeFunctionKind.AsyncGenerator
+                        )
+                    )
+                        throw new NotSupportedException(
+                            "yield is only valid inside generator functions."
+                        );
                     if (yield.IsDelegate)
                     {
                         EmitYieldDelegateExpression(yield.Argument);
@@ -2164,13 +2549,24 @@ public sealed partial class JsCompiler
                 break;
             case JsAwaitExpression awaitExpr:
                 {
-                    if (functionKind is not (JsBytecodeFunctionKind.Async or JsBytecodeFunctionKind.AsyncGenerator))
-                        throw new NotSupportedException("await is only valid inside async functions.");
+                    if (
+                        functionKind
+                        is not (
+                            JsBytecodeFunctionKind.Async
+                            or JsBytecodeFunctionKind.AsyncGenerator
+                        )
+                    )
+                        throw new NotSupportedException(
+                            "await is only valid inside async functions."
+                        );
 
                     VisitExpression(awaitExpr.Argument);
                     var guaranteedNextOnly = IsGuaranteedFulfilledAwait(awaitExpr.Argument);
-                    EmitGeneratorSuspendResume(minimizeLiveRange: true, guaranteedNextOnly: guaranteedNextOnly,
-                        isAwaitSuspend: true);
+                    EmitGeneratorSuspendResume(
+                        minimizeLiveRange: true,
+                        guaranteedNextOnly: guaranteedNextOnly,
+                        isAwaitSuspend: true
+                    );
                 }
                 break;
 
@@ -2231,17 +2627,28 @@ public sealed partial class JsCompiler
                         for (var i = 0; i < objExpr.Properties.Count; i++)
                         {
                             var p = objExpr.Properties[i];
-                            if (p.Kind == JsObjectPropertyKind.Spread || p.IsComputed ||
-                                TryGetCanonicalArrayIndexObjectLiteralKey(p, out _))
+                            if (
+                                p.Kind == JsObjectPropertyKind.Spread
+                                || p.IsComputed
+                                || TryGetCanonicalArrayIndexObjectLiteralKey(p, out _)
+                            )
                             {
                                 shapePrefixEnd = i;
                                 break;
                             }
 
                             var atom = atomTable.InternNoCheck(p.Key);
-                            var isAccessor = p.Kind is JsObjectPropertyKind.Getter or JsObjectPropertyKind.Setter;
-                            if (prefixAccessorKindByAtom.TryGetValue(atom, out var existingIsAccessor) &&
-                                existingIsAccessor != isAccessor)
+                            var isAccessor =
+                                p.Kind
+                                is JsObjectPropertyKind.Getter
+                                    or JsObjectPropertyKind.Setter;
+                            if (
+                                prefixAccessorKindByAtom.TryGetValue(
+                                    atom,
+                                    out var existingIsAccessor
+                                )
+                                && existingIsAccessor != isAccessor
+                            )
                             {
                                 shapePrefixEnd = i;
                                 break;
@@ -2250,7 +2657,9 @@ public sealed partial class JsCompiler
                             prefixAccessorKindByAtom[atom] = isAccessor;
                         }
 
-                        var namePlanByProperty = new NamedLiteralPropertyPlan[objExpr.Properties.Count];
+                        var namePlanByProperty = new NamedLiteralPropertyPlan[
+                            objExpr.Properties.Count
+                        ];
                         var orderedUniqueNamedAtoms = new List<int>(objExpr.Properties.Count);
                         var finalFlagsByAtom = new Dictionary<int, JsShapePropertyFlags>();
                         var firstSeen = new HashSet<int>();
@@ -2267,16 +2676,29 @@ public sealed partial class JsCompiler
                                 JsObjectPropertyKind.Getter => JsShapePropertyFlags.HasGetter,
                                 JsObjectPropertyKind.Setter => JsShapePropertyFlags.HasSetter,
                                 _ => throw new NotImplementedException(
-                                    $"Object property kind {prop.Kind} is not supported in Okojo Phase 1.")
+                                    $"Object property kind {prop.Kind} is not supported in Okojo Phase 1."
+                                ),
                             };
 
-                            if (prop.Kind is JsObjectPropertyKind.Getter or JsObjectPropertyKind.Setter)
-                                initFlags |= JsShapePropertyFlags.Enumerable | JsShapePropertyFlags.Configurable;
+                            if (
+                                prop.Kind
+                                is JsObjectPropertyKind.Getter
+                                    or JsObjectPropertyKind.Setter
+                            )
+                                initFlags |=
+                                    JsShapePropertyFlags.Enumerable
+                                    | JsShapePropertyFlags.Configurable;
 
                             if (!finalFlagsByAtom.TryGetValue(atom, out var currentFlags))
-                                finalFlagsByAtom[atom] = NormalizeObjectLiteralFinalFlags(initFlags);
+                                finalFlagsByAtom[atom] = NormalizeObjectLiteralFinalFlags(
+                                    initFlags
+                                );
                             else
-                                finalFlagsByAtom[atom] = MergeObjectLiteralPropertyFlags(currentFlags, initFlags, prop.Key);
+                                finalFlagsByAtom[atom] = MergeObjectLiteralPropertyFlags(
+                                    currentFlags,
+                                    initFlags,
+                                    prop.Key
+                                );
 
                             namePlanByProperty[i] = new(atom, initFlags);
                         }
@@ -2314,14 +2736,19 @@ public sealed partial class JsCompiler
                                     EmitObjectLiteralDataValue(prop, objReg);
                                     EmitDefineOwnKeyedProperty(objReg, keyReg);
                                 }
-                                else if (prop.Kind is JsObjectPropertyKind.Getter or JsObjectPropertyKind.Setter)
+                                else if (
+                                    prop.Kind
+                                    is JsObjectPropertyKind.Getter
+                                        or JsObjectPropertyKind.Setter
+                                )
                                 {
                                     EmitDefineObjectLiteralAccessor(objReg, keyReg, prop);
                                 }
                                 else
                                 {
                                     throw new NotSupportedException(
-                                        $"Object literal property kind {prop.Kind} is not supported in Okojo Phase 2.");
+                                        $"Object literal property kind {prop.Kind} is not supported in Okojo Phase 2."
+                                    );
                                 }
 
                                 continue;
@@ -2331,7 +2758,8 @@ public sealed partial class JsCompiler
                             {
                                 if (prop.ComputedKey is null)
                                     throw new InvalidOperationException(
-                                        "Computed object literal key expression is missing.");
+                                        "Computed object literal key expression is missing."
+                                    );
                                 VisitExpression(prop.ComputedKey);
                                 if (keyReg == -1)
                                     keyReg = AllocateTemporaryRegister();
@@ -2343,14 +2771,19 @@ public sealed partial class JsCompiler
                                     EmitObjectLiteralDataValue(prop, objReg);
                                     EmitDefineOwnKeyedProperty(objReg, keyReg);
                                 }
-                                else if (prop.Kind is JsObjectPropertyKind.Getter or JsObjectPropertyKind.Setter)
+                                else if (
+                                    prop.Kind
+                                    is JsObjectPropertyKind.Getter
+                                        or JsObjectPropertyKind.Setter
+                                )
                                 {
                                     EmitDefineObjectLiteralAccessor(objReg, keyReg, prop);
                                 }
                                 else
                                 {
                                     throw new NotSupportedException(
-                                        $"Object literal property kind {prop.Kind} is not supported in Okojo Phase 2.");
+                                        $"Object literal property kind {prop.Kind} is not supported in Okojo Phase 2."
+                                    );
                                 }
 
                                 continue;
@@ -2358,9 +2791,14 @@ public sealed partial class JsCompiler
 
                             if (i < shapePrefixEnd)
                             {
-                                if (!prop.IsComputed) EmitObjectLiteralDataValue(prop, objReg);
+                                if (!prop.IsComputed)
+                                    EmitObjectLiteralDataValue(prop, objReg);
 
-                                if (prop.Kind is JsObjectPropertyKind.Getter or JsObjectPropertyKind.Setter)
+                                if (
+                                    prop.Kind
+                                    is JsObjectPropertyKind.Getter
+                                        or JsObjectPropertyKind.Setter
+                                )
                                 {
                                     if (keyReg == -1)
                                         keyReg = AllocateTemporaryRegister();
@@ -2373,12 +2811,15 @@ public sealed partial class JsCompiler
 
                                 var plan = namePlanByProperty[i];
                                 if (!shape.TryGetSlotInfo(plan.Atom, out var slotInfo))
-                                    throw new InvalidOperationException("Missing precomputed object literal shape slot.");
-                                var slot = prop.Kind == JsObjectPropertyKind.Setter &&
-                                           (slotInfo.Flags & JsShapePropertyFlags.BothAccessor) ==
-                                           JsShapePropertyFlags.BothAccessor
-                                    ? slotInfo.AccessorSetterSlot
-                                    : slotInfo.Slot;
+                                    throw new InvalidOperationException(
+                                        "Missing precomputed object literal shape slot."
+                                    );
+                                var slot =
+                                    prop.Kind == JsObjectPropertyKind.Setter
+                                    && (slotInfo.Flags & JsShapePropertyFlags.BothAccessor)
+                                        == JsShapePropertyFlags.BothAccessor
+                                        ? slotInfo.AccessorSetterSlot
+                                        : slotInfo.Slot;
                                 EmitInitializeNamedProperty(objReg, slot);
                             }
                             else
@@ -2393,7 +2834,11 @@ public sealed partial class JsCompiler
                                     EmitObjectLiteralDataValue(prop, objReg);
                                     EmitDefineOwnKeyedProperty(objReg, keyReg);
                                 }
-                                else if (prop.Kind is JsObjectPropertyKind.Getter or JsObjectPropertyKind.Setter)
+                                else if (
+                                    prop.Kind
+                                    is JsObjectPropertyKind.Getter
+                                        or JsObjectPropertyKind.Setter
+                                )
                                 {
                                     if (keyReg == -1)
                                         keyReg = AllocateTemporaryRegister();
@@ -2405,7 +2850,8 @@ public sealed partial class JsCompiler
                                 else
                                 {
                                     throw new NotSupportedException(
-                                        $"Object literal property kind {prop.Kind} is not supported in Okojo Phase 2.");
+                                        $"Object literal property kind {prop.Kind} is not supported in Okojo Phase 2."
+                                    );
                                 }
                             }
                         }
@@ -2439,7 +2885,8 @@ public sealed partial class JsCompiler
                                 thisReg,
                                 keyReg,
                                 "Only named/computed super member access is supported.",
-                                out var superNameIdx);
+                                out var superNameIdx
+                            );
                             EmitLoadSuperPropertyFromPrepared(member, thisReg, superNameIdx);
                             break;
                         }
@@ -2458,9 +2905,14 @@ public sealed partial class JsCompiler
                             {
                                 if (!TryResolvePrivateMemberBinding(member, out var privateBinding))
                                     throw new NotSupportedException(
-                                        "Private member access shape is not supported in Okojo Phase 1.");
-                                EmitPrivateFieldOp(JsOpCode.GetPrivateField, objReg, privateBinding.BrandId,
-                                    privateBinding.SlotIndex);
+                                        "Private member access shape is not supported in Okojo Phase 1."
+                                    );
+                                EmitPrivateFieldOp(
+                                    JsOpCode.GetPrivateField,
+                                    objReg,
+                                    privateBinding.BrandId,
+                                    privateBinding.SlotIndex
+                                );
                                 return;
                             }
 
@@ -2473,7 +2925,8 @@ public sealed partial class JsCompiler
 
                             if (!TryGetNamedMemberKey(member, out var memberName))
                                 throw new NotImplementedException(
-                                    "Only non-computed named member access is supported in Okojo Phase 1.");
+                                    "Only non-computed named member access is supported in Okojo Phase 1."
+                                );
                             var nameIdx = builder.AddAtomizedStringConstant(memberName);
                             var feedbackSlot = builder.AllocateFeedbackSlot();
                             EmitLdaNamedPropertyByIndex(objReg, nameIdx, feedbackSlot);
@@ -2515,8 +2968,10 @@ public sealed partial class JsCompiler
                         else
                         {
                             var nameIdx = builder.AddAtomizedStringConstant(idArg.Name);
-                            EmitTypeOfGlobalByIndex(nameIdx,
-                                builder.GetOrAllocateGlobalBindingFeedbackSlot(idArg.Name));
+                            EmitTypeOfGlobalByIndex(
+                                nameIdx,
+                                builder.GetOrAllocateGlobalBindingFeedbackSlot(idArg.Name)
+                            );
                         }
                     }
                     else
@@ -2535,8 +2990,12 @@ public sealed partial class JsCompiler
                         EmitRaw(JsOpCode.ToNumeric);
                         EmitRaw(JsOpCode.Negate);
                         break;
-                    case JsUnaryOperator.Plus: EmitRaw(JsOpCode.ToNumber); break;
-                    case JsUnaryOperator.LogicalNot: EmitRaw(JsOpCode.LogicalNot); break;
+                    case JsUnaryOperator.Plus:
+                        EmitRaw(JsOpCode.ToNumber);
+                        break;
+                    case JsUnaryOperator.LogicalNot:
+                        EmitRaw(JsOpCode.LogicalNot);
+                        break;
                     case JsUnaryOperator.BitwiseNot:
                         EmitRaw(JsOpCode.ToNumeric);
                         EmitRaw(JsOpCode.BitwiseNot);
@@ -2544,7 +3003,8 @@ public sealed partial class JsCompiler
                     case JsUnaryOperator.Void:
                         EmitLdaUndefined();
                         break;
-                    default: throw new NotImplementedException($"Unary {unary.Operator}");
+                    default:
+                        throw new NotImplementedException($"Unary {unary.Operator}");
                 }
 
                 break;
@@ -2601,7 +3061,8 @@ public sealed partial class JsCompiler
                                     thisReg,
                                     keyReg,
                                     "Super member update requires named or computed property key.",
-                                    out var superNameIdx);
+                                    out var superNameIdx
+                                );
                                 EmitLoadSuperPropertyFromPrepared(memberArg, thisReg, superNameIdx);
                                 EmitToNumeric();
                                 var oldValueRegSuper = -1;
@@ -2631,12 +3092,22 @@ public sealed partial class JsCompiler
                             var oldValueReg = -1;
                             if (memberArg.IsPrivate)
                             {
-                                if (!TryResolvePrivateMemberBinding(memberArg, out var privateBinding))
+                                if (
+                                    !TryResolvePrivateMemberBinding(
+                                        memberArg,
+                                        out var privateBinding
+                                    )
+                                )
                                     throw new NotSupportedException(
-                                        "Private member update shape is not supported in Okojo Phase 1.");
+                                        "Private member update shape is not supported in Okojo Phase 1."
+                                    );
 
-                                EmitPrivateFieldOp(JsOpCode.GetPrivateField, objReg, privateBinding.BrandId,
-                                    privateBinding.SlotIndex);
+                                EmitPrivateFieldOp(
+                                    JsOpCode.GetPrivateField,
+                                    objReg,
+                                    privateBinding.BrandId,
+                                    privateBinding.SlotIndex
+                                );
                                 EmitToNumeric();
 
                                 if (!update.IsPrefix && resultUsed)
@@ -2648,8 +3119,13 @@ public sealed partial class JsCompiler
                                 EmitIncOrDec(isIncrement);
                                 var valueReg = AllocateTemporaryRegister();
                                 EmitStarRegister(valueReg);
-                                EmitPrivateFieldOp(JsOpCode.SetPrivateField, objReg, valueReg, privateBinding.BrandId,
-                                    privateBinding.SlotIndex);
+                                EmitPrivateFieldOp(
+                                    JsOpCode.SetPrivateField,
+                                    objReg,
+                                    valueReg,
+                                    privateBinding.BrandId,
+                                    privateBinding.SlotIndex
+                                );
                             }
                             else if (memberArg.IsComputed)
                             {
@@ -2678,7 +3154,8 @@ public sealed partial class JsCompiler
                             {
                                 if (!TryGetNamedMemberKey(memberArg, out var memberName))
                                     throw new NotImplementedException(
-                                        "Only non-computed named member update is supported in Okojo Phase 1.");
+                                        "Only non-computed named member update is supported in Okojo Phase 1."
+                                    );
 
                                 var nameIdx = builder.AddAtomizedStringConstant(memberName);
                                 var feedbackSlot = builder.AllocateFeedbackSlot();
@@ -2701,7 +3178,8 @@ public sealed partial class JsCompiler
                         else
                         {
                             throw new NotImplementedException(
-                                "Update expressions support identifier/member operands only in Okojo Phase 2.");
+                                "Update expressions support identifier/member operands only in Okojo Phase 2."
+                            );
                         }
                     }
                     finally
@@ -2712,142 +3190,213 @@ public sealed partial class JsCompiler
                 break;
 
             case JsBinaryExpression bin:
+            {
+                var tempScope = BeginTemporaryRegisterScope();
+                try
                 {
-                    var tempScope = BeginTemporaryRegisterScope();
-                    try
+                    if (
+                        bin.Operator == JsBinaryOperator.In
+                        && bin.Left is JsPrivateIdentifierExpression privateIdentifier
+                    )
                     {
-                        if (bin.Operator == JsBinaryOperator.In &&
-                            bin.Left is JsPrivateIdentifierExpression privateIdentifier)
-                        {
-                            if (!TryResolvePrivateIdentifierBinding(privateIdentifier, out var privateBinding))
-                                throw new NotSupportedException("Private identifier `in` binding could not be resolved.");
-
-                            VisitExpression(bin.Right);
-                            var argStart = AllocateTemporaryRegisterBlock(3);
-                            EmitStarRegister(argStart);
-                            EmitLda(privateBinding.BrandId);
-                            EmitStarRegister(argStart + 1);
-                            EmitLda(privateBinding.SlotIndex);
-                            EmitStarRegister(argStart + 2);
-                            EmitCallRuntime(RuntimeId.HasPrivateField, argStart, 3);
-                            break;
-                        }
-
-                        if (bin.Operator is JsBinaryOperator.LogicalAnd or JsBinaryOperator.LogicalOr)
-                        {
-                            var endLabel = builder.CreateLabel();
-                            VisitExpression(bin.Left);
-                            if (bin.Operator == JsBinaryOperator.LogicalAnd)
-                                builder.EmitJump(JsOpCode.JumpIfToBooleanFalse, endLabel);
-                            else
-                                builder.EmitJump(JsOpCode.JumpIfToBooleanTrue, endLabel);
-                            VisitExpression(bin.Right);
-                            builder.BindLabel(endLabel);
-                            break;
-                        }
-
-                        if (bin.Operator == JsBinaryOperator.NullishCoalescing)
-                        {
-                            VisitExpression(bin.Left);
-                            var leftReg = AllocateTemporaryRegister();
-                            EmitStarRegister(leftReg);
-                            var rightLabel = builder.CreateLabel();
-                            var endLabel = builder.CreateLabel();
-                            builder.EmitJump(JsOpCode.JumpIfNull, rightLabel);
-                            EmitLdaRegister(leftReg);
-                            builder.EmitJump(JsOpCode.JumpIfUndefined, rightLabel);
-                            builder.EmitJump(JsOpCode.Jump, endLabel);
-                            builder.BindLabel(rightLabel);
-                            VisitExpression(bin.Right);
-                            builder.BindLabel(endLabel);
-                            break;
-                        }
-
-                        if (TryGetSmiImmediate(bin.Right, out var rhsSmi) && IsSmiSpecializableBinaryOperator(bin.Operator))
-                        {
-                            VisitExpression(bin.Left);
-                            switch (bin.Operator)
-                            {
-                                case JsBinaryOperator.Add: EmitRaw(JsOpCode.AddSmi, (byte)rhsSmi, 0); break;
-                                case JsBinaryOperator.Subtract: EmitRaw(JsOpCode.SubSmi, (byte)rhsSmi, 0); break;
-                                case JsBinaryOperator.Multiply: EmitRaw(JsOpCode.MulSmi, (byte)rhsSmi, 0); break;
-                                case JsBinaryOperator.Modulo: EmitRaw(JsOpCode.ModSmi, (byte)rhsSmi, 0); break;
-                                case JsBinaryOperator.Exponentiate: EmitRaw(JsOpCode.ExpSmi, (byte)rhsSmi, 0); break;
-                                case JsBinaryOperator.LessThan: EmitRaw(JsOpCode.TestLessThanSmi, (byte)rhsSmi, 0); break;
-                                case JsBinaryOperator.GreaterThan:
-                                    EmitRaw(JsOpCode.TestGreaterThanSmi, (byte)rhsSmi, 0); break;
-                                case JsBinaryOperator.LessThanOrEqual:
-                                    EmitRaw(JsOpCode.TestLessThanOrEqualSmi, (byte)rhsSmi, 0); break;
-                                case JsBinaryOperator.GreaterThanOrEqual:
-                                    EmitRaw(JsOpCode.TestGreaterThanOrEqualSmi, (byte)rhsSmi, 0); break;
-                            }
-
-                            break;
-                        }
-
-                        if (TryGetPlainLocalReadRegister(bin.Left, out var lhsDirectReg) &&
-                            TryGetPlainLocalReadRegister(bin.Right, out var rhsDirectReg) &&
-                            TryMapBinaryOperatorToOkojoOpCode(bin.Operator, out var directOp))
-                        {
-                            EmitLdaRegister(rhsDirectReg);
-                            EmitRegisterSlotOp(directOp, lhsDirectReg);
-                            break;
-                        }
-
-                        if (TryGetPlainLocalReadRegister(bin.Left, out lhsDirectReg) &&
-                            bin.Right is JsLiteralExpression &&
-                            TryMapBinaryOperatorToOkojoOpCode(bin.Operator, out directOp))
-                        {
-                            VisitExpression(bin.Right);
-                            EmitRegisterSlotOp(directOp, lhsDirectReg);
-                            break;
-                        }
-
-                        VisitExpression(bin.Left);
-                        var lhsReg = AllocateTemporaryRegister();
-                        EmitStarRegister(lhsReg);
+                        if (
+                            !TryResolvePrivateIdentifierBinding(
+                                privateIdentifier,
+                                out var privateBinding
+                            )
+                        )
+                            throw new NotSupportedException(
+                                "Private identifier `in` binding could not be resolved."
+                            );
 
                         VisitExpression(bin.Right);
+                        var argStart = AllocateTemporaryRegisterBlock(3);
+                        EmitStarRegister(argStart);
+                        EmitLda(privateBinding.BrandId);
+                        EmitStarRegister(argStart + 1);
+                        EmitLda(privateBinding.SlotIndex);
+                        EmitStarRegister(argStart + 2);
+                        EmitCallRuntime(RuntimeId.HasPrivateField, argStart, 3);
+                        break;
+                    }
+
+                    if (bin.Operator is JsBinaryOperator.LogicalAnd or JsBinaryOperator.LogicalOr)
+                    {
+                        var endLabel = builder.CreateLabel();
+                        VisitExpression(bin.Left);
+                        if (bin.Operator == JsBinaryOperator.LogicalAnd)
+                            builder.EmitJump(JsOpCode.JumpIfToBooleanFalse, endLabel);
+                        else
+                            builder.EmitJump(JsOpCode.JumpIfToBooleanTrue, endLabel);
+                        VisitExpression(bin.Right);
+                        builder.BindLabel(endLabel);
+                        break;
+                    }
+
+                    if (bin.Operator == JsBinaryOperator.NullishCoalescing)
+                    {
+                        VisitExpression(bin.Left);
+                        var leftReg = AllocateTemporaryRegister();
+                        EmitStarRegister(leftReg);
+                        var rightLabel = builder.CreateLabel();
+                        var endLabel = builder.CreateLabel();
+                        builder.EmitJump(JsOpCode.JumpIfNull, rightLabel);
+                        EmitLdaRegister(leftReg);
+                        builder.EmitJump(JsOpCode.JumpIfUndefined, rightLabel);
+                        builder.EmitJump(JsOpCode.Jump, endLabel);
+                        builder.BindLabel(rightLabel);
+                        VisitExpression(bin.Right);
+                        builder.BindLabel(endLabel);
+                        break;
+                    }
+
+                    if (
+                        TryGetSmiImmediate(bin.Right, out var rhsSmi)
+                        && IsSmiSpecializableBinaryOperator(bin.Operator)
+                    )
+                    {
+                        VisitExpression(bin.Left);
                         switch (bin.Operator)
                         {
-                            case JsBinaryOperator.Add: EmitRegisterSlotOp(JsOpCode.Add, lhsReg); break;
-                            case JsBinaryOperator.Subtract: EmitRegisterSlotOp(JsOpCode.Sub, lhsReg); break;
-                            case JsBinaryOperator.Multiply: EmitRegisterSlotOp(JsOpCode.Mul, lhsReg); break;
-                            case JsBinaryOperator.Divide: EmitRegisterSlotOp(JsOpCode.Div, lhsReg); break;
-                            case JsBinaryOperator.Modulo: EmitRegisterSlotOp(JsOpCode.Mod, lhsReg); break;
-                            case JsBinaryOperator.Exponentiate: EmitRegisterSlotOp(JsOpCode.Exp, lhsReg); break;
-                            case JsBinaryOperator.BitwiseAnd: EmitRegisterSlotOp(JsOpCode.BitwiseAnd, lhsReg); break;
-                            case JsBinaryOperator.BitwiseOr: EmitRegisterSlotOp(JsOpCode.BitwiseOr, lhsReg); break;
-                            case JsBinaryOperator.BitwiseXor: EmitRegisterSlotOp(JsOpCode.BitwiseXor, lhsReg); break;
-                            case JsBinaryOperator.ShiftLeft: EmitRegisterSlotOp(JsOpCode.ShiftLeft, lhsReg); break;
-                            case JsBinaryOperator.ShiftRight: EmitRegisterSlotOp(JsOpCode.ShiftRight, lhsReg); break;
-                            case JsBinaryOperator.ShiftRightLogical:
-                                EmitRegisterSlotOp(JsOpCode.ShiftRightLogical, lhsReg); break;
-                            case JsBinaryOperator.LessThan: EmitRegisterSlotOp(JsOpCode.TestLessThan, lhsReg); break;
-                            case JsBinaryOperator.GreaterThan: EmitRegisterSlotOp(JsOpCode.TestGreaterThan, lhsReg); break;
-                            case JsBinaryOperator.LessThanOrEqual:
-                                EmitRegisterSlotOp(JsOpCode.TestLessThanOrEqual, lhsReg); break;
-                            case JsBinaryOperator.GreaterThanOrEqual:
-                                EmitRegisterSlotOp(JsOpCode.TestGreaterThanOrEqual, lhsReg); break;
-                            case JsBinaryOperator.Equal: EmitRegisterSlotOp(JsOpCode.TestEqual, lhsReg); break;
-                            case JsBinaryOperator.NotEqual: EmitRegisterSlotOp(JsOpCode.TestNotEqual, lhsReg); break;
-                            case JsBinaryOperator.StrictEqual: EmitTestEqualStrictRegister(lhsReg); break;
-                            case JsBinaryOperator.In: EmitRegisterSlotOp(JsOpCode.TestIn, lhsReg); break;
-                            case JsBinaryOperator.Instanceof: EmitRegisterSlotOp(JsOpCode.TestInstanceOf, lhsReg); break;
-                            case JsBinaryOperator.StrictNotEqual:
-                                EmitTestEqualStrictRegister(lhsReg);
-                                EmitRaw(JsOpCode.LogicalNot);
+                            case JsBinaryOperator.Add:
+                                EmitRaw(JsOpCode.AddSmi, (byte)rhsSmi, 0);
                                 break;
-                            default: throw new NotImplementedException(bin.Operator.ToString());
+                            case JsBinaryOperator.Subtract:
+                                EmitRaw(JsOpCode.SubSmi, (byte)rhsSmi, 0);
+                                break;
+                            case JsBinaryOperator.Multiply:
+                                EmitRaw(JsOpCode.MulSmi, (byte)rhsSmi, 0);
+                                break;
+                            case JsBinaryOperator.Modulo:
+                                EmitRaw(JsOpCode.ModSmi, (byte)rhsSmi, 0);
+                                break;
+                            case JsBinaryOperator.Exponentiate:
+                                EmitRaw(JsOpCode.ExpSmi, (byte)rhsSmi, 0);
+                                break;
+                            case JsBinaryOperator.LessThan:
+                                EmitRaw(JsOpCode.TestLessThanSmi, (byte)rhsSmi, 0);
+                                break;
+                            case JsBinaryOperator.GreaterThan:
+                                EmitRaw(JsOpCode.TestGreaterThanSmi, (byte)rhsSmi, 0);
+                                break;
+                            case JsBinaryOperator.LessThanOrEqual:
+                                EmitRaw(JsOpCode.TestLessThanOrEqualSmi, (byte)rhsSmi, 0);
+                                break;
+                            case JsBinaryOperator.GreaterThanOrEqual:
+                                EmitRaw(JsOpCode.TestGreaterThanOrEqualSmi, (byte)rhsSmi, 0);
+                                break;
                         }
 
                         break;
                     }
-                    finally
+
+                    if (
+                        TryGetPlainLocalReadRegister(bin.Left, out var lhsDirectReg)
+                        && TryGetPlainLocalReadRegister(bin.Right, out var rhsDirectReg)
+                        && TryMapBinaryOperatorToOkojoOpCode(bin.Operator, out var directOp)
+                    )
                     {
-                        EndTemporaryRegisterScope(tempScope);
+                        EmitLdaRegister(rhsDirectReg);
+                        EmitRegisterSlotOp(directOp, lhsDirectReg);
+                        break;
                     }
+
+                    if (
+                        TryGetPlainLocalReadRegister(bin.Left, out lhsDirectReg)
+                        && bin.Right is JsLiteralExpression
+                        && TryMapBinaryOperatorToOkojoOpCode(bin.Operator, out directOp)
+                    )
+                    {
+                        VisitExpression(bin.Right);
+                        EmitRegisterSlotOp(directOp, lhsDirectReg);
+                        break;
+                    }
+
+                    VisitExpression(bin.Left);
+                    var lhsReg = AllocateTemporaryRegister();
+                    EmitStarRegister(lhsReg);
+
+                    VisitExpression(bin.Right);
+                    switch (bin.Operator)
+                    {
+                        case JsBinaryOperator.Add:
+                            EmitRegisterSlotOp(JsOpCode.Add, lhsReg);
+                            break;
+                        case JsBinaryOperator.Subtract:
+                            EmitRegisterSlotOp(JsOpCode.Sub, lhsReg);
+                            break;
+                        case JsBinaryOperator.Multiply:
+                            EmitRegisterSlotOp(JsOpCode.Mul, lhsReg);
+                            break;
+                        case JsBinaryOperator.Divide:
+                            EmitRegisterSlotOp(JsOpCode.Div, lhsReg);
+                            break;
+                        case JsBinaryOperator.Modulo:
+                            EmitRegisterSlotOp(JsOpCode.Mod, lhsReg);
+                            break;
+                        case JsBinaryOperator.Exponentiate:
+                            EmitRegisterSlotOp(JsOpCode.Exp, lhsReg);
+                            break;
+                        case JsBinaryOperator.BitwiseAnd:
+                            EmitRegisterSlotOp(JsOpCode.BitwiseAnd, lhsReg);
+                            break;
+                        case JsBinaryOperator.BitwiseOr:
+                            EmitRegisterSlotOp(JsOpCode.BitwiseOr, lhsReg);
+                            break;
+                        case JsBinaryOperator.BitwiseXor:
+                            EmitRegisterSlotOp(JsOpCode.BitwiseXor, lhsReg);
+                            break;
+                        case JsBinaryOperator.ShiftLeft:
+                            EmitRegisterSlotOp(JsOpCode.ShiftLeft, lhsReg);
+                            break;
+                        case JsBinaryOperator.ShiftRight:
+                            EmitRegisterSlotOp(JsOpCode.ShiftRight, lhsReg);
+                            break;
+                        case JsBinaryOperator.ShiftRightLogical:
+                            EmitRegisterSlotOp(JsOpCode.ShiftRightLogical, lhsReg);
+                            break;
+                        case JsBinaryOperator.LessThan:
+                            EmitRegisterSlotOp(JsOpCode.TestLessThan, lhsReg);
+                            break;
+                        case JsBinaryOperator.GreaterThan:
+                            EmitRegisterSlotOp(JsOpCode.TestGreaterThan, lhsReg);
+                            break;
+                        case JsBinaryOperator.LessThanOrEqual:
+                            EmitRegisterSlotOp(JsOpCode.TestLessThanOrEqual, lhsReg);
+                            break;
+                        case JsBinaryOperator.GreaterThanOrEqual:
+                            EmitRegisterSlotOp(JsOpCode.TestGreaterThanOrEqual, lhsReg);
+                            break;
+                        case JsBinaryOperator.Equal:
+                            EmitRegisterSlotOp(JsOpCode.TestEqual, lhsReg);
+                            break;
+                        case JsBinaryOperator.NotEqual:
+                            EmitRegisterSlotOp(JsOpCode.TestNotEqual, lhsReg);
+                            break;
+                        case JsBinaryOperator.StrictEqual:
+                            EmitTestEqualStrictRegister(lhsReg);
+                            break;
+                        case JsBinaryOperator.In:
+                            EmitRegisterSlotOp(JsOpCode.TestIn, lhsReg);
+                            break;
+                        case JsBinaryOperator.Instanceof:
+                            EmitRegisterSlotOp(JsOpCode.TestInstanceOf, lhsReg);
+                            break;
+                        case JsBinaryOperator.StrictNotEqual:
+                            EmitTestEqualStrictRegister(lhsReg);
+                            EmitRaw(JsOpCode.LogicalNot);
+                            break;
+                        default:
+                            throw new NotImplementedException(bin.Operator.ToString());
+                    }
+
+                    break;
                 }
+                finally
+                {
+                    EndTemporaryRegisterScope(tempScope);
+                }
+            }
             case JsConditionalExpression conditional:
                 {
                     var elseLabel = builder.CreateLabel();
@@ -2873,16 +3422,21 @@ public sealed partial class JsCompiler
                     }
 
                     for (var i = 0; i < sequence.Expressions.Count; i++)
-                        VisitExpression(sequence.Expressions[i],
-                            i == sequence.Expressions.Count - 1 && resultUsed);
+                        VisitExpression(
+                            sequence.Expressions[i],
+                            i == sequence.Expressions.Count - 1 && resultUsed
+                        );
                 }
                 break;
-            default: throw new NotImplementedException(expr.GetType().Name);
+            default:
+                throw new NotImplementedException(expr.GetType().Name);
         }
     }
 
-    private BytecodeBuilder.Label? EmitLogicalAssignmentShortCircuitJump(JsAssignmentOperator op,
-        BytecodeBuilder.Label endLabel)
+    private BytecodeBuilder.Label? EmitLogicalAssignmentShortCircuitJump(
+        JsAssignmentOperator op,
+        BytecodeBuilder.Label endLabel
+    )
     {
         switch (op)
         {
@@ -2893,13 +3447,13 @@ public sealed partial class JsCompiler
                 builder.EmitJump(JsOpCode.JumpIfToBooleanTrue, endLabel);
                 return null;
             case JsAssignmentOperator.NullishCoalescingAssign:
-                {
-                    var evalLabel = builder.CreateLabel();
-                    builder.EmitJump(JsOpCode.JumpIfNull, evalLabel);
-                    builder.EmitJump(JsOpCode.JumpIfUndefined, evalLabel);
-                    builder.EmitJump(JsOpCode.Jump, endLabel);
-                    return evalLabel;
-                }
+            {
+                var evalLabel = builder.CreateLabel();
+                builder.EmitJump(JsOpCode.JumpIfNull, evalLabel);
+                builder.EmitJump(JsOpCode.JumpIfUndefined, evalLabel);
+                builder.EmitJump(JsOpCode.Jump, endLabel);
+                return evalLabel;
+            }
             default:
                 throw new NotImplementedException($"Assignment operator {op}");
         }
@@ -2909,21 +3463,27 @@ public sealed partial class JsCompiler
         JsExpression? Target,
         JsExpression? DefaultExpression,
         bool IsElision,
-        bool IsRest);
+        bool IsRest
+    );
 
     private readonly record struct ObjectAssignmentElement(
         string? StaticSourceKey,
         JsExpression? ComputedSourceKey,
         JsExpression Target,
         JsExpression? DefaultExpression,
-        bool IsRest);
+        bool IsRest
+    );
 
     private readonly record struct PreparedDestructuringTarget(
         CompilerIdentifierName? Identifier,
         int ObjectRegister,
         int RawKeyRegister,
         string? StaticMemberKey,
-        PrivateFieldBinding? PrivateBinding = null);
+        PrivateFieldBinding? PrivateBinding = null
+    );
 
-    private readonly record struct ObjectRestExcludedKey(string? StaticSourceKey, int ComputedKeyRegister);
+    private readonly record struct ObjectRestExcludedKey(
+        string? StaticSourceKey,
+        int ComputedKeyRegister
+    );
 }

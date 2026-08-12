@@ -26,7 +26,7 @@ public sealed class NodeReplEvaluator
         {
             IsRepl = true,
             ReplTopLevelLexicalNames = topLevelLexicalNames,
-            ReplTopLevelConstNames = topLevelConstNames
+            ReplTopLevelConstNames = topLevelConstNames,
         };
     }
 
@@ -37,7 +37,8 @@ public sealed class NodeReplEvaluator
         int strictMode,
         string sourcePath,
         bool awaitPromiseResult = false,
-        Action<JsScript>? onCompiled = null)
+        Action<JsScript>? onCompiled = null
+    )
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(sourcePath);
@@ -59,7 +60,8 @@ public sealed class NodeReplEvaluator
                 script,
                 "root",
                 isStrict: script.StrictDeclared,
-                kind: JsBytecodeFunctionKind.Async);
+                kind: JsBytecodeFunctionKind.Async
+            );
             rawResult = Realm.Call(root, JsValue.FromObject(Realm.GlobalObject));
         }
         else
@@ -80,7 +82,7 @@ public sealed class NodeReplEvaluator
         {
             StrictModeStrict => "'use strict';\n" + source,
             StrictModeSloppy => "void 0;\n" + source,
-            _ => source
+            _ => source,
         };
     }
 
@@ -103,7 +105,9 @@ public sealed class NodeReplEvaluator
         }
 
         if (promise.IsRejected)
-            throw new InvalidOperationException($"UnhandledPromiseRejection: {promise.SettledResult}");
+            throw new InvalidOperationException(
+                $"UnhandledPromiseRejection: {promise.SettledResult}"
+            );
 
         return promise.SettledResult;
     }
@@ -112,7 +116,9 @@ public sealed class NodeReplEvaluator
     {
         foreach (var name in EnumerateTopLevelLexicalNames(program))
             if (topLevelLexicalNames.Contains(name))
-                throw new InvalidOperationException($"SyntaxError: Identifier '{name}' has already been declared");
+                throw new InvalidOperationException(
+                    $"SyntaxError: Identifier '{name}' has already been declared"
+                );
     }
 
     private void RegisterTopLevelLexicalDeclarations(JsProgram program)

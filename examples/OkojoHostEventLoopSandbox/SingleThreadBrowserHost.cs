@@ -9,8 +9,11 @@ internal sealed class SingleThreadBrowserHost : IDisposable
 {
     private static readonly HostTaskQueueKey[] SQueueOrder =
     [
-        WebTaskQueueKeys.Timers, WebTaskQueueKeys.Messages, WebTaskQueueKeys.Network, HostingTaskQueueKeys.Default,
-        WebTaskQueueKeys.Rendering
+        WebTaskQueueKeys.Timers,
+        WebTaskQueueKeys.Messages,
+        WebTaskQueueKeys.Network,
+        HostingTaskQueueKeys.Default,
+        WebTaskQueueKeys.Rendering,
     ];
 
     private readonly SandboxAssets assets;
@@ -18,8 +21,12 @@ internal sealed class SingleThreadBrowserHost : IDisposable
     private readonly HttpClient httpClient;
     private readonly HostPump pump;
 
-    private SingleThreadBrowserHost(SandboxAssets assets, JsRuntime runtime, HttpClient httpClient,
-        ManualHostEventLoop eventLoop)
+    private SingleThreadBrowserHost(
+        SandboxAssets assets,
+        JsRuntime runtime,
+        HttpClient httpClient,
+        ManualHostEventLoop eventLoop
+    )
     {
         this.assets = assets;
         this.Runtime = runtime;
@@ -46,7 +53,8 @@ internal sealed class SingleThreadBrowserHost : IDisposable
         var eventLoop = new ManualHostEventLoop(timeProvider);
         var moduleLoader = new DemoModuleLoader(assets);
         var httpClient = new HttpClient(new DemoFetchHandler(assets.FetchPayloads));
-        var runtime = JsRuntime.CreateBuilder()
+        var runtime = JsRuntime
+            .CreateBuilder()
             .UseTimeProvider(timeProvider)
             .UseLowLevelHost(host => host.UseTaskScheduler(eventLoop))
             .UseWebDelayScheduler(eventLoop)
@@ -78,7 +86,9 @@ internal sealed class SingleThreadBrowserHost : IDisposable
             Thread.Sleep(5);
         }
 
-        throw new TimeoutException("The single-thread browser host sandbox timed out waiting for work to complete.");
+        throw new TimeoutException(
+            "The single-thread browser host sandbox timed out waiting for work to complete."
+        );
     }
 
     public void RunScript(string scriptPath)

@@ -65,7 +65,11 @@ public sealed class EcmaMatchResult
 
     /// <summary>Maps each group name to one representative capture index.</summary>
     public IReadOnlyDictionary<string, int> GroupNames =>
-        _groupNames ??= _nameGroups.ToDictionary(pair => pair.Key, pair => pair.Value[0], StringComparer.Ordinal);
+        _groupNames ??= _nameGroups.ToDictionary(
+            pair => pair.Key,
+            pair => pair.Value[0],
+            StringComparer.Ordinal
+        );
 
     /// <summary>Returns the capture for a numeric group.</summary>
     public EcmaCapture GetCapture(int groupNumber)

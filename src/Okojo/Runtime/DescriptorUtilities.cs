@@ -22,17 +22,26 @@ internal static class DescriptorUtilities
     }
 
     internal static DescriptorRequestedBooleans ReadRequestedBooleans(
-        bool hasWritable, in JsValue writableValue,
-        bool hasEnumerable, in JsValue enumerableValue,
-        bool hasConfigurable, in JsValue configurableValue)
+        bool hasWritable,
+        in JsValue writableValue,
+        bool hasEnumerable,
+        in JsValue enumerableValue,
+        bool hasConfigurable,
+        in JsValue configurableValue
+    )
     {
         return new(
             IsRequestedTrue(hasWritable, writableValue),
             IsRequestedTrue(hasEnumerable, enumerableValue),
-            IsRequestedTrue(hasConfigurable, configurableValue));
+            IsRequestedTrue(hasConfigurable, configurableValue)
+        );
     }
 
-    internal static JsShapePropertyFlags BuildDataFlags(bool writable, bool enumerable, bool configurable)
+    internal static JsShapePropertyFlags BuildDataFlags(
+        bool writable,
+        bool enumerable,
+        bool configurable
+    )
     {
         var flags = JsShapePropertyFlags.None;
         if (writable)
@@ -44,8 +53,12 @@ internal static class DescriptorUtilities
         return flags;
     }
 
-    internal static JsShapePropertyFlags BuildAccessorFlags(bool enumerable, bool configurable, bool hasGetter,
-        bool hasSetter)
+    internal static JsShapePropertyFlags BuildAccessorFlags(
+        bool enumerable,
+        bool configurable,
+        bool hasGetter,
+        bool hasSetter
+    )
     {
         var flags = JsShapePropertyFlags.None;
         if (enumerable)

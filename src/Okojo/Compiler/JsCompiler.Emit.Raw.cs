@@ -33,21 +33,53 @@ public sealed partial class JsCompiler
 
     private void EmitRaw(JsOpCode opcode, int operand0, int operand1, int operand2, int operand3)
     {
-        builder.Emit(opcode, EmitOperand(operand0), EmitOperand(operand1), EmitOperand(operand2),
-            EmitOperand(operand3));
+        builder.Emit(
+            opcode,
+            EmitOperand(operand0),
+            EmitOperand(operand1),
+            EmitOperand(operand2),
+            EmitOperand(operand3)
+        );
     }
 
-    private void EmitRaw(JsOpCode opcode, int operand0, int operand1, int operand2, int operand3, int operand4)
+    private void EmitRaw(
+        JsOpCode opcode,
+        int operand0,
+        int operand1,
+        int operand2,
+        int operand3,
+        int operand4
+    )
     {
-        builder.Emit(opcode, EmitOperand(operand0), EmitOperand(operand1), EmitOperand(operand2), EmitOperand(operand3),
-            EmitOperand(operand4));
+        builder.Emit(
+            opcode,
+            EmitOperand(operand0),
+            EmitOperand(operand1),
+            EmitOperand(operand2),
+            EmitOperand(operand3),
+            EmitOperand(operand4)
+        );
     }
 
-    private void EmitRaw(JsOpCode opcode, int operand0, int operand1, int operand2, int operand3, int operand4,
-        int operand5)
+    private void EmitRaw(
+        JsOpCode opcode,
+        int operand0,
+        int operand1,
+        int operand2,
+        int operand3,
+        int operand4,
+        int operand5
+    )
     {
-        builder.Emit(opcode, EmitOperand(operand0), EmitOperand(operand1), EmitOperand(operand2), EmitOperand(operand3),
-            EmitOperand(operand4), EmitOperand(operand5));
+        builder.Emit(
+            opcode,
+            EmitOperand(operand0),
+            EmitOperand(operand1),
+            EmitOperand(operand2),
+            EmitOperand(operand3),
+            EmitOperand(operand4),
+            EmitOperand(operand5)
+        );
     }
 
     private void EmitRaw(
@@ -58,9 +90,18 @@ public sealed partial class JsCompiler
         int operand3,
         int operand4,
         int operand5,
-        int operand6)
+        int operand6
+    )
     {
-        builder.Emit(opcode, EmitOperand(operand0), EmitOperand(operand1), EmitOperand(operand2), EmitOperand(operand3),
-            EmitOperand(operand4), EmitOperand(operand5), EmitOperand(operand6));
+        builder.Emit(
+            opcode,
+            EmitOperand(operand0),
+            EmitOperand(operand1),
+            EmitOperand(operand2),
+            EmitOperand(operand3),
+            EmitOperand(operand4),
+            EmitOperand(operand5),
+            EmitOperand(operand6)
+        );
     }
 }

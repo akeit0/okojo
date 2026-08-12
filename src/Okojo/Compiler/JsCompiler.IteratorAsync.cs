@@ -35,7 +35,8 @@ public sealed partial class JsCompiler
     private void EmitCreateIteratorFromAsyncOrSyncIterable(
         int iterableReg,
         int iteratorMethodReg,
-        int iterReg)
+        int iterReg
+    )
     {
         var useSyncIteratorLabel = builder.CreateLabel();
         var iteratorReadyLabel = builder.CreateLabel();
@@ -137,8 +138,12 @@ public sealed partial class JsCompiler
         PinSuspendRegister(sentReg);
         try
         {
-            EmitGeneratorSuspendResume(iterReg, true, inspectActiveDelegateOnNext: true,
-                delegateCompletedAsNextLabel: doneLabel);
+            EmitGeneratorSuspendResume(
+                iterReg,
+                true,
+                inspectActiveDelegateOnNext: true,
+                delegateCompletedAsNextLabel: doneLabel
+            );
         }
         finally
         {
@@ -155,9 +160,13 @@ public sealed partial class JsCompiler
     private void EmitForAwaitOfStatement(
         JsForInOfStatement stmt,
         IReadOnlyList<string>? labels = null,
-        bool needsPerIterationContext = false)
+        bool needsPerIterationContext = false
+    )
     {
-        if (functionKind is not (JsBytecodeFunctionKind.Async or JsBytecodeFunctionKind.AsyncGenerator))
+        if (
+            functionKind
+            is not (JsBytecodeFunctionKind.Async or JsBytecodeFunctionKind.AsyncGenerator)
+        )
             throw new NotSupportedException("for await...of is only valid inside async functions.");
 
         if (CanUseSimpleForAwaitEmit(stmt.Body, labels, needsPerIterationContext))
@@ -236,12 +245,9 @@ public sealed partial class JsCompiler
         EmitSetBooleanRegister(closeRequestedReg, false);
 
         builder.EmitJump(JsOpCode.PushTry, catchLabel);
-        activeFinallyFlow.Push(new(
-            completionKindReg,
-            completionValueReg,
-            finallyFromTryLabel,
-            true,
-            routeMap));
+        activeFinallyFlow.Push(
+            new(completionKindReg, completionValueReg, finallyFromTryLabel, true, routeMap)
+        );
         activeForAwaitLoops.Push(new(doneLabel, continueLabel, closeRequestedReg));
         try
         {
@@ -259,7 +265,8 @@ public sealed partial class JsCompiler
                     EmitExplicitResourceScope(
                         () => VisitStatement(stmt.Body),
                         usingLikeDeclaration.Kind == JsVariableDeclarationKind.AwaitUsing,
-                        _ => EmitRegisterExplicitResource(usingLikeDeclaration.Kind, valueReg));
+                        _ => EmitRegisterExplicitResource(usingLikeDeclaration.Kind, valueReg)
+                    );
                 }
                 else
                 {
@@ -400,8 +407,13 @@ public sealed partial class JsCompiler
         {
             var noBreakRouteMatchedLabel = builder.CreateLabel();
             builder.BindLabel(breakDispatchLabel);
-            EmitFinallyRouteDispatch(routeMap, false, completionValueReg, routeCompareReg,
-                noBreakRouteMatchedLabel);
+            EmitFinallyRouteDispatch(
+                routeMap,
+                false,
+                completionValueReg,
+                routeCompareReg,
+                noBreakRouteMatchedLabel
+            );
             builder.BindLabel(noBreakRouteMatchedLabel);
             EmitJump(normalContinueLabel);
         }
@@ -409,7 +421,13 @@ public sealed partial class JsCompiler
         if (continueDispatchLabel.IsInitialized)
         {
             builder.BindLabel(continueDispatchLabel);
-            EmitFinallyRouteDispatch(routeMap, true, completionValueReg, routeCompareReg, continueLabel);
+            EmitFinallyRouteDispatch(
+                routeMap,
+                true,
+                completionValueReg,
+                routeCompareReg,
+                continueLabel
+            );
         }
 
         builder.BindLabel(normalContinueLabel);
@@ -437,8 +455,12 @@ public sealed partial class JsCompiler
         var iterReg = AllocateTemporaryRegister();
         var resultReg = AllocateTemporaryRegister();
         var valueReg = AllocateTemporaryRegister();
-        var thrownValueReg = AllocateSyntheticLocal($"$forAwait.simple.throw.{finallyTempUniqueId++}");
-        var closeResultReg = AllocateSyntheticLocal($"$forAwait.simple.close.{finallyTempUniqueId++}");
+        var thrownValueReg = AllocateSyntheticLocal(
+            $"$forAwait.simple.throw.{finallyTempUniqueId++}"
+        );
+        var closeResultReg = AllocateSyntheticLocal(
+            $"$forAwait.simple.close.{finallyTempUniqueId++}"
+        );
 
         var loopLabel = builder.CreateLabel();
         var continueLabel = builder.CreateLabel();
@@ -472,7 +494,8 @@ public sealed partial class JsCompiler
             EmitExplicitResourceScope(
                 () => VisitStatement(stmt.Body),
                 usingLikeDeclaration.Kind == JsVariableDeclarationKind.AwaitUsing,
-                _ => EmitRegisterExplicitResource(usingLikeDeclaration.Kind, valueReg));
+                _ => EmitRegisterExplicitResource(usingLikeDeclaration.Kind, valueReg)
+            );
         }
         else
         {
@@ -504,7 +527,8 @@ public sealed partial class JsCompiler
     private static bool CanUseSimpleForAwaitEmit(
         JsStatement body,
         IReadOnlyList<string>? labels,
-        bool needsPerIterationContext)
+        bool needsPerIterationContext
+    )
     {
         if (needsPerIterationContext)
             return false;
@@ -530,9 +554,11 @@ public sealed partial class JsCompiler
 
                 return false;
             case JsIfStatement conditional:
-                return StatementHasExplicitAbruptForAwaitControl(conditional.Consequent) ||
-                       (conditional.Alternate is not null &&
-                        StatementHasExplicitAbruptForAwaitControl(conditional.Alternate));
+                return StatementHasExplicitAbruptForAwaitControl(conditional.Consequent)
+                    || (
+                        conditional.Alternate is not null
+                        && StatementHasExplicitAbruptForAwaitControl(conditional.Alternate)
+                    );
             case JsWhileStatement whileStatement:
                 return StatementHasExplicitAbruptForAwaitControl(whileStatement.Body);
             case JsDoWhileStatement doWhileStatement:
@@ -545,17 +571,21 @@ public sealed partial class JsCompiler
                 return StatementHasExplicitAbruptForAwaitControl(labeledStatement.Statement);
             case JsSwitchStatement switchStatement:
                 foreach (var @case in switchStatement.Cases)
-                    foreach (var consequent in @case.Consequent)
-                        if (StatementHasExplicitAbruptForAwaitControl(consequent))
-                            return true;
+                foreach (var consequent in @case.Consequent)
+                    if (StatementHasExplicitAbruptForAwaitControl(consequent))
+                        return true;
 
                 return false;
             case JsTryStatement tryStatement:
-                return StatementHasExplicitAbruptForAwaitControl(tryStatement.Block) ||
-                       (tryStatement.Handler is not null &&
-                        StatementHasExplicitAbruptForAwaitControl(tryStatement.Handler.Body)) ||
-                       (tryStatement.Finalizer is not null &&
-                        StatementHasExplicitAbruptForAwaitControl(tryStatement.Finalizer));
+                return StatementHasExplicitAbruptForAwaitControl(tryStatement.Block)
+                    || (
+                        tryStatement.Handler is not null
+                        && StatementHasExplicitAbruptForAwaitControl(tryStatement.Handler.Body)
+                    )
+                    || (
+                        tryStatement.Finalizer is not null
+                        && StatementHasExplicitAbruptForAwaitControl(tryStatement.Finalizer)
+                    );
             case JsWithStatement withStatement:
                 return StatementHasExplicitAbruptForAwaitControl(withStatement.Body);
             case JsExportDeclarationStatement exportDeclaration:

@@ -12,17 +12,17 @@
         <PackageTags>javascript;ecmascript;intl;globalization;locale;dotnet</PackageTags>
     </PropertyGroup>
     <ItemGroup>
-        <ProjectReference Include="..\Okojo.Text.Unicode\Okojo.Text.Unicode.csproj"/>
-        <ProjectReference Include="..\Okojo.Numerics\Okojo.Numerics.csproj"/>
+        <ProjectReference Include="..\Okojo.Text.Unicode\Okojo.Text.Unicode.csproj" />
+        <ProjectReference Include="..\Okojo.Numerics\Okojo.Numerics.csproj" />
     </ItemGroup>
     <ItemGroup>
-        <EmbeddedResource Include="Data\CalendarData.txt"/>
-        <EmbeddedResource Include="Data\LocaleData.txt"/>
-        <EmbeddedResource Include="Data\LikelySubtags.txt"/>
+        <EmbeddedResource Include="Data\CalendarData.txt" />
+        <EmbeddedResource Include="Data\LocaleData.txt" />
+        <EmbeddedResource Include="Data\LikelySubtags.txt" />
     </ItemGroup>
     <ItemGroup>
-        <InternalsVisibleTo Include="Okojo"/>
-        <InternalsVisibleTo Include="Okojo.Tests"/>
-        <InternalsVisibleTo Include="Okojo.Globalization.Tests"/>
+        <InternalsVisibleTo Include="Okojo" />
+        <InternalsVisibleTo Include="Okojo.Tests" />
+        <InternalsVisibleTo Include="Okojo.Globalization.Tests" />
     </ItemGroup>
 </Project>

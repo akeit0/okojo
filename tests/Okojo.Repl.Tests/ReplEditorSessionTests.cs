@@ -7,13 +7,20 @@ public class ReplEditorSessionTests
     [Test]
     public void Session_Uses_Node_Style_Continuation_Prompt_And_Tracks_Cursor()
     {
-        var tempRoot = Path.Combine(Path.GetTempPath(), "Okojo.Repl.Tests", Guid.NewGuid().ToString("N"));
+        var tempRoot = Path.Combine(
+            Path.GetTempPath(),
+            "Okojo.Repl.Tests",
+            Guid.NewGuid().ToString("N")
+        );
         var historyPath = Path.Combine(tempRoot, "repl-history.json");
 
         try
         {
             using var history = ReplHistoryStore.Load(historyPath);
-            var session = new ReplEditorSession(input => ReplInputParser.IsInputComplete(input), history);
+            var session = new ReplEditorSession(
+                input => ReplInputParser.IsInputComplete(input),
+                history
+            );
             var console = new FakeReplConsole();
 
             session.Render(console);
@@ -37,7 +44,11 @@ public class ReplEditorSessionTests
     [Test]
     public void Session_Uses_History_On_Up_And_Down()
     {
-        var tempRoot = Path.Combine(Path.GetTempPath(), "Okojo.Repl.Tests", Guid.NewGuid().ToString("N"));
+        var tempRoot = Path.Combine(
+            Path.GetTempPath(),
+            "Okojo.Repl.Tests",
+            Guid.NewGuid().ToString("N")
+        );
         var historyPath = Path.Combine(tempRoot, "repl-history.json");
 
         try
@@ -46,7 +57,10 @@ public class ReplEditorSessionTests
             history.Record("first()");
             history.Record("second()");
 
-            var session = new ReplEditorSession(input => ReplInputParser.IsInputComplete(input), history);
+            var session = new ReplEditorSession(
+                input => ReplInputParser.IsInputComplete(input),
+                history
+            );
             _ = session.HandleKey(Key('w'), out _);
             _ = session.HandleKey(Key('i'), out _);
             _ = session.HandleKey(Key('p'), out _);
@@ -73,7 +87,11 @@ public class ReplEditorSessionTests
     [Test]
     public void Session_Uses_Up_Down_For_Multiline_Cursor_Movement_Before_History()
     {
-        var tempRoot = Path.Combine(Path.GetTempPath(), "Okojo.Repl.Tests", Guid.NewGuid().ToString("N"));
+        var tempRoot = Path.Combine(
+            Path.GetTempPath(),
+            "Okojo.Repl.Tests",
+            Guid.NewGuid().ToString("N")
+        );
         var historyPath = Path.Combine(tempRoot, "repl-history.json");
 
         try
@@ -81,7 +99,10 @@ public class ReplEditorSessionTests
             using var history = ReplHistoryStore.Load(historyPath);
             history.Record("history()");
 
-            var session = new ReplEditorSession(input => ReplInputParser.IsInputComplete(input), history);
+            var session = new ReplEditorSession(
+                input => ReplInputParser.IsInputComplete(input),
+                history
+            );
             session.Buffer.SetText("line1\nline2");
 
             _ = session.HandleKey(Arrow(ConsoleKey.UpArrow), out _);
@@ -112,7 +133,11 @@ public class ReplEditorSessionTests
     [Test]
     public void HistoryStore_Persists_Multiline_Entries()
     {
-        var tempRoot = Path.Combine(Path.GetTempPath(), "Okojo.Repl.Tests", Guid.NewGuid().ToString("N"));
+        var tempRoot = Path.Combine(
+            Path.GetTempPath(),
+            "Okojo.Repl.Tests",
+            Guid.NewGuid().ToString("N")
+        );
         var historyPath = Path.Combine(tempRoot, "repl-history.json");
 
         try
@@ -136,7 +161,11 @@ public class ReplEditorSessionTests
     [Test]
     public void Session_Rendering_Multiline_History_Does_Not_Overwrite_Previous_Content()
     {
-        var tempRoot = Path.Combine(Path.GetTempPath(), "Okojo.Repl.Tests", Guid.NewGuid().ToString("N"));
+        var tempRoot = Path.Combine(
+            Path.GetTempPath(),
+            "Okojo.Repl.Tests",
+            Guid.NewGuid().ToString("N")
+        );
         var historyPath = Path.Combine(tempRoot, "repl-history.json");
 
         try
@@ -144,7 +173,10 @@ public class ReplEditorSessionTests
             using var history = ReplHistoryStore.Load(historyPath);
             history.Record("line1()\nline2()");
 
-            var session = new ReplEditorSession(input => ReplInputParser.IsInputComplete(input), history);
+            var session = new ReplEditorSession(
+                input => ReplInputParser.IsInputComplete(input),
+                history
+            );
             var console = new FakeReplConsole();
 
             session.Render(console);
@@ -167,7 +199,11 @@ public class ReplEditorSessionTests
     [Test]
     public void Session_Rendering_Multiline_History_Preserves_Preexisting_Output_Above_Prompt()
     {
-        var tempRoot = Path.Combine(Path.GetTempPath(), "Okojo.Repl.Tests", Guid.NewGuid().ToString("N"));
+        var tempRoot = Path.Combine(
+            Path.GetTempPath(),
+            "Okojo.Repl.Tests",
+            Guid.NewGuid().ToString("N")
+        );
         var historyPath = Path.Combine(tempRoot, "repl-history.json");
 
         try
@@ -175,7 +211,10 @@ public class ReplEditorSessionTests
             using var history = ReplHistoryStore.Load(historyPath);
             history.Record("function f(v){\n   console.log(vvvv);\n}");
 
-            var session = new ReplEditorSession(input => ReplInputParser.IsInputComplete(input), history);
+            var session = new ReplEditorSession(
+                input => ReplInputParser.IsInputComplete(input),
+                history
+            );
             var console = new FakeReplConsole();
 
             console.Write("Welcome to okojonode 0.1.0-local.");
@@ -190,11 +229,13 @@ public class ReplEditorSessionTests
             Assert.That(
                 console.GetDisplayText(),
                 Is.EqualTo(
-                    "Welcome to okojonode 0.1.0-local.\n" +
-                    "Type \".help\" for more information.\n" +
-                    "> function f(v){\n" +
-                    "|    console.log(vvvv);\n" +
-                    "| }"));
+                    "Welcome to okojonode 0.1.0-local.\n"
+                        + "Type \".help\" for more information.\n"
+                        + "> function f(v){\n"
+                        + "|    console.log(vvvv);\n"
+                        + "| }"
+                )
+            );
         }
         finally
         {
@@ -206,7 +247,11 @@ public class ReplEditorSessionTests
     [Test]
     public void Session_Rendering_Multiline_History_Preserves_Output_When_Buffer_Is_Tight()
     {
-        var tempRoot = Path.Combine(Path.GetTempPath(), "Okojo.Repl.Tests", Guid.NewGuid().ToString("N"));
+        var tempRoot = Path.Combine(
+            Path.GetTempPath(),
+            "Okojo.Repl.Tests",
+            Guid.NewGuid().ToString("N")
+        );
         var historyPath = Path.Combine(tempRoot, "repl-history.json");
 
         try
@@ -214,11 +259,11 @@ public class ReplEditorSessionTests
             using var history = ReplHistoryStore.Load(historyPath);
             history.Record("function f(v){\n   console.log(vvvv);\n}");
 
-            var session = new ReplEditorSession(input => ReplInputParser.IsInputComplete(input), history);
-            var console = new FakeReplConsole
-            {
-                BufferHeight = 4
-            };
+            var session = new ReplEditorSession(
+                input => ReplInputParser.IsInputComplete(input),
+                history
+            );
+            var console = new FakeReplConsole { BufferHeight = 4 };
 
             console.Write("Welcome to okojonode 0.1.0-local.");
             console.WriteLine();
@@ -232,10 +277,12 @@ public class ReplEditorSessionTests
             Assert.That(
                 console.GetDisplayText(),
                 Is.EqualTo(
-                    "Type \".help\" for more information.\n" +
-                    "> function f(v){\n" +
-                    "|    console.log(vvvv);\n" +
-                    "| }"));
+                    "Type \".help\" for more information.\n"
+                        + "> function f(v){\n"
+                        + "|    console.log(vvvv);\n"
+                        + "| }"
+                )
+            );
         }
         finally
         {
@@ -247,18 +294,21 @@ public class ReplEditorSessionTests
     [Test]
     public void Session_Render_Clamps_To_Buffer_Height()
     {
-        var tempRoot = Path.Combine(Path.GetTempPath(), "Okojo.Repl.Tests", Guid.NewGuid().ToString("N"));
+        var tempRoot = Path.Combine(
+            Path.GetTempPath(),
+            "Okojo.Repl.Tests",
+            Guid.NewGuid().ToString("N")
+        );
         var historyPath = Path.Combine(tempRoot, "repl-history.json");
 
         try
         {
             using var history = ReplHistoryStore.Load(historyPath);
-            var session = new ReplEditorSession(input => ReplInputParser.IsInputComplete(input), history);
-            var console = new FakeReplConsole
-            {
-                BufferWidth = 40,
-                BufferHeight = 3
-            };
+            var session = new ReplEditorSession(
+                input => ReplInputParser.IsInputComplete(input),
+                history
+            );
+            var console = new FakeReplConsole { BufferWidth = 40, BufferHeight = 3 };
 
             console.SetCursorPosition(0, 2);
             session.Render(console);

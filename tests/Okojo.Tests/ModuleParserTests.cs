@@ -7,11 +7,13 @@ public class ModuleParserTests
     [Test]
     public void ParseModule_ParsesImportAndExportStatements()
     {
-        var program = JavaScriptParser.ParseModule("""
-                                                   import { a as b } from "./dep.js";
-                                                   export const x = 1;
-                                                   export { x as y };
-                                                   """);
+        var program = JavaScriptParser.ParseModule(
+            """
+            import { a as b } from "./dep.js";
+            export const x = 1;
+            export { x as y };
+            """
+        );
 
         Assert.That(program.Statements.Count, Is.EqualTo(3));
         Assert.That(program.Statements[0], Is.TypeOf<JsImportDeclaration>());
@@ -23,11 +25,13 @@ public class ModuleParserTests
     [Test]
     public void ParseModule_ParsesExportFromAndExportAll()
     {
-        var program = JavaScriptParser.ParseModule("""
-                                                   export { a as aa } from "./dep.js";
-                                                   export * from "./dep2.js";
-                                                   export * as ns from "./dep3.js";
-                                                   """);
+        var program = JavaScriptParser.ParseModule(
+            """
+            export { a as aa } from "./dep.js";
+            export * from "./dep2.js";
+            export * as ns from "./dep3.js";
+            """
+        );
 
         Assert.That(program.Statements.Count, Is.EqualTo(3));
         Assert.That(program.Statements[0], Is.TypeOf<JsExportNamedDeclaration>());
@@ -40,10 +44,12 @@ public class ModuleParserTests
     [Test]
     public void ParseModule_ParsesSideEffectOnlyImport()
     {
-        var program = JavaScriptParser.ParseModule("""
-                                                   import "./dep.js";
-                                                   export const ok = 1;
-                                                   """);
+        var program = JavaScriptParser.ParseModule(
+            """
+            import "./dep.js";
+            export const ok = 1;
+            """
+        );
 
         Assert.That(program.Statements.Count, Is.EqualTo(2));
         Assert.That(program.Statements[0], Is.TypeOf<JsImportDeclaration>());
@@ -57,11 +63,13 @@ public class ModuleParserTests
     [Test]
     public void ParseModule_Parses_Static_Import_Attributes_On_Import_And_ExportFrom()
     {
-        var program = JavaScriptParser.ParseModule("""
-                                                   import x from "./dep1.js" with { type: "json" };
-                                                   import "./dep2.js" with {};
-                                                   export * from "./dep3.js" with { "mode": "strict", };
-                                                   """);
+        var program = JavaScriptParser.ParseModule(
+            """
+            import x from "./dep1.js" with { type: "json" };
+            import "./dep2.js" with {};
+            export * from "./dep3.js" with { "mode": "strict", };
+            """
+        );
 
         Assert.That(program.Statements.Count, Is.EqualTo(3));
 
@@ -82,21 +90,31 @@ public class ModuleParserTests
     [Test]
     public void ParseModule_Static_Import_Attributes_Reject_Duplicate_Keys()
     {
-        Assert.Throws<JsParseException>(() => JavaScriptParser.ParseModule("""
-                                                                           import "./dep.js" with { type: "json", type: "text" };
-                                                                           """));
+        Assert.Throws<JsParseException>(() =>
+            JavaScriptParser.ParseModule(
+                """
+                import "./dep.js" with { type: "json", type: "text" };
+                """
+            )
+        );
 
-        Assert.Throws<JsParseException>(() => JavaScriptParser.ParseModule("""
-                                                                           export * from "./dep.js" with { "type": "json", "type": "text" };
-                                                                           """));
+        Assert.Throws<JsParseException>(() =>
+            JavaScriptParser.ParseModule(
+                """
+                export * from "./dep.js" with { "type": "json", "type": "text" };
+                """
+            )
+        );
     }
 
     [Test]
     public void ParseModule_Parses_String_Module_Export_Name_In_Import_Specifier()
     {
-        var program = JavaScriptParser.ParseModule("""
-                                                   import { "☿" as Ami } from "./fixture.js";
-                                                   """);
+        var program = JavaScriptParser.ParseModule(
+            """
+            import { "☿" as Ami } from "./fixture.js";
+            """
+        );
 
         Assert.That(program.Statements, Has.Count.EqualTo(1));
         var importDecl = program.Statements[0] as JsImportDeclaration;

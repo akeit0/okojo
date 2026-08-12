@@ -25,8 +25,11 @@ internal sealed partial class JsPlannedScriptCompiler
         builder.Emit(JsOpCode.Return);
         var script = builder.ToScript() with
         {
-            SourceCode = program.SourceText is null && program.SourcePath is null ? null : new SourceCode(program.SourceText, program.SourcePath),
-            StrictDeclared = program.StrictDeclared
+            SourceCode =
+                program.SourceText is null && program.SourcePath is null
+                    ? null
+                    : new SourceCode(program.SourceText, program.SourcePath),
+            StrictDeclared = program.StrictDeclared,
         };
         script.BindAgent(Vm.Agent);
         return script;

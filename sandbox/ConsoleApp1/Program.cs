@@ -7,7 +7,8 @@ using Okojo.Runtime;
 //Console.WriteLine($"SavedCallFrame {Unsafe.SizeOf<SavedCallFrame>()}");
 //return;
 
-using var rt = JsRuntime.CreateBuilder()
+using var rt = JsRuntime
+    .CreateBuilder()
     .UseAgent(agent =>
     {
         agent.SetExecutionTimeout(TimeSpan.FromSeconds(2));

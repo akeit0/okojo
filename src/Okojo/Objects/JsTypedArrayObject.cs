@@ -5,31 +5,52 @@ namespace Okojo.Objects;
 public sealed class JsTypedArrayObject : JsObject
 {
     public JsTypedArrayObject(JsRealm realm, uint length, JsObject? prototype = null)
-        : this(realm, new(realm, length), 0, length, TypedArrayElementKind.Uint8, prototype)
-    {
-    }
+        : this(realm, new(realm, length), 0, length, TypedArrayElementKind.Uint8, prototype) { }
 
-    public JsTypedArrayObject(JsRealm realm, JsArrayBufferObject buffer, uint byteOffset, uint length,
-        JsObject? prototype = null)
-        : this(realm, buffer, byteOffset, length, TypedArrayElementKind.Uint8, prototype)
-    {
-    }
+    public JsTypedArrayObject(
+        JsRealm realm,
+        JsArrayBufferObject buffer,
+        uint byteOffset,
+        uint length,
+        JsObject? prototype = null
+    )
+        : this(realm, buffer, byteOffset, length, TypedArrayElementKind.Uint8, prototype) { }
 
-    internal JsTypedArrayObject(JsRealm realm, uint length, TypedArrayElementKind kind,
-        JsObject? prototype = null)
-        : this(realm, new(realm, checked((uint)(length * kind.GetBytesPerElement()))), 0, length,
-            kind, prototype)
-    {
-    }
+    internal JsTypedArrayObject(
+        JsRealm realm,
+        uint length,
+        TypedArrayElementKind kind,
+        JsObject? prototype = null
+    )
+        : this(
+            realm,
+            new(realm, checked((uint)(length * kind.GetBytesPerElement()))),
+            0,
+            length,
+            kind,
+            prototype
+        ) { }
 
-    internal JsTypedArrayObject(JsRealm realm, JsArrayBufferObject buffer, uint byteOffset, uint length,
-        TypedArrayElementKind kind, JsObject? prototype = null)
-        : this(realm, buffer, byteOffset, length, kind, false, prototype)
-    {
-    }
+    internal JsTypedArrayObject(
+        JsRealm realm,
+        JsArrayBufferObject buffer,
+        uint byteOffset,
+        uint length,
+        TypedArrayElementKind kind,
+        JsObject? prototype = null
+    )
+        : this(realm, buffer, byteOffset, length, kind, false, prototype) { }
 
-    internal JsTypedArrayObject(JsRealm realm, JsArrayBufferObject buffer, uint byteOffset, uint length,
-        TypedArrayElementKind kind, bool lengthTracking, JsObject? prototype = null) : base(realm)
+    internal JsTypedArrayObject(
+        JsRealm realm,
+        JsArrayBufferObject buffer,
+        uint byteOffset,
+        uint length,
+        TypedArrayElementKind kind,
+        bool lengthTracking,
+        JsObject? prototype = null
+    )
+        : base(realm)
     {
         Buffer = buffer;
         StoredByteOffset = byteOffset;
@@ -89,13 +110,21 @@ public sealed class JsTypedArrayObject : JsObject
         }
     }
 
-    internal override bool TryGetElementWithReceiver(JsRealm realm, JsObject receiver, uint index, out JsValue value)
+    internal override bool TryGetElementWithReceiver(
+        JsRealm realm,
+        JsObject receiver,
+        uint index,
+        out JsValue value
+    )
     {
         var effectiveLength = Length;
         if (index < effectiveLength)
         {
-            value = Buffer.ReadTypedArrayElement(Realm, Kind,
-                checked(StoredByteOffset + index * (uint)Kind.GetBytesPerElement()));
+            value = Buffer.ReadTypedArrayElement(
+                Realm,
+                Kind,
+                checked(StoredByteOffset + index * (uint)Kind.GetBytesPerElement())
+            );
             return true;
         }
 
@@ -106,7 +135,12 @@ public sealed class JsTypedArrayObject : JsObject
         return false;
     }
 
-    internal override bool SetElementWithReceiver(JsRealm realm, JsObject receiver, uint index, JsValue value)
+    internal override bool SetElementWithReceiver(
+        JsRealm realm,
+        JsObject receiver,
+        uint index,
+        JsValue value
+    )
     {
         if (!ReferenceEquals(this, receiver))
             return base.SetElementWithReceiver(realm, receiver, index, value);
@@ -129,34 +163,63 @@ public sealed class JsTypedArrayObject : JsObject
         return TrySetNormalizedElement(index, normalized);
     }
 
-    internal override bool SetPropertyAtomWithReceiver(JsRealm realm, JsObject receiver, int atom, JsValue value,
-        out SlotInfo slotInfo)
+    internal override bool SetPropertyAtomWithReceiver(
+        JsRealm realm,
+        JsObject receiver,
+        int atom,
+        JsValue value,
+        out SlotInfo slotInfo
+    )
     {
         if (atom >= 0)
         {
             var text = realm.Atoms.AtomToString(atom);
-            if (Intrinsics.TryGetCanonicalNumericIndexString(realm, JsValue.FromString(text), out var numericIndex))
+            if (
+                Intrinsics.TryGetCanonicalNumericIndexString(
+                    realm,
+                    JsValue.FromString(text),
+                    out var numericIndex
+                )
+            )
             {
                 slotInfo = SlotInfo.Invalid;
                 if (ReferenceEquals(receiver, this))
-                    return Intrinsics.SetCanonicalNumericIndexOnTypedArrayForSet(this, numericIndex, value);
+                    return Intrinsics.SetCanonicalNumericIndexOnTypedArrayForSet(
+                        this,
+                        numericIndex,
+                        value
+                    );
 
                 if (!Intrinsics.IsValidTypedArrayCanonicalNumericIndex(this, numericIndex))
                     return true;
 
                 if (receiver is JsTypedArrayObject receiverTypedArray)
                 {
-                    if (!Intrinsics.IsValidTypedArrayCanonicalNumericIndex(receiverTypedArray, numericIndex))
+                    if (
+                        !Intrinsics.IsValidTypedArrayCanonicalNumericIndex(
+                            receiverTypedArray,
+                            numericIndex
+                        )
+                    )
                         return false;
 
                     receiverTypedArray.SetValidatedIntegerIndexedValue((uint)numericIndex, value);
                     return true;
                 }
 
-                if (numericIndex != Math.Truncate(numericIndex) || numericIndex < 0d || numericIndex > uint.MaxValue)
+                if (
+                    numericIndex != Math.Truncate(numericIndex)
+                    || numericIndex < 0d
+                    || numericIndex > uint.MaxValue
+                )
                     return true;
 
-                return Intrinsics.OrdinarySetOwnWritableDataIndex(realm, receiver, (uint)numericIndex, value);
+                return Intrinsics.OrdinarySetOwnWritableDataIndex(
+                    realm,
+                    receiver,
+                    (uint)numericIndex,
+                    value
+                );
             }
         }
 
@@ -169,9 +232,11 @@ public sealed class JsTypedArrayObject : JsObject
         if (index >= effectiveLength)
             return true;
 
-        Buffer.WriteNormalizedTypedArrayElement(Kind,
+        Buffer.WriteNormalizedTypedArrayElement(
+            Kind,
             checked(StoredByteOffset + index * (uint)Kind.GetBytesPerElement()),
-            normalized);
+            normalized
+        );
         return true;
     }
 
@@ -182,9 +247,11 @@ public sealed class JsTypedArrayObject : JsObject
         if (index >= effectiveLength)
             return false;
 
-        Buffer.WriteNormalizedTypedArrayElement(Kind,
+        Buffer.WriteNormalizedTypedArrayElement(
+            Kind,
             checked(StoredByteOffset + index * (uint)Kind.GetBytesPerElement()),
-            normalized);
+            normalized
+        );
         return true;
     }
 
@@ -195,15 +262,20 @@ public sealed class JsTypedArrayObject : JsObject
         if (index >= effectiveLength)
             return;
 
-        Buffer.WriteNormalizedTypedArrayElement(Kind,
+        Buffer.WriteNormalizedTypedArrayElement(
+            Kind,
             checked(StoredByteOffset + index * (uint)Kind.GetBytesPerElement()),
-            normalized);
+            normalized
+        );
     }
 
     internal JsValue GetDirectElementValue(uint index)
     {
-        return Buffer.ReadTypedArrayElement(Realm, Kind,
-            checked(StoredByteOffset + index * (uint)Kind.GetBytesPerElement()));
+        return Buffer.ReadTypedArrayElement(
+            Realm,
+            Kind,
+            checked(StoredByteOffset + index * (uint)Kind.GetBytesPerElement())
+        );
     }
 
     public override bool DeleteElement(uint index)
@@ -226,11 +298,15 @@ public sealed class JsTypedArrayObject : JsObject
         if (index < Length)
         {
             descriptor = PropertyDescriptor.Data(
-                Buffer.ReadTypedArrayElement(Realm, Kind,
-                    checked(StoredByteOffset + index * (uint)Kind.GetBytesPerElement())),
+                Buffer.ReadTypedArrayElement(
+                    Realm,
+                    Kind,
+                    checked(StoredByteOffset + index * (uint)Kind.GetBytesPerElement())
+                ),
                 true,
                 true,
-                true);
+                true
+            );
             return true;
         }
 
@@ -249,7 +325,8 @@ public sealed class JsTypedArrayObject : JsObject
     internal override void CollectForInEnumerableStringAtomKeys(
         JsRealm realm,
         HashSet<string> visited,
-        List<string> enumerableKeysOut)
+        List<string> enumerableKeysOut
+    )
     {
         var effectiveLength = Length;
         for (uint i = 0; i < effectiveLength; i++)
@@ -285,7 +362,9 @@ public sealed class JsTypedArrayObject : JsObject
         while (left < right)
         {
             var leftByteIndex = checked(StoredByteOffset + left * (uint)Kind.GetBytesPerElement());
-            var rightByteIndex = checked(StoredByteOffset + right * (uint)Kind.GetBytesPerElement());
+            var rightByteIndex = checked(
+                StoredByteOffset + right * (uint)Kind.GetBytesPerElement()
+            );
             var leftValue = Buffer.ReadTypedArrayElement(Realm, Kind, leftByteIndex);
             var rightValue = Buffer.ReadTypedArrayElement(Realm, Kind, rightByteIndex);
             Buffer.WriteNormalizedTypedArrayElement(Kind, leftByteIndex, rightValue);

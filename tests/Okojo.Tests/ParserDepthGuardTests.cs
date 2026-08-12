@@ -15,8 +15,10 @@ public class ParserDepthGuardTests
 
         Assert.That(
             () => JavaScriptParser.ParseScript(source),
-            Throws.InstanceOf<JsParseException>()
-                .With.Message.Contains("Maximum parser recursion depth exceeded"));
+            Throws
+                .InstanceOf<JsParseException>()
+                .With.Message.Contains("Maximum parser recursion depth exceeded")
+        );
     }
 
     [Test]
@@ -26,8 +28,10 @@ public class ParserDepthGuardTests
 
         Assert.That(
             () => JavaScriptParser.ParseScript(source),
-            Throws.InstanceOf<JsParseException>()
-                .With.Message.Contains("Maximum parser recursion depth exceeded"));
+            Throws
+                .InstanceOf<JsParseException>()
+                .With.Message.Contains("Maximum parser recursion depth exceeded")
+        );
     }
 
     [Test]
@@ -38,8 +42,10 @@ public class ParserDepthGuardTests
 
         Assert.That(
             () => runtime.MainRealm.Evaluate(source),
-            Throws.InstanceOf<JsParseException>()
-                .With.Message.Contains("Maximum parser recursion depth exceeded"));
+            Throws
+                .InstanceOf<JsParseException>()
+                .With.Message.Contains("Maximum parser recursion depth exceeded")
+        );
     }
 
     [Test]
@@ -47,8 +53,8 @@ public class ParserDepthGuardTests
     {
         Assert.That(
             () => JavaScriptParser.ParseScript(FuzzRegressionInput),
-            Throws.InstanceOf<JsParseException>()
-                .With.Message.Contains("Unexpected token ')'"));
+            Throws.InstanceOf<JsParseException>().With.Message.Contains("Unexpected token ')'")
+        );
     }
 
     [Test]
@@ -58,8 +64,8 @@ public class ParserDepthGuardTests
 
         Assert.That(
             () => runtime.MainRealm.Evaluate(FuzzRegressionInput),
-            Throws.InstanceOf<JsParseException>()
-                .With.Message.Contains("Unexpected token ')'"));
+            Throws.InstanceOf<JsParseException>().With.Message.Contains("Unexpected token ')'")
+        );
     }
 
     [Test]

@@ -21,7 +21,7 @@ public readonly partial struct JsString
             string s => s.Length,
             RopeNode rope => rope.Length,
             SliceNode slice => slice.Length,
-            _ => ThrowInvalidStringObject<int>()
+            _ => ThrowInvalidStringObject<int>(),
         };
     }
 
@@ -33,7 +33,7 @@ public readonly partial struct JsString
             string => 0,
             RopeNode rope => rope.Depth,
             SliceNode => 0,
-            _ => ThrowInvalidStringObject<byte>()
+            _ => ThrowInvalidStringObject<byte>(),
         };
     }
 
@@ -56,8 +56,12 @@ public readonly partial struct JsString
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool TryGetFlatWindow(object value, [NotNullWhen(true)] out string? result, out int start,
-        out int length)
+    private static bool TryGetFlatWindow(
+        object value,
+        [NotNullWhen(true)] out string? result,
+        out int start,
+        out int length
+    )
     {
         switch (value)
         {
@@ -123,7 +127,7 @@ public readonly partial struct JsString
             string s => s,
             RopeNode rope => rope.Flatten(),
             SliceNode slice => slice.Flatten(),
-            _ => ThrowInvalidStringObject<string>()
+            _ => ThrowInvalidStringObject<string>(),
         };
     }
 
@@ -157,14 +161,23 @@ public readonly partial struct JsString
         if (totalLength <= SmallConcatThreshold)
             return ConcatToFlat(left, right, totalLength);
 
-        if (left is string leftString && right is string rightString && totalLength <= FlatConcatThreshold)
+        if (
+            left is string leftString
+            && right is string rightString
+            && totalLength <= FlatConcatThreshold
+        )
             return string.Concat(leftString, rightString);
 
         if (GetDepth(left) >= MaxRopeDepth || GetDepth(right) >= MaxRopeDepth)
             return ConcatToFlat(left, right, totalLength);
 
-        return new RopeNode(left, right, leftLength, totalLength,
-            (byte)(Math.Max(GetDepth(left), GetDepth(right)) + 1));
+        return new RopeNode(
+            left,
+            right,
+            leftLength,
+            totalLength,
+            (byte)(Math.Max(GetDepth(left), GetDepth(right)) + 1)
+        );
     }
 
     private static object Slice(object value, int start, int length)
@@ -207,18 +220,22 @@ public readonly partial struct JsString
                 ? CharAt(rope.Left, index)
                 : CharAt(rope.Right, index - rope.LeftLength),
             SliceNode slice => CharAt(slice.Base, slice.Offset + index),
-            _ => ThrowInvalidStringObject<char>()
+            _ => ThrowInvalidStringObject<char>(),
         };
     }
 
     private static string ConcatToFlat(object left, object right, int totalLength)
     {
-        return string.Create(totalLength, (Left: left, Right: right), static (chars, state) =>
-        {
-            var leftLength = GetLength(state.Left);
-            CopyWholeTo(state.Left, chars[..leftLength]);
-            CopyWholeTo(state.Right, chars[leftLength..]);
-        });
+        return string.Create(
+            totalLength,
+            (Left: left, Right: right),
+            static (chars, state) =>
+            {
+                var leftLength = GetLength(state.Left);
+                CopyWholeTo(state.Left, chars[..leftLength]);
+                CopyWholeTo(state.Right, chars[leftLength..]);
+            }
+        );
     }
 
     private static string ExtractToFlat(object value, int start, int length)
@@ -226,8 +243,14 @@ public readonly partial struct JsString
         if (length == 0)
             return string.Empty;
 
-        return string.Create(length, (Value: value, Start: start),
-            static (chars, state) => { CopyRangeTo(state.Value, state.Start, chars); });
+        return string.Create(
+            length,
+            (Value: value, Start: start),
+            static (chars, state) =>
+            {
+                CopyRangeTo(state.Value, state.Start, chars);
+            }
+        );
     }
 
     private static void CopyWholeTo(object value, Span<char> destination)

@@ -31,12 +31,17 @@ public static class NumberPrecisionFormatting
     private static string BuildExponentialString(SignificantDigits digits, int significantDigits)
     {
         var sign = digits.Negative ? "-" : string.Empty;
-        var mantissa = significantDigits == 1
-            ? digits.Digits[..1]
-            : digits.Digits[..1] + "." + digits.Digits[1..significantDigits];
+        var mantissa =
+            significantDigits == 1
+                ? digits.Digits[..1]
+                : digits.Digits[..1] + "." + digits.Digits[1..significantDigits];
         var exponentSign = digits.Exponent >= 0 ? "+" : "-";
         var absExponent = Math.Abs(digits.Exponent);
-        return sign + mantissa + "e" + exponentSign + absExponent.ToString(CultureInfo.InvariantCulture);
+        return sign
+            + mantissa
+            + "e"
+            + exponentSign
+            + absExponent.ToString(CultureInfo.InvariantCulture);
     }
 
     private static string BuildFixedString(SignificantDigits digits, int precision)
@@ -60,7 +65,11 @@ public static class NumberPrecisionFormatting
             throw new ArgumentOutOfRangeException(nameof(significantDigits));
 
         if (value == 0d)
-            return new(BitConverter.DoubleToInt64Bits(value) < 0, 0, "0".PadRight(significantDigits, '0'));
+            return new(
+                BitConverter.DoubleToInt64Bits(value) < 0,
+                0,
+                "0".PadRight(significantDigits, '0')
+            );
 
         var (negative, numerator, denominator) = ToExactRational(value);
         var exponent = EstimateDecimalExponent(value, numerator, denominator);
@@ -91,7 +100,9 @@ public static class NumberPrecisionFormatting
         return new(negative, exponent, digits);
     }
 
-    private static (bool Negative, BigInteger Numerator, BigInteger Denominator) ToExactRational(double value)
+    private static (bool Negative, BigInteger Numerator, BigInteger Denominator) ToExactRational(
+        double value
+    )
     {
         var bits = BitConverter.DoubleToInt64Bits(value);
         var negative = bits < 0;
@@ -118,7 +129,11 @@ public static class NumberPrecisionFormatting
         return (negative, significand, BigInteger.One << -exponent2);
     }
 
-    private static int EstimateDecimalExponent(double value, BigInteger numerator, BigInteger denominator)
+    private static int EstimateDecimalExponent(
+        double value,
+        BigInteger numerator,
+        BigInteger denominator
+    )
     {
         var exponent = (int)Math.Floor(Math.Log10(Math.Abs(value)));
         if (CompareToPowerOf10(numerator, denominator, exponent + 1) >= 0)
@@ -136,7 +151,11 @@ public static class NumberPrecisionFormatting
         return exponent;
     }
 
-    private static int CompareToPowerOf10(BigInteger numerator, BigInteger denominator, int exponent)
+    private static int CompareToPowerOf10(
+        BigInteger numerator,
+        BigInteger denominator,
+        int exponent
+    )
     {
         if (exponent >= 0)
             return numerator.CompareTo(denominator * BigInteger.Pow(10, exponent));

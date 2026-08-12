@@ -19,61 +19,61 @@ public class WorkerAgentTests
     [Test]
     public void HelperStyle_GetReportAsync_Does_Not_Recurse()
     {
-        var engine = JsRuntime.CreateBuilder()
-            .UseWebRuntimeGlobals()
-            .Build();
+        var engine = JsRuntime.CreateBuilder().UseWebRuntimeGlobals().Build();
         var realm = engine.DefaultRealm;
 
-        _ = realm.Eval("""
-                       globalThis.count = 0;
-                       globalThis.done = false;
-                       globalThis.result = "";
-                       globalThis.error = "";
-                       globalThis.$262 = {
-                         agent: {
-                           getReport() {
-                             count++;
-                             return count >= 3 ? "ok" : null;
-                           },
-                           sleep() {}
-                         }
-                       };
+        _ = realm.Eval(
+            """
+            globalThis.count = 0;
+            globalThis.done = false;
+            globalThis.result = "";
+            globalThis.error = "";
+            globalThis.$262 = {
+              agent: {
+                getReport() {
+                  count++;
+                  return count >= 3 ? "ok" : null;
+                },
+                sleep() {}
+              }
+            };
 
-                       {
-                         let getReport = $262.agent.getReport.bind($262.agent);
+            {
+              let getReport = $262.agent.getReport.bind($262.agent);
 
-                         $262.agent.getReport = function() {
-                           var r;
-                           while ((r = getReport()) == null) {
-                             $262.agent.sleep(1);
-                           }
-                           return r;
-                         };
+              $262.agent.getReport = function() {
+                var r;
+                while ((r = getReport()) == null) {
+                  $262.agent.sleep(1);
+                }
+                return r;
+              };
 
-                         $262.agent.setTimeout = setTimeout;
+              $262.agent.setTimeout = setTimeout;
 
-                         $262.agent.getReportAsync = function() {
-                           return new Promise(function(resolve) {
-                             (function loop() {
-                               let result = getReport();
-                               if (!result) {
-                                 setTimeout(loop, 1);
-                               } else {
-                                 resolve(result);
-                               }
-                             })();
-                           });
-                         };
-                       }
+              $262.agent.getReportAsync = function() {
+                return new Promise(function(resolve) {
+                  (function loop() {
+                    let result = getReport();
+                    if (!result) {
+                      setTimeout(loop, 1);
+                    } else {
+                      resolve(result);
+                    }
+                  })();
+                });
+              };
+            }
 
-                       $262.agent.getReportAsync().then(function(value) {
-                         result = value;
-                         done = true;
-                       }, function(err) {
-                         error = String(err);
-                         done = true;
-                       });
-                       """);
+            $262.agent.getReportAsync().then(function(value) {
+              result = value;
+              done = true;
+            }, function(err) {
+              error = String(err);
+              done = true;
+            });
+            """
+        );
 
         var deadline = Environment.TickCount64 + 2000;
         while (Environment.TickCount64 < deadline && !realm.Eval("done").IsTrue)
@@ -116,7 +116,7 @@ public class WorkerAgentTests
         var payload = new Dictionary<string, object?>
         {
             ["name"] = "alpha",
-            ["list"] = new List<object?> { 1, "x" }
+            ["list"] = new List<object?> { 1, "x" },
         };
 
         Dictionary<string, object?>? received = null;
@@ -135,16 +135,16 @@ public class WorkerAgentTests
     [Test]
     public void WorkerRealm_JsPostMessage_DeliversToMainOnMessage()
     {
-        using var engine = JsRuntime.CreateBuilder()
-            .UseWorkerGlobals()
-            .Build();
+        using var engine = JsRuntime.CreateBuilder().UseWorkerGlobals().Build();
         var mainRealm = engine.MainRealm;
         var workerRealm = engine.CreateWorkerAgent().MainRealm;
 
-        _ = mainRealm.Eval("""
-                           globalThis.recv = "";
-                           onmessage = function (e) { recv = e.data; };
-                           """);
+        _ = mainRealm.Eval(
+            """
+            globalThis.recv = "";
+            onmessage = function (e) { recv = e.data; };
+            """
+        );
 
         _ = workerRealm.Eval("postMessage('hello-from-worker');");
         mainRealm.PumpJobs();
@@ -157,14 +157,16 @@ public class WorkerAgentTests
     {
         using var engine = JsRuntime.Create();
 
-        var result = engine.MainRealm.Eval("""
-                                           [
-                                             typeof createWorker,
-                                             typeof onmessage,
-                                             typeof onmessageerror,
-                                             typeof postMessage
-                                           ].join("|")
-                                           """);
+        var result = engine.MainRealm.Eval(
+            """
+            [
+              typeof createWorker,
+              typeof onmessage,
+              typeof onmessageerror,
+              typeof postMessage
+            ].join("|")
+            """
+        );
 
         Assert.That(result.AsString(), Is.EqualTo("undefined|undefined|undefined|undefined"));
     }
@@ -172,20 +174,20 @@ public class WorkerAgentTests
     [Test]
     public void MainRealm_CreateWorkerHandle_CanPostMessageToWorker()
     {
-        using var engine = JsRuntime.CreateBuilder()
-            .UseWorkerGlobals()
-            .Build();
+        using var engine = JsRuntime.CreateBuilder().UseWorkerGlobals().Build();
         var mainRealm = engine.MainRealm;
 
-        var result = mainRealm.Eval("""
-                                    globalThis.recv = "";
-                                    globalThis.w = createWorker();
-                                    w.eval("onmessage = function (e) { postMessage('pong:' + e.data); };");
-                                    onmessage = function (e) { recv = e.data; };
-                                    w.postMessage("ping");
-                                    w.pump();
-                                    recv;
-                                    """);
+        var result = mainRealm.Eval(
+            """
+            globalThis.recv = "";
+            globalThis.w = createWorker();
+            w.eval("onmessage = function (e) { postMessage('pong:' + e.data); };");
+            onmessage = function (e) { recv = e.data; };
+            w.postMessage("ping");
+            w.pump();
+            recv;
+            """
+        );
 
         Assert.That(result.Tag, Is.EqualTo(Tag.JsTagString));
         Assert.That(result.AsString(), Is.EqualTo("pong:ping"));
@@ -194,17 +196,17 @@ public class WorkerAgentTests
     [Test]
     public void WorkerGlobal_OnMessageError_Fires_OnUnsupportedHostPayload()
     {
-        using var engine = JsRuntime.CreateBuilder()
-            .UseWorkerGlobals()
-            .Build();
+        using var engine = JsRuntime.CreateBuilder().UseWorkerGlobals().Build();
         var main = engine.MainAgent;
         var worker = engine.CreateWorkerAgent();
         var workerRealm = worker.MainRealm;
 
-        _ = workerRealm.Eval("""
-                             globalThis.err = "";
-                             onmessageerror = function () { err = "global-error"; };
-                             """);
+        _ = workerRealm.Eval(
+            """
+            globalThis.err = "";
+            onmessageerror = function () { err = "global-error"; };
+            """
+        );
 
         main.PostMessage(worker, new());
         workerRealm.PumpJobs();
@@ -215,16 +217,16 @@ public class WorkerAgentTests
     [Test]
     public void WorkerHandle_OnMessageError_Fires_OnUnsupportedHostPayload()
     {
-        using var engine = JsRuntime.CreateBuilder()
-            .UseWorkerGlobals()
-            .Build();
+        using var engine = JsRuntime.CreateBuilder().UseWorkerGlobals().Build();
         var mainRealm = engine.MainRealm;
 
-        _ = mainRealm.Eval("""
-                           globalThis.err = "";
-                           globalThis.w = createWorker();
-                           w.onmessageerror = function () { err = "handle-error"; };
-                           """);
+        _ = mainRealm.Eval(
+            """
+            globalThis.err = "";
+            globalThis.w = createWorker();
+            w.onmessageerror = function () { err = "handle-error"; };
+            """
+        );
 
         var worker = engine.Agents.First(a => a.Kind == JsAgentKind.Worker);
         worker.PostMessage(engine.MainAgent, new());
@@ -236,23 +238,23 @@ public class WorkerAgentTests
     [Test]
     public void WorkerHandle_Terminate_StopsFurtherMessageDelivery()
     {
-        using var engine = JsRuntime.CreateBuilder()
-            .UseWorkerGlobals()
-            .Build();
+        using var engine = JsRuntime.CreateBuilder().UseWorkerGlobals().Build();
         var mainRealm = engine.MainRealm;
 
-        _ = mainRealm.Eval("""
-                           globalThis.recv = "";
-                           globalThis.w = createWorker();
-                           w.eval("onmessage = function (e) { postMessage('ok:' + e.data); };");
-                           onmessage = function (e) { recv = recv + "|" + e.data; };
-                           w.postMessage("a");
-                           w.pump();
-                           w.terminate();
-                           w.postMessage("b");
-                           w.pump();
-                           recv;
-                           """);
+        _ = mainRealm.Eval(
+            """
+            globalThis.recv = "";
+            globalThis.w = createWorker();
+            w.eval("onmessage = function (e) { postMessage('ok:' + e.data); };");
+            onmessage = function (e) { recv = recv + "|" + e.data; };
+            w.postMessage("a");
+            w.pump();
+            w.terminate();
+            w.postMessage("b");
+            w.pump();
+            recv;
+            """
+        );
 
         Assert.That(mainRealm.Global["recv"].AsString(), Is.EqualTo("|ok:a"));
     }

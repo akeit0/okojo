@@ -36,7 +36,9 @@ public sealed class WorkerRuntime : IDisposable
     {
         ThrowIfDisposed();
         if (threadHost is null)
-            throw new InvalidOperationException("This hosted worker was not configured with a background host.");
+            throw new InvalidOperationException(
+                "This hosted worker was not configured with a background host."
+            );
 
         threadHost.Start();
     }
@@ -64,8 +66,9 @@ public sealed class WorkerRuntime : IDisposable
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(ownerRealm);
         ArgumentNullException.ThrowIfNull(specifier);
-        return ownerRealm.BridgeFromOtherRealm(Agent.EvaluateModule(Realm, specifier,
-            ownerRealm.GetCurrentModuleResolvedIdOrNull()));
+        return ownerRealm.BridgeFromOtherRealm(
+            Agent.EvaluateModule(Realm, specifier, ownerRealm.GetCurrentModuleResolvedIdOrNull())
+        );
     }
 
     public void Terminate()

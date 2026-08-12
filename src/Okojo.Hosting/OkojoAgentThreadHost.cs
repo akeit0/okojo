@@ -9,9 +9,7 @@ public sealed class JsAgentThreadHost : IDisposable
     private Thread? thread;
 
     public JsAgentThreadHost(JsAgent agent)
-        : this(new HostPump(agent))
-    {
-    }
+        : this(new HostPump(agent)) { }
 
     public JsAgentThreadHost(HostPump pump)
     {

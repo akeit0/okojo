@@ -1,12 +1,12 @@
+using System.Buffers;
+using System.Globalization;
+using System.Numerics;
+using System.Text;
 #if NETSTANDARD2_1
 using Rune = Okojo.Internals.Rune;
 #else
 using Rune = System.Text.Rune;
 #endif
-using System.Buffers;
-using System.Globalization;
-using System.Numerics;
-using System.Text;
 
 namespace Okojo.Parsing;
 
@@ -111,7 +111,7 @@ internal enum JsTokenKind
     OrOr,
     OrOrAssign,
     NullishCoalescingAssign,
-    ReservedWord
+    ReservedWord,
 }
 
 internal sealed partial class JsLexer(string source)
@@ -171,18 +171,25 @@ internal sealed partial class JsLexer(string source)
             case '?':
                 if (Match('?'))
                     return Match('=')
-                        ? Tok(JsTokenKind.NullishCoalescingAssign, "??=", start, hasLineTerminatorBefore)
+                        ? Tok(
+                            JsTokenKind.NullishCoalescingAssign,
+                            "??=",
+                            start,
+                            hasLineTerminatorBefore
+                        )
                         : Tok(JsTokenKind.NullishCoalescing, "??", start, hasLineTerminatorBefore);
 
                 return Tok(JsTokenKind.Question, "?", start, hasLineTerminatorBefore);
             case '+':
-                if (Match('+')) return Tok(JsTokenKind.PlusPlus, "++", start, hasLineTerminatorBefore);
+                if (Match('+'))
+                    return Tok(JsTokenKind.PlusPlus, "++", start, hasLineTerminatorBefore);
 
                 return Match('=')
                     ? Tok(JsTokenKind.PlusAssign, "+=", start, hasLineTerminatorBefore)
                     : Tok(JsTokenKind.Plus, "+", start, hasLineTerminatorBefore);
             case '-':
-                if (Match('-')) return Tok(JsTokenKind.MinusMinus, "--", start, hasLineTerminatorBefore);
+                if (Match('-'))
+                    return Tok(JsTokenKind.MinusMinus, "--", start, hasLineTerminatorBefore);
 
                 return Match('=')
                     ? Tok(JsTokenKind.MinusAssign, "-=", start, hasLineTerminatorBefore)
@@ -214,7 +221,8 @@ internal sealed partial class JsLexer(string source)
             case '~':
                 return Tok(JsTokenKind.Tilde, "~", start, hasLineTerminatorBefore);
             case '=':
-                if (Match('>')) return Tok(JsTokenKind.Arrow, "=>", start, hasLineTerminatorBefore);
+                if (Match('>'))
+                    return Tok(JsTokenKind.Arrow, "=>", start, hasLineTerminatorBefore);
 
                 if (Match('='))
                     return Match('=')
@@ -275,14 +283,20 @@ internal sealed partial class JsLexer(string source)
             case '`':
                 return ReadTemplate(start, hasLineTerminatorBefore);
             default:
-                if (char.IsDigit(c) || (c == '.' && index < source.Length && char.IsDigit(source[index])))
+                if (
+                    char.IsDigit(c)
+                    || (c == '.' && index < source.Length && char.IsDigit(source[index]))
+                )
                     return ReadNumber(start, c, hasLineTerminatorBefore);
 
-                if (IsIdentifierStart(c)) return ReadIdentifier(start, c, hasLineTerminatorBefore);
+                if (IsIdentifierStart(c))
+                    return ReadIdentifier(start, c, hasLineTerminatorBefore);
 
-                if (char.IsHighSurrogate(c) &&
-                    index < source.Length &&
-                    char.IsLowSurrogate(source[index]))
+                if (
+                    char.IsHighSurrogate(c)
+                    && index < source.Length
+                    && char.IsLowSurrogate(source[index])
+                )
                 {
                     var pair = string.Concat(c, source[index]);
                     if (IsIdentifierStartText(pair))
@@ -294,9 +308,11 @@ internal sealed partial class JsLexer(string source)
 
                 if (c == '\\')
                 {
-                    if (!TryReadUnicodeEscapeAfterBackslash(out var escapedText) ||
-                        escapedText.Length == 0 ||
-                        !IsIdentifierStart(escapedText[0]))
+                    if (
+                        !TryReadUnicodeEscapeAfterBackslash(out var escapedText)
+                        || escapedText.Length == 0
+                        || !IsIdentifierStart(escapedText[0])
+                    )
                         throw Error($"Unexpected character '{c}'", start);
 
                     return ReadIdentifier(start, escapedText, hasLineTerminatorBefore);
@@ -308,7 +324,8 @@ internal sealed partial class JsLexer(string source)
 
     public void SetIndex(int index)
     {
-        if ((uint)index > (uint)source.Length) throw new ArgumentOutOfRangeException(nameof(index));
+        if ((uint)index > (uint)source.Length)
+            throw new ArgumentOutOfRangeException(nameof(index));
 
         this.index = index;
     }
@@ -321,8 +338,10 @@ internal sealed partial class JsLexer(string source)
             if (index == 0 && source.Length >= 2 && source[0] == '#' && source[1] == '!')
             {
                 index = 2;
-                while (index < source.Length &&
-                       source[index] is not ('\n' or '\r' or '\u2028' or '\u2029'))
+                while (
+                    index < source.Length
+                    && source[index] is not ('\n' or '\r' or '\u2028' or '\u2029')
+                )
                     index++;
 
                 continue;
@@ -330,7 +349,8 @@ internal sealed partial class JsLexer(string source)
 
             if (IsEcmaTrivia(source[index]))
             {
-                if (IsLineTerminator(source[index])) hasLineTerminator = true;
+                if (IsLineTerminator(source[index]))
+                    hasLineTerminator = true;
 
                 index++;
                 continue;
@@ -342,14 +362,20 @@ internal sealed partial class JsLexer(string source)
                 {
                     index += 2;
                     var sawLineTerminator = false;
-                    while (index < source.Length &&
-                           source[index] is not ('\n' or '\r' or '\u2028' or '\u2029'))
+                    while (
+                        index < source.Length
+                        && source[index] is not ('\n' or '\r' or '\u2028' or '\u2029')
+                    )
                         index++;
 
-                    if (index < source.Length && source[index] is '\n' or '\r' or '\u2028' or '\u2029')
+                    if (
+                        index < source.Length
+                        && source[index] is '\n' or '\r' or '\u2028' or '\u2029'
+                    )
                         sawLineTerminator = true;
 
-                    if (sawLineTerminator) hasLineTerminator = true;
+                    if (sawLineTerminator)
+                        hasLineTerminator = true;
 
                     continue;
                 }
@@ -357,14 +383,19 @@ internal sealed partial class JsLexer(string source)
                 if (source[index + 1] == '*')
                 {
                     index += 2;
-                    while (index + 1 < source.Length && !(source[index] == '*' && source[index + 1] == '/'))
+                    while (
+                        index + 1 < source.Length
+                        && !(source[index] == '*' && source[index + 1] == '/')
+                    )
                     {
-                        if (source[index] is '\n' or '\r' or '\u2028' or '\u2029') hasLineTerminator = true;
+                        if (source[index] is '\n' or '\r' or '\u2028' or '\u2029')
+                            hasLineTerminator = true;
 
                         index++;
                     }
 
-                    if (index + 1 >= source.Length) throw Error("Unterminated block comment", index);
+                    if (index + 1 >= source.Length)
+                        throw Error("Unterminated block comment", index);
 
                     index += 2;
                     continue;
@@ -385,12 +416,18 @@ internal sealed partial class JsLexer(string source)
         {
             var c = source[index++];
             if (c == quote)
-                return new(JsTokenKind.String, start, index - start, dataIndex: AddStringLiteral(sb.ToString()),
-                    hasLineTerminatorBefore: hasLineTerminatorBefore);
+                return new(
+                    JsTokenKind.String,
+                    start,
+                    index - start,
+                    dataIndex: AddStringLiteral(sb.ToString()),
+                    hasLineTerminatorBefore: hasLineTerminatorBefore
+                );
 
             if (c == '\\')
             {
-                if (index >= source.Length) throw Error("Unterminated string", start);
+                if (index >= source.Length)
+                    throw Error("Unterminated string", start);
 
                 var escape = source[index++];
                 if (escape is '\n' or '\u2028' or '\u2029')
@@ -400,7 +437,8 @@ internal sealed partial class JsLexer(string source)
                 if (escape == '\r')
                 {
                     // Handle CRLF line continuation.
-                    if (index < source.Length && source[index] == '\n') index++;
+                    if (index < source.Length && source[index] == '\n')
+                        index++;
 
                     continue;
                 }
@@ -416,11 +454,13 @@ internal sealed partial class JsLexer(string source)
 
                 if (escape == 'x')
                 {
-                    if (index + 1 >= source.Length) throw Error("Invalid hex escape", start);
+                    if (index + 1 >= source.Length)
+                        throw Error("Invalid hex escape", start);
 
                     var h0 = source[index++];
                     var h1 = source[index++];
-                    if (!IsHexDigit(h0) || !IsHexDigit(h1)) throw Error("Invalid hex escape", start);
+                    if (!IsHexDigit(h0) || !IsHexDigit(h1))
+                        throw Error("Invalid hex escape", start);
 
                     sb.Append((char)((HexToInt(h0) << 4) | HexToInt(h1)));
                     continue;
@@ -432,24 +472,27 @@ internal sealed partial class JsLexer(string source)
                     continue;
                 }
 
-                sb.Append(escape switch
-                {
-                    'n' => '\n',
-                    'r' => '\r',
-                    't' => '\t',
-                    'b' => '\b',
-                    'f' => '\f',
-                    'v' => '\v',
-                    '\\' => '\\',
-                    '\'' => '\'',
-                    '"' => '"',
-                    '0' => '\0',
-                    _ => escape
-                });
+                sb.Append(
+                    escape switch
+                    {
+                        'n' => '\n',
+                        'r' => '\r',
+                        't' => '\t',
+                        'b' => '\b',
+                        'f' => '\f',
+                        'v' => '\v',
+                        '\\' => '\\',
+                        '\'' => '\'',
+                        '"' => '"',
+                        '0' => '\0',
+                        _ => escape,
+                    }
+                );
                 continue;
             }
 
-            if (c is '\n' or '\r') throw Error("Unterminated string", start);
+            if (c is '\n' or '\r')
+                throw Error("Unterminated string", start);
 
             sb.Append(c);
         }
@@ -463,9 +506,11 @@ internal sealed partial class JsLexer(string source)
         var value = firstDigit - '0';
         var consumed = 0;
 
-        while (consumed < maxAdditionalDigits &&
-               index < source.Length &&
-               source[index] is >= '0' and <= '7')
+        while (
+            consumed < maxAdditionalDigits
+            && index < source.Length
+            && source[index] is >= '0' and <= '7'
+        )
         {
             value = (value << 3) | (source[index] - '0');
             index++;
@@ -485,7 +530,8 @@ internal sealed partial class JsLexer(string source)
             var c = source[index++];
             if (c == '\\')
             {
-                if (index >= source.Length) throw Error("Unterminated template literal", start);
+                if (index >= source.Length)
+                    throw Error("Unterminated template literal", start);
 
                 var escape = source[index++];
                 sb.Append(c);
@@ -496,8 +542,13 @@ internal sealed partial class JsLexer(string source)
             if (expressionDepth == 0)
             {
                 if (c == '`')
-                    return new(JsTokenKind.Template, start, index - start, dataIndex: AddStringLiteral(sb.ToString()),
-                        hasLineTerminatorBefore: hasLineTerminatorBefore);
+                    return new(
+                        JsTokenKind.Template,
+                        start,
+                        index - start,
+                        dataIndex: AddStringLiteral(sb.ToString()),
+                        hasLineTerminatorBefore: hasLineTerminatorBefore
+                    );
 
                 if (c == '$' && index < source.Length && source[index] == '{')
                 {
@@ -518,7 +569,8 @@ internal sealed partial class JsLexer(string source)
                 continue;
             }
 
-            if (c == '}') expressionDepth--;
+            if (c == '}')
+                expressionDepth--;
 
             sb.Append(c);
         }
@@ -528,13 +580,20 @@ internal sealed partial class JsLexer(string source)
 
     private JsToken ReadNumber(int start, char firstChar, bool hasLineTerminatorBefore)
     {
-        if (firstChar == '0' && TryReadPrefixedIntegerLiteral(start, hasLineTerminatorBefore, out var prefixedToken))
+        if (
+            firstChar == '0'
+            && TryReadPrefixedIntegerLiteral(start, hasLineTerminatorBefore, out var prefixedToken)
+        )
             return prefixedToken;
 
         return ReadDecimalOrFloatLiteral(start, firstChar, hasLineTerminatorBefore);
     }
 
-    private bool TryReadPrefixedIntegerLiteral(int start, bool hasLineTerminatorBefore, out JsToken token)
+    private bool TryReadPrefixedIntegerLiteral(
+        int start,
+        bool hasLineTerminatorBefore,
+        out JsToken token
+    )
     {
         token = default;
         if (index >= source.Length)
@@ -549,11 +608,21 @@ internal sealed partial class JsLexer(string source)
                 return true;
             case 'b':
             case 'B':
-                token = ReadRadixIntegerLiteral(start, hasLineTerminatorBefore, 2, "Invalid binary literal");
+                token = ReadRadixIntegerLiteral(
+                    start,
+                    hasLineTerminatorBefore,
+                    2,
+                    "Invalid binary literal"
+                );
                 return true;
             case 'o':
             case 'O':
-                token = ReadRadixIntegerLiteral(start, hasLineTerminatorBefore, 8, "Invalid octal literal");
+                token = ReadRadixIntegerLiteral(
+                    start,
+                    hasLineTerminatorBefore,
+                    8,
+                    "Invalid octal literal"
+                );
                 return true;
             default:
                 return false;
@@ -576,38 +645,75 @@ internal sealed partial class JsLexer(string source)
         if (!hadSeparator)
         {
             if (isBigInt)
-                return new(JsTokenKind.BigInt, start, rawLength,
+                return new(
+                    JsTokenKind.BigInt,
+                    start,
+                    rawLength,
                     dataIndex: AddBigIntLiteral(new(ParseBigInteger(digitSpan, 16))),
-                    hasLineTerminatorBefore: hasLineTerminatorBefore);
+                    hasLineTerminatorBefore: hasLineTerminatorBefore
+                );
 
-            if (!long.TryParse(digitSpan, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out var hex))
-                throw Error($"Invalid numeric literal '{source.Substring(start, rawLength)}'", start);
+            if (
+                !long.TryParse(
+                    digitSpan,
+                    NumberStyles.AllowHexSpecifier,
+                    CultureInfo.InvariantCulture,
+                    out var hex
+                )
+            )
+                throw Error(
+                    $"Invalid numeric literal '{source.Substring(start, rawLength)}'",
+                    start
+                );
 
-            return new(JsTokenKind.Number, start, rawLength,
+            return new(
+                JsTokenKind.Number,
+                start,
+                rawLength,
                 hex,
-                hasLineTerminatorBefore: hasLineTerminatorBefore);
+                hasLineTerminatorBefore: hasLineTerminatorBefore
+            );
         }
 
         char[]? rented = null;
         try
         {
-            var normalized = digitSpan.Length <= NumericSeparatorStackallocThreshold
-                ? stackalloc char[digitSpan.Length]
-                : rented = ArrayPool<char>.Shared.Rent(digitSpan.Length);
+            var normalized =
+                digitSpan.Length <= NumericSeparatorStackallocThreshold
+                    ? stackalloc char[digitSpan.Length]
+                    : rented = ArrayPool<char>.Shared.Rent(digitSpan.Length);
             CopyWithoutNumericSeparators(digitSpan, normalized, out var normalizedLength);
             var parseDigits = normalized[..normalizedLength];
 
             if (isBigInt)
-                return new(JsTokenKind.BigInt, start, rawLength,
+                return new(
+                    JsTokenKind.BigInt,
+                    start,
+                    rawLength,
                     dataIndex: AddBigIntLiteral(new(ParseBigInteger(parseDigits, 16))),
-                    hasLineTerminatorBefore: hasLineTerminatorBefore);
+                    hasLineTerminatorBefore: hasLineTerminatorBefore
+                );
 
-            if (!long.TryParse(parseDigits, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out var hex))
-                throw Error($"Invalid numeric literal '{source.Substring(start, rawLength)}'", start);
+            if (
+                !long.TryParse(
+                    parseDigits,
+                    NumberStyles.AllowHexSpecifier,
+                    CultureInfo.InvariantCulture,
+                    out var hex
+                )
+            )
+                throw Error(
+                    $"Invalid numeric literal '{source.Substring(start, rawLength)}'",
+                    start
+                );
 
-            return new(JsTokenKind.Number, start, rawLength,
+            return new(
+                JsTokenKind.Number,
+                start,
+                rawLength,
                 hex,
-                hasLineTerminatorBefore: hasLineTerminatorBefore);
+                hasLineTerminatorBefore: hasLineTerminatorBefore
+            );
         }
         finally
         {
@@ -616,7 +722,12 @@ internal sealed partial class JsLexer(string source)
         }
     }
 
-    private JsToken ReadRadixIntegerLiteral(int start, bool hasLineTerminatorBefore, int radix, string errorMessage)
+    private JsToken ReadRadixIntegerLiteral(
+        int start,
+        bool hasLineTerminatorBefore,
+        int radix,
+        string errorMessage
+    )
     {
         index++; // consume radix prefix char
         var digitStart = index;
@@ -632,38 +743,57 @@ internal sealed partial class JsLexer(string source)
         if (!hadSeparator)
         {
             if (isBigInt)
-                return new(JsTokenKind.BigInt, start, rawLength,
+                return new(
+                    JsTokenKind.BigInt,
+                    start,
+                    rawLength,
                     dataIndex: AddBigIntLiteral(new(ParseBigInteger(digitSpan, radix))),
-                    hasLineTerminatorBefore: hasLineTerminatorBefore);
+                    hasLineTerminatorBefore: hasLineTerminatorBefore
+                );
 
             double number = 0;
             for (var i = 0; i < digitSpan.Length; i++)
                 number = number * radix + (digitSpan[i] - '0');
 
-            return new(JsTokenKind.Number, start, rawLength, number,
-                hasLineTerminatorBefore: hasLineTerminatorBefore);
+            return new(
+                JsTokenKind.Number,
+                start,
+                rawLength,
+                number,
+                hasLineTerminatorBefore: hasLineTerminatorBefore
+            );
         }
 
         char[]? rented = null;
         try
         {
-            var normalized = digitSpan.Length <= NumericSeparatorStackallocThreshold
-                ? stackalloc char[digitSpan.Length]
-                : rented = ArrayPool<char>.Shared.Rent(digitSpan.Length);
+            var normalized =
+                digitSpan.Length <= NumericSeparatorStackallocThreshold
+                    ? stackalloc char[digitSpan.Length]
+                    : rented = ArrayPool<char>.Shared.Rent(digitSpan.Length);
             CopyWithoutNumericSeparators(digitSpan, normalized, out var normalizedLength);
             var parseDigits = normalized[..normalizedLength];
 
             if (isBigInt)
-                return new(JsTokenKind.BigInt, start, rawLength,
+                return new(
+                    JsTokenKind.BigInt,
+                    start,
+                    rawLength,
                     dataIndex: AddBigIntLiteral(new(ParseBigInteger(parseDigits, radix))),
-                    hasLineTerminatorBefore: hasLineTerminatorBefore);
+                    hasLineTerminatorBefore: hasLineTerminatorBefore
+                );
 
             double number = 0;
             for (var i = 0; i < parseDigits.Length; i++)
                 number = number * radix + (parseDigits[i] - '0');
 
-            return new(JsTokenKind.Number, start, rawLength, number,
-                hasLineTerminatorBefore: hasLineTerminatorBefore);
+            return new(
+                JsTokenKind.Number,
+                start,
+                rawLength,
+                number,
+                hasLineTerminatorBefore: hasLineTerminatorBefore
+            );
         }
         finally
         {
@@ -672,7 +802,11 @@ internal sealed partial class JsLexer(string source)
         }
     }
 
-    private JsToken ReadDecimalOrFloatLiteral(int start, char firstChar, bool hasLineTerminatorBefore)
+    private JsToken ReadDecimalOrFloatLiteral(
+        int start,
+        char firstChar,
+        bool hasLineTerminatorBefore
+    )
     {
         var hadSeparator = false;
         var sawDecimalPoint = firstChar == '.';
@@ -737,21 +871,31 @@ internal sealed partial class JsLexer(string source)
             index++;
             var bigintDigits = source.AsSpan(start, index - start - 1);
             if (!hadSeparator)
-                return new(JsTokenKind.BigInt, start, index - start,
+                return new(
+                    JsTokenKind.BigInt,
+                    start,
+                    index - start,
                     dataIndex: AddBigIntLiteral(new(ParseBigInteger(bigintDigits, 10))),
-                    hasLineTerminatorBefore: hasLineTerminatorBefore);
+                    hasLineTerminatorBefore: hasLineTerminatorBefore
+                );
 
             char[]? rented = null;
             try
             {
-                var normalized = bigintDigits.Length <= NumericSeparatorStackallocThreshold
-                    ? stackalloc char[bigintDigits.Length]
-                    : rented = ArrayPool<char>.Shared.Rent(bigintDigits.Length);
+                var normalized =
+                    bigintDigits.Length <= NumericSeparatorStackallocThreshold
+                        ? stackalloc char[bigintDigits.Length]
+                        : rented = ArrayPool<char>.Shared.Rent(bigintDigits.Length);
                 CopyWithoutNumericSeparators(bigintDigits, normalized, out var normalizedLength);
-                return new(JsTokenKind.BigInt, start, index - start,
-                    dataIndex: AddBigIntLiteral(new(ParseBigInteger(normalized[..normalizedLength],
-                        10))),
-                    hasLineTerminatorBefore: hasLineTerminatorBefore);
+                return new(
+                    JsTokenKind.BigInt,
+                    start,
+                    index - start,
+                    dataIndex: AddBigIntLiteral(
+                        new(ParseBigInteger(normalized[..normalizedLength], 10))
+                    ),
+                    hasLineTerminatorBefore: hasLineTerminatorBefore
+                );
             }
             finally
             {
@@ -764,26 +908,56 @@ internal sealed partial class JsLexer(string source)
         var numberSpan = source.AsSpan(start, rawLength);
         if (!hadSeparator)
         {
-            if (!double.TryParse(numberSpan, NumberStyles.Float, CultureInfo.InvariantCulture, out var number))
-                throw Error($"Invalid numeric literal '{source.Substring(start, rawLength)}'", start);
+            if (
+                !double.TryParse(
+                    numberSpan,
+                    NumberStyles.Float,
+                    CultureInfo.InvariantCulture,
+                    out var number
+                )
+            )
+                throw Error(
+                    $"Invalid numeric literal '{source.Substring(start, rawLength)}'",
+                    start
+                );
 
-            return new(JsTokenKind.Number, start, rawLength, number,
-                hasLineTerminatorBefore: hasLineTerminatorBefore);
+            return new(
+                JsTokenKind.Number,
+                start,
+                rawLength,
+                number,
+                hasLineTerminatorBefore: hasLineTerminatorBefore
+            );
         }
 
         char[]? rentedNumber = null;
         try
         {
-            var normalized = numberSpan.Length <= NumericSeparatorStackallocThreshold
-                ? stackalloc char[numberSpan.Length]
-                : rentedNumber = ArrayPool<char>.Shared.Rent(numberSpan.Length);
+            var normalized =
+                numberSpan.Length <= NumericSeparatorStackallocThreshold
+                    ? stackalloc char[numberSpan.Length]
+                    : rentedNumber = ArrayPool<char>.Shared.Rent(numberSpan.Length);
             CopyWithoutNumericSeparators(numberSpan, normalized, out var normalizedLength);
-            if (!double.TryParse(normalized[..normalizedLength], NumberStyles.Float, CultureInfo.InvariantCulture,
-                    out var number))
-                throw Error($"Invalid numeric literal '{source.Substring(start, rawLength)}'", start);
+            if (
+                !double.TryParse(
+                    normalized[..normalizedLength],
+                    NumberStyles.Float,
+                    CultureInfo.InvariantCulture,
+                    out var number
+                )
+            )
+                throw Error(
+                    $"Invalid numeric literal '{source.Substring(start, rawLength)}'",
+                    start
+                );
 
-            return new(JsTokenKind.Number, start, rawLength, number,
-                hasLineTerminatorBefore: hasLineTerminatorBefore);
+            return new(
+                JsTokenKind.Number,
+                start,
+                rawLength,
+                number,
+                hasLineTerminatorBefore: hasLineTerminatorBefore
+            );
         }
         finally
         {
@@ -833,7 +1007,7 @@ internal sealed partial class JsLexer(string source)
         {
             2 => c is '0' or '1',
             8 => c >= '0' && c <= '7',
-            _ => throw new ArgumentOutOfRangeException(nameof(radix))
+            _ => throw new ArgumentOutOfRangeException(nameof(radix)),
         };
     }
 
@@ -850,7 +1024,7 @@ internal sealed partial class JsLexer(string source)
                 >= '0' and <= '9' => digits[i] - '0',
                 >= 'a' and <= 'f' => 10 + (digits[i] - 'a'),
                 >= 'A' and <= 'F' => 10 + (digits[i] - 'A'),
-                _ => throw new FormatException("Invalid BigInt digit")
+                _ => throw new FormatException("Invalid BigInt digit"),
             };
 
             value = value * radix + digit;
@@ -861,42 +1035,59 @@ internal sealed partial class JsLexer(string source)
 
     private JsToken ReadPrivateIdentifier(int start, bool hasLineTerminatorBefore)
     {
-        if (index >= source.Length) throw Error("Unexpected character '#'", start);
+        if (index >= source.Length)
+            throw Error("Unexpected character '#'", start);
 
         var next = source[index];
         string firstText;
         if (next == '\\')
         {
             index++;
-            if (!TryReadUnicodeEscapeAfterBackslash(out firstText) ||
-                firstText.Length == 0 ||
-                !IsIdentifierStartText(firstText))
+            if (
+                !TryReadUnicodeEscapeAfterBackslash(out firstText)
+                || firstText.Length == 0
+                || !IsIdentifierStartText(firstText)
+            )
                 throw Error("Invalid private identifier", start);
         }
         else
         {
-            if (char.IsHighSurrogate(next) &&
-                index + 1 < source.Length &&
-                char.IsLowSurrogate(source[index + 1]))
+            if (
+                char.IsHighSurrogate(next)
+                && index + 1 < source.Length
+                && char.IsLowSurrogate(source[index + 1])
+            )
             {
                 firstText = string.Concat(next, source[index + 1]);
-                if (!IsIdentifierStartText(firstText)) throw Error("Invalid private identifier", start);
+                if (!IsIdentifierStartText(firstText))
+                    throw Error("Invalid private identifier", start);
 
                 index += 2;
                 var token2 = ReadIdentifier(start + 1, firstText, hasLineTerminatorBefore);
-                return new(JsTokenKind.PrivateIdentifier, start, index - start, dataIndex: token2.DataIndex,
-                    hasLineTerminatorBefore: hasLineTerminatorBefore);
+                return new(
+                    JsTokenKind.PrivateIdentifier,
+                    start,
+                    index - start,
+                    dataIndex: token2.DataIndex,
+                    hasLineTerminatorBefore: hasLineTerminatorBefore
+                );
             }
 
-            if (!IsIdentifierStart(next)) throw Error("Invalid private identifier", start);
+            if (!IsIdentifierStart(next))
+                throw Error("Invalid private identifier", start);
 
             index++;
             firstText = new(next, 1);
         }
 
         var token = ReadIdentifier(start + 1, firstText, hasLineTerminatorBefore);
-        return new(JsTokenKind.PrivateIdentifier, start, index - start, dataIndex: token.DataIndex,
-            hasLineTerminatorBefore: hasLineTerminatorBefore);
+        return new(
+            JsTokenKind.PrivateIdentifier,
+            start,
+            index - start,
+            dataIndex: token.DataIndex,
+            hasLineTerminatorBefore: hasLineTerminatorBefore
+        );
     }
 
     private JsToken ReadIdentifier(int start, char firstChar, bool hasLineTerminatorBefore)
@@ -912,7 +1103,8 @@ internal sealed partial class JsLexer(string source)
                 continue;
             }
 
-            if (c == '\\') return ReadIdentifierSlow(start, hasLineTerminatorBefore);
+            if (c == '\\')
+                return ReadIdentifierSlow(start, hasLineTerminatorBefore);
 
             break;
         }
@@ -921,31 +1113,49 @@ internal sealed partial class JsLexer(string source)
         if (asciiKeywordCandidate)
         {
             if (TryGetKeywordKind(rawSpan, out var kind))
-                return new(kind, start, rawSpan.Length,
-                    hasLineTerminatorBefore: hasLineTerminatorBefore);
+                return new(
+                    kind,
+                    start,
+                    rawSpan.Length,
+                    hasLineTerminatorBefore: hasLineTerminatorBefore
+                );
 
             if (IsReservedWord(rawSpan))
-                return new(JsTokenKind.ReservedWord, start, rawSpan.Length,
-                    hasLineTerminatorBefore: hasLineTerminatorBefore);
+                return new(
+                    JsTokenKind.ReservedWord,
+                    start,
+                    rawSpan.Length,
+                    hasLineTerminatorBefore: hasLineTerminatorBefore
+                );
         }
 
-        return new(JsTokenKind.Identifier, start, rawSpan.Length,
+        return new(
+            JsTokenKind.Identifier,
+            start,
+            rawSpan.Length,
             dataIndex: AddIdentifierLiteral(rawSpan),
-            hasLineTerminatorBefore: hasLineTerminatorBefore);
+            hasLineTerminatorBefore: hasLineTerminatorBefore
+        );
     }
 
     private JsToken ReadIdentifier(int start, string firstText, bool hasLineTerminatorBefore)
     {
-        if (firstText.Length == 1 &&
-            start < source.Length &&
-            source[start] == firstText[0] &&
-            source[start] != '\\')
+        if (
+            firstText.Length == 1
+            && start < source.Length
+            && source[start] == firstText[0]
+            && source[start] != '\\'
+        )
             return ReadIdentifier(start, firstText[0], hasLineTerminatorBefore);
 
         return ReadIdentifierSlow(start, hasLineTerminatorBefore, firstText);
     }
 
-    private JsToken ReadIdentifierSlow(int start, bool hasLineTerminatorBefore, string? firstText = null)
+    private JsToken ReadIdentifierSlow(
+        int start,
+        bool hasLineTerminatorBefore,
+        string? firstText = null
+    )
     {
         var builder = new PooledCharBuilder(stackalloc char[64]);
         try
@@ -955,7 +1165,8 @@ internal sealed partial class JsLexer(string source)
             else
                 builder.Append(firstText);
 
-            var asciiKeywordCandidate = builder.Length == 1 && builder.AsSpan()[0] is >= 'A' and <= 'z';
+            var asciiKeywordCandidate =
+                builder.Length == 1 && builder.AsSpan()[0] is >= 'A' and <= 'z';
             while (index < source.Length)
             {
                 var c = source[index];
@@ -970,8 +1181,10 @@ internal sealed partial class JsLexer(string source)
                 if (c == '\\')
                 {
                     index++;
-                    if (!TryReadUnicodeEscapeCodePointAfterBackslash(out var codePoint) ||
-                        !IsIdentifierPartCodePoint(codePoint))
+                    if (
+                        !TryReadUnicodeEscapeCodePointAfterBackslash(out var codePoint)
+                        || !IsIdentifierPartCodePoint(codePoint)
+                    )
                         throw Error("Invalid identifier escape", index);
 
                     builder.AppendRune(codePoint);
@@ -979,11 +1192,13 @@ internal sealed partial class JsLexer(string source)
                     continue;
                 }
 
-                if (char.IsHighSurrogate(c) &&
-                    index + 1 < source.Length &&
-                    char.IsLowSurrogate(source[index + 1]) &&
-                    Rune.TryGetRuneAt(source, index, out var rune) &&
-                    IsIdentifierPartRune(rune))
+                if (
+                    char.IsHighSurrogate(c)
+                    && index + 1 < source.Length
+                    && char.IsLowSurrogate(source[index + 1])
+                    && Rune.TryGetRuneAt(source, index, out var rune)
+                    && IsIdentifierPartRune(rune)
+                )
                 {
                     builder.Append(source.AsSpan(index, 2));
                     asciiKeywordCandidate = false;
@@ -998,16 +1213,29 @@ internal sealed partial class JsLexer(string source)
             {
                 var rawIdentifier = source.AsSpan(start, index - start);
                 if (TryGetKeywordKind(rawIdentifier, out var kind))
-                    return new(kind, start, index - start,
-                        hasLineTerminatorBefore: hasLineTerminatorBefore);
+                    return new(
+                        kind,
+                        start,
+                        index - start,
+                        hasLineTerminatorBefore: hasLineTerminatorBefore
+                    );
 
                 if (IsReservedWord(rawIdentifier))
-                    return new(JsTokenKind.ReservedWord, start, index - start,
-                        hasLineTerminatorBefore: hasLineTerminatorBefore);
+                    return new(
+                        JsTokenKind.ReservedWord,
+                        start,
+                        index - start,
+                        hasLineTerminatorBefore: hasLineTerminatorBefore
+                    );
             }
 
-            return new(JsTokenKind.Identifier, start, index - start, dataIndex: AddIdentifierLiteral(builder.AsSpan()),
-                hasLineTerminatorBefore: hasLineTerminatorBefore);
+            return new(
+                JsTokenKind.Identifier,
+                start,
+                index - start,
+                dataIndex: AddIdentifierLiteral(builder.AsSpan()),
+                hasLineTerminatorBefore: hasLineTerminatorBefore
+            );
         }
         finally
         {
@@ -1018,18 +1246,19 @@ internal sealed partial class JsLexer(string source)
     private bool TryReadUnicodeEscapeAfterBackslash(out string escaped)
     {
         escaped = string.Empty;
-        if (!TryReadUnicodeEscapeCodePointAfterBackslash(out var codePoint)) return false;
+        if (!TryReadUnicodeEscapeCodePointAfterBackslash(out var codePoint))
+            return false;
 
-        escaped = codePoint <= char.MaxValue
-            ? new((char)codePoint, 1)
-            : char.ConvertFromUtf32(codePoint);
+        escaped =
+            codePoint <= char.MaxValue ? new((char)codePoint, 1) : char.ConvertFromUtf32(codePoint);
         return true;
     }
 
     private bool TryReadUnicodeEscapeCodePointAfterBackslash(out int codePoint)
     {
         codePoint = 0;
-        if (index >= source.Length || source[index] != 'u') return false;
+        if (index >= source.Length || source[index] != 'u')
+            return false;
 
         index++;
         if (index < source.Length && source[index] == '{')
@@ -1040,28 +1269,33 @@ internal sealed partial class JsLexer(string source)
             while (index < source.Length && source[index] != '}')
             {
                 var c = source[index];
-                if (!IsHexDigit(c)) return false;
+                if (!IsHexDigit(c))
+                    return false;
 
                 codePoint = (codePoint << 4) | HexToInt(c);
                 digits++;
-                if (digits > 6) return false;
+                if (digits > 6)
+                    return false;
 
                 index++;
             }
 
-            if (index >= source.Length || source[index] != '}' || index == digitsStart) return false;
+            if (index >= source.Length || source[index] != '}' || index == digitsStart)
+                return false;
 
             index++;
             return codePoint <= 0x10FFFF;
         }
 
-        if (index + 3 >= source.Length) return false;
+        if (index + 3 >= source.Length)
+            return false;
 
         var h0 = source[index++];
         var h1 = source[index++];
         var h2 = source[index++];
         var h3 = source[index++];
-        if (!IsHexDigit(h0) || !IsHexDigit(h1) || !IsHexDigit(h2) || !IsHexDigit(h3)) return false;
+        if (!IsHexDigit(h0) || !IsHexDigit(h1) || !IsHexDigit(h2) || !IsHexDigit(h3))
+            return false;
 
         codePoint = (HexToInt(h0) << 12) | (HexToInt(h1) << 8) | (HexToInt(h2) << 4) | HexToInt(h3);
         return true;
@@ -1069,7 +1303,8 @@ internal sealed partial class JsLexer(string source)
 
     private bool Match(char expected)
     {
-        if (index >= source.Length || source[index] != expected) return false;
+        if (index >= source.Length || source[index] != expected)
+            return false;
 
         index++;
         return true;
@@ -1077,7 +1312,8 @@ internal sealed partial class JsLexer(string source)
 
     private static bool IsIdentifierStart(char c)
     {
-        if (c is '_' or '$') return true;
+        if (c is '_' or '$')
+            return true;
 
         if (c >= 0x80 && !IsEcmaTrivia(c) && !char.IsControl(c))
             return char.GetUnicodeCategory(c) != UnicodeCategory.Format;
@@ -1090,15 +1326,17 @@ internal sealed partial class JsLexer(string source)
             UnicodeCategory.ModifierLetter => true,
             UnicodeCategory.OtherLetter => true,
             UnicodeCategory.LetterNumber => true,
-            _ => false
+            _ => false,
         };
     }
 
     private static bool IsIdentifierPart(char c)
     {
-        if (IsIdentifierStart(c)) return true;
+        if (IsIdentifierStart(c))
+            return true;
 
-        if (c is '\u200C' or '\u200D') return true;
+        if (c is '\u200C' or '\u200D')
+            return true;
 
         return char.GetUnicodeCategory(c) switch
         {
@@ -1106,42 +1344,53 @@ internal sealed partial class JsLexer(string source)
             UnicodeCategory.ConnectorPunctuation => true,
             UnicodeCategory.NonSpacingMark => true,
             UnicodeCategory.SpacingCombiningMark => true,
-            _ => false
+            _ => false,
         };
     }
 
     private static bool IsIdentifierStartText(string text)
     {
-        if (string.IsNullOrEmpty(text)) return false;
+        if (string.IsNullOrEmpty(text))
+            return false;
 
-        if (text.Length == 1) return IsIdentifierStart(text[0]);
+        if (text.Length == 1)
+            return IsIdentifierStart(text[0]);
 
-        if (!Rune.TryGetRuneAt(text, 0, out var rune)) return false;
+        if (!Rune.TryGetRuneAt(text, 0, out var rune))
+            return false;
 
         return IsIdentifierStartRune(rune);
     }
 
     private static bool IsIdentifierPartText(string text)
     {
-        if (string.IsNullOrEmpty(text)) return false;
+        if (string.IsNullOrEmpty(text))
+            return false;
 
-        if (text.Length == 1) return IsIdentifierPart(text[0]);
+        if (text.Length == 1)
+            return IsIdentifierPart(text[0]);
 
-        if (!Rune.TryGetRuneAt(text, 0, out var rune)) return false;
+        if (!Rune.TryGetRuneAt(text, 0, out var rune))
+            return false;
 
         return IsIdentifierPartRune(rune);
     }
 
     private static bool IsIdentifierPartCodePoint(int codePoint)
     {
-        if (codePoint <= char.MaxValue) return IsIdentifierPart((char)codePoint);
+        if (codePoint <= char.MaxValue)
+            return IsIdentifierPart((char)codePoint);
 
         return IsIdentifierPartRune(new(codePoint));
     }
 
     private static bool IsIdentifierStartRune(Rune rune)
     {
-        if (rune.Value >= 0x80 && !IsEcmaTrivia(rune) && Rune.GetUnicodeCategory(rune) != UnicodeCategory.Control)
+        if (
+            rune.Value >= 0x80
+            && !IsEcmaTrivia(rune)
+            && Rune.GetUnicodeCategory(rune) != UnicodeCategory.Control
+        )
             return Rune.GetUnicodeCategory(rune) != UnicodeCategory.Format;
 
         return Rune.GetUnicodeCategory(rune) switch
@@ -1152,13 +1401,14 @@ internal sealed partial class JsLexer(string source)
             UnicodeCategory.ModifierLetter => true,
             UnicodeCategory.OtherLetter => true,
             UnicodeCategory.LetterNumber => true,
-            _ => false
+            _ => false,
         };
     }
 
     private static bool IsIdentifierPartRune(Rune rune)
     {
-        if (IsIdentifierStartRune(rune)) return true;
+        if (IsIdentifierStartRune(rune))
+            return true;
 
         return Rune.GetUnicodeCategory(rune) switch
         {
@@ -1166,7 +1416,7 @@ internal sealed partial class JsLexer(string source)
             UnicodeCategory.ConnectorPunctuation => true,
             UnicodeCategory.NonSpacingMark => true,
             UnicodeCategory.SpacingCombiningMark => true,
-            _ => false
+            _ => false,
         };
     }
 
@@ -1190,7 +1440,12 @@ internal sealed partial class JsLexer(string source)
         return c is >= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F';
     }
 
-    private static JsToken Tok(JsTokenKind kind, string text, int position, bool hasLineTerminatorBefore)
+    private static JsToken Tok(
+        JsTokenKind kind,
+        string text,
+        int position,
+        bool hasLineTerminatorBefore
+    )
     {
         return new(kind, position, text.Length, hasLineTerminatorBefore: hasLineTerminatorBefore);
     }
@@ -1202,7 +1457,7 @@ internal sealed partial class JsLexer(string source)
             >= '0' and <= '9' => c - '0',
             >= 'a' and <= 'f' => 10 + (c - 'a'),
             >= 'A' and <= 'F' => 10 + (c - 'A'),
-            _ => -1
+            _ => -1,
         };
     }
 
@@ -1312,7 +1567,6 @@ internal sealed partial class JsLexer(string source)
                 kind = JsTokenKind.Instanceof;
                 return true;
         }
-
 
         kind = default;
         return false;

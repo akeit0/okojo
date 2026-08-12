@@ -5,11 +5,15 @@ namespace Okojo.Compiler;
 
 public sealed partial class JsCompiler
 {
-    private void EmitBindingDeclarationStatement(JsVariableDeclarationStatement declaration,
-        bool emitCompletionValue = true)
+    private void EmitBindingDeclarationStatement(
+        JsVariableDeclarationStatement declaration,
+        bool emitCompletionValue = true
+    )
     {
         if (declaration.BindingPattern is null || declaration.BindingInitializer is null)
-            throw new InvalidOperationException("Binding declaration is missing pattern or initializer.");
+            throw new InvalidOperationException(
+                "Binding declaration is missing pattern or initializer."
+            );
 
         VisitExpression(declaration.BindingInitializer);
         var valueReg = AllocateTemporaryRegister();
@@ -18,10 +22,18 @@ public sealed partial class JsCompiler
         switch (declaration.BindingPattern)
         {
             case JsArrayExpression arrayPattern:
-                EmitArrayDestructuringAssignmentFromRegister(arrayPattern, valueReg, initializeIdentifiers: true);
+                EmitArrayDestructuringAssignmentFromRegister(
+                    arrayPattern,
+                    valueReg,
+                    initializeIdentifiers: true
+                );
                 break;
             case JsObjectExpression objectPattern:
-                EmitObjectDestructuringAssignmentFromRegister(objectPattern, valueReg, initializeIdentifiers: true);
+                EmitObjectDestructuringAssignmentFromRegister(
+                    objectPattern,
+                    valueReg,
+                    initializeIdentifiers: true
+                );
                 break;
             default:
                 throw new NotSupportedException("Binding declaration pattern is not supported.");
@@ -35,8 +47,10 @@ public sealed partial class JsCompiler
             EmitLdaTheHole();
     }
 
-    private void EmitVariableDeclarationStatement(JsVariableDeclarationStatement varStmt,
-        bool emitCompletionValue = true)
+    private void EmitVariableDeclarationStatement(
+        JsVariableDeclarationStatement varStmt,
+        bool emitCompletionValue = true
+    )
     {
         if (varStmt.BindingPattern is not null && varStmt.BindingInitializer is not null)
         {
@@ -46,25 +60,40 @@ public sealed partial class JsCompiler
 
         foreach (var decl in varStmt.Declarators)
         {
-            var hasResolvedDeclBinding = TryResolveLocalBinding(decl.Name, out var resolvedDeclBinding);
+            var hasResolvedDeclBinding = TryResolveLocalBinding(
+                decl.Name,
+                out var resolvedDeclBinding
+            );
             var targetName = hasResolvedDeclBinding ? resolvedDeclBinding.Name : decl.Name;
             if (decl.Initializer != null)
             {
                 var isUsingLike = varStmt.Kind.IsUsingLike();
                 var useInitializationStore = varStmt.Kind is not JsVariableDeclarationKind.Var;
-                if (!isUsingLike &&
-                    hasResolvedDeclBinding &&
-                    TryEmitDirectLocalToLocalMoveForInitializer(targetName, decl.Initializer,
-                        useInitializationStore, decl.Name))
+                if (
+                    !isUsingLike
+                    && hasResolvedDeclBinding
+                    && TryEmitDirectLocalToLocalMoveForInitializer(
+                        targetName,
+                        decl.Initializer,
+                        useInitializationStore,
+                        decl.Name
+                    )
+                )
                 {
                     if (ShouldTrackKnownInitializedLexical(resolvedDeclBinding.SymbolId))
                         MarkKnownInitializedLexical(resolvedDeclBinding.SymbolId);
                     continue;
                 }
 
-                if (!isUsingLike &&
-                    hasResolvedDeclBinding &&
-                    TryEmitLiteralInitializerDirectToLocal(varStmt.Kind, targetName, decl.Initializer))
+                if (
+                    !isUsingLike
+                    && hasResolvedDeclBinding
+                    && TryEmitLiteralInitializerDirectToLocal(
+                        varStmt.Kind,
+                        targetName,
+                        decl.Initializer
+                    )
+                )
                 {
                     if (ShouldTrackKnownInitializedLexical(resolvedDeclBinding.SymbolId))
                         MarkKnownInitializedLexical(resolvedDeclBinding.SymbolId);
@@ -80,7 +109,10 @@ public sealed partial class JsCompiler
                     EmitLdaRegister(valueReg);
                 }
                 StoreIdentifier(targetName, useInitializationStore, decl.Name);
-                if (hasResolvedDeclBinding && ShouldTrackKnownInitializedLexical(resolvedDeclBinding.SymbolId))
+                if (
+                    hasResolvedDeclBinding
+                    && ShouldTrackKnownInitializedLexical(resolvedDeclBinding.SymbolId)
+                )
                     MarkKnownInitializedLexical(resolvedDeclBinding.SymbolId);
                 if (isUsingLike)
                 {
@@ -88,8 +120,11 @@ public sealed partial class JsCompiler
                     ReleaseTemporaryRegister(valueReg);
                 }
             }
-            else if (varStmt.Kind is JsVariableDeclarationKind.Let && hasResolvedDeclBinding &&
-                     IsLexicalLocalBinding(resolvedDeclBinding.SymbolId))
+            else if (
+                varStmt.Kind is JsVariableDeclarationKind.Let
+                && hasResolvedDeclBinding
+                && IsLexicalLocalBinding(resolvedDeclBinding.SymbolId)
+            )
             {
                 EmitLdaUndefined();
                 StoreIdentifier(targetName, true, decl.Name);
@@ -115,20 +150,26 @@ public sealed partial class JsCompiler
         var statementCompletionState = hasStructuredCompletion
             ? activeStatementCompletionStates.Peek()
             : default;
-        var statementCompletionReg = hasStructuredCompletion ? statementCompletionState.Register : -1;
-        var statementCompletionKnownNonHole = hasStructuredCompletion && statementCompletionState.KnownNonHole;
+        var statementCompletionReg = hasStructuredCompletion
+            ? statementCompletionState.Register
+            : -1;
+        var statementCompletionKnownNonHole =
+            hasStructuredCompletion && statementCompletionState.KnownNonHole;
         var hasSwitchCompletion = activeSwitchCompletionRegisters.Count != 0;
         var switchCompletionReg = hasSwitchCompletion ? activeSwitchCompletionRegisters.Peek() : -1;
         var completionHandledInternally = false;
         switch (stmt)
         {
-            case JsExpressionStatement exprStmt: VisitExpression(exprStmt.Expression); break;
+            case JsExpressionStatement exprStmt:
+                VisitExpression(exprStmt.Expression);
+                break;
             case JsBlockStatement blockStmt:
                 if (BlockNeedsExplicitResourceScope(blockStmt.Statements))
                 {
                     EmitExplicitResourceScope(
                         () => EmitBlockStatementCore(blockStmt, resultUsed),
-                        BlockNeedsAsyncExplicitResourceScope(blockStmt.Statements));
+                        BlockNeedsAsyncExplicitResourceScope(blockStmt.Statements)
+                    );
                     completionHandledInternally = true;
                 }
                 else
@@ -153,10 +194,12 @@ public sealed partial class JsCompiler
                 break;
             case JsIfStatement ifStmt:
                 {
-                    if (ifStmt.Alternate is null &&
-                        StatementNeverCompletesNormally(ifStmt.Consequent) &&
-                        !ContainsShortCircuitingControlFlow(ifStmt.Test) &&
-                        (hasStructuredCompletion || hasSwitchCompletion))
+                    if (
+                        ifStmt.Alternate is null
+                        && StatementNeverCompletesNormally(ifStmt.Consequent)
+                        && !ContainsShortCircuitingControlFlow(ifStmt.Test)
+                        && (hasStructuredCompletion || hasSwitchCompletion)
+                    )
                     {
                         var abruptElseLabel = builder.CreateLabel();
                         VisitExpression(ifStmt.Test);
@@ -219,9 +262,13 @@ public sealed partial class JsCompiler
             case JsDoWhileStatement doWhileStmt:
                 EmitDoWhileStatement(doWhileStmt);
                 break;
-            case JsForStatement forStmt when forStmt.Init is JsVariableDeclarationStatement initDecl && initDecl.Kind.IsUsingLike():
-                EmitExplicitResourceScope(() => EmitForStatement(forStmt),
-                    initDecl.Kind == JsVariableDeclarationKind.AwaitUsing);
+            case JsForStatement forStmt
+                when forStmt.Init is JsVariableDeclarationStatement initDecl
+                    && initDecl.Kind.IsUsingLike():
+                EmitExplicitResourceScope(
+                    () => EmitForStatement(forStmt),
+                    initDecl.Kind == JsVariableDeclarationKind.AwaitUsing
+                );
                 completionHandledInternally = true;
                 break;
             case JsForStatement forStmt:
@@ -236,9 +283,12 @@ public sealed partial class JsCompiler
             case JsLabeledStatement labeledStmt:
                 EmitLabeledStatement(labeledStmt);
                 break;
-            case JsVariableDeclarationStatement varStmt when varStmt.Kind.IsUsingLike() && !HasAmbientExplicitResourceScope:
-                EmitExplicitResourceScope(() => EmitVariableDeclarationStatement(varStmt, resultUsed),
-                    varStmt.Kind == JsVariableDeclarationKind.AwaitUsing);
+            case JsVariableDeclarationStatement varStmt
+                when varStmt.Kind.IsUsingLike() && !HasAmbientExplicitResourceScope:
+                EmitExplicitResourceScope(
+                    () => EmitVariableDeclarationStatement(varStmt, resultUsed),
+                    varStmt.Kind == JsVariableDeclarationKind.AwaitUsing
+                );
                 completionHandledInternally = true;
                 break;
             case JsVariableDeclarationStatement varStmt:
@@ -246,8 +296,10 @@ public sealed partial class JsCompiler
                 break;
             case JsEmptyObjectBindingDeclarationStatement emptyObjectBindingStmt
                 when emptyObjectBindingStmt.Kind.IsUsingLike() && !HasAmbientExplicitResourceScope:
-                EmitExplicitResourceScope(() => EmitEmptyObjectBindingDeclarationStatement(emptyObjectBindingStmt),
-                    emptyObjectBindingStmt.Kind == JsVariableDeclarationKind.AwaitUsing);
+                EmitExplicitResourceScope(
+                    () => EmitEmptyObjectBindingDeclarationStatement(emptyObjectBindingStmt),
+                    emptyObjectBindingStmt.Kind == JsVariableDeclarationKind.AwaitUsing
+                );
                 completionHandledInternally = true;
                 break;
             case JsEmptyObjectBindingDeclarationStatement emptyObjectBindingStmt:
@@ -275,7 +327,10 @@ public sealed partial class JsCompiler
                 if (hasStructuredCompletion)
                 {
                     EmitLdaRegister(statementCompletionReg);
-                    if (activeAbruptEmptyNormalizations.Count != 0 && !statementCompletionKnownNonHole)
+                    if (
+                        activeAbruptEmptyNormalizations.Count != 0
+                        && !statementCompletionKnownNonHole
+                    )
                         EmitNormalizeAccumulatorHoleToUndefined();
                     if (hasSwitchCompletion && switchCompletionReg != statementCompletionReg)
                     {
@@ -304,7 +359,10 @@ public sealed partial class JsCompiler
                 if (hasStructuredCompletion)
                 {
                     EmitLdaRegister(statementCompletionReg);
-                    if (activeAbruptEmptyNormalizations.Count != 0 && !statementCompletionKnownNonHole)
+                    if (
+                        activeAbruptEmptyNormalizations.Count != 0
+                        && !statementCompletionKnownNonHole
+                    )
                         EmitNormalizeAccumulatorHoleToUndefined();
                     if (hasSwitchCompletion && switchCompletionReg != statementCompletionReg)
                     {
@@ -325,7 +383,13 @@ public sealed partial class JsCompiler
                     break;
                 }
 
-                if (!TryResolveContinueTarget(cont.Label, out var continueTarget, out var continueError))
+                if (
+                    !TryResolveContinueTarget(
+                        cont.Label,
+                        out var continueTarget,
+                        out var continueError
+                    )
+                )
                 {
                     if (continueError == ContinueLabelError.UndefinedLabel)
                         ThrowUndefinedLabelSyntaxError(cont.Label, cont.Position);
@@ -348,13 +412,21 @@ public sealed partial class JsCompiler
                 if (resultUsed)
                     EmitLdaTheHole();
                 break;
-            case JsWithStatement: throw new NotSupportedException("With statements are not supported in Okojo");
-            default: throw new NotImplementedException($"Statement {stmt.GetType().Name}");
+            case JsWithStatement:
+                throw new NotSupportedException("With statements are not supported in Okojo");
+            default:
+                throw new NotImplementedException($"Statement {stmt.GetType().Name}");
         }
 
-        if (stmt is not JsBreakStatement and not JsContinueStatement and not JsReturnStatement and not JsThrowStatement
+        if (
+            stmt
+                is not JsBreakStatement
+                    and not JsContinueStatement
+                    and not JsReturnStatement
+                    and not JsThrowStatement
             && StatementCanProduceTrackedCompletion(stmt)
-            && !completionHandledInternally)
+            && !completionHandledInternally
+        )
         {
             var trackedCompletionKnownNonHole = StatementTrackedCompletionIsKnownNonHole(stmt);
             if (hasStructuredCompletion)
@@ -378,12 +450,12 @@ public sealed partial class JsCompiler
     {
         var hasStructuredCompletion = activeStatementCompletionStates.Count != 0;
         var reuseParentBlockCompletion =
-            hasStructuredCompletion &&
-            StatementListNeedsStructuredCompletionTracking(blockStmt.Statements) &&
-            !StatementListNeedsCompletionIsolationFromParent(blockStmt.Statements);
+            hasStructuredCompletion
+            && StatementListNeedsStructuredCompletionTracking(blockStmt.Statements)
+            && !StatementListNeedsCompletionIsolationFromParent(blockStmt.Statements);
         var trackBlockCompletion =
-            !reuseParentBlockCompletion &&
-            StatementListNeedsStructuredCompletionTracking(blockStmt.Statements);
+            !reuseParentBlockCompletion
+            && StatementListNeedsStructuredCompletionTracking(blockStmt.Statements);
         var blockCompletionReg = -1;
         if (trackBlockCompletion)
         {
@@ -425,7 +497,9 @@ public sealed partial class JsCompiler
         }
     }
 
-    private void EmitEmptyObjectBindingDeclarationStatement(JsEmptyObjectBindingDeclarationStatement statement)
+    private void EmitEmptyObjectBindingDeclarationStatement(
+        JsEmptyObjectBindingDeclarationStatement statement
+    )
     {
         VisitExpression(statement.Initializer);
         var valueReg = AllocateTemporaryRegister();
@@ -442,15 +516,17 @@ public sealed partial class JsCompiler
         switch (expr)
         {
             case JsBinaryExpression binary:
-                return binary.Operator is JsBinaryOperator.LogicalAnd or JsBinaryOperator.LogicalOr
-                           or JsBinaryOperator.NullishCoalescing
-                       || ContainsShortCircuitingControlFlow(binary.Left)
-                       || ContainsShortCircuitingControlFlow(binary.Right);
+                return binary.Operator
+                        is JsBinaryOperator.LogicalAnd
+                            or JsBinaryOperator.LogicalOr
+                            or JsBinaryOperator.NullishCoalescing
+                    || ContainsShortCircuitingControlFlow(binary.Left)
+                    || ContainsShortCircuitingControlFlow(binary.Right);
             case JsConditionalExpression conditional:
                 return true;
             case JsAssignmentExpression assignment:
-                return ContainsShortCircuitingControlFlow(assignment.Left) ||
-                       ContainsShortCircuitingControlFlow(assignment.Right);
+                return ContainsShortCircuitingControlFlow(assignment.Left)
+                    || ContainsShortCircuitingControlFlow(assignment.Right);
             case JsCallExpression call:
                 if (ContainsShortCircuitingControlFlow(call.Callee))
                     return true;
@@ -460,8 +536,8 @@ public sealed partial class JsCompiler
 
                 return false;
             case JsMemberExpression member:
-                return ContainsShortCircuitingControlFlow(member.Object) ||
-                       (member.IsComputed && ContainsShortCircuitingControlFlow(member.Property));
+                return ContainsShortCircuitingControlFlow(member.Object)
+                    || (member.IsComputed && ContainsShortCircuitingControlFlow(member.Property));
             case JsUnaryExpression unary:
                 return ContainsShortCircuitingControlFlow(unary.Argument);
             case JsUpdateExpression update:
@@ -469,8 +545,8 @@ public sealed partial class JsCompiler
             case JsAwaitExpression awaitExpression:
                 return ContainsShortCircuitingControlFlow(awaitExpression.Argument);
             case JsYieldExpression yieldExpression:
-                return yieldExpression.Argument is not null &&
-                       ContainsShortCircuitingControlFlow(yieldExpression.Argument);
+                return yieldExpression.Argument is not null
+                    && ContainsShortCircuitingControlFlow(yieldExpression.Argument);
             case JsTemplateExpression template:
                 foreach (var part in template.Expressions)
                     if (ContainsShortCircuitingControlFlow(part))
@@ -494,8 +570,11 @@ public sealed partial class JsCompiler
             case JsObjectExpression obj:
                 foreach (var property in obj.Properties)
                 {
-                    if (property.IsComputed && property.ComputedKey is not null &&
-                        ContainsShortCircuitingControlFlow(property.ComputedKey))
+                    if (
+                        property.IsComputed
+                        && property.ComputedKey is not null
+                        && ContainsShortCircuitingControlFlow(property.ComputedKey)
+                    )
                         return true;
 
                     if (ContainsShortCircuitingControlFlow(property.Value))

@@ -17,7 +17,8 @@ internal static class CompilerBindingCollector
         int nameId,
         FunctionParameterPlan parameterPlan,
         JsBlockStatement body,
-        bool hasSelfBinding = false)
+        bool hasSelfBinding = false
+    )
     {
         var collector = new Collector(CompilerCollectedScopeKind.Function);
         collector.CollectFunctionRoot(name, nameId, parameterPlan, body, hasSelfBinding);
@@ -48,19 +49,38 @@ internal static class CompilerBindingCollector
             int nameId,
             FunctionParameterPlan parameterPlan,
             JsBlockStatement body,
-            bool hasSelfBinding)
+            bool hasSelfBinding
+        )
         {
             if (hasSelfBinding && !string.IsNullOrEmpty(name))
-                AddBinding(0, CompilerCollectedBindingKind.FunctionNameSelf, name!, nameId, position: body.Position);
+                AddBinding(
+                    0,
+                    CompilerCollectedBindingKind.FunctionNameSelf,
+                    name!,
+                    nameId,
+                    position: body.Position
+                );
 
             for (var i = 0; i < parameterPlan.Bindings.Count; i++)
             {
                 var binding = parameterPlan.Bindings[i];
-                AddBinding(0, CompilerCollectedBindingKind.Parameter, binding.Name, binding.NameId, position: binding.Position);
+                AddBinding(
+                    0,
+                    CompilerCollectedBindingKind.Parameter,
+                    binding.Name,
+                    binding.NameId,
+                    position: binding.Position
+                );
                 for (var j = 0; j < binding.BoundIdentifiers.Count; j++)
                 {
                     var bound = binding.BoundIdentifiers[j];
-                    AddBinding(0, CompilerCollectedBindingKind.Parameter, bound.Name, bound.NameId, position: binding.Position);
+                    AddBinding(
+                        0,
+                        CompilerCollectedBindingKind.Parameter,
+                        bound.Name,
+                        bound.NameId,
+                        position: binding.Position
+                    );
                 }
             }
 
@@ -89,9 +109,12 @@ internal static class CompilerBindingCollector
             string name,
             int nameId = -1,
             bool isConst = false,
-            int position = 0)
+            int position = 0
+        )
         {
-            bindings.Add(new CompilerCollectedBinding(scopeId, kind, name, nameId, isConst, position));
+            bindings.Add(
+                new CompilerCollectedBinding(scopeId, kind, name, nameId, isConst, position)
+            );
         }
 
         private void AddReference(int scopeId, string name, int position = 0)
@@ -116,16 +139,37 @@ internal static class CompilerBindingCollector
                     VisitBlockStatement(block, scopeId);
                     return;
                 case JsFunctionDeclaration function:
-                    AddBinding(scopeId, CompilerCollectedBindingKind.FunctionDeclaration, function.Name, function.NameId,
-                        position: function.Position);
-                    VisitFunction(function.Name, function.NameId, FunctionParameterPlan.FromFunction(function),
-                        function.Body, scopeId, hasSelfBinding: false);
+                    AddBinding(
+                        scopeId,
+                        CompilerCollectedBindingKind.FunctionDeclaration,
+                        function.Name,
+                        function.NameId,
+                        position: function.Position
+                    );
+                    VisitFunction(
+                        function.Name,
+                        function.NameId,
+                        FunctionParameterPlan.FromFunction(function),
+                        function.Body,
+                        scopeId,
+                        hasSelfBinding: false
+                    );
                     return;
                 case JsClassDeclaration classDeclaration:
-                    AddBinding(scopeId, CompilerCollectedBindingKind.ClassDeclaration, classDeclaration.Name,
-                        classDeclaration.NameId, position: classDeclaration.Position);
-                    VisitClassExpression(classDeclaration.ClassExpression, scopeId, classDeclaration.Name,
-                        classDeclaration.NameId, isDeclaration: true);
+                    AddBinding(
+                        scopeId,
+                        CompilerCollectedBindingKind.ClassDeclaration,
+                        classDeclaration.Name,
+                        classDeclaration.NameId,
+                        position: classDeclaration.Position
+                    );
+                    VisitClassExpression(
+                        classDeclaration.ClassExpression,
+                        scopeId,
+                        classDeclaration.Name,
+                        classDeclaration.NameId,
+                        isDeclaration: true
+                    );
                     return;
                 case JsIfStatement conditional:
                     VisitExpression(conditional.Test, scopeId);
@@ -189,17 +233,32 @@ internal static class CompilerBindingCollector
         private void VisitImportDeclaration(JsImportDeclaration declaration, int scopeId)
         {
             if (!string.IsNullOrEmpty(declaration.DefaultBinding))
-                AddBinding(scopeId, CompilerCollectedBindingKind.Import, declaration.DefaultBinding!,
-                    position: declaration.Position);
+                AddBinding(
+                    scopeId,
+                    CompilerCollectedBindingKind.Import,
+                    declaration.DefaultBinding!,
+                    position: declaration.Position
+                );
             if (!string.IsNullOrEmpty(declaration.NamespaceBinding))
-                AddBinding(scopeId, CompilerCollectedBindingKind.Import, declaration.NamespaceBinding!,
-                    position: declaration.Position);
+                AddBinding(
+                    scopeId,
+                    CompilerCollectedBindingKind.Import,
+                    declaration.NamespaceBinding!,
+                    position: declaration.Position
+                );
             for (var i = 0; i < declaration.NamedBindings.Count; i++)
-                AddBinding(scopeId, CompilerCollectedBindingKind.Import, declaration.NamedBindings[i].LocalName,
-                    position: declaration.NamedBindings[i].Position);
+                AddBinding(
+                    scopeId,
+                    CompilerCollectedBindingKind.Import,
+                    declaration.NamedBindings[i].LocalName,
+                    position: declaration.NamedBindings[i].Position
+                );
         }
 
-        private void VisitVariableDeclarationStatement(JsVariableDeclarationStatement declaration, int scopeId)
+        private void VisitVariableDeclarationStatement(
+            JsVariableDeclarationStatement declaration,
+            int scopeId
+        )
         {
             if (declaration.BindingPattern is not null)
             {
@@ -209,14 +268,22 @@ internal static class CompilerBindingCollector
                 return;
             }
 
-            var bindingKind = declaration.Kind == JsVariableDeclarationKind.Var
-                ? CompilerCollectedBindingKind.Var
-                : CompilerCollectedBindingKind.Lexical;
+            var bindingKind =
+                declaration.Kind == JsVariableDeclarationKind.Var
+                    ? CompilerCollectedBindingKind.Var
+                    : CompilerCollectedBindingKind.Lexical;
             var isConst = declaration.Kind == JsVariableDeclarationKind.Const;
             for (var i = 0; i < declaration.Declarators.Count; i++)
             {
                 var declarator = declaration.Declarators[i];
-                AddBinding(scopeId, bindingKind, declarator.Name, declarator.NameId, isConst, declarator.Position);
+                AddBinding(
+                    scopeId,
+                    bindingKind,
+                    declarator.Name,
+                    declarator.NameId,
+                    isConst,
+                    declarator.Position
+                );
                 if (declarator.Initializer is not null)
                     VisitExpression(declarator.Initializer, scopeId);
             }
@@ -231,18 +298,35 @@ internal static class CompilerBindingCollector
 
         private void VisitCatchClause(JsCatchClause catchClause, int parentScopeId)
         {
-            var scopeId = AddScope(parentScopeId, CompilerCollectedScopeKind.Catch, catchClause.Position);
+            var scopeId = AddScope(
+                parentScopeId,
+                CompilerCollectedScopeKind.Catch,
+                catchClause.Position
+            );
             if (!string.IsNullOrEmpty(catchClause.ParamName))
-                AddBinding(scopeId, CompilerCollectedBindingKind.CatchAlias, catchClause.ParamName,
-                    position: catchClause.Position);
+                AddBinding(
+                    scopeId,
+                    CompilerCollectedBindingKind.CatchAlias,
+                    catchClause.ParamName,
+                    position: catchClause.Position
+                );
             if (catchClause.BindingPattern is not null)
-                CollectPatternBindings(scopeId, catchClause.BindingPattern, JsVariableDeclarationKind.Let,
-                    CompilerCollectedBindingKind.CatchAlias);
+                CollectPatternBindings(
+                    scopeId,
+                    catchClause.BindingPattern,
+                    JsVariableDeclarationKind.Let,
+                    CompilerCollectedBindingKind.CatchAlias
+                );
             for (var i = 0; i < catchClause.Declarators.Count; i++)
             {
                 var declarator = catchClause.Declarators[i];
-                AddBinding(scopeId, CompilerCollectedBindingKind.CatchAlias, declarator.Name, declarator.NameId,
-                    position: declarator.Position);
+                AddBinding(
+                    scopeId,
+                    CompilerCollectedBindingKind.CatchAlias,
+                    declarator.Name,
+                    declarator.NameId,
+                    position: declarator.Position
+                );
             }
 
             VisitBlockStatement(catchClause.Body, scopeId);
@@ -251,10 +335,18 @@ internal static class CompilerBindingCollector
         private void VisitForStatement(JsForStatement statement, int parentScopeId)
         {
             var scopeId = parentScopeId;
-            if (statement.Init is JsVariableDeclarationStatement initDeclaration &&
-                initDeclaration.Kind is JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const)
+            if (
+                statement.Init is JsVariableDeclarationStatement initDeclaration
+                && initDeclaration.Kind
+                    is JsVariableDeclarationKind.Let
+                        or JsVariableDeclarationKind.Const
+            )
             {
-                scopeId = AddScope(parentScopeId, CompilerCollectedScopeKind.Block, statement.Position);
+                scopeId = AddScope(
+                    parentScopeId,
+                    CompilerCollectedScopeKind.Block,
+                    statement.Position
+                );
                 CollectLoopHeadBindings(scopeId, initDeclaration);
                 for (var i = 0; i < initDeclaration.Declarators.Count; i++)
                     if (initDeclaration.Declarators[i].Initializer is not null)
@@ -275,10 +367,18 @@ internal static class CompilerBindingCollector
         private void VisitForInOfStatement(JsForInOfStatement statement, int parentScopeId)
         {
             var scopeId = parentScopeId;
-            if (statement.Left is JsVariableDeclarationStatement declaration &&
-                declaration.Kind is JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const)
+            if (
+                statement.Left is JsVariableDeclarationStatement declaration
+                && declaration.Kind
+                    is JsVariableDeclarationKind.Let
+                        or JsVariableDeclarationKind.Const
+            )
             {
-                scopeId = AddScope(parentScopeId, CompilerCollectedScopeKind.Block, statement.Position);
+                scopeId = AddScope(
+                    parentScopeId,
+                    CompilerCollectedScopeKind.Block,
+                    statement.Position
+                );
                 CollectLoopHeadBindings(scopeId, declaration);
                 for (var i = 0; i < declaration.Declarators.Count; i++)
                     if (declaration.Declarators[i].Initializer is not null)
@@ -293,12 +393,19 @@ internal static class CompilerBindingCollector
             VisitStatement(statement.Body, scopeId);
         }
 
-        private void CollectLoopHeadBindings(int scopeId, JsVariableDeclarationStatement declaration)
+        private void CollectLoopHeadBindings(
+            int scopeId,
+            JsVariableDeclarationStatement declaration
+        )
         {
             if (declaration.BindingPattern is not null)
             {
-                CollectPatternBindings(scopeId, declaration.BindingPattern, declaration.Kind,
-                    CompilerCollectedBindingKind.LoopHeadAlias);
+                CollectPatternBindings(
+                    scopeId,
+                    declaration.BindingPattern,
+                    declaration.Kind,
+                    CompilerCollectedBindingKind.LoopHeadAlias
+                );
                 return;
             }
 
@@ -306,8 +413,14 @@ internal static class CompilerBindingCollector
             for (var i = 0; i < declaration.Declarators.Count; i++)
             {
                 var declarator = declaration.Declarators[i];
-                AddBinding(scopeId, CompilerCollectedBindingKind.LoopHeadAlias, declarator.Name, declarator.NameId,
-                    isConst, declarator.Position);
+                AddBinding(
+                    scopeId,
+                    CompilerCollectedBindingKind.LoopHeadAlias,
+                    declarator.Name,
+                    declarator.NameId,
+                    isConst,
+                    declarator.Position
+                );
             }
         }
 
@@ -317,22 +430,43 @@ internal static class CompilerBindingCollector
             FunctionParameterPlan parameterPlan,
             JsBlockStatement body,
             int parentScopeId,
-            bool hasSelfBinding)
+            bool hasSelfBinding
+        )
         {
-            var scopeId = AddScope(parentScopeId, CompilerCollectedScopeKind.Function, body.Position);
+            var scopeId = AddScope(
+                parentScopeId,
+                CompilerCollectedScopeKind.Function,
+                body.Position
+            );
             if (hasSelfBinding && !string.IsNullOrEmpty(name))
-                AddBinding(scopeId, CompilerCollectedBindingKind.FunctionNameSelf, name!, nameId, position: body.Position);
+                AddBinding(
+                    scopeId,
+                    CompilerCollectedBindingKind.FunctionNameSelf,
+                    name!,
+                    nameId,
+                    position: body.Position
+                );
 
             for (var i = 0; i < parameterPlan.Bindings.Count; i++)
             {
                 var binding = parameterPlan.Bindings[i];
-                AddBinding(scopeId, CompilerCollectedBindingKind.Parameter, binding.Name, binding.NameId,
-                    position: binding.Position);
+                AddBinding(
+                    scopeId,
+                    CompilerCollectedBindingKind.Parameter,
+                    binding.Name,
+                    binding.NameId,
+                    position: binding.Position
+                );
                 for (var j = 0; j < binding.BoundIdentifiers.Count; j++)
                 {
                     var bound = binding.BoundIdentifiers[j];
-                    AddBinding(scopeId, CompilerCollectedBindingKind.Parameter, bound.Name, bound.NameId,
-                        position: binding.Position);
+                    AddBinding(
+                        scopeId,
+                        CompilerCollectedBindingKind.Parameter,
+                        bound.Name,
+                        bound.NameId,
+                        position: binding.Position
+                    );
                 }
             }
 
@@ -348,15 +482,32 @@ internal static class CompilerBindingCollector
             int parentScopeId,
             string? declarationName = null,
             int declarationNameId = -1,
-            bool isDeclaration = false)
+            bool isDeclaration = false
+        )
         {
-            var scopeId = AddScope(parentScopeId, CompilerCollectedScopeKind.Class, classExpression.Position);
+            var scopeId = AddScope(
+                parentScopeId,
+                CompilerCollectedScopeKind.Class,
+                classExpression.Position
+            );
             if (!string.IsNullOrEmpty(classExpression.Name))
-                AddBinding(scopeId, CompilerCollectedBindingKind.ClassLexicalAlias, classExpression.Name!,
-                    classExpression.NameId, isConst: true, position: classExpression.Position);
+                AddBinding(
+                    scopeId,
+                    CompilerCollectedBindingKind.ClassLexicalAlias,
+                    classExpression.Name!,
+                    classExpression.NameId,
+                    isConst: true,
+                    position: classExpression.Position
+                );
             else if (isDeclaration && !string.IsNullOrEmpty(declarationName))
-                AddBinding(scopeId, CompilerCollectedBindingKind.ClassLexicalAlias, declarationName!,
-                    declarationNameId, isConst: true, position: classExpression.Position);
+                AddBinding(
+                    scopeId,
+                    CompilerCollectedBindingKind.ClassLexicalAlias,
+                    declarationName!,
+                    declarationNameId,
+                    isConst: true,
+                    position: classExpression.Position
+                );
 
             if (classExpression.ExtendsExpression is not null)
                 VisitExpression(classExpression.ExtendsExpression, scopeId);
@@ -370,16 +521,24 @@ internal static class CompilerBindingCollector
                     VisitExpression(element.FieldInitializer, scopeId);
                 if (element.StaticBlock is not null)
                 {
-                    var staticBlockScopeId =
-                        AddScope(scopeId, CompilerCollectedScopeKind.StaticBlock, element.StaticBlock.Position);
+                    var staticBlockScopeId = AddScope(
+                        scopeId,
+                        CompilerCollectedScopeKind.StaticBlock,
+                        element.StaticBlock.Position
+                    );
                     for (var j = 0; j < element.StaticBlock.Statements.Count; j++)
                         VisitStatement(element.StaticBlock.Statements[j], staticBlockScopeId);
                 }
 
                 if (element.Value is not null)
-                    VisitFunction(element.Value.Name, element.Value.NameId, FunctionParameterPlan.FromFunction(element.Value),
-                        element.Value.Body, scopeId,
-                        hasSelfBinding: !string.IsNullOrEmpty(element.Value.Name));
+                    VisitFunction(
+                        element.Value.Name,
+                        element.Value.NameId,
+                        FunctionParameterPlan.FromFunction(element.Value),
+                        element.Value.Body,
+                        scopeId,
+                        hasSelfBinding: !string.IsNullOrEmpty(element.Value.Name)
+                    );
             }
         }
 
@@ -391,9 +550,14 @@ internal static class CompilerBindingCollector
                     AddReference(scopeId, identifier.Name, identifier.Position);
                     return;
                 case JsFunctionExpression function:
-                    VisitFunction(function.Name, function.NameId, FunctionParameterPlan.FromFunction(function),
-                        function.Body, scopeId,
-                        hasSelfBinding: !string.IsNullOrEmpty(function.Name));
+                    VisitFunction(
+                        function.Name,
+                        function.NameId,
+                        FunctionParameterPlan.FromFunction(function),
+                        function.Body,
+                        scopeId,
+                        hasSelfBinding: !string.IsNullOrEmpty(function.Name)
+                    );
                     return;
                 case JsClassExpression classExpression:
                     VisitClassExpression(classExpression, scopeId);
@@ -483,19 +647,25 @@ internal static class CompilerBindingCollector
             int scopeId,
             JsExpression pattern,
             JsVariableDeclarationKind declarationKind,
-            CompilerCollectedBindingKind? explicitKind = null)
+            CompilerCollectedBindingKind? explicitKind = null
+        )
         {
             switch (pattern)
             {
                 case JsIdentifierExpression id:
-                    AddBinding(scopeId,
-                        explicitKind ?? (declarationKind == JsVariableDeclarationKind.Var
-                            ? CompilerCollectedBindingKind.Var
-                            : CompilerCollectedBindingKind.Lexical),
+                    AddBinding(
+                        scopeId,
+                        explicitKind
+                            ?? (
+                                declarationKind == JsVariableDeclarationKind.Var
+                                    ? CompilerCollectedBindingKind.Var
+                                    : CompilerCollectedBindingKind.Lexical
+                            ),
                         id.Name,
                         id.NameId,
                         declarationKind == JsVariableDeclarationKind.Const,
-                        id.Position);
+                        id.Position
+                    );
                     return;
                 case JsSpreadExpression spread:
                     CollectPatternBindings(scopeId, spread.Argument, declarationKind, explicitKind);
@@ -503,13 +673,28 @@ internal static class CompilerBindingCollector
                 case JsArrayExpression arrayPattern:
                     for (var i = 0; i < arrayPattern.Elements.Count; i++)
                         if (arrayPattern.Elements[i] is not null)
-                            CollectPatternBindings(scopeId, arrayPattern.Elements[i]!, declarationKind, explicitKind);
+                            CollectPatternBindings(
+                                scopeId,
+                                arrayPattern.Elements[i]!,
+                                declarationKind,
+                                explicitKind
+                            );
                     return;
                 case JsObjectExpression objectPattern:
                     for (var i = 0; i < objectPattern.Properties.Count; i++)
-                        CollectPatternBindings(scopeId, objectPattern.Properties[i].Value, declarationKind, explicitKind);
+                        CollectPatternBindings(
+                            scopeId,
+                            objectPattern.Properties[i].Value,
+                            declarationKind,
+                            explicitKind
+                        );
                     return;
-                case JsAssignmentExpression { Operator: JsAssignmentOperator.Assign, Left: var left, Right: var right }:
+                case JsAssignmentExpression
+                {
+                    Operator: JsAssignmentOperator.Assign,
+                    Left: var left,
+                    Right: var right
+                }:
                     CollectPatternBindings(scopeId, left, declarationKind, explicitKind);
                     VisitExpression(right, scopeId);
                     return;

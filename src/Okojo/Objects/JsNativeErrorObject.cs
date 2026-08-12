@@ -2,10 +2,15 @@ namespace Okojo.Objects;
 
 public sealed class JsNativeErrorObject : JsObject
 {
-    public JsNativeErrorObject(JsRealm realm, Exception nativeException, bool assignDefaultPrototype = true)
+    public JsNativeErrorObject(
+        JsRealm realm,
+        Exception nativeException,
+        bool assignDefaultPrototype = true
+    )
         : base(realm)
     {
-        NativeException = nativeException ?? throw new ArgumentNullException(nameof(nativeException));
+        NativeException =
+            nativeException ?? throw new ArgumentNullException(nameof(nativeException));
         if (assignDefaultPrototype)
             Prototype = realm.ErrorPrototype;
     }

@@ -10,9 +10,14 @@ public class SymbolTests
     public void SymbolIterator_IsPredefinedSymbol_AndStableIdentity()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-                                                                   Symbol.iterator === Symbol.iterator;
-                                                                   """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                Symbol.iterator === Symbol.iterator;
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -23,12 +28,17 @@ public class SymbolTests
     public void SymbolKeyedProperty_RoundTripsThroughBracketAccess()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-                                                                   const s = Symbol("x");
-                                                                   const o = {};
-                                                                   o[s] = 123;
-                                                                   o[s];
-                                                                   """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                const s = Symbol("x");
+                const o = {};
+                o[s] = 123;
+                o[s];
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -39,12 +49,17 @@ public class SymbolTests
     public void ObjectGetOwnPropertyDescriptor_WorksForSymbolKey()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-                                                                   const s = Symbol("k");
-                                                                   const o = {};
-                                                                   o[s] = 77;
-                                                                   Object.getOwnPropertyDescriptor(o, s).value;
-                                                                   """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                const s = Symbol("k");
+                const o = {};
+                o[s] = 77;
+                Object.getOwnPropertyDescriptor(o, s).value;
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -55,10 +70,15 @@ public class SymbolTests
     public void SymbolPrototype_ToString_WorksForPrimitiveAndBoxed()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-                                                                   const s = Symbol("x");
-                                                                   s.toString() + "|" + Object(s).toString();
-                                                                   """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                const s = Symbol("x");
+                s.toString() + "|" + Object(s).toString();
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -69,10 +89,15 @@ public class SymbolTests
     public void SymbolPrototype_ValueOf_OnBoxed_ReturnsOriginalSymbol()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-                                                                   const s = Symbol("k");
-                                                                   Object(s).valueOf() === s;
-                                                                   """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                const s = Symbol("k");
+                Object(s).valueOf() === s;
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -83,11 +108,16 @@ public class SymbolTests
     public void SymbolPrototype_Description_WorksForUserAndWellKnownSymbols()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-                                                                   const custom = Symbol("demo").description;
-                                                                   const wellKnown = Symbol.asyncIterator.description;
-                                                                   custom + "|" + wellKnown;
-                                                                   """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                const custom = Symbol("demo").description;
+                const wellKnown = Symbol.asyncIterator.description;
+                custom + "|" + wellKnown;
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -98,9 +128,14 @@ public class SymbolTests
     public void SymbolToStringTag_IsPredefinedSymbol_AndStableIdentity()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-                                                                   Symbol.toStringTag === Symbol.toStringTag;
-                                                                   """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                Symbol.toStringTag === Symbol.toStringTag;
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -111,11 +146,16 @@ public class SymbolTests
     public void ObjectPrototypeToString_UsesSymbolToStringTag_WhenString()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-                                                                   const o = {};
-                                                                   o[Symbol.toStringTag] = "DemoTag";
-                                                                   o.toString();
-                                                                   """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                const o = {};
+                o[Symbol.toStringTag] = "DemoTag";
+                o.toString();
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -126,33 +166,38 @@ public class SymbolTests
     public void Symbol_Constructor_Coerces_Description_And_Preserves_Undefined_Vs_Empty_String()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-                                                                   var calls = "";
-                                                                   var desc = {
-                                                                     toString() {
-                                                                       calls += "toString";
-                                                                       return {};
-                                                                     },
-                                                                     valueOf() {
-                                                                       calls += "valueOf";
-                                                                       return "done";
-                                                                     }
-                                                                   };
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                var calls = "";
+                var desc = {
+                  toString() {
+                    calls += "toString";
+                    return {};
+                  },
+                  valueOf() {
+                    calls += "valueOf";
+                    return "done";
+                  }
+                };
 
-                                                                   var empty = Symbol("").description;
-                                                                   var implicitUndefined = Symbol().description;
-                                                                   var explicitUndefined = Symbol(undefined).description;
-                                                                   var coerced = Symbol(desc).description;
-                                                                   var threw = false;
-                                                                   try { Symbol(Symbol("x")); } catch (e) { threw = e instanceof TypeError; }
+                var empty = Symbol("").description;
+                var implicitUndefined = Symbol().description;
+                var explicitUndefined = Symbol(undefined).description;
+                var coerced = Symbol(desc).description;
+                var threw = false;
+                try { Symbol(Symbol("x")); } catch (e) { threw = e instanceof TypeError; }
 
-                                                                   empty === "" &&
-                                                                   implicitUndefined === undefined &&
-                                                                   explicitUndefined === undefined &&
-                                                                   coerced === "done" &&
-                                                                   calls === "toStringvalueOf" &&
-                                                                   threw;
-                                                                   """));
+                empty === "" &&
+                implicitUndefined === undefined &&
+                explicitUndefined === undefined &&
+                coerced === "done" &&
+                calls === "toStringvalueOf" &&
+                threw;
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -163,31 +208,36 @@ public class SymbolTests
     public void Symbol_Constructor_And_Prototype_Descriptors_Match_Spec_Shape()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-                                                                   var lengthDesc = Object.getOwnPropertyDescriptor(Symbol, "length");
-                                                                   var forDesc = Object.getOwnPropertyDescriptor(Symbol, "for");
-                                                                   var keyForDesc = Object.getOwnPropertyDescriptor(Symbol, "keyFor");
-                                                                   var descriptionDesc = Object.getOwnPropertyDescriptor(Symbol.prototype, "description");
-                                                                   var toPrimitiveDesc = Object.getOwnPropertyDescriptor(Symbol.prototype, Symbol.toPrimitive);
-                                                                   var toStringTagDesc = Object.getOwnPropertyDescriptor(Symbol.prototype, Symbol.toStringTag);
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                var lengthDesc = Object.getOwnPropertyDescriptor(Symbol, "length");
+                var forDesc = Object.getOwnPropertyDescriptor(Symbol, "for");
+                var keyForDesc = Object.getOwnPropertyDescriptor(Symbol, "keyFor");
+                var descriptionDesc = Object.getOwnPropertyDescriptor(Symbol.prototype, "description");
+                var toPrimitiveDesc = Object.getOwnPropertyDescriptor(Symbol.prototype, Symbol.toPrimitive);
+                var toStringTagDesc = Object.getOwnPropertyDescriptor(Symbol.prototype, Symbol.toStringTag);
 
-                                                                   lengthDesc.value === 0 &&
-                                                                   lengthDesc.writable === false &&
-                                                                   lengthDesc.enumerable === false &&
-                                                                   lengthDesc.configurable === true &&
-                                                                   forDesc.enumerable === false &&
-                                                                   keyForDesc.enumerable === false &&
-                                                                   descriptionDesc.enumerable === false &&
-                                                                   descriptionDesc.configurable === true &&
-                                                                   descriptionDesc.set === undefined &&
-                                                                   toPrimitiveDesc.writable === false &&
-                                                                   toPrimitiveDesc.enumerable === false &&
-                                                                   toPrimitiveDesc.configurable === true &&
-                                                                   toStringTagDesc.value === "Symbol" &&
-                                                                   toStringTagDesc.writable === false &&
-                                                                   toStringTagDesc.enumerable === false &&
-                                                                   toStringTagDesc.configurable === true;
-                                                                   """));
+                lengthDesc.value === 0 &&
+                lengthDesc.writable === false &&
+                lengthDesc.enumerable === false &&
+                lengthDesc.configurable === true &&
+                forDesc.enumerable === false &&
+                keyForDesc.enumerable === false &&
+                descriptionDesc.enumerable === false &&
+                descriptionDesc.configurable === true &&
+                descriptionDesc.set === undefined &&
+                toPrimitiveDesc.writable === false &&
+                toPrimitiveDesc.enumerable === false &&
+                toPrimitiveDesc.configurable === true &&
+                toStringTagDesc.value === "Symbol" &&
+                toStringTagDesc.writable === false &&
+                toStringTagDesc.enumerable === false &&
+                toStringTagDesc.configurable === true;
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -198,24 +248,29 @@ public class SymbolTests
     public void Strict_Assignment_To_Symbol_Primitive_Throws()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-                                                                   function assignNamed() {
-                                                                     "use strict";
-                                                                     var sym = Symbol("x");
-                                                                     try { sym.toString = 0; return false; } catch (e) { return e instanceof TypeError; }
-                                                                   }
-                                                                   function assignKeyed() {
-                                                                     "use strict";
-                                                                     var sym = Symbol("x");
-                                                                     try { sym["ab"] = 0; return false; } catch (e) { return e instanceof TypeError; }
-                                                                   }
-                                                                   function assignIndexed() {
-                                                                     "use strict";
-                                                                     var sym = Symbol("x");
-                                                                     try { sym[62] = 0; return false; } catch (e) { return e instanceof TypeError; }
-                                                                   }
-                                                                   assignNamed() && assignKeyed() && assignIndexed();
-                                                                   """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                function assignNamed() {
+                  "use strict";
+                  var sym = Symbol("x");
+                  try { sym.toString = 0; return false; } catch (e) { return e instanceof TypeError; }
+                }
+                function assignKeyed() {
+                  "use strict";
+                  var sym = Symbol("x");
+                  try { sym["ab"] = 0; return false; } catch (e) { return e instanceof TypeError; }
+                }
+                function assignIndexed() {
+                  "use strict";
+                  var sym = Symbol("x");
+                  try { sym[62] = 0; return false; } catch (e) { return e instanceof TypeError; }
+                }
+                assignNamed() && assignKeyed() && assignIndexed();
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -226,9 +281,14 @@ public class SymbolTests
     public void ArraySpecies_Getter_Has_BuiltIn_Name()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-                                                                   Object.getOwnPropertyDescriptor(Array, Symbol.species).get.name === "get [Symbol.species]";
-                                                                   """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                Object.getOwnPropertyDescriptor(Array, Symbol.species).get.name === "get [Symbol.species]";
+                """
+            )
+        );
 
         realm.Execute(script);
 

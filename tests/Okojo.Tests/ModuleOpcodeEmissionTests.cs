@@ -13,19 +13,22 @@ public class ModuleOpcodeEmissionTests
     public void Compile_ModuleImportRead_UsesLdaModuleVariable()
     {
         var source = """
-                     import { counter } from "./dep.js";
-                     export function read() { return counter; }
-                     """;
+            import { counter } from "./dep.js";
+            export function read() { return counter; }
+            """;
 
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/main.js"] = source,
-            ["/mods/dep.js"] = "export let counter = 0;"
-        });
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal)
+            {
+                ["/mods/main.js"] = source,
+                ["/mods/dep.js"] = "export let counter = 0;",
+            }
+        );
         var linker = new ModuleLinker(() => loader);
         var parsed = JavaScriptParser.ParseModule(source);
         var plan = linker.BuildPlan("/mods/main.js", parsed);
-        var readDeclaration = parsed.Statements.OfType<JsExportDeclarationStatement>()
+        var readDeclaration = parsed
+            .Statements.OfType<JsExportDeclarationStatement>()
             .Select(static statement => statement.Declaration)
             .OfType<JsFunctionDeclaration>()
             .First(fn => string.Equals(fn.Name, "read", StringComparison.Ordinal));
@@ -34,13 +37,17 @@ public class ModuleOpcodeEmissionTests
         var realm = engine.MainRealm;
         using var compiler = JsCompiler.CreateForModuleExecution(
             realm,
-            BuildCompileModuleBindings(plan.ResolvedImportBindings, plan.ExecutionPlan));
-        var readFn = compiler.CompileHoistedFunctionTemplate(readDeclaration, parsed.SourceText, "/mods/main.js");
-        var disasm = Disassembler.Dump(readFn.Script, new()
-        {
-            UnitKind = "function",
-            UnitName = "read"
-        });
+            BuildCompileModuleBindings(plan.ResolvedImportBindings, plan.ExecutionPlan)
+        );
+        var readFn = compiler.CompileHoistedFunctionTemplate(
+            readDeclaration,
+            parsed.SourceText,
+            "/mods/main.js"
+        );
+        var disasm = Disassembler.Dump(
+            readFn.Script,
+            new() { UnitKind = "function", UnitName = "read" }
+        );
 
         Assert.That(disasm, Does.Contain("LdaModuleVariable"));
         Assert.That(disasm, Does.Not.Contain("LdaContextSlot"));
@@ -51,18 +58,18 @@ public class ModuleOpcodeEmissionTests
     public void Compile_ModuleHoistedFunctionWithoutNestedCaptures_DoesNotCreateFunctionContext()
     {
         var source = """
-                     export const value = 1;
-                     export function read() { return value + 1; }
-                     """;
+            export const value = 1;
+            export function read() { return value + 1; }
+            """;
 
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/main.js"] = source
-        });
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal) { ["/mods/main.js"] = source }
+        );
         var linker = new ModuleLinker(() => loader);
         var parsed = JavaScriptParser.ParseModule(source);
         var plan = linker.BuildPlan("/mods/main.js", parsed);
-        var readDeclaration = parsed.Statements.OfType<JsExportDeclarationStatement>()
+        var readDeclaration = parsed
+            .Statements.OfType<JsExportDeclarationStatement>()
             .Select(static statement => statement.Declaration)
             .OfType<JsFunctionDeclaration>()
             .First(fn => string.Equals(fn.Name, "read", StringComparison.Ordinal));
@@ -71,13 +78,17 @@ public class ModuleOpcodeEmissionTests
         var realm = engine.MainRealm;
         using var compiler = JsCompiler.CreateForModuleExecution(
             realm,
-            BuildCompileModuleBindings(plan.ResolvedImportBindings, plan.ExecutionPlan));
-        var readFn = compiler.CompileHoistedFunctionTemplate(readDeclaration, parsed.SourceText, "/mods/main.js");
-        var disasm = Disassembler.Dump(readFn.Script, new()
-        {
-            UnitKind = "function",
-            UnitName = "read"
-        });
+            BuildCompileModuleBindings(plan.ResolvedImportBindings, plan.ExecutionPlan)
+        );
+        var readFn = compiler.CompileHoistedFunctionTemplate(
+            readDeclaration,
+            parsed.SourceText,
+            "/mods/main.js"
+        );
+        var disasm = Disassembler.Dump(
+            readFn.Script,
+            new() { UnitKind = "function", UnitName = "read" }
+        );
 
         Assert.That(disasm, Does.Not.Contain("CreateFunctionContextWithCells"));
     }
@@ -86,17 +97,17 @@ public class ModuleOpcodeEmissionTests
     public void Compile_ModuleHoistedFunction_LaterParameters_DoNotResolve_AsGlobals()
     {
         var source = """
-                     export function read(a, b, c) { return `${b}|${c}`; }
-                     """;
+            export function read(a, b, c) { return `${b}|${c}`; }
+            """;
 
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/main.js"] = source
-        });
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal) { ["/mods/main.js"] = source }
+        );
         var linker = new ModuleLinker(() => loader);
         var parsed = JavaScriptParser.ParseModule(source);
         var plan = linker.BuildPlan("/mods/main.js", parsed);
-        var readDeclaration = parsed.Statements.OfType<JsExportDeclarationStatement>()
+        var readDeclaration = parsed
+            .Statements.OfType<JsExportDeclarationStatement>()
             .Select(static statement => statement.Declaration)
             .OfType<JsFunctionDeclaration>()
             .First(fn => string.Equals(fn.Name, "read", StringComparison.Ordinal));
@@ -105,17 +116,18 @@ public class ModuleOpcodeEmissionTests
         var realm = engine.MainRealm;
         using var compiler = JsCompiler.CreateForModuleExecution(
             realm,
-            BuildCompileModuleBindings(plan.ResolvedImportBindings, plan.ExecutionPlan));
+            BuildCompileModuleBindings(plan.ResolvedImportBindings, plan.ExecutionPlan)
+        );
         var readFn = compiler.CompileHoistedFunctionTemplate(
             readDeclaration,
             parsed.SourceText,
             "/mods/main.js",
-            parsed.IdentifierTable);
-        var disasm = Disassembler.Dump(readFn.Script, new()
-        {
-            UnitKind = "function",
-            UnitName = "read"
-        });
+            parsed.IdentifierTable
+        );
+        var disasm = Disassembler.Dump(
+            readFn.Script,
+            new() { UnitKind = "function", UnitName = "read" }
+        );
 
         Assert.That(disasm, Does.Not.Contain("LdaGlobal"));
     }
@@ -124,25 +136,25 @@ public class ModuleOpcodeEmissionTests
     public void Compile_ModuleHoistedFunction_BlockCapturePattern_DoesNotResolve_Parameters_AsGlobals()
     {
         var source = """
-                     export function help(commands, base$0, parentCommands) {
-                       if (commands.length) {
-                         const prefix = base$0 ? `${base$0} ` : '';
-                         commands.forEach(command => {
-                           const commandString = `${prefix}${parentCommands}${command[0]}`;
-                           return commandString;
-                         });
-                       }
-                     }
-                     """;
+            export function help(commands, base$0, parentCommands) {
+              if (commands.length) {
+                const prefix = base$0 ? `${base$0} ` : '';
+                commands.forEach(command => {
+                  const commandString = `${prefix}${parentCommands}${command[0]}`;
+                  return commandString;
+                });
+              }
+            }
+            """;
 
-        var loader = new InMemoryModuleLoader(new(StringComparer.Ordinal)
-        {
-            ["/mods/main.js"] = source
-        });
+        var loader = new InMemoryModuleLoader(
+            new(StringComparer.Ordinal) { ["/mods/main.js"] = source }
+        );
         var linker = new ModuleLinker(() => loader);
         var parsed = JavaScriptParser.ParseModule(source);
         var plan = linker.BuildPlan("/mods/main.js", parsed);
-        var helpDeclaration = parsed.Statements.OfType<JsExportDeclarationStatement>()
+        var helpDeclaration = parsed
+            .Statements.OfType<JsExportDeclarationStatement>()
             .Select(static statement => statement.Declaration)
             .OfType<JsFunctionDeclaration>()
             .First(fn => string.Equals(fn.Name, "help", StringComparison.Ordinal));
@@ -151,17 +163,18 @@ public class ModuleOpcodeEmissionTests
         var realm = engine.MainRealm;
         using var compiler = JsCompiler.CreateForModuleExecution(
             realm,
-            BuildCompileModuleBindings(plan.ResolvedImportBindings, plan.ExecutionPlan));
+            BuildCompileModuleBindings(plan.ResolvedImportBindings, plan.ExecutionPlan)
+        );
         var helpFn = compiler.CompileHoistedFunctionTemplate(
             helpDeclaration,
             parsed.SourceText,
             "/mods/main.js",
-            parsed.IdentifierTable);
-        var disasm = Disassembler.Dump(helpFn.Script, new()
-        {
-            UnitKind = "function",
-            UnitName = "help"
-        });
+            parsed.IdentifierTable
+        );
+        var disasm = Disassembler.Dump(
+            helpFn.Script,
+            new() { UnitKind = "function", UnitName = "help" }
+        );
 
         Assert.That(disasm, Does.Not.Contain("LdaGlobal name:1"));
         Assert.That(disasm, Does.Not.Contain("LdaGlobal name:3"));
@@ -170,42 +183,42 @@ public class ModuleOpcodeEmissionTests
     [Test]
     public void Compile_NestedFunction_With_Many_Captured_Locals_Uses_Wide_Function_Context_Cells()
     {
-        var declarations = string.Join(Environment.NewLine,
-            Enumerable.Range(0, 300).Select(static i => $"const v{i} = {i};"));
-        var captures = string.Join(", ",
-            Enumerable.Range(0, 300).Select(static i => $"v{i}"));
+        var declarations = string.Join(
+            Environment.NewLine,
+            Enumerable.Range(0, 300).Select(static i => $"const v{i} = {i};")
+        );
+        var captures = string.Join(", ", Enumerable.Range(0, 300).Select(static i => $"v{i}"));
         var source = $$"""
-                       {{declarations}}
-                       function read() {
-                         return function inner() {
-                           return [{{captures}}];
-                         };
-                       }
-                       """;
+            {{declarations}}
+            function read() {
+              return function inner() {
+                return [{{captures}}];
+              };
+            }
+            """;
         var parsed = JavaScriptParser.ParseScript(source);
 
         using var engine = JsRuntime.CreateBuilder().Build();
         var realm = engine.MainRealm;
         var script = JsCompiler.Compile(realm, parsed);
-        var scriptDisasm = Disassembler.Dump(script, new()
-        {
-            UnitKind = "script",
-            UnitName = "main"
-        });
-        var readFn = script.ObjectConstants.OfType<JsBytecodeFunction>()
+        var scriptDisasm = Disassembler.Dump(
+            script,
+            new() { UnitKind = "script", UnitName = "main" }
+        );
+        var readFn = script
+            .ObjectConstants.OfType<JsBytecodeFunction>()
             .First(fn => string.Equals(fn.Name, "read", StringComparison.Ordinal));
-        var readDisasm = Disassembler.Dump(readFn.Script, new()
-        {
-            UnitKind = "function",
-            UnitName = "read"
-        });
-        var innerFn = readFn.Script.ObjectConstants.OfType<JsBytecodeFunction>()
+        var readDisasm = Disassembler.Dump(
+            readFn.Script,
+            new() { UnitKind = "function", UnitName = "read" }
+        );
+        var innerFn = readFn
+            .Script.ObjectConstants.OfType<JsBytecodeFunction>()
             .First(fn => string.Equals(fn.Name, "inner", StringComparison.Ordinal));
-        var disasm = Disassembler.Dump(innerFn.Script, new()
-        {
-            UnitKind = "function",
-            UnitName = "inner"
-        });
+        var disasm = Disassembler.Dump(
+            innerFn.Script,
+            new() { UnitKind = "function", UnitName = "inner" }
+        );
 
         Assert.That(scriptDisasm, Does.Contain("CreateFunctionContextWithCellsWide"));
         Assert.That(scriptDisasm, Does.Contain("slots:300"));
@@ -228,7 +241,8 @@ public class ModuleOpcodeEmissionTests
         wrapperSource.AppendLine("})");
 
         var parsed = JavaScriptParser.ParseScript(wrapperSource.ToString());
-        var wrapperExpression = (JsFunctionExpression)((JsExpressionStatement)parsed.Statements[0]).Expression;
+        var wrapperExpression = (JsFunctionExpression)
+            ((JsExpressionStatement)parsed.Statements[0]).Expression;
 
         using var engine = JsRuntime.CreateBuilder().Build();
         var realm = engine.MainRealm;
@@ -238,12 +252,12 @@ public class ModuleOpcodeEmissionTests
             string.Empty,
             wrapperSource.ToString(),
             "giant-wrapper.js",
-            parsed.IdentifierTable);
-        var disasm = Disassembler.Dump(wrapper.Script, new()
-        {
-            UnitKind = "function",
-            UnitName = "<wrapper>"
-        });
+            parsed.IdentifierTable
+        );
+        var disasm = Disassembler.Dump(
+            wrapper.Script,
+            new() { UnitKind = "function", UnitName = "<wrapper>" }
+        );
 
         Assert.That(disasm, Does.Contain("InitializeNamedProperty obj:r"));
     }
@@ -262,12 +276,15 @@ public class ModuleOpcodeEmissionTests
         wrapperSource.AppendLine("    track: 'Components'");
         wrapperSource.AppendLine("  };");
         wrapperSource.AppendLine("  module.exports = {");
-        wrapperSource.AppendLine("    reusableComponentOptions: { start: -0, end: -0, detail: { devtools: details } }");
+        wrapperSource.AppendLine(
+            "    reusableComponentOptions: { start: -0, end: -0, detail: { devtools: details } }"
+        );
         wrapperSource.AppendLine("  };");
         wrapperSource.AppendLine("})");
 
         var parsed = JavaScriptParser.ParseScript(wrapperSource.ToString());
-        var wrapperExpression = (JsFunctionExpression)((JsExpressionStatement)parsed.Statements[0]).Expression;
+        var wrapperExpression = (JsFunctionExpression)
+            ((JsExpressionStatement)parsed.Statements[0]).Expression;
 
         using var engine = JsRuntime.CreateBuilder().Build();
         var realm = engine.MainRealm;
@@ -277,12 +294,12 @@ public class ModuleOpcodeEmissionTests
             string.Empty,
             wrapperSource.ToString(),
             "giant-wrapper-wide-temp.js",
-            parsed.IdentifierTable);
-        var disasm = Disassembler.Dump(wrapper.Script, new()
-        {
-            UnitKind = "function",
-            UnitName = "<wrapper>"
-        });
+            parsed.IdentifierTable
+        );
+        var disasm = Disassembler.Dump(
+            wrapper.Script,
+            new() { UnitKind = "function", UnitName = "<wrapper>" }
+        );
 
         Assert.That(disasm, Does.Contain("StarWide").Or.Contain("LdarWide").Or.Contain("MovWide"));
     }
@@ -295,11 +312,14 @@ public class ModuleOpcodeEmissionTests
         for (var i = 0; i < 520; i++)
             wrapperSource.AppendLine($"  const t{i} = {i};");
         wrapperSource.AppendLine("  const React = require('react');");
-        wrapperSource.AppendLine("  return React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;");
+        wrapperSource.AppendLine(
+            "  return React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;"
+        );
         wrapperSource.AppendLine("})");
 
         var parsed = JavaScriptParser.ParseScript(wrapperSource.ToString());
-        var wrapperExpression = (JsFunctionExpression)((JsExpressionStatement)parsed.Statements[0]).Expression;
+        var wrapperExpression = (JsFunctionExpression)
+            ((JsExpressionStatement)parsed.Statements[0]).Expression;
 
         using var engine = JsRuntime.CreateBuilder().Build();
         var realm = engine.MainRealm;
@@ -309,12 +329,12 @@ public class ModuleOpcodeEmissionTests
             string.Empty,
             wrapperSource.ToString(),
             "giant-wrapper-wide-named-load.js",
-            parsed.IdentifierTable);
-        var disasm = Disassembler.Dump(wrapper.Script, new()
-        {
-            UnitKind = "function",
-            UnitName = "<wrapper>"
-        });
+            parsed.IdentifierTable
+        );
+        var disasm = Disassembler.Dump(
+            wrapper.Script,
+            new() { UnitKind = "function", UnitName = "<wrapper>" }
+        );
 
         Assert.That(disasm, Does.Contain("LdaNamedPropertyWide obj:r"));
         Assert.That(disasm, Does.Match(@"LdaNamedPropertyWide obj:r\d{3,}"));
@@ -333,7 +353,8 @@ public class ModuleOpcodeEmissionTests
         wrapperSource.AppendLine("})");
 
         var parsed = JavaScriptParser.ParseScript(wrapperSource.ToString());
-        var wrapperExpression = (JsFunctionExpression)((JsExpressionStatement)parsed.Statements[0]).Expression;
+        var wrapperExpression = (JsFunctionExpression)
+            ((JsExpressionStatement)parsed.Statements[0]).Expression;
 
         using var engine = JsRuntime.CreateBuilder().Build();
         var realm = engine.MainRealm;
@@ -343,12 +364,12 @@ public class ModuleOpcodeEmissionTests
             string.Empty,
             wrapperSource.ToString(),
             "giant-wrapper-require-preserve.js",
-            parsed.IdentifierTable);
-        var disasm = Disassembler.Dump(wrapper.Script, new()
-        {
-            UnitKind = "function",
-            UnitName = "<wrapper>"
-        });
+            parsed.IdentifierTable
+        );
+        var disasm = Disassembler.Dump(
+            wrapper.Script,
+            new() { UnitKind = "function", UnitName = "<wrapper>" }
+        );
 
         Assert.That(disasm, Does.Contain("CallUndefinedReceiver func:r1"));
         Assert.That(disasm, Does.Contain("CallUndefinedReceiver func:r1, args:r"));
@@ -357,11 +378,13 @@ public class ModuleOpcodeEmissionTests
 
     private static Dictionary<string, ModuleVariableBinding> BuildCompileModuleBindings(
         IReadOnlyList<JsResolvedImportBinding> importBindings,
-        ModuleExecutionPlan executionPlan)
+        ModuleExecutionPlan executionPlan
+    )
     {
         var map = new Dictionary<string, ModuleVariableBinding>(
             importBindings.Count + executionPlan.ExportLocalByName.Count,
-            StringComparer.Ordinal);
+            StringComparer.Ordinal
+        );
 
         var importCount = 0;
         for (var i = 0; i < importBindings.Count; i++)
@@ -390,7 +413,8 @@ public class ModuleOpcodeEmissionTests
         return map;
     }
 
-    private sealed class InMemoryModuleLoader(Dictionary<string, string> modules) : IModuleSourceLoader
+    private sealed class InMemoryModuleLoader(Dictionary<string, string> modules)
+        : IModuleSourceLoader
     {
         private readonly Dictionary<string, string> modules = modules;
 
@@ -398,9 +422,7 @@ public class ModuleOpcodeEmissionTests
         {
             if (specifier.StartsWith("./", StringComparison.Ordinal))
             {
-                var basePath = referrer is null
-                    ? "/"
-                    : referrer.Replace('\\', '/');
+                var basePath = referrer is null ? "/" : referrer.Replace('\\', '/');
                 var slash = basePath.LastIndexOf('/');
                 var dir = slash >= 0 ? basePath[..(slash + 1)] : "/";
                 return Normalize(dir + specifier[2..]);

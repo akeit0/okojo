@@ -16,5 +16,6 @@ public interface IQueuedHostDelayScheduler : IHostDelayScheduler
         TimeSpan delay,
         HostTaskQueueKey targetQueue,
         Action<object?> callback,
-        object? state);
+        object? state
+    );
 }

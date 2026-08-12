@@ -29,7 +29,6 @@ public class VsJintBenchmarks
 
     //scripts/*.js
     [Params("for-loop-sum", "pure-function-call", "many-object")] // "indexing", "lexical-block"//"loop","generator",
-
     // [Params("nop", "arith", "loop", "object", "many-object", "function-call", "closure-heavy", "with-eval-heavy",
     //     "math-call")]
     public string Scenario { get; set; } = "indexing";
@@ -75,7 +74,6 @@ public class VsJintBenchmarks
     //     return _sink;
     // }
     [BenchmarkCategory("Jint")]
-
     [Benchmark(Baseline = true)]
     public double Jint_Execute_Function()
     {
@@ -88,12 +86,14 @@ public class VsJintBenchmarks
     {
         public ConfigWithCustomEnvVars()
         {
-            AddJob(Job.ShortRun
-                    .WithEnvironmentVariables(new EnvironmentVariable("DOTNET_TieredPGO", "0"))
+            AddJob(
+                Job.ShortRun.WithEnvironmentVariables(
+                    new EnvironmentVariable("DOTNET_TieredPGO", "0")
                 )
+            )
                 //.
                 //AddJob(Job.ShortRun.WithRuntime(NativeAotRuntime.Net90))
-                ;
+            ;
         }
     }
     // [Benchmark]

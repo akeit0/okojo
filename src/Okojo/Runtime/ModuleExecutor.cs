@@ -12,11 +12,10 @@ internal static class ModuleExecutor
         JsIdentifierTable? moduleIdentifierTable,
         ModuleExecutionPlan executionPlan,
         IReadOnlyDictionary<string, ModuleVariableBinding>? moduleVariableBindings,
-        bool waitForTopLevelAwaitCompletion = true)
+        bool waitForTopLevelAwaitCompletion = true
+    )
     {
-        using var compiler = JsCompiler.CreateForModuleExecution(
-            realm,
-            moduleVariableBindings);
+        using var compiler = JsCompiler.CreateForModuleExecution(realm, moduleVariableBindings);
 
         JsValue result;
         if (executionPlan.RequiresTopLevelAwait)
@@ -25,7 +24,8 @@ internal static class ModuleExecutor
                 executionPlan,
                 moduleSourceText,
                 moduleSourcePath,
-                moduleIdentifierTable);
+                moduleIdentifierTable
+            );
             realm.Execute(compiled, waitForTopLevelAwaitCompletion);
             result = realm.Accumulator;
         }
@@ -35,14 +35,17 @@ internal static class ModuleExecutor
                 executionPlan,
                 moduleSourceText,
                 moduleSourcePath,
-                moduleIdentifierTable);
+                moduleIdentifierTable
+            );
             realm.Execute(compiled);
             result = realm.Accumulator;
         }
 
-        if (executionPlan.RequiresTopLevelAwait &&
-            result.TryGetObject(out var resultObj) &&
-            resultObj is JsPromiseObject promise)
+        if (
+            executionPlan.RequiresTopLevelAwait
+            && result.TryGetObject(out var resultObj)
+            && resultObj is JsPromiseObject promise
+        )
         {
             if (!waitForTopLevelAwaitCompletion)
                 return result;
@@ -57,7 +60,8 @@ internal static class ModuleExecutor
                 JsErrorKind.TypeError,
                 "Top-level await module rejected",
                 "MODULE_TOP_LEVEL_AWAIT_REJECTED",
-                promise.Result);
+                promise.Result
+            );
         }
 
         return result;

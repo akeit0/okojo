@@ -3,18 +3,19 @@ namespace Okojo.DotNet.Modules;
 internal enum DotNetModuleImportScheme : byte
 {
     Dll = 0,
-    NuGet = 1
+    NuGet = 1,
 }
 
 internal readonly record struct DotNetModuleSpecifier(
     DotNetModuleImportScheme Scheme,
     string Target,
-    string? ClrPath)
+    string? ClrPath
+)
 {
     public static bool IsDotNetResolvedId(string resolvedId)
     {
-        return resolvedId.StartsWith("dll:", StringComparison.OrdinalIgnoreCase) ||
-               resolvedId.StartsWith("nuget:", StringComparison.OrdinalIgnoreCase);
+        return resolvedId.StartsWith("dll:", StringComparison.OrdinalIgnoreCase)
+            || resolvedId.StartsWith("nuget:", StringComparison.OrdinalIgnoreCase);
     }
 
     public static bool TryResolve(string specifier, string? referrer, out string resolvedId)
@@ -36,7 +37,9 @@ internal readonly record struct DotNetModuleSpecifier(
             var raw = specifier["nuget:".Length..];
             var (target, clrPath) = SplitTargetAndClrPath(raw);
             if (string.IsNullOrWhiteSpace(target))
-                throw new InvalidOperationException("nuget: imports must specify a package id and version.");
+                throw new InvalidOperationException(
+                    "nuget: imports must specify a package id and version."
+                );
 
             resolvedId = "nuget:" + target + (clrPath is null ? string.Empty : "#" + clrPath);
             return true;

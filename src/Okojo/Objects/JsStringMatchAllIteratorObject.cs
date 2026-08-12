@@ -8,8 +8,14 @@ internal sealed class JsStringMatchAllIteratorObject : JsObject
     private readonly bool unicode;
     private bool done;
 
-    internal JsStringMatchAllIteratorObject(JsRealm realm, string input, JsObject regex, bool global, bool unicode) :
-        base(realm)
+    internal JsStringMatchAllIteratorObject(
+        JsRealm realm,
+        string input,
+        JsObject regex,
+        bool global,
+        bool unicode
+    )
+        : base(realm)
     {
         this.input = input;
         this.regex = regex;
@@ -24,17 +30,30 @@ internal sealed class JsStringMatchAllIteratorObject : JsObject
             return JsValue.FromObject(Realm.CreateIteratorResultObject(JsValue.Undefined, true));
 
         JsValue matchValue;
-        if (regex.TryGetPropertyAtom(Realm, IdExec, out var execValue, out _) &&
-            execValue.TryGetObject(out var execObj) && execObj is JsFunction execFn)
+        if (
+            regex.TryGetPropertyAtom(Realm, IdExec, out var execValue, out _)
+            && execValue.TryGetObject(out var execObj)
+            && execObj is JsFunction execFn
+        )
         {
-            matchValue = Realm.InvokeFunction(execFn, JsValue.FromObject(regex), [JsValue.FromString(input)]);
+            matchValue = Realm.InvokeFunction(
+                execFn,
+                JsValue.FromObject(regex),
+                [JsValue.FromString(input)]
+            );
             if (!matchValue.IsNull && !matchValue.TryGetObject(out _))
-                throw new JsRuntimeException(JsErrorKind.TypeError, "RegExp exec method must return an object or null");
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "RegExp exec method must return an object or null"
+                );
         }
         else
         {
             if (regex is not JsRegExpObject regexObj)
-                throw new JsRuntimeException(JsErrorKind.TypeError, "RegExp exec method must be callable");
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "RegExp exec method must be callable"
+                );
 
             matchValue = JsRegExpRuntime.Exec(Realm, regexObj, input);
             if (regexObj.Global || regexObj.Sticky)
@@ -48,7 +67,10 @@ internal sealed class JsStringMatchAllIteratorObject : JsObject
         }
 
         if (!matchValue.TryGetObject(out var matchObj))
-            throw new JsRuntimeException(JsErrorKind.TypeError, "RegExp match result must be an object");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "RegExp match result must be an object"
+            );
 
         if (!global)
             done = true;
@@ -58,7 +80,12 @@ internal sealed class JsStringMatchAllIteratorObject : JsObject
             : string.Empty;
         if (global && matched.Length == 0)
         {
-            var lastIndex = regex.TryGetPropertyAtom(Realm, IdLastIndex, out var lastIndexValue, out _)
+            var lastIndex = regex.TryGetPropertyAtom(
+                Realm,
+                IdLastIndex,
+                out var lastIndexValue,
+                out _
+            )
                 ? ToLength(lastIndexValue)
                 : 0;
             SetLastIndex(AdvanceStringIndex(lastIndex));
@@ -72,9 +99,11 @@ internal sealed class JsStringMatchAllIteratorObject : JsObject
         if (!unicode || index >= input.Length)
             return index + 1;
 
-        if (index + 1 < input.Length &&
-            char.IsHighSurrogate(input[index]) &&
-            char.IsLowSurrogate(input[index + 1]))
+        if (
+            index + 1 < input.Length
+            && char.IsHighSurrogate(input[index])
+            && char.IsLowSurrogate(input[index + 1])
+        )
             return index + 2;
 
         return index + 1;
@@ -101,7 +130,9 @@ internal sealed class JsStringMatchAllIteratorObject : JsObject
     private void SetLastIndex(in JsValue value)
     {
         if (!regex.TrySetPropertyAtom(Realm, IdLastIndex, value, out _))
-            throw new JsRuntimeException(JsErrorKind.TypeError,
-                "RegExp.prototype.[Symbol.matchAll] failed to set required property");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "RegExp.prototype.[Symbol.matchAll] failed to set required property"
+            );
     }
 }

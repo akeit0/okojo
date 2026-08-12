@@ -81,7 +81,8 @@ public class ObjectConstructorProgressTests
               if (!checks[i]) { ok = false; break; }
             }
             ok;
-            """);
+            """
+        );
 
         Assert.That(result.IsTrue, Is.True, "Object progress behavior matrix should pass.");
     }
@@ -95,7 +96,8 @@ public class ObjectConstructorProgressTests
             var ok = false;
             try { Object.assign("a", [1]); } catch (e) { ok = e && e.name === "TypeError"; }
             ok;
-            """);
+            """
+        );
         Assert.That(result.IsTrue, Is.True);
     }
 
@@ -108,7 +110,8 @@ public class ObjectConstructorProgressTests
             var ok = false;
             try { new Object.assign({}, { a: 1 }); } catch (e) { ok = e && e.name === "TypeError"; }
             ok;
-            """);
+            """
+        );
         Assert.That(result.IsTrue, Is.True);
     }
 
@@ -140,7 +143,8 @@ public class ObjectConstructorProgressTests
             keys[0] === "z" &&
             keys[1] === "1" &&
             log.join(",") === "ownKeys,gopd:z,gopd:1";
-            """);
+            """
+        );
         Assert.That(result.IsTrue, Is.True);
     }
 
@@ -152,7 +156,8 @@ public class ObjectConstructorProgressTests
             """
             var out = Object.assign({}, "12");
             out[0] === "1" && out[1] === "2";
-            """);
+            """
+        );
         Assert.That(result.IsTrue, Is.True);
     }
 
@@ -165,7 +170,8 @@ public class ObjectConstructorProgressTests
             var target = [1,2,3];
             Object.assign(target, { length: 1 });
             target.length === 1 && target[0] === 1 && target[1] === undefined;
-            """);
+            """
+        );
         Assert.That(result.IsTrue, Is.True);
     }
 
@@ -186,7 +192,8 @@ public class ObjectConstructorProgressTests
             d.enumerable === true &&
             d.writable === false &&
             d.configurable === false;
-            """);
+            """
+        );
         Assert.That(result.IsTrue, Is.True);
     }
 
@@ -203,7 +210,8 @@ public class ObjectConstructorProgressTests
             Object.preventExtensions(o);
             try { Object.setPrototypeOf(o, null); } catch (e) { ok2 = e && e.name === "TypeError"; }
             ok1 && ok2;
-            """);
+            """
+        );
 
         Assert.That(result.IsTrue, Is.True);
     }
@@ -216,7 +224,8 @@ public class ObjectConstructorProgressTests
             """
             var d = Object.getOwnPropertyDescriptor(Object, "setPrototypeOf");
             d.writable === true && d.enumerable === false && d.configurable === true;
-            """);
+            """
+        );
 
         Assert.That(result.IsTrue, Is.True);
     }
@@ -228,7 +237,8 @@ public class ObjectConstructorProgressTests
         var result = realm.Eval(
             """
             Object.setPrototypeOf(1, null) === 1;
-            """);
+            """
+        );
         Assert.That(result.IsTrue, Is.True);
     }
 
@@ -248,7 +258,8 @@ public class ObjectConstructorProgressTests
             d.a.value === 1 &&
             d.b.value === 2 &&
             log.join("|") === "ownKeys|gopd:a|gopd:b";
-            """);
+            """
+        );
         Assert.That(result.IsTrue, Is.True);
     }
 
@@ -275,7 +286,8 @@ public class ObjectConstructorProgressTests
             keys[0] === ownKeys[0] &&
             descriptor === undefined &&
             !(key in descriptors);
-            """);
+            """
+        );
         Assert.That(result.IsTrue, Is.True);
     }
 
@@ -294,7 +306,8 @@ public class ObjectConstructorProgressTests
             returned.length === 1 &&
             returned[0] === "a" &&
             fn.name === "ownKeys";
-            """);
+            """
+        );
         Assert.That(result.IsTrue, Is.True);
     }
 
@@ -347,7 +360,8 @@ public class ObjectConstructorProgressTests
             keys[0] === ownKeys[0] &&
             descriptor === undefined &&
             !(key in descriptors);
-            """);
+            """
+        );
         Assert.That(result.IsTrue, Is.True);
     }
 
@@ -382,7 +396,8 @@ public class ObjectConstructorProgressTests
             obj.propertyIsEnumerable(wrapper) === true &&
             orderOk &&
             log.join("|") === "toString|string|string";
-            """);
+            """
+        );
 
         Assert.That(result.IsTrue, Is.True);
     }
@@ -396,7 +411,8 @@ public class ObjectConstructorProgressTests
             Object.preventExtensions(undefined) === undefined &&
             Object.preventExtensions(0) === 0 &&
             Object.preventExtensions("x") === "x";
-            """);
+            """
+        );
 
         Assert.That(result.IsTrue, Is.True);
     }
@@ -410,7 +426,8 @@ public class ObjectConstructorProgressTests
             Object.prototype.isPrototypeOf.call(undefined, undefined) === false &&
             Object.prototype.isPrototypeOf.call(undefined, Symbol("x")) === false &&
             Object.prototype.isPrototypeOf.call(undefined, 3.14) === false;
-            """);
+            """
+        );
 
         Assert.That(result.IsTrue, Is.True);
     }
@@ -446,7 +463,8 @@ public class ObjectConstructorProgressTests
             let threw = false;
             try { Object.fromEntries(iterable); } catch (e) { threw = e instanceof DummyError; }
             [iteratorCalled,threw, closed]
-            """);
+            """
+        );
 
         Assert.That(result.IsObject, Is.True);
         var array = (JsArray)result.AsObject();
@@ -473,7 +491,8 @@ public class ObjectConstructorProgressTests
             Object.prototype.toString.call(0) === "[object test262]" &&
             Object.prototype.toString.call("") === "[object test262]" &&
             Object.prototype.toString.call(Symbol.prototype) === "[object test262]";
-            """);
+            """
+        );
 
         Assert.That(result.IsTrue, Is.True);
     }
@@ -489,7 +508,8 @@ public class ObjectConstructorProgressTests
             Object.prototype.toString.call(BigInt(0)) === "[object Object]" &&
             Object.prototype.toString.call(Object(BigInt(0))) === "[object Object]" &&
             Object.prototype.toString.call(Symbol("desc")) === "[object Object]";
-            """);
+            """
+        );
 
         Assert.That(result.IsTrue, Is.True);
     }
@@ -504,7 +524,8 @@ public class ObjectConstructorProgressTests
             var target = Object.create(proto);
             var proxy = new Proxy(target, {});
             Object.prototype.isPrototypeOf.call(proto, proxy) === true;
-            """);
+            """
+        );
 
         Assert.That(result.IsTrue, Is.True);
     }
@@ -522,7 +543,8 @@ public class ObjectConstructorProgressTests
             try { new Object.getOwnPropertyNames({}); } catch (e) { namesThrows = e && e.name === "TypeError"; }
             keysThrows && namesThrows &&
             d.value.length === 2 && d.writable === true && d.enumerable === false && d.configurable === true;
-            """);
+            """
+        );
 
         Assert.That(result.IsTrue, Is.True);
     }
@@ -562,7 +584,8 @@ public class ObjectConstructorProgressTests
             multilineDesc.set === undefined &&
             multilineDesc.enumerable === false &&
             multilineDesc.configurable === true;
-            """);
+            """
+        );
 
         Assert.That(result.IsTrue, Is.True);
     }
@@ -612,7 +635,8 @@ public class ObjectConstructorProgressTests
             Object.fromEntries(iterable);
 
             immutableOk && effects.join("|") === 'get Symbol.iterator|next 0|access property "0"|access property "1"|toString key|next 1';
-            """);
+            """
+        );
 
         Assert.That(result.IsTrue, Is.True);
     }
@@ -656,7 +680,8 @@ public class ObjectConstructorProgressTests
             frozenKeys[0] === "0" &&
             frozenKeys[1] === "foo" &&
             frozenKeys[2] === sym;
-            """);
+            """
+        );
 
         Assert.That(result.IsTrue, Is.True);
     }
@@ -678,7 +703,8 @@ public class ObjectConstructorProgressTests
               Object.getOwnPropertyDescriptor = saved;
             }
             ok;
-            """);
+            """
+        );
 
         Assert.That(result.IsTrue, Is.True);
     }
@@ -708,7 +734,8 @@ public class ObjectConstructorProgressTests
             reKeys.length === 2 &&
             reKeys[0] === "lastIndex" &&
             reKeys[1] === "a";
-            """);
+            """
+        );
 
         Assert.That(result.IsTrue, Is.True);
     }

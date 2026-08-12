@@ -20,7 +20,10 @@ internal sealed class NodeModuleBuiltIn(NodeRuntime runtime)
         var realm = runtime.MainRealm;
         var shape = moduleShape ??= CreateModuleShape(realm);
         var module = new JsPlainObject(shape);
-        module.SetNamedSlotUnchecked(ModuleCreateRequireSlot, JsValue.FromObject(CreateCreateRequireFunction(realm)));
+        module.SetNamedSlotUnchecked(
+            ModuleCreateRequireSlot,
+            JsValue.FromObject(CreateCreateRequireFunction(realm))
+        );
         moduleObject = module;
         return module;
     }
@@ -28,8 +31,11 @@ internal sealed class NodeModuleBuiltIn(NodeRuntime runtime)
     private StaticNamedPropertyLayout CreateModuleShape(JsRealm realm)
     {
         EnsureAtoms(realm);
-        var shape = realm.EmptyShape.GetOrAddTransition(atomCreateRequire, JsShapePropertyFlags.Open,
-            out var createRequireInfo);
+        var shape = realm.EmptyShape.GetOrAddTransition(
+            atomCreateRequire,
+            JsShapePropertyFlags.Open,
+            out var createRequireInfo
+        );
         Debug.Assert(createRequireInfo.Slot == ModuleCreateRequireSlot);
         return shape;
     }
@@ -46,22 +52,34 @@ internal sealed class NodeModuleBuiltIn(NodeRuntime runtime)
 
     private JsHostFunction CreateCreateRequireFunction(JsRealm realm)
     {
-        return new(realm, "createRequire", 1, (in info) =>
-        {
-            var referrer = info.GetArgumentString(0);
-            if (referrer.StartsWith("file://", StringComparison.OrdinalIgnoreCase))
-                referrer = new Uri(referrer).LocalPath;
+        return new(
+            realm,
+            "createRequire",
+            1,
+            (in info) =>
+            {
+                var referrer = info.GetArgumentString(0);
+                if (referrer.StartsWith("file://", StringComparison.OrdinalIgnoreCase))
+                    referrer = new Uri(referrer).LocalPath;
 
-            return JsValue.FromObject(CreateBoundRequireFunction(info.Realm, referrer));
-        }, false);
+                return JsValue.FromObject(CreateBoundRequireFunction(info.Realm, referrer));
+            },
+            false
+        );
     }
 
     private JsHostFunction CreateBoundRequireFunction(JsRealm realm, string referrer)
     {
-        return new(realm, "require", 1, (in info) =>
-        {
-            var specifier = info.GetArgumentString(0);
-            return runtime.Require(specifier, referrer);
-        }, false);
+        return new(
+            realm,
+            "require",
+            1,
+            (in info) =>
+            {
+                var specifier = info.GetArgumentString(0);
+                return runtime.Require(specifier, referrer);
+            },
+            false
+        );
     }
 }

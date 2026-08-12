@@ -4,5 +4,5 @@ public enum HostMemberBindingKind : byte
 {
     Field,
     Property,
-    Method
+    Method,
 }

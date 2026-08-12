@@ -8,11 +8,12 @@ internal static class CSharpGlobalInstallerEmitter
 {
     public static string GetHintName(INamedTypeSymbol symbol)
     {
-        return symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
-            .Replace("global::", string.Empty)
-            .Replace('<', '_')
-            .Replace('>', '_')
-            .Replace('.', '_') + ".JsGlobals.g.cs";
+        return symbol
+                .ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
+                .Replace("global::", string.Empty)
+                .Replace('<', '_')
+                .Replace('>', '_')
+                .Replace('.', '_') + ".JsGlobals.g.cs";
     }
 
     public static string Emit(GlobalTypeModel model)
@@ -24,9 +25,12 @@ internal static class CSharpGlobalInstallerEmitter
             static x => x.Symbol,
             static x => x.Parameters,
             static x => x.Type,
-            static x => x.HasDefaultValue);
+            static x => x.HasDefaultValue
+        );
         var sb = new StringBuilder();
-        var ns = symbol.ContainingNamespace.IsGlobalNamespace ? null : symbol.ContainingNamespace.ToDisplayString();
+        var ns = symbol.ContainingNamespace.IsGlobalNamespace
+            ? null
+            : symbol.ContainingNamespace.ToDisplayString();
         var typeName = symbol.Name + BuildTypeParameters(symbol);
 
         sb.AppendLine("#nullable enable");
@@ -64,10 +68,14 @@ internal static class CSharpGlobalInstallerEmitter
         return sb.ToString();
     }
 
-    private static void EmitInstaller(StringBuilder sb, GlobalTypeModel model,
-        IReadOnlyList<AnalyzedOverloadSet<GlobalFunctionModel, GlobalParameterModel>> functionGroups)
+    private static void EmitInstaller(
+        StringBuilder sb,
+        GlobalTypeModel model,
+        IReadOnlyList<AnalyzedOverloadSet<GlobalFunctionModel, GlobalParameterModel>> functionGroups
+    )
     {
-        sb.Append("    public void ").Append(model.InstallerMethodName)
+        sb.Append("    public void ")
+            .Append(model.InstallerMethodName)
             .AppendLine("(global::Okojo.Runtime.JsGlobalInstaller globals)");
         sb.AppendLine("    {");
         foreach (var functionGroup in functionGroups)
@@ -86,7 +94,8 @@ internal static class CSharpGlobalInstallerEmitter
         }
 
         if (model.Properties.Count != 0)
-            sb.Append("        globals.Properties(").Append(model.PropertySourceMethodName)
+            sb.Append("        globals.Properties(")
+                .Append(model.PropertySourceMethodName)
                 .AppendLine("(globals.Realm));");
         sb.AppendLine("    }");
     }
@@ -94,7 +103,8 @@ internal static class CSharpGlobalInstallerEmitter
     private static void EmitPropertySource(StringBuilder sb, GlobalTypeModel model)
     {
         sb.Append(
-                "    public global::System.Collections.Generic.IEnumerable<global::Okojo.Runtime.PropertyDefinition> ")
+                "    public global::System.Collections.Generic.IEnumerable<global::Okojo.Runtime.PropertyDefinition> "
+            )
             .Append(model.PropertySourceMethodName)
             .AppendLine("(global::Okojo.Runtime.JsRealm realm)");
         sb.AppendLine("    {");
@@ -115,7 +125,9 @@ internal static class CSharpGlobalInstallerEmitter
                 .AppendLine("\");");
             sb.Append("        var __jsGetter_")
                 .Append(sanitizedName)
-                .Append(" = new global::Okojo.Objects.JsHostFunction(realm, __OkojoGeneratedGlobalGetter_")
+                .Append(
+                    " = new global::Okojo.Objects.JsHostFunction(realm, __OkojoGeneratedGlobalGetter_"
+                )
                 .Append(sanitizedName)
                 .Append(", \"get ")
                 .Append(EscapeString(property.Name))
@@ -124,12 +136,16 @@ internal static class CSharpGlobalInstallerEmitter
             {
                 sb.Append("        var __jsSetter_")
                     .Append(sanitizedName)
-                    .Append(" = new global::Okojo.Objects.JsHostFunction(realm, __OkojoGeneratedGlobalSetter_")
+                    .Append(
+                        " = new global::Okojo.Objects.JsHostFunction(realm, __OkojoGeneratedGlobalSetter_"
+                    )
                     .Append(sanitizedName)
                     .Append(", \"set ")
                     .Append(EscapeString(property.Name))
                     .AppendLine("\", 1);");
-                sb.Append("        yield return global::Okojo.Runtime.PropertyDefinition.GetterSetterData(__jsAtom_")
+                sb.Append(
+                        "        yield return global::Okojo.Runtime.PropertyDefinition.GetterSetterData(__jsAtom_"
+                    )
                     .Append(sanitizedName)
                     .Append(", __jsGetter_")
                     .Append(sanitizedName)
@@ -143,7 +159,9 @@ internal static class CSharpGlobalInstallerEmitter
             }
             else
             {
-                sb.Append("        yield return global::Okojo.Runtime.PropertyDefinition.GetterData(__jsAtom_")
+                sb.Append(
+                        "        yield return global::Okojo.Runtime.PropertyDefinition.GetterData(__jsAtom_"
+                    )
                     .Append(sanitizedName)
                     .Append(", __jsGetter_")
                     .Append(sanitizedName)
@@ -158,46 +176,70 @@ internal static class CSharpGlobalInstallerEmitter
         sb.AppendLine("    }");
     }
 
-    private static void EmitFunctionGroup(StringBuilder sb, INamedTypeSymbol containingType,
-        AnalyzedOverloadSet<GlobalFunctionModel, GlobalParameterModel> functionGroup)
+    private static void EmitFunctionGroup(
+        StringBuilder sb,
+        INamedTypeSymbol containingType,
+        AnalyzedOverloadSet<GlobalFunctionModel, GlobalParameterModel> functionGroup
+    )
     {
-        var dispatcherName = "__OkojoGeneratedGlobalFunction_" + SanitizeIdentifier(functionGroup.Name);
+        var dispatcherName =
+            "__OkojoGeneratedGlobalFunction_" + SanitizeIdentifier(functionGroup.Name);
         MethodOverloadDispatchEmitter.EmitDispatcher(
             sb,
             dispatcherName,
             "Host function argument type mismatch.",
             functionGroup,
             false,
-            overloadIndex => dispatcherName + "__Overload" + overloadIndex.ToString(CultureInfo.InvariantCulture));
+            overloadIndex =>
+                dispatcherName + "__Overload" + overloadIndex.ToString(CultureInfo.InvariantCulture)
+        );
 
         for (var i = 0; i < functionGroup.Overloads.Count; i++)
         {
             sb.AppendLine();
-            EmitFunctionOverloadWrapper(sb, containingType, functionGroup.Overloads[i].Method,
-                dispatcherName + "__Overload" + i.ToString(CultureInfo.InvariantCulture));
+            EmitFunctionOverloadWrapper(
+                sb,
+                containingType,
+                functionGroup.Overloads[i].Method,
+                dispatcherName + "__Overload" + i.ToString(CultureInfo.InvariantCulture)
+            );
         }
     }
 
-    private static void EmitFunctionOverloadWrapper(StringBuilder sb, INamedTypeSymbol containingType,
-        GlobalFunctionModel function, string methodName)
+    private static void EmitFunctionOverloadWrapper(
+        StringBuilder sb,
+        INamedTypeSymbol containingType,
+        GlobalFunctionModel function,
+        string methodName
+    )
     {
         var parameters = function.Symbol.Parameters;
-        var hasTrailingSpan =
-            ParameterTypeSupport.TryGetTrailingReadOnlySpanElementType(parameters, out var spanIndex,
-                out var spanElementType);
+        var hasTrailingSpan = ParameterTypeSupport.TryGetTrailingReadOnlySpanElementType(
+            parameters,
+            out var spanIndex,
+            out var spanElementType
+        );
         sb.Append("    private global::Okojo.JsValue ")
             .Append(methodName)
             .AppendLine("(scoped in global::Okojo.Runtime.CallInfo info)");
         sb.AppendLine("    {");
         if (hasTrailingSpan)
             EmitTrailingSpanSetup(sb, spanElementType, spanIndex, "        ");
-        EmitMethodInvocation(sb, containingType, function.Symbol, function.Parameters,
-            hasTrailingSpan ? "__jsSpanArg" : null);
+        EmitMethodInvocation(
+            sb,
+            containingType,
+            function.Symbol,
+            function.Parameters,
+            hasTrailingSpan ? "__jsSpanArg" : null
+        );
         sb.AppendLine("    }");
     }
 
-    private static void EmitPropertyGetterWrapper(StringBuilder sb, INamedTypeSymbol containingType,
-        GlobalPropertyModel property)
+    private static void EmitPropertyGetterWrapper(
+        StringBuilder sb,
+        INamedTypeSymbol containingType,
+        GlobalPropertyModel property
+    )
     {
         sb.Append("    private global::Okojo.JsValue __OkojoGeneratedGlobalGetter_")
             .Append(SanitizeIdentifier(property.Name))
@@ -209,8 +251,11 @@ internal static class CSharpGlobalInstallerEmitter
         sb.AppendLine("    }");
     }
 
-    private static void EmitPropertySetterWrapper(StringBuilder sb, INamedTypeSymbol containingType,
-        GlobalPropertyModel property)
+    private static void EmitPropertySetterWrapper(
+        StringBuilder sb,
+        INamedTypeSymbol containingType,
+        GlobalPropertyModel property
+    )
     {
         sb.Append("    private global::Okojo.JsValue __OkojoGeneratedGlobalSetter_")
             .Append(SanitizeIdentifier(property.Name))
@@ -230,13 +275,17 @@ internal static class CSharpGlobalInstallerEmitter
         INamedTypeSymbol containingType,
         IMethodSymbol method,
         IReadOnlyList<GlobalParameterModel> parameters,
-        string? spanArgumentName)
+        string? spanArgumentName
+    )
     {
         ITypeSymbol? spanElementType = null;
-        var needsTryFinally = spanArgumentName is not null &&
-                              ParameterTypeSupport.TryGetReadOnlySpanElementType(
-                                  method.Parameters[method.Parameters.Length - 1].Type, out spanElementType) &&
-                              ParameterTypeSupport.GetSpanElementKind(spanElementType) != SpanElementKind.JsValue;
+        var needsTryFinally =
+            spanArgumentName is not null
+            && ParameterTypeSupport.TryGetReadOnlySpanElementType(
+                method.Parameters[method.Parameters.Length - 1].Type,
+                out spanElementType
+            )
+            && ParameterTypeSupport.GetSpanElementKind(spanElementType) != SpanElementKind.JsValue;
         var indent = "        ";
         if (needsTryFinally)
         {
@@ -260,7 +309,13 @@ internal static class CSharpGlobalInstallerEmitter
             if (spanArgumentName is not null && i == parameters.Count - 1)
                 sb.Append(spanArgumentName);
             else
-                AppendArgumentRead(sb, parameter.Type, i, parameter.HasDefaultValue, parameter.DefaultValue);
+                AppendArgumentRead(
+                    sb,
+                    parameter.Type,
+                    i,
+                    parameter.HasDefaultValue,
+                    parameter.DefaultValue
+                );
         }
 
         sb.AppendLine(");");
@@ -279,7 +334,11 @@ internal static class CSharpGlobalInstallerEmitter
         }
     }
 
-    private static void AppendMethodTarget(StringBuilder sb, INamedTypeSymbol containingType, bool isStatic)
+    private static void AppendMethodTarget(
+        StringBuilder sb,
+        INamedTypeSymbol containingType,
+        bool isStatic
+    )
     {
         if (isStatic)
         {
@@ -290,7 +349,11 @@ internal static class CSharpGlobalInstallerEmitter
         sb.Append("this");
     }
 
-    private static void AppendMemberAccess(StringBuilder sb, INamedTypeSymbol containingType, ISymbol member)
+    private static void AppendMemberAccess(
+        StringBuilder sb,
+        INamedTypeSymbol containingType,
+        ISymbol member
+    )
     {
         if (member.IsStatic)
             sb.Append(containingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
@@ -304,18 +367,25 @@ internal static class CSharpGlobalInstallerEmitter
         ITypeSymbol type,
         int index,
         bool hasDefaultValue,
-        object? defaultValue)
+        object? defaultValue
+    )
     {
         var fullTypeName = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         if (!hasDefaultValue)
         {
-            sb.Append("info.GetArgument<").Append(fullTypeName).Append(">(")
-                .Append(index.ToString(CultureInfo.InvariantCulture)).Append(')');
+            sb.Append("info.GetArgument<")
+                .Append(fullTypeName)
+                .Append(">(")
+                .Append(index.ToString(CultureInfo.InvariantCulture))
+                .Append(')');
             return;
         }
 
-        sb.Append("info.GetArgumentOrDefault<").Append(fullTypeName).Append(">(")
-            .Append(index.ToString(CultureInfo.InvariantCulture)).Append(", ");
+        sb.Append("info.GetArgumentOrDefault<")
+            .Append(fullTypeName)
+            .Append(">(")
+            .Append(index.ToString(CultureInfo.InvariantCulture))
+            .Append(", ");
         AppendDefaultValueLiteral(sb, type, defaultValue);
         sb.Append(')');
     }
@@ -362,7 +432,12 @@ internal static class CSharpGlobalInstallerEmitter
         sb.Append("default!");
     }
 
-    private static void EmitTrailingSpanSetup(StringBuilder sb, ITypeSymbol elementType, int startIndex, string indent)
+    private static void EmitTrailingSpanSetup(
+        StringBuilder sb,
+        ITypeSymbol elementType,
+        int startIndex,
+        string indent
+    )
     {
         var elementTypeName = elementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         var kind = ParameterTypeSupport.GetSpanElementKind(elementType);
@@ -376,16 +451,16 @@ internal static class CSharpGlobalInstallerEmitter
         if (kind == SpanElementKind.JsValue)
         {
             sb.Append(indent)
-                .Append("global::System.ReadOnlySpan<global::Okojo.JsValue> __jsSpanArg = info.Arguments.Slice(")
+                .Append(
+                    "global::System.ReadOnlySpan<global::Okojo.JsValue> __jsSpanArg = info.Arguments.Slice("
+                )
                 .Append(startIndex)
                 .AppendLine(", __jsSpanCount);");
             return;
         }
 
         var usesStackalloc = kind != SpanElementKind.Other && kind != SpanElementKind.String;
-        sb.Append(indent)
-            .Append(elementTypeName)
-            .AppendLine("[]? __jsSpanPooled = null;");
+        sb.Append(indent).Append(elementTypeName).AppendLine("[]? __jsSpanPooled = null;");
         if (usesStackalloc)
         {
             sb.Append(indent)
@@ -393,10 +468,15 @@ internal static class CSharpGlobalInstallerEmitter
                 .Append(elementTypeName)
                 .Append("> __jsSpanArg = __jsSpanCount <= 16 ? stackalloc ")
                 .Append(elementTypeName)
-                .AppendLine("[__jsSpanCount] : (__jsSpanPooled = global::System.Buffers.ArrayPool<" + elementTypeName +
-                            ">.Shared.Rent(__jsSpanCount));");
+                .AppendLine(
+                    "[__jsSpanCount] : (__jsSpanPooled = global::System.Buffers.ArrayPool<"
+                        + elementTypeName
+                        + ">.Shared.Rent(__jsSpanCount));"
+                );
             sb.Append(indent)
-                .Append("global::Okojo.Runtime.Interop.CallInfoSpanConverter.FillArgumentSpan(info, ")
+                .Append(
+                    "global::Okojo.Runtime.Interop.CallInfoSpanConverter.FillArgumentSpan(info, "
+                )
                 .Append(startIndex)
                 .AppendLine(", __jsSpanArg);");
         }
@@ -421,20 +501,27 @@ internal static class CSharpGlobalInstallerEmitter
                 .Append("> __jsSpanBuffer = __jsSpanPooled.AsSpan(0, __jsSpanCount);")
                 .AppendLine();
             sb.Append(indent)
-                .Append("            global::Okojo.Runtime.Interop.CallInfoSpanConverter.FillArgumentSpan(info, ")
+                .Append(
+                    "            global::Okojo.Runtime.Interop.CallInfoSpanConverter.FillArgumentSpan(info, "
+                )
                 .Append(startIndex)
                 .AppendLine(", __jsSpanBuffer);");
-            sb.Append(indent)
-                .AppendLine("            __jsSpanArg = __jsSpanBuffer;");
+            sb.Append(indent).AppendLine("            __jsSpanArg = __jsSpanBuffer;");
             sb.Append(indent).AppendLine("        }");
         }
     }
 
-    private static void EmitTrailingSpanCleanup(StringBuilder sb, ITypeSymbol elementType, string indent)
+    private static void EmitTrailingSpanCleanup(
+        StringBuilder sb,
+        ITypeSymbol elementType,
+        string indent
+    )
     {
         var elementTypeName = elementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         var clearArray =
-            ParameterTypeSupport.GetSpanElementKind(elementType) is SpanElementKind.Other or SpanElementKind.String;
+            ParameterTypeSupport.GetSpanElementKind(elementType)
+            is SpanElementKind.Other
+                or SpanElementKind.String;
         sb.Append(indent).AppendLine("if (__jsSpanPooled is not null)");
         sb.Append(indent)
             .Append("    global::System.Buffers.ArrayPool<")

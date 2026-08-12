@@ -5,5 +5,5 @@ public sealed class JsFatalRuntimeException(
     string message,
     string? detailCode = null,
     JsValue? thrownValue = null,
-    Exception? innerException = null)
-    : JsRuntimeException(kind, message, detailCode, thrownValue, innerException);
+    Exception? innerException = null
+) : JsRuntimeException(kind, message, detailCode, thrownValue, innerException);

@@ -6,7 +6,10 @@ public sealed partial class JsAgent
 {
     private readonly object privateBrandTokenGate = new();
 
-    private readonly ConditionalWeakTable<JsObject, PrivateMemberStorage> privateMemberStorageByObject = new();
+    private readonly ConditionalWeakTable<
+        JsObject,
+        PrivateMemberStorage
+    > privateMemberStorageByObject = new();
     private Dictionary<int, JsObject>? legacyPrivateBrandTokens;
 
     internal JsObject GetLegacyPrivateBrandToken(int brandId)
@@ -26,7 +29,12 @@ public sealed partial class JsAgent
         }
     }
 
-    internal void InitPrivateField(JsObject target, JsObject brandToken, int slotIndex, in JsValue value)
+    internal void InitPrivateField(
+        JsObject target,
+        JsObject brandToken,
+        int slotIndex,
+        in JsValue value
+    )
     {
         ref var slot = ref GetUninitializedPrivateSlot(target, brandToken, slotIndex);
         slot = value;
@@ -37,63 +45,93 @@ public sealed partial class JsAgent
         JsObject brandToken,
         int slotIndex,
         JsFunction? getter,
-        JsFunction? setter)
+        JsFunction? setter
+    )
     {
         ref var slot = ref GetUninitializedPrivateSlot(target, brandToken, slotIndex);
         slot = new JsPrivateAccessorDescriptor(target.Realm, getter, setter);
     }
 
-    internal void InitPrivateMethod(JsObject target, JsObject brandToken, int slotIndex, JsFunction method)
+    internal void InitPrivateMethod(
+        JsObject target,
+        JsObject brandToken,
+        int slotIndex,
+        JsFunction method
+    )
     {
         ref var slot = ref GetUninitializedPrivateSlot(target, brandToken, slotIndex);
         slot = new JsPrivateMethodDescriptor(target.Realm, method);
     }
 
-    internal bool TryGetPrivateSlot(JsObject target, JsObject brandToken, int slotIndex, out JsValue value)
+    internal bool TryGetPrivateSlot(
+        JsObject target,
+        JsObject brandToken,
+        int slotIndex,
+        out JsValue value
+    )
     {
         value = JsValue.Undefined;
         if (slotIndex < 0)
             return false;
-        if (!privateMemberStorageByObject.TryGetValue(target, out var storage) ||
-            !storage.TryGetSlots(brandToken, out var slots) ||
-            (uint)slotIndex >= (uint)slots.Length)
+        if (
+            !privateMemberStorageByObject.TryGetValue(target, out var storage)
+            || !storage.TryGetSlots(brandToken, out var slots)
+            || (uint)slotIndex >= (uint)slots.Length
+        )
             return false;
 
         value = slots[slotIndex];
         return !value.IsTheHole;
     }
 
-    internal bool TrySetPrivateField(JsObject target, JsObject brandToken, int slotIndex, in JsValue value)
+    internal bool TrySetPrivateField(
+        JsObject target,
+        JsObject brandToken,
+        int slotIndex,
+        in JsValue value
+    )
     {
         if (slotIndex < 0)
             return false;
-        if (!privateMemberStorageByObject.TryGetValue(target, out var storage) ||
-            !storage.TryGetSlots(brandToken, out var slots) ||
-            (uint)slotIndex >= (uint)slots.Length)
+        if (
+            !privateMemberStorageByObject.TryGetValue(target, out var storage)
+            || !storage.TryGetSlots(brandToken, out var slots)
+            || (uint)slotIndex >= (uint)slots.Length
+        )
             return false;
 
         ref var slot = ref slots[slotIndex];
         if (slot.IsTheHole)
             return false;
-        if (slot.TryGetObject(out var memberObj) &&
-            memberObj is JsPrivateAccessorDescriptor or JsPrivateMethodDescriptor)
+        if (
+            slot.TryGetObject(out var memberObj)
+            && memberObj is JsPrivateAccessorDescriptor or JsPrivateMethodDescriptor
+        )
             return false;
 
         slot = value;
         return true;
     }
 
-    private ref JsValue GetUninitializedPrivateSlot(JsObject target, JsObject brandToken, int slotIndex)
+    private ref JsValue GetUninitializedPrivateSlot(
+        JsObject target,
+        JsObject brandToken,
+        int slotIndex
+    )
     {
         if (slotIndex < 0)
             throw new ArgumentOutOfRangeException(nameof(slotIndex));
 
-        var slots = privateMemberStorageByObject.GetValue(target, static _ => new())
+        var slots = privateMemberStorageByObject
+            .GetValue(target, static _ => new())
             .GetOrCreateSlots(brandToken, slotIndex + 1);
         ref var slot = ref slots[slotIndex];
         if (!slot.IsTheHole)
-            throw new JsRuntimeException(JsErrorKind.TypeError,
-                "Cannot initialize private field twice on the same object", "PRIVATE_FIELD_REINIT");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Cannot initialize private field twice on the same object",
+                "PRIVATE_FIELD_REINIT"
+            );
 
         return ref slot;
     }
@@ -143,8 +181,10 @@ public sealed partial class JsAgent
                 return true;
             }
 
-            if (additionalSlotsByBrandToken is not null &&
-                additionalSlotsByBrandToken.TryGetValue(brandToken, out slots!))
+            if (
+                additionalSlotsByBrandToken is not null
+                && additionalSlotsByBrandToken.TryGetValue(brandToken, out slots!)
+            )
                 return true;
 
             slots = Array.Empty<JsValue>();

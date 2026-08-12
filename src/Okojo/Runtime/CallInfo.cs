@@ -7,9 +7,7 @@ public readonly ref struct CallInfo
     private readonly int framePointer;
 
     internal CallInfo(JsRealm realm, int framePointer)
-        : this(realm, framePointer, framePointer + FrameLayout.HeaderSize)
-    {
-    }
+        : this(realm, framePointer, framePointer + FrameLayout.HeaderSize) { }
 
     internal CallInfo(JsRealm realm, int framePointer, int argOffset)
     {
@@ -34,8 +32,7 @@ public readonly ref struct CallInfo
     public bool IsConstruct => (Flags & CallFrameFlag.IsConstructorCall) != 0;
     public bool IsDerivedConstruct => (Flags & CallFrameFlag.IsDerivedConstructorCall) != 0;
 
-    public ReadOnlySpan<JsValue> Arguments =>
-        Realm.Stack.AsSpan(ArgumentOffset, ArgumentCount);
+    public ReadOnlySpan<JsValue> Arguments => Realm.Stack.AsSpan(ArgumentOffset, ArgumentCount);
 
     public T GetThis<T>()
     {
@@ -46,7 +43,9 @@ public readonly ref struct CallInfo
             if (obj is T direct)
                 return direct;
 
-            ThrowHostBindingTypeError($"Host function called on incompatible receiver. Expected {typeof(T)}.");
+            ThrowHostBindingTypeError(
+                $"Host function called on incompatible receiver. Expected {typeof(T)}."
+            );
         }
 
         return ConvertArgument<T>(ThisValue, true);
@@ -66,7 +65,9 @@ public readonly ref struct CallInfo
 
     public JsValue GetArgument(int index)
     {
-        return (uint)index < (uint)ArgumentCount ? Realm.Stack[ArgumentOffset + index] : JsValue.Undefined;
+        return (uint)index < (uint)ArgumentCount
+            ? Realm.Stack[ArgumentOffset + index]
+            : JsValue.Undefined;
     }
 
     public double GetArgumentDouble(int index)
@@ -116,7 +117,9 @@ public readonly ref struct CallInfo
 
     public JsValue GetArgumentOrDefault(int index, JsValue defaultValue)
     {
-        return (uint)index < (uint)ArgumentCount ? Realm.Stack[ArgumentOffset + index] : defaultValue;
+        return (uint)index < (uint)ArgumentCount
+            ? Realm.Stack[ArgumentOffset + index]
+            : defaultValue;
     }
 
     public bool TryGetArgumentConversionScore<T>(int index, out int score)
@@ -143,12 +146,19 @@ public readonly ref struct CallInfo
 
             return HostValueConverter.ConvertFromJsValue<T>(Realm, value);
         }
-        catch (Exception ex) when (ex is InvalidOperationException or InvalidCastException or OverflowException
-                                       or FormatException)
+        catch (Exception ex)
+            when (ex
+                    is InvalidOperationException
+                        or InvalidCastException
+                        or OverflowException
+                        or FormatException
+            )
         {
-            ThrowHostBindingTypeError(isReceiver
-                ? $"Host function called on incompatible receiver. Expected {typeof(T)}."
-                : $"Host function argument type mismatch. Expected {typeof(T)}.");
+            ThrowHostBindingTypeError(
+                isReceiver
+                    ? $"Host function called on incompatible receiver. Expected {typeof(T)}."
+                    : $"Host function argument type mismatch. Expected {typeof(T)}."
+            );
             return default!;
         }
     }

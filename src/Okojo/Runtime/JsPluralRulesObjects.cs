@@ -22,7 +22,9 @@ internal sealed class JsPluralRulesObject : JsObject
         string roundingPriority,
         int roundingIncrement,
         string trailingZeroDisplay,
-        CultureInfo cultureInfo) : base(realm)
+        CultureInfo cultureInfo
+    )
+        : base(realm)
     {
         Prototype = prototype;
         Locale = locale;

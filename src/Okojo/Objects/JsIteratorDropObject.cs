@@ -8,41 +8,80 @@ internal sealed class JsIteratorDropObject : JsObject
     private bool executing;
     private long remaining;
 
-    internal JsIteratorDropObject(JsRealm realm, JsObject iterator, JsValue nextMethod, long remaining) : base(realm)
+    internal JsIteratorDropObject(
+        JsRealm realm,
+        JsObject iterator,
+        JsValue nextMethod,
+        long remaining
+    )
+        : base(realm)
     {
         this.iterator = iterator;
         this.nextMethod = nextMethod;
         this.remaining = remaining;
         Prototype = realm.Intrinsics.IteratorPrototype;
 
-        var nextFn = new JsHostFunction(realm, static (in info) =>
-        {
-            var thisValue = info.ThisValue;
-            if (!thisValue.TryGetObject(out var thisObj) || thisObj is not JsIteratorDropObject drop)
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Iterator.drop result next called on incompatible receiver");
+        var nextFn = new JsHostFunction(
+            realm,
+            static (in info) =>
+            {
+                var thisValue = info.ThisValue;
+                if (
+                    !thisValue.TryGetObject(out var thisObj)
+                    || thisObj is not JsIteratorDropObject drop
+                )
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Iterator.drop result next called on incompatible receiver"
+                    );
 
-            return drop.Next();
-        }, "next", 0);
+                return drop.Next();
+            },
+            "next",
+            0
+        );
 
-        var returnFn = new JsHostFunction(realm, static (in info) =>
-        {
-            var thisValue = info.ThisValue;
-            if (!thisValue.TryGetObject(out var thisObj) || thisObj is not JsIteratorDropObject drop)
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "Iterator.drop result return called on incompatible receiver");
+        var returnFn = new JsHostFunction(
+            realm,
+            static (in info) =>
+            {
+                var thisValue = info.ThisValue;
+                if (
+                    !thisValue.TryGetObject(out var thisObj)
+                    || thisObj is not JsIteratorDropObject drop
+                )
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Iterator.drop result return called on incompatible receiver"
+                    );
 
-            return drop.Return();
-        }, "return", 0);
+                return drop.Return();
+            },
+            "return",
+            0
+        );
 
-        DefineDataPropertyAtom(realm, IdNext, JsValue.FromObject(nextFn), JsShapePropertyFlags.Open);
-        DefineDataPropertyAtom(realm, IdReturn, JsValue.FromObject(returnFn), JsShapePropertyFlags.Open);
+        DefineDataPropertyAtom(
+            realm,
+            IdNext,
+            JsValue.FromObject(nextFn),
+            JsShapePropertyFlags.Open
+        );
+        DefineDataPropertyAtom(
+            realm,
+            IdReturn,
+            JsValue.FromObject(returnFn),
+            JsShapePropertyFlags.Open
+        );
     }
 
     internal JsValue Next()
     {
         if (executing)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Iterator helper is already executing");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Iterator helper is already executing"
+            );
         if (closed)
             return JsValue.FromObject(CreateIteratorResultObject(JsValue.Undefined, true));
 
@@ -82,7 +121,10 @@ internal sealed class JsIteratorDropObject : JsObject
     internal JsValue Return()
     {
         if (executing)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Iterator helper is already executing");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Iterator helper is already executing"
+            );
         if (closed)
             return JsValue.FromObject(CreateIteratorResultObject(JsValue.Undefined, true));
 
@@ -90,10 +132,17 @@ internal sealed class JsIteratorDropObject : JsObject
         try
         {
             closed = true;
-            if (iterator.TryGetPropertyAtom(Realm, IdReturn, out var returnValue, out _) &&
-                !returnValue.IsUndefined && !returnValue.IsNull)
-                _ = Intrinsics.CallIteratorHelperMethod(Realm, returnValue, iterator,
-                    "Iterator return must be callable");
+            if (
+                iterator.TryGetPropertyAtom(Realm, IdReturn, out var returnValue, out _)
+                && !returnValue.IsUndefined
+                && !returnValue.IsNull
+            )
+                _ = Intrinsics.CallIteratorHelperMethod(
+                    Realm,
+                    returnValue,
+                    iterator,
+                    "Iterator return must be callable"
+                );
 
             return JsValue.FromObject(CreateIteratorResultObject(JsValue.Undefined, true));
         }
@@ -105,9 +154,17 @@ internal sealed class JsIteratorDropObject : JsObject
 
     private JsObject InvokeNext()
     {
-        var step = Intrinsics.CallIteratorHelperMethod(Realm, nextMethod, iterator, "Iterator next must be callable");
+        var step = Intrinsics.CallIteratorHelperMethod(
+            Realm,
+            nextMethod,
+            iterator,
+            "Iterator next must be callable"
+        );
         if (!step.TryGetObject(out var stepObj))
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Iterator result must be an object");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Iterator result must be an object"
+            );
         return stepObj;
     }
 

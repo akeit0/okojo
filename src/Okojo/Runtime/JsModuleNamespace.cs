@@ -32,7 +32,9 @@ public sealed class JsModuleNamespace
     {
         var value = GetExport(name);
         if (!value.TryGetObject(out var obj) || obj is not JsFunction function)
-            throw new InvalidOperationException($"Module '{ResolvedId}' export '{name}' is not a function.");
+            throw new InvalidOperationException(
+                $"Module '{ResolvedId}' export '{name}' is not a function."
+            );
         return function;
     }
 

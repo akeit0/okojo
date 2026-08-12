@@ -4,8 +4,14 @@ public sealed class JsDataViewObject : JsObject
 {
     private readonly bool lengthTracking;
 
-    public JsDataViewObject(JsRealm realm, JsArrayBufferObject buffer, uint byteOffset, uint byteLength,
-        bool lengthTracking = false, JsObject? prototype = null)
+    public JsDataViewObject(
+        JsRealm realm,
+        JsArrayBufferObject buffer,
+        uint byteOffset,
+        uint byteLength,
+        bool lengthTracking = false,
+        JsObject? prototype = null
+    )
         : base(realm)
     {
         Buffer = buffer;
@@ -36,7 +42,10 @@ public sealed class JsDataViewObject : JsObject
     {
         var viewByteLength = GetCurrentViewByteLength();
         if (offset > viewByteLength || elementSize > viewByteLength - offset)
-            throw new JsRuntimeException(JsErrorKind.RangeError, "Offset is outside the bounds of the DataView");
+            throw new JsRuntimeException(
+                JsErrorKind.RangeError,
+                "Offset is outside the bounds of the DataView"
+            );
 
         return checked(StoredByteOffset + offset);
     }

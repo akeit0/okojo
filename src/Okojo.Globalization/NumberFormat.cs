@@ -2,29 +2,29 @@ using System.Globalization;
 using System.Numerics;
 using System.Text;
 
-
 namespace Okojo.Globalization;
 
 public sealed class NumberFormat
 {
-    private static readonly HashSet<string> Min2GroupingLanguages = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly HashSet<string> Min2GroupingLanguages = new(
+        StringComparer.OrdinalIgnoreCase
+    )
     {
-        "pl"
+        "pl",
     };
 
-    private static readonly
-        Dictionary<string, (long divisor, string shortSuffix, string longSuffix, bool shortSpace, bool longSpace)>
-        CompactPatterns = new(StringComparer.OrdinalIgnoreCase)
-        {
-            ["en-thousand"] = (1_000L, "K", "thousand", false, true),
-            ["en-million"] = (1_000_000L, "M", "million", false, true),
-            ["en-billion"] = (1_000_000_000L, "B", "billion", false, true),
-            ["en-trillion"] = (1_000_000_000_000L, "T", "trillion", false, true),
-            ["zh-TW-thousand"] = (10_000L, "萬", "萬", false, false),
-            ["zh-TW-million"] = (100_000_000L, "億", "億", false, false)
-        };
-
-
+    private static readonly Dictionary<
+        string,
+        (long divisor, string shortSuffix, string longSuffix, bool shortSpace, bool longSpace)
+    > CompactPatterns = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["en-thousand"] = (1_000L, "K", "thousand", false, true),
+        ["en-million"] = (1_000_000L, "M", "million", false, true),
+        ["en-billion"] = (1_000_000_000L, "B", "billion", false, true),
+        ["en-trillion"] = (1_000_000_000_000L, "T", "trillion", false, true),
+        ["zh-TW-thousand"] = (10_000L, "萬", "萬", false, false),
+        ["zh-TW-million"] = (100_000_000L, "億", "億", false, false),
+    };
 
     internal string Locale { get; }
     internal string NumberingSystem { get; }
@@ -52,7 +52,11 @@ public sealed class NumberFormat
     internal CultureInfo CultureInfo { get; }
 
     /// <summary>Creates a number formatter for a locale.</summary>
-    public NumberFormat(string locale, NumberFormatOptions? options = null, CultureInfo? cultureInfo = null)
+    public NumberFormat(
+        string locale,
+        NumberFormatOptions? options = null,
+        CultureInfo? cultureInfo = null
+    )
     {
         ArgumentNullException.ThrowIfNull(locale);
         options ??= new();
@@ -106,47 +110,54 @@ public sealed class NumberFormat
         string roundingPriority,
         int roundingIncrement,
         string trailingZeroDisplay,
-        CultureInfo cultureInfo)
-        : this(locale, new NumberFormatOptions
-        {
-            NumberingSystem = numberingSystem,
-            Style = style,
-            Currency = currency,
-            CurrencyDisplay = currencyDisplay,
-            CurrencySign = currencySign,
-            Unit = unit,
-            UnitDisplay = unitDisplay,
-            Notation = notation,
-            CompactDisplay = compactDisplay,
-            MinimumIntegerDigits = minimumIntegerDigits,
-            MinimumFractionDigits = minimumFractionDigits,
-            MaximumFractionDigits = maximumFractionDigits,
-            MinimumSignificantDigits = minimumSignificantDigits,
-            MaximumSignificantDigits = maximumSignificantDigits,
-            MinimumSignificantDigitsExplicit = minimumSignificantDigitsExplicit,
-            MaximumSignificantDigitsExplicit = maximumSignificantDigitsExplicit,
-            UseGrouping = useGrouping,
-            SignDisplay = signDisplay,
-            RoundingMode = roundingMode,
-            RoundingPriority = roundingPriority,
-            RoundingIncrement = roundingIncrement,
-            TrailingZeroDisplay = trailingZeroDisplay
-        }, cultureInfo)
-    {
-    }
+        CultureInfo cultureInfo
+    )
+        : this(
+            locale,
+            new NumberFormatOptions
+            {
+                NumberingSystem = numberingSystem,
+                Style = style,
+                Currency = currency,
+                CurrencyDisplay = currencyDisplay,
+                CurrencySign = currencySign,
+                Unit = unit,
+                UnitDisplay = unitDisplay,
+                Notation = notation,
+                CompactDisplay = compactDisplay,
+                MinimumIntegerDigits = minimumIntegerDigits,
+                MinimumFractionDigits = minimumFractionDigits,
+                MaximumFractionDigits = maximumFractionDigits,
+                MinimumSignificantDigits = minimumSignificantDigits,
+                MaximumSignificantDigits = maximumSignificantDigits,
+                MinimumSignificantDigitsExplicit = minimumSignificantDigitsExplicit,
+                MaximumSignificantDigitsExplicit = maximumSignificantDigitsExplicit,
+                UseGrouping = useGrouping,
+                SignDisplay = signDisplay,
+                RoundingMode = roundingMode,
+                RoundingPriority = roundingPriority,
+                RoundingIncrement = roundingIncrement,
+                TrailingZeroDisplay = trailingZeroDisplay,
+            },
+            cultureInfo
+        ) { }
 
     internal bool SupportsExactIntegralFormatting =>
-        string.Equals(Style, "decimal", StringComparison.Ordinal) &&
-        string.Equals(Notation, "standard", StringComparison.Ordinal) &&
-        !MinimumSignificantDigits.HasValue &&
-        !MaximumSignificantDigits.HasValue;
+        string.Equals(Style, "decimal", StringComparison.Ordinal)
+        && string.Equals(Notation, "standard", StringComparison.Ordinal)
+        && !MinimumSignificantDigits.HasValue
+        && !MaximumSignificantDigits.HasValue;
 
     internal string Format(double value)
     {
         if (double.IsNaN(value))
             return FormatSpecialValue(CultureInfo.NumberFormat.NaNSymbol, false, true);
         if (double.IsPositiveInfinity(value))
-            return FormatSpecialValue(CultureInfo.NumberFormat.PositiveInfinitySymbol, false, false);
+            return FormatSpecialValue(
+                CultureInfo.NumberFormat.PositiveInfinitySymbol,
+                false,
+                false
+            );
         if (double.IsNegativeInfinity(value))
             return FormatSpecialValue(CultureInfo.NumberFormat.PositiveInfinitySymbol, true, false);
 
@@ -155,8 +166,6 @@ public sealed class NumberFormat
 
         return FormatStandard(value);
     }
-
-
 
     internal string FormatExactIntegralString(string raw)
     {
@@ -188,7 +197,8 @@ public sealed class NumberFormat
     {
         var isNegative = value.IsNegative;
         var absoluteValue = value.Abs();
-        var usedSignificantDigits = MinimumSignificantDigits.HasValue || MaximumSignificantDigits.HasValue;
+        var usedSignificantDigits =
+            MinimumSignificantDigits.HasValue || MaximumSignificantDigits.HasValue;
         var raw = usedSignificantDigits
             ? FormatExactDecimalWithSignificantDigits(absoluteValue)
             : FormatExactDecimalWithFractionDigits(absoluteValue);
@@ -207,7 +217,7 @@ public sealed class NumberFormat
             "percent" => FormatPercent(value),
             "currency" => FormatCurrency(value),
             "unit" => FormatUnit(value),
-            _ => FormatDecimal(value)
+            _ => FormatDecimal(value),
         };
     }
 
@@ -218,16 +228,9 @@ public sealed class NumberFormat
             "scientific" => FormatScientific(value),
             "engineering" => FormatEngineering(value),
             "compact" => FormatCompact(value),
-            _ => FormatStandard(value)
+            _ => FormatStandard(value),
         };
     }
-
-
-
-
-
-
-
 
     private string FormatPercent(double value)
     {
@@ -248,8 +251,10 @@ public sealed class NumberFormat
         var numeric = FormatNumberCore(value);
         if (string.IsNullOrEmpty(Unit))
             return numeric;
-        if (string.Equals(Unit, "kilometer-per-hour", StringComparison.Ordinal) &&
-            string.Equals(UnitDisplay, "long", StringComparison.Ordinal))
+        if (
+            string.Equals(Unit, "kilometer-per-hour", StringComparison.Ordinal)
+            && string.Equals(UnitDisplay, "long", StringComparison.Ordinal)
+        )
         {
             if (Locale.StartsWith("ja", StringComparison.OrdinalIgnoreCase))
                 return "時速 " + numeric + " " + GetRenderedUnit(value);
@@ -277,7 +282,11 @@ public sealed class NumberFormat
         var absValue = Math.Abs(value);
         var exponent = (int)Math.Floor(Math.Log10(absValue));
         var mantissa = absValue / Math.Pow(10d, exponent);
-        var roundedMantissa = ApplyConfiguredRounding(mantissa, false, out var usedSignificantDigits);
+        var roundedMantissa = ApplyConfiguredRounding(
+            mantissa,
+            false,
+            out var usedSignificantDigits
+        );
         var mantissaText = FormatRoundedNumberString(roundedMantissa, usedSignificantDigits);
         var result = mantissaText + "E" + exponent.ToString(CultureInfo.InvariantCulture);
         return isNegative ? ApplyNegativeSign(result) : result;
@@ -293,9 +302,14 @@ public sealed class NumberFormat
         var exponent = (int)Math.Floor(Math.Log10(absValue));
         var engineeringExponent = (int)(Math.Floor(exponent / 3d) * 3d);
         var mantissa = absValue / Math.Pow(10d, engineeringExponent);
-        var roundedMantissa = ApplyConfiguredRounding(mantissa, false, out var usedSignificantDigits);
+        var roundedMantissa = ApplyConfiguredRounding(
+            mantissa,
+            false,
+            out var usedSignificantDigits
+        );
         var mantissaText = FormatRoundedNumberString(roundedMantissa, usedSignificantDigits);
-        var result = mantissaText + "E" + engineeringExponent.ToString(CultureInfo.InvariantCulture);
+        var result =
+            mantissaText + "E" + engineeringExponent.ToString(CultureInfo.InvariantCulture);
         return isNegative ? ApplyNegativeSign(result) : result;
     }
 
@@ -310,10 +324,14 @@ public sealed class NumberFormat
         if (compactLocale == "de")
             return FormatCompactDe(value, absValue, isNegative);
         var pattern = ResolveCompactPattern(compactLocale, absValue);
-        if (pattern is null) return FormatCompactSmallValue(value, absValue, isNegative);
+        if (pattern is null)
+            return FormatCompactSmallValue(value, absValue, isNegative);
 
         var compactValue = absValue / pattern.Value.divisor;
-        var maxFractionDigits = compactValue >= 100 ? 0 : compactValue >= 10 ? 0 : 1;
+        var maxFractionDigits =
+            compactValue >= 100 ? 0
+            : compactValue >= 10 ? 0
+            : 1;
         var rounded = RoundWithMode(compactValue, maxFractionDigits, false);
         var formatted = FormatCompactNumber(rounded, maxFractionDigits);
         var suffix = string.Equals(CompactDisplay, "long", StringComparison.Ordinal)
@@ -323,7 +341,10 @@ public sealed class NumberFormat
             ? pattern.Value.longSpace
             : pattern.Value.shortSpace;
         var separator = addSpace
-            ? GetCompactSeparator(compactLocale, string.Equals(CompactDisplay, "long", StringComparison.Ordinal))
+            ? GetCompactSeparator(
+                compactLocale,
+                string.Equals(CompactDisplay, "long", StringComparison.Ordinal)
+            )
             : string.Empty;
         var result = formatted + separator + suffix;
         return isNegative ? ApplyNegativeSign(result) : result;
@@ -381,8 +402,10 @@ public sealed class NumberFormat
         var minSig = MinimumSignificantDigits ?? 1;
         var maxSig = MaximumSignificantDigits ?? Math.Max(minSig, 21);
 
-        if (string.Equals(RoundingPriority, "morePrecision", StringComparison.Ordinal) ||
-            string.Equals(RoundingPriority, "lessPrecision", StringComparison.Ordinal))
+        if (
+            string.Equals(RoundingPriority, "morePrecision", StringComparison.Ordinal)
+            || string.Equals(RoundingPriority, "lessPrecision", StringComparison.Ordinal)
+        )
         {
             var significantResult = FormatExactToSignificantDigits(value, minSig, maxSig);
             var fractionResult = FormatExactDecimalWithFractionDigits(value);
@@ -467,8 +490,12 @@ public sealed class NumberFormat
         var builder = new StringBuilder(groupedInteger);
         if (fractionPart.Length > 0)
         {
-            builder.Append(NumberingSystemData.GetDecimalSeparator(NumberingSystem,
-                CultureInfo.NumberFormat.NumberDecimalSeparator));
+            builder.Append(
+                NumberingSystemData.GetDecimalSeparator(
+                    NumberingSystem,
+                    CultureInfo.NumberFormat.NumberDecimalSeparator
+                )
+            );
             builder.Append(NumberingSystemData.TransliterateDigits(fractionPart, NumberingSystem));
         }
 
@@ -495,9 +522,14 @@ public sealed class NumberFormat
         return FormatRawAsciiNumberString(raw);
     }
 
-    private double ApplyConfiguredRounding(double absValue, bool isNegative, out bool usedSignificantDigits)
+    private double ApplyConfiguredRounding(
+        double absValue,
+        bool isNegative,
+        out bool usedSignificantDigits
+    )
     {
-        usedSignificantDigits = MinimumSignificantDigits.HasValue || MaximumSignificantDigits.HasValue;
+        usedSignificantDigits =
+            MinimumSignificantDigits.HasValue || MaximumSignificantDigits.HasValue;
         if (usedSignificantDigits)
             return RoundToSignificantDigits(absValue, isNegative);
 
@@ -550,11 +582,22 @@ public sealed class NumberFormat
             "floor" => isNegative ? ceil : floor,
             "expand" => ceil,
             "trunc" => floor,
-            "halfCeil" => fraction > 0.5d ? ceil : fraction < 0.5d ? floor : isNegative ? floor : ceil,
-            "halfFloor" => fraction > 0.5d ? ceil : fraction < 0.5d ? floor : isNegative ? ceil : floor,
-            "halfTrunc" => fraction > 0.5d ? ceil : fraction < 0.5d ? floor : floor,
-            "halfEven" => fraction > 0.5d ? ceil : fraction < 0.5d ? floor : ((long)floor & 1L) == 0L ? floor : ceil,
-            _ => fraction >= 0.5d ? ceil : floor
+            "halfCeil" => fraction > 0.5d ? ceil
+            : fraction < 0.5d ? floor
+            : isNegative ? floor
+            : ceil,
+            "halfFloor" => fraction > 0.5d ? ceil
+            : fraction < 0.5d ? floor
+            : isNegative ? ceil
+            : floor,
+            "halfTrunc" => fraction > 0.5d ? ceil
+            : fraction < 0.5d ? floor
+            : floor,
+            "halfEven" => fraction > 0.5d ? ceil
+            : fraction < 0.5d ? floor
+            : ((long)floor & 1L) == 0L ? floor
+            : ceil,
+            _ => fraction >= 0.5d ? ceil : floor,
         };
     }
 
@@ -638,9 +681,11 @@ public sealed class NumberFormat
             return raw;
 
         var result = raw;
-        while (CountSignificantDigits(result) > minimumSignificantDigits &&
-               result.Length > 0 &&
-               result[^1] == '0')
+        while (
+            CountSignificantDigits(result) > minimumSignificantDigits
+            && result.Length > 0
+            && result[^1] == '0'
+        )
             result = result[..^1];
 
         if (result.Length > 0 && result[^1] == '.')
@@ -648,7 +693,11 @@ public sealed class NumberFormat
         return result;
     }
 
-    private int CompareExactPrecisionLoss(ExactDecimalValue original, string significantResult, string fractionResult)
+    private int CompareExactPrecisionLoss(
+        ExactDecimalValue original,
+        string significantResult,
+        string fractionResult
+    )
     {
         var sigValue = ParseFormattedExactDecimal(significantResult);
         var fracValue = ParseFormattedExactDecimal(fractionResult);
@@ -657,7 +706,10 @@ public sealed class NumberFormat
         return sigLoss.CompareTo(fracLoss);
     }
 
-    private static BigInteger GetExactDifferenceMagnitude(ExactDecimalValue left, ExactDecimalValue right)
+    private static BigInteger GetExactDifferenceMagnitude(
+        ExactDecimalValue left,
+        ExactDecimalValue right
+    )
     {
         var commonScale = Math.Max(left.Scale, right.Scale);
         var leftScaled = left.SignedUnscaled * Pow10(commonScale - left.Scale);
@@ -665,7 +717,11 @@ public sealed class NumberFormat
         return BigInteger.Abs(leftScaled - rightScaled);
     }
 
-    private ExactDecimalValue RoundExactToFractionDigits(ExactDecimalValue value, int targetScale, bool isNegative)
+    private ExactDecimalValue RoundExactToFractionDigits(
+        ExactDecimalValue value,
+        int targetScale,
+        bool isNegative
+    )
     {
         if (value.Scale == targetScale)
             return value;
@@ -686,7 +742,10 @@ public sealed class NumberFormat
         return new(signed, targetScale, isNegative && quotient == BigInteger.Zero);
     }
 
-    private static ExactDecimalValue MultiplyExactByPowerOfTen(ExactDecimalValue value, int exponent)
+    private static ExactDecimalValue MultiplyExactByPowerOfTen(
+        ExactDecimalValue value,
+        int exponent
+    )
     {
         if (exponent == 0)
             return value;
@@ -695,14 +754,21 @@ public sealed class NumberFormat
         {
             if (value.Scale >= exponent)
                 return new(value.SignedUnscaled, value.Scale - exponent, value.IsNegativeZero);
-            return new(value.SignedUnscaled * Pow10(exponent - value.Scale), 0, value.IsNegativeZero);
+            return new(
+                value.SignedUnscaled * Pow10(exponent - value.Scale),
+                0,
+                value.IsNegativeZero
+            );
         }
 
         return new(value.SignedUnscaled, value.Scale + -exponent, value.IsNegativeZero);
     }
 
-    private ExactDecimalValue RoundExactToSignificantDigits(ExactDecimalValue value, int maxSignificantDigits,
-        bool isNegative)
+    private ExactDecimalValue RoundExactToSignificantDigits(
+        ExactDecimalValue value,
+        int maxSignificantDigits,
+        bool isNegative
+    )
     {
         var absUnscaled = value.Abs().SignedUnscaled;
         var digits = absUnscaled.ToString(CultureInfo.InvariantCulture);
@@ -719,7 +785,12 @@ public sealed class NumberFormat
         return new(signed, value.Scale, false);
     }
 
-    private bool ShouldRoundUp(BigInteger quotient, BigInteger remainder, BigInteger divisor, bool isNegative)
+    private bool ShouldRoundUp(
+        BigInteger quotient,
+        BigInteger remainder,
+        BigInteger divisor,
+        bool isNegative
+    )
     {
         if (remainder.IsZero)
             return false;
@@ -738,7 +809,7 @@ public sealed class NumberFormat
             "halfFloor" => aboveHalf || (tie && isNegative),
             "halfTrunc" => aboveHalf,
             "halfEven" => aboveHalf || (tie && !quotient.IsEven),
-            _ => aboveHalf || tie
+            _ => aboveHalf || tie,
         };
     }
 
@@ -750,7 +821,9 @@ public sealed class NumberFormat
             return digits;
 
         if (digits.Length > value.Scale)
-            return digits[..(digits.Length - value.Scale)] + "." + digits[(digits.Length - value.Scale)..];
+            return digits[..(digits.Length - value.Scale)]
+                + "."
+                + digits[(digits.Length - value.Scale)..];
 
         return "0." + new string('0', value.Scale - digits.Length) + digits;
     }
@@ -766,10 +839,12 @@ public sealed class NumberFormat
         var digits = (integerPart + fractionPart).TrimStart('0');
         if (digits.Length == 0)
             return new(BigInteger.Zero, 0, false);
-        return new(BigInteger.Parse(digits, CultureInfo.InvariantCulture), fractionPart.Length, false);
+        return new(
+            BigInteger.Parse(digits, CultureInfo.InvariantCulture),
+            fractionPart.Length,
+            false
+        );
     }
-
-
 
     private static bool TryParseExactDecimalString(string raw, out ExactDecimalValue result)
     {
@@ -821,8 +896,14 @@ public sealed class NumberFormat
             if (exponentStart == index)
                 return false;
 
-            if (!int.TryParse(text[exponentStart..index], NumberStyles.None, CultureInfo.InvariantCulture,
-                    out exponent))
+            if (
+                !int.TryParse(
+                    text[exponentStart..index],
+                    NumberStyles.None,
+                    CultureInfo.InvariantCulture,
+                    out exponent
+                )
+            )
                 return false;
             if (exponentNegative)
                 exponent = -exponent;
@@ -861,8 +942,13 @@ public sealed class NumberFormat
         return result;
     }
 
-    private static (long divisor, string shortSuffix, string longSuffix, bool shortSpace, bool longSpace)?
-        ResolveCompactPattern(string compactLocale, double absValue)
+    private static (
+        long divisor,
+        string shortSuffix,
+        string longSuffix,
+        bool shortSpace,
+        bool longSpace
+    )? ResolveCompactPattern(string compactLocale, double absValue)
     {
         if (compactLocale == "zh-TW")
         {
@@ -924,7 +1010,11 @@ public sealed class NumberFormat
         var raw = value.ToString("F" + maximumFractionDigits, CultureInfo.InvariantCulture);
         if (raw.Contains('.'))
             raw = raw.TrimEnd('0').TrimEnd('.');
-        raw = raw.Replace(".", CultureInfo.NumberFormat.NumberDecimalSeparator, StringComparison.Ordinal);
+        raw = raw.Replace(
+            ".",
+            CultureInfo.NumberFormat.NumberDecimalSeparator,
+            StringComparison.Ordinal
+        );
         return raw;
     }
 
@@ -953,7 +1043,10 @@ public sealed class NumberFormat
 
     private string FormatCompactDeScaled(double compactValue)
     {
-        var maxFractionDigits = compactValue >= 100 ? 0 : compactValue >= 10 ? 0 : 1;
+        var maxFractionDigits =
+            compactValue >= 100 ? 0
+            : compactValue >= 10 ? 0
+            : 1;
         var rounded = RoundWithMode(compactValue, maxFractionDigits, false);
         return FormatCompactNumber(rounded, maxFractionDigits);
     }
@@ -973,10 +1066,12 @@ public sealed class NumberFormat
         if (fractionPart.Length == 0)
             return NumberingSystemData.TransliterateDigits(integerPart, NumberingSystem);
 
-        return NumberingSystemData.TransliterateDigits(integerPart, NumberingSystem) +
-               NumberingSystemData.GetDecimalSeparator(NumberingSystem,
-                   CultureInfo.NumberFormat.NumberDecimalSeparator) +
-               NumberingSystemData.TransliterateDigits(fractionPart, NumberingSystem);
+        return NumberingSystemData.TransliterateDigits(integerPart, NumberingSystem)
+            + NumberingSystemData.GetDecimalSeparator(
+                NumberingSystem,
+                CultureInfo.NumberFormat.NumberDecimalSeparator
+            )
+            + NumberingSystemData.TransliterateDigits(fractionPart, NumberingSystem);
     }
 
     private bool IsNegative(double value)
@@ -998,7 +1093,7 @@ public sealed class NumberFormat
             {
                 "never" => false,
                 "negative" => true,
-                _ => true
+                _ => true,
             };
 
         if (isNan)
@@ -1007,9 +1102,12 @@ public sealed class NumberFormat
         return SignDisplay is "always" or "exceptZero";
     }
 
-
-
-    private void AppendSignParts(List<(string Type, string Value)> parts, bool isNegative, bool isZero, bool isNan)
+    private void AppendSignParts(
+        List<(string Type, string Value)> parts,
+        bool isNegative,
+        bool isZero,
+        bool isNan
+    )
     {
         var showSign = ShouldShowSign(isNegative, isZero);
         if (!showSign)
@@ -1017,7 +1115,9 @@ public sealed class NumberFormat
 
         var type = isNegative ? "minusSign" : "plusSign";
         var value = isNegative
-            ? string.IsNullOrEmpty(CultureInfo.NumberFormat.NegativeSign) ? "-" : CultureInfo.NumberFormat.NegativeSign
+            ? string.IsNullOrEmpty(CultureInfo.NumberFormat.NegativeSign)
+                ? "-"
+                : CultureInfo.NumberFormat.NegativeSign
             : string.IsNullOrEmpty(CultureInfo.NumberFormat.PositiveSign)
                 ? "+"
                 : CultureInfo.NumberFormat.PositiveSign;
@@ -1026,10 +1126,11 @@ public sealed class NumberFormat
         parts.Add((type, value));
     }
 
-
-
-    private void AppendNumberCoreParts(List<(string Type, string Value)> parts, double rounded,
-        bool usedSignificantDigits)
+    private void AppendNumberCoreParts(
+        List<(string Type, string Value)> parts,
+        double rounded,
+        bool usedSignificantDigits
+    )
     {
         var raw = usedSignificantDigits
             ? FormatUsingSignificantDigits(rounded)
@@ -1037,7 +1138,11 @@ public sealed class NumberFormat
         AppendNumberCoreParts(parts, raw, true);
     }
 
-    private void AppendNumberCoreParts(List<(string Type, string Value)> parts, string raw, bool trimFraction)
+    private void AppendNumberCoreParts(
+        List<(string Type, string Value)> parts,
+        string raw,
+        bool trimFraction
+    )
     {
         var dotIndex = raw.IndexOf('.');
         var integerPart = dotIndex >= 0 ? raw[..dotIndex] : raw;
@@ -1054,10 +1159,16 @@ public sealed class NumberFormat
             if (Locale.StartsWith("en-IN", StringComparison.OrdinalIgnoreCase))
             {
                 var grouped = ApplyIndianGrouping(integerPart);
-                groups.AddRange(grouped.Split(NumberingSystemData.GetGroupSeparator(NumberingSystem,
-                    string.IsNullOrEmpty(CultureInfo.NumberFormat.NumberGroupSeparator)
-                        ? ","
-                        : CultureInfo.NumberFormat.NumberGroupSeparator)));
+                groups.AddRange(
+                    grouped.Split(
+                        NumberingSystemData.GetGroupSeparator(
+                            NumberingSystem,
+                            string.IsNullOrEmpty(CultureInfo.NumberFormat.NumberGroupSeparator)
+                                ? ","
+                                : CultureInfo.NumberFormat.NumberGroupSeparator
+                        )
+                    )
+                );
             }
             else
             {
@@ -1070,35 +1181,49 @@ public sealed class NumberFormat
             }
         }
 
-        var groupSeparator = NumberingSystemData.GetGroupSeparator(NumberingSystem,
+        var groupSeparator = NumberingSystemData.GetGroupSeparator(
+            NumberingSystem,
             string.IsNullOrEmpty(CultureInfo.NumberFormat.NumberGroupSeparator)
                 ? ","
-                : CultureInfo.NumberFormat.NumberGroupSeparator);
+                : CultureInfo.NumberFormat.NumberGroupSeparator
+        );
         for (var i = 0; i < groups.Count; i++)
         {
-            parts.Add(("integer", NumberingSystemData.TransliterateDigits(groups[i], NumberingSystem)));
+            parts.Add(
+                ("integer", NumberingSystemData.TransliterateDigits(groups[i], NumberingSystem))
+            );
             if (i + 1 < groups.Count)
                 parts.Add(("group", groupSeparator));
         }
 
         if (fractionPart.Length > 0)
         {
-            parts.Add(("decimal",
-                NumberingSystemData.GetDecimalSeparator(NumberingSystem,
-                    CultureInfo.NumberFormat.NumberDecimalSeparator)));
-            parts.Add(("fraction", NumberingSystemData.TransliterateDigits(fractionPart, NumberingSystem)));
+            parts.Add(
+                (
+                    "decimal",
+                    NumberingSystemData.GetDecimalSeparator(
+                        NumberingSystem,
+                        CultureInfo.NumberFormat.NumberDecimalSeparator
+                    )
+                )
+            );
+            parts.Add(
+                ("fraction", NumberingSystemData.TransliterateDigits(fractionPart, NumberingSystem))
+            );
         }
     }
 
-
-
-
-
-    private bool TryAppendPrefixedLongUnitParts(List<(string Type, string Value)> parts, double rounded,
-        bool usedSignificantDigits, bool isNegative)
+    private bool TryAppendPrefixedLongUnitParts(
+        List<(string Type, string Value)> parts,
+        double rounded,
+        bool usedSignificantDigits,
+        bool isNegative
+    )
     {
-        if (!string.Equals(Unit, "kilometer-per-hour", StringComparison.Ordinal) ||
-            !string.Equals(UnitDisplay, "long", StringComparison.Ordinal))
+        if (
+            !string.Equals(Unit, "kilometer-per-hour", StringComparison.Ordinal)
+            || !string.Equals(UnitDisplay, "long", StringComparison.Ordinal)
+        )
             return false;
 
         if (Locale.StartsWith("ja", StringComparison.OrdinalIgnoreCase))
@@ -1155,34 +1280,34 @@ public sealed class NumberFormat
                 return UnitDisplay switch
                 {
                     "long" => "公里",
-                    _ => "公里/小時"
+                    _ => "公里/小時",
                 };
 
             if (Locale.StartsWith("ja", StringComparison.OrdinalIgnoreCase))
                 return UnitDisplay switch
                 {
                     "long" => "キロメートル",
-                    _ => "km/h"
+                    _ => "km/h",
                 };
 
             if (Locale.StartsWith("ko", StringComparison.OrdinalIgnoreCase))
                 return UnitDisplay switch
                 {
                     "long" => "킬로미터",
-                    _ => "km/h"
+                    _ => "km/h",
                 };
 
             if (Locale.StartsWith("de", StringComparison.OrdinalIgnoreCase))
                 return UnitDisplay switch
                 {
                     "long" => "Kilometer pro Stunde",
-                    _ => "km/h"
+                    _ => "km/h",
                 };
 
             return UnitDisplay switch
             {
                 "long" => "kilometers per hour",
-                _ => "km/h"
+                _ => "km/h",
             };
         }
 
@@ -1192,8 +1317,21 @@ public sealed class NumberFormat
     private bool TryGetLocalizedDurationUnit(double value, out string? renderedUnit)
     {
         renderedUnit = null;
-        if (Unit is not ("year" or "month" or "week" or "day" or "hour" or "minute" or "second" or "millisecond"
-            or "microsecond" or "nanosecond"))
+        if (
+            Unit
+            is not (
+                "year"
+                or "month"
+                or "week"
+                or "day"
+                or "hour"
+                or "minute"
+                or "second"
+                or "millisecond"
+                or "microsecond"
+                or "nanosecond"
+            )
+        )
             return false;
 
         var singular = Math.Abs(value) == 1d;
@@ -1201,7 +1339,7 @@ public sealed class NumberFormat
         renderedUnit = localeKey switch
         {
             "es" => GetSpanishDurationUnit(Unit!, UnitDisplay, singular),
-            _ => GetEnglishDurationUnit(Unit!, UnitDisplay, singular)
+            _ => GetEnglishDurationUnit(Unit!, UnitDisplay, singular),
         };
         return renderedUnit is not null;
     }
@@ -1252,7 +1390,7 @@ public sealed class NumberFormat
             ("nanosecond", "long", false) => "nanoseconds",
             ("nanosecond", "short", _) => "ns",
             ("nanosecond", "narrow", _) => "ns",
-            _ => null
+            _ => null,
         };
     }
 
@@ -1300,7 +1438,7 @@ public sealed class NumberFormat
             ("nanosecond", "long", false) => "nanosegundos",
             ("nanosecond", "short", _) => "ns",
             ("nanosecond", "narrow", _) => "ns",
-            _ => null
+            _ => null,
         };
     }
 
@@ -1320,8 +1458,8 @@ public sealed class NumberFormat
                 "USD" when Locale.StartsWith("zh-TW", StringComparison.OrdinalIgnoreCase) => "US$",
                 "USD" when Locale.StartsWith("ko", StringComparison.OrdinalIgnoreCase) => "US$",
                 "USD" => "$",
-                _ => Currency
-            }
+                _ => Currency,
+            },
         };
     }
 
@@ -1392,10 +1530,9 @@ public sealed class NumberFormat
         {
             "false" => false,
             "min2" => integerDigits >= 5,
-            _ when string.Equals(UseGrouping, "auto", StringComparison.Ordinal) => UsesMin2GroupingForAuto()
-                ? integerDigits >= 5
-                : integerDigits >= 4,
-            _ => integerDigits >= 4
+            _ when string.Equals(UseGrouping, "auto", StringComparison.Ordinal) =>
+                UsesMin2GroupingForAuto() ? integerDigits >= 5 : integerDigits >= 4,
+            _ => integerDigits >= 4,
         };
     }
 
@@ -1416,7 +1553,7 @@ public sealed class NumberFormat
             "always" => true,
             "exceptZero" => !isZero,
             "negative" => isNegative && !isZero,
-            _ => isNegative
+            _ => isNegative,
         };
     }
 
@@ -1436,15 +1573,15 @@ public sealed class NumberFormat
         return positiveSign + value;
     }
 
-
-
-
-
     private List<(string Type, string Value)> BuildDecimalParts(double value)
     {
         var parts = new List<(string Type, string Value)>();
         var negative = IsNegative(value);
-        var rounded = ApplyConfiguredRounding(Math.Abs(value), negative, out var usedSignificantDigits);
+        var rounded = ApplyConfiguredRounding(
+            Math.Abs(value),
+            negative,
+            out var usedSignificantDigits
+        );
         AppendSignParts(parts, negative, rounded == 0d, false);
         AppendNumberCoreParts(parts, rounded, usedSignificantDigits);
         return parts;
@@ -1454,7 +1591,11 @@ public sealed class NumberFormat
     {
         var parts = new List<(string Type, string Value)>();
         var negative = IsNegative(value);
-        var rounded = ApplyConfiguredRounding(Math.Abs(value * 100d), negative, out var usedSignificantDigits);
+        var rounded = ApplyConfiguredRounding(
+            Math.Abs(value * 100d),
+            negative,
+            out var usedSignificantDigits
+        );
         AppendSignParts(parts, negative, rounded == 0d, false);
         AppendNumberCoreParts(parts, rounded, usedSignificantDigits);
         var percentSymbol = CultureInfo.NumberFormat.PercentSymbol;
@@ -1468,12 +1609,17 @@ public sealed class NumberFormat
     {
         var parts = new List<(string Type, string Value)>();
         var inputNegative = IsNegative(value);
-        var rounded = ApplyConfiguredRounding(Math.Abs(value), inputNegative, out var usedSignificantDigits);
+        var rounded = ApplyConfiguredRounding(
+            Math.Abs(value),
+            inputNegative,
+            out var usedSignificantDigits
+        );
         var isZero = rounded == 0d;
-        var showAccountingParens = inputNegative &&
-                                   ShouldShowSign(true, isZero) &&
-                                   string.Equals(CurrencySign, "accounting", StringComparison.Ordinal) &&
-                                   UsesAccountingParentheses();
+        var showAccountingParens =
+            inputNegative
+            && ShouldShowSign(true, isZero)
+            && string.Equals(CurrencySign, "accounting", StringComparison.Ordinal)
+            && UsesAccountingParentheses();
 
         var symbol = GetCurrencySymbol();
         var suffixCurrency = UsesCurrencyAfterNumber();
@@ -1504,19 +1650,28 @@ public sealed class NumberFormat
     {
         var parts = new List<(string Type, string Value)>();
         var negative = IsNegative(value);
-        var rounded = ApplyConfiguredRounding(Math.Abs(value), negative, out var usedSignificantDigits);
+        var rounded = ApplyConfiguredRounding(
+            Math.Abs(value),
+            negative,
+            out var usedSignificantDigits
+        );
 
         if (TryAppendPrefixedLongUnitParts(parts, rounded, usedSignificantDigits, negative))
             return parts;
 
         AppendSignParts(parts, negative, rounded == 0d, false);
         AppendNumberCoreParts(parts, rounded, usedSignificantDigits);
-        var wantsSpaceBeforeUnit = !string.Equals(UnitDisplay, "narrow", StringComparison.Ordinal) ||
-                                   Locale.StartsWith("de", StringComparison.OrdinalIgnoreCase);
-        if (wantsSpaceBeforeUnit &&
-            !(Locale.StartsWith("ko", StringComparison.OrdinalIgnoreCase) &&
-              !string.Equals(UnitDisplay, "long", StringComparison.Ordinal)) &&
-            !string.Equals(Unit, "percent", StringComparison.Ordinal))
+        var wantsSpaceBeforeUnit =
+            !string.Equals(UnitDisplay, "narrow", StringComparison.Ordinal)
+            || Locale.StartsWith("de", StringComparison.OrdinalIgnoreCase);
+        if (
+            wantsSpaceBeforeUnit
+            && !(
+                Locale.StartsWith("ko", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(UnitDisplay, "long", StringComparison.Ordinal)
+            )
+            && !string.Equals(Unit, "percent", StringComparison.Ordinal)
+        )
             parts.Add(("literal", " "));
         parts.Add(("unit", GetRenderedUnit(value)));
         return parts;
@@ -1534,17 +1689,23 @@ public sealed class NumberFormat
 
         if (pattern is null)
         {
-            var roundedSmall = absValue == 0d
-                ? 0d
-                : RoundWithMode(absValue, GetCompactSmallFractionDigits(absValue), false);
+            var roundedSmall =
+                absValue == 0d
+                    ? 0d
+                    : RoundWithMode(absValue, GetCompactSmallFractionDigits(absValue), false);
             AppendSignParts(parts, negative, roundedSmall == 0d, false);
-            AppendCompactNumericParts(parts,
-                FormatCompactNumber(roundedSmall, GetCompactSmallFractionDigits(absValue)));
+            AppendCompactNumericParts(
+                parts,
+                FormatCompactNumber(roundedSmall, GetCompactSmallFractionDigits(absValue))
+            );
             return parts;
         }
 
         var compactValue = absValue / pattern.Value.divisor;
-        var maxFractionDigits = compactValue >= 100 ? 0 : compactValue >= 10 ? 0 : 1;
+        var maxFractionDigits =
+            compactValue >= 100 ? 0
+            : compactValue >= 10 ? 0
+            : 1;
         var rounded = RoundWithMode(compactValue, maxFractionDigits, false);
         AppendSignParts(parts, negative, rounded == 0d, false);
         AppendCompactNumericParts(parts, FormatCompactNumber(rounded, maxFractionDigits));
@@ -1557,7 +1718,11 @@ public sealed class NumberFormat
         return parts;
     }
 
-    private List<(string Type, string Value)> BuildCompactDeParts(double value, double absValue, bool negative)
+    private List<(string Type, string Value)> BuildCompactDeParts(
+        double value,
+        double absValue,
+        bool negative
+    )
     {
         var parts = new List<(string Type, string Value)>();
         var isLong = string.Equals(CompactDisplay, "long", StringComparison.Ordinal);
@@ -1625,11 +1790,15 @@ public sealed class NumberFormat
         return parts;
     }
 
-    private void AppendCompactNumericParts(List<(string Type, string Value)> parts, string formatted)
+    private void AppendCompactNumericParts(
+        List<(string Type, string Value)> parts,
+        string formatted
+    )
     {
-        var decimalSeparator =
-            NumberingSystemData.GetDecimalSeparator(NumberingSystem,
-                CultureInfo.NumberFormat.NumberDecimalSeparator);
+        var decimalSeparator = NumberingSystemData.GetDecimalSeparator(
+            NumberingSystem,
+            CultureInfo.NumberFormat.NumberDecimalSeparator
+        );
         var dotIndex = formatted.IndexOf(decimalSeparator, StringComparison.Ordinal);
         if (dotIndex < 0)
         {
@@ -1645,19 +1814,28 @@ public sealed class NumberFormat
             parts.Add(("fraction", fractionPart));
     }
 
-    private void AppendFormattedDecimalParts(List<(string Type, string Value)> parts, string formatted)
+    private void AppendFormattedDecimalParts(
+        List<(string Type, string Value)> parts,
+        string formatted
+    )
     {
-        var decimalSeparator =
-            NumberingSystemData.GetDecimalSeparator(NumberingSystem,
-                CultureInfo.NumberFormat.NumberDecimalSeparator);
-        var groupSeparator = NumberingSystemData.GetGroupSeparator(NumberingSystem,
+        var decimalSeparator = NumberingSystemData.GetDecimalSeparator(
+            NumberingSystem,
+            CultureInfo.NumberFormat.NumberDecimalSeparator
+        );
+        var groupSeparator = NumberingSystemData.GetGroupSeparator(
+            NumberingSystem,
             string.IsNullOrEmpty(CultureInfo.NumberFormat.NumberGroupSeparator)
                 ? ","
-                : CultureInfo.NumberFormat.NumberGroupSeparator);
+                : CultureInfo.NumberFormat.NumberGroupSeparator
+        );
 
         var decimalIndex = formatted.IndexOf(decimalSeparator, StringComparison.Ordinal);
         var integerPortion = decimalIndex >= 0 ? formatted[..decimalIndex] : formatted;
-        var fractionPart = decimalIndex >= 0 ? formatted[(decimalIndex + decimalSeparator.Length)..] : string.Empty;
+        var fractionPart =
+            decimalIndex >= 0
+                ? formatted[(decimalIndex + decimalSeparator.Length)..]
+                : string.Empty;
 
         var groups = integerPortion.Split(groupSeparator);
         for (var i = 0; i < groups.Length; i++)
@@ -1713,30 +1891,32 @@ public sealed class NumberFormat
 
     private bool UsesAccountingParentheses()
     {
-        return Locale.StartsWith("en", StringComparison.OrdinalIgnoreCase) ||
-               Locale.StartsWith("ja", StringComparison.OrdinalIgnoreCase) ||
-               Locale.StartsWith("ko", StringComparison.OrdinalIgnoreCase) ||
-               Locale.StartsWith("zh-TW", StringComparison.OrdinalIgnoreCase);
+        return Locale.StartsWith("en", StringComparison.OrdinalIgnoreCase)
+            || Locale.StartsWith("ja", StringComparison.OrdinalIgnoreCase)
+            || Locale.StartsWith("ko", StringComparison.OrdinalIgnoreCase)
+            || Locale.StartsWith("zh-TW", StringComparison.OrdinalIgnoreCase);
     }
 
     private bool UsesCurrencyAfterNumber()
     {
-        return Locale.StartsWith("de", StringComparison.OrdinalIgnoreCase) ||
-               Locale.StartsWith("pt", StringComparison.OrdinalIgnoreCase);
+        return Locale.StartsWith("de", StringComparison.OrdinalIgnoreCase)
+            || Locale.StartsWith("pt", StringComparison.OrdinalIgnoreCase);
     }
 
     private string GetCurrencySpacingLiteral()
     {
-        return Locale.StartsWith("de", StringComparison.OrdinalIgnoreCase) ||
-               Locale.StartsWith("pt", StringComparison.OrdinalIgnoreCase)
+        return
+            Locale.StartsWith("de", StringComparison.OrdinalIgnoreCase)
+            || Locale.StartsWith("pt", StringComparison.OrdinalIgnoreCase)
             ? "\u00A0"
             : " ";
     }
 
     private string GetPercentSpacingLiteral()
     {
-        return Locale.StartsWith("de", StringComparison.OrdinalIgnoreCase) ||
-               Locale.StartsWith("pt", StringComparison.OrdinalIgnoreCase)
+        return
+            Locale.StartsWith("de", StringComparison.OrdinalIgnoreCase)
+            || Locale.StartsWith("pt", StringComparison.OrdinalIgnoreCase)
             ? "\u00A0"
             : " ";
     }
@@ -1779,8 +1959,8 @@ public sealed class NumberFormat
                 "percent" => BuildPercentParts(value),
                 "currency" => BuildCurrencyParts(value),
                 "unit" => BuildUnitParts(value),
-                _ => BuildDecimalParts(value)
-            }
+                _ => BuildDecimalParts(value),
+            },
         };
 
         return ToIntlParts(parts);
@@ -1815,7 +1995,14 @@ public sealed class NumberFormat
     private bool TryFormatExactPartsRaw(string raw, out List<(string Type, string Value)> parts)
     {
         parts = [];
-        if (!TryGetExactFormattedRaw(raw, out var rawFormatted, out var isNegative, out var usedSignificantDigits))
+        if (
+            !TryGetExactFormattedRaw(
+                raw,
+                out var rawFormatted,
+                out var isNegative,
+                out var usedSignificantDigits
+            )
+        )
             return false;
 
         var isZero = IsFormattedZero(rawFormatted);
@@ -1826,10 +2013,22 @@ public sealed class NumberFormat
                 AppendNumberCoreParts(parts, rawFormatted, !usedSignificantDigits);
                 break;
             case "percent":
-                AppendExactPercentParts(parts, rawFormatted, isNegative, isZero, usedSignificantDigits);
+                AppendExactPercentParts(
+                    parts,
+                    rawFormatted,
+                    isNegative,
+                    isZero,
+                    usedSignificantDigits
+                );
                 break;
             case "currency":
-                AppendExactCurrencyParts(parts, rawFormatted, isNegative, isZero, usedSignificantDigits);
+                AppendExactCurrencyParts(
+                    parts,
+                    rawFormatted,
+                    isNegative,
+                    isZero,
+                    usedSignificantDigits
+                );
                 break;
             default:
                 return false;
@@ -1838,16 +2037,22 @@ public sealed class NumberFormat
         return true;
     }
 
-    private bool TryGetExactFormattedRaw(string raw, out string rawFormatted, out bool isNegative,
-        out bool usedSignificantDigits)
+    private bool TryGetExactFormattedRaw(
+        string raw,
+        out string rawFormatted,
+        out bool isNegative,
+        out bool usedSignificantDigits
+    )
     {
         rawFormatted = string.Empty;
         isNegative = false;
         usedSignificantDigits = false;
-        if (!string.Equals(Notation, "standard", StringComparison.Ordinal) ||
-            !string.Equals(RoundingMode, "halfExpand", StringComparison.Ordinal) ||
-            RoundingIncrement != 1 ||
-            !TryParseExactDecimalString(raw, out var exactValue))
+        if (
+            !string.Equals(Notation, "standard", StringComparison.Ordinal)
+            || !string.Equals(RoundingMode, "halfExpand", StringComparison.Ordinal)
+            || RoundingIncrement != 1
+            || !TryParseExactDecimalString(raw, out var exactValue)
+        )
             return false;
 
         isNegative = exactValue.IsNegative;
@@ -1855,15 +2060,21 @@ public sealed class NumberFormat
         if (string.Equals(Style, "percent", StringComparison.Ordinal))
             absoluteValue = MultiplyExactByPowerOfTen(absoluteValue, 2);
 
-        usedSignificantDigits = MinimumSignificantDigits.HasValue || MaximumSignificantDigits.HasValue;
+        usedSignificantDigits =
+            MinimumSignificantDigits.HasValue || MaximumSignificantDigits.HasValue;
         rawFormatted = usedSignificantDigits
             ? FormatExactDecimalWithSignificantDigits(absoluteValue)
             : FormatExactDecimalWithFractionDigits(absoluteValue);
         return true;
     }
 
-    private void AppendExactPercentParts(List<(string Type, string Value)> parts, string raw, bool isNegative,
-        bool isZero, bool usedSignificantDigits)
+    private void AppendExactPercentParts(
+        List<(string Type, string Value)> parts,
+        string raw,
+        bool isNegative,
+        bool isZero,
+        bool usedSignificantDigits
+    )
     {
         AppendSignParts(parts, isNegative, isZero, false);
 
@@ -1894,13 +2105,19 @@ public sealed class NumberFormat
         }
     }
 
-    private void AppendExactCurrencyParts(List<(string Type, string Value)> parts, string raw, bool inputNegative,
-        bool isZero, bool usedSignificantDigits)
+    private void AppendExactCurrencyParts(
+        List<(string Type, string Value)> parts,
+        string raw,
+        bool inputNegative,
+        bool isZero,
+        bool usedSignificantDigits
+    )
     {
-        var showAccountingParens = inputNegative &&
-                                   ShouldShowSign(true, isZero) &&
-                                   string.Equals(CurrencySign, "accounting", StringComparison.Ordinal) &&
-                                   UsesAccountingParentheses();
+        var showAccountingParens =
+            inputNegative
+            && ShouldShowSign(true, isZero)
+            && string.Equals(CurrencySign, "accounting", StringComparison.Ordinal)
+            && UsesAccountingParentheses();
 
         var symbol = GetCurrencySymbol();
         var suffixCurrency = UsesCurrencyAfterNumber();
@@ -1945,7 +2162,8 @@ public sealed class NumberFormat
         internal BigInteger SignedUnscaled { get; }
         internal int Scale { get; }
         internal bool IsNegativeZero { get; }
-        internal bool IsNegative => SignedUnscaled.Sign < 0 || (SignedUnscaled.IsZero && IsNegativeZero);
+        internal bool IsNegative =>
+            SignedUnscaled.Sign < 0 || (SignedUnscaled.IsZero && IsNegativeZero);
         internal bool IsZero => SignedUnscaled.IsZero;
 
         internal ExactDecimalValue Abs()

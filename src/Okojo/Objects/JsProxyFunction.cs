@@ -67,22 +67,43 @@ internal sealed class JsProxyFunction : JsFunction, IProxyObject
         {
             Item0 = target,
             Item1 = thisValue,
-            Item2 = argArray
+            Item2 = argArray,
         };
         return realm.InvokeFunction(trapFn, handler, trapArgs.AsSpan());
     }
 
-    internal JsValue InvokeProxyFromStack(JsRealm realm, JsValue thisValue, int argOffset, int argCount,
-        int callerPc)
+    internal JsValue InvokeProxyFromStack(
+        JsRealm realm,
+        JsValue thisValue,
+        int argOffset,
+        int argCount,
+        int callerPc
+    )
     {
-        return DispatchProxyFromStack(realm, thisValue, argOffset, argCount, JsValue.Undefined, callerPc,
-            false);
+        return DispatchProxyFromStack(
+            realm,
+            thisValue,
+            argOffset,
+            argCount,
+            JsValue.Undefined,
+            callerPc,
+            false
+        );
     }
 
-    internal JsValue ConstructProxy(JsRealm realm, ReadOnlySpan<JsValue> args, JsValue newTarget, int callerPc)
+    internal JsValue ConstructProxy(
+        JsRealm realm,
+        ReadOnlySpan<JsValue> args,
+        JsValue newTarget,
+        int callerPc
+    )
     {
         if (!IsConstructor)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "constructor is not a function", "NOT_CONSTRUCTOR");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "constructor is not a function",
+                "NOT_CONSTRUCTOR"
+            );
 
         var target = EnsureCallableTarget(realm);
         var handler = ProxyHandler!;
@@ -95,24 +116,42 @@ internal sealed class JsProxyFunction : JsFunction, IProxyObject
         {
             Item0 = target,
             Item1 = argArray,
-            Item2 = newTarget
+            Item2 = newTarget,
         };
         var trapResult = realm.InvokeFunction(trapFn, handler, trapArgs.AsSpan());
         if (!trapResult.IsObject)
-            throw new JsRuntimeException(JsErrorKind.TypeError,
-                "Proxy construct trap must return an object");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Proxy construct trap must return an object"
+            );
 
         return trapResult;
     }
 
-    internal JsValue ConstructProxyFromStack(JsRealm realm, int argOffset, int argCount, JsValue newTarget,
-        int callerPc)
+    internal JsValue ConstructProxyFromStack(
+        JsRealm realm,
+        int argOffset,
+        int argCount,
+        JsValue newTarget,
+        int callerPc
+    )
     {
         if (!IsConstructor)
-            throw new JsRuntimeException(JsErrorKind.TypeError, "constructor is not a function", "NOT_CONSTRUCTOR");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "constructor is not a function",
+                "NOT_CONSTRUCTOR"
+            );
 
-        return DispatchProxyFromStack(realm, JsValue.Undefined, argOffset, argCount, newTarget, callerPc,
-            true);
+        return DispatchProxyFromStack(
+            realm,
+            JsValue.Undefined,
+            argOffset,
+            argCount,
+            newTarget,
+            callerPc,
+            true
+        );
     }
 
     internal JsValue DispatchProxyFromStack(
@@ -122,7 +161,8 @@ internal sealed class JsProxyFunction : JsFunction, IProxyObject
         int argCount,
         JsValue newTarget,
         int callerPc,
-        bool isConstruct)
+        bool isConstruct
+    )
     {
         var target = EnsureCallableTarget(realm);
         var handler = ProxyHandler!;
@@ -130,10 +170,22 @@ internal sealed class JsProxyFunction : JsFunction, IProxyObject
         if (!TryGetFunctionTrap(realm, handler, trapAtom, out var trapFn))
         {
             if (!isConstruct)
-                return realm.DispatchCallFromStack(target, thisValue, argOffset, argCount, callerPc);
+                return realm.DispatchCallFromStack(
+                    target,
+                    thisValue,
+                    argOffset,
+                    argCount,
+                    callerPc
+                );
 
             var prepared = realm.PrepareConstructInvocation(target, newTarget);
-            return realm.DispatchConstructFromStack(target, prepared, argOffset, argCount, callerPc);
+            return realm.DispatchConstructFromStack(
+                target,
+                prepared,
+                argOffset,
+                argCount,
+                callerPc
+            );
         }
 
         var argArray = realm.CreateArrayFromArgumentWindow(argOffset, argCount);
@@ -141,32 +193,52 @@ internal sealed class JsProxyFunction : JsFunction, IProxyObject
         {
             Item0 = target,
             Item1 = isConstruct ? argArray : thisValue,
-            Item2 = isConstruct ? newTarget : argArray
+            Item2 = isConstruct ? newTarget : argArray,
         };
         var trapResult = realm.InvokeFunction(trapFn, handler, trapArgs.AsSpan());
         if (isConstruct && !trapResult.IsObject)
-            throw new JsRuntimeException(JsErrorKind.TypeError,
-                "Proxy construct trap must return an object");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Proxy construct trap must return an object"
+            );
 
         return trapResult;
     }
 
-    internal override JsValue InvokeNonBytecodeCall(JsRealm realm, JsValue thisValue, ReadOnlySpan<JsValue> args,
-        int callerPc)
+    internal override JsValue InvokeNonBytecodeCall(
+        JsRealm realm,
+        JsValue thisValue,
+        ReadOnlySpan<JsValue> args,
+        int callerPc
+    )
     {
         return InvokeProxy(realm, thisValue, args);
     }
 
-    internal override JsValue InvokeNonBytecodeConstruct(JsRealm realm, JsValue thisValue, ReadOnlySpan<JsValue> args,
-        JsValue newTarget, int callerPc, CallFrameFlag flags)
+    internal override JsValue InvokeNonBytecodeConstruct(
+        JsRealm realm,
+        JsValue thisValue,
+        ReadOnlySpan<JsValue> args,
+        JsValue newTarget,
+        int callerPc,
+        CallFrameFlag flags
+    )
     {
         return ConstructProxy(realm, args, newTarget, callerPc);
     }
 
-    private static bool TryGetFunctionTrap(JsRealm realm, JsObject handler, int atom, out JsFunction trapFn)
+    private static bool TryGetFunctionTrap(
+        JsRealm realm,
+        JsObject handler,
+        int atom,
+        out JsFunction trapFn
+    )
     {
-        if (!handler.TryGetPropertyAtom(realm, atom, out var trapValue, out _) || trapValue.IsUndefined ||
-            trapValue.IsNull)
+        if (
+            !handler.TryGetPropertyAtom(realm, atom, out var trapValue, out _)
+            || trapValue.IsUndefined
+            || trapValue.IsNull
+        )
         {
             trapFn = null!;
             return false;
@@ -179,24 +251,44 @@ internal sealed class JsProxyFunction : JsFunction, IProxyObject
         return true;
     }
 
-    internal override bool TryGetPropertyAtomWithReceiverValue(JsRealm realm, in JsValue receiverValue, int atom,
-        out JsValue value, out SlotInfo slotInfo)
+    internal override bool TryGetPropertyAtomWithReceiverValue(
+        JsRealm realm,
+        in JsValue receiverValue,
+        int atom,
+        out JsValue value,
+        out SlotInfo slotInfo
+    )
     {
         return this.TryGetPropertyAtomViaProxy(realm, receiverValue, atom, out value, out slotInfo);
     }
 
-    internal override bool SetPropertyAtomWithReceiver(JsRealm realm, JsObject receiver, int atom, JsValue value,
-        out SlotInfo slotInfo)
+    internal override bool SetPropertyAtomWithReceiver(
+        JsRealm realm,
+        JsObject receiver,
+        int atom,
+        JsValue value,
+        out SlotInfo slotInfo
+    )
     {
         return this.SetPropertyAtomWithReceiverViaProxy(realm, receiver, atom, value, out slotInfo);
     }
 
-    internal override bool TryGetElementWithReceiver(JsRealm realm, JsObject receiver, uint index, out JsValue value)
+    internal override bool TryGetElementWithReceiver(
+        JsRealm realm,
+        JsObject receiver,
+        uint index,
+        out JsValue value
+    )
     {
         return this.TryGetElementViaProxy(index, receiver, out value);
     }
 
-    internal override bool SetElementWithReceiver(JsRealm realm, JsObject receiver, uint index, JsValue value)
+    internal override bool SetElementWithReceiver(
+        JsRealm realm,
+        JsObject receiver,
+        uint index,
+        JsValue value
+    )
     {
         return this.SetElementWithReceiverViaProxy(realm, receiver, index, value);
     }
@@ -217,12 +309,20 @@ internal sealed class JsProxyFunction : JsFunction, IProxyObject
         return target.TryGetOwnElementDescriptor(index, out descriptor);
     }
 
-    internal override bool TryGetOwnNamedPropertyDescriptorAtom(JsRealm realm, int atom,
+    internal override bool TryGetOwnNamedPropertyDescriptorAtom(
+        JsRealm realm,
+        int atom,
         out PropertyDescriptor descriptor,
-        bool needDescriptor = true)
+        bool needDescriptor = true
+    )
     {
         var target = EnsureTarget();
-        return target.TryGetOwnNamedPropertyDescriptorAtom(realm, atom, out descriptor, needDescriptor);
+        return target.TryGetOwnNamedPropertyDescriptorAtom(
+            realm,
+            atom,
+            out descriptor,
+            needDescriptor
+        );
     }
 
     internal override bool TrySetOwnElement(uint index, JsValue value, out bool hadOwnElement)
@@ -242,7 +342,8 @@ internal sealed class JsProxyFunction : JsFunction, IProxyObject
     internal override void CollectForInEnumerableStringAtomKeys(
         JsRealm realm,
         HashSet<string> visited,
-        List<string> enumerableKeysOut)
+        List<string> enumerableKeysOut
+    )
     {
         var target = EnsureTarget();
         target.CollectForInEnumerableStringAtomKeys(realm, visited, enumerableKeysOut);
@@ -261,7 +362,10 @@ internal sealed class JsProxyFunction : JsFunction, IProxyObject
     internal override void PreventExtensions()
     {
         if (!PreventExtensionsViaProxy(EnsureTarget().Realm))
-            throw new JsRuntimeException(JsErrorKind.TypeError, "Proxy preventExtensions trap returned false");
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Proxy preventExtensions trap returned false"
+            );
     }
 
     internal override void SealDataProperties()

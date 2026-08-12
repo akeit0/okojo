@@ -1,5 +1,4 @@
 using Okojo.Runtime;
-
 using Okojo.WebPlatform;
 
 namespace Okojo.Browser;

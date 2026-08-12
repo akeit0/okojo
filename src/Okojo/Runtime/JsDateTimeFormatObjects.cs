@@ -36,12 +36,35 @@ internal sealed class JsDateTimeFormatObject : JsObject
         string? formatMatcher,
         string? dateStyle,
         string? timeStyle,
-        CultureInfo cultureInfo) : base(realm)
+        CultureInfo cultureInfo
+    )
+        : base(realm)
     {
         Prototype = prototype;
-        core = new(locale, calendar, numberingSystem, timeZone, useDefaultTimeZoneForFormatting, hourCycle, hour12,
-            weekday, era, year, month, day, dayPeriod, hour, minute, second, fractionalSecondDigits, timeZoneName,
-            formatMatcher, dateStyle, timeStyle, cultureInfo);
+        core = new(
+            locale,
+            calendar,
+            numberingSystem,
+            timeZone,
+            useDefaultTimeZoneForFormatting,
+            hourCycle,
+            hour12,
+            weekday,
+            era,
+            year,
+            month,
+            day,
+            dayPeriod,
+            hour,
+            minute,
+            second,
+            fractionalSecondDigits,
+            timeZoneName,
+            formatMatcher,
+            dateStyle,
+            timeStyle,
+            cultureInfo
+        );
     }
 
     internal string Locale => core.Locale;
@@ -72,16 +95,23 @@ internal sealed class JsDateTimeFormatObject : JsObject
         if (boundFormat is not null)
             return boundFormat;
 
-        boundFormat = new(realm, static (in info) =>
+        boundFormat = new(
+            realm,
+            static (in info) =>
+            {
+                var dateTimeFormat = (JsDateTimeFormatObject)
+                    ((JsHostFunction)info.Function).UserData!;
+                var value =
+                    info.Arguments.Length == 0 || info.Arguments[0].IsUndefined
+                        ? DateTimeOffset.Now.ToUnixTimeMilliseconds()
+                        : info.Realm.ToNumberSlowPath(info.Arguments[0]);
+                return JsValue.FromString(dateTimeFormat.Format(value));
+            },
+            string.Empty,
+            1
+        )
         {
-            var dateTimeFormat = (JsDateTimeFormatObject)((JsHostFunction)info.Function).UserData!;
-            var value = info.Arguments.Length == 0 || info.Arguments[0].IsUndefined
-                ? DateTimeOffset.Now.ToUnixTimeMilliseconds()
-                : info.Realm.ToNumberSlowPath(info.Arguments[0]);
-            return JsValue.FromString(dateTimeFormat.Format(value));
-        }, string.Empty, 1)
-        {
-            UserData = this
+            UserData = this,
         };
         return boundFormat;
     }
@@ -100,8 +130,12 @@ internal sealed class JsDateTimeFormatObject : JsObject
         var parts = core.BuildParts(GetDateTimeValue(value));
         var result = Realm.CreateArrayObject();
         for (uint i = 0; i < parts.Count; i++)
-            result.SetElement(i,
-                JsValue.FromObject(CreatePartObject(parts[(int)i].Type, Transliterate(parts[(int)i].Value))));
+            result.SetElement(
+                i,
+                JsValue.FromObject(
+                    CreatePartObject(parts[(int)i].Type, Transliterate(parts[(int)i].Value))
+                )
+            );
         return result;
     }
 
@@ -141,20 +175,33 @@ internal sealed class JsDateTimeFormatObject : JsObject
             return result;
         }
 
-        if (core.TryCreateCompressedTextMonthRange(startSourceParts, endSourceParts, out var compressedParts))
+        if (
+            core.TryCreateCompressedTextMonthRange(
+                startSourceParts,
+                endSourceParts,
+                out var compressedParts
+            )
+        )
         {
             for (var i = 0; i < compressedParts.Count; i++)
             {
                 var part = compressedParts[i];
-                result.SetElement(index++,
-                    JsValue.FromObject(CreateRangePartObject(part.Type, Transliterate(part.Value), part.Source!)));
+                result.SetElement(
+                    index++,
+                    JsValue.FromObject(
+                        CreateRangePartObject(part.Type, Transliterate(part.Value), part.Source!)
+                    )
+                );
             }
 
             return result;
         }
 
         AppendRangeParts(result, ref index, startParts, "startRange");
-        result.SetElement(index++, JsValue.FromObject(CreateRangePartObject("literal", " – ", "shared")));
+        result.SetElement(
+            index++,
+            JsValue.FromObject(CreateRangePartObject("literal", " – ", "shared"))
+        );
         AppendRangeParts(result, ref index, endParts, "endRange");
         return result;
     }
@@ -194,12 +241,14 @@ internal sealed class JsDateTimeFormatObject : JsObject
         if (UseDefaultTimeZoneForFormatting)
             return ToDateTimeValue(Intrinsics.GetEcmaDateTimePartsForIntl(milliseconds, false));
 
-        if (string.Equals(TimeZone, "UTC", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(TimeZone, "GMT", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(TimeZone, "Etc/UTC", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(TimeZone, "Etc/UCT", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(TimeZone, "Etc/GMT", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(TimeZone, "Etc/GMT0", StringComparison.OrdinalIgnoreCase))
+        if (
+            string.Equals(TimeZone, "UTC", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(TimeZone, "GMT", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(TimeZone, "Etc/UTC", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(TimeZone, "Etc/UCT", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(TimeZone, "Etc/GMT", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(TimeZone, "Etc/GMT0", StringComparison.OrdinalIgnoreCase)
+        )
             return ToDateTimeValue(Intrinsics.GetEcmaDateTimePartsForIntl(milliseconds, true));
 
         if (TryParseOffsetTimeZone(TimeZone, out var offset))
@@ -234,19 +283,22 @@ internal sealed class JsDateTimeFormatObject : JsObject
             value.Second,
             value.Millisecond,
             value.WeekdayIndex,
-            null);
+            null
+        );
     }
 
     private DateTimeOffset ApplyTimeZone(DateTimeOffset instant)
     {
         if (UseDefaultTimeZoneForFormatting)
             return instant.ToLocalTime();
-        if (string.Equals(TimeZone, "UTC", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(TimeZone, "GMT", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(TimeZone, "Etc/UTC", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(TimeZone, "Etc/UCT", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(TimeZone, "Etc/GMT", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(TimeZone, "Etc/GMT0", StringComparison.OrdinalIgnoreCase))
+        if (
+            string.Equals(TimeZone, "UTC", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(TimeZone, "GMT", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(TimeZone, "Etc/UTC", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(TimeZone, "Etc/UCT", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(TimeZone, "Etc/GMT", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(TimeZone, "Etc/GMT0", StringComparison.OrdinalIgnoreCase)
+        )
             return instant.ToUniversalTime();
 
         if (TryParseOffsetTimeZone(TimeZone, out var offset))
@@ -261,7 +313,9 @@ internal sealed class JsDateTimeFormatObject : JsObject
         return instant.ToUniversalTime();
     }
 
-    private static readonly Dictionary<string, TimeSpan> KnownTimeZones = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, TimeSpan> KnownTimeZones = new(
+        StringComparer.Ordinal
+    )
     {
         ["Asia/Tokyo"] = TimeSpan.FromHours(9),
         ["Asia/Calcutta"] = TimeSpan.FromHours(5.5),
@@ -269,7 +323,7 @@ internal sealed class JsDateTimeFormatObject : JsObject
         ["Pacific/Apia"] = TimeSpan.FromHours(13),
         ["America/Los_Angeles"] = TimeSpan.FromHours(-8),
         ["America/Vancouver"] = TimeSpan.FromHours(-8),
-        ["Europe/Prague"] = TimeSpan.FromHours(1)
+        ["Europe/Prague"] = TimeSpan.FromHours(1),
     };
 
     private static bool TryParseEtcGmtTimeZone(string timeZone, out TimeSpan offset)
@@ -282,7 +336,15 @@ internal sealed class JsDateTimeFormatObject : JsObject
         if (suffix.Length < 2 || (suffix[0] != '+' && suffix[0] != '-'))
             return false;
 
-        if (!int.TryParse(suffix[1..], NumberStyles.None, CultureInfo.InvariantCulture, out var hours) || hours > 23)
+        if (
+            !int.TryParse(
+                suffix[1..],
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out var hours
+            )
+            || hours > 23
+        )
             return false;
 
         var sign = suffix[0] == '+' ? -1 : 1;
@@ -293,10 +355,18 @@ internal sealed class JsDateTimeFormatObject : JsObject
     private static bool TryParseOffsetTimeZone(string timeZone, out TimeSpan offset)
     {
         offset = default;
-        if (timeZone.Length != 6 || (timeZone[0] != '+' && timeZone[0] != '-') || timeZone[3] != ':')
+        if (
+            timeZone.Length != 6
+            || (timeZone[0] != '+' && timeZone[0] != '-')
+            || timeZone[3] != ':'
+        )
             return false;
-        if (!char.IsAsciiDigit(timeZone[1]) || !char.IsAsciiDigit(timeZone[2]) ||
-            !char.IsAsciiDigit(timeZone[4]) || !char.IsAsciiDigit(timeZone[5]))
+        if (
+            !char.IsAsciiDigit(timeZone[1])
+            || !char.IsAsciiDigit(timeZone[2])
+            || !char.IsAsciiDigit(timeZone[4])
+            || !char.IsAsciiDigit(timeZone[5])
+        )
             return false;
 
         var hours = (timeZone[1] - '0') * 10 + (timeZone[2] - '0');
@@ -322,8 +392,12 @@ internal sealed class JsDateTimeFormatObject : JsObject
     {
         var result = Realm.CreateArrayObject();
         for (uint i = 0; i < parts.Count; i++)
-            result.SetElement(i,
-                JsValue.FromObject(CreatePartObject(parts[(int)i].Type, Transliterate(parts[(int)i].Value))));
+            result.SetElement(
+                i,
+                JsValue.FromObject(
+                    CreatePartObject(parts[(int)i].Type, Transliterate(parts[(int)i].Value))
+                )
+            );
         return result;
     }
 
@@ -352,11 +426,18 @@ internal sealed class JsDateTimeFormatObject : JsObject
                 continue;
             if (!entryObject.TryGetPropertyByAtom(IdType, out var typeValue) || !typeValue.IsString)
                 continue;
-            if (!entryObject.TryGetPropertyByAtom(IdValue, out var valueValue) || !valueValue.IsString)
+            if (
+                !entryObject.TryGetPropertyByAtom(IdValue, out var valueValue)
+                || !valueValue.IsString
+            )
                 continue;
 
-            result.SetElement(index++,
-                JsValue.FromObject(CreateRangePartObject(typeValue.AsString(), valueValue.AsString(), source)));
+            result.SetElement(
+                index++,
+                JsValue.FromObject(
+                    CreateRangePartObject(typeValue.AsString(), valueValue.AsString(), source)
+                )
+            );
         }
     }
 

@@ -12,15 +12,21 @@ public static class LikelySubtags
     public static string AddLikelySubtags(string locale)
     {
         var baseName = ExtractBaseName(locale);
-        var extension = locale.Length > baseName.Length ? locale.Substring(baseName.Length) : string.Empty;
+        var extension =
+            locale.Length > baseName.Length ? locale.Substring(baseName.Length) : string.Empty;
         ParseBaseName(baseName, out var language, out var script, out var region, out var variants);
         var variantSuffix = BuildVariantSuffix(variants);
 
         // If already has all parts and language is not "und", return as-is
-        if (!RequiresReplacement(language) && !string.IsNullOrEmpty(script) && !string.IsNullOrEmpty(region))
+        if (
+            !RequiresReplacement(language)
+            && !string.IsNullOrEmpty(script)
+            && !string.IsNullOrEmpty(region)
+        )
             return baseName + extension;
 
-        if (!TryResolve(language, script, region, out var resolved)) return baseName + extension;
+        if (!TryResolve(language, script, region, out var resolved))
+            return baseName + extension;
 
         var maximizedBase = resolved + variantSuffix;
         return maximizedBase + extension;
@@ -32,7 +38,8 @@ public static class LikelySubtags
     public static string RemoveLikelySubtags(string locale)
     {
         var baseName = ExtractBaseName(locale);
-        var extension = locale.Length > baseName.Length ? locale.Substring(baseName.Length) : string.Empty;
+        var extension =
+            locale.Length > baseName.Length ? locale.Substring(baseName.Length) : string.Empty;
         ParseBaseName(baseName, out var language, out var script, out var region, out var variants);
         var variantSuffix = BuildVariantSuffix(variants);
 
@@ -42,7 +49,13 @@ public static class LikelySubtags
         // First maximize the locale (without variants for comparison)
         var maximized = AddLikelySubtags(baseTagWithoutVariants);
         var maximizedBase = ExtractBaseName(maximized);
-        ParseBaseName(maximizedBase, out var languageMax, out var scriptMax, out var regionMax, out _);
+        ParseBaseName(
+            maximizedBase,
+            out var languageMax,
+            out var scriptMax,
+            out var regionMax,
+            out _
+        );
 
         // Build the maximized base without variants for comparison
         var maximizedBaseTag = BuildBaseTag(languageMax, scriptMax, regionMax);
@@ -53,7 +66,13 @@ public static class LikelySubtags
             var trialMaximized = AddLikelySubtags(trial);
             var trialBase = ExtractBaseName(trialMaximized);
             // Parse to get just the base tag (no variants from trial)
-            ParseBaseName(trialBase, out var trialLang, out var trialScript, out var trialRegion, out _);
+            ParseBaseName(
+                trialBase,
+                out var trialLang,
+                out var trialScript,
+                out var trialRegion,
+                out _
+            );
             var trialBaseTag = BuildBaseTag(trialLang, trialScript, trialRegion);
 
             if (string.Equals(trialBaseTag, maximizedBaseTag, StringComparison.Ordinal))
@@ -63,10 +82,15 @@ public static class LikelySubtags
         return maximizedBaseTag + variantSuffix + extension;
     }
 
-    private static IEnumerable<string> EnumerateTrials(string? language, string? script, string? region)
+    private static IEnumerable<string> EnumerateTrials(
+        string? language,
+        string? script,
+        string? region
+    )
     {
         // Try language only
-        if (!string.IsNullOrEmpty(language)) yield return BuildBaseTag(language, null, null);
+        if (!string.IsNullOrEmpty(language))
+            yield return BuildBaseTag(language, null, null);
 
         // Try language + region (without script)
         if (!string.IsNullOrEmpty(language) && !string.IsNullOrEmpty(region))
@@ -77,7 +101,12 @@ public static class LikelySubtags
             yield return BuildBaseTag(language, script, null);
     }
 
-    private static bool TryResolve(string? language, string? script, string? region, out string resolved)
+    private static bool TryResolve(
+        string? language,
+        string? script,
+        string? region,
+        out string resolved
+    )
     {
         var lookupLanguage = NormalizeLanguage(language);
         string? match = null;
@@ -96,7 +125,13 @@ public static class LikelySubtags
             return false;
         }
 
-        ParseBaseName(match, out var matchLanguage, out var matchScript, out var matchRegion, out _);
+        ParseBaseName(
+            match,
+            out var matchLanguage,
+            out var matchScript,
+            out var matchRegion,
+            out _
+        );
         var resolvedLanguage = RequiresReplacement(language) ? matchLanguage : lookupLanguage;
         var resolvedScript = string.IsNullOrEmpty(script) ? matchScript : script;
         var resolvedRegion = string.IsNullOrEmpty(region) ? matchRegion : region;
@@ -105,14 +140,20 @@ public static class LikelySubtags
         return true;
     }
 
-    private static IEnumerable<string?> EnumerateLookupKeys(string? language, string? script, string? region)
+    private static IEnumerable<string?> EnumerateLookupKeys(
+        string? language,
+        string? script,
+        string? region
+    )
     {
         // Most specific to least specific
         yield return BuildBaseTag(language, script, region);
 
-        if (!string.IsNullOrEmpty(script)) yield return BuildBaseTag(language, script, null);
+        if (!string.IsNullOrEmpty(script))
+            yield return BuildBaseTag(language, script, null);
 
-        if (!string.IsNullOrEmpty(region)) yield return BuildBaseTag(language, null, region);
+        if (!string.IsNullOrEmpty(region))
+            yield return BuildBaseTag(language, null, region);
 
         yield return BuildBaseTag(language, null, null);
 
@@ -122,15 +163,18 @@ public static class LikelySubtags
             if (!string.IsNullOrEmpty(script) && !string.IsNullOrEmpty(region))
                 yield return BuildBaseTag("und", script, region);
 
-            if (!string.IsNullOrEmpty(script)) yield return BuildBaseTag("und", script, null);
+            if (!string.IsNullOrEmpty(script))
+                yield return BuildBaseTag("und", script, null);
 
-            if (!string.IsNullOrEmpty(region)) yield return BuildBaseTag("und", null, region);
+            if (!string.IsNullOrEmpty(region))
+                yield return BuildBaseTag("und", null, region);
         }
     }
 
     private static bool RequiresReplacement(string? language)
     {
-        return string.IsNullOrEmpty(language) || string.Equals(language, "und", StringComparison.Ordinal);
+        return string.IsNullOrEmpty(language)
+            || string.Equals(language, "und", StringComparison.Ordinal);
     }
 
     private static string NormalizeLanguage(string? language)
@@ -163,8 +207,13 @@ public static class LikelySubtags
     /// <summary>
     ///     Parses the base name into language, script, region, and variants.
     /// </summary>
-    internal static void ParseBaseName(string baseName, out string? language, out string? script, out string? region,
-        out List<string> variants)
+    internal static void ParseBaseName(
+        string baseName,
+        out string? language,
+        out string? script,
+        out string? region,
+        out List<string> variants
+    )
     {
         language = null;
         script = null;
@@ -172,12 +221,18 @@ public static class LikelySubtags
         variants = new();
 
         var parts = baseName.Split('-');
-        if (parts.Length == 0) return;
+        if (parts.Length == 0)
+            return;
 
         var index = 0;
 
         // Language (2-3 or 4-8 letters)
-        if (index < parts.Length && parts[index].Length >= 2 && parts[index].Length <= 8 && IsAllLetters(parts[index]))
+        if (
+            index < parts.Length
+            && parts[index].Length >= 2
+            && parts[index].Length <= 8
+            && IsAllLetters(parts[index])
+        )
         {
             language = parts[index].ToLowerInvariant();
             index++;
@@ -186,14 +241,20 @@ public static class LikelySubtags
         // Script (4 letters)
         if (index < parts.Length && parts[index].Length == 4 && IsAllLetters(parts[index]))
         {
-            script = char.ToUpperInvariant(parts[index][0]) + parts[index].Substring(1).ToLowerInvariant();
+            script =
+                char.ToUpperInvariant(parts[index][0])
+                + parts[index].Substring(1).ToLowerInvariant();
             index++;
         }
 
         // Region (2 letters or 3 digits)
-        if (index < parts.Length &&
-            ((parts[index].Length == 2 && IsAllLetters(parts[index])) ||
-             (parts[index].Length == 3 && IsAllDigits(parts[index]))))
+        if (
+            index < parts.Length
+            && (
+                (parts[index].Length == 2 && IsAllLetters(parts[index]))
+                || (parts[index].Length == 3 && IsAllDigits(parts[index]))
+            )
+        )
         {
             region = parts[index].ToUpperInvariant();
             index++;
@@ -212,20 +273,24 @@ public static class LikelySubtags
     /// </summary>
     internal static string BuildBaseTag(string? language, string? script, string? region)
     {
-        if (string.IsNullOrEmpty(language)) return string.Empty;
+        if (string.IsNullOrEmpty(language))
+            return string.Empty;
 
         var result = language!;
 
-        if (!string.IsNullOrEmpty(script)) result += "-" + script;
+        if (!string.IsNullOrEmpty(script))
+            result += "-" + script;
 
-        if (!string.IsNullOrEmpty(region)) result += "-" + region;
+        if (!string.IsNullOrEmpty(region))
+            result += "-" + region;
 
         return result;
     }
 
     private static string BuildVariantSuffix(List<string> variants)
     {
-        if (variants.Count == 0) return string.Empty;
+        if (variants.Count == 0)
+            return string.Empty;
 
         return "-" + string.Join("-", variants);
     }
@@ -250,13 +315,16 @@ public static class LikelySubtags
 
     private static bool IsVariantSubtag(string s)
     {
-        if (string.IsNullOrEmpty(s) || s.Length == 1) return false;
+        if (string.IsNullOrEmpty(s) || s.Length == 1)
+            return false;
 
         // 4 characters starting with digit
-        if (s.Length == 4 && s[0] >= '0' && s[0] <= '9') return IsAllAlphanumeric(s);
+        if (s.Length == 4 && s[0] >= '0' && s[0] <= '9')
+            return IsAllAlphanumeric(s);
 
         // 5-8 alphanumeric characters
-        if (s.Length >= 5 && s.Length <= 8) return IsAllAlphanumeric(s);
+        if (s.Length >= 5 && s.Length <= 8)
+            return IsAllAlphanumeric(s);
 
         return false;
     }

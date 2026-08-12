@@ -113,7 +113,8 @@ public static class LocaleData
             unicodeMappings = new(StringComparer.OrdinalIgnoreCase);
 
             var assembly = typeof(LocaleData).Assembly;
-            var resourceName = assembly.GetManifestResourceNames()
+            var resourceName = assembly
+                .GetManifestResourceNames()
                 .FirstOrDefault(static n => n.EndsWith("LocaleData.txt", StringComparison.Ordinal));
             if (resourceName is null)
             {
@@ -229,8 +230,16 @@ public static class LocaleData
     }
 
     /// <summary>A complex language alias: replacement language plus optional script/region.</summary>
-    public readonly record struct ComplexLanguageMapping(string Language, string? Script, string? Region);
+    public readonly record struct ComplexLanguageMapping(
+        string Language,
+        string? Script,
+        string? Region
+    );
 
     /// <summary>A variant alias: replacement value, replacement type, and optional required prefix.</summary>
-    public readonly record struct VariantMapping(string Type, string Replacement, string? Prefix = null);
+    public readonly record struct VariantMapping(
+        string Type,
+        string Replacement,
+        string? Prefix = null
+    );
 }

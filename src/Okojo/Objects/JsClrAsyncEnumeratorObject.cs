@@ -13,34 +13,69 @@ internal sealed class JsClrAsyncEnumeratorObject : JsObject
         Prototype = realm.AsyncIteratorPrototype;
         enumerator = CreateEnumerator(host);
 
-        var nextFn = new JsHostFunction(realm, static (in info) =>
-        {
-            if (!info.ThisValue.TryGetObject(out var thisObj) || thisObj is not JsClrAsyncEnumeratorObject iterator)
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "CLR async enumerator next called on incompatible receiver");
+        var nextFn = new JsHostFunction(
+            realm,
+            static (in info) =>
+            {
+                if (
+                    !info.ThisValue.TryGetObject(out var thisObj)
+                    || thisObj is not JsClrAsyncEnumeratorObject iterator
+                )
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "CLR async enumerator next called on incompatible receiver"
+                    );
 
-            return iterator.Next();
-        }, "next", 0);
+                return iterator.Next();
+            },
+            "next",
+            0
+        );
 
-        var returnFn = new JsHostFunction(realm, static (in info) =>
-        {
-            if (!info.ThisValue.TryGetObject(out var thisObj) || thisObj is not JsClrAsyncEnumeratorObject iterator)
-                throw new JsRuntimeException(JsErrorKind.TypeError,
-                    "CLR async enumerator return called on incompatible receiver");
+        var returnFn = new JsHostFunction(
+            realm,
+            static (in info) =>
+            {
+                if (
+                    !info.ThisValue.TryGetObject(out var thisObj)
+                    || thisObj is not JsClrAsyncEnumeratorObject iterator
+                )
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "CLR async enumerator return called on incompatible receiver"
+                    );
 
-            return iterator.Return(info.GetArgumentOrDefault(0, JsValue.Undefined));
-        }, "return", 1);
+                return iterator.Return(info.GetArgumentOrDefault(0, JsValue.Undefined));
+            },
+            "return",
+            1
+        );
 
-        DefineDataPropertyAtom(realm, IdNext, JsValue.FromObject(nextFn), JsShapePropertyFlags.Open);
-        DefineDataPropertyAtom(realm, IdReturn, JsValue.FromObject(returnFn), JsShapePropertyFlags.Open);
-        DefineDataPropertyAtom(realm, IdSymbolAsyncIterator,
-            JsValue.FromObject(realm.Intrinsics.AsyncIteratorSelfFunction), JsShapePropertyFlags.Open);
+        DefineDataPropertyAtom(
+            realm,
+            IdNext,
+            JsValue.FromObject(nextFn),
+            JsShapePropertyFlags.Open
+        );
+        DefineDataPropertyAtom(
+            realm,
+            IdReturn,
+            JsValue.FromObject(returnFn),
+            JsShapePropertyFlags.Open
+        );
+        DefineDataPropertyAtom(
+            realm,
+            IdSymbolAsyncIterator,
+            JsValue.FromObject(realm.Intrinsics.AsyncIteratorSelfFunction),
+            JsShapePropertyFlags.Open
+        );
     }
 
     private static HostAsyncEnumeratorAdapter CreateEnumerator(JsHostObject host)
     {
-        var createEnumerator = host.Descriptor.AsyncEnumerator
-                          ?? throw new InvalidOperationException("Host type does not expose GetAsyncEnumerator.");
+        var createEnumerator =
+            host.Descriptor.AsyncEnumerator
+            ?? throw new InvalidOperationException("Host type does not expose GetAsyncEnumerator.");
         return createEnumerator(host.Data);
     }
 

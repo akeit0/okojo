@@ -15,10 +15,15 @@ internal sealed class WasmtimeFunctionWrapper : IWasmFunction
         functionFactory = null;
         Type = new(
             function.Parameters.Select(WasmtimeValueMapper.ToOkojo).ToArray(),
-            function.Results.Select(WasmtimeValueMapper.ToOkojo).ToArray());
+            function.Results.Select(WasmtimeValueMapper.ToOkojo).ToArray()
+        );
     }
 
-    public WasmtimeFunctionWrapper(Store store, WasmFunctionType type, WasmHostFunctionCallback callback)
+    public WasmtimeFunctionWrapper(
+        Store store,
+        WasmFunctionType type,
+        WasmHostFunctionCallback callback
+    )
     {
         this.store = store;
         Type = type;
@@ -37,12 +42,15 @@ internal sealed class WasmtimeFunctionWrapper : IWasmFunction
         if (arguments.Length != Type.ParameterCount)
             throw new WasmRuntimeTrapException("Incorrect WebAssembly function arity.");
         if (returnValues.Length != Type.ResultCount)
-            throw new WasmRuntimeTrapException("Incorrect WebAssembly function result buffer length.");
+            throw new WasmRuntimeTrapException(
+                "Incorrect WebAssembly function result buffer length."
+            );
 
         ValueBox[]? rentedArgs = null;
-        var mappedArgs = arguments.Length == 0
-            ? Array.Empty<ValueBox>()
-            : rentedArgs = ArrayPool<ValueBox>.Shared.Rent(arguments.Length);
+        var mappedArgs =
+            arguments.Length == 0
+                ? Array.Empty<ValueBox>()
+                : rentedArgs = ArrayPool<ValueBox>.Shared.Rent(arguments.Length);
 
         try
         {
@@ -57,7 +65,10 @@ internal sealed class WasmtimeFunctionWrapper : IWasmFunction
             var detail = string.IsNullOrWhiteSpace(ex.Message)
                 ? ex.GetType().Name
                 : $"{ex.GetType().Name}: {ex.Message}";
-            throw new WasmRuntimeTrapException($"Failed to invoke WebAssembly function. {detail}", ex);
+            throw new WasmRuntimeTrapException(
+                $"Failed to invoke WebAssembly function. {detail}",
+                ex
+            );
         }
         finally
         {
@@ -103,12 +114,15 @@ internal sealed class WasmtimeFunctionWrapper : IWasmFunction
             WasmValueKind.FuncRef => new(WasmValueKind.FuncRef, result),
             WasmValueKind.ExternRef => WasmValue.FromExternRef(result),
             WasmValueKind.V128 => new(WasmValueKind.V128, (V128)result!),
-            _ => throw new NotSupportedException($"Unsupported wasm result kind: {kind}")
+            _ => throw new NotSupportedException($"Unsupported wasm result kind: {kind}"),
         };
     }
 
-    private static Function CreateHostFunction(Store targetStore, WasmFunctionType type,
-        WasmHostFunctionCallback callback)
+    private static Function CreateHostFunction(
+        Store targetStore,
+        WasmFunctionType type,
+        WasmHostFunctionCallback callback
+    )
     {
         return Function.FromCallback(
             targetStore,
@@ -116,19 +130,28 @@ internal sealed class WasmtimeFunctionWrapper : IWasmFunction
             {
                 WasmValue[]? rentedArgs = null;
                 WasmValue[]? rentedResults = null;
-                var mappedArgs = arguments.Length == 0
-                    ? Array.Empty<WasmValue>()
-                    : rentedArgs = ArrayPool<WasmValue>.Shared.Rent(arguments.Length);
-                var mappedResults = type.ResultCount == 0
-                    ? Array.Empty<WasmValue>()
-                    : rentedResults = ArrayPool<WasmValue>.Shared.Rent(type.ResultCount);
+                var mappedArgs =
+                    arguments.Length == 0
+                        ? Array.Empty<WasmValue>()
+                        : rentedArgs = ArrayPool<WasmValue>.Shared.Rent(arguments.Length);
+                var mappedResults =
+                    type.ResultCount == 0
+                        ? Array.Empty<WasmValue>()
+                        : rentedResults = ArrayPool<WasmValue>.Shared.Rent(type.ResultCount);
 
                 try
                 {
                     for (var i = 0; i < arguments.Length; i++)
-                        mappedArgs[i] = WasmtimeValueMapper.ToOkojo(arguments[i], type.Parameters[i], targetStore);
+                        mappedArgs[i] = WasmtimeValueMapper.ToOkojo(
+                            arguments[i],
+                            type.Parameters[i],
+                            targetStore
+                        );
 
-                    callback(mappedArgs.AsSpan(0, arguments.Length), mappedResults.AsSpan(0, type.ResultCount));
+                    callback(
+                        mappedArgs.AsSpan(0, arguments.Length),
+                        mappedResults.AsSpan(0, type.ResultCount)
+                    );
 
                     for (var i = 0; i < type.ResultCount; i++)
                         results[i] = WasmtimeValueMapper.ToWasmtime(mappedResults[i]);
@@ -142,6 +165,7 @@ internal sealed class WasmtimeFunctionWrapper : IWasmFunction
                 }
             },
             type.Parameters.Select(WasmtimeValueMapper.ToWasmtime).ToArray(),
-            type.Results.Select(WasmtimeValueMapper.ToWasmtime).ToArray());
+            type.Results.Select(WasmtimeValueMapper.ToWasmtime).ToArray()
+        );
     }
 }

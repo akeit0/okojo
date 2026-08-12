@@ -12,7 +12,8 @@ public static class HostingRealmExtensions
 
     public static WorkerRuntime CreateWorkerRuntime(
         this JsRealm realm,
-        Action<WorkerRuntimeOptions>? configure = null)
+        Action<WorkerRuntimeOptions>? configure = null
+    )
     {
         ArgumentNullException.ThrowIfNull(realm);
         return WorkerRuntimeFactory.CreateWorkerRuntime(realm, configure);

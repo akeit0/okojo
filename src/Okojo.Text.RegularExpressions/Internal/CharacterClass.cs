@@ -1,8 +1,8 @@
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text;
-
 using Okojo.Text.Unicode;
+
 namespace Okojo.Text.RegularExpressions.Internal;
 
 internal readonly record struct CodePointRange(int Start, int End);

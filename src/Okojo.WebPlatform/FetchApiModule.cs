@@ -6,8 +6,10 @@ using Okojo.WebPlatform.Internal;
 
 namespace Okojo.WebPlatform;
 
-public sealed class FetchApiModule(HttpClient? httpClient = null, HostTaskQueueKey completionQueueKey = default)
-    : IRealmApiModule
+public sealed class FetchApiModule(
+    HttpClient? httpClient = null,
+    HostTaskQueueKey completionQueueKey = default
+) : IRealmApiModule
 {
     private static readonly HttpClient SHttpClient = new();
 
@@ -23,27 +25,41 @@ public sealed class FetchApiModule(HttpClient? httpClient = null, HostTaskQueueK
         if (realm.Global.TryGetValue("fetch", out _))
             return;
 
-        var fetchFunction = new JsHostFunction(realm, static (in info) =>
+        var fetchFunction = new JsHostFunction(
+            realm,
+            static (in info) =>
+            {
+                var input = info.GetArgumentOrDefault(0, JsValue.Undefined);
+                var init = info.GetArgumentOrDefault(1, JsValue.Undefined);
+                var url = input.IsString ? input.AsString() : input.ToString();
+                var module = (FetchApiModule)((JsHostFunction)info.Function).UserData!;
+                var abort = GetAbortRegistration(init);
+                // Fetch completion is host work that settles a promise and then drains
+                // promise jobs at the next microtask checkpoint. Route the completion through
+                // a host queue first instead of resolving directly on an arbitrary thread.
+                return abort.WrapTaskOnHostQueue(
+                    info.Realm,
+                    module.FetchAsync(info.Realm, url, init, abort),
+                    module.completionQueueKey
+                );
+            },
+            "fetch",
+            2,
+            false
+        )
         {
-            var input = info.GetArgumentOrDefault(0, JsValue.Undefined);
-            var init = info.GetArgumentOrDefault(1, JsValue.Undefined);
-            var url = input.IsString ? input.AsString() : input.ToString();
-            var module = (FetchApiModule)((JsHostFunction)info.Function).UserData!;
-            var abort = GetAbortRegistration(init);
-            // Fetch completion is host work that settles a promise and then drains
-            // promise jobs at the next microtask checkpoint. Route the completion through
-            // a host queue first instead of resolving directly on an arbitrary thread.
-            return abort.WrapTaskOnHostQueue(info.Realm, module.FetchAsync(info.Realm, url, init, abort),
-                module.completionQueueKey);
-        }, "fetch", 2, false)
-        {
-            UserData = this
+            UserData = this,
         };
 
         realm.Global["fetch"] = JsValue.FromObject(fetchFunction);
     }
 
-    private async Task<JsValue> FetchAsync(JsRealm realm, string url, JsValue initValue, AbortRegistration abort)
+    private async Task<JsValue> FetchAsync(
+        JsRealm realm,
+        string url,
+        JsValue initValue,
+        AbortRegistration abort
+    )
     {
         abort.Token.ThrowIfCancellationRequested();
 
@@ -54,21 +70,25 @@ public sealed class FetchApiModule(HttpClient? httpClient = null, HostTaskQueueK
         using var response = await httpClient.SendAsync(request, abort.Token).ConfigureAwait(false);
         var bytes = await response.Content.ReadAsByteArrayAsync(abort.Token).ConfigureAwait(false);
         var statusText = response.ReasonPhrase ?? string.Empty;
-        var responseObject = FetchResponseFactory.Create(realm,
+        var responseObject = FetchResponseFactory.Create(
+            realm,
             (int)response.StatusCode,
             statusText,
             response.RequestMessage?.RequestUri?.ToString() ?? url,
             bytes,
-            CollectResponseHeaders(response));
+            CollectResponseHeaders(response)
+        );
         return JsValue.FromObject(responseObject);
     }
 
     private static AbortRegistration GetAbortRegistration(JsValue initValue)
     {
-        if (initValue.TryGetObject(out var initObj) &&
-            initObj.TryGetProperty("signal", out var signalValue) &&
-            !signalValue.IsUndefined &&
-            !signalValue.IsNull)
+        if (
+            initValue.TryGetObject(out var initObj)
+            && initObj.TryGetProperty("signal", out var signalValue)
+            && !signalValue.IsUndefined
+            && !signalValue.IsNull
+        )
             return AbortInterop.Link(signalValue);
 
         return AbortInterop.Link(JsValue.Undefined);
@@ -83,20 +103,35 @@ public sealed class FetchApiModule(HttpClient? httpClient = null, HostTaskQueueK
         if (initValue.TryGetObject(out var initObj))
         {
             if (initObj.TryGetProperty("method", out var methodValue) && !methodValue.IsUndefined)
-                method = new(methodValue.IsString ? methodValue.AsString() : methodValue.ToString());
+                method = new(
+                    methodValue.IsString ? methodValue.AsString() : methodValue.ToString()
+                );
 
-            if (initObj.TryGetProperty("body", out var bodyValue) && !bodyValue.IsUndefined && !bodyValue.IsNull)
+            if (
+                initObj.TryGetProperty("body", out var bodyValue)
+                && !bodyValue.IsUndefined
+                && !bodyValue.IsNull
+            )
                 bodyText = bodyValue.IsString ? bodyValue.AsString() : bodyValue.ToString();
 
-            if (initObj.TryGetProperty("headers", out var headersValue) &&
-                headersValue.TryGetObject(out var headersObj))
+            if (
+                initObj.TryGetProperty("headers", out var headersValue)
+                && headersValue.TryGetObject(out var headersObj)
+            )
             {
                 var names = headersObj.GetEnumerableOwnPropertyNames();
                 for (var i = 0; i < names.Count; i++)
                 {
                     var name = names[i];
                     if (headersObj.TryGetProperty(name, out var headerValue))
-                        headers.Add(new(name, headerValue.IsString ? headerValue.AsString() : headerValue.ToString()));
+                        headers.Add(
+                            new(
+                                name,
+                                headerValue.IsString
+                                    ? headerValue.AsString()
+                                    : headerValue.ToString()
+                            )
+                        );
                 }
             }
         }
@@ -135,7 +170,14 @@ public sealed class FetchApiModule(HttpClient? httpClient = null, HostTaskQueueK
             ? ConvertFromBase64(payload)
             : Encoding.UTF8.GetBytes(Uri.UnescapeDataString(payload));
 
-        response = FetchResponseFactory.Create(realm, 200, "OK", url, bytes, CreateDataUrlHeaders(meta, isBase64));
+        response = FetchResponseFactory.Create(
+            realm,
+            200,
+            "OK",
+            url,
+            bytes,
+            CreateDataUrlHeaders(meta, isBase64)
+        );
         return true;
 
         static byte[] ConvertFromBase64(ReadOnlySpan<char> base64)
@@ -145,7 +187,10 @@ public sealed class FetchApiModule(HttpClient? httpClient = null, HostTaskQueueK
             try
             {
                 if (!Convert.TryFromBase64Chars(base64, buffer, out var bytesWritten))
-                    throw new JsRuntimeException(JsErrorKind.TypeError, "Invalid base64 data in data URL");
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        "Invalid base64 data in data URL"
+                    );
                 return buffer.AsSpan(0, bytesWritten).ToArray();
             }
             finally
@@ -155,7 +200,10 @@ public sealed class FetchApiModule(HttpClient? httpClient = null, HostTaskQueueK
         }
     }
 
-    private static Dictionary<string, string> CreateDataUrlHeaders(ReadOnlySpan<char> meta, bool isBase64)
+    private static Dictionary<string, string> CreateDataUrlHeaders(
+        ReadOnlySpan<char> meta,
+        bool isBase64
+    )
     {
         var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var metaText = meta.ToString();

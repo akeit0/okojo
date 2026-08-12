@@ -10,5 +10,5 @@ public enum JsShapePropertyFlags : byte
     HasGetter = 1 << 3,
     HasSetter = 1 << 4,
     BothAccessor = HasGetter | HasSetter,
-    Open = Writable | Enumerable | Configurable
+    Open = Writable | Enumerable | Configurable,
 }
