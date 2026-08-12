@@ -15,6 +15,7 @@
     <Project Path="tools/V8BytecodeTool/V8BytecodeTool.csproj"/>
     <Project Path="src/Okojo/Okojo.csproj"/>
     <Project Path="src/Okojo.Numerics/Okojo.Numerics.csproj"/>
+    <Project Path="src/Okojo.Text.Unicode/Okojo.Text.Unicode.csproj"/>
     <Project Path="src/Okojo.DotNet.Modules/Okojo.DotNet.Modules.csproj"/>
     <Project Path="src/Okojo.Reflection/Okojo.Reflection.csproj"/>
     <Project Path="src/Okojo.Diagnostics/Okojo.Diagnostics.csproj"/>
@@ -30,6 +31,8 @@
     <Project Path="src/Okojo.WebAssembly.Wasmtime/Okojo.WebAssembly.Wasmtime.csproj"/>
     <Project Path="src/Okojo.RegExp.EcmaRegex/Okojo.RegExp.EcmaRegex.csproj"/>
     <Project Path="tests/Okojo.Tests/Okojo.Tests.csproj"/>
+    <Project Path="tests/Okojo.Numerics.Tests/Okojo.Numerics.Tests.csproj"/>
+    <Project Path="tests/Okojo.Text.Unicode.Tests/Okojo.Text.Unicode.Tests.csproj"/>
     <Project Path="tests/Okojo.DotNet.Modules.Tests/Okojo.DotNet.Modules.Tests.csproj"/>
     <Project Path="tests/Okojo.Node.Tests/Okojo.Node.Tests.csproj"/>
     <Project Path="tests/Okojo.Repl.Tests/Okojo.Repl.Tests.csproj"/>

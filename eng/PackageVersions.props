@@ -12,6 +12,7 @@
     <OkojoPackageVersion_Okojo_WebAssembly>0.1.0-preview.1</OkojoPackageVersion_Okojo_WebAssembly>
     <OkojoPackageVersion_Okojo_WebAssembly_Wasmtime>0.1.0-preview.1</OkojoPackageVersion_Okojo_WebAssembly_Wasmtime>
     <OkojoPackageVersion_Okojo_Numerics>0.1.0-preview.1</OkojoPackageVersion_Okojo_Numerics>
+    <OkojoPackageVersion_Okojo_Text_Unicode>0.1.0-preview.1</OkojoPackageVersion_Okojo_Text_Unicode>
     <OkojoPackageVersion_Okojo_RegExp_EcmaRegex>0.1.0-preview.1</OkojoPackageVersion_Okojo_RegExp_EcmaRegex>
   </PropertyGroup>
 </Project>

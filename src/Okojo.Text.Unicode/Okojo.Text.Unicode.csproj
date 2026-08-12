@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>14</LangVersion>
+        <IsPackable>true</IsPackable>
+        <PackageId>Okojo.Text.Unicode</PackageId>
+        <PackageVersion>$(OkojoPackageVersion_Okojo_Text_Unicode)</PackageVersion>
+        <Description>Engine-independent ECMAScript-compatible Unicode for .NET: UTF-16/code-point utilities, case folding, property data, and segmentation.</Description>
+        <PackageTags>javascript;ecmascript;unicode;text;dotnet</PackageTags>
+    </PropertyGroup>
+    <ItemGroup>
+        <InternalsVisibleTo Include="Okojo"/>
+        <InternalsVisibleTo Include="Okojo.Text.RegularExpressions"/>
+    </ItemGroup>
+</Project>
