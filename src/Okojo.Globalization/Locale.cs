@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace Okojo.Globalization;
@@ -6,6 +7,18 @@ namespace Okojo.Globalization;
 /// <summary>Portable ECMA-402 locale tag parsing, validation, and canonicalization.</summary>
 public static partial class Locale
 {
+    /// <summary>Resolves a BCP-47 locale tag to a .NET <see cref="CultureInfo"/>.</summary>
+    public static CultureInfo GetCultureInfo(string locale)
+    {
+        return CultureInfo.GetCultureInfo(CanonicalizeUnicodeLocaleId(RemoveUnicodeExtensions(locale)));
+    }
+
+    /// <summary>Resolves a BCP-47 locale tag to its <see cref="CompareInfo"/>.</summary>
+    public static CompareInfo GetCompareInfo(string locale)
+    {
+        return GetCultureInfo(locale).CompareInfo;
+    }
+
     private static readonly ConcurrentDictionary<string, string?> ValidatedCanonicalLocaleCache =
         new(StringComparer.OrdinalIgnoreCase);
 
@@ -259,7 +272,7 @@ public static partial class Locale
             return cached;
 
         string canonical;
-        if (OkojoIntlLocaleData.TagMappings.TryGetValue(locale, out var replacement))
+        if (LocaleData.TagMappings.TryGetValue(locale, out var replacement))
         {
             canonical = replacement;
         }
@@ -272,7 +285,7 @@ public static partial class Locale
             var parsed = ParseLanguageTag(locale);
             if (parsed.Language is not null)
             {
-                if (OkojoIntlLocaleData.ComplexLanguageMappings.TryGetValue(parsed.Language, out var complex))
+                if (LocaleData.ComplexLanguageMappings.TryGetValue(parsed.Language, out var complex))
                 {
                     parsed.Language = complex.Language;
                     if (parsed.Script is null && complex.Script is not null)
@@ -280,7 +293,7 @@ public static partial class Locale
                     if (parsed.Region is null && complex.Region is not null)
                         parsed.Region = complex.Region;
                 }
-                else if (OkojoIntlLocaleData.LanguageMappings.TryGetValue(parsed.Language, out replacement) ||
+                else if (LocaleData.LanguageMappings.TryGetValue(parsed.Language, out replacement) ||
                          LanguageAliases.TryGetValue(parsed.Language, out replacement))
                 {
                     if (replacement.Contains('-'))
@@ -306,13 +319,13 @@ public static partial class Locale
                 if (script is not null)
                 {
                     var scriptRegionKey = script + "+" + parsed.Region;
-                    if (OkojoIntlLocaleData.ScriptRegionMappings.TryGetValue(scriptRegionKey, out replacement))
+                    if (LocaleData.ScriptRegionMappings.TryGetValue(scriptRegionKey, out replacement))
                         parsed.Region = replacement;
-                    else if (OkojoIntlLocaleData.RegionMappings.TryGetValue(parsed.Region, out replacement) ||
+                    else if (LocaleData.RegionMappings.TryGetValue(parsed.Region, out replacement) ||
                              RegionAliases.TryGetValue(parsed.Region, out replacement))
                         parsed.Region = replacement;
                 }
-                else if (OkojoIntlLocaleData.RegionMappings.TryGetValue(parsed.Region, out replacement) ||
+                else if (LocaleData.RegionMappings.TryGetValue(parsed.Region, out replacement) ||
                          RegionAliases.TryGetValue(parsed.Region, out replacement))
                 {
                     parsed.Region = replacement;
@@ -322,7 +335,7 @@ public static partial class Locale
             if (parsed.Variants is not null && parsed.Variants.Count > 0)
                 for (var i = parsed.Variants.Count - 1; i >= 0; i--)
                 {
-                    if (!OkojoIntlLocaleData.VariantMappings.TryGetValue(parsed.Variants[i], out var variantMapping))
+                    if (!LocaleData.VariantMappings.TryGetValue(parsed.Variants[i], out var variantMapping))
                         continue;
 
                     if (string.Equals(variantMapping.Type, "language", StringComparison.Ordinal))
@@ -357,7 +370,7 @@ public static partial class Locale
                 for (var i = parsed.Variants.Count - 1; i >= 0; i--)
                 {
                     var key = parsed.Language + "+" + parsed.Variants[i].ToLowerInvariant();
-                    if (!OkojoIntlLocaleData.LanguageVariantMappings.TryGetValue(key, out var newLanguage))
+                    if (!LocaleData.LanguageVariantMappings.TryGetValue(key, out var newLanguage))
                         continue;
                     parsed.Language = newLanguage;
                     parsed.Variants.RemoveAt(i);
@@ -481,7 +494,7 @@ public static partial class Locale
 
                 if (tlangParts.Count > 0)
                 {
-                    if (OkojoIntlLocaleData.LanguageMappings.TryGetValue(tlangParts[0], out var tlangReplacement) ||
+                    if (LocaleData.LanguageMappings.TryGetValue(tlangParts[0], out var tlangReplacement) ||
                         LanguageAliases.TryGetValue(tlangParts[0], out tlangReplacement))
                         tlangParts[0] = tlangReplacement;
 
@@ -578,7 +591,7 @@ public static partial class Locale
 
                 foreach (var kw in keywords)
                 {
-                    if (OkojoIntlLocaleData.UnicodeMappings.TryGetValue(kw.Key, out var valueAliases))
+                    if (LocaleData.UnicodeMappings.TryGetValue(kw.Key, out var valueAliases))
                     {
                         var fullValue = string.Join("-", kw.Values);
                         if (valueAliases.TryGetValue(fullValue, out var aliasedValue))

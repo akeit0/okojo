@@ -5,7 +5,7 @@ namespace Okojo.Runtime;
 
 internal sealed class JsCollatorObject : JsObject
 {
-    private readonly CollatorCore core;
+    private readonly Collator core;
     private JsHostFunction? boundCompare;
 
     internal JsCollatorObject(

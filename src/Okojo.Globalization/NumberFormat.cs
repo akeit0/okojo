@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Okojo.Globalization;
 
-public sealed class NumberFormatterCore
+public sealed class NumberFormat
 {
     private static readonly HashSet<string> Min2GroupingLanguages = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -51,7 +51,37 @@ public sealed class NumberFormatterCore
     internal string TrailingZeroDisplay { get; }
     internal CultureInfo CultureInfo { get; }
 
-    public NumberFormatterCore(
+    public NumberFormat(string locale, NumberFormatOptions? options = null, CultureInfo? cultureInfo = null)
+    {
+        ArgumentNullException.ThrowIfNull(locale);
+        options ??= new();
+        Locale = locale;
+        NumberingSystem = options.NumberingSystem;
+        Style = options.Style;
+        Currency = options.Currency;
+        CurrencyDisplay = options.CurrencyDisplay;
+        CurrencySign = options.CurrencySign;
+        Unit = options.Unit;
+        UnitDisplay = options.UnitDisplay;
+        Notation = options.Notation;
+        CompactDisplay = options.CompactDisplay;
+        MinimumIntegerDigits = options.MinimumIntegerDigits;
+        MinimumFractionDigits = options.MinimumFractionDigits;
+        MaximumFractionDigits = options.MaximumFractionDigits;
+        MinimumSignificantDigits = options.MinimumSignificantDigits;
+        MaximumSignificantDigits = options.MaximumSignificantDigits;
+        MinimumSignificantDigitsExplicit = options.MinimumSignificantDigitsExplicit;
+        MaximumSignificantDigitsExplicit = options.MaximumSignificantDigitsExplicit;
+        UseGrouping = options.UseGrouping;
+        SignDisplay = options.SignDisplay;
+        RoundingMode = options.RoundingMode;
+        RoundingPriority = options.RoundingPriority;
+        RoundingIncrement = options.RoundingIncrement;
+        TrailingZeroDisplay = options.TrailingZeroDisplay;
+        CultureInfo = cultureInfo ?? Okojo.Globalization.Locale.GetCultureInfo(locale);
+    }
+
+    public NumberFormat(
         string locale,
         string numberingSystem,
         string style,
@@ -76,31 +106,32 @@ public sealed class NumberFormatterCore
         int roundingIncrement,
         string trailingZeroDisplay,
         CultureInfo cultureInfo)
+        : this(locale, new NumberFormatOptions
+        {
+            NumberingSystem = numberingSystem,
+            Style = style,
+            Currency = currency,
+            CurrencyDisplay = currencyDisplay,
+            CurrencySign = currencySign,
+            Unit = unit,
+            UnitDisplay = unitDisplay,
+            Notation = notation,
+            CompactDisplay = compactDisplay,
+            MinimumIntegerDigits = minimumIntegerDigits,
+            MinimumFractionDigits = minimumFractionDigits,
+            MaximumFractionDigits = maximumFractionDigits,
+            MinimumSignificantDigits = minimumSignificantDigits,
+            MaximumSignificantDigits = maximumSignificantDigits,
+            MinimumSignificantDigitsExplicit = minimumSignificantDigitsExplicit,
+            MaximumSignificantDigitsExplicit = maximumSignificantDigitsExplicit,
+            UseGrouping = useGrouping,
+            SignDisplay = signDisplay,
+            RoundingMode = roundingMode,
+            RoundingPriority = roundingPriority,
+            RoundingIncrement = roundingIncrement,
+            TrailingZeroDisplay = trailingZeroDisplay
+        }, cultureInfo)
     {
-        Locale = locale;
-        NumberingSystem = numberingSystem;
-        Style = style;
-        Currency = currency;
-        CurrencyDisplay = currencyDisplay;
-        CurrencySign = currencySign;
-        Unit = unit;
-        UnitDisplay = unitDisplay;
-        Notation = notation;
-        CompactDisplay = compactDisplay;
-        MinimumIntegerDigits = minimumIntegerDigits;
-        MinimumFractionDigits = minimumFractionDigits;
-        MaximumFractionDigits = maximumFractionDigits;
-        MinimumSignificantDigits = minimumSignificantDigits;
-        MaximumSignificantDigits = maximumSignificantDigits;
-        MinimumSignificantDigitsExplicit = minimumSignificantDigitsExplicit;
-        MaximumSignificantDigitsExplicit = maximumSignificantDigitsExplicit;
-        UseGrouping = useGrouping;
-        SignDisplay = signDisplay;
-        RoundingMode = roundingMode;
-        RoundingPriority = roundingPriority;
-        RoundingIncrement = roundingIncrement;
-        TrailingZeroDisplay = trailingZeroDisplay;
-        CultureInfo = cultureInfo;
     }
 
     internal bool SupportsExactIntegralFormatting =>
@@ -146,7 +177,7 @@ public sealed class NumberFormatterCore
         digits = digits.PadLeft(MinimumIntegerDigits, '0');
 
         var groupedInteger = ApplyGrouping(digits);
-        groupedInteger = OkojoIntlNumberingSystemData.TransliterateDigits(groupedInteger, NumberingSystem);
+        groupedInteger = NumberingSystemData.TransliterateDigits(groupedInteger, NumberingSystem);
         if (!ShouldShowSign(isNegative, digits == "0"))
             return groupedInteger;
         return isNegative ? ApplyNegativeSign(groupedInteger) : ApplyPositiveSign(groupedInteger);
@@ -430,14 +461,14 @@ public sealed class NumberFormatterCore
             fractionPart = TrimFraction(fractionPart);
 
         var groupedInteger = ApplyGrouping(integerPart);
-        groupedInteger = OkojoIntlNumberingSystemData.TransliterateDigits(groupedInteger, NumberingSystem);
+        groupedInteger = NumberingSystemData.TransliterateDigits(groupedInteger, NumberingSystem);
 
         var builder = new StringBuilder(groupedInteger);
         if (fractionPart.Length > 0)
         {
-            builder.Append(OkojoIntlNumberingSystemData.GetDecimalSeparator(NumberingSystem,
+            builder.Append(NumberingSystemData.GetDecimalSeparator(NumberingSystem,
                 CultureInfo.NumberFormat.NumberDecimalSeparator));
-            builder.Append(OkojoIntlNumberingSystemData.TransliterateDigits(fractionPart, NumberingSystem));
+            builder.Append(NumberingSystemData.TransliterateDigits(fractionPart, NumberingSystem));
         }
 
         return builder.ToString();
@@ -939,12 +970,12 @@ public sealed class NumberFormatterCore
         fractionPart = fractionPart.TrimEnd('0');
 
         if (fractionPart.Length == 0)
-            return OkojoIntlNumberingSystemData.TransliterateDigits(integerPart, NumberingSystem);
+            return NumberingSystemData.TransliterateDigits(integerPart, NumberingSystem);
 
-        return OkojoIntlNumberingSystemData.TransliterateDigits(integerPart, NumberingSystem) +
-               OkojoIntlNumberingSystemData.GetDecimalSeparator(NumberingSystem,
+        return NumberingSystemData.TransliterateDigits(integerPart, NumberingSystem) +
+               NumberingSystemData.GetDecimalSeparator(NumberingSystem,
                    CultureInfo.NumberFormat.NumberDecimalSeparator) +
-               OkojoIntlNumberingSystemData.TransliterateDigits(fractionPart, NumberingSystem);
+               NumberingSystemData.TransliterateDigits(fractionPart, NumberingSystem);
     }
 
     private bool IsNegative(double value)
@@ -1022,7 +1053,7 @@ public sealed class NumberFormatterCore
             if (Locale.StartsWith("en-IN", StringComparison.OrdinalIgnoreCase))
             {
                 var grouped = ApplyIndianGrouping(integerPart);
-                groups.AddRange(grouped.Split(OkojoIntlNumberingSystemData.GetGroupSeparator(NumberingSystem,
+                groups.AddRange(grouped.Split(NumberingSystemData.GetGroupSeparator(NumberingSystem,
                     string.IsNullOrEmpty(CultureInfo.NumberFormat.NumberGroupSeparator)
                         ? ","
                         : CultureInfo.NumberFormat.NumberGroupSeparator)));
@@ -1038,13 +1069,13 @@ public sealed class NumberFormatterCore
             }
         }
 
-        var groupSeparator = OkojoIntlNumberingSystemData.GetGroupSeparator(NumberingSystem,
+        var groupSeparator = NumberingSystemData.GetGroupSeparator(NumberingSystem,
             string.IsNullOrEmpty(CultureInfo.NumberFormat.NumberGroupSeparator)
                 ? ","
                 : CultureInfo.NumberFormat.NumberGroupSeparator);
         for (var i = 0; i < groups.Count; i++)
         {
-            parts.Add(("integer", OkojoIntlNumberingSystemData.TransliterateDigits(groups[i], NumberingSystem)));
+            parts.Add(("integer", NumberingSystemData.TransliterateDigits(groups[i], NumberingSystem)));
             if (i + 1 < groups.Count)
                 parts.Add(("group", groupSeparator));
         }
@@ -1052,9 +1083,9 @@ public sealed class NumberFormatterCore
         if (fractionPart.Length > 0)
         {
             parts.Add(("decimal",
-                OkojoIntlNumberingSystemData.GetDecimalSeparator(NumberingSystem,
+                NumberingSystemData.GetDecimalSeparator(NumberingSystem,
                     CultureInfo.NumberFormat.NumberDecimalSeparator)));
-            parts.Add(("fraction", OkojoIntlNumberingSystemData.TransliterateDigits(fractionPart, NumberingSystem)));
+            parts.Add(("fraction", NumberingSystemData.TransliterateDigits(fractionPart, NumberingSystem)));
         }
     }
 
@@ -1325,7 +1356,7 @@ public sealed class NumberFormatterCore
         var groupSeparator = CultureInfo.NumberFormat.NumberGroupSeparator;
         if (string.IsNullOrEmpty(groupSeparator))
             groupSeparator = ",";
-        groupSeparator = OkojoIntlNumberingSystemData.GetGroupSeparator(NumberingSystem, groupSeparator);
+        groupSeparator = NumberingSystemData.GetGroupSeparator(NumberingSystem, groupSeparator);
         return string.Join(groupSeparator, groups);
     }
 
@@ -1337,7 +1368,7 @@ public sealed class NumberFormatterCore
         var groupSeparator = CultureInfo.NumberFormat.NumberGroupSeparator;
         if (string.IsNullOrEmpty(groupSeparator))
             groupSeparator = ",";
-        groupSeparator = OkojoIntlNumberingSystemData.GetGroupSeparator(NumberingSystem, groupSeparator);
+        groupSeparator = NumberingSystemData.GetGroupSeparator(NumberingSystem, groupSeparator);
 
         var groups = new List<string>();
         var lastThree = digits[^3..];
@@ -1596,7 +1627,7 @@ public sealed class NumberFormatterCore
     private void AppendCompactNumericParts(List<(string Type, string Value)> parts, string formatted)
     {
         var decimalSeparator =
-            OkojoIntlNumberingSystemData.GetDecimalSeparator(NumberingSystem,
+            NumberingSystemData.GetDecimalSeparator(NumberingSystem,
                 CultureInfo.NumberFormat.NumberDecimalSeparator);
         var dotIndex = formatted.IndexOf(decimalSeparator, StringComparison.Ordinal);
         if (dotIndex < 0)
@@ -1616,9 +1647,9 @@ public sealed class NumberFormatterCore
     private void AppendFormattedDecimalParts(List<(string Type, string Value)> parts, string formatted)
     {
         var decimalSeparator =
-            OkojoIntlNumberingSystemData.GetDecimalSeparator(NumberingSystem,
+            NumberingSystemData.GetDecimalSeparator(NumberingSystem,
                 CultureInfo.NumberFormat.NumberDecimalSeparator);
-        var groupSeparator = OkojoIntlNumberingSystemData.GetGroupSeparator(NumberingSystem,
+        var groupSeparator = NumberingSystemData.GetGroupSeparator(NumberingSystem,
             string.IsNullOrEmpty(CultureInfo.NumberFormat.NumberGroupSeparator)
                 ? ","
                 : CultureInfo.NumberFormat.NumberGroupSeparator);

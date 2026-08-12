@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace Okojo.Globalization;
 
-public static class OkojoLunisolarCalendarHelper
+public static class LunisolarCalendar
 {
     private static ChineseLunisolarCalendar? chineseCalendar;
     private static KoreanLunisolarCalendar? koreanCalendar;

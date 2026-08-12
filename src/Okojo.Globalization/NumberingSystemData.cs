@@ -3,7 +3,7 @@ using System.Text;
 
 namespace Okojo.Globalization;
 
-public static class OkojoIntlNumberingSystemData
+public static class NumberingSystemData
 {
     private static readonly Dictionary<string, string> Digits = new(StringComparer.OrdinalIgnoreCase)
     {

@@ -4,7 +4,7 @@ namespace Okojo.Runtime;
 
 internal sealed class JsListFormatObject : JsObject
 {
-    private readonly ListFormatCore core;
+    private readonly ListFormat core;
 
     internal JsListFormatObject(
         JsRealm realm,

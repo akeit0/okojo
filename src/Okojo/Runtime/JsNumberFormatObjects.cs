@@ -6,7 +6,7 @@ namespace Okojo.Runtime;
 
 internal sealed class JsNumberFormatObject : JsObject
 {
-    private readonly NumberFormatterCore core;
+    private readonly NumberFormat core;
 
     internal JsNumberFormatObject(
         JsRealm realm,

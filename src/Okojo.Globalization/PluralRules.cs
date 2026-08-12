@@ -3,15 +3,22 @@ using System.Globalization;
 namespace Okojo.Globalization;
 
 /// <summary>
-///     Portable ECMA-402 plural-rules selection core.
+///     Portable ECMA-402 plural-rules selector.
 /// </summary>
-public sealed class PluralRulesCore
+public sealed class PluralRules
 {
-    public PluralRulesCore(string locale, string pluralRuleType, string notation)
+    public PluralRules(string locale, PluralRulesOptions? options = null)
     {
+        ArgumentNullException.ThrowIfNull(locale);
+        options ??= new();
         Locale = locale;
-        PluralRuleType = pluralRuleType;
-        Notation = notation;
+        PluralRuleType = options.PluralRuleType;
+        Notation = options.Notation;
+    }
+
+    public PluralRules(string locale, string pluralRuleType, string notation)
+        : this(locale, new PluralRulesOptions { PluralRuleType = pluralRuleType, Notation = notation })
+    {
     }
 
     public string Locale { get; }

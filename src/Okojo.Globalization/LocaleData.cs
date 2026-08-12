@@ -1,6 +1,6 @@
 namespace Okojo.Globalization;
 
-public static class OkojoIntlLocaleData
+public static class LocaleData
 {
     private static readonly Lock Gate = new();
     private static Dictionary<string, string>? tagMappings;
@@ -104,7 +104,7 @@ public static class OkojoIntlLocaleData
             scriptRegionMappings = new(StringComparer.OrdinalIgnoreCase);
             unicodeMappings = new(StringComparer.OrdinalIgnoreCase);
 
-            var assembly = typeof(OkojoIntlLocaleData).Assembly;
+            var assembly = typeof(LocaleData).Assembly;
             var resourceName = assembly.GetManifestResourceNames()
                 .FirstOrDefault(static n => n.EndsWith("LocaleData.txt", StringComparison.Ordinal));
             if (resourceName is null)

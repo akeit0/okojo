@@ -5,7 +5,7 @@ namespace Okojo.Runtime;
 
 internal sealed class JsPluralRulesObject : JsObject
 {
-    private readonly PluralRulesCore core;
+    private readonly PluralRules core;
 
     internal JsPluralRulesObject(
         JsRealm realm,

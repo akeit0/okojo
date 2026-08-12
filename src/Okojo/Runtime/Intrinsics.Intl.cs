@@ -322,7 +322,7 @@ public partial class Intrinsics
 
     private static string[] GetSupportedValuesOfCalendars()
     {
-        return intlSupportedValuesOfCalendarsCache ??= OkojoIntlCalendarData.GetSupportedCalendars();
+        return intlSupportedValuesOfCalendarsCache ??= CalendarData.GetSupportedCalendars();
     }
 
     private static string[] GetSupportedValuesOfCollations()
@@ -345,7 +345,7 @@ public partial class Intrinsics
     private static string[] GetSupportedValuesOfNumberingSystems()
     {
         return intlSupportedValuesOfNumberingSystemsCache ??=
-            OkojoIntlNumberingSystemData.GetSupportedNumberingSystems();
+            NumberingSystemData.GetSupportedNumberingSystems();
     }
 
     private static string[] GetSupportedValuesOfTimeZones()
@@ -356,7 +356,7 @@ public partial class Intrinsics
 
     private static string[] GetSupportedValuesOfUnits()
     {
-        return intlSupportedValuesOfUnitsCache ??= OkojoIntlUnitData.GetSupportedValues();
+        return intlSupportedValuesOfUnitsCache ??= UnitData.GetSupportedValues();
     }
 
     internal static CultureInfo ResolveRequestedLocaleCulture(JsRealm realm, ReadOnlySpan<JsValue> args)
@@ -607,17 +607,17 @@ public partial class Intrinsics
             var localeNumberingSystem = GetRequestedLocaleNumberingSystem(requestedLocales);
 
             string resolvedNumberingSystem;
-            if (numberingSystemOption is not null && OkojoIntlNumberingSystemData.IsSupported(numberingSystemOption))
+            if (numberingSystemOption is not null && NumberingSystemData.IsSupported(numberingSystemOption))
                 resolvedNumberingSystem = numberingSystemOption.ToLowerInvariant();
             else if (localeNumberingSystem is not null &&
-                     OkojoIntlNumberingSystemData.IsSupported(localeNumberingSystem))
+                     NumberingSystemData.IsSupported(localeNumberingSystem))
                 resolvedNumberingSystem = localeNumberingSystem.ToLowerInvariant();
             else
                 resolvedNumberingSystem = "latn";
 
             var finalResolvedLocale = resolvedLocale;
             var numberingSystemFromOptions = numberingSystemOption is not null &&
-                                             OkojoIntlNumberingSystemData.IsSupported(numberingSystemOption);
+                                             NumberingSystemData.IsSupported(numberingSystemOption);
             if (numberingSystemFromOptions)
             {
                 if (localeNumberingSystem is not null &&
@@ -627,7 +627,7 @@ public partial class Intrinsics
                     finalResolvedLocale = RemoveNumberingSystemFromLocale(resolvedLocale);
             }
             else if (localeNumberingSystem is not null &&
-                     OkojoIntlNumberingSystemData.IsSupported(localeNumberingSystem))
+                     NumberingSystemData.IsSupported(localeNumberingSystem))
             {
                 finalResolvedLocale = EnsureNumberingSystemInLocale(resolvedLocale, resolvedNumberingSystem);
             }
@@ -832,23 +832,23 @@ public partial class Intrinsics
             var localeNumberingSystem = GetRequestedLocaleNumberingSystem(requestedLocales);
 
             string resolvedNumberingSystem;
-            if (numberingSystemOption is not null && OkojoIntlNumberingSystemData.IsSupported(numberingSystemOption))
+            if (numberingSystemOption is not null && NumberingSystemData.IsSupported(numberingSystemOption))
                 resolvedNumberingSystem = numberingSystemOption.ToLowerInvariant();
             else if (localeNumberingSystem is not null &&
-                     OkojoIntlNumberingSystemData.IsSupported(localeNumberingSystem))
+                     NumberingSystemData.IsSupported(localeNumberingSystem))
                 resolvedNumberingSystem = localeNumberingSystem.ToLowerInvariant();
             else
                 resolvedNumberingSystem = "latn";
 
             var finalResolvedLocale = resolvedLocale;
-            if (numberingSystemOption is not null && OkojoIntlNumberingSystemData.IsSupported(numberingSystemOption))
+            if (numberingSystemOption is not null && NumberingSystemData.IsSupported(numberingSystemOption))
                 finalResolvedLocale = localeNumberingSystem is not null &&
                                       string.Equals(localeNumberingSystem, numberingSystemOption,
                                           StringComparison.OrdinalIgnoreCase)
                     ? EnsureNumberingSystemInLocale(resolvedLocale, resolvedNumberingSystem)
                     : RemoveNumberingSystemFromLocale(resolvedLocale);
             else if (localeNumberingSystem is not null &&
-                     OkojoIntlNumberingSystemData.IsSupported(localeNumberingSystem))
+                     NumberingSystemData.IsSupported(localeNumberingSystem))
                 finalResolvedLocale = EnsureNumberingSystemInLocale(resolvedLocale, resolvedNumberingSystem);
             else if (localeNumberingSystem is not null)
                 finalResolvedLocale = RemoveNumberingSystemFromLocale(resolvedLocale);
@@ -1028,23 +1028,23 @@ public partial class Intrinsics
             var localeNumberingSystem = GetRequestedLocaleNumberingSystem(requestedLocales);
 
             string resolvedNumberingSystem;
-            if (numberingSystemOption is not null && OkojoIntlNumberingSystemData.IsSupported(numberingSystemOption))
+            if (numberingSystemOption is not null && NumberingSystemData.IsSupported(numberingSystemOption))
                 resolvedNumberingSystem = numberingSystemOption.ToLowerInvariant();
             else if (localeNumberingSystem is not null &&
-                     OkojoIntlNumberingSystemData.IsSupported(localeNumberingSystem))
+                     NumberingSystemData.IsSupported(localeNumberingSystem))
                 resolvedNumberingSystem = localeNumberingSystem.ToLowerInvariant();
             else
                 resolvedNumberingSystem = "latn";
 
             var finalResolvedLocale = resolvedLocale;
-            if (numberingSystemOption is not null && OkojoIntlNumberingSystemData.IsSupported(numberingSystemOption))
+            if (numberingSystemOption is not null && NumberingSystemData.IsSupported(numberingSystemOption))
                 finalResolvedLocale = localeNumberingSystem is not null &&
                                       string.Equals(localeNumberingSystem, numberingSystemOption,
                                           StringComparison.OrdinalIgnoreCase)
                     ? EnsureNumberingSystemInLocale(resolvedLocale, resolvedNumberingSystem)
                     : RemoveNumberingSystemFromLocale(resolvedLocale);
             else if (localeNumberingSystem is not null &&
-                     OkojoIntlNumberingSystemData.IsSupported(localeNumberingSystem))
+                     NumberingSystemData.IsSupported(localeNumberingSystem))
                 finalResolvedLocale = EnsureNumberingSystemInLocale(resolvedLocale, resolvedNumberingSystem);
             else if (localeNumberingSystem is not null)
                 finalResolvedLocale = RemoveNumberingSystemFromLocale(resolvedLocale);
@@ -1192,7 +1192,7 @@ public partial class Intrinsics
                 if (!IsAsciiLowerAlphaNumericTypeSequence(calendarOption))
                     throw new JsRuntimeException(JsErrorKind.RangeError,
                         $"Invalid calendar option: {calendarOption}");
-                if (OkojoIntlLocaleData.UnicodeMappings.TryGetValue("ca", out var calendarMappings) &&
+                if (LocaleData.UnicodeMappings.TryGetValue("ca", out var calendarMappings) &&
                     calendarMappings.TryGetValue(calendarOption, out var calendarAlias))
                     calendarOption = calendarAlias;
             }
@@ -1227,10 +1227,10 @@ public partial class Intrinsics
             }
 
             string resolvedNumberingSystem;
-            if (numberingSystemOption is not null && OkojoIntlNumberingSystemData.IsSupported(numberingSystemOption))
+            if (numberingSystemOption is not null && NumberingSystemData.IsSupported(numberingSystemOption))
                 resolvedNumberingSystem = numberingSystemOption.ToLowerInvariant();
             else if (localeNumberingSystem is not null &&
-                     OkojoIntlNumberingSystemData.IsSupported(localeNumberingSystem))
+                     NumberingSystemData.IsSupported(localeNumberingSystem))
                 resolvedNumberingSystem = localeNumberingSystem.ToLowerInvariant();
             else
                 resolvedNumberingSystem = "latn";
@@ -2912,7 +2912,7 @@ public partial class Intrinsics
             return "UTC";
 
         var text = realm.ToJsStringSlowPath(value);
-        if (OkojoIntlTimeZoneData.TryGetCanonicalTimeZone(text, out var canonicalNamedTimeZone))
+        if (TimeZoneData.TryGetCanonicalTimeZone(text, out var canonicalNamedTimeZone))
             return canonicalNamedTimeZone;
         if (string.Equals(text, "UTC", StringComparison.OrdinalIgnoreCase))
             return "UTC";
@@ -3248,7 +3248,7 @@ public partial class Intrinsics
     private static string NormalizeRelativeTimeFormatUnit(JsRealm realm, in JsValue unitValue)
     {
         var unit = realm.ToJsStringSlowPath(unitValue);
-        if (!OkojoIntlUnitData.IsRelativeTimeFormatUnit(unit))
+        if (!UnitData.IsRelativeTimeFormatUnit(unit))
             throw new JsRuntimeException(JsErrorKind.RangeError, $"Invalid unit: {unit}");
 
         return unit switch
@@ -3486,7 +3486,7 @@ public partial class Intrinsics
 
     private static bool IsWellFormedUnitIdentifier(string unit)
     {
-        if (OkojoIntlUnitData.IsSimpleSanctionedUnit(unit))
+        if (UnitData.IsSimpleSanctionedUnit(unit))
             return true;
 
         var perIndex = unit.IndexOf("-per-", StringComparison.Ordinal);
@@ -3495,8 +3495,8 @@ public partial class Intrinsics
 
         var numerator = unit[..perIndex];
         var denominator = unit[(perIndex + 5)..];
-        return OkojoIntlUnitData.IsSimpleSanctionedUnit(numerator) &&
-               OkojoIntlUnitData.IsSimpleSanctionedUnit(denominator);
+        return UnitData.IsSimpleSanctionedUnit(numerator) &&
+               UnitData.IsSimpleSanctionedUnit(denominator);
     }
 
     private static int GetCurrencyDigits(string currency)
@@ -3555,7 +3555,7 @@ public partial class Intrinsics
 
             var numberingSystem = values[0].ToLowerInvariant();
             if (!IsWellFormedNumberingSystem(numberingSystem) ||
-                !OkojoIntlNumberingSystemData.IsSupported(numberingSystem))
+                !NumberingSystemData.IsSupported(numberingSystem))
                 continue;
 
             kept.Add("nu");
@@ -3634,9 +3634,9 @@ public partial class Intrinsics
         string? finalNumberingSystem = null;
         var localeNumberingSystemSupported = localeNumberingSystem is not null &&
                                              IsWellFormedNumberingSystem(localeNumberingSystem) &&
-                                             OkojoIntlNumberingSystemData.IsSupported(localeNumberingSystem);
+                                             NumberingSystemData.IsSupported(localeNumberingSystem);
         var numberingSystemOptionSupported = numberingSystemOption is not null &&
-                                             OkojoIntlNumberingSystemData.IsSupported(numberingSystemOption);
+                                             NumberingSystemData.IsSupported(numberingSystemOption);
         if (localeNumberingSystemSupported &&
             string.Equals(localeNumberingSystem, resolvedNumberingSystem, StringComparison.OrdinalIgnoreCase) &&
             (!numberingSystemOptionSupported ||
@@ -3678,7 +3678,7 @@ public partial class Intrinsics
     private static string CanonicalizeDateTimeFormatCalendar(string calendar)
     {
         var text = calendar.ToLowerInvariant();
-        if (OkojoIntlLocaleData.UnicodeMappings.TryGetValue("ca", out var mappings) &&
+        if (LocaleData.UnicodeMappings.TryGetValue("ca", out var mappings) &&
             mappings.TryGetValue(text, out var alias))
             text = alias;
 
@@ -3690,7 +3690,7 @@ public partial class Intrinsics
         if (string.IsNullOrEmpty(calendar))
             return false;
         var canonical = CanonicalizeDateTimeFormatCalendar(calendar);
-        return OkojoIntlCalendarData.IsSupportedCalendar(canonical) ||
+        return CalendarData.IsSupportedCalendar(canonical) ||
                string.Equals(canonical, "islamic", StringComparison.Ordinal) ||
                string.Equals(canonical, "islamic-rgsa", StringComparison.Ordinal);
     }
@@ -3989,7 +3989,7 @@ public partial class Intrinsics
         if (!IsAsciiLowerAlphaNumericTypeSequence(text))
             throw new JsRuntimeException(JsErrorKind.RangeError, $"Invalid {propertyName} option: {text}");
 
-        if (OkojoIntlLocaleData.UnicodeMappings.TryGetValue(keyword, out var mappings) &&
+        if (LocaleData.UnicodeMappings.TryGetValue(keyword, out var mappings) &&
             mappings.TryGetValue(text, out var alias))
             text = alias;
 

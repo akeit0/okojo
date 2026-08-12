@@ -9,7 +9,7 @@ internal sealed class JsDateTimeFormatObject : JsObject
     private const long MinNativeEpochMilliseconds = -62135596800000L;
     private const long MaxNativeEpochMilliseconds = 253402300799999L;
 
-    private readonly DateTimeFormatCore core;
+    private readonly DateTimeFormat core;
     private JsHostFunction? boundFormat;
 
     internal JsDateTimeFormatObject(
@@ -310,7 +310,7 @@ internal sealed class JsDateTimeFormatObject : JsObject
         return true;
     }
 
-    private string JoinParts(List<DateTimePart> parts)
+    private string JoinParts(List<IntlPart> parts)
     {
         var builder = new StringBuilder();
         foreach (var part in parts)
@@ -318,7 +318,7 @@ internal sealed class JsDateTimeFormatObject : JsObject
         return builder.ToString();
     }
 
-    private JsArray CreatePartsArray(List<DateTimePart> parts)
+    private JsArray CreatePartsArray(List<IntlPart> parts)
     {
         var result = Realm.CreateArrayObject();
         for (uint i = 0; i < parts.Count; i++)
@@ -362,6 +362,6 @@ internal sealed class JsDateTimeFormatObject : JsObject
 
     private string Transliterate(string text)
     {
-        return OkojoIntlNumberingSystemData.TransliterateDigits(text, NumberingSystem);
+        return NumberingSystemData.TransliterateDigits(text, NumberingSystem);
     }
 }

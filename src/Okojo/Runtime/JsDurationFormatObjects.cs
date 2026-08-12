@@ -451,12 +451,12 @@ internal sealed partial class JsDurationFormatObject : JsObject
             fractionPart = fractionPart.PadRight(minFractionDigits, '0');
         integerPart = integerPart.PadLeft(numberFormat.MinimumIntegerDigits, '0');
 
-        var decimalSeparator = OkojoIntlNumberingSystemData.GetDecimalSeparator(numberFormat.NumberingSystem,
+        var decimalSeparator = NumberingSystemData.GetDecimalSeparator(numberFormat.NumberingSystem,
             numberFormat.CultureInfo.NumberFormat.NumberDecimalSeparator);
         var renderedInteger =
-            OkojoIntlNumberingSystemData.TransliterateDigits(integerPart, numberFormat.NumberingSystem);
+            NumberingSystemData.TransliterateDigits(integerPart, numberFormat.NumberingSystem);
         var renderedFraction =
-            OkojoIntlNumberingSystemData.TransliterateDigits(fractionPart, numberFormat.NumberingSystem);
+            NumberingSystemData.TransliterateDigits(fractionPart, numberFormat.NumberingSystem);
 
         if (negative && !string.Equals(numberFormat.SignDisplay, "never", StringComparison.Ordinal))
             parts.Add(new("minusSign", "-", unit));

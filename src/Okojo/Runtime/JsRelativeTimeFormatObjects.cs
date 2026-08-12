@@ -5,7 +5,7 @@ namespace Okojo.Runtime;
 
 internal sealed class JsRelativeTimeFormatObject : JsObject
 {
-    private readonly RelativeTimeFormatCore core;
+    private readonly RelativeTimeFormat core;
 
     internal JsRelativeTimeFormatObject(
         JsRealm realm,

@@ -4,11 +4,30 @@ using System.Text;
 namespace Okojo.Globalization;
 
 /// <summary>
-///     Portable ECMA-402 collator comparison core.
+///     Portable ECMA-402 collator comparison.
 /// </summary>
-public sealed class CollatorCore
+public sealed class Collator
 {
-    public CollatorCore(
+    public Collator(
+        string locale,
+        CollatorOptions? options = null,
+        CompareInfo? compareInfo = null,
+        CompareOptions compareOptions = CompareOptions.None)
+    {
+        ArgumentNullException.ThrowIfNull(locale);
+        options ??= new();
+        Locale = locale;
+        Usage = options.Usage;
+        Sensitivity = options.Sensitivity;
+        IgnorePunctuation = options.IgnorePunctuation;
+        Collation = options.Collation;
+        Numeric = options.Numeric;
+        CaseFirst = options.CaseFirst;
+        CompareInfo = compareInfo ?? Okojo.Globalization.Locale.GetCompareInfo(locale);
+        CompareOptions = compareOptions;
+    }
+
+    public Collator(
         string locale,
         string usage,
         string sensitivity,
@@ -18,16 +37,16 @@ public sealed class CollatorCore
         string caseFirst,
         CompareInfo compareInfo,
         CompareOptions compareOptions)
+        : this(locale, new CollatorOptions
+        {
+            Usage = usage,
+            Sensitivity = sensitivity,
+            IgnorePunctuation = ignorePunctuation,
+            Collation = collation,
+            Numeric = numeric,
+            CaseFirst = caseFirst
+        }, compareInfo, compareOptions)
     {
-        Locale = locale;
-        Usage = usage;
-        Sensitivity = sensitivity;
-        IgnorePunctuation = ignorePunctuation;
-        Collation = collation;
-        Numeric = numeric;
-        CaseFirst = caseFirst;
-        CompareInfo = compareInfo;
-        CompareOptions = compareOptions;
     }
 
     public string Locale { get; }

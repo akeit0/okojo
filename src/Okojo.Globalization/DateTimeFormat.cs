@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Okojo.Globalization;
 
-public sealed class DateTimeFormatCore
+public sealed class DateTimeFormat
 {
     private const long MinNativeEpochMilliseconds = -62135596800000L;
     private const long MaxNativeEpochMilliseconds = 253402300799999L;
@@ -65,7 +65,35 @@ public sealed class DateTimeFormatCore
 
 
 
-    public DateTimeFormatCore(
+    public DateTimeFormat(string locale, DateTimeFormatOptions? options = null, CultureInfo? cultureInfo = null)
+    {
+        ArgumentNullException.ThrowIfNull(locale);
+        options ??= new();
+        Locale = locale;
+        Calendar = options.Calendar;
+        NumberingSystem = options.NumberingSystem;
+        TimeZone = options.TimeZone;
+        UseDefaultTimeZoneForFormatting = options.UseDefaultTimeZoneForFormatting;
+        HourCycle = options.HourCycle;
+        Hour12 = options.Hour12;
+        Weekday = options.Weekday;
+        Era = options.Era;
+        Year = options.Year;
+        Month = options.Month;
+        Day = options.Day;
+        DayPeriod = options.DayPeriod;
+        Hour = options.Hour;
+        Minute = options.Minute;
+        Second = options.Second;
+        FractionalSecondDigits = options.FractionalSecondDigits;
+        TimeZoneName = options.TimeZoneName;
+        FormatMatcher = options.FormatMatcher;
+        DateStyle = options.DateStyle;
+        TimeStyle = options.TimeStyle;
+        CultureInfo = cultureInfo ?? Okojo.Globalization.Locale.GetCultureInfo(locale);
+    }
+
+    public DateTimeFormat(
         string locale,
         string calendar,
         string numberingSystem,
@@ -88,37 +116,38 @@ public sealed class DateTimeFormatCore
         string? dateStyle,
         string? timeStyle,
         CultureInfo cultureInfo)
+        : this(locale, new DateTimeFormatOptions
+        {
+            Calendar = calendar,
+            NumberingSystem = numberingSystem,
+            TimeZone = timeZone,
+            UseDefaultTimeZoneForFormatting = useDefaultTimeZoneForFormatting,
+            HourCycle = hourCycle,
+            Hour12 = hour12,
+            Weekday = weekday,
+            Era = era,
+            Year = year,
+            Month = month,
+            Day = day,
+            DayPeriod = dayPeriod,
+            Hour = hour,
+            Minute = minute,
+            Second = second,
+            FractionalSecondDigits = fractionalSecondDigits,
+            TimeZoneName = timeZoneName,
+            FormatMatcher = formatMatcher,
+            DateStyle = dateStyle,
+            TimeStyle = timeStyle
+        }, cultureInfo)
     {
-        Locale = locale;
-        Calendar = calendar;
-        NumberingSystem = numberingSystem;
-        TimeZone = timeZone;
-        UseDefaultTimeZoneForFormatting = useDefaultTimeZoneForFormatting;
-        HourCycle = hourCycle;
-        Hour12 = hour12;
-        Weekday = weekday;
-        Era = era;
-        Year = year;
-        Month = month;
-        Day = day;
-        DayPeriod = dayPeriod;
-        Hour = hour;
-        Minute = minute;
-        Second = second;
-        FractionalSecondDigits = fractionalSecondDigits;
-        TimeZoneName = timeZoneName;
-        FormatMatcher = formatMatcher;
-        DateStyle = dateStyle;
-        TimeStyle = timeStyle;
-        CultureInfo = cultureInfo;
     }
 
-    public List<DateTimePart> BuildParts(DateTimeValue dateTime)
+    public List<IntlPart> BuildParts(DateTimeValue dateTime)
     {
         if (DateStyle is not null || TimeStyle is not null)
             return BuildStyleParts(dateTime);
 
-        var parts = new List<DateTimePart>();
+        var parts = new List<IntlPart>();
         var hasDate = Weekday is not null || Era is not null || Year is not null || Month is not null ||
                       Day is not null;
         var hasTime = Hour is not null || Minute is not null || Second is not null;
@@ -129,7 +158,6 @@ public sealed class DateTimeFormatCore
             return parts;
         }
 
-        if (Weekday is not null)
         if (Weekday is not null)
             parts.Add(new("weekday", FormatWeekday(dateTime)));
 
@@ -165,9 +193,9 @@ public sealed class DateTimeFormatCore
         return parts;
     }
 
-    private List<DateTimePart> BuildStyleParts(DateTimeValue dateTime)
+    private List<IntlPart> BuildStyleParts(DateTimeValue dateTime)
     {
-        var parts = new List<DateTimePart>();
+        var parts = new List<IntlPart>();
         var appendSeparator = false;
         if (DateStyle is not null)
         {
@@ -185,7 +213,7 @@ public sealed class DateTimeFormatCore
         return parts;
     }
 
-    private string JoinParts(List<DateTimePart> parts)
+    private string JoinParts(List<IntlPart> parts)
     {
         var builder = new StringBuilder();
         for (var i = 0; i < parts.Count; i++)
@@ -195,8 +223,8 @@ public sealed class DateTimeFormatCore
 
 
 
-    public bool TryCreateCompressedTextMonthRange(List<DateTimePart> startParts, List<DateTimePart> endParts,
-        out List<RangeDateTimePart> result)
+    public bool TryCreateCompressedTextMonthRange(List<IntlPart> startParts, List<IntlPart> endParts,
+        out List<RangeIntlPart> result)
     {
         result = [];
         if (!(Locale.StartsWith("en-US", StringComparison.OrdinalIgnoreCase) &&
@@ -245,7 +273,7 @@ public sealed class DateTimeFormatCore
         return true;
     }
 
-    private void AppendDateStyleParts(List<DateTimePart> parts, DateTimeValue dateTime)
+    private void AppendDateStyleParts(List<IntlPart> parts, DateTimeValue dateTime)
     {
         var style = DateStyle ?? "short";
         if (Locale.StartsWith("en-US", StringComparison.OrdinalIgnoreCase))
@@ -285,7 +313,7 @@ public sealed class DateTimeFormatCore
         parts.Add(new("year", GetDisplayYear(dateTime.Year).ToString(CultureInfo.InvariantCulture)));
     }
 
-    private void AppendTimeStyleParts(List<DateTimePart> parts, DateTimeValue dateTime)
+    private void AppendTimeStyleParts(List<IntlPart> parts, DateTimeValue dateTime)
     {
         var style = TimeStyle ?? "short";
         var use12Hour = Uses12HourClock();
@@ -295,7 +323,7 @@ public sealed class DateTimeFormatCore
         AppendTimeCoreParts(parts, dateTime, includeSeconds, includeZone, use12Hour);
     }
 
-    private void AppendDateParts(List<DateTimePart> parts, DateTimeValue dateTime)
+    private void AppendDateParts(List<IntlPart> parts, DateTimeValue dateTime)
     {
         if (TryGetLunisolarDate(dateTime, out var lunisolarDate))
         {
@@ -350,7 +378,7 @@ public sealed class DateTimeFormatCore
         }
     }
 
-    private bool TryGetLunisolarDate(DateTimeValue dateTime, out OkojoLunisolarCalendarHelper.LunisolarDate date)
+    private bool TryGetLunisolarDate(DateTimeValue dateTime, out LunisolarCalendar.LunisolarDate date)
     {
         if (!dateTime.NativeDateTime.HasValue)
         {
@@ -360,13 +388,13 @@ public sealed class DateTimeFormatCore
 
         if (string.Equals(Calendar, "chinese", StringComparison.OrdinalIgnoreCase))
         {
-            date = OkojoLunisolarCalendarHelper.GetChineseDate(dateTime.NativeDateTime.Value.DateTime);
+            date = LunisolarCalendar.GetChineseDate(dateTime.NativeDateTime.Value.DateTime);
             return true;
         }
 
         if (string.Equals(Calendar, "dangi", StringComparison.OrdinalIgnoreCase))
         {
-            date = OkojoLunisolarCalendarHelper.GetDangiDate(dateTime.NativeDateTime.Value.DateTime);
+            date = LunisolarCalendar.GetDangiDate(dateTime.NativeDateTime.Value.DateTime);
             return true;
         }
 
@@ -374,7 +402,7 @@ public sealed class DateTimeFormatCore
         return false;
     }
 
-    private void AppendLunisolarDateParts(List<DateTimePart> parts, OkojoLunisolarCalendarHelper.LunisolarDate date)
+    private void AppendLunisolarDateParts(List<IntlPart> parts, LunisolarCalendar.LunisolarDate date)
     {
         if (Locale.StartsWith("en-US", StringComparison.OrdinalIgnoreCase))
         {
@@ -423,7 +451,7 @@ public sealed class DateTimeFormatCore
         }
     }
 
-    private void AppendLunisolarYearParts(List<DateTimePart> parts, OkojoLunisolarCalendarHelper.LunisolarDate date,
+    private void AppendLunisolarYearParts(List<IntlPart> parts, LunisolarCalendar.LunisolarDate date,
         bool includeYearLiteral)
     {
         parts.Add(new("relatedYear", Year switch
@@ -441,12 +469,12 @@ public sealed class DateTimeFormatCore
         }
     }
 
-    private void AppendTimeParts(List<DateTimePart> parts, DateTimeValue dateTime)
+    private void AppendTimeParts(List<IntlPart> parts, DateTimeValue dateTime)
     {
         AppendTimeCoreParts(parts, dateTime, Second is not null, TimeZoneName is not null, Uses12HourClock());
     }
 
-    private void AppendTimeCoreParts(List<DateTimePart> parts, DateTimeValue dateTime, bool includeSeconds,
+    private void AppendTimeCoreParts(List<IntlPart> parts, DateTimeValue dateTime, bool includeSeconds,
         bool includeZone, bool use12Hour)
     {
         var includeHour = Hour is not null || TimeStyle is not null;
@@ -542,7 +570,7 @@ public sealed class DateTimeFormatCore
 
     private string? FormatEra(int isoYear)
     {
-        return OkojoIntlCalendarData.FormatEra(Calendar, isoYear, Era!);
+        return CalendarData.FormatEra(Calendar, isoYear, Era!);
     }
 
     private string GetWeekdayText(DateTimeValue dateTime, bool longForm)
@@ -591,7 +619,7 @@ public sealed class DateTimeFormatCore
         return builder.ToString();
     }
 
-    private string FormatLunisolarMonth(OkojoLunisolarCalendarHelper.LunisolarDate date)
+    private string FormatLunisolarMonth(LunisolarCalendar.LunisolarDate date)
     {
         return Month switch
         {
@@ -600,7 +628,7 @@ public sealed class DateTimeFormatCore
         };
     }
 
-    private string FormatLunisolarDay(OkojoLunisolarCalendarHelper.LunisolarDate date)
+    private string FormatLunisolarDay(LunisolarCalendar.LunisolarDate date)
     {
         return Day switch
         {
@@ -720,7 +748,7 @@ public sealed class DateTimeFormatCore
     {
         return string.Equals(NumberingSystem, "latn", StringComparison.OrdinalIgnoreCase)
             ? text
-            : OkojoIntlNumberingSystemData.TransliterateDigits(text, NumberingSystem);
+            : NumberingSystemData.TransliterateDigits(text, NumberingSystem);
     }
 
 
@@ -750,9 +778,8 @@ public sealed class DateTimeFormatCore
     }
 }
 
-public readonly record struct DateTimePart(string Type, string Value);
 
-public readonly record struct RangeDateTimePart(string Type, string Value, string Source);
+public readonly record struct RangeIntlPart(string Type, string Value, string Source);
 
 public readonly record struct DateTimeValue(
     int Year,

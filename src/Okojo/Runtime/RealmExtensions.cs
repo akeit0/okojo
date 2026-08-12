@@ -597,11 +597,6 @@ internal static class RealmExtensions
             return Intrinsics.TryTimeClipToEpochMillisecondsForIntl(timeValue, out epochMilliseconds);
         }
 
-        internal static Intrinsics.OkojoEcmaDateTimeParts GetEcmaDateTimePartsForIntl(long epochMilliseconds, bool utc)
-        {
-            return Intrinsics.GetEcmaDateTimePartsForIntl(epochMilliseconds, utc);
-        }
-
         internal static JsValue CallIteratorHelperMethod(JsRealm ownerRealm, in JsValue methodValue, JsObject thisObj,
             string typeErrorMessage)
         {

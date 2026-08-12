@@ -4,9 +4,9 @@ using Okojo.Numerics;
 namespace Okojo.Globalization;
 
 /// <summary>
-///     Portable ECMA-402 relative-time-format core.
+///     Portable ECMA-402 relative time format.
 /// </summary>
-public sealed class RelativeTimeFormatCore
+public sealed class RelativeTimeFormat
 {
     private static readonly Dictionary<string, string[]> EnglishLongUnits = new(StringComparer.Ordinal)
     {
@@ -105,18 +105,33 @@ public sealed class RelativeTimeFormatCore
             { ["many"] = "lat", ["few"] = "lata", ["one"] = "rok", ["other"] = "roku" }
         };
 
-    public RelativeTimeFormatCore(
+    public RelativeTimeFormat(
+        string locale,
+        RelativeTimeFormatOptions? options = null,
+        CultureInfo? cultureInfo = null)
+    {
+        ArgumentNullException.ThrowIfNull(locale);
+        options ??= new();
+        Locale = locale;
+        NumberingSystem = options.NumberingSystem;
+        Style = options.Style;
+        Numeric = options.Numeric;
+        CultureInfo = cultureInfo ?? Okojo.Globalization.Locale.GetCultureInfo(locale);
+    }
+
+    public RelativeTimeFormat(
         string locale,
         string numberingSystem,
         string style,
         string numeric,
         CultureInfo cultureInfo)
+        : this(locale, new RelativeTimeFormatOptions
+        {
+            NumberingSystem = numberingSystem,
+            Style = style,
+            Numeric = numeric
+        }, cultureInfo)
     {
-        Locale = locale;
-        NumberingSystem = numberingSystem;
-        Style = style;
-        Numeric = numeric;
-        CultureInfo = cultureInfo;
     }
 
     public string Locale { get; }
@@ -310,18 +325,18 @@ public sealed class RelativeTimeFormatCore
         var groupSeparator = CultureInfo.NumberFormat.NumberGroupSeparator;
         if (string.IsNullOrEmpty(groupSeparator))
             groupSeparator = IsPolishLocale() ? "\u00A0" : ",";
-        groupSeparator = OkojoIntlNumberingSystemData.GetGroupSeparator(NumberingSystem, groupSeparator);
-        var decimalSeparator = OkojoIntlNumberingSystemData.GetDecimalSeparator(NumberingSystem,
+        groupSeparator = NumberingSystemData.GetGroupSeparator(NumberingSystem, groupSeparator);
+        var decimalSeparator = NumberingSystemData.GetDecimalSeparator(NumberingSystem,
             CultureInfo.NumberFormat.NumberDecimalSeparator);
         var useGrouping = ShouldGroupDigits(integerPart.Length);
         var groups = useGrouping ? SplitIntegerGroups(integerPart) : [integerPart];
         for (var i = 0; i < groups.Count; i++)
-            groups[i] = OkojoIntlNumberingSystemData.TransliterateDigits(groups[i], NumberingSystem);
+            groups[i] = NumberingSystemData.TransliterateDigits(groups[i], NumberingSystem);
 
         var result = string.Join(groupSeparator, groups);
         if (!string.IsNullOrEmpty(fractionPart))
             result += decimalSeparator +
-                      OkojoIntlNumberingSystemData.TransliterateDigits(fractionPart, NumberingSystem);
+                      NumberingSystemData.TransliterateDigits(fractionPart, NumberingSystem);
 
         return result;
     }
@@ -346,8 +361,8 @@ public sealed class RelativeTimeFormatCore
         var groupSeparator = CultureInfo.NumberFormat.NumberGroupSeparator;
         if (string.IsNullOrEmpty(groupSeparator))
             groupSeparator = IsPolishLocale() ? "\u00A0" : ",";
-        groupSeparator = OkojoIntlNumberingSystemData.GetGroupSeparator(NumberingSystem, groupSeparator);
-        var decimalSeparator = OkojoIntlNumberingSystemData.GetDecimalSeparator(NumberingSystem,
+        groupSeparator = NumberingSystemData.GetGroupSeparator(NumberingSystem, groupSeparator);
+        var decimalSeparator = NumberingSystemData.GetDecimalSeparator(NumberingSystem,
             CultureInfo.NumberFormat.NumberDecimalSeparator);
         var useGrouping = ShouldGroupDigits(integerPart.Length);
         var groups = useGrouping ? SplitIntegerGroups(integerPart) : [integerPart];
@@ -355,7 +370,7 @@ public sealed class RelativeTimeFormatCore
         for (var i = 0; i < groups.Count; i++)
         {
             yield return new IntlPart("integer",
-                OkojoIntlNumberingSystemData.TransliterateDigits(groups[i], NumberingSystem), unit);
+                NumberingSystemData.TransliterateDigits(groups[i], NumberingSystem), unit);
             if (i + 1 < groups.Count)
                 yield return new IntlPart("group", groupSeparator, unit);
         }
@@ -364,7 +379,7 @@ public sealed class RelativeTimeFormatCore
         {
             yield return new IntlPart("decimal", decimalSeparator, unit);
             yield return new IntlPart("fraction",
-                OkojoIntlNumberingSystemData.TransliterateDigits(fractionPart, NumberingSystem), unit);
+                NumberingSystemData.TransliterateDigits(fractionPart, NumberingSystem), unit);
         }
     }
 

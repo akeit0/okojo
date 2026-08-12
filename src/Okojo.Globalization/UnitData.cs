@@ -2,7 +2,7 @@ using System.Collections.Frozen;
 
 namespace Okojo.Globalization;
 
-public static class OkojoIntlUnitData
+public static class UnitData
 {
     private static readonly FrozenSet<string> RelativeTimeFormatUnits = new[]
     {

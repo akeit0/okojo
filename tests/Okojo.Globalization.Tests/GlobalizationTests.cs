@@ -115,23 +115,23 @@ public class IntlDataTests
     [TestCase("latn", true)]
     [TestCase("arab", true)]
     [TestCase("bogus", false)]
-    public void OkojoIntlNumberingSystemData_IsSupported(string system, bool expected)
+    public void NumberingSystemData_IsSupported(string system, bool expected)
     {
-        Assert.That(OkojoIntlNumberingSystemData.IsSupported(system), Is.EqualTo(expected));
+        Assert.That(NumberingSystemData.IsSupported(system), Is.EqualTo(expected));
     }
 
     [Test]
-    public void OkojoIntlNumberingSystemData_TransliteratesArabicDigits()
+    public void NumberingSystemData_TransliteratesArabicDigits()
     {
-        Assert.That(OkojoIntlNumberingSystemData.TransliterateDigits("123", "arab"), Is.EqualTo("\u0661\u0662\u0663"));
+        Assert.That(NumberingSystemData.TransliterateDigits("123", "arab"), Is.EqualTo("\u0661\u0662\u0663"));
     }
 
     [TestCase("gregory", true)]
     [TestCase("japanese", true)]
     [TestCase("bogus", false)]
-    public void OkojoIntlCalendarData_IsSupportedCalendar(string calendar, bool expected)
+    public void CalendarData_IsSupportedCalendar(string calendar, bool expected)
     {
-        Assert.That(OkojoIntlCalendarData.IsSupportedCalendar(calendar), Is.EqualTo(expected));
+        Assert.That(CalendarData.IsSupportedCalendar(calendar), Is.EqualTo(expected));
     }
 
     [Test]
@@ -149,17 +149,17 @@ public class IntlDataTests
     }
 
     [Test]
-    public void OkojoIntlTimeZoneData_Canonicalizes()
+    public void TimeZoneData_Canonicalizes()
     {
-        Assert.That(OkojoIntlTimeZoneData.TryGetCanonicalTimeZone("UTC", out var canonical), Is.True);
+        Assert.That(TimeZoneData.TryGetCanonicalTimeZone("UTC", out var canonical), Is.True);
         Assert.That(canonical, Is.EqualTo("UTC"));
     }
 }
 
 [TestFixture]
-public class PluralRulesCoreTests
+public class PluralRulesTests
 {
-    private static PluralRulesCore En() => new("en-US", "cardinal", "standard");
+    private static PluralRules En() => new("en-US", "cardinal", "standard");
 
     [TestCase(1.0, "one")]
     [TestCase(2.0, "other")]
@@ -172,7 +172,7 @@ public class PluralRulesCoreTests
     [Test]
     public void EnglishOrdinal_UsesOrdinalCategories()
     {
-        var core = new PluralRulesCore("en-US", "ordinal", "standard");
+        var core = new PluralRules("en-US", "ordinal", "standard");
         Assert.That(core.Select(1), Is.EqualTo("one"));
         Assert.That(core.Select(2), Is.EqualTo("two"));
         Assert.That(core.Select(3), Is.EqualTo("few"));
@@ -182,7 +182,7 @@ public class PluralRulesCoreTests
     [Test]
     public void ArabicCardinal_UsesSixCategories()
     {
-        var core = new PluralRulesCore("ar", "cardinal", "standard");
+        var core = new PluralRules("ar", "cardinal", "standard");
         Assert.That(core.Select(0), Is.EqualTo("zero"));
         Assert.That(core.Select(1), Is.EqualTo("one"));
         Assert.That(core.Select(2), Is.EqualTo("two"));
@@ -194,15 +194,80 @@ public class PluralRulesCoreTests
     public void GetPluralCategories_MatchesLocale()
     {
         Assert.That(En().GetPluralCategories(), Is.EqualTo(new[] { "one", "other" }));
-        var ru = new PluralRulesCore("ru", "cardinal", "standard").GetPluralCategories();
+        var ru = new PluralRules("ru", "cardinal", "standard").GetPluralCategories();
         Assert.That(ru, Is.EqualTo(new[] { "one", "few", "many", "other" }));
     }
 }
 
 [TestFixture]
-public class CollatorCoreTests
+public class StandaloneApiTests
 {
-    private static CollatorCore EnCollator() =>
+    [Test]
+    public void PluralRules_OptionsConstructor()
+    {
+        var rules = new PluralRules("en", new PluralRulesOptions { PluralRuleType = "ordinal" });
+        Assert.That(rules.Select(2), Is.EqualTo("two"));
+    }
+
+    [Test]
+    public void Collator_OptionsConstructor()
+    {
+        var collator = new Collator("en-US", new CollatorOptions { Numeric = true });
+        Assert.That(collator.Compare("item2", "item10"), Is.LessThan(0));
+    }
+
+    [Test]
+    public void ListFormat_OptionsConstructor()
+    {
+        var listFormat = new ListFormat("en", new ListFormatOptions { Style = "short" });
+        Assert.That(listFormat.Format(["a", "b", "c"]), Is.EqualTo("a, b, & c"));
+    }
+
+    [Test]
+    public void RelativeTimeFormat_OptionsConstructor()
+    {
+        var rtf = new RelativeTimeFormat("en", new RelativeTimeFormatOptions { Numeric = "auto" });
+        Assert.That(rtf.Format(0, "day"), Is.EqualTo("today"));
+    }
+
+    [Test]
+    public void NumberFormat_OptionsConstructor()
+    {
+        var nf = new NumberFormat("de-DE", new NumberFormatOptions
+        {
+            Style = "decimal",
+            UseGrouping = "false",
+            MinimumFractionDigits = 2
+        });
+        Assert.That(nf.Format(1234.5), Is.EqualTo("1234,50"));
+    }
+
+    [Test]
+    public void DateTimeFormat_OptionsConstructor()
+    {
+        var dtf = new DateTimeFormat("en-US", new DateTimeFormatOptions
+        {
+            Year = "numeric",
+            Month = "2-digit",
+            Day = "2-digit"
+        });
+        var value = new DateTimeValue(1995, 12, 17, 3, 24, 56, 0, 0, null);
+        var text = string.Concat(dtf.BuildParts(value).Select(p => p.Value));
+        Assert.That(text, Does.Contain("1995"));
+    }
+
+    [Test]
+    public void Locale_ResolvesCulture()
+    {
+        Assert.That(Locale.GetCultureInfo("en-US").Name, Is.EqualTo("en-US"));
+        Assert.That(Locale.GetCompareInfo("fr-FR").Name, Is.EqualTo("fr-FR"));
+    }
+}
+
+[TestFixture]
+public class CollatorTests
+{
+    private static Collator EnCollator() =>
         new("en-US", "sort", "variant", false, "default", false, "false",
             CultureInfo.InvariantCulture.CompareInfo, CompareOptions.None);
 
@@ -218,7 +283,7 @@ public class CollatorCoreTests
     [Test]
     public void Compare_Numeric_OrdersDigitRunsNumerically()
     {
-        var core = new CollatorCore("en-US", "sort", "variant", false, "default", true, "false",
+        var core = new Collator("en-US", "sort", "variant", false, "default", true, "false",
             CultureInfo.InvariantCulture.CompareInfo, CompareOptions.None);
         Assert.That(core.Compare("item2", "item10"), Is.LessThan(0));
         Assert.That(core.Compare("item10", "item2"), Is.GreaterThan(0));
@@ -227,19 +292,19 @@ public class CollatorCoreTests
     [Test]
     public void Compare_CaseFirst_Upper_OrdersUpperCaseFirst()
     {
-        var core = new CollatorCore("en-US", "sort", "base", false, "default", false, "upper",
+        var core = new Collator("en-US", "sort", "base", false, "default", false, "upper",
             CultureInfo.InvariantCulture.CompareInfo, CompareOptions.IgnoreCase);
         Assert.That(core.Compare("a", "A"), Is.GreaterThan(0));
     }
 }
 
 [TestFixture]
-public class ListFormatCoreTests
+public class ListFormatTests
 {
     [Test]
     public void Format_EnglishConjunction()
     {
-        var core = new ListFormatCore("en-US", "conjunction", "long");
+        var core = new ListFormat("en-US", "conjunction", "long");
         Assert.That(core.Format(["a", "b"]), Is.EqualTo("a and b"));
         Assert.That(core.Format(["a", "b", "c"]), Is.EqualTo("a, b, and c"));
     }
@@ -247,7 +312,7 @@ public class ListFormatCoreTests
     [Test]
     public void Format_EnglishDisjunction()
     {
-        var core = new ListFormatCore("en-US", "disjunction", "long");
+        var core = new ListFormat("en-US", "disjunction", "long");
         Assert.That(core.Format(["a", "b"]), Is.EqualTo("a or b"));
         Assert.That(core.Format(["a", "b", "c"]), Is.EqualTo("a, b, or c"));
     }
@@ -255,7 +320,7 @@ public class ListFormatCoreTests
     [Test]
     public void FormatToParts_ProducesElementAndLiteralParts()
     {
-        var core = new ListFormatCore("en-US", "conjunction", "long");
+        var core = new ListFormat("en-US", "conjunction", "long");
         var parts = core.FormatToParts(["a", "b"]);
         Assert.That(parts.Count, Is.EqualTo(3));
         Assert.That(parts[0], Is.EqualTo(new IntlPart("element", "a")));
@@ -265,9 +330,9 @@ public class ListFormatCoreTests
 }
 
 [TestFixture]
-public class RelativeTimeFormatCoreTests
+public class RelativeTimeFormatTests
 {
-    private static RelativeTimeFormatCore En() =>
+    private static RelativeTimeFormat En() =>
         new("en-US", "latn", "long", "always", CultureInfo.InvariantCulture);
 
     [Test]
@@ -285,7 +350,7 @@ public class RelativeTimeFormatCoreTests
     [Test]
     public void Format_Auto_SpecialPhrases()
     {
-        var core = new RelativeTimeFormatCore("en-US", "latn", "long", "auto", CultureInfo.InvariantCulture);
+        var core = new RelativeTimeFormat("en-US", "latn", "long", "auto", CultureInfo.InvariantCulture);
         Assert.That(core.Format(0, "day"), Is.EqualTo("today"));
         Assert.That(core.Format(-1, "day"), Is.EqualTo("yesterday"));
         Assert.That(core.Format(1, "day"), Is.EqualTo("tomorrow"));
@@ -293,9 +358,9 @@ public class RelativeTimeFormatCoreTests
 }
 
 [TestFixture]
-public class NumberFormatterCoreTests
+public class NumberFormatTests
 {
-    private static NumberFormatterCore Decimal(string locale = "en-US", string grouping = "auto") =>
+    private static NumberFormat Decimal(string locale = "en-US", string grouping = "auto") =>
         new(locale, "latn", "decimal", null, "symbol", "standard", null, "short", "standard", "short",
             1, 0, 3, null, null, false, false, grouping, "auto", "halfExpand", "auto", 1, "auto",
             CultureInfo.InvariantCulture);
@@ -330,9 +395,9 @@ public class NumberFormatterCoreTests
 }
 
 [TestFixture]
-public class DateTimeFormatCoreTests
+public class DateTimeFormatTests
 {
-    private static DateTimeFormatCore ShortDate() =>
+    private static DateTimeFormat ShortDate() =>
         new("en-US", "gregory", "latn", "UTC", false, "h23", null, null, null, "numeric", "2-digit",
             "2-digit", null, null, null, null, null, null, "basic", null, null, CultureInfo.InvariantCulture);
 

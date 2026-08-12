@@ -3,15 +3,22 @@ using System.Text;
 namespace Okojo.Globalization;
 
 /// <summary>
-///     Portable ECMA-402 list-format core: pattern selection and string formatting.
+///     Portable ECMA-402 list format: pattern selection and string formatting.
 /// </summary>
-public sealed class ListFormatCore
+public sealed class ListFormat
 {
-    public ListFormatCore(string locale, string type, string style)
+    public ListFormat(string locale, ListFormatOptions? options = null)
     {
+        ArgumentNullException.ThrowIfNull(locale);
+        options ??= new();
         Locale = locale;
-        Type = type;
-        Style = style;
+        Type = options.Type;
+        Style = options.Style;
+    }
+
+    public ListFormat(string locale, string type, string style)
+        : this(locale, new ListFormatOptions { Type = type, Style = style })
+    {
     }
 
     public string Locale { get; }

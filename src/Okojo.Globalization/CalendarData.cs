@@ -3,7 +3,7 @@ using System.Globalization;
 
 namespace Okojo.Globalization;
 
-public static class OkojoIntlCalendarData
+public static class CalendarData
 {
     private static readonly Lock Gate = new();
     private static FrozenSet<string>? supportedCalendars;
@@ -73,7 +73,7 @@ public static class OkojoIntlCalendarData
             var fixedEraRulesBuilder = new Dictionary<string, EraText>(StringComparer.Ordinal);
             var japaneseEraList = new List<JapaneseEraRule>();
 
-            var assembly = typeof(OkojoIntlCalendarData).Assembly;
+            var assembly = typeof(CalendarData).Assembly;
             var resourceName = assembly.GetManifestResourceNames()
                                    .FirstOrDefault(static n => n.EndsWith("CalendarData.txt", StringComparison.Ordinal))
                                ?? throw new InvalidOperationException("Intl calendar data resource not found.");
