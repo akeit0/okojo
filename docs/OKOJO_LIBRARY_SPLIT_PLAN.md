@@ -13,6 +13,8 @@ The split is intentionally not backward compatible. The repository is still pre-
 - keep engine-independent JavaScript-compatible algorithms usable without the engine
 - make the ECMAScript engine independent of embedding, I/O, worker, and event-loop policy
 - provide one small embedding runtime above the engine
+- let browser and other host profiles completely own task selection, waiting, and microtask-checkpoint timing
+- preserve applicable ECMAScript and host-profile semantics throughout the migration, not only after the final split
 - keep host profiles and optional tooling outside both core assemblies
 - preserve behavior while moving code; namespace cleanup is a separate mechanical step
 
@@ -84,6 +86,7 @@ Owns ECMAScript semantics:
 - realms, agents, execution contexts, generators, and intrinsics
 - script and Promise jobs
 - module records, graph, linking, and evaluation
+- ordered Promise-job storage and an explicit, non-reentrant checkpoint operation
 - a minimal module-loading contract required by the module graph
 - generic host-call and host-object contracts required to invoke callbacks
 - debugger/checkpoint primitives required while executing code
@@ -93,7 +96,7 @@ Does not own:
 - `JsRuntime` or builder policy
 - file/network module loaders
 - host task queues, event-loop pumping, timers, or delayed scheduling
-- worker lifecycle or message serialization
+- worker lifecycle or message-serialization implementation and policy
 - CLR reflection binding
 - source-map loading/registration policy
 - diagnostic text rendering, REPLs, or debug servers
@@ -119,11 +122,13 @@ Owns embedding and process/container concerns:
 - engine/agent/realm creation and lifetime composition
 - file module and worker-script loader implementations
 - worker creation, cross-agent messaging, and message serialization
-- host scheduling contracts used to connect an event loop
+- host scheduling contracts and independently callable operations used to connect an event loop
 - source-map registry and runtime-side debugger glue
 - explicit global/module installation composition
 
 The runtime may implement engine-owned contracts, but the engine must never reference the runtime assembly.
+
+The runtime may offer a default convenience pump, but it must not define the only execution path. A browser must be able to choose a runnable task, run it, request the required microtask checkpoint, perform rendering work, and decide whether or how to wait without hidden runtime pumping.
 
 ### Optional layers
 
@@ -149,11 +154,37 @@ Before the physical split:
 
 The engine owns only ECMAScript job state. `HostJobs`, `HostPriorityJobs`, `PumpJobs` policy, queue keys, and host wait handles belong above it.
 
+### Event-loop ownership and specification gate
+
+ECMAScript and host event loops are separate contracts:
+
+- [ECMA-262 `HostEnqueuePromiseJob`](https://tc39.es/ecma262/multipage/executable-code-and-execution-contexts.html#sec-hostenqueuepromisejob) is host-defined, but Promise jobs must execute in the order in which they were enqueued.
+- The [HTML event loop](https://html.spec.whatwg.org/multipage/webappapis.html#event-loops) selects a runnable task and then performs a microtask checkpoint.
+- An HTML [microtask checkpoint](https://html.spec.whatwg.org/multipage/webappapis.html#perform-a-microtask-checkpoint) is non-reentrant and drains the queue, including microtasks enqueued while the checkpoint runs.
+- Node priority queues such as `nextTick` are Node profile policy and must not be imposed on browser hosts.
+
+The target API separates mechanism from policy:
+
+- the engine stores and executes Promise jobs without selecting host tasks
+- the runtime exposes task enqueueing, one-task execution, Promise checkpoint, pending-state, and wake-up primitives without prescribing a loop
+- `Okojo.Hosting` composes those primitives into optional default pumps
+- `Okojo.Browser` owns task-source selection, timers, networking, worker delivery, rendering opportunities, checkpoint timing, waiting, and fairness
+
+No engine evaluation call may force a browser to run unrelated host tasks. Convenience APIs may pump only when explicitly requested and must be implemented through the same low-level operations available to custom hosts.
+
+This is a migration gate, not a final cleanup item. Before every behavior-bearing boundary change:
+
+1. preserve Promise FIFO, recursive Promise-job draining, non-reentrant checkpoints, and run-to-completion
+2. preserve the active host profile's observable task order and checkpoint points
+3. attach host queues before invoking realm or agent initialization callbacks
+4. add focused regressions for the changed ordering or lifecycle boundary
+5. require warning-free builds and a fully passing applicable test suite; do not carry a known failure forward
+
 ### Replace the broad runtime-host dependency
 
-`IJsRuntimeHost` is transitional. It currently exposes `JsRuntimeOptions`, source maps, worker loading, CLR state, and agent creation to engine types.
+`IJsRuntimeHost` was transitional and has been removed. It exposed `JsRuntimeOptions`, source maps, worker loading, CLR state, and agent creation to engine types.
 
-Before moving projects, replace that dependency with the smallest engine-owned inputs actually required by each subsystem. Prefer constructor inputs and narrow callbacks. Add a cohesive public host interface only where an external runtime genuinely must implement one; do not replace one broad interface with several speculative interfaces.
+Before moving projects, continue reducing the direct inputs left on `JsAgent` to the smallest engine-owned inputs actually required by each subsystem. Prefer constructor inputs and narrow callbacks. Add a cohesive public host interface only where an external runtime genuinely must implement one; do not replace one broad interface with several speculative interfaces.
 
 ### Module loading is split by contract and implementation
 
@@ -168,6 +199,16 @@ Do not move `Runtime/Interop/*` wholesale.
 - generic callback ABI and host-object contracts (`CallInfo`, host functions, required descriptors) stay in the engine
 - reflection/type discovery and CLR conversion implementation move to `Okojo.Reflection`
 - runtime composition exposes opt-in registration without making reflection a required dependency
+
+### Worker messaging is split by mechanism and profile API
+
+`IHostMessageSerializer` remains an engine-owned host contract. It is cohesive, and its operations cross the `JsRealm`/`JsValue` boundary. The default implementation belongs to `Okojo.JavaScript.Runtime`.
+
+Move worker lifecycle, queue selection, per-realm worker state, dispatch wiring, `IWorkerHost`, `WorkerHostBinding`, `DefaultWorkerHost`, and `WorkerHandleFactory` to runtime ownership. Use one concrete `WorkerMessaging` component rather than adding another interface.
+
+Keep `JsAgent.PostMessage` and `MessageReceived` for this slice as the narrow delivery mechanism implemented next to the agent's queues. Runtime owns worker policy, serialization choices, queue choice, and JS-facing dispatch. Revisit the delivery API only if the physical split demonstrates a concrete missing contract.
+
+Cross-realm value bridging remains an engine operation and must be separated from the current worker partial. Web-facing `Worker`, `postMessage`, `onmessage`, `onmessageerror`, and event objects belong to `Okojo.WebPlatform`. The non-standard `createWorker` helper may remain an opt-in `Okojo.Hosting` API, but enabling the browser profile must not install it.
 
 ### Friend assemblies are temporary migration aids
 
@@ -195,8 +236,8 @@ The standalone projects exist and the monolith references them. Update stale fri
 Behavior must remain unchanged while these couplings are removed:
 
 1. detach `JsAgent` from concrete `JsRuntime` and `JsRuntimeOptions`
-2. move host queues/scheduler pumping out of `JsAgent`
-3. move worker messaging and serialization out of `JsRealm`
+2. move host queues/scheduler pumping out of `JsAgent` while keeping Promise checkpoints independently host-controlled
+3. move worker messaging state, lifecycle, and the default serializer implementation out of `JsRealm`; retain the `IHostMessageSerializer` contract
 4. split generic host callback contracts from reflection implementation
 5. narrow `InternalsVisibleTo` consumers
 
@@ -204,9 +245,13 @@ Progress: the broad `IJsRuntimeHost` seam has been removed. `JsAgent` now receiv
 the concrete module, timing, interop, wait, scheduler, serializer, worker, and
 identity inputs it actually uses; `JsRealm` exposes engine-facing values through
 its agent. `HostJobQueue` now owns host and host-priority queues, scheduler
-delivery, and pump policy. Agent construction, host-queue attachment, and user
-initialization are separate stages. Worker messaging policy and remaining
-friend-assembly cleanup are still required before Phase 3.
+delivery, and the default convenience-pump policy. Agent construction,
+host-queue attachment, and user initialization are separate stages. The next
+slice moves worker state and policy out of `JsRealm` without replacing
+`IHostMessageSerializer` with callbacks. Browser-controlled task selection and
+checkpoint timing must remain available through independent low-level operations.
+Worker messaging policy and remaining friend-assembly cleanup are still required
+before Phase 3.
 
 Keep focused module, agent, Promise, timer, worker, interop, and execution-check tests green after each step.
 
@@ -274,6 +319,9 @@ For repeated focused work, build first and then run filtered tests with `--no-bu
 High-risk areas:
 
 - agent and Promise job ordering
+- recursively queued Promise jobs and checkpoint reentrancy
+- browser-selected task execution with no hidden runtime pump
+- HTML task-to-microtask-checkpoint ordering
 - modules and dynamic import
 - worker lifecycle and messaging
 - host interop

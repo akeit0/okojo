@@ -22,7 +22,7 @@ Current baseline:
 
 Current next-phase priorities:
 
-1. refine the stable embedding and host API shape
+1. refine the stable embedding and host API shape so browser profiles can own their complete event loop
 2. improve runtime performance and allocation behavior on hot paths
 3. add selectively chosen staging features that are worth carrying, such as `Temporal`
 4. complete and adopt the experimental compiler path
@@ -133,7 +133,7 @@ Should cover:
 - module resolution/loading
 - worker script loading
 - timers and scheduling
-- microtask/job queue integration
+- independently controlled host-task execution and Promise-job checkpoints
 - host callbacks and host object binding
 - optional host capabilities (filesystem, diagnostics, interop, browser shims)
 
@@ -236,6 +236,10 @@ Browser-grade compatibility needs host-facing seams for:
 
 Core Okojo should not silently hardcode these policies. It should expose explicit hooks or extension points.
 
+The browser profile must own task-source selection, timers, networking, worker delivery, rendering opportunities, microtask-checkpoint timing, waiting, and fairness. Runtime convenience pumps are optional and must be composed from the same low-level operations available to the browser.
+
+This control does not permit observable specification violations. Promise jobs remain FIFO under [ECMA-262](https://tc39.es/ecma262/multipage/executable-code-and-execution-contexts.html#sec-hostenqueuepromisejob), and the browser profile must implement the task and non-reentrant, queue-draining microtask-checkpoint behavior required by the [HTML event loop](https://html.spec.whatwg.org/multipage/webappapis.html#event-loops). No migration stage may carry a warning, known test failure, reordered job, hidden host-task pump, or dropped accepted work as temporary debt.
+
 ### E. Mark Diagnostic APIs Explicitly
 
 Some APIs are very useful for tooling but should not be mistaken for the stable runtime embedding contract.
@@ -304,12 +308,15 @@ Success markers:
 Goals:
 
 - simplify module path while preserving live-binding correctness
-- define host job queue and async integration more cleanly
+- expose Promise checkpoints independently from host-task selection
+- let browser and other host profiles define their complete event-loop policy
 - improve worker/module coordination APIs
 
 Success markers:
 
 - module and async failures are diagnosable through stable host seams rather than ad hoc runtime coupling
+- recursive Promise jobs drain in FIFO order without a nested checkpoint
+- browser tests select a task and invoke the required checkpoint without a hidden runtime pump
 
 ### 6. Host Interop Boundaries
 
@@ -378,6 +385,7 @@ Every substantial feature or compliance slice should still keep its own focused 
 Current supporting documents:
 
 - `docs/OKOJO_LIBRARY_SPLIT_PLAN.md`
+- `docs/OKOJO_LIBRARY_SPLIT_PHASE2_BOUNDARY.md`
 - `docs/OKOJO_MULTI_PASS_COMPILER_DESIGN.md`
 - `docs/OKOJO_NODE_RUNTIME_PLAN.md`
 
@@ -393,7 +401,7 @@ Also keep these boundaries explicit:
 ## 2026 Execution Priorities
 
 1. keep all non-legacy, non-staging Test262 coverage passing
-2. remove host queue, worker, and runtime-option coupling from `JsAgent` and `JsRealm` (the broad `IJsRuntimeHost` seam is now removed)
+2. remove host queue, worker, and runtime-option coupling from `JsAgent` and `JsRealm` while preserving independently controlled, specification-compliant Promise checkpoints (the broad `IJsRuntimeHost` seam is now removed)
 3. split `Okojo.JavaScript` from `Okojo.JavaScript.Runtime`
 4. migrate host/profile projects to the new dependency graph
 5. tighten module/job/worker host seams for browser-like embedding
