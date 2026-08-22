@@ -695,6 +695,587 @@ public sealed partial class JsRealm
         );
     }
 
+    // Opcode handler extraction convention (A2 hot/cold split):
+    // a `ref byte pc` cursor can only be RESEATED in the caller's scope
+    // (`pc = ref Unsafe.Add(...)` inside a callee rebinds the callee's own
+    // ref slot and is lost on return). Handlers therefore take
+    // `ref byte bytecode, ref byte pc`, decode through an int offset, and
+    // RETURN the consumed operand length; arms apply
+    // `pc = ref Unsafe.Add(ref pc, HandleXxx(...))`.
+    // `ref acc` is safe to pass because the accumulator is a field alias and
+    // handlers only write values through it.
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private int HandleCreateClosure(
+        JsOpCode op,
+        object[] objectPool,
+        ref byte bytecode,
+        ref byte pc,
+        ref JsValue acc
+    )
+    {
+        var startOffset = GetPcOffset(ref bytecode, ref pc);
+        var pcOffset = startOffset;
+        var isWide = op == JsOpCode.CreateClosureWide;
+        int idx;
+        if (isWide)
+        {
+            idx = Unsafe.ReadUnaligned<ushort>(ref Unsafe.Add(ref bytecode, pcOffset));
+            pcOffset += 2;
+        }
+        else
+        {
+            idx = Unsafe.Add(ref bytecode, pcOffset);
+            pcOffset += 1;
+        }
+
+        pcOffset += 1; // flags (unused for now)
+
+        acc = BindClosureIfNeeded((JsBytecodeFunction)objectPool[idx]);
+        return pcOffset - startOffset;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private int HandleCreateFunctionContext(
+        JsOpCode op,
+        Span<JsValue> fullStack,
+        int fp,
+        JsScript script,
+        ref byte bytecode,
+        ref byte pc,
+        ref JsValue acc
+    )
+    {
+        var startOffset = GetPcOffset(ref bytecode, ref pc);
+        var pcOffset = startOffset;
+        var parent = GetCurrentContext(fullStack);
+        int slotCount;
+        if (op == JsOpCode.CreateFunctionContextWithCellsWide)
+        {
+            slotCount = Unsafe.ReadUnaligned<ushort>(ref Unsafe.Add(ref bytecode, pcOffset));
+            pcOffset += 2;
+        }
+        else
+        {
+            slotCount = Unsafe.Add(ref bytecode, pcOffset);
+            pcOffset += 1;
+        }
+
+        JsContext o;
+        if (
+            parent is null
+            && Agent.TryGetCurrentModuleRuntimeBindings(out var activeModuleBindings)
+        )
+        {
+            if (activeModuleBindings.TopLevelContext is not null)
+            {
+                o = activeModuleBindings.TopLevelContext;
+#if DEBUG
+                if (o.Slots.Length != slotCount)
+                    throw new InvalidOperationException(
+                        "Shared module context slot count mismatch."
+                    );
+#endif
+            }
+            else
+            {
+                o = new(parent, slotCount) { ModuleBindings = activeModuleBindings };
+            }
+        }
+        else
+        {
+            o = new(parent, slotCount);
+        }
+
+        acc = JsValue.FromObject(o);
+        if (
+            op
+            is JsOpCode.CreateFunctionContextWithCells
+                or JsOpCode.CreateFunctionContextWithCellsWide
+        )
+        {
+            SetFrameContext(fullStack, fp, o);
+            if (parent is null && CurrentCallFrame.FrameKind == CallFrameKind.ScriptFrame)
+                RegisterGlobalLexicalBindings(script, o);
+        }
+
+        return pcOffset - startOffset;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private int HandleCurrentContextSlotOp(
+        JsOpCode op,
+        Span<JsValue> fullStack,
+        ref byte bytecode,
+        ref byte pc,
+        ref JsValue acc
+    )
+    {
+        var startOffset = GetPcOffset(ref bytecode, ref pc);
+        var pcOffset = startOffset;
+        var ctx =
+            GetCurrentContext(fullStack)
+            ?? throw new InvalidOperationException("No current context.");
+
+        int slotIndex;
+        if (
+            op
+            is JsOpCode.LdaCurrentContextSlotWide
+                or JsOpCode.LdaCurrentContextSlotNoTdzWide
+                or JsOpCode.StaCurrentContextSlotWide
+        )
+        {
+            slotIndex = Unsafe.ReadUnaligned<ushort>(ref Unsafe.Add(ref bytecode, pcOffset));
+            pcOffset += 2;
+        }
+        else
+        {
+            slotIndex = Unsafe.Add(ref bytecode, pcOffset);
+            pcOffset += 1;
+        }
+
+        ref var slot = ref ctx.Slots[slotIndex];
+        if (op is JsOpCode.LdaCurrentContextSlot or JsOpCode.LdaCurrentContextSlotWide)
+            acc = ThrowIfTheHole(slot);
+        else if (
+            op is JsOpCode.LdaCurrentContextSlotNoTdz or JsOpCode.LdaCurrentContextSlotNoTdzWide
+        )
+            acc = slot;
+        else
+            slot = acc;
+
+        return pcOffset - startOffset;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private int HandleContextSlotOp(
+        JsOpCode op,
+        Span<JsValue> fullStack,
+        ref byte bytecode,
+        ref byte pc,
+        ref JsValue acc
+    )
+    {
+        var startOffset = GetPcOffset(ref bytecode, ref pc);
+        var pcOffset = startOffset;
+        int slotIndex;
+        if (
+            op
+            is JsOpCode.LdaContextSlotWide
+                or JsOpCode.LdaContextSlotNoTdzWide
+                or JsOpCode.StaContextSlotWide
+        )
+        {
+            slotIndex = Unsafe.ReadUnaligned<ushort>(ref Unsafe.Add(ref bytecode, pcOffset));
+            pcOffset += 2;
+        }
+        else
+        {
+            slotIndex = Unsafe.Add(ref bytecode, pcOffset);
+            pcOffset += 1;
+        }
+
+        // context depth
+        var depth = Unsafe.Add(ref bytecode, pcOffset);
+        pcOffset += 1;
+        var ctx = GetContextAtDepth(fullStack, depth);
+        ref var slot = ref ctx.Slots[slotIndex];
+        if (op is JsOpCode.LdaContextSlot or JsOpCode.LdaContextSlotWide)
+            acc = ThrowIfTheHole(slot);
+        else if (op is JsOpCode.LdaContextSlotNoTdz or JsOpCode.LdaContextSlotNoTdzWide)
+            acc = slot;
+        else
+            slot = acc;
+
+        return pcOffset - startOffset;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private int HandleStaGlobal(
+        JsOpCode op,
+        JsScript script,
+        bool isStrict,
+        int[] atomizedStringConstants,
+        ref byte bytecode,
+        ref byte pc
+    )
+    {
+        var startOffset = GetPcOffset(ref bytecode, ref pc);
+        var pcOffset = startOffset;
+        int nameIdx;
+        int icSlot;
+        if (
+            op
+            is not JsOpCode.StaGlobalWide
+                and not JsOpCode.StaGlobalInitWide
+                and not JsOpCode.StaGlobalFuncDeclWide
+        )
+        {
+            nameIdx = Unsafe.Add(ref bytecode, pcOffset);
+            icSlot = Unsafe.Add(ref bytecode, pcOffset + 1);
+            pcOffset += 2;
+        }
+        else
+        {
+            nameIdx = Unsafe.ReadUnaligned<ushort>(ref Unsafe.Add(ref bytecode, pcOffset));
+            icSlot = Unsafe.ReadUnaligned<ushort>(ref Unsafe.Add(ref bytecode, pcOffset + 2));
+            pcOffset += 4;
+        }
+
+        var atom = atomizedStringConstants[nameIdx];
+        var isInitializationStore =
+            op
+            is JsOpCode.StaGlobalInit
+                or JsOpCode.StaGlobalInitWide
+                or JsOpCode.StaGlobalFuncDecl
+                or JsOpCode.StaGlobalFuncDeclWide;
+        var useFunctionDeclarationSemantics =
+            op is JsOpCode.StaGlobalFuncDecl or JsOpCode.StaGlobalFuncDeclWide;
+        StoreGlobalByAtom(
+            script,
+            icSlot,
+            atom,
+            isInitializationStore,
+            useFunctionDeclarationSemantics,
+            isStrict
+        );
+        return pcOffset - startOffset;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private int HandleGetNamedPropertyFromSuper(
+        JsOpCode op,
+        Span<JsValue> fullStack,
+        int fp,
+        int[] atomizedStringConstants,
+        ref byte bytecode,
+        ref byte pc,
+        ref JsValue acc
+    )
+    {
+        var startOffset = GetPcOffset(ref bytecode, ref pc);
+        var pcOffset = startOffset;
+        var isWide = op == JsOpCode.GetNamedPropertyFromSuperWide;
+        int nameIdx;
+        if (isWide)
+        {
+            nameIdx = Unsafe.ReadUnaligned<ushort>(ref Unsafe.Add(ref bytecode, pcOffset));
+            pcOffset += 2;
+        }
+        else
+        {
+            nameIdx = Unsafe.Add(ref bytecode, pcOffset);
+            pcOffset += 1;
+        }
+
+        var atom = atomizedStringConstants[nameIdx];
+        ValidateAtomizedNameConstant(
+            atom,
+            "GetNamedPropertyFromSuper requires atomized name constant."
+        );
+        var thisValue = fullStack[fp + OffsetThisValue];
+        if (thisValue.IsTheHole)
+            ThrowSuperNotCalled();
+        if (!thisValue.TryGetObject(out var receiver))
+            ThrowTypeError("SUPER_RECEIVER", "super receiver must be object");
+
+        var superBase = RequireObjectSuperBaseForFrame(fp);
+        if (superBase.TryGetPropertyAtomWithReceiver(this, receiver, atom, out var value, out _))
+            acc = value;
+        else
+            acc = JsValue.Undefined;
+
+        return pcOffset - startOffset;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private int HandleCreateObjectLiteral(
+        JsOpCode op,
+        object[] objectPool,
+        ref byte bytecode,
+        ref byte pc,
+        ref JsValue acc
+    )
+    {
+        var startOffset = GetPcOffset(ref bytecode, ref pc);
+        var pcOffset = startOffset;
+        var isWide = op == JsOpCode.CreateObjectLiteralWide;
+        int boilerplateIdx;
+        if (isWide)
+        {
+            boilerplateIdx = Unsafe.ReadUnaligned<ushort>(ref Unsafe.Add(ref bytecode, pcOffset));
+            pcOffset += 2;
+        }
+        else
+        {
+            boilerplateIdx = Unsafe.Add(ref bytecode, pcOffset);
+            pcOffset += 1;
+        }
+
+        pcOffset += 1; // flags (unused)
+
+        acc = new JsPlainObject((StaticNamedPropertyLayout)objectPool[boilerplateIdx]);
+        return pcOffset - startOffset;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private void HandleCreateFunctionContext(
+        JsOpCode op,
+        Span<JsValue> fullStack,
+        int fp,
+        JsScript script,
+        ref byte pc,
+        ref JsValue acc
+    )
+    {
+        var parent = GetCurrentContext(fullStack);
+        int slotCount;
+        if (op == JsOpCode.CreateFunctionContextWithCellsWide)
+        {
+            slotCount = Unsafe.ReadUnaligned<ushort>(ref pc);
+            pc = ref Unsafe.Add(ref pc, 2);
+        }
+        else
+        {
+            slotCount = pc;
+            pc = ref Unsafe.Add(ref pc, 1);
+        }
+
+        JsContext o;
+        if (
+            parent is null
+            && Agent.TryGetCurrentModuleRuntimeBindings(out var activeModuleBindings)
+        )
+        {
+            if (activeModuleBindings.TopLevelContext is not null)
+            {
+                o = activeModuleBindings.TopLevelContext;
+#if DEBUG
+                if (o.Slots.Length != slotCount)
+                    throw new InvalidOperationException(
+                        "Shared module context slot count mismatch."
+                    );
+#endif
+            }
+            else
+            {
+                o = new(parent, slotCount) { ModuleBindings = activeModuleBindings };
+            }
+        }
+        else
+        {
+            o = new(parent, slotCount);
+        }
+
+        acc = JsValue.FromObject(o);
+        if (
+            op
+            is JsOpCode.CreateFunctionContextWithCells
+                or JsOpCode.CreateFunctionContextWithCellsWide
+        )
+        {
+            SetFrameContext(fullStack, fp, o);
+            if (parent is null && CurrentCallFrame.FrameKind == CallFrameKind.ScriptFrame)
+                RegisterGlobalLexicalBindings(script, o);
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private void HandleCurrentContextSlotOp(
+        JsOpCode op,
+        Span<JsValue> fullStack,
+        ref byte pc,
+        ref JsValue acc
+    )
+    {
+        var ctx =
+            GetCurrentContext(fullStack)
+            ?? throw new InvalidOperationException("No current context.");
+
+        int slotIndex;
+        if (
+            op
+            is JsOpCode.LdaCurrentContextSlotWide
+                or JsOpCode.LdaCurrentContextSlotNoTdzWide
+                or JsOpCode.StaCurrentContextSlotWide
+        )
+        {
+            slotIndex = Unsafe.ReadUnaligned<ushort>(ref pc);
+            pc = ref Unsafe.Add(ref pc, 2);
+        }
+        else
+        {
+            slotIndex = pc;
+            pc = ref Unsafe.Add(ref pc, 1);
+        }
+
+        ref var slot = ref ctx.Slots[slotIndex];
+        if (op is JsOpCode.LdaCurrentContextSlot or JsOpCode.LdaCurrentContextSlotWide)
+            acc = ThrowIfTheHole(slot);
+        else if (
+            op is JsOpCode.LdaCurrentContextSlotNoTdz or JsOpCode.LdaCurrentContextSlotNoTdzWide
+        )
+            acc = slot;
+        else
+            slot = acc;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private void HandleContextSlotOp(
+        JsOpCode op,
+        Span<JsValue> fullStack,
+        ref byte pc,
+        ref JsValue acc
+    )
+    {
+        int slotIndex;
+        if (
+            op
+            is JsOpCode.LdaContextSlotWide
+                or JsOpCode.LdaContextSlotNoTdzWide
+                or JsOpCode.StaContextSlotWide
+        )
+        {
+            slotIndex = Unsafe.ReadUnaligned<ushort>(ref pc);
+            pc = ref Unsafe.Add(ref pc, 2);
+        }
+        else
+        {
+            slotIndex = pc;
+            pc = ref Unsafe.Add(ref pc, 1);
+        }
+
+        // context depth
+        var depth = pc;
+        pc = ref Unsafe.Add(ref pc, 1);
+        var ctx = GetContextAtDepth(fullStack, depth);
+        ref var slot = ref ctx.Slots[slotIndex];
+        if (op is JsOpCode.LdaContextSlot or JsOpCode.LdaContextSlotWide)
+            acc = ThrowIfTheHole(slot);
+        else if (op is JsOpCode.LdaContextSlotNoTdz or JsOpCode.LdaContextSlotNoTdzWide)
+            acc = slot;
+        else
+            slot = acc;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private void HandleStaGlobal(
+        JsOpCode op,
+        JsScript script,
+        bool isStrict,
+        int[] atomizedStringConstants,
+        ref byte pc
+    )
+    {
+        int nameIdx;
+        int icSlot;
+        if (
+            op
+            is not JsOpCode.StaGlobalWide
+                and not JsOpCode.StaGlobalInitWide
+                and not JsOpCode.StaGlobalFuncDeclWide
+        )
+        {
+            nameIdx = pc;
+            icSlot = Unsafe.Add(ref pc, 1);
+            pc = ref Unsafe.Add(ref pc, 2);
+        }
+        else
+        {
+            nameIdx = Unsafe.ReadUnaligned<ushort>(ref pc);
+            icSlot = Unsafe.ReadUnaligned<ushort>(ref Unsafe.Add(ref pc, 2));
+            pc = ref Unsafe.Add(ref pc, 4);
+        }
+
+        var atom = atomizedStringConstants[nameIdx];
+        var isInitializationStore =
+            op
+            is JsOpCode.StaGlobalInit
+                or JsOpCode.StaGlobalInitWide
+                or JsOpCode.StaGlobalFuncDecl
+                or JsOpCode.StaGlobalFuncDeclWide;
+        var useFunctionDeclarationSemantics =
+            op is JsOpCode.StaGlobalFuncDecl or JsOpCode.StaGlobalFuncDeclWide;
+        Console.Error.WriteLine(
+            $"[diag] StaGlobal op={op} nameIdx={nameIdx} icSlot={icSlot} atom={atom} init={isInitializationStore} fnDecl={useFunctionDeclarationSemantics}"
+        );
+        StoreGlobalByAtom(
+            script,
+            icSlot,
+            atom,
+            isInitializationStore,
+            useFunctionDeclarationSemantics,
+            isStrict
+        );
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private void HandleGetNamedPropertyFromSuper(
+        JsOpCode op,
+        Span<JsValue> fullStack,
+        int fp,
+        int[] atomizedStringConstants,
+        ref byte pc,
+        ref JsValue acc
+    )
+    {
+        var isWide = op == JsOpCode.GetNamedPropertyFromSuperWide;
+        int nameIdx;
+        if (isWide)
+        {
+            nameIdx = Unsafe.ReadUnaligned<ushort>(ref pc);
+            pc = ref Unsafe.Add(ref pc, 2);
+        }
+        else
+        {
+            nameIdx = pc;
+            pc = ref Unsafe.Add(ref pc, 1);
+        }
+
+        var atom = atomizedStringConstants[nameIdx];
+        ValidateAtomizedNameConstant(
+            atom,
+            "GetNamedPropertyFromSuper requires atomized name constant."
+        );
+        var thisValue = fullStack[fp + OffsetThisValue];
+        if (thisValue.IsTheHole)
+            ThrowSuperNotCalled();
+        if (!thisValue.TryGetObject(out var receiver))
+            ThrowTypeError("SUPER_RECEIVER", "super receiver must be object");
+
+        var superBase = RequireObjectSuperBaseForFrame(fp);
+        if (superBase.TryGetPropertyAtomWithReceiver(this, receiver, atom, out var value, out _))
+            acc = value;
+        else
+            acc = JsValue.Undefined;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private void HandleCreateObjectLiteral(
+        JsOpCode op,
+        object[] objectPool,
+        ref byte pc,
+        ref JsValue acc
+    )
+    {
+        var isWide = op == JsOpCode.CreateObjectLiteralWide;
+        int boilerplateIdx;
+        if (isWide)
+        {
+            boilerplateIdx = Unsafe.ReadUnaligned<ushort>(ref pc);
+            pc = ref Unsafe.Add(ref pc, 2);
+        }
+        else
+        {
+            boilerplateIdx = pc;
+            pc = ref Unsafe.Add(ref pc, 1);
+        }
+
+        pc = ref Unsafe.Add(ref pc, 1); // flags (unused)
+
+        acc = new JsPlainObject((StaticNamedPropertyLayout)objectPool[boilerplateIdx]);
+    }
+
     [MethodImpl(MethodImplOptions.NoInlining)]
     private bool TryCatchRunCoreException(
         Exception e,
@@ -865,24 +1446,10 @@ public sealed partial class JsRealm
 
                         case JsOpCode.CreateClosure:
                         case JsOpCode.CreateClosureWide:
-                            {
-                                var isWide = op == JsOpCode.CreateClosureWide;
-                                int idx;
-                                if (isWide)
-                                {
-                                    idx = Unsafe.ReadUnaligned<ushort>(ref pc);
-                                    pc = ref Unsafe.Add(ref pc, 2);
-                                }
-                                else
-                                {
-                                    idx = pc;
-                                    pc = ref Unsafe.Add(ref pc, 1);
-                                }
-
-                                pc = ref Unsafe.Add(ref pc, 1); // flags (unused for now)
-
-                                acc = BindClosureIfNeeded((JsBytecodeFunction)objectPool[idx]);
-                            }
+                            pc = ref Unsafe.Add(
+                                ref pc,
+                                HandleCreateClosure(op, objectPool, ref bytecode, ref pc, ref acc)
+                            );
                             break;
 
                         case JsOpCode.LdaCurrentFunction:
@@ -909,66 +1476,18 @@ public sealed partial class JsRealm
                         case JsOpCode.CreateFunctionContext:
                         case JsOpCode.CreateFunctionContextWithCells:
                         case JsOpCode.CreateFunctionContextWithCellsWide:
-                            {
-                                var parent = GetCurrentContext(fullStack);
-                                int slotCount;
-                                if (op == JsOpCode.CreateFunctionContextWithCellsWide)
-                                {
-                                    slotCount = Unsafe.ReadUnaligned<ushort>(ref pc);
-                                    pc = ref Unsafe.Add(ref pc, 2);
-                                }
-                                else
-                                {
-                                    slotCount = pc;
-                                    pc = ref Unsafe.Add(ref pc, 1);
-                                }
-
-                                JsContext o;
-                                if (
-                                    parent is null
-                                    && Agent.TryGetCurrentModuleRuntimeBindings(
-                                        out var activeModuleBindings
-                                    )
+                            pc = ref Unsafe.Add(
+                                ref pc,
+                                HandleCreateFunctionContext(
+                                    op,
+                                    fullStack,
+                                    fp,
+                                    currentFunc.Script,
+                                    ref bytecode,
+                                    ref pc,
+                                    ref acc
                                 )
-                                {
-                                    if (activeModuleBindings.TopLevelContext is not null)
-                                    {
-                                        o = activeModuleBindings.TopLevelContext;
-#if DEBUG
-                                        if (o.Slots.Length != slotCount)
-                                            throw new InvalidOperationException(
-                                                "Shared module context slot count mismatch."
-                                            );
-#endif
-                                    }
-                                    else
-                                    {
-                                        o = new(parent, slotCount)
-                                        {
-                                            ModuleBindings = activeModuleBindings,
-                                        };
-                                    }
-                                }
-                                else
-                                {
-                                    o = new(parent, slotCount);
-                                }
-
-                                acc = JsValue.FromObject(o);
-                                if (
-                                    op
-                                    is JsOpCode.CreateFunctionContextWithCells
-                                        or JsOpCode.CreateFunctionContextWithCellsWide
-                                )
-                                {
-                                    SetFrameContext(fullStack, fp, o);
-                                    if (
-                                        parent is null
-                                        && CurrentCallFrame.FrameKind == CallFrameKind.ScriptFrame
-                                    )
-                                        RegisterGlobalLexicalBindings(currentFunc.Script, o);
-                                }
-                            }
+                            );
                             break;
                         case JsOpCode.PushContext:
                             {
@@ -997,44 +1516,16 @@ public sealed partial class JsRealm
                         case JsOpCode.LdaCurrentContextSlotNoTdzWide:
                         case JsOpCode.StaCurrentContextSlot:
                         case JsOpCode.StaCurrentContextSlotWide:
-                            {
-                                var ctx =
-                                    GetCurrentContext(fullStack)
-                                    ?? throw new InvalidOperationException("No current context.");
-
-                                int slotIndex;
-                                if (
-                                    op
-                                    is JsOpCode.LdaCurrentContextSlotWide
-                                        or JsOpCode.LdaCurrentContextSlotNoTdzWide
-                                        or JsOpCode.StaCurrentContextSlotWide
+                            pc = ref Unsafe.Add(
+                                ref pc,
+                                HandleCurrentContextSlotOp(
+                                    op,
+                                    fullStack,
+                                    ref bytecode,
+                                    ref pc,
+                                    ref acc
                                 )
-                                {
-                                    slotIndex = Unsafe.ReadUnaligned<ushort>(ref pc);
-                                    pc = ref Unsafe.Add(ref pc, 2);
-                                }
-                                else
-                                {
-                                    slotIndex = pc;
-                                    pc = ref Unsafe.Add(ref pc, 1);
-                                }
-
-                                slotRef = ref ctx.Slots[slotIndex];
-                                if (
-                                    op
-                                    is JsOpCode.LdaCurrentContextSlot
-                                        or JsOpCode.LdaCurrentContextSlotWide
-                                )
-                                    acc = ThrowIfTheHole(slotRef);
-                                else if (
-                                    op
-                                    is JsOpCode.LdaCurrentContextSlotNoTdz
-                                        or JsOpCode.LdaCurrentContextSlotNoTdzWide
-                                )
-                                    acc = slotRef;
-                                else
-                                    slotRef = acc;
-                            }
+                            );
                             break;
                         case JsOpCode.LdaContextSlot:
                         case JsOpCode.LdaContextSlotWide:
@@ -1042,39 +1533,10 @@ public sealed partial class JsRealm
                         case JsOpCode.LdaContextSlotNoTdzWide:
                         case JsOpCode.StaContextSlot:
                         case JsOpCode.StaContextSlotWide:
-                            {
-                                if (
-                                    op
-                                    is JsOpCode.LdaContextSlotWide
-                                        or JsOpCode.LdaContextSlotNoTdzWide
-                                        or JsOpCode.StaContextSlotWide
-                                )
-                                {
-                                    intNum1 = Unsafe.ReadUnaligned<ushort>(ref pc);
-                                    pc = ref Unsafe.Add(ref pc, 2);
-                                }
-                                else
-                                {
-                                    intNum1 = pc;
-                                    pc = ref Unsafe.Add(ref pc, 1);
-                                }
-
-                                // context depth
-                                intNum2 = pc;
-                                pc = ref Unsafe.Add(ref pc, 1);
-                                var ctx = GetContextAtDepth(fullStack, intNum2);
-                                slotRef = ref ctx.Slots[intNum1];
-                                if (op is JsOpCode.LdaContextSlot or JsOpCode.LdaContextSlotWide)
-                                    acc = ThrowIfTheHole(slotRef);
-                                else if (
-                                    op
-                                    is JsOpCode.LdaContextSlotNoTdz
-                                        or JsOpCode.LdaContextSlotNoTdzWide
-                                )
-                                    acc = slotRef;
-                                else
-                                    slotRef = acc;
-                            }
+                            pc = ref Unsafe.Add(
+                                ref pc,
+                                HandleContextSlotOp(op, fullStack, ref bytecode, ref pc, ref acc)
+                            );
                             break;
                         case JsOpCode.Ldar:
                         case JsOpCode.LdarWide:
@@ -1210,49 +1672,17 @@ public sealed partial class JsRealm
                         case JsOpCode.StaGlobalInitWide:
                         case JsOpCode.StaGlobalFuncDecl:
                         case JsOpCode.StaGlobalFuncDeclWide:
-                            {
-                                int nameIdx;
-                                int icSlot;
-                                if (
-                                    op
-                                    is not JsOpCode.StaGlobalWide
-                                        and not JsOpCode.StaGlobalInitWide
-                                        and not JsOpCode.StaGlobalFuncDeclWide
-                                )
-                                {
-                                    nameIdx = pc;
-                                    icSlot = Unsafe.Add(ref pc, 1);
-                                    pc = ref Unsafe.Add(ref pc, 2);
-                                }
-                                else
-                                {
-                                    nameIdx = Unsafe.ReadUnaligned<ushort>(ref pc);
-                                    icSlot = Unsafe.ReadUnaligned<ushort>(
-                                        ref Unsafe.Add(ref pc, 2)
-                                    );
-                                    pc = ref Unsafe.Add(ref pc, 4);
-                                }
-
-                                var atom = atomizedStringConstants[nameIdx];
-                                var isInitializationStore =
-                                    op
-                                    is JsOpCode.StaGlobalInit
-                                        or JsOpCode.StaGlobalInitWide
-                                        or JsOpCode.StaGlobalFuncDecl
-                                        or JsOpCode.StaGlobalFuncDeclWide;
-                                var useFunctionDeclarationSemantics =
-                                    op
-                                    is JsOpCode.StaGlobalFuncDecl
-                                        or JsOpCode.StaGlobalFuncDeclWide;
-                                StoreGlobalByAtom(
+                            pc = ref Unsafe.Add(
+                                ref pc,
+                                HandleStaGlobal(
+                                    op,
                                     currentFunc.Script,
-                                    icSlot,
-                                    atom,
-                                    isInitializationStore,
-                                    useFunctionDeclarationSemantics,
-                                    currentFunc.IsStrict
-                                );
-                            }
+                                    currentFunc.IsStrict,
+                                    atomizedStringConstants,
+                                    ref bytecode,
+                                    ref pc
+                                )
+                            );
                             break;
                         case JsOpCode.TypeOfGlobal:
                         case JsOpCode.TypeOfGlobalWide:
@@ -1292,27 +1722,16 @@ public sealed partial class JsRealm
 
                         case JsOpCode.CreateObjectLiteral:
                         case JsOpCode.CreateObjectLiteralWide:
-                            {
-                                var isWide = op == JsOpCode.CreateObjectLiteralWide;
-                                int boilerplateIdx;
-                                if (isWide)
-                                {
-                                    boilerplateIdx = Unsafe.ReadUnaligned<ushort>(ref pc);
-                                    pc = ref Unsafe.Add(ref pc, 2);
-                                }
-                                else
-                                {
-                                    boilerplateIdx = pc;
-                                    pc = ref Unsafe.Add(ref pc, 1);
-                                }
-
-                                pc = ref Unsafe.Add(ref pc, 1); // flags (unused)
-
-                                var obj = new JsPlainObject(
-                                    (StaticNamedPropertyLayout)objectPool[boilerplateIdx]
-                                );
-                                acc = obj;
-                            }
+                            pc = ref Unsafe.Add(
+                                ref pc,
+                                HandleCreateObjectLiteral(
+                                    op,
+                                    objectPool,
+                                    ref bytecode,
+                                    ref pc,
+                                    ref acc
+                                )
+                            );
                             break;
                         case JsOpCode.CreateArrayLiteral:
                             {
@@ -1427,48 +1846,18 @@ public sealed partial class JsRealm
                             break;
                         case JsOpCode.GetNamedPropertyFromSuper:
                         case JsOpCode.GetNamedPropertyFromSuperWide:
-                            {
-                                var isWide = op == JsOpCode.GetNamedPropertyFromSuperWide;
-                                int nameIdx;
-                                if (isWide)
-                                {
-                                    nameIdx = Unsafe.ReadUnaligned<ushort>(ref pc);
-                                    pc = ref Unsafe.Add(ref pc, 2);
-                                }
-                                else
-                                {
-                                    nameIdx = pc;
-                                    pc = ref Unsafe.Add(ref pc, 1);
-                                }
-
-                                var atom = atomizedStringConstants[nameIdx];
-                                ValidateAtomizedNameConstant(
-                                    atom,
-                                    "GetNamedPropertyFromSuper requires atomized name constant."
-                                );
-                                var thisValue = fullStack[fp + OffsetThisValue];
-                                if (thisValue.IsTheHole)
-                                    ThrowSuperNotCalled();
-                                if (!thisValue.TryGetObject(out var receiver))
-                                    ThrowTypeError(
-                                        "SUPER_RECEIVER",
-                                        "super receiver must be object"
-                                    );
-
-                                var superBase = RequireObjectSuperBaseForFrame(fp);
-                                if (
-                                    superBase.TryGetPropertyAtomWithReceiver(
-                                        this,
-                                        receiver,
-                                        atom,
-                                        out var value,
-                                        out _
-                                    )
+                            pc = ref Unsafe.Add(
+                                ref pc,
+                                HandleGetNamedPropertyFromSuper(
+                                    op,
+                                    fullStack,
+                                    fp,
+                                    atomizedStringConstants,
+                                    ref bytecode,
+                                    ref pc,
+                                    ref acc
                                 )
-                                    acc = value;
-                                else
-                                    acc = JsValue.Undefined;
-                            }
+                            );
                             break;
 
                         case JsOpCode.LdaKeyedProperty:
