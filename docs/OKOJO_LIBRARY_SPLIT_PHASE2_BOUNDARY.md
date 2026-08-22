@@ -5,8 +5,10 @@
 This document records the completed Phase 2 boundary: the broad
 `IJsRuntimeHost` dependency was removed from `JsAgent` and `JsRealm` while
 preserving execution, module, Promise, timer, worker, and interop behavior.
-The physical project split and namespace migration are now complete; friend-
-assembly and supported-contract cleanup remain deferred.
+The physical project split and namespace migration are now complete. The
+supported host/profile contract is established for Hosting and WebPlatform;
+remaining friend-assembly cleanup is limited to consumers with separately
+identified engine internals.
 
 The boundary must also let a browser profile own its complete event loop. Engine and runtime convenience APIs must not force task selection, timer, rendering, worker-message, waiting, or microtask-checkpoint policy on `Okojo.Browser`.
 
@@ -94,8 +96,29 @@ The current monolithic implementation now follows this boundary internally:
 The physical move of `WorkerMessaging`, the default serializer, worker-host
 contracts, and `WorkerHandleFactory` is complete. These concrete embedding
 components live in `Okojo.JavaScript.Embedding`, and the engine/runtime
-namespaces have been migrated to their final Phase 4 names. Remaining internal
-host/profile accesses still require friend-assembly cleanup.
+namespaces have been migrated to their final Phase 4 names.
+
+## Supported host/profile contract
+
+Hosting and WebPlatform use the following supported engine operations:
+
+- `JsRealm.Call` for host callback invocation;
+- `JsAgent.Modules.Evaluate` and `JsRealm.CurrentModuleResolvedId`
+  for module evaluation and optional referrers;
+- `JsRealm.BridgeFromOtherRealm` for worker result values;
+- `JsAgent.PendingJobCount` for host-loop readiness and turn notifications;
+- `JsRealm.WrapTaskOnHostQueue` for task and ValueTask completion on a selected
+  host queue;
+- `JsObject` string-key property APIs, `JsObject.TrySetPrototype`,
+  `JsObject.DefineDataProperty(Symbol, ...)`, and `JsHostFunction.InitializePrototypeProperty`
+  for profile object construction and event dispatch;
+- `TimeProvider.CreateTimer` for Hosting delays.
+
+No atom ID, intrinsic object, VM helper, or raw atom-property API is exposed by
+this slice. The `Okojo.Hosting` and `Okojo.WebPlatform` engine friend entries
+are removed. Browser hosts retain external control of task selection and may
+call `RunOneHostJob()` and `RunPromiseJobs()` independently; no hidden host
+task pump or Node-specific priority policy was introduced.
 
 ## Conformance gate during migration
 

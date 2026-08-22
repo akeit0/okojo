@@ -292,7 +292,7 @@ public sealed class WebRuntimeApiModule : IRealmApiModule
     {
         try
         {
-            _ = timerState.Realm.InvokeFunction(timerState.Driver, JsValue.Undefined, []);
+            _ = timerState.Realm.Call(timerState.Driver, JsValue.Undefined, []);
         }
         catch (JsRuntimeException) { }
     }

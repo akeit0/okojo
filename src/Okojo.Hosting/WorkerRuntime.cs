@@ -67,7 +67,7 @@ public sealed class WorkerRuntime : IDisposable
         ArgumentNullException.ThrowIfNull(ownerRealm);
         ArgumentNullException.ThrowIfNull(specifier);
         return ownerRealm.BridgeFromOtherRealm(
-            Agent.EvaluateModule(Realm, specifier, ownerRealm.GetCurrentModuleResolvedIdOrNull())
+            Agent.Modules.Evaluate(Realm, specifier, ownerRealm.CurrentModuleResolvedId)
         );
     }
 

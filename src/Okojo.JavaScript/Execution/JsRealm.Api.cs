@@ -63,25 +63,17 @@ public sealed partial class JsRealm
 
     public JsValue Import(string specifier, string? referrer = null)
     {
-        return Agent.Modules.Evaluate(
-            this,
-            specifier,
-            referrer ?? GetCurrentModuleResolvedIdOrNull()
-        );
+        return Agent.Modules.Evaluate(this, specifier, referrer ?? CurrentModuleResolvedId);
     }
 
     public JsModuleLoadResult LoadModule(string specifier, string? referrer = null)
     {
-        return Agent.LoadModuleResult(
-            this,
-            specifier,
-            referrer ?? GetCurrentModuleResolvedIdOrNull()
-        );
+        return Agent.LoadModuleResult(this, specifier, referrer ?? CurrentModuleResolvedId);
     }
 
     public string LoadWorkerScript(string path, string? referrer = null)
     {
-        return Agent.LoadWorkerScript(path, referrer ?? GetCurrentModuleResolvedIdOrNull());
+        return Agent.LoadWorkerScript(path, referrer ?? CurrentModuleResolvedId);
     }
 
     public JsRealm CreateRealm(Action<JsRealmOptions>? configure = null)
@@ -111,10 +103,9 @@ public sealed partial class JsRealm
         return InvokeFunction(okojoFunction, thisValue, args);
     }
 
-    internal string? GetCurrentModuleResolvedIdOrNull()
-    {
-        return Agent.TryGetCurrentModuleResolvedId(out var resolvedId) ? resolvedId : null;
-    }
+    /// <summary>Returns the resolved identifier of the currently evaluating module, if any.</summary>
+    public string? CurrentModuleResolvedId =>
+        Agent.TryGetCurrentModuleResolvedId(out var resolvedId) ? resolvedId : null;
 
     private JsScript CompileScript(string source)
     {

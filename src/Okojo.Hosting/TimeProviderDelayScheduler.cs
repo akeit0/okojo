@@ -60,19 +60,12 @@ public sealed class TimeProviderDelayScheduler : IHostDelayScheduler
         {
             var operation = new ScheduledOperation(callback, state);
             var dueTime = delay <= TimeSpan.Zero ? TimeSpan.FromTicks(1) : delay;
-            operation.timer = timeProvider is ITimerFactory timerFactory
-                ? timerFactory.CreateJsTimer(
-                    static opState => ((ScheduledOperation)opState!).OnReady(),
-                    operation,
-                    dueTime,
-                    Timeout.InfiniteTimeSpan
-                )
-                : timeProvider.CreateTimer(
-                    static opState => ((ScheduledOperation)opState!).OnReady(),
-                    operation,
-                    dueTime,
-                    Timeout.InfiniteTimeSpan
-                );
+            operation.timer = timeProvider.CreateTimer(
+                static opState => ((ScheduledOperation)opState!).OnReady(),
+                operation,
+                dueTime,
+                Timeout.InfiniteTimeSpan
+            );
             return operation;
         }
 

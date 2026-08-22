@@ -551,8 +551,10 @@ public abstract class JsFunction : JsObject
         return base.TryGetOwnNamedPropertyDescriptorAtom(realm, atom, out descriptor);
     }
 
+    /// <summary>Assigns the prototype object used when this host function is constructed.</summary>
     internal void InitializePrototypeProperty(JsObject value)
     {
+        ArgumentNullException.ThrowIfNull(value);
         if (prototypePropertyObject != null)
             throw new InvalidOperationException("Prototype property already initialized.");
         prototypePropertyObject = value;

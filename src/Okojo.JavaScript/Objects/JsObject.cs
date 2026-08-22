@@ -109,7 +109,19 @@ public class JsObject
         return names;
     }
 
-    internal virtual bool TrySetPrototype(JsObject? proto)
+    /// <summary>Attempts to set this object's prototype using standard extensibility rules.</summary>
+    public bool TrySetPrototype(JsObject? proto)
+    {
+        if (proto is not null && !ReferenceEquals(proto.Realm.Atoms, Realm.Atoms))
+            throw new ArgumentException(
+                "Prototype belongs to a different JavaScript agent.",
+                nameof(proto)
+            );
+
+        return TrySetPrototypeCore(proto);
+    }
+
+    internal virtual bool TrySetPrototypeCore(JsObject? proto)
     {
         if (ReferenceEquals(Prototype, proto))
             return true;
@@ -975,6 +987,22 @@ public class JsObject
         var realm = NamedPropertyLayout.Owner;
         var atom = realm.Atoms.InternNoCheck(name);
         DefineDataPropertyAtom(realm, atom, value, flags);
+    }
+
+    public void DefineDataProperty(Symbol key, JsValue value, JsShapePropertyFlags flags)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        var realm = NamedPropertyLayout.Owner;
+        if (
+            !realm.Atoms.TryGetSymbolByAtom(key.Atom, out var registered)
+            || !ReferenceEquals(registered, key)
+        )
+            throw new ArgumentException(
+                "Symbol key belongs to a different JavaScript agent.",
+                nameof(key)
+            );
+
+        DefineDataPropertyAtom(realm, key.Atom, value, flags);
     }
 
     internal virtual void DefineDataPropertyAtom(

@@ -720,7 +720,7 @@ public partial class Intrinsics
         var iterator = JsValue.FromSymbol(Realm.SymbolIteratorSymbol);
         var asyncIterator = JsValue.FromSymbol(Realm.SymbolAsyncIteratorSymbol);
         var hasInstance = JsValue.FromSymbol(Realm.SymbolHasInstanceSymbol);
-        var toStringTag = JsValue.FromSymbol(Realm.SymbolToStringTagSymbol);
+        var toStringTag = JsValue.FromSymbol(Realm.ToStringTagSymbol);
         var toPrimitive = JsValue.FromSymbol(Realm.SymbolToPrimitiveSymbol);
         var species = JsValue.FromSymbol(Realm.SymbolSpeciesSymbol);
         var isConcatSpreadable = JsValue.FromSymbol(Realm.SymbolIsConcatSpreadableSymbol);

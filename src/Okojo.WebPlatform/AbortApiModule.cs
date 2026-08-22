@@ -126,10 +126,9 @@ public sealed class AbortApiModule : IRealmApiModule
 
     private JsPlainObject CreateAbortController(JsRealm realm)
     {
-        var controller = new JsPlainObject(realm, false, true)
-        {
-            Prototype = GetAbortControllerPrototype(realm),
-        };
+        var controller = new JsPlainObject(realm, true, true);
+        if (!controller.TrySetPrototype(GetAbortControllerPrototype(realm)))
+            throw new InvalidOperationException("AbortController prototype could not be assigned.");
 
         var signal = CreateAbortSignal(realm);
         controller.DefineDataProperty(
@@ -147,11 +146,9 @@ public sealed class AbortApiModule : IRealmApiModule
 
     private JsUserDataObject<AbortSignalState> CreateAbortSignal(JsRealm realm)
     {
-        var signal = new JsUserDataObject<AbortSignalState>(realm, false, true)
-        {
-            Prototype = GetAbortSignalPrototype(realm),
-            UserData = new(),
-        };
+        var signal = new JsUserDataObject<AbortSignalState>(realm, true, true) { UserData = new() };
+        if (!signal.TrySetPrototype(GetAbortSignalPrototype(realm)))
+            throw new InvalidOperationException("AbortSignal prototype could not be assigned.");
         signal.DefineDataProperty("aborted", JsValue.False, JsShapePropertyFlags.Open);
         signal.DefineDataProperty("reason", JsValue.Undefined, JsShapePropertyFlags.Open);
         signal.DefineDataProperty("onabort", JsValue.Null, JsShapePropertyFlags.Open);
@@ -353,12 +350,14 @@ public sealed class AbortApiModule : IRealmApiModule
             {
                 var signal = GetSignal(info);
                 if (signal.UserData!.Aborted)
+                {
+                    var reason = signal.UserData.Reason;
                     throw new JsRuntimeException(
                         JsErrorKind.InternalError,
-                        signal.UserData.Reason.IsUndefined
-                            ? "This operation was aborted"
-                            : info.Realm.ToJsStringSlowPath(signal.UserData.Reason)
+                        "This operation was aborted",
+                        thrownValue: reason
                     );
+                }
                 return JsValue.Undefined;
             },
             false

@@ -349,7 +349,7 @@ internal sealed class JsProxyFunction : JsFunction, IProxyObject
         target.CollectForInEnumerableStringAtomKeys(realm, visited, enumerableKeysOut);
     }
 
-    internal override bool TrySetPrototype(JsObject? proto)
+    internal override bool TrySetPrototypeCore(JsObject? proto)
     {
         return this.SetPrototypeViaProxy(EnsureTarget().Realm, proto);
     }

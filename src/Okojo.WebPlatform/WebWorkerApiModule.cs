@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Okojo.JavaScript;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
@@ -95,7 +94,7 @@ public sealed class WebWorkerApiModule : IRealmApiModule
                 var created = messaging.CreateWorkerHandle(
                     realm,
                     args[0].AsString(),
-                    realm.GetCurrentModuleResolvedIdOrNull()
+                    realm.CurrentModuleResolvedId
                 );
                 messaging.RegisterWorkerHandle(
                     realm,
@@ -112,9 +111,8 @@ public sealed class WebWorkerApiModule : IRealmApiModule
             true
         );
         ctor.UserData = new WorkerCtorData { WorkerApi = workerApi, WorkerMessaging = messaging };
-        prototype.DefineDataPropertyAtom(
-            realm,
-            AtomTable.IdConstructor,
+        prototype.DefineDataProperty(
+            "constructor",
             JsValue.FromObject(ctor),
             JsShapePropertyFlags.Configurable
         );
@@ -151,9 +149,9 @@ public sealed class WebWorkerApiModule : IRealmApiModule
 
     private static void DispatchGlobalMessageEvent(JsRealm realm, in JsValue data, bool isError)
     {
-        var handlerAtom = isError ? AtomTable.IdOnmessageerror : AtomTable.IdOnmessage;
+        var handlerName = isError ? "onmessageerror" : "onmessage";
         if (
-            !realm.GlobalObject.TryGetPropertyAtom(realm, handlerAtom, out var handler, out _)
+            !realm.GlobalObject.TryGetProperty(handlerName, out var handler)
             || !handler.TryGetObject(out var handlerObject)
             || handlerObject is not JsFunction function
         )
@@ -163,7 +161,7 @@ public sealed class WebWorkerApiModule : IRealmApiModule
         Span<JsValue> args = [JsValue.FromObject(messageEvent)];
         try
         {
-            _ = realm.InvokeFunction(function, JsValue.FromObject(realm.GlobalObject), args);
+            _ = realm.Call(function, JsValue.FromObject(realm.GlobalObject), args);
         }
         catch (JsRuntimeException)
         {
@@ -178,9 +176,9 @@ public sealed class WebWorkerApiModule : IRealmApiModule
         bool isError
     )
     {
-        var handlerAtom = isError ? AtomTable.IdOnmessageerror : AtomTable.IdOnmessage;
+        var handlerName = isError ? "onmessageerror" : "onmessage";
         if (
-            !handle.TryGetPropertyAtom(realm, handlerAtom, out var handler, out _)
+            !handle.TryGetProperty(handlerName, out var handler)
             || !handler.TryGetObject(out var handlerObject)
             || handlerObject is not JsFunction function
         )
@@ -193,7 +191,7 @@ public sealed class WebWorkerApiModule : IRealmApiModule
         Span<JsValue> args = [JsValue.FromObject(messageEvent)];
         try
         {
-            _ = realm.InvokeFunction(function, JsValue.FromObject(handle), args);
+            _ = realm.Call(function, JsValue.FromObject(handle), args);
         }
         catch (JsRuntimeException)
         {
@@ -203,14 +201,8 @@ public sealed class WebWorkerApiModule : IRealmApiModule
 
     private static JsPlainObject CreateMessageEvent(JsRealm realm, in JsValue data)
     {
-        var shape = realm.EmptyShape.GetOrAddTransition(
-            AtomTable.IdData,
-            JsShapePropertyFlags.Open,
-            out var dataInfo
-        );
-        Debug.Assert(dataInfo.Slot == 0);
-        var messageEvent = new JsPlainObject(shape);
-        messageEvent.SetNamedSlotUnchecked(0, data);
+        var messageEvent = new JsPlainObject(realm);
+        messageEvent.DefineDataProperty("data", data, JsShapePropertyFlags.Open);
         return messageEvent;
     }
 

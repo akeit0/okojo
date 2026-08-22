@@ -52,7 +52,8 @@ namespace Okojo.JavaScript.Execution
             );
         }
 
-        internal JsValue WrapTaskOnHostQueue(
+        /// <summary>Wraps task completion onto the selected host task queue.</summary>
+        public JsValue WrapTaskOnHostQueue(
             Task task,
             HostTaskQueueKey completionQueueKey,
             IJsCancelReasonProvider cancelReasonProvider
@@ -159,7 +160,8 @@ namespace Okojo.JavaScript.Execution
             );
         }
 
-        internal JsValue WrapTaskOnHostQueue<T>(
+        /// <summary>Wraps result task completion onto the selected host task queue.</summary>
+        public JsValue WrapTaskOnHostQueue<T>(
             Task<T> task,
             HostTaskQueueKey completionQueueKey,
             IJsCancelReasonProvider cancelReasonProvider
@@ -715,7 +717,7 @@ namespace Okojo.JavaScript.Execution
             );
         }
 
-        internal JsValue WrapTask(
+        public JsValue WrapTask(
             ValueTask task,
             IJsCancelReasonProvider cancelReasonProvider,
             Action? cleanupAction = null
@@ -732,7 +734,7 @@ namespace Okojo.JavaScript.Execution
             );
         }
 
-        internal JsValue WrapTask<T>(
+        public JsValue WrapTask<T>(
             ValueTask<T> task,
             IJsCancelReasonProvider cancelReasonProvider,
             Action? cleanupAction = null

@@ -59,6 +59,12 @@ public sealed class JsHostFunction : JsFunction, ILazyHostMethodProvider
     public JsHostFunctionBody Body => BodyField;
     public object? UserData { get; set; }
 
+    /// <summary>Assigns the prototype object used when this host function is constructed.</summary>
+    public new void InitializePrototypeProperty(JsObject value)
+    {
+        base.InitializePrototypeProperty(value);
+    }
+
     public bool TryGetOrCreateLazyHostMethod(JsRealm realm, int atom, out JsValue method)
     {
         if (

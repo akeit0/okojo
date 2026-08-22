@@ -373,19 +373,12 @@ public sealed class ThreadAffinityHostLoop(TimeProvider? timeProvider = null)
             );
             var dueTime = delay <= TimeSpan.Zero ? TimeSpan.FromTicks(1) : delay;
             Register(operation);
-            operation.timer = timeProvider is ITimerFactory timerFactory
-                ? timerFactory.CreateJsTimer(
-                    static opState => ((DelayedOperation)opState!).OnReady(),
-                    operation,
-                    dueTime,
-                    Timeout.InfiniteTimeSpan
-                )
-                : timeProvider.CreateTimer(
-                    static opState => ((DelayedOperation)opState!).OnReady(),
-                    operation,
-                    dueTime,
-                    Timeout.InfiniteTimeSpan
-                );
+            operation.timer = timeProvider.CreateTimer(
+                static opState => ((DelayedOperation)opState!).OnReady(),
+                operation,
+                dueTime,
+                Timeout.InfiniteTimeSpan
+            );
             return operation;
         }
 

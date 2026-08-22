@@ -84,6 +84,21 @@ public class WebWorkerTests
     }
 
     [Test]
+    public void UseWebWorkers_UsesRealmWellKnownToStringTag_WhenGlobalBindingIsChanged()
+    {
+        using var engine = JsRuntime
+            .CreateBuilder()
+            .UseRealmSetup(realm => realm.Eval("Symbol.toStringTag = undefined;"))
+            .UseWebWorkers()
+            .Build();
+
+        Assert.That(
+            engine.Eval("Object.prototype.toString.call(Worker.prototype)").AsString(),
+            Is.EqualTo("[object Worker]")
+        );
+    }
+
+    [Test]
     public void UseWebWorkers_ReusedOptions_CreateIndependentProjectionModules()
     {
         var options = new JsRuntimeOptions().UseWebWorkers();

@@ -99,6 +99,28 @@ public class WebRuntimeGlobalsTests
     }
 
     [Test]
+    public void AbortSignal_ThrowIfAborted_ThrowsStoredSymbolReason()
+    {
+        var realm = JsRuntime.CreateBuilder().UseWebRuntimeGlobals().Build().DefaultRealm;
+
+        var result = realm.Eval(
+            """
+            const controller = new AbortController();
+            const reason = Symbol("reason");
+            controller.abort(reason);
+            try {
+              controller.signal.throwIfAborted();
+              "no-error";
+            } catch (error) {
+              [error === reason, typeof error].join("|");
+            }
+            """
+        );
+
+        Assert.That(result.AsString(), Is.EqualTo("true|symbol"));
+    }
+
+    [Test]
     public void AbortInterop_Can_Cancel_Host_Task_And_Reject_With_Abort_Reason()
     {
         using var runtime = JsRuntime

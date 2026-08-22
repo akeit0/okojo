@@ -206,7 +206,8 @@ public sealed partial class JsAgent : IDisposable
         }
     }
 
-    internal int PendingJobCount
+    /// <summary>Number of pending script, promise, and host jobs.</summary>
+    public int PendingJobCount
     {
         get
         {

@@ -116,7 +116,8 @@ public sealed partial class JsRealm
         return bridgedObj;
     }
 
-    internal JsValue BridgeFromOtherRealm(in JsValue sourceValue)
+    /// <summary>Bridges a value produced by another realm into this realm.</summary>
+    public JsValue BridgeFromOtherRealm(in JsValue sourceValue)
     {
         return BridgeIntoThisRealm(sourceValue);
     }

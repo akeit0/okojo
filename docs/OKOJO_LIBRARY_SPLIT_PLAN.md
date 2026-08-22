@@ -285,10 +285,10 @@ Each project must build independently before continuing.
 
 Progress: the two projects exist and build independently. The old
 `Okojo.csproj` and its solution entry are gone. The physical move is complete;
-the namespace migration is recorded in Phase 4. Stale engine friends for
-`Okojo.Browser` and `Test262Runner` were removed; friends still required by
-existing internal host/profile paths remain for a later supported-contract
-cleanup.
+the namespace migration is recorded in Phase 4. The stale `Okojo.Browser`
+engine friend was removed; the explicit `Test262Runner` tooling friend remains,
+and the remaining production friend inventory is tracked in Phase 5A and Phase
+5D.
 
 ### Phase 4 — namespace rename: complete
 
@@ -309,12 +309,14 @@ Perform the namespace migration as one mechanical pass after both assemblies bui
 
 Update global usings, generated-source inputs, XML documentation references,
 and consumer code in the same mechanical pass. Assembly-name friend entries
-remain unchanged; friend-assembly cleanup is the next separate slice.
+were audited separately in Phase 5A and subsequent supported-contract slices.
 
 Progress: all production consumers compile with the new namespaces, the engine
 `Runtime` directory is now `Execution`, and the embedding `Runtime` directory
 is removed. `Okojo.SourceMaps` remains physically owned by the engine in this
-slice. The supported-contract and friend-assembly cleanup remains deferred.
+slice. Supported-contract cleanup continued in Phase 5 and is now complete for
+Hosting and WebPlatform; the remaining production friend inventory is still
+tracked separately.
 
 ### Phase 5 — consumers, tests, and packages
 
@@ -335,14 +337,14 @@ inventory, not a public-API redesign.
 | `Okojo.Node` | `Okojo.JavaScript.Embedding` | removed as stale | Direct `Okojo.Node` build succeeds without embedding internals. |
 | `Okojo.WebAssembly` | `Okojo.JavaScript.Embedding` | removed as stale | Direct `Okojo.WebAssembly` build succeeds without embedding internals. |
 | `Okojo.WebAssembly.Wasmtime` | `Okojo.JavaScript.Embedding` | removed as stale | Direct `Okojo.WebAssembly.Wasmtime` build succeeds without embedding internals. |
-| `Okojo.Hosting` | `Okojo.JavaScript.Embedding` | retained | `WorkerMessaging` in `WorkerGlobalsApiModule.cs`; later cleanup should expose a supported worker-projection composition path. |
+| `Okojo.Hosting` | `Okojo.JavaScript.Embedding` | removed in Phase 5B | Worker projection composition uses the runtime-created concrete `WorkerMessaging` component. |
 | `Okojo.Reflection` | `Okojo.JavaScript.Embedding` | retained | `EnableClrAccess` on `JsRuntimeBuilder`, `JsRuntimeOptions`, and `JsRuntimeCoreOptions` in `ClrAccessExtensions.cs`; later cleanup should define the smallest supported CLR-access configuration contract. |
-| `Okojo.WebPlatform` | `Okojo.JavaScript.Embedding` | retained | `WorkerMessaging` in `WebWorkerApiModule.cs`; later cleanup should use the supported worker-projection composition path. |
+| `Okojo.WebPlatform` | `Okojo.JavaScript.Embedding` | removed in Phase 5B | Web worker projection composition uses the runtime-created concrete `WorkerMessaging` component. |
 | `Okojo.JavaScript.Embedding` | `Okojo.JavaScript` | retained | `ISharedWaiterControllerFactory`, `JsArrayBufferObject.ISharedWaiterController`, `JsArrayBufferObject.SharedWaiter`, and `IClrAccessProvider` are consumed by runtime options and default wait/CLR composition. |
-| `Okojo.Hosting` | `Okojo.JavaScript` | retained | `JsRealm.GetCurrentModuleResolvedIdOrNull`, `JsRealm.BridgeFromOtherRealm`, `JsRealm.InvokeFunction`, `JsAgent.EvaluateModule`, `JsAgent.PendingJobCount`, `ITimerFactory`, `ITimerFactory.CreateJsTimer`, `JsGlobalObject.TryGetPropertyAtom`, and `JsPlainObject.TryGetPropertyAtom` are used by worker and host-loop implementations. |
+| `Okojo.Hosting` | `Okojo.JavaScript` | removed in Phase 5D | Worker and host-loop code now uses the public module, referrer, bridge, invocation, pending-job, and `TimeProvider.CreateTimer` operations. `ITimerFactory` remains for Test262Runner tooling. |
 | `Okojo.Reflection` | `Okojo.JavaScript` | retained | CLR wrappers consume `IClrAccessProvider`, `HostTypeDescriptor`, `IClrTypedNullReference`, `IClrNamespaceReference`, `IClrByRefPlaceholder`, `IClrTypeFunctionData`, `HostRealmLayoutInfo`, `JsObject.TryGetPropertyAtomWithReceiverValue`, `JsObject.TryGetOwnNamedPropertyDescriptorAtom`, `JsObject.CollectOwnNamedPropertyAtoms`, and `JsObject.SetPropertyAtomWithReceiver`. |
 | `Okojo.Node` | `Okojo.JavaScript` | retained | Node built-ins use internal conversion/invocation, module/job, promise, prototype, typed-array, compiler, and property APIs, including `JsRealm.ToNumber`, `JsRealm.ToJsStringSlowPath`, `JsAgent.EvaluateModule`, `JsAgent.EnqueueHostPriorityJob`, `JsPromiseObject.State`, `TypedArrayElementKind`, and `JsObject.Prototype`. |
-| `Okojo.WebPlatform` | `Okojo.JavaScript` | retained | Web APIs use `JsRealm.WrapTaskOnHostQueue`, `JsRealm.InvokeFunction`, `JsObject.DefineDataPropertyAtom`, `JsObject.DefineAccessorPropertyAtom`, `JsGlobalObject.TryGetPropertyAtom`, `JsPlainObject.TryGetPropertyAtom`, `JsHostFunction.InitializePrototypeProperty`, and `JsRealm.GetCurrentModuleResolvedIdOrNull`. |
+| `Okojo.WebPlatform` | `Okojo.JavaScript` | removed in Phase 5D | Web APIs now use public task-queue wrapping, invocation, referrer, string-key property, prototype, and symbol-property operations. |
 | `Okojo.WebAssembly` | `Okojo.JavaScript` | retained | `WebAssemblyInstaller.cs` uses `JsRealm.PromiseResolveValue`, `JsRealm.PromiseRejectByConstructor`, `JsRealm.CreateErrorObjectFromException`, `JsRealm.InvokeFunction`, `JsRealm.ToIntegerOrInfinity`, `JsRealm.ToUint32`, `JsRealm.ToNumber`, `JsRealm.ToJsStringSlowPath`, `JsArrayBufferObject.GetByte`, `Intrinsics.CreateNativeErrorConstructor`, `Intrinsics.PromiseConstructor`, `Intrinsics.ErrorPrototype`, `Intrinsics.ErrorConstructor`, `JsRealm.ObjectPrototype`, `JsHostFunction.InitializePrototypeProperty`, and `JsObject.Prototype`. |
 | `Okojo.WebAssembly.Wasmtime` | `Okojo.JavaScript` | removed in Phase 5C | `WasmtimeMemoryWrapper.cs` uses the public external-buffer factories without explicit prototype arguments. |
 
@@ -367,6 +369,29 @@ No transport interface or compatibility facade was added.
 public `JsArrayBufferObject.CreateExternal` and `CreateExternalShared` factory
 defaults select the correct intrinsic prototype, so no intrinsic or prototype
 API was exposed and WebAssembly behavior is unchanged.
+
+### Phase 5D — supported host/profile contract: complete
+
+The `Okojo.Hosting` and `Okojo.WebPlatform` friends were removed from
+`Okojo.JavaScript` after independent Release builds. Existing public operations
+replace the internal calls: `JsRealm.Call`, `JsAgent.Modules.Evaluate`,
+`TimeProvider.CreateTimer` and string-key property APIs cover invocation, module
+evaluation, timers, installation, and event dispatch. The supported host/profile
+contract now also exposes pending-job
+observation through `JsAgent.PendingJobCount`, current-module referrer discovery
+through `JsRealm.CurrentModuleResolvedId`, cross-realm result bridging
+through `JsRealm.BridgeFromOtherRealm`, and task completion wrapping onto a
+selected host queue through `JsRealm.WrapTaskOnHostQueue`.
+
+Host-created object setup uses the narrow public `JsObject.TrySetPrototype`,
+`JsObject.DefineDataProperty(Symbol, ...)`, and `JsHostFunction.InitializePrototypeProperty`
+operations required by Worker and AbortController projections; atom IDs,
+intrinsics, VM helpers, and raw atom property methods remain engine-internal.
+Queue selection, `RunOneHostJob`, `RunPromiseJobs`, Promise FIFO and recursive
+draining, non-reentrant checkpoints, and run-to-completion behavior are
+unchanged. `ITimerFactory` remains internal because Test262Runner still uses
+its fake-time implementation; Hosting now uses `TimeProvider.CreateTimer`
+directly.
 
 Do not reorganize all tests before the production split compiles. Keep `tests/Okojo.Tests` as the conformance/integration loop first; create `Okojo.JavaScript.Tests` and `Okojo.JavaScript.Embedding.Tests` only while moving tests that clearly belong to each boundary.
 

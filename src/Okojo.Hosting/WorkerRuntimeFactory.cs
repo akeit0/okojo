@@ -25,7 +25,7 @@ public static class WorkerRuntimeFactory
             ownerRealm.Agent.CreateWorkerAgent,
             options =>
             {
-                options.ModuleReferrer ??= ownerRealm.GetCurrentModuleResolvedIdOrNull();
+                options.ModuleReferrer ??= ownerRealm.CurrentModuleResolvedId;
                 configure?.Invoke(options);
             }
         );
@@ -44,7 +44,7 @@ public static class WorkerRuntimeFactory
         var threadHost = options.StartBackgroundHost ? new JsAgentThreadHost(agent) : null;
 
         if (!string.IsNullOrEmpty(options.ModuleEntry))
-            _ = agent.EvaluateModule(realm, options.ModuleEntry, options.ModuleReferrer);
+            _ = agent.Modules.Evaluate(realm, options.ModuleEntry, options.ModuleReferrer);
 
         var hostedWorker = new WorkerRuntime(agent, threadHost);
         if (options.StartBackgroundHost)

@@ -28,7 +28,7 @@ internal sealed class DefaultWorkerHost : IWorkerHost
                 var moduleNs = agent.EvaluateModule(
                     realm,
                     specifier,
-                    ownerRealm.GetCurrentModuleResolvedIdOrNull()
+                    ownerRealm.CurrentModuleResolvedId
                 );
                 return ownerRealm.BridgeFromOtherRealm(moduleNs);
             },

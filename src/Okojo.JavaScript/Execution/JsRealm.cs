@@ -130,10 +130,7 @@ public sealed partial class JsRealm
         )
             ? symbolHasInstance
             : new(IdSymbolHasInstance, "Symbol.hasInstance", true);
-        SymbolToStringTagSymbol = Atoms.TryGetSymbolByAtom(
-            IdSymbolToStringTag,
-            out var symbolToStringTag
-        )
+        ToStringTagSymbol = Atoms.TryGetSymbolByAtom(IdSymbolToStringTag, out var symbolToStringTag)
             ? symbolToStringTag
             : new(IdSymbolToStringTag, "Symbol.toStringTag", true);
         SymbolToPrimitiveSymbol = Atoms.TryGetSymbolByAtom(
@@ -323,7 +320,9 @@ public sealed partial class JsRealm
         Intrinsics.AsyncDisposableStackPrototype;
     internal Symbol SymbolIteratorSymbol { get; }
     internal Symbol SymbolHasInstanceSymbol { get; }
-    internal Symbol SymbolToStringTagSymbol { get; }
+
+    /// <summary>The realm's well-known Symbol.toStringTag value.</summary>
+    public Symbol ToStringTagSymbol { get; }
     internal Symbol SymbolToPrimitiveSymbol { get; }
     internal Symbol SymbolSpeciesSymbol { get; }
     internal Symbol SymbolAsyncIteratorSymbol { get; }

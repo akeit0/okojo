@@ -1,11 +1,30 @@
 using Okojo.JavaScript;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
 
 namespace Okojo.Tests;
 
 public class ObjectDefinePropertyTests
 {
+    [Test]
+    public void ObjectDefineProperty_RejectsSymbolFromAnotherAgent()
+    {
+        using var first = JsRuntime.Create();
+        using var second = JsRuntime.Create();
+        var target = new JsPlainObject(second.DefaultRealm);
+
+        Assert.That(
+            () =>
+                target.DefineDataProperty(
+                    first.DefaultRealm.ToStringTagSymbol,
+                    JsValue.FromString("Worker"),
+                    JsShapePropertyFlags.Configurable
+                ),
+            Throws.ArgumentException
+        );
+    }
+
     [Test]
     public void ObjectPrototype_PropertyIsEnumerable_ArrayIndexKey_Works()
     {

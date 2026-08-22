@@ -1,11 +1,46 @@
 using Okojo.JavaScript;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
 
 namespace Okojo.Tests;
 
 public class WorkerAgentTests
 {
+    [Test]
+    public void TrySetPrototype_RejectsWorkerAgentPrototype_ButAllowsSameAgentRealm()
+    {
+        using var engine = JsRuntime.Create();
+        var mainRealm = engine.MainRealm;
+        var sameAgentRealm = engine.CreateRealm();
+        var workerRealm = engine.CreateWorkerAgent().MainRealm;
+        var target = new JsPlainObject(mainRealm);
+
+        Assert.That(
+            () => target.TrySetPrototype(new JsPlainObject(workerRealm)),
+            Throws.ArgumentException
+        );
+        Assert.That(target.TrySetPrototype(new JsPlainObject(sameAgentRealm)), Is.True);
+    }
+
+    [Test]
+    public void TrySetPrototype_RejectsWorkerAgentPrototype_ThroughProxyTarget()
+    {
+        using var engine = JsRuntime.Create();
+        var mainRealm = engine.MainRealm;
+        var workerRealm = engine.CreateWorkerAgent().MainRealm;
+        var proxy = new JsProxyObject(
+            mainRealm,
+            new JsPlainObject(mainRealm),
+            new JsPlainObject(mainRealm)
+        );
+
+        Assert.That(
+            () => proxy.TrySetPrototype(new JsPlainObject(workerRealm)),
+            Throws.ArgumentException
+        );
+    }
+
     [Test]
     public void CreateWorkerAgent_CreatesDistinctWorkerAgent()
     {
