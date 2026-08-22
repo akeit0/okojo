@@ -1,5 +1,7 @@
-using Okojo.RegExp;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.RegExp;
 
 namespace Okojo.Tests;
 

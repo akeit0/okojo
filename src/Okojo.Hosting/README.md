@@ -12,7 +12,7 @@ It includes:
 ## Typical use
 
 ```csharp
-using Okojo;
+using Okojo.JavaScript.Embedding;
 using Okojo.Hosting;
 
 using var runtime = JsRuntime.CreateBuilder()

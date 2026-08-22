@@ -1,4 +1,4 @@
-using Okojo.Parsing;
+using Okojo.JavaScript.Parsing;
 
 namespace Okojo.Repl;
 

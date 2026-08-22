@@ -1,6 +1,8 @@
 using System.ComponentModel;
 using Okojo.Hosting;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
 using Okojo.WebAssembly;
 
 namespace Okojo.Node;

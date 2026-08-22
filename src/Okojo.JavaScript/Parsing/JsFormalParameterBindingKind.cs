@@ -1,4 +1,4 @@
-namespace Okojo.Parsing;
+namespace Okojo.JavaScript.Parsing;
 
 public enum JsFormalParameterBindingKind : byte
 {

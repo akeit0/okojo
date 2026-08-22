@@ -1,4 +1,4 @@
-namespace Okojo.SourceMaps;
+namespace Okojo.JavaScript.SourceMaps;
 
 public sealed class SourceMapModuleSourceLoader(
     IModuleSourceLoader inner,

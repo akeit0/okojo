@@ -3,7 +3,7 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace Okojo;
+namespace Okojo.JavaScript;
 
 [StructLayout(LayoutKind.Explicit)]
 public readonly struct JsValue : IEquatable<JsValue>

@@ -1,6 +1,8 @@
 using System.Buffers;
-using Okojo.Objects;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
 
 namespace Okojo.WebAssembly;
 

@@ -1,9 +1,11 @@
 using System.Runtime.CompilerServices;
 using Okojo.Diagnostics;
 using Okojo.Hosting;
-using Okojo.Objects;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
 using Okojo.Repl;
-using Okojo.Runtime;
 
 namespace Okojo.Node;
 

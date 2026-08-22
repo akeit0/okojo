@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 
-namespace Okojo.Objects;
+namespace Okojo.JavaScript.Objects;
 
 internal sealed class JsWeakSetObject : JsObject
 {

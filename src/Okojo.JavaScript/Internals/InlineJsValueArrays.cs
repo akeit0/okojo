@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace Okojo.Internals;
+namespace Okojo.JavaScript.Internals;
 
 internal struct InlineJsValueArray2
 {

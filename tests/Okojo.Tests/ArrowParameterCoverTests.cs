@@ -1,6 +1,8 @@
-using Okojo.Compiler;
-using Okojo.Parsing;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Parsing;
 
 namespace Okojo.Tests;
 

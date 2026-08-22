@@ -2,7 +2,11 @@
 
 ## Scope
 
-Remove the broad `IJsRuntimeHost` dependency from `JsAgent` and `JsRealm` while preserving execution, module, Promise, timer, worker, and interop behavior. Keep the physical project split and namespace rename deferred.
+This document records the completed Phase 2 boundary: the broad
+`IJsRuntimeHost` dependency was removed from `JsAgent` and `JsRealm` while
+preserving execution, module, Promise, timer, worker, and interop behavior.
+The physical project split and namespace migration are now complete; friend-
+assembly and supported-contract cleanup remain deferred.
 
 The boundary must also let a browser profile own its complete event loop. Engine and runtime convenience APIs must not force task selection, timer, rendering, worker-message, waiting, or microtask-checkpoint policy on `Okojo.Browser`.
 
@@ -87,7 +91,11 @@ The current monolithic implementation now follows this boundary internally:
 - `UseWebWorkers()` installs the WebPlatform `Worker` API and messaging globals but not the Hosting-only `createWorker` helper. `UseWorkerGlobals()` remains the explicit opt-in for that helper.
 - Promise checkpoints are explicitly non-reentrant, and `RunOneHostJob()` plus `RunPromiseJobs()` provide independently callable host operations.
 
-The physical move of `WorkerMessaging`, the default serializer, worker-host contracts, and `WorkerHandleFactory` is now part of the active project split. The first slice places these concrete embedding components in `Okojo.JavaScript.Embedding` while preserving namespaces; remaining internal host/profile accesses still require friend-assembly cleanup.
+The physical move of `WorkerMessaging`, the default serializer, worker-host
+contracts, and `WorkerHandleFactory` is complete. These concrete embedding
+components live in `Okojo.JavaScript.Embedding`, and the engine/runtime
+namespaces have been migrated to their final Phase 4 names. Remaining internal
+host/profile accesses still require friend-assembly cleanup.
 
 ## Conformance gate during migration
 

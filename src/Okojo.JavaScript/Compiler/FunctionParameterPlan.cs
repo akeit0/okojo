@@ -1,6 +1,6 @@
-using Okojo.Parsing;
+using Okojo.JavaScript.Parsing;
 
-namespace Okojo.Compiler;
+namespace Okojo.JavaScript.Compiler;
 
 internal enum FunctionParameterBindingKind : byte
 {

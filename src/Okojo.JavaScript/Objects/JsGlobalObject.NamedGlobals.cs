@@ -1,8 +1,8 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Okojo.Bytecode;
+using Okojo.JavaScript.Bytecode;
 
-namespace Okojo.Objects;
+namespace Okojo.JavaScript.Objects;
 
 public sealed partial class JsGlobalObject
 {

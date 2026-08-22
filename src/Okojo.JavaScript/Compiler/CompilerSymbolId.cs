@@ -1,4 +1,4 @@
-namespace Okojo.Compiler;
+namespace Okojo.JavaScript.Compiler;
 
 internal readonly struct CompilerSymbolId(int value)
 {

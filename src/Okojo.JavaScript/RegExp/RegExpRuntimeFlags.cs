@@ -1,4 +1,4 @@
-namespace Okojo.RegExp;
+namespace Okojo.JavaScript.RegExp;
 
 internal readonly record struct RegExpRuntimeFlags(
     bool Global,

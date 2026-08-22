@@ -3,10 +3,12 @@ using System.Globalization;
 using System.Numerics;
 using System.Text;
 using Microsoft.Extensions.Time.Testing;
-using Okojo.Objects;
-using Okojo.Parsing;
-using Okojo.Runtime;
-using JsValue = Okojo.JsValue;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
+using Okojo.JavaScript.Parsing;
+using JsValue = Okojo.JavaScript.JsValue;
 
 internal static partial class Program
 {

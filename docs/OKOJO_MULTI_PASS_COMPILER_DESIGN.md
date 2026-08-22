@@ -711,7 +711,7 @@ That is the first meaningful step from the current mixed model toward a clean mu
 
 Implemented now:
 
-- `Okojo.Compiler.Experimental`
+- `Okojo.JavaScript.Compiler.Experimental`
   - owns the new planning/emitting pipeline
 - `CompilerBindingCollector`
   - early scope/binding collection
@@ -725,7 +725,7 @@ Implemented now:
   - does not mutate `JsCompiler` binding state
 - `JsPlannedScriptCompiler`
   - separate experimental emitter/compiler
-  - lives in `Okojo.Compiler.Experimental`
+  - lives in `Okojo.JavaScript.Compiler.Experimental`
   - does not patch the new planned pipeline into `JsCompiler`
   - split into partial files to keep the new emitter readable
   - emits real executable Okojo bytecode for a small but growing subset

@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace Okojo.Objects;
+namespace Okojo.JavaScript.Objects;
 
 internal sealed class JsAsyncFromSyncIteratorObject : JsObject
 {

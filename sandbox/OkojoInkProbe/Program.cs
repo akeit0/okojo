@@ -1,13 +1,13 @@
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
-using Okojo;
-using Okojo.Bytecode;
 using Okojo.Diagnostics;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Bytecode;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
+using Okojo.JavaScript.Parsing;
 using Okojo.Node;
-using Okojo.Objects;
-using Okojo.Parsing;
-using Okojo.Runtime;
 using Okojo.WebAssembly.Wasmtime;
 
 var options = ParseArguments(args);

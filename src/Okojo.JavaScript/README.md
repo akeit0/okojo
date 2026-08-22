@@ -11,7 +11,7 @@ It provides:
 Embedding composition lives in `Okojo.JavaScript.Embedding`:
 
 ```csharp
-using Okojo.Runtime;
+using Okojo.JavaScript.Embedding;
 
 using var runtime = JsRuntime.Create();
 var realm = runtime.MainRealm;

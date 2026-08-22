@@ -1,7 +1,9 @@
-using Okojo.Objects;
-using Okojo.Runtime;
-using Okojo.Runtime.Interop;
-using static Okojo.Runtime.AtomTable;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Execution.Interop;
+using Okojo.JavaScript.Objects;
+using static Okojo.JavaScript.Execution.AtomTable;
 
 namespace Okojo.Reflection.Internal;
 

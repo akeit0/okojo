@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Time.Testing;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
 using Okojo.Reflection;
-using Okojo.Runtime;
 
 namespace Okojo.Tests;
 

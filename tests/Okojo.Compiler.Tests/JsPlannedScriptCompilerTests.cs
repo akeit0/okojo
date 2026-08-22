@@ -1,10 +1,12 @@
-using Okojo.Bytecode;
-using Okojo.Compiler.Experimental;
-using Okojo.Objects;
-using Okojo.Parsing;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Bytecode;
+using Okojo.JavaScript.Compiler.Experimental;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
+using Okojo.JavaScript.Parsing;
 
-namespace Okojo.Compiler.Tests;
+namespace Okojo.JavaScript.Compiler.Tests;
 
 public class JsPlannedScriptCompilerTests
 {

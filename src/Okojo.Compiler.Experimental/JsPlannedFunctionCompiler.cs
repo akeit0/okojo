@@ -1,10 +1,10 @@
-using Okojo.Bytecode;
-using Okojo.Compiler;
-using Okojo.Objects;
-using Okojo.Parsing;
-using Okojo.Runtime;
+using Okojo.JavaScript.Bytecode;
+using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
+using Okojo.JavaScript.Parsing;
 
-namespace Okojo.Compiler.Experimental;
+namespace Okojo.JavaScript.Compiler.Experimental;
 
 internal sealed partial class JsPlannedFunctionCompiler
 {

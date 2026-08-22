@@ -1,5 +1,5 @@
 using Okojo.Hosting;
-using Okojo.Runtime;
+using Okojo.JavaScript.Execution;
 
 namespace Okojo.DebugServer.Tests;
 
@@ -392,7 +392,7 @@ public sealed partial class OkojoDebugServerIntegrationTests
         }
     }
 
-    private static bool HasAnyPcForLine(Okojo.Bytecode.JsScript script, int line)
+    private static bool HasAnyPcForLine(Okojo.JavaScript.Bytecode.JsScript script, int line)
     {
         for (int pc = 0; pc < script.Bytecode.Length; pc++)
         {
@@ -406,7 +406,11 @@ public sealed partial class OkojoDebugServerIntegrationTests
         return false;
     }
 
-    private static bool TryGetFirstPcForLine(Okojo.Bytecode.JsScript script, int line, out int pc)
+    private static bool TryGetFirstPcForLine(
+        Okojo.JavaScript.Bytecode.JsScript script,
+        int line,
+        out int pc
+    )
     {
         for (pc = 0; pc < script.Bytecode.Length; pc++)
         {

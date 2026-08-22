@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Okojo.Parsing;
+namespace Okojo.JavaScript.Parsing;
 
 public static class JavaScriptParser
 {
@@ -63,7 +63,8 @@ public static class JavaScriptParser
 
 internal sealed partial class JsParser
 {
-    private const string ParseDepthExceededDataKey = "Okojo.Parsing.JsParser.ParseDepthExceeded";
+    private const string ParseDepthExceededDataKey =
+        "Okojo.JavaScript.Parsing.JsParser.ParseDepthExceeded";
     private const string ParseDepthExceededMessage = "Maximum parser recursion depth exceeded";
     private const int MaxParseDepth = 256;
     private static readonly HashSet<string> StrictModeReservedWords = new(StringComparer.Ordinal)

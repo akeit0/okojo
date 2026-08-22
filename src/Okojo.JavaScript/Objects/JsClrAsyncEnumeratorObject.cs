@@ -1,6 +1,6 @@
-using Okojo.Runtime.Interop;
+using Okojo.JavaScript.Execution.Interop;
 
-namespace Okojo.Objects;
+namespace Okojo.JavaScript.Objects;
 
 internal sealed class JsClrAsyncEnumeratorObject : JsObject
 {

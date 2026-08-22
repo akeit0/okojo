@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 
-namespace Okojo.Values;
+namespace Okojo.JavaScript.Values;
 
 public readonly partial struct JsString : IEquatable<JsString>
 {

@@ -1,4 +1,4 @@
-namespace Okojo.Objects;
+namespace Okojo.JavaScript.Objects;
 
 public enum GeneratorState : byte
 {

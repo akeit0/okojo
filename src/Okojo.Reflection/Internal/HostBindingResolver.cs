@@ -1,5 +1,5 @@
 using System.Reflection;
-using Okojo.Runtime.Interop;
+using Okojo.JavaScript.Execution.Interop;
 
 namespace Okojo.Reflection.Internal;
 

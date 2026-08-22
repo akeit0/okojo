@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Okojo.Values;
+namespace Okojo.JavaScript.Values;
 
 public readonly partial struct JsString
 {

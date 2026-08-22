@@ -1,4 +1,4 @@
-namespace Okojo.RegExp;
+namespace Okojo.JavaScript.RegExp;
 
 internal sealed record RegExpCompiledPattern(
     string Pattern,

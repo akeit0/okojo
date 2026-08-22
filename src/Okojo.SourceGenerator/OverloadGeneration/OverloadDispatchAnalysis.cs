@@ -309,7 +309,7 @@ internal static class OverloadDispatchAnalysis
         OverloadParameterMatchKind kind;
         if (
             type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
-            == "global::Okojo.JsValue"
+            == "global::Okojo.JavaScript.JsValue"
         )
             kind = OverloadParameterMatchKind.JsValue;
         else if (type.SpecialType == SpecialType.System_String)
@@ -335,7 +335,7 @@ internal static class OverloadDispatchAnalysis
             kind = OverloadParameterMatchKind.TaskLike;
         else if (
             type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
-            == "global::Okojo.Objects.JsObject"
+            == "global::Okojo.JavaScript.Objects.JsObject"
         )
             kind = OverloadParameterMatchKind.JsObject;
         else if (type.SpecialType == SpecialType.System_Object)

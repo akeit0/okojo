@@ -1,6 +1,6 @@
 using System.Text.Json;
 using Okojo.DebugServer;
-using Okojo.SourceMaps;
+using Okojo.JavaScript.SourceMaps;
 
 namespace Okojo.Node.Cli;
 

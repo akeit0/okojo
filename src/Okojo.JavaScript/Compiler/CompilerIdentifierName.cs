@@ -1,6 +1,6 @@
-using Okojo.Parsing;
+using Okojo.JavaScript.Parsing;
 
-namespace Okojo.Compiler;
+namespace Okojo.JavaScript.Compiler;
 
 internal readonly record struct CompilerIdentifierName(string Name, int NameId = -1)
 {

@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using Test262Runner;
-using JsValue = Okojo.JsValue;
+using JsValue = Okojo.JavaScript.JsValue;
 
 internal static partial class Program
 {

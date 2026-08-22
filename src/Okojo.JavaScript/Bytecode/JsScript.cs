@@ -1,6 +1,6 @@
-using Okojo.Parsing;
+using Okojo.JavaScript.Parsing;
 
-namespace Okojo.Bytecode;
+namespace Okojo.JavaScript.Bytecode;
 
 public sealed record JsScript
 {

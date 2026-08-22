@@ -1,4 +1,4 @@
-namespace Okojo.Compiler.Experimental;
+namespace Okojo.JavaScript.Compiler.Experimental;
 
 internal enum CompilerCollectedBindingKind : byte
 {

@@ -1,4 +1,4 @@
-namespace Okojo.Bytecode;
+namespace Okojo.JavaScript.Bytecode;
 
 public struct FunctionSourceTextSegment
 {

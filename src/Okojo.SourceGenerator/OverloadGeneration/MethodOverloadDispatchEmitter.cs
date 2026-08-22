@@ -30,13 +30,13 @@ internal static class MethodOverloadDispatchEmitter
 
         sb.Append("    private ")
             .Append(isStaticDispatcher ? "static " : string.Empty)
-            .Append("global::Okojo.JsValue ")
+            .Append("global::Okojo.JavaScript.JsValue ")
             .Append(dispatcherMethodName)
-            .AppendLine("(scoped in global::Okojo.Runtime.CallInfo info)");
+            .AppendLine("(scoped in global::Okojo.JavaScript.Execution.CallInfo info)");
         sb.AppendLine("    {");
         sb.AppendLine("        int __jsArgCount = info.ArgumentCount;");
         sb.AppendLine(
-            "        scoped global::System.ReadOnlySpan<global::Okojo.JsValue> __jsArgs = info.Arguments;"
+            "        scoped global::System.ReadOnlySpan<global::Okojo.JavaScript.JsValue> __jsArgs = info.Arguments;"
         );
         sb.AppendLine("        int __jsBestIndex = -1;");
         sb.AppendLine("        int __jsBestScore = int.MaxValue;");
@@ -100,7 +100,7 @@ internal static class MethodOverloadDispatchEmitter
 
         sb.AppendLine("        }");
         sb.Append(
-                "        throw new global::Okojo.Runtime.JsRuntimeException(global::Okojo.Runtime.JsErrorKind.TypeError, \""
+                "        throw new global::Okojo.JavaScript.Execution.JsRuntimeException(global::Okojo.JavaScript.Execution.JsErrorKind.TypeError, \""
             )
             .Append(EscapeString(mismatchMessage))
             .AppendLine("\");");
@@ -118,16 +118,16 @@ internal static class MethodOverloadDispatchEmitter
     {
         sb.Append("    private ")
             .Append(isStaticDispatcher ? "static " : string.Empty)
-            .Append("global::Okojo.JsValue ")
+            .Append("global::Okojo.JavaScript.JsValue ")
             .Append(dispatcherMethodName)
-            .AppendLine("(scoped in global::Okojo.Runtime.CallInfo info)");
+            .AppendLine("(scoped in global::Okojo.JavaScript.Execution.CallInfo info)");
         sb.AppendLine("    {");
 
         if (overload.ParameterSpecs.Count == 0 && !overload.HasOpenEndedCount)
         {
             sb.AppendLine("        if (info.ArgumentCount != 0)");
             sb.Append(
-                    "            throw new global::Okojo.Runtime.JsRuntimeException(global::Okojo.Runtime.JsErrorKind.TypeError, \""
+                    "            throw new global::Okojo.JavaScript.Execution.JsRuntimeException(global::Okojo.JavaScript.Execution.JsErrorKind.TypeError, \""
                 )
                 .Append(EscapeString(mismatchMessage))
                 .AppendLine("\");");
@@ -140,7 +140,7 @@ internal static class MethodOverloadDispatchEmitter
 
         sb.AppendLine("        int __jsArgCount = info.ArgumentCount;");
         sb.AppendLine(
-            "        scoped global::System.ReadOnlySpan<global::Okojo.JsValue> __jsArgs = info.Arguments;"
+            "        scoped global::System.ReadOnlySpan<global::Okojo.JavaScript.JsValue> __jsArgs = info.Arguments;"
         );
         if (overload.HasOpenEndedCount)
         {
@@ -148,7 +148,7 @@ internal static class MethodOverloadDispatchEmitter
                 .Append(overload.RequiredCount.ToString(CultureInfo.InvariantCulture))
                 .AppendLine(")");
             sb.Append(
-                    "            throw new global::Okojo.Runtime.JsRuntimeException(global::Okojo.Runtime.JsErrorKind.TypeError, \""
+                    "            throw new global::Okojo.JavaScript.Execution.JsRuntimeException(global::Okojo.JavaScript.Execution.JsErrorKind.TypeError, \""
                 )
                 .Append(EscapeString(mismatchMessage))
                 .AppendLine("\");");
@@ -161,7 +161,7 @@ internal static class MethodOverloadDispatchEmitter
                 .Append(overload.MaxCount.ToString(CultureInfo.InvariantCulture))
                 .AppendLine(")");
             sb.Append(
-                    "            throw new global::Okojo.Runtime.JsRuntimeException(global::Okojo.Runtime.JsErrorKind.TypeError, \""
+                    "            throw new global::Okojo.JavaScript.Execution.JsRuntimeException(global::Okojo.JavaScript.Execution.JsErrorKind.TypeError, \""
                 )
                 .Append(EscapeString(mismatchMessage))
                 .AppendLine("\");");
@@ -183,7 +183,7 @@ internal static class MethodOverloadDispatchEmitter
                 .Append(i.ToString(CultureInfo.InvariantCulture))
                 .Append(" ? __jsArgs[")
                 .Append(i.ToString(CultureInfo.InvariantCulture))
-                .Append("] : global::Okojo.JsValue.Undefined;")
+                .Append("] : global::Okojo.JavaScript.JsValue.Undefined;")
                 .AppendLine();
     }
 

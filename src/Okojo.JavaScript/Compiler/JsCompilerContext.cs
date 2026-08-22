@@ -1,4 +1,4 @@
-namespace Okojo.Compiler;
+namespace Okojo.JavaScript.Compiler;
 
 public sealed record ModuleImportBinding(
     string ResolvedDependencyId,

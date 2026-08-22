@@ -1,6 +1,7 @@
 using System.Text.Json;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Order;
+using Okojo.JavaScript;
 
 namespace Okojo.Benchmarks;
 

@@ -1,11 +1,13 @@
 using System.Reflection;
 using System.Text.Json;
-using Okojo.Compiler;
 using Okojo.DebugServer;
 using Okojo.Hosting;
-using Okojo.Parsing;
-using Okojo.Runtime;
-using Okojo.SourceMaps;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Parsing;
+using Okojo.JavaScript.SourceMaps;
 
 var options = DebugServerOptions.Parse(args);
 WriteVersionBanner();

@@ -1,6 +1,6 @@
-using Okojo.Bytecode;
+using Okojo.JavaScript.Bytecode;
 
-namespace Okojo.Compiler;
+namespace Okojo.JavaScript.Compiler;
 
 public sealed partial class JsCompiler
 {

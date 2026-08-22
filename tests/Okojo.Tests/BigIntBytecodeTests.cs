@@ -1,10 +1,12 @@
 using System.Numerics;
-using Okojo.Bytecode;
-using Okojo.Compiler;
 using Okojo.Diagnostics;
-using Okojo.Parsing;
-using Okojo.Runtime;
-using Okojo.Values;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Bytecode;
+using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Parsing;
+using Okojo.JavaScript.Values;
 
 namespace Okojo.Tests;
 

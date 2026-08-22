@@ -1,4 +1,4 @@
-namespace Okojo.Bytecode;
+namespace Okojo.JavaScript.Bytecode;
 
 internal static class BytecodeInfo
 {

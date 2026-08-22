@@ -1,5 +1,5 @@
-using Okojo.Parsing;
-using Okojo.Values;
+using Okojo.JavaScript.Parsing;
+using Okojo.JavaScript.Values;
 
 namespace Okojo.Tests;
 

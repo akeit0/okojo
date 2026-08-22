@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 
-namespace Okojo.SourceMaps;
+namespace Okojo.JavaScript.SourceMaps;
 
 public sealed class SourceMapRegistry
 {

@@ -2,7 +2,7 @@ using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Text;
 
-namespace Okojo.Parsing;
+namespace Okojo.JavaScript.Parsing;
 
 internal ref struct PooledCharBuilder(Span<char> initialBuffer)
 {

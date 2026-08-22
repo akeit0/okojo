@@ -3,12 +3,12 @@ using System.Globalization;
 using System.Numerics;
 using System.Text;
 #if NETSTANDARD2_1
-using Rune = Okojo.Internals.Rune;
+using Rune = Okojo.JavaScript.Internals.Rune;
 #else
 using Rune = System.Text.Rune;
 #endif
 
-namespace Okojo.Parsing;
+namespace Okojo.JavaScript.Parsing;
 
 internal enum JsTokenKind
 {

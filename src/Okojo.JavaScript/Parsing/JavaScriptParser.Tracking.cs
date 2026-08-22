@@ -1,6 +1,6 @@
 using System.Buffers;
 
-namespace Okojo.Parsing;
+namespace Okojo.JavaScript.Parsing;
 
 internal sealed partial class JsParser
 {

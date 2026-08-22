@@ -6,10 +6,12 @@ using BenchmarkDotNet.Order;
 using Jint;
 using Jint.Native.Function;
 using Okojo.Benchmarks;
-using Okojo.Compiler;
-using Okojo.Objects;
-using Okojo.Parsing;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
+using Okojo.JavaScript.Parsing;
 
 [MemoryDiagnoser]
 [Orderer(SummaryOrderPolicy.Declared)]

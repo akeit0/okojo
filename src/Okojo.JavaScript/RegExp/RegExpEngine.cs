@@ -3,7 +3,7 @@ using EcmaCapture = Okojo.Text.RegularExpressions.EcmaCapture;
 using EcmaRegexFlagSet = Okojo.Text.RegularExpressions.EcmaRegexFlagSet;
 using EcmaRegexOptions = Okojo.Text.RegularExpressions.EcmaRegexOptions;
 
-namespace Okojo.RegExp;
+namespace Okojo.JavaScript.RegExp;
 
 /// <summary>
 ///     Engine-internal ECMAScript regex engine backed by <see cref="Okojo.Text.RegularExpressions.EcmaRegex"/>.

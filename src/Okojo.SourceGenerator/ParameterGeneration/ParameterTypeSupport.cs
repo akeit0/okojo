@@ -101,7 +101,7 @@ internal static class ParameterTypeSupport
     {
         if (
             type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
-            == "global::Okojo.JsValue"
+            == "global::Okojo.JavaScript.JsValue"
         )
             return SpanElementKind.JsValue;
 

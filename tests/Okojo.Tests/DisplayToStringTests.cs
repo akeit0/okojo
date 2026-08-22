@@ -1,8 +1,10 @@
 using System.Text;
-using Okojo.Compiler;
-using Okojo.Parsing;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Parsing;
 using Okojo.Reflection;
-using Okojo.Runtime;
 
 namespace Okojo.Tests;
 

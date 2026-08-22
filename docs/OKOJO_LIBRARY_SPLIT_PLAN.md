@@ -283,28 +283,38 @@ Project references:
 
 Each project must build independently before continuing.
 
-Progress: the two projects now exist, preserve the existing namespaces, and
-build independently. Engine-only diagnostics/compiler tooling references
-`Okojo.JavaScript`; embedding, host, and profile consumers reference
-`Okojo.JavaScript.Embedding` (adding a direct engine reference only where they
-use engine internals or engine-only tooling). The old `Okojo.csproj` and its
-solution entry are gone. Stale engine friends for `Okojo.Browser` and
-`Test262Runner` were removed; friends still required by existing internal
-host/profile paths remain for a later supported-contract cleanup.
+Progress: the two projects exist and build independently. The old
+`Okojo.csproj` and its solution entry are gone. The physical move is complete;
+the namespace migration is recorded in Phase 4. Stale engine friends for
+`Okojo.Browser` and `Test262Runner` were removed; friends still required by
+existing internal host/profile paths remain for a later supported-contract
+cleanup.
 
-### Phase 4 — namespace rename
+### Phase 4 — namespace rename: complete
 
 Perform the namespace migration as one mechanical pass after both assemblies build:
 
+- `Okojo` → `Okojo.JavaScript`
 - `Okojo.Values` → `Okojo.JavaScript.Values`
 - `Okojo.Objects` → `Okojo.JavaScript.Objects`
 - `Okojo.Parsing` → `Okojo.JavaScript.Parsing`
 - `Okojo.Compiler` → `Okojo.JavaScript.Compiler`
 - `Okojo.Bytecode` → `Okojo.JavaScript.Bytecode`
+- `Okojo.RegExp` → `Okojo.JavaScript.RegExp`
+- `Okojo.SourceMaps` → `Okojo.JavaScript.SourceMaps`
+- `Okojo.Internals` → `Okojo.JavaScript.Internals`
 - engine-owned `Okojo.Runtime` → `Okojo.JavaScript.Execution`
+- engine-owned `Okojo.Runtime.Interop` → `Okojo.JavaScript.Execution.Interop`
 - embedding types → `Okojo.JavaScript.Embedding`
 
-Update global usings, generated-source inputs, XML documentation references, and friend assembly names in the same pass.
+Update global usings, generated-source inputs, XML documentation references,
+and consumer code in the same mechanical pass. Assembly-name friend entries
+remain unchanged; friend-assembly cleanup is the next separate slice.
+
+Progress: all production consumers compile with the new namespaces, the engine
+`Runtime` directory is now `Execution`, and the embedding `Runtime` directory
+is removed. `Okojo.SourceMaps` remains physically owned by the engine in this
+slice. The supported-contract and friend-assembly cleanup remains deferred.
 
 ### Phase 5 — consumers, tests, and packages
 

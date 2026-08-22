@@ -1,4 +1,4 @@
-namespace Okojo.Parsing;
+namespace Okojo.JavaScript.Parsing;
 
 internal sealed class JsParsedFormalParameters(
     IReadOnlyList<string> parameters,

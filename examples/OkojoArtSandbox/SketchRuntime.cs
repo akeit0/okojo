@@ -1,9 +1,10 @@
 using System.Reflection;
-using Okojo;
 using Okojo.Annotations;
 using Okojo.DocGenerator.Annotations;
-using Okojo.Objects;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
 using SkiaSharp;
 
 namespace OkojoArtSandbox;

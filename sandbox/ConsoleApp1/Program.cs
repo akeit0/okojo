@@ -1,7 +1,9 @@
-using Okojo.Compiler;
-using Okojo.Objects;
-using Okojo.Parsing;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
+using Okojo.JavaScript.Parsing;
 
 //Console.WriteLine($"StackFrame {Unsafe.SizeOf<StackFrame>()}");
 //Console.WriteLine($"SavedCallFrame {Unsafe.SizeOf<SavedCallFrame>()}");

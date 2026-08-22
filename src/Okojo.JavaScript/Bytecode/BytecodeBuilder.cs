@@ -1,7 +1,7 @@
 using System.Diagnostics;
-using Okojo.Runtime;
+using Okojo.JavaScript.Execution;
 
-namespace Okojo.Bytecode;
+namespace Okojo.JavaScript.Bytecode;
 
 public sealed class BytecodeBuilder : IDisposable
 {

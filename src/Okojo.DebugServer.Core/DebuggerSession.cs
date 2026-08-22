@@ -2,12 +2,13 @@ using System.Collections.Concurrent;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Okojo.Bytecode;
 using Okojo.Diagnostics;
-using Okojo.Objects;
-using Okojo.Runtime;
-using Okojo.SourceMaps;
-using Okojo.Values;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Bytecode;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
+using Okojo.JavaScript.SourceMaps;
+using Okojo.JavaScript.Values;
 
 namespace Okojo.DebugServer;
 

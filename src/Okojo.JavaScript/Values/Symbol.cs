@@ -1,4 +1,4 @@
-namespace Okojo.Values;
+namespace Okojo.JavaScript.Values;
 
 public sealed class Symbol(
     int atom,

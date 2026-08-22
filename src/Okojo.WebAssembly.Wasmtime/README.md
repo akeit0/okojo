@@ -5,7 +5,7 @@
 ## Typical use
 
 ```csharp
-using Okojo;
+using Okojo.JavaScript.Embedding;
 using Okojo.WebAssembly;
 using Okojo.WebAssembly.Wasmtime;
 

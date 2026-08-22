@@ -1,4 +1,5 @@
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Execution;
 
 namespace Okojo.Diagnostics;
 

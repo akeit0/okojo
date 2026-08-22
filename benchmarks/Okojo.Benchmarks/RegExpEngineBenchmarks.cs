@@ -1,8 +1,10 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Order;
-using Okojo.Objects;
-using Okojo.RegExp;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
+using Okojo.JavaScript.RegExp;
 
 namespace Okojo.Benchmarks;
 

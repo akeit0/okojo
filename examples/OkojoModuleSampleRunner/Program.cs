@@ -1,6 +1,7 @@
-using Okojo;
-using Okojo.Objects;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
 
 var engine = JsRuntime.Create();
 var agent = engine.MainAgent;

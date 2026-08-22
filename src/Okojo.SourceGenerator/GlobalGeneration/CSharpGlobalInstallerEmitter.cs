@@ -76,7 +76,7 @@ internal static class CSharpGlobalInstallerEmitter
     {
         sb.Append("    public void ")
             .Append(model.InstallerMethodName)
-            .AppendLine("(global::Okojo.Runtime.JsGlobalInstaller globals)");
+            .AppendLine("(global::Okojo.JavaScript.Execution.JsGlobalInstaller globals)");
         sb.AppendLine("    {");
         foreach (var functionGroup in functionGroups)
         {
@@ -103,10 +103,10 @@ internal static class CSharpGlobalInstallerEmitter
     private static void EmitPropertySource(StringBuilder sb, GlobalTypeModel model)
     {
         sb.Append(
-                "    public global::System.Collections.Generic.IEnumerable<global::Okojo.Runtime.PropertyDefinition> "
+                "    public global::System.Collections.Generic.IEnumerable<global::Okojo.JavaScript.Execution.PropertyDefinition> "
             )
             .Append(model.PropertySourceMethodName)
-            .AppendLine("(global::Okojo.Runtime.JsRealm realm)");
+            .AppendLine("(global::Okojo.JavaScript.Execution.JsRealm realm)");
         sb.AppendLine("    {");
         if (model.Properties.Count == 0)
         {
@@ -126,7 +126,7 @@ internal static class CSharpGlobalInstallerEmitter
             sb.Append("        var __jsGetter_")
                 .Append(sanitizedName)
                 .Append(
-                    " = new global::Okojo.Objects.JsHostFunction(realm, __OkojoGeneratedGlobalGetter_"
+                    " = new global::Okojo.JavaScript.Objects.JsHostFunction(realm, __OkojoGeneratedGlobalGetter_"
                 )
                 .Append(sanitizedName)
                 .Append(", \"get ")
@@ -137,14 +137,14 @@ internal static class CSharpGlobalInstallerEmitter
                 sb.Append("        var __jsSetter_")
                     .Append(sanitizedName)
                     .Append(
-                        " = new global::Okojo.Objects.JsHostFunction(realm, __OkojoGeneratedGlobalSetter_"
+                        " = new global::Okojo.JavaScript.Objects.JsHostFunction(realm, __OkojoGeneratedGlobalSetter_"
                     )
                     .Append(sanitizedName)
                     .Append(", \"set ")
                     .Append(EscapeString(property.Name))
                     .AppendLine("\", 1);");
                 sb.Append(
-                        "        yield return global::Okojo.Runtime.PropertyDefinition.GetterSetterData(__jsAtom_"
+                        "        yield return global::Okojo.JavaScript.Execution.PropertyDefinition.GetterSetterData(__jsAtom_"
                     )
                     .Append(sanitizedName)
                     .Append(", __jsGetter_")
@@ -160,7 +160,7 @@ internal static class CSharpGlobalInstallerEmitter
             else
             {
                 sb.Append(
-                        "        yield return global::Okojo.Runtime.PropertyDefinition.GetterData(__jsAtom_"
+                        "        yield return global::Okojo.JavaScript.Execution.PropertyDefinition.GetterData(__jsAtom_"
                     )
                     .Append(sanitizedName)
                     .Append(", __jsGetter_")
@@ -219,9 +219,9 @@ internal static class CSharpGlobalInstallerEmitter
             out var spanIndex,
             out var spanElementType
         );
-        sb.Append("    private global::Okojo.JsValue ")
+        sb.Append("    private global::Okojo.JavaScript.JsValue ")
             .Append(methodName)
-            .AppendLine("(scoped in global::Okojo.Runtime.CallInfo info)");
+            .AppendLine("(scoped in global::Okojo.JavaScript.Execution.CallInfo info)");
         sb.AppendLine("    {");
         if (hasTrailingSpan)
             EmitTrailingSpanSetup(sb, spanElementType, spanIndex, "        ");
@@ -241,9 +241,9 @@ internal static class CSharpGlobalInstallerEmitter
         GlobalPropertyModel property
     )
     {
-        sb.Append("    private global::Okojo.JsValue __OkojoGeneratedGlobalGetter_")
+        sb.Append("    private global::Okojo.JavaScript.JsValue __OkojoGeneratedGlobalGetter_")
             .Append(SanitizeIdentifier(property.Name))
-            .AppendLine("(scoped in global::Okojo.Runtime.CallInfo info)");
+            .AppendLine("(scoped in global::Okojo.JavaScript.Execution.CallInfo info)");
         sb.AppendLine("    {");
         sb.Append("        return info.Realm.WrapHostValue(");
         AppendMemberAccess(sb, containingType, property.Symbol);
@@ -257,16 +257,16 @@ internal static class CSharpGlobalInstallerEmitter
         GlobalPropertyModel property
     )
     {
-        sb.Append("    private global::Okojo.JsValue __OkojoGeneratedGlobalSetter_")
+        sb.Append("    private global::Okojo.JavaScript.JsValue __OkojoGeneratedGlobalSetter_")
             .Append(SanitizeIdentifier(property.Name))
-            .AppendLine("(scoped in global::Okojo.Runtime.CallInfo info)");
+            .AppendLine("(scoped in global::Okojo.JavaScript.Execution.CallInfo info)");
         sb.AppendLine("    {");
         sb.Append("        ");
         AppendMemberAccess(sb, containingType, property.Symbol);
         sb.Append(" = ");
         AppendArgumentRead(sb, property.Type, 0, false, null);
         sb.AppendLine(";");
-        sb.AppendLine("        return global::Okojo.JsValue.Undefined;");
+        sb.AppendLine("        return global::Okojo.JavaScript.JsValue.Undefined;");
         sb.AppendLine("    }");
     }
 
@@ -320,7 +320,7 @@ internal static class CSharpGlobalInstallerEmitter
 
         sb.AppendLine(");");
         if (method.ReturnsVoid)
-            sb.Append(indent).AppendLine("return global::Okojo.JsValue.Undefined;");
+            sb.Append(indent).AppendLine("return global::Okojo.JavaScript.JsValue.Undefined;");
         else
             sb.Append(indent).AppendLine("return info.Realm.WrapHostValue(__jsResult);");
 
@@ -452,7 +452,7 @@ internal static class CSharpGlobalInstallerEmitter
         {
             sb.Append(indent)
                 .Append(
-                    "global::System.ReadOnlySpan<global::Okojo.JsValue> __jsSpanArg = info.Arguments.Slice("
+                    "global::System.ReadOnlySpan<global::Okojo.JavaScript.JsValue> __jsSpanArg = info.Arguments.Slice("
                 )
                 .Append(startIndex)
                 .AppendLine(", __jsSpanCount);");
@@ -475,7 +475,7 @@ internal static class CSharpGlobalInstallerEmitter
                 );
             sb.Append(indent)
                 .Append(
-                    "global::Okojo.Runtime.Interop.CallInfoSpanConverter.FillArgumentSpan(info, "
+                    "global::Okojo.JavaScript.Execution.Interop.CallInfoSpanConverter.FillArgumentSpan(info, "
                 )
                 .Append(startIndex)
                 .AppendLine(", __jsSpanArg);");
@@ -502,7 +502,7 @@ internal static class CSharpGlobalInstallerEmitter
                 .AppendLine();
             sb.Append(indent)
                 .Append(
-                    "            global::Okojo.Runtime.Interop.CallInfoSpanConverter.FillArgumentSpan(info, "
+                    "            global::Okojo.JavaScript.Execution.Interop.CallInfoSpanConverter.FillArgumentSpan(info, "
                 )
                 .Append(startIndex)
                 .AppendLine(", __jsSpanBuffer);");

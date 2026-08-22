@@ -1,7 +1,7 @@
-using Okojo.Compiler.Experimental;
-using Okojo.Parsing;
+using Okojo.JavaScript.Compiler.Experimental;
+using Okojo.JavaScript.Parsing;
 
-namespace Okojo.Compiler.Tests;
+namespace Okojo.JavaScript.Compiler.Tests;
 
 public class CompilerStoragePlannerTests
 {

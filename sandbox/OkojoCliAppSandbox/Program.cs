@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
-using Okojo;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Objects;
 using Okojo.Node;
-using Okojo.Objects;
 
 var escapeOutput = args.Any(static arg =>
     string.Equals(arg, "--escape-output", StringComparison.Ordinal)
@@ -83,7 +83,7 @@ int RunScenario(string name, string[] argv, bool verbose)
             {
                 Console.WriteLine($"exception: {ex.GetType().Name}");
                 Console.WriteLine(ex);
-                if (ex is Okojo.Runtime.JsRuntimeException jsEx)
+                if (ex is Okojo.JavaScript.Execution.JsRuntimeException jsEx)
                 {
                     Console.WriteLine($"detailCode: {jsEx.DetailCode}");
                     if (jsEx.ThrownValue is { } thrownValue)
@@ -132,7 +132,7 @@ int RunScenario(string name, string[] argv, bool verbose)
         if (!verbose)
         {
             Console.Error.WriteLine(failure);
-            if (failure is Okojo.Runtime.JsRuntimeException jsEx)
+            if (failure is Okojo.JavaScript.Execution.JsRuntimeException jsEx)
             {
                 var okojoStack = jsEx.FormatOkojoStackTrace();
                 if (!string.IsNullOrEmpty(okojoStack))

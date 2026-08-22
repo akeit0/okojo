@@ -1,8 +1,9 @@
 using System.Globalization;
 using System.Text;
-using Okojo.Bytecode;
-using Okojo.Objects;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Bytecode;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
 
 namespace Okojo.Diagnostics;
 

@@ -1,7 +1,9 @@
 using System.Text.RegularExpressions;
 using Okojo.Diagnostics;
-using Okojo.Runtime;
-using JsValue = Okojo.JsValue;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using JsValue = Okojo.JavaScript.JsValue;
 
 internal static partial class Program
 {

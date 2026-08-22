@@ -1,6 +1,6 @@
-using Okojo.Internals;
+using Okojo.JavaScript.Internals;
 
-namespace Okojo.Objects;
+namespace Okojo.JavaScript.Objects;
 
 internal sealed class JsProxyFunction : JsFunction, IProxyObject
 {

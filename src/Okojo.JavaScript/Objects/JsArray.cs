@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Runtime.InteropServices;
 
-namespace Okojo.Objects;
+namespace Okojo.JavaScript.Objects;
 
 public sealed class JsArray : JsObject
 {

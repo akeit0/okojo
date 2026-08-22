@@ -1,4 +1,4 @@
-namespace Okojo.SourceMaps;
+namespace Okojo.JavaScript.SourceMaps;
 
 internal readonly record struct SourceMapEntry(
     int GeneratedLine,

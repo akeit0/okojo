@@ -1,7 +1,7 @@
 using System.Buffers;
 using System.Runtime.CompilerServices;
 
-namespace Okojo.Internals;
+namespace Okojo.JavaScript.Internals;
 
 internal ref struct PooledArrayBuilder<T>(Span<T> initialBuffer)
 {

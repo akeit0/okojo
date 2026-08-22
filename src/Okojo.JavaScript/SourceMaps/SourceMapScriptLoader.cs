@@ -2,7 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace Okojo.SourceMaps;
+namespace Okojo.JavaScript.SourceMaps;
 
 public sealed partial class SourceMapScriptLoader(SourceMapRegistry registry)
 {

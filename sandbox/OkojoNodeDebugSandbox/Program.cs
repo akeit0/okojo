@@ -1,11 +1,11 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
-using Okojo;
-using Okojo.Bytecode;
 using Okojo.Diagnostics;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Bytecode;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
 using Okojo.Node;
-using Okojo.Objects;
-using Okojo.Runtime;
 
 var options = NodeDebugOptions.Parse(args);
 

@@ -1,4 +1,4 @@
-namespace Okojo.Parsing;
+namespace Okojo.JavaScript.Parsing;
 
 public sealed class SourceCode(string? source, string? path)
 {

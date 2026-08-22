@@ -1,5 +1,7 @@
-using Okojo.Runtime;
-using Okojo.SourceMaps;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.SourceMaps;
 using Okojo.WebAssembly.Wasmtime;
 
 namespace Okojo.Node.Cli;

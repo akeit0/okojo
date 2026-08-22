@@ -1,7 +1,9 @@
 using System.Text;
 using Okojo.Hosting;
-using Okojo.Parsing;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Parsing;
 
 namespace Okojo.Node.Tests;
 

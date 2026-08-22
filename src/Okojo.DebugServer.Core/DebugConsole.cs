@@ -1,6 +1,7 @@
-using Okojo.Objects;
-using Okojo.Runtime;
-using Okojo.Values;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
+using Okojo.JavaScript.Values;
 
 namespace Okojo.DebugServer;
 

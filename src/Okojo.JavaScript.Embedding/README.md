@@ -4,7 +4,7 @@
 for the `Okojo.JavaScript` ECMAScript engine.
 
 ```csharp
-using Okojo.Runtime;
+using Okojo.JavaScript.Embedding;
 
 using var runtime = JsRuntime.Create();
 Console.WriteLine(runtime.MainRealm.Evaluate("1 + 2"));

@@ -1,9 +1,11 @@
-using Okojo.Compiler;
 using Okojo.Hosting;
-using Okojo.Objects;
-using Okojo.Parsing;
-using Okojo.Runtime;
-using Okojo.SourceMaps;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
+using Okojo.JavaScript.Parsing;
+using Okojo.JavaScript.SourceMaps;
 using Okojo.WebPlatform;
 
 namespace Okojo.Node;

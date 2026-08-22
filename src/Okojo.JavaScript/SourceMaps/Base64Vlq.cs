@@ -1,6 +1,6 @@
-using Okojo.Internals;
+using Okojo.JavaScript.Internals;
 
-namespace Okojo.SourceMaps;
+namespace Okojo.JavaScript.SourceMaps;
 
 internal static class Base64Vlq
 {

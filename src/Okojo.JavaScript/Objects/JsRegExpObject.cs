@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
-using Okojo.RegExp;
+using Okojo.JavaScript.RegExp;
 
-namespace Okojo.Objects;
+namespace Okojo.JavaScript.Objects;
 
 internal sealed class JsRegExpObject : JsObject
 {

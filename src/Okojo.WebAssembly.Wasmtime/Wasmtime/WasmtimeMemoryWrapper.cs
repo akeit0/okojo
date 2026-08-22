@@ -1,5 +1,5 @@
-using Okojo.Objects;
-using Okojo.Runtime;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
 using Wasmtime;
 
 namespace Okojo.WebAssembly.Wasmtime;

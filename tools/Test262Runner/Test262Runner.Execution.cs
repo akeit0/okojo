@@ -1,14 +1,16 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
-using Okojo.Compiler;
 using Okojo.Hosting;
-using Okojo.Objects;
-using Okojo.Parsing;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
+using Okojo.JavaScript.Parsing;
 using Okojo.WebPlatform;
 using Test262Runner;
-using JsValue = Okojo.JsValue;
+using JsValue = Okojo.JavaScript.JsValue;
 
 internal static partial class Program
 {

@@ -1,4 +1,4 @@
-namespace Okojo.Objects;
+namespace Okojo.JavaScript.Objects;
 
 public delegate JsValue JsHostFunctionBody(scoped in CallInfo info);
 

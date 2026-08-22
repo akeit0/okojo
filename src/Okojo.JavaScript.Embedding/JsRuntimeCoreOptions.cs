@@ -1,0 +1,109 @@
+using System.Reflection;
+
+namespace Okojo.JavaScript.Embedding;
+
+/// <summary>
+///     Engine-core runtime configuration.
+///     Keep this for embedding choices that affect engine semantics rather than host integration.
+/// </summary>
+public sealed class JsRuntimeCoreOptions
+{
+    private readonly List<Assembly> clrAssemblies = new();
+    private readonly List<IRealmApiModule> realmApiModules = new();
+    private readonly List<Func<WorkerMessaging?, IRealmApiModule>> realmApiModuleFactories = new();
+    private int clrAssembliesVersion;
+
+    public bool ClrAccessEnabled { get; private set; }
+    public IReadOnlyList<Assembly> ClrAssemblies => clrAssemblies;
+    public IReadOnlyList<IRealmApiModule> RealmApiModules => realmApiModules;
+    internal IReadOnlyList<Func<WorkerMessaging?, IRealmApiModule>> RealmApiModuleFactories =>
+        realmApiModuleFactories;
+    internal IClrAccessProvider? ClrAccessProvider { get; private set; }
+    internal int ClrAssembliesVersion => clrAssembliesVersion;
+
+    internal JsRuntimeCoreOptions EnableClrAccess(IClrAccessProvider? provider = null)
+    {
+        ClrAccessEnabled = true;
+        ClrAccessProvider ??= provider;
+        return this;
+    }
+
+    internal JsRuntimeCoreOptions UseClrAccessProvider(IClrAccessProvider provider)
+    {
+        ArgumentNullException.ThrowIfNull(provider);
+        ClrAccessProvider = provider;
+        return this;
+    }
+
+    public JsRuntimeCoreOptions AddRealmApiModule(IRealmApiModule module)
+    {
+        ArgumentNullException.ThrowIfNull(module);
+        if (!realmApiModules.Contains(module))
+        {
+            realmApiModules.Add(module);
+            realmApiModuleFactories.Add(_ => module);
+        }
+        return this;
+    }
+
+    public JsRuntimeCoreOptions UseRealmSetup(Action<JsRealm> setup)
+    {
+        ArgumentNullException.ThrowIfNull(setup);
+        AddRealmApiModule(new DelegateRealmApiModule(setup));
+        return this;
+    }
+
+    internal JsRuntimeCoreOptions AddRealmApiModuleFactory(
+        Func<WorkerMessaging, IRealmApiModule> createModule
+    )
+    {
+        ArgumentNullException.ThrowIfNull(createModule);
+        realmApiModuleFactories.Add(workerMessaging => createModule(workerMessaging!));
+        return this;
+    }
+
+    public JsRuntimeCoreOptions UseGlobals(Action<JsGlobalInstaller> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+        return UseRealmSetup(realm => realm.InstallGlobals(configure));
+    }
+
+    public JsRuntimeCoreOptions AddClrAssembly(params Assembly[] assemblies)
+    {
+        AddClrAssembliesCore(assemblies);
+        return this;
+    }
+
+    internal bool AddClrAssembliesCore(params Assembly[] assemblies)
+    {
+        ArgumentNullException.ThrowIfNull(assemblies);
+        var changed = false;
+        for (var i = 0; i < assemblies.Length; i++)
+        {
+            var assembly = assemblies[i] ?? throw new ArgumentNullException(nameof(assemblies));
+            if (!clrAssemblies.Contains(assembly))
+            {
+                clrAssemblies.Add(assembly);
+                changed = true;
+            }
+        }
+
+        if (changed)
+            clrAssembliesVersion++;
+        return changed;
+    }
+
+    internal JsRuntimeCoreOptions Clone()
+    {
+        var clone = new JsRuntimeCoreOptions
+        {
+            ClrAccessEnabled = ClrAccessEnabled,
+            ClrAccessProvider = ClrAccessProvider,
+            clrAssembliesVersion = clrAssembliesVersion,
+        };
+        clone.clrAssemblies.AddRange(clrAssemblies);
+        clone.realmApiModules.AddRange(realmApiModules);
+        clone.realmApiModuleFactories.AddRange(realmApiModuleFactories);
+        return clone;
+    }
+}

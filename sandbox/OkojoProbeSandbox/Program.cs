@@ -1,8 +1,9 @@
-using Okojo;
 using Okojo.Hosting;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
 using Okojo.Node;
-using Okojo.Objects;
-using Okojo.Runtime;
 
 namespace OkojoProbeSandbox;
 

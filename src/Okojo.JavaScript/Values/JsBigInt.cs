@@ -1,6 +1,6 @@
 using System.Numerics;
 
-namespace Okojo.Values;
+namespace Okojo.JavaScript.Values;
 
 public sealed class JsBigInt(BigInteger value) : IEquatable<JsBigInt>
 {

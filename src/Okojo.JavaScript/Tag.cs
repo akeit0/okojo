@@ -1,4 +1,4 @@
-namespace Okojo;
+namespace Okojo.JavaScript;
 
 public enum Tag
 {

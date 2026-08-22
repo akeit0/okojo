@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Okojo.Objects;
+namespace Okojo.JavaScript.Objects;
 
 public sealed class JsTypedArrayObject : JsObject
 {

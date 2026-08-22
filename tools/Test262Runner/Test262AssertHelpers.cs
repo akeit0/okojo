@@ -1,6 +1,6 @@
 using System.Globalization;
-using Okojo;
-using Okojo.Objects;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Objects;
 
 internal static class Test262AssertHelpers
 {

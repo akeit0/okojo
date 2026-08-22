@@ -1,8 +1,8 @@
-using Okojo.Bytecode;
-using Okojo.Compiler;
-using Okojo.Parsing;
+using Okojo.JavaScript.Bytecode;
+using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Parsing;
 
-namespace Okojo.Compiler.Experimental;
+namespace Okojo.JavaScript.Compiler.Experimental;
 
 internal sealed partial class JsPlannedScriptCompiler
 {

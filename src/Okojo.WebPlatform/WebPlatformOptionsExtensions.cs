@@ -1,5 +1,7 @@
 using Okojo.Hosting;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
 
 namespace Okojo.WebPlatform;
 

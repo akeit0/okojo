@@ -1,12 +1,14 @@
 using System.Diagnostics;
 using System.Reflection;
-using Okojo.Compiler;
 using Okojo.Diagnostics;
 using Okojo.Hosting;
-using Okojo.Objects;
-using Okojo.Parsing;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
+using Okojo.JavaScript.Parsing;
 using Okojo.Repl;
-using Okojo.Runtime;
 
 namespace Okojo.Node.Cli;
 

@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace Okojo.SourceMaps;
+namespace Okojo.JavaScript.SourceMaps;
 
 public static class SourceMapParser
 {

@@ -1,6 +1,6 @@
 using System.Buffers;
 
-namespace Okojo.Compiler;
+namespace Okojo.JavaScript.Compiler;
 
 public sealed partial class JsCompiler
 {

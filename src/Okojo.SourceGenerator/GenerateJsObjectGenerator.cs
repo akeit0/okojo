@@ -68,47 +68,49 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
 
         sb.Append("partial class ")
             .Append(typeName)
-            .Append(" : global::Okojo.Runtime.Interop.IHostBindable")
+            .Append(" : global::Okojo.JavaScript.Execution.Interop.IHostBindable")
             .AppendLine();
         sb.AppendLine("{");
         sb.AppendLine(
-            "    private static readonly global::Okojo.Runtime.Interop.HostBinding s_HostBinding = CreateHostBinding();"
+            "    private static readonly global::Okojo.JavaScript.Execution.Interop.HostBinding s_HostBinding = CreateHostBinding();"
         );
         sb.AppendLine();
         sb.AppendLine(
-            "    global::Okojo.Runtime.Interop.HostBinding global::Okojo.Runtime.Interop.IHostBindable.GetHostBinding()"
+            "    global::Okojo.JavaScript.Execution.Interop.HostBinding global::Okojo.JavaScript.Execution.Interop.IHostBindable.GetHostBinding()"
         );
         sb.AppendLine("        => s_HostBinding;");
         sb.AppendLine();
         sb.Append(
-                "    public static global::Okojo.Objects.JsHostObject ToJsObject(global::Okojo.Runtime.JsRealm realm, "
+                "    public static global::Okojo.JavaScript.Objects.JsHostObject ToJsObject(global::Okojo.JavaScript.Execution.JsRealm realm, "
             )
             .Append(fullTypeName)
             .AppendLine(" value)");
         sb.AppendLine("        => realm.WrapHostObject(value);");
         sb.AppendLine();
         sb.AppendLine(
-            "    public static global::Okojo.Objects.JsHostFunction ToJsType(global::Okojo.Runtime.JsRealm realm)"
+            "    public static global::Okojo.JavaScript.Objects.JsHostFunction ToJsType(global::Okojo.JavaScript.Execution.JsRealm realm)"
         );
         sb.AppendLine(
             "        => realm.WrapHostType(typeof(" + fullTypeName + "), s_HostBinding);"
         );
         sb.AppendLine();
         sb.AppendLine(
-            "    private static global::Okojo.Runtime.Interop.HostBinding CreateHostBinding()"
+            "    private static global::Okojo.JavaScript.Execution.Interop.HostBinding CreateHostBinding()"
         );
         sb.AppendLine("    {");
-        sb.Append("        return new global::Okojo.Runtime.Interop.HostBinding(typeof(")
+        sb.Append(
+                "        return new global::Okojo.JavaScript.Execution.Interop.HostBinding(typeof("
+            )
             .Append(fullTypeName)
             .AppendLine("),");
         sb.AppendLine(
-            "            instanceMembers: new global::Okojo.Runtime.Interop.HostMemberBinding[]"
+            "            instanceMembers: new global::Okojo.JavaScript.Execution.Interop.HostMemberBinding[]"
         );
         sb.AppendLine("            {");
         EmitMembers(sb, symbol, model.InstanceMembers, instanceMethodGroups, false);
         sb.AppendLine("            },");
         sb.AppendLine(
-            "            staticMembers: new global::Okojo.Runtime.Interop.HostMemberBinding[]"
+            "            staticMembers: new global::Okojo.JavaScript.Execution.Interop.HostMemberBinding[]"
         );
         sb.AppendLine("            {");
         EmitMembers(sb, symbol, model.StaticMembers, staticMethodGroups, true);
@@ -153,11 +155,13 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
     )
     {
         var fullTypeName = containingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-        sb.Append("                new global::Okojo.Runtime.Interop.HostMemberBinding(\"")
+        sb.Append(
+                "                new global::Okojo.JavaScript.Execution.Interop.HostMemberBinding(\""
+            )
             .Append(member.Name)
-            .Append("\", global::Okojo.Runtime.Interop.HostMemberBindingKind.Field, ")
+            .Append("\", global::Okojo.JavaScript.Execution.Interop.HostMemberBindingKind.Field, ")
             .Append(field.IsStatic ? "true" : "false");
-        sb.Append(", getterBody: static (in global::Okojo.Runtime.CallInfo info) => ");
+        sb.Append(", getterBody: static (in global::Okojo.JavaScript.Execution.CallInfo info) => ");
         EmitToJsValue(
             sb,
             field.Type,
@@ -170,11 +174,13 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
 
         if (member.CanWrite)
         {
-            sb.Append(", setterBody: static (in global::Okojo.Runtime.CallInfo info) => { ");
+            sb.Append(
+                ", setterBody: static (in global::Okojo.JavaScript.Execution.CallInfo info) => { "
+            );
             AppendCallTarget(sb, fullTypeName, field.IsStatic);
             sb.Append('.').Append(field.Name).Append(" = ");
             EmitGetArgument(sb, field.Type, 0);
-            sb.Append("; return global::Okojo.JsValue.Undefined; }");
+            sb.Append("; return global::Okojo.JavaScript.JsValue.Undefined; }");
         }
 
         sb.AppendLine("),");
@@ -188,13 +194,19 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
     )
     {
         var fullTypeName = containingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-        sb.Append("                new global::Okojo.Runtime.Interop.HostMemberBinding(\"")
+        sb.Append(
+                "                new global::Okojo.JavaScript.Execution.Interop.HostMemberBinding(\""
+            )
             .Append(member.Name)
-            .Append("\", global::Okojo.Runtime.Interop.HostMemberBindingKind.Property, ")
+            .Append(
+                "\", global::Okojo.JavaScript.Execution.Interop.HostMemberBindingKind.Property, "
+            )
             .Append(property.IsStatic ? "true" : "false");
         if (member.CanRead)
         {
-            sb.Append(", getterBody: static (in global::Okojo.Runtime.CallInfo info) => ");
+            sb.Append(
+                ", getterBody: static (in global::Okojo.JavaScript.Execution.CallInfo info) => "
+            );
             EmitToJsValue(
                 sb,
                 property.Type,
@@ -208,11 +220,13 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
 
         if (member.CanWrite)
         {
-            sb.Append(", setterBody: static (in global::Okojo.Runtime.CallInfo info) => { ");
+            sb.Append(
+                ", setterBody: static (in global::Okojo.JavaScript.Execution.CallInfo info) => { "
+            );
             AppendCallTarget(sb, fullTypeName, property.IsStatic);
             sb.Append('.').Append(property.Name).Append(" = ");
             EmitGetArgument(sb, property.Type, 0);
-            sb.Append("; return global::Okojo.JsValue.Undefined; }");
+            sb.Append("; return global::Okojo.JavaScript.JsValue.Undefined; }");
         }
 
         sb.AppendLine("),");
@@ -225,11 +239,15 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
     )
     {
         var methodName = GetGeneratedMethodGroupName(methodGroup.Name, isStaticGroup);
-        sb.Append("                new global::Okojo.Runtime.Interop.HostMemberBinding(\"")
+        sb.Append(
+                "                new global::Okojo.JavaScript.Execution.Interop.HostMemberBinding(\""
+            )
             .Append(methodGroup.Name)
-            .Append("\", global::Okojo.Runtime.Interop.HostMemberBindingKind.Method, ")
+            .Append("\", global::Okojo.JavaScript.Execution.Interop.HostMemberBindingKind.Method, ")
             .Append(isStaticGroup ? "true" : "false")
-            .Append(", methodBody: static (in global::Okojo.Runtime.CallInfo info) => ")
+            .Append(
+                ", methodBody: static (in global::Okojo.JavaScript.Execution.CallInfo info) => "
+            )
             .Append(methodName)
             .Append("(info), functionLength: ")
             .Append(
@@ -299,9 +317,9 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
             out var spanIndex,
             out var spanElementType
         );
-        sb.Append("    private static global::Okojo.JsValue ")
+        sb.Append("    private static global::Okojo.JavaScript.JsValue ")
             .Append(methodName)
-            .AppendLine("(scoped in global::Okojo.Runtime.CallInfo info)");
+            .AppendLine("(scoped in global::Okojo.JavaScript.Execution.CallInfo info)");
         sb.AppendLine("    {");
         if (hasTrailingSpan)
             EmitTrailingSpanSetup(sb, spanElementType, spanIndex, "        ");
@@ -358,7 +376,7 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
 
         if (method.ReturnsVoid)
         {
-            sb.Append(indent).AppendLine("return global::Okojo.JsValue.Undefined;");
+            sb.Append(indent).AppendLine("return global::Okojo.JavaScript.JsValue.Undefined;");
         }
         else
         {
@@ -439,7 +457,7 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
         {
             sb.Append(indent)
                 .Append(
-                    "global::System.ReadOnlySpan<global::Okojo.JsValue> __jsSpanArg = info.Arguments.Slice("
+                    "global::System.ReadOnlySpan<global::Okojo.JavaScript.JsValue> __jsSpanArg = info.Arguments.Slice("
                 )
                 .Append(startIndex)
                 .AppendLine(", __jsSpanCount);");
@@ -462,7 +480,7 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
                 );
             sb.Append(indent)
                 .Append(
-                    "global::Okojo.Runtime.Interop.CallInfoSpanConverter.FillArgumentSpan(info, "
+                    "global::Okojo.JavaScript.Execution.Interop.CallInfoSpanConverter.FillArgumentSpan(info, "
                 )
                 .Append(startIndex)
                 .AppendLine(", __jsSpanArg);");
@@ -489,7 +507,7 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
                 .AppendLine();
             sb.Append(indent)
                 .Append(
-                    "    global::Okojo.Runtime.Interop.CallInfoSpanConverter.FillArgumentSpan(info, "
+                    "    global::Okojo.JavaScript.Execution.Interop.CallInfoSpanConverter.FillArgumentSpan(info, "
                 )
                 .Append(startIndex)
                 .AppendLine(", __jsSpanBuffer);");
@@ -529,7 +547,7 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
 
         if (type.SpecialType == SpecialType.System_String)
         {
-            sb.Append("global::Okojo.JsValue.FromString(");
+            sb.Append("global::Okojo.JavaScript.JsValue.FromString(");
             emitValue();
             sb.Append(')');
             return;
@@ -539,7 +557,9 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
         {
             sb.Append("((");
             emitValue();
-            sb.Append(") ? global::Okojo.JsValue.True : global::Okojo.JsValue.False)");
+            sb.Append(
+                ") ? global::Okojo.JavaScript.JsValue.True : global::Okojo.JavaScript.JsValue.False)"
+            );
             return;
         }
 
@@ -550,13 +570,13 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
             case SpecialType.System_SByte:
             case SpecialType.System_Int16:
             case SpecialType.System_UInt16:
-                sb.Append("global::Okojo.JsValue.FromInt32((int)(");
+                sb.Append("global::Okojo.JavaScript.JsValue.FromInt32((int)(");
                 emitValue();
                 sb.Append("))");
                 return;
             case SpecialType.System_Single:
             case SpecialType.System_Double:
-                sb.Append("new global::Okojo.JsValue(");
+                sb.Append("new global::Okojo.JavaScript.JsValue(");
                 emitValue();
                 sb.Append(')');
                 return;

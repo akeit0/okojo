@@ -1,4 +1,4 @@
-using Okojo;
+using Okojo.JavaScript;
 using Okojo.Node;
 
 namespace OkojoNodeRuntimeSandbox;

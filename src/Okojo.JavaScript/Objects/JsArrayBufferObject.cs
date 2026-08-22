@@ -1,6 +1,6 @@
 using System.Buffers.Binary;
 
-namespace Okojo.Objects;
+namespace Okojo.JavaScript.Objects;
 
 public class JsArrayBufferObject : JsObject
 {

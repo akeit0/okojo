@@ -1,4 +1,4 @@
-using Okojo.Parsing;
+using Okojo.JavaScript.Parsing;
 using PrettyPrompt;
 using PrettyPrompt.Completion;
 using PrettyPrompt.Consoles;

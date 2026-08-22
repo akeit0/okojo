@@ -1,13 +1,15 @@
 using System.Collections.Generic;
 using System.Text;
 using Okojo.Annotations;
-using Okojo.Compiler;
 using Okojo.DocGenerator.Annotations;
-using Okojo.Objects;
-using Okojo.Parsing;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Execution.Interop;
+using Okojo.JavaScript.Objects;
+using Okojo.JavaScript.Parsing;
 using Okojo.Reflection;
-using Okojo.Runtime;
-using Okojo.Runtime.Interop;
 
 namespace Okojo.Tests;
 

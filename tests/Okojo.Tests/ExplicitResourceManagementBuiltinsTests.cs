@@ -1,6 +1,8 @@
-using Okojo.Objects;
-using Okojo.Runtime;
-using Okojo.Runtime.Interop;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Execution.Interop;
+using Okojo.JavaScript.Objects;
 
 namespace Okojo.Tests;
 

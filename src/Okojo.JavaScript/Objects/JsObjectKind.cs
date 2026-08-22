@@ -1,4 +1,4 @@
-namespace Okojo.Objects;
+namespace Okojo.JavaScript.Objects;
 
 // WIP
 internal enum JsObjectKind : byte

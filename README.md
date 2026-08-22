@@ -93,7 +93,7 @@ Not part of the current public package wave:
 ## Quick start
 
 ```csharp
-using Okojo;
+using Okojo.JavaScript.Embedding;
 
 using var runtime = JsRuntime.CreateBuilder().Build();
 
@@ -135,7 +135,8 @@ The main embedding shape is:
 `JsValue` is the core public value type. It is a compact value container used for primitives, strings, objects, symbols, bigints, and host interop.
 
 ```csharp
-using Okojo;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
 
 using var runtime = JsRuntime.Create();
 var realm = runtime.MainRealm;
@@ -160,6 +161,8 @@ Some commonly useful `JsValue` members:
 ## Execution duration Constraints
 You can set execution duration in instructions level.
 ```cs
+using Okojo.JavaScript.Embedding;
+
 using var rt = JsRuntime.CreateBuilder()
     .UseAgent(agent =>
     {
@@ -174,14 +177,15 @@ realm.Evaluate("while(true){}");
 ```
 
 ```
-Unhandled exception. Okojo.Runtime.JsRuntimeException: Execution limit exceeded
+Unhandled exception. Okojo.JavaScript.Execution.JsRuntimeException: Execution limit exceeded
 ```
 ## Installing host globals
 
 You can install globals directly from the runtime builder without defining a full host object model.
 
 ```csharp
-using Okojo;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
 
 using var runtime = JsRuntime.CreateBuilder()
     .UseGlobals(globals => globals
@@ -205,7 +209,7 @@ That builder style is the preferred public composition path.
 If you want CLR namespace and type access from JavaScript, add `Okojo.Reflection` explicitly and opt into reflection-backed interop:
 
 ```csharp
-using Okojo;
+using Okojo.JavaScript.Embedding;
 using Okojo.Reflection;
 
 using var runtime = JsRuntime.CreateBuilder()
@@ -254,7 +258,8 @@ dotnet run --project .\sandbox\OkojoRepl\OkojoRepl.csproj
 Okojo supports ECMAScript modules through the runtime loader surface.
 
 ```csharp
-using Okojo;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
 
 var loader = new InMemoryModuleLoader(new Dictionary<string, string>
 {
@@ -282,6 +287,8 @@ There are runnable module-focused examples under:
 The host sandbox examples show both browser-like and server-like queue wiring:
 
 ```csharp
+using Okojo.JavaScript.Embedding;
+
 var runtime = JsRuntime.CreateBuilder()
     .UseTimeProvider(timeProvider)
     .UseLowLevelHost(host => host.UseTaskScheduler(eventLoop))
@@ -297,6 +304,8 @@ var runtime = JsRuntime.CreateBuilder()
 If you want a smaller default set for timers, delays, and related runtime globals, the examples also use:
 
 ```csharp
+using Okojo.JavaScript.Embedding;
+
 var runtime = JsRuntime.CreateBuilder()
     .UseWebRuntimeGlobals()
     .Build();
@@ -402,6 +411,8 @@ internal sealed partial class SketchGlobals
 Then install the generated globals:
 
 ```csharp
+using Okojo.JavaScript.Embedding;
+
 var globals = new SketchGlobals();
 
 using var runtime = JsRuntime.CreateBuilder()
@@ -419,7 +430,7 @@ Real references:
 `GenerateJsObjectAttribute` is for object-style bindings. Members are opt-in via `[JsMember]`. `DocDeclarationAttribute` and `DocIgnoreAttribute` control declaration output.
 
 ```csharp
-using Okojo;
+using Okojo.JavaScript;
 using Okojo.Annotations;
 using Okojo.DocGenerator.Annotations;
 

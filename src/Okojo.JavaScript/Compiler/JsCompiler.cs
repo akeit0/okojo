@@ -1,8 +1,8 @@
-using Okojo.Bytecode;
-using Okojo.Parsing;
-using Okojo.Runtime;
+using Okojo.JavaScript.Bytecode;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Parsing;
 
-namespace Okojo.Compiler;
+namespace Okojo.JavaScript.Compiler;
 
 public sealed partial class JsCompiler : IDisposable
 {

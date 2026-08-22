@@ -1,8 +1,8 @@
 using System.Globalization;
 using System.Runtime.InteropServices;
-using Okojo.Internals;
+using Okojo.JavaScript.Internals;
 
-namespace Okojo.Objects;
+namespace Okojo.JavaScript.Objects;
 
 internal interface IProxyObject
 {

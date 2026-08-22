@@ -1,8 +1,9 @@
 using System.Runtime.CompilerServices;
-using Okojo;
 using Okojo.Hosting;
-using Okojo.Objects;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
 using Okojo.WebPlatform;
 
 namespace OkojoGameLoopSandbox;

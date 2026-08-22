@@ -1,6 +1,8 @@
 using System.Text;
-using Okojo.Runtime;
-using Okojo.Values;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Values;
 
 namespace Okojo.Tests;
 
