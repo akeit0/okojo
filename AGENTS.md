@@ -197,6 +197,7 @@ Discipline:
 - If a build is needed, wait for the build to finish before running tests.
 - If only one verification command is needed, prefer a single `dotnet test ...` command instead of `build` plus `test --no-build`.
 - Use `build` + `test --no-build` only for repeated focused loops after the sequential build has completed.
+- Treat every build warning and test failure as a blocker; fix it before committing unless the user explicitly approves an exception.
 
 ### Test262 workflow
 

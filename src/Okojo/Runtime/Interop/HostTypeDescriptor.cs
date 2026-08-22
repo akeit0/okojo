@@ -249,7 +249,7 @@ internal sealed class HostTypeDescriptor
                 );
             }
 
-        if (binding == null && RuntimeFeature.IsDynamicCodeCompiled)
+        if (RuntimeFeature.IsDynamicCodeCompiled)
         {
             var memberFlags =
                 BindingFlags.Public | (isStatic ? BindingFlags.Static : BindingFlags.Instance);

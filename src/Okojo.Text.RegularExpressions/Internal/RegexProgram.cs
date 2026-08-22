@@ -174,7 +174,7 @@ internal sealed class RegexProgram
                     case OpCode.CharacterClass:
                         builder.Append(
                             CultureInfo.InvariantCulture,
-                            $"class[{instruction.A}], options={(NodeOptions)instruction.B} {Classes[instruction.A].DebugDisplay()}"
+                            $"class[{instruction.A}], options={(NodeOptions)instruction.B} {Classes![instruction.A].DebugDisplay()}"
                         );
                         break;
                     case OpCode.Any:

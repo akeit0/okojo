@@ -122,7 +122,7 @@ public sealed class DateTimeFormat
                 Second = second,
                 FractionalSecondDigits = fractionalSecondDigits,
                 TimeZoneName = timeZoneName,
-                FormatMatcher = formatMatcher,
+                FormatMatcher = formatMatcher ?? "basic",
                 DateStyle = dateStyle,
                 TimeStyle = timeStyle,
             },
