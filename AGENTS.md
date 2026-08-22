@@ -174,6 +174,12 @@ Supporting architecture document for the current next slice:
 
 - `docs/OKOJO_LIBRARY_SPLIT_PLAN.md`
 
+## Formatting (Required)
+
+- After editing `.cs` or `.csproj` files, run `dotnet csharpier format <changed files>` before validation or commit.
+- Format only changed files unless repository-wide formatting is explicitly requested.
+- Keep text files LF as configured by `.editorconfig` and `.gitattributes`.
+
 ## Test Workflow (Required)
 
 ### Fast local loop

@@ -795,9 +795,7 @@ internal static partial class Program
             ThrowIfFaulted();
             ThrowIfDisposed();
 
-            var knownAgentIds = runtime
-                .Agents.Select(static a => a.Id)
-                .ToHashSet();
+            var knownAgentIds = runtime.Agents.Select(static a => a.Id).ToHashSet();
             var createWorker = RequireFunction(mainRealm, "createWorker");
             var handleValue = mainRealm.Call(createWorker, JsValue.Undefined);
             if (

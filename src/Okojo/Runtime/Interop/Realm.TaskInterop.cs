@@ -572,7 +572,7 @@ namespace Okojo.Runtime
             }
 
             if (
-                    realm.Agent.ClrAccessProvider is { } provider
+                realm.Agent.ClrAccessProvider is { } provider
                 && provider.TryConvertJsValueToTaskObject(
                     realm,
                     value,

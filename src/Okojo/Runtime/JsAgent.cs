@@ -58,7 +58,11 @@ public sealed partial class JsAgent : IDisposable
     private Func<int> getPendingHostJobCount = static () => 0;
     private Func<string, int> getHostJobCount = static _ => 0;
     private Action<string, Action<object?>, object?> enqueueHostJob = static (_, _, _) => { };
-    private Action<HostTaskQueueKey, Action<object?>, object?> enqueueHostTask = static (_, _, _) => { };
+    private Action<HostTaskQueueKey, Action<object?>, object?> enqueueHostTask = static (
+        _,
+        _,
+        _
+    ) => { };
     private Func<string, int> runHostJobs = static _ => 0;
     private Func<bool> runOneHostJob = static () => false;
     private Action pumpHostJobs = static () => { };
@@ -132,7 +136,6 @@ public sealed partial class JsAgent : IDisposable
         {
             realms.Add(realm);
         }
-
     }
 
     internal void AttachHostJobQueue(

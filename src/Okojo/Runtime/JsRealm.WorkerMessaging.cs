@@ -49,16 +49,9 @@ public sealed partial class JsRealm
 
                         var payload =
                             args.Length != 0
-                                ? realm.Agent.MessageSerializer.SerializeOutgoing(
-                                    realm,
-                                    args[0]
-                                )
+                                ? realm.Agent.MessageSerializer.SerializeOutgoing(realm, args[0])
                                 : null;
-                        realm.Agent.PostMessage(
-                            target,
-                            payload,
-                            realm.Agent.WorkerMessageQueueKey
-                        );
+                        realm.Agent.PostMessage(target, payload, realm.Agent.WorkerMessageQueueKey);
                         return JsValue.Undefined;
                     },
                     "postMessage",
@@ -87,10 +80,7 @@ public sealed partial class JsRealm
         var payloadValue = JsValue.Undefined;
         try
         {
-            payloadValue = Agent.MessageSerializer.DeserializeIncoming(
-                this,
-                payload
-            );
+            payloadValue = Agent.MessageSerializer.DeserializeIncoming(this, payload);
         }
         catch (Exception)
         {
@@ -131,10 +121,7 @@ public sealed partial class JsRealm
         var dataValue = JsValue.Undefined;
         try
         {
-            dataValue = Agent.MessageSerializer.DeserializeIncoming(
-                this,
-                payload
-            );
+            dataValue = Agent.MessageSerializer.DeserializeIncoming(this, payload);
         }
         catch (Exception)
         {
@@ -162,10 +149,7 @@ public sealed partial class JsRealm
             JsValue dataValue;
             try
             {
-                dataValue = Agent.MessageSerializer.DeserializeIncoming(
-                    this,
-                    payload
-                );
+                dataValue = Agent.MessageSerializer.DeserializeIncoming(this, payload);
             }
             catch (Exception)
             {

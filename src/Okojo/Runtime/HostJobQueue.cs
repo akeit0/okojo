@@ -54,20 +54,14 @@ internal sealed class HostJobQueue
 
         lock (gate)
         {
-            var queue = queueName == JobQueueName.HostPriorityJobs
-                ? hostPriorityJobs
-                : hostJobs;
+            var queue = queueName == JobQueueName.HostPriorityJobs ? hostPriorityJobs : hostJobs;
             queue.Enqueue(new(callback, state));
         }
 
         signalWork();
     }
 
-    internal void Enqueue(
-        HostTaskQueueKey queueKey,
-        Action<object?> callback,
-        object? state
-    )
+    internal void Enqueue(HostTaskQueueKey queueKey, Action<object?> callback, object? state)
     {
         if (isTerminated())
             return;
@@ -131,9 +125,7 @@ internal sealed class HostJobQueue
     {
         lock (gate)
         {
-            var queue = queueName == JobQueueName.HostPriorityJobs
-                ? hostPriorityJobs
-                : hostJobs;
+            var queue = queueName == JobQueueName.HostPriorityJobs ? hostPriorityJobs : hostJobs;
             if (queue.Count == 0)
             {
                 job = default;

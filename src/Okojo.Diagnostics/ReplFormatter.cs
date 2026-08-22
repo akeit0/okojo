@@ -194,14 +194,14 @@ public sealed class ReplFormatter(JsRealm realm, int? indent = null)
         sb.Append(open);
         for (var i = 0; i < parts.Count; i++)
         {
-            sb.AppendLine();
+            sb.Append('\n');
             sb.Append(new string(' ', (depth + 1) * size));
             sb.Append(parts[i]);
             if (i != parts.Count - 1)
                 sb.Append(',');
         }
 
-        sb.AppendLine();
+        sb.Append('\n');
         sb.Append(new string(' ', depth * size));
         sb.Append(close);
         return sb.ToString();
