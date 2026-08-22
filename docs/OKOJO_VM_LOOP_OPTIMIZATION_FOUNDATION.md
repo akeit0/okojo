@@ -130,15 +130,50 @@ Snapshot: `artifacts/vmloopopt/snapshots/20260823-015059-0000-baseline`
 5. Probe cells below ~10us flip sign between processes; do not decide
    anything from them.
 
+## JIT Constraints Observed on `Run`
+
+Measured on the baseline build (reflection over the compiled assembly):
+
+- `JsRealm.Run`: **8,468 bytes of IL, 137 local variables** (56 Int32, 14
+  Boolean, 10 JsValue, plus assorted refs/spans), maxstack 10.
+- Resulting machine code at Tier1: ~22.4KB (see Baseline Findings).
+
+Two consequences drive the attempt backlog:
+
+1. **Large-function JIT limits.** RyuJIT applies size/complexity heuristics
+   (inlining budgets, optimization cutoffs, block ordering) that disadvantage
+   one enormous method; hot opcodes do not get "small function" treatment,
+   and cold handlers bloat every dispatch path's code footprint.
+2. **IL locals vs precise GC.** Every IL local that can hold a reference is a
+   GC-reporting slot; a large declared-local count constrains register
+   allocation and forces stack-slot bookkeeping across the whole method even
+   when most locals live only in a few opcode arms. Reducing declared locals
+   in the loop head (and per-arm temps) measurably changes frame setup and
+   reg pressure.
+
 ## Candidate Attempts
 
-| ID | Idea | Hypothesis |
-| -- | ---- | ---------- |
-| A1 | Hot-opcode fast path before the switch | Only pays if JIT stops using a single jump table; verify against baseline dasm first |
-| A2 | Move cold opcode handlers out of `Run` into NoInlining methods | Shrink Tier1 code size (~22KB), improve I-cache hit rate in dispatch loop |
-| A3 | Execution-check countdown placement/width | `--nextCheck == 0` sits on every dispatch edge; test fusing with pc advance or widening countdown |
-| A4 | Narrow try/catch scope around dispatch | Whole-loop EH region may constrain codegen; exceptions are the JS throw mechanism so semantics must be preserved |
-| A5 | IC-helper devirtualization friendliness | Help PGO guard/guarded-devirtualize named-property IC calls (sealed/final shapes, explicit type tests) |
+Order = proposed execution order (cheap/measurable first). Each attempt:
+one hypothesis, `capture-jit.ps1` snapshot with default pgo-off, dasm diff via
+`compare-jit.ps1`, BDN confirmation only if probe+dasm look good.
+
+| ID | Idea | Hypothesis / Notes |
+| -- | ---- | ------------------ |
+| A1 | IL-locals diet in `Run` loop head | 137 locals (56 Int32) inflate GC-report slots and reg pressure; hoist/reuse temps, move per-arm temporaries into handler methods. Measure: frame-setup instructions in dasm, code size, probe timing |
+| A2 | Hot/cold split: cold opcode handlers -> NoInlining methods | Cold rare ops leave the loop body; hot core shrinks from ~22KB toward I-cache-friendly size; cold paths pay call overhead only when executed |
+| A3 | Remove redundant checks via Unsafe where provably safe | e.g. `GetPcOffset` uses `checked` byte-offset math on every slow-path hop; validated bytecode makes many bounds/overflow checks dead. Remove only where correctness is provable; add regression tests for touched paths |
+| A4 | Manual inline / AggressiveInlining audit | Ensure hot-op helper bodies actually inline (call-site scan in dasm); mark tiny hot helpers AggressiveInlining, keep big ones NoInlining to protect budgets |
+| A5 | Execution-check countdown placement/width | `--nextCheck == 0` sits on every dispatch edge; test fusing with pc advance or widening countdown |
+| A6 | Narrow try/catch scope around dispatch | Whole-loop EH region may constrain codegen; exceptions are the JS throw mechanism so semantics must be preserved exactly |
+| A7 | Dispatch structure: switch -> opcode-indexed function-pointer table | Static `delegate*<ref VmState, ...>[]` indexed by opcode passes state explicitly. Expected gain is NOT dispatch speed (jump table already confirmed) but code-size/reg-pressure relief per handler; risks indirect-call overhead + state-struct refactor. Compare stable pgo-off diffs before/after |
+| A8 | Per-operation implementation changes (smi fast paths etc.) | Per-op work with V8 reference observations; use OkojoBytecodeTool cases + Node/V8 repros per AGENTS tooling rules |
+| A9 | Opcode set streamlining | Compiler-contract change (frame layout/operand rules): only after A1/A2 measurements justify it; needs OkojoBytecodeTool evidence first |
+| A10 | IC-helper devirtualization friendliness | Help PGO guard/guarded-devirtualize named-property IC calls (sealed/final shapes, explicit type tests) |
+| A11 | Tree-walk interpreter alternative | Largest change; diverges from the V8/Ignition reference model. Only if the bytecode path plateaus after A1-A10; requires its own feature note before starting |
+
+Deferred/rejected ideas stay recorded here with reasons instead of being
+retried silently (AGENTS.md: no old fast-path experiments without profiling
+evidence).
 
 Rules for every attempt:
 
