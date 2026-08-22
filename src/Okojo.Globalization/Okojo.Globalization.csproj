@@ -21,7 +21,7 @@
         <EmbeddedResource Include="Data\LikelySubtags.txt" />
     </ItemGroup>
     <ItemGroup>
-        <InternalsVisibleTo Include="Okojo" />
+        <InternalsVisibleTo Include="Okojo.JavaScript" />
         <InternalsVisibleTo Include="Okojo.Tests" />
         <InternalsVisibleTo Include="Okojo.Globalization.Tests" />
     </ItemGroup>

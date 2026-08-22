@@ -8,7 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\src\Okojo\Okojo.csproj" />
+        <ProjectReference Include="..\..\src\Okojo.JavaScript.Embedding\Okojo.JavaScript.Embedding.csproj" />
         <ProjectReference Include="..\..\src\Okojo.DocGenerator.Annotations\Okojo.DocGenerator.Annotations.csproj" />
         <ProjectReference Include="..\..\src\Okojo.Annotations\Okojo.Annotations.csproj" />
         <ProjectReference

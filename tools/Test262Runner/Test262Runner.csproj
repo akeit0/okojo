@@ -11,7 +11,7 @@
 
     <ItemGroup>
         <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.0.0" />
-        <ProjectReference Include="..\..\src\Okojo\Okojo.csproj" />
+        <ProjectReference Include="..\..\src\Okojo.JavaScript.Embedding\Okojo.JavaScript.Embedding.csproj" />
         <ProjectReference Include="..\..\src\Okojo.Hosting\Okojo.Hosting.csproj" />
         <ProjectReference Include="..\..\src\Okojo.Diagnostics\Okojo.Diagnostics.csproj" />
         <ProjectReference Include="..\..\src\Okojo.WebPlatform\Okojo.WebPlatform.csproj" />

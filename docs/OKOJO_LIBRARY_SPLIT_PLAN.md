@@ -12,7 +12,7 @@ The split is intentionally not backward compatible. The repository is still pre-
 
 - keep engine-independent JavaScript-compatible algorithms usable without the engine
 - make the ECMAScript engine independent of embedding, I/O, worker, and event-loop policy
-- provide one small embedding runtime above the engine
+- provide one small embedding layer above the engine
 - let browser and other host profiles completely own task selection, waiting, and microtask-checkpoint timing
 - preserve applicable ECMAScript and host-profile semantics throughout the migration, not only after the final split
 - keep host profiles and optional tooling outside both core assemblies
@@ -23,11 +23,11 @@ The split is intentionally not backward compatible. The repository is still pre-
 | Name | Meaning |
 | --- | --- |
 | `Okojo.JavaScript` | ECMAScript engine package, assembly, and root namespace |
-| `Okojo.JavaScript.Runtime` | Embedding/container package and namespace (`JsRuntime`, builder, options) |
+| `Okojo.JavaScript.Embedding` | Embedding/container package and namespace (`JsRuntime`, builder, options) |
 | `Okojo.Hosting` | Optional .NET host implementations and event-loop helpers |
 | `Okojo.Diagnostics` | Optional engine diagnostics and rendering |
 | `Okojo.Reflection` | Optional CLR reflection binding |
-| `Okojo.WebPlatform`, `Okojo.Browser`, `Okojo.Node` | Host profiles above the embedding runtime |
+| `Okojo.WebPlatform`, `Okojo.Browser`, `Okojo.Node` | Host profiles above the embedding layer |
 
 These names are deliberately not used:
 
@@ -36,7 +36,7 @@ These names are deliberately not used:
 - `Okojo.Runtime`: it is ambiguous with the current VM/execution namespace.
 - `Okojo.JavaScript.Engine`: redundant and longer than `Okojo.JavaScript`.
 
-The current engine implementation namespace `Okojo.Runtime` must not be mechanically renamed to `Okojo.JavaScript.Runtime`; that name belongs to the embedding package. Engine execution types move to `Okojo.JavaScript.Execution`.
+The current engine implementation namespace `Okojo.Runtime` must not be mechanically renamed to `Okojo.JavaScript.Embedding`; that name belongs to the embedding package. Engine execution types move to `Okojo.JavaScript.Execution`.
 
 Public types keep domain names such as `JsValue`, `JsRealm`, `JsAgent`, and `JsRuntime`. Do not add `Okojo` or `Engine` prefixes merely to repeat package identity.
 
@@ -52,7 +52,7 @@ Okojo.Text.RegularExpressions     Okojo.Globalization
               Okojo.JavaScript
                  ┌─────┴──────────┐
                  ▼                ▼
-Okojo.JavaScript.Runtime   Okojo.Diagnostics
+Okojo.JavaScript.Embedding   Okojo.Diagnostics
         │
         ├──────────────► Okojo.Hosting
         ├──────────────► Okojo.Reflection
@@ -62,7 +62,7 @@ Okojo.JavaScript.Runtime   Okojo.Diagnostics
 
 All arrows point from a dependency to a consumer. Cycles are forbidden.
 
-`Okojo.Diagnostics` depends on the engine, not the embedding runtime. Profile and integration packages may also reference `Okojo.JavaScript` directly when their public API mentions engine value types, but host policy must enter through `Okojo.JavaScript.Runtime`.
+`Okojo.Diagnostics` depends on the engine, not the embedding layer. Profile and integration packages may also reference `Okojo.JavaScript` directly when their public API mentions engine value types, but host policy must enter through `Okojo.JavaScript.Embedding`.
 
 ## Library ownership
 
@@ -114,7 +114,7 @@ Recommended namespaces:
 
 Do not split compiler or bytecode into new production assemblies. They share contracts with the VM, and separating them would add a lower “core” assembly or a dependency cycle without providing a current consumer benefit.
 
-### `Okojo.JavaScript.Runtime`
+### `Okojo.JavaScript.Embedding`
 
 Owns embedding and process/container concerns:
 
@@ -123,20 +123,20 @@ Owns embedding and process/container concerns:
 - file module and worker-script loader implementations
 - worker creation, cross-agent messaging, and message serialization
 - host scheduling contracts and independently callable operations used to connect an event loop
-- source-map registry and runtime-side debugger glue
+- source-map registry and embedding-side debugger glue
 - explicit global/module installation composition
 
-The runtime may implement engine-owned contracts, but the engine must never reference the runtime assembly.
+The embedding layer may implement engine-owned contracts, but the engine must never reference the embedding assembly.
 
-The runtime may offer a default convenience pump, but it must not define the only execution path. A browser must be able to choose a runnable task, run it, request the required microtask checkpoint, perform rendering work, and decide whether or how to wait without hidden runtime pumping.
+The embedding layer may offer a default convenience pump, but it must not define the only execution path. A browser must be able to choose a runnable task, run it, request the required microtask checkpoint, perform rendering work, and decide whether or how to wait without hidden pumping.
 
 ### Optional layers
 
 - `Okojo.Hosting`: concrete schedulers, event loops, pumps, turn runners, and default worker infrastructure
 - `Okojo.Diagnostics`: disassembly, formatting, and inspection over engine types
-- `Okojo.Reflection`: reflection-based CLR binding; depends on runtime plus the engine contracts it implements
+- `Okojo.Reflection`: reflection-based CLR binding; depends on the embedding layer plus the engine contracts it implements
 - `Okojo.DotNet.Modules`: .NET module/profile integration above `Okojo.Reflection`
-- `Okojo.WebAssembly`: WebAssembly integration above the runtime
+- `Okojo.WebAssembly`: WebAssembly integration above the embedding layer
 - `Okojo.WebPlatform`, `Okojo.Browser`, `Okojo.Node`: host APIs and profile policy
 
 ## Boundary decisions from the current code
@@ -188,7 +188,7 @@ Before moving projects, continue reducing the direct inputs left on `JsAgent` to
 
 ### Module loading is split by contract and implementation
 
-The engine module graph currently consumes `IModuleSourceLoader`, so the minimal resolve/load contract stays in `Okojo.JavaScript` to avoid a cycle. File, network, Node, and worker-script implementations live in the runtime or profile packages.
+The engine module graph currently consumes `IModuleSourceLoader`, so the minimal resolve/load contract stays in `Okojo.JavaScript` to avoid a cycle. File, network, Node, and worker-script implementations live in the embedding or profile packages.
 
 Module parsing, linking, live bindings, and evaluation stay entirely in the engine.
 
@@ -202,7 +202,7 @@ Do not move `Runtime/Interop/*` wholesale.
 
 ### Worker messaging is split by mechanism and profile API
 
-`IHostMessageSerializer` remains an engine-owned host contract. It is cohesive, and its operations cross the `JsRealm`/`JsValue` boundary. The default implementation belongs to `Okojo.JavaScript.Runtime`.
+`IHostMessageSerializer` remains an engine-owned host contract. It is cohesive, and its operations cross the `JsRealm`/`JsValue` boundary. The default implementation belongs to `Okojo.JavaScript.Embedding`.
 
 Move worker lifecycle, queue selection, per-realm worker state, dispatch wiring, `IWorkerHost`, `WorkerHostBinding`, `DefaultWorkerHost`, and `WorkerHandleFactory` to runtime ownership. Use one concrete `WorkerMessaging` component rather than adding another interface.
 
@@ -231,7 +231,7 @@ One temporary engine-to-runtime friend relationship is acceptable during the mov
 
 The standalone projects exist and the monolith references them. Update stale friend-assembly names when the engine assembly is renamed.
 
-### Phase 2 — make the boundary real inside the current assembly: active
+### Phase 2 — make the boundary real inside the current assembly: complete
 
 Behavior must remain unchanged while these couplings are removed:
 
@@ -244,7 +244,7 @@ Behavior must remain unchanged while these couplings are removed:
 Progress: the broad `IJsRuntimeHost` seam has been removed. `JsAgent` now receives
 the concrete module, timing, interop, wait, scheduler, identity, and
 `IHostMessageSerializer` inputs it actually uses; the same engine-owned serializer
-contract is also used by runtime-owned `WorkerMessaging` for raw worker transport.
+contract is also used by embedding-owned `WorkerMessaging` for raw worker transport.
 Worker policy and serialization are composed through that concrete component;
 projection modules are created per runtime from reusable option factories, while
 the shared registration sequence preserves builder call order.
@@ -260,20 +260,18 @@ browser-controlled loop. `UseWebWorkers()` no longer installs the Hosting-only
 Worker state/policy is now removed from `JsRealm`, and `JsAgent` no longer stores
 the worker host or worker-message queue key; its serializer input remains for
 direct `PostMessage` delivery. WebPlatform/Hosting modules project raw delivery
-into their own globals, handles, event objects, and handlers. The physical move of
-`WorkerMessaging`, the default serializer, worker-host contracts, and
-`WorkerHandleFactory`, plus remaining friend-assembly cleanup, is still required
-before Phase 3.
+into their own globals, handles, event objects, and handlers. The behavior-bearing
+boundary is complete; the concrete embedding move is recorded in Phase 3.
 
 Keep focused module, agent, Promise, timer, worker, interop, and execution-check tests green after each step.
 
-### Phase 3 — physical project split
+### Phase 3 — physical project split: active
 
 Create only two projects:
 
 ```text
 src/Okojo.JavaScript/Okojo.JavaScript.csproj
-src/Okojo.JavaScript.Runtime/Okojo.JavaScript.Runtime.csproj
+src/Okojo.JavaScript.Embedding/Okojo.JavaScript.Embedding.csproj
 ```
 
 Move files with history. Initially preserve namespaces so compiler errors identify assembly-boundary violations separately from namespace-renaming errors.
@@ -281,9 +279,18 @@ Move files with history. Initially preserve namespaces so compiler errors identi
 Project references:
 
 - `Okojo.JavaScript` → Unicode, Numerics, RegularExpressions, Globalization
-- `Okojo.JavaScript.Runtime` → `Okojo.JavaScript`
+- `Okojo.JavaScript.Embedding` → `Okojo.JavaScript`
 
 Each project must build independently before continuing.
+
+Progress: the two projects now exist, preserve the existing namespaces, and
+build independently. Engine-only diagnostics/compiler tooling references
+`Okojo.JavaScript`; embedding, host, and profile consumers reference
+`Okojo.JavaScript.Embedding` (adding a direct engine reference only where they
+use engine internals or engine-only tooling). The old `Okojo.csproj` and its
+solution entry are gone. Stale engine friends for `Okojo.Browser` and
+`Test262Runner` were removed; friends still required by existing internal
+host/profile paths remain for a later supported-contract cleanup.
 
 ### Phase 4 — namespace rename
 
@@ -295,7 +302,7 @@ Perform the namespace migration as one mechanical pass after both assemblies bui
 - `Okojo.Compiler` → `Okojo.JavaScript.Compiler`
 - `Okojo.Bytecode` → `Okojo.JavaScript.Bytecode`
 - engine-owned `Okojo.Runtime` → `Okojo.JavaScript.Execution`
-- embedding types → `Okojo.JavaScript.Runtime`
+- embedding types → `Okojo.JavaScript.Embedding`
 
 Update global usings, generated-source inputs, XML documentation references, and friend assembly names in the same pass.
 
@@ -304,9 +311,9 @@ Update global usings, generated-source inputs, XML documentation references, and
 - `Okojo.Diagnostics` and `Okojo.Compiler.Experimental` reference the engine
 - `Okojo.Hosting` references the runtime
 - Reflection, WebAssembly, WebPlatform, Browser, and Node reference the smallest required layer
-- Test262Runner and integration tests reference the runtime/profile packages they execute
+- Test262Runner and integration tests reference the embedding/profile packages they execute
 
-Do not reorganize all tests before the production split compiles. Keep `tests/Okojo.Tests` as the conformance/integration loop first; create `Okojo.JavaScript.Tests` and `Okojo.JavaScript.Runtime.Tests` only while moving tests that clearly belong to each boundary.
+Do not reorganize all tests before the production split compiles. Keep `tests/Okojo.Tests` as the conformance/integration loop first; create `Okojo.JavaScript.Tests` and `Okojo.JavaScript.Embedding.Tests` only while moving tests that clearly belong to each boundary.
 
 Finally update:
 
@@ -316,7 +323,7 @@ Finally update:
 - `.github/workflows/publish-packages.yml`
 - examples, tools, and package workflow documentation
 
-Delete `src/Okojo/Okojo.csproj` after all references are gone. Do not retain an empty compatibility package by default.
+Delete `src/Okojo/Okojo.csproj` after all references are gone. This was completed in the first Phase 3 slice; do not retain an empty compatibility package by default.
 
 ## Verification
 

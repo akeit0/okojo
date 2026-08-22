@@ -71,23 +71,23 @@ Low-level operations must remain independently callable. No engine operation may
 ## Worker boundary for this slice
 
 - Keep `IHostMessageSerializer` as the cohesive engine-owned host contract because its boundary values are `JsRealm` and `JsValue`.
-- Move the default serializer implementation, worker lifecycle, queue choice, and per-realm worker messaging state to `Okojo.JavaScript.Runtime` ownership.
-- Use one concrete runtime-owned `WorkerMessaging` component; do not add a speculative `IWorkerMessagingService`.
+- Move the default serializer implementation, worker lifecycle, queue choice, and per-realm worker messaging state to `Okojo.JavaScript.Embedding` ownership.
+- Use one concrete embedding-owned `WorkerMessaging` component; do not add a speculative `IWorkerMessagingService`.
 - Move `IWorkerHost`, `WorkerHostBinding`, `DefaultWorkerHost`, and `WorkerHandleFactory` out of engine ownership.
-- Keep `JsAgent.PostMessage` and `MessageReceived` for this slice as the narrow engine delivery mechanism; the runtime owns worker policy and raw delivery. `Okojo.WebPlatform` and `Okojo.Hosting` own their respective JS-facing projections. Do not add another transport interface unless the physical split proves this mechanism insufficient.
+- Keep `JsAgent.PostMessage` and `MessageReceived` for this slice as the narrow engine delivery mechanism; the embedding layer owns worker policy and raw delivery. `Okojo.WebPlatform` and `Okojo.Hosting` own their respective JS-facing projections. Do not add another transport interface unless the physical split proves this mechanism insufficient.
 - Keep cross-realm value bridging in `JsRealm`, separated from worker messaging into an engine-owned file.
 - Keep browser `Worker`, `postMessage`, `onmessage`, `onmessageerror`, and event-object behavior in `Okojo.WebPlatform`. The Okojo-specific `createWorker` convenience remains an opt-in hosting API and must not be installed by the browser profile.
 
 The current monolithic implementation now follows this boundary internally:
 
-- `JsRuntime` creates one runtime-owned concrete `WorkerMessaging` component and materializes an ordered registration sequence containing ordinary modules and fresh WebPlatform/Hosting projection modules produced by options factories; it is not an `IRealmApiModule` or module-list registry.
+- `JsRuntime` creates one embedding-owned concrete `WorkerMessaging` component and materializes an ordered registration sequence containing ordinary modules and fresh WebPlatform/Hosting projection modules produced by options factories; it is not an `IRealmApiModule` or module-list registry.
 - `WorkerMessaging` owns per-realm raw dispatch state, serializer use, worker-host creation, message queue selection, and worker-handle creation/removal. WebPlatform/Hosting modules own globals, message-event objects, and JS handler invocation.
 - `JsRealm.CrossRealmBridge.cs` contains the engine-owned cross-realm value bridge; `JsRealm` no longer stores worker handles or message dispatch state.
 - `JsAgent` retains only `PostMessage`/`MessageReceived` delivery plus the engine-owned `IHostMessageSerializer` contract needed by the public direct-delivery API; worker host and worker queue-key fields are removed.
 - `UseWebWorkers()` installs the WebPlatform `Worker` API and messaging globals but not the Hosting-only `createWorker` helper. `UseWorkerGlobals()` remains the explicit opt-in for that helper.
 - Promise checkpoints are explicitly non-reentrant, and `RunOneHostJob()` plus `RunPromiseJobs()` provide independently callable host operations.
 
-The physical move of `WorkerMessaging`, the default serializer, worker-host contracts, and `WorkerHandleFactory` to `Okojo.JavaScript.Runtime` remains deferred until the project split.
+The physical move of `WorkerMessaging`, the default serializer, worker-host contracts, and `WorkerHandleFactory` is now part of the active project split. The first slice places these concrete embedding components in `Okojo.JavaScript.Embedding` while preserving namespaces; remaining internal host/profile accesses still require friend-assembly cleanup.
 
 ## Conformance gate during migration
 

@@ -17,7 +17,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\src\Okojo\Okojo.csproj" />
+        <ProjectReference Include="..\..\src\Okojo.JavaScript.Embedding\Okojo.JavaScript.Embedding.csproj" />
         <ProjectReference Include="..\..\src\Okojo.Reflection\Okojo.Reflection.csproj" />
         <ProjectReference Include="..\..\src\Okojo.Diagnostics\Okojo.Diagnostics.csproj" />
         <ProjectReference Include="..\..\src\Okojo.Hosting\Okojo.Hosting.csproj" />

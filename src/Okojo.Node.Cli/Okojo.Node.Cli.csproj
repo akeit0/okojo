@@ -18,7 +18,7 @@
         <ProjectReference Include="..\Okojo.Node\Okojo.Node.csproj" />
         <ProjectReference Include="..\Okojo.Diagnostics\Okojo.Diagnostics.csproj" />
         <ProjectReference Include="..\Okojo.DebugServer.Core\Okojo.DebugServer.Core.csproj" />
-        <ProjectReference Include="..\Okojo\Okojo.csproj" />
+        <ProjectReference Include="..\Okojo.JavaScript.Embedding\Okojo.JavaScript.Embedding.csproj" />
         <ProjectReference Include="..\Okojo.Repl\Okojo.Repl.csproj" />
         <ProjectReference Include="..\Okojo.WebAssembly.Wasmtime\Okojo.WebAssembly.Wasmtime.csproj" />
     </ItemGroup>

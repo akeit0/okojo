@@ -2,7 +2,7 @@
 
 This note defines the **steady-state operating model** for Okojo package versioning, internal references, and publishing.
 
-Package and assembly naming is defined by [`OKOJO_LIBRARY_SPLIT_PLAN.md`](OKOJO_LIBRARY_SPLIT_PLAN.md). The project/package tables below describe the current pre-split repository. When the split lands, `Okojo` is replaced by `Okojo.JavaScript` and `Okojo.JavaScript.Runtime`; the same `ProjectReference`, independent-versioning, and publishing rules continue to apply.
+Package and assembly naming is defined by [`OKOJO_LIBRARY_SPLIT_PLAN.md`](OKOJO_LIBRARY_SPLIT_PLAN.md). The project/package tables below describe the current split repository and its two engine/runtime packages.
 
 The repository is still prerelease, but the policy here is intended to describe the normal shape to keep as the package set grows.
 
@@ -24,16 +24,17 @@ Current packable source projects:
 
 | Package | Project | Internal references | External package references |
 | --- | --- | --- | --- |
-| `Okojo` | `src\Okojo\Okojo.csproj` | - | - |
+| `Okojo.JavaScript` | `src\Okojo.JavaScript\Okojo.JavaScript.csproj` | `Okojo.Numerics`, `Okojo.Text.Unicode`, `Okojo.Text.RegularExpressions`, `Okojo.Globalization` | - |
+| `Okojo.JavaScript.Embedding` | `src\Okojo.JavaScript.Embedding\Okojo.JavaScript.Embedding.csproj` | `Okojo.JavaScript` | - |
 | `Okojo.Annotations` | `src\Okojo.Annotations\Okojo.Annotations.csproj` | - | - |
 | `Okojo.SourceGenerator` | `src\Okojo.SourceGenerator\Okojo.SourceGenerator.csproj` | `Okojo.Annotations` | `Microsoft.CodeAnalysis.CSharp` |
 | `Okojo.DocGenerator.Annotations` | `src\Okojo.DocGenerator.Annotations\Okojo.DocGenerator.Annotations.csproj` | - | - |
 | `Okojo.DocGenerator.Cli` | `src\Okojo.DocGenerator.Cli\Okojo.DocGenerator.Cli.csproj` | `Okojo.Annotations`, `Okojo.DocGenerator.Annotations` | `Microsoft.Build.*`, `Microsoft.CodeAnalysis.*` |
-| `Okojo.Hosting` | `src\Okojo.Hosting\Okojo.Hosting.csproj` | `Okojo` | - |
-| `Okojo.Diagnostics` | `src\Okojo.Diagnostics\Okojo.Diagnostics.csproj` | `Okojo` | - |
-| `Okojo.Reflection` | `src\Okojo.Reflection\Okojo.Reflection.csproj` | `Okojo` | - |
-| `Okojo.WebPlatform` | `src\Okojo.WebPlatform\Okojo.WebPlatform.csproj` | `Okojo`, `Okojo.Hosting` | - |
-| `Okojo.WebAssembly` | `src\Okojo.WebAssembly\Okojo.WebAssembly.csproj` | `Okojo` | - |
+| `Okojo.Hosting` | `src\Okojo.Hosting\Okojo.Hosting.csproj` | `Okojo.JavaScript.Embedding` | - |
+| `Okojo.Diagnostics` | `src\Okojo.Diagnostics\Okojo.Diagnostics.csproj` | `Okojo.JavaScript` | - |
+| `Okojo.Reflection` | `src\Okojo.Reflection\Okojo.Reflection.csproj` | `Okojo.JavaScript`, `Okojo.JavaScript.Embedding` | - |
+| `Okojo.WebPlatform` | `src\Okojo.WebPlatform\Okojo.WebPlatform.csproj` | `Okojo.JavaScript.Embedding`, `Okojo.Hosting` | - |
+| `Okojo.WebAssembly` | `src\Okojo.WebAssembly\Okojo.WebAssembly.csproj` | `Okojo.JavaScript.Embedding` | - |
 | `Okojo.WebAssembly.Wasmtime` | `src\Okojo.WebAssembly.Wasmtime\Okojo.WebAssembly.Wasmtime.csproj` | `Okojo.WebAssembly` | `Wasmtime` |
 
 Projects under `src\` default to `IsPackable=false` from `Directory.Build.props`. A project enters the public package set only when it explicitly opts in.
@@ -53,7 +54,7 @@ In practice, `src\` projects fall into three packaging scopes:
 Inside this repository, internal Okojo dependencies should normally use:
 
 ```xml
-<ProjectReference Include="..\Okojo\Okojo.csproj" />
+<ProjectReference Include="..\Okojo.JavaScript.Embedding\Okojo.JavaScript.Embedding.csproj" />
 ```
 
 This is not merely a temporary developer convenience. It is the standard monorepo pattern for SDK-style .NET libraries.
@@ -107,7 +108,8 @@ Example direction:
 <!-- eng/PackageVersions.props -->
 <Project>
   <PropertyGroup>
-    <OkojoPackageVersion_Okojo>0.1.0-preview.3</OkojoPackageVersion_Okojo>
+    <OkojoPackageVersion_Okojo_JavaScript>0.1.0-preview.3</OkojoPackageVersion_Okojo_JavaScript>
+    <OkojoPackageVersion_Okojo_JavaScript_Embedding>0.1.0-preview.3</OkojoPackageVersion_Okojo_JavaScript_Embedding>
     <OkojoPackageVersion_Okojo_Hosting>0.1.0-preview.2</OkojoPackageVersion_Okojo_Hosting>
     <OkojoPackageVersion_Okojo_Diagnostics>0.1.0-preview.1</OkojoPackageVersion_Okojo_Diagnostics>
   </PropertyGroup>
@@ -116,7 +118,7 @@ Example direction:
 
 ```xml
 <!-- inside a packable csproj -->
-<PackageVersion>$(OkojoPackageVersion_Okojo)</PackageVersion>
+<PackageVersion>$(OkojoPackageVersion_Okojo_JavaScript_Embedding)</PackageVersion>
 ```
 
 This gives:

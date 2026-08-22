@@ -363,7 +363,7 @@ Definition of done for the main compliance goal:
 The decided top-level shape is:
 
 - `Okojo.JavaScript`: ECMAScript engine
-- `Okojo.JavaScript.Runtime`: embedding/container API
+- `Okojo.JavaScript.Embedding`: embedding/container API
 - `Okojo.Hosting`: optional .NET host implementations
 - `Okojo.Diagnostics`: optional engine diagnostics
 - `Okojo.Reflection`: optional CLR reflection binding
@@ -402,7 +402,7 @@ Also keep these boundaries explicit:
 
 1. keep all non-legacy, non-staging Test262 coverage passing
 2. remove host queue, worker, and runtime-option coupling from `JsAgent` and `JsRealm` while preserving independently controlled, specification-compliant Promise checkpoints (the broad `IJsRuntimeHost` seam is now removed)
-3. split `Okojo.JavaScript` from `Okojo.JavaScript.Runtime`
+3. split `Okojo.JavaScript` from `Okojo.JavaScript.Embedding`
 4. migrate host/profile projects to the new dependency graph
 5. tighten module/job/worker host seams for browser-like embedding
 6. continue Proxy/Object/descriptor correctness work

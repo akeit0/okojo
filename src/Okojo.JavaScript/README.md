@@ -1,17 +1,17 @@
-# Okojo
+# Okojo.JavaScript
 
-`Okojo` is the core JavaScript engine package for .NET.
+`Okojo.JavaScript` is the ECMAScript engine package for .NET.
 
 It provides:
 
 - script and module evaluation
 - promises and async execution
-- the main embedding API (`JsRuntime`, `JsRealm`, agents, modules)
+- realms, agents, modules, values, objects, intrinsics, and execution
 
-## Quick start
+Embedding composition lives in `Okojo.JavaScript.Embedding`:
 
 ```csharp
-using Okojo;
+using Okojo.Runtime;
 
 using var runtime = JsRuntime.Create();
 var realm = runtime.MainRealm;
@@ -20,7 +20,7 @@ var value = realm.Evaluate("1 + 2");
 Console.WriteLine(value);
 ```
 
-Add companion packages as needed:
+Add host/profile packages as needed:
 
 - `Okojo.Hosting` for host schedulers and worker helpers
 - `Okojo.WebPlatform` for `fetch`, timers, workers, and server/web globals

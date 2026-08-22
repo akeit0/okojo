@@ -1,21 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <LangVersion>14</LangVersion>
-        <IsAotCompatible>false</IsAotCompatible>
+        <AssemblyName>Okojo.JavaScript.Embedding</AssemblyName>
         <IsPackable>true</IsPackable>
-        <PackageId>Okojo.Reflection</PackageId>
-        <PackageVersion>$(OkojoPackageVersion_Okojo_Reflection)</PackageVersion>
-        <Description>Reflection-based CLR interop extensions for Okojo runtimes.</Description>
-        <PackageTags>javascript;ecmascript;reflection;interop;clr;dotnet</PackageTags>
+        <PackageId>Okojo.JavaScript.Embedding</PackageId>
+        <PackageVersion>$(OkojoPackageVersion_Okojo_JavaScript_Embedding)</PackageVersion>
+        <Description>Embedding and host composition for the Okojo JavaScript engine.</Description>
+        <PackageTags>javascript;ecmascript;runtime;embedding;dotnet</PackageTags>
         <PackageReadmeFile>README.md</PackageReadmeFile>
     </PropertyGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\Okojo.JavaScript\Okojo.JavaScript.csproj" />
-        <ProjectReference Include="..\Okojo.JavaScript.Embedding\Okojo.JavaScript.Embedding.csproj" />
     </ItemGroup>
     <ItemGroup>
         <None Include="README.md" Pack="true" PackagePath="\" />

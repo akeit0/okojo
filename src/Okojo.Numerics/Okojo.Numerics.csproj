@@ -12,6 +12,6 @@
         <PackageTags>javascript;ecmascript;numerics;bigint;dotnet</PackageTags>
     </PropertyGroup>
     <ItemGroup>
-        <InternalsVisibleTo Include="Okojo" />
+        <InternalsVisibleTo Include="Okojo.JavaScript" />
     </ItemGroup>
 </Project>
