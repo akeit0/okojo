@@ -13,6 +13,7 @@
     <Project Path="tools/OkojoBytecodeTool/OkojoBytecodeTool.csproj" />
     <Project Path="tools/Test262Runner/Test262Runner.csproj" />
     <Project Path="tools/V8BytecodeTool/V8BytecodeTool.csproj" />
+    <Project Path="tools/VmLoopProbe/VmLoopProbe.csproj" />
     <Project Path="src/Okojo.JavaScript/Okojo.JavaScript.csproj" />
     <Project Path="src/Okojo.JavaScript.Embedding/Okojo.JavaScript.Embedding.csproj" />
     <Project Path="src/Okojo.Numerics/Okojo.Numerics.csproj" />
