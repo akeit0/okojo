@@ -92,7 +92,8 @@ public sealed class WorkerGlobalsApiModule : IRealmApiModule
                     var created = messaging.CreateWorkerHandle(
                         realm,
                         moduleEntry,
-                        realm.CurrentModuleResolvedId
+                        realm.CurrentModuleResolvedId,
+                        WorkerScriptType.Module
                     );
                     messaging.RegisterWorkerHandle(
                         realm,

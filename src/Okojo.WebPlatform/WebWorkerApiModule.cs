@@ -90,11 +90,12 @@ public sealed class WebWorkerApiModule : IRealmApiModule
                         "Worker script URL must be a string"
                     );
 
-                ValidateWorkerOptions(realm, args.Length > 1 ? args[1] : JsValue.Undefined);
+                var scriptType = GetWorkerScriptType(args.Length > 1 ? args[1] : JsValue.Undefined);
                 var created = messaging.CreateWorkerHandle(
                     realm,
                     args[0].AsString(),
-                    realm.CurrentModuleResolvedId
+                    realm.CurrentModuleResolvedId,
+                    scriptType
                 );
                 messaging.RegisterWorkerHandle(
                     realm,
@@ -121,10 +122,10 @@ public sealed class WebWorkerApiModule : IRealmApiModule
         realm.Global["Worker"] = JsValue.FromObject(ctor);
     }
 
-    private static void ValidateWorkerOptions(JsRealm realm, in JsValue optionsValue)
+    private static WorkerScriptType GetWorkerScriptType(in JsValue optionsValue)
     {
         if (optionsValue.IsUndefined || optionsValue.IsNull)
-            return;
+            return WorkerScriptType.Classic;
 
         if (!optionsValue.TryGetObject(out var options))
             throw new JsRuntimeException(JsErrorKind.TypeError, "Worker options must be an object");
@@ -134,16 +135,18 @@ public sealed class WebWorkerApiModule : IRealmApiModule
             || typeValue.IsUndefined
             || typeValue.IsNull
         )
-            return;
+            return WorkerScriptType.Classic;
 
         var typeText = typeValue.IsString ? typeValue.AsString() : typeValue.ToString();
+        if (string.Equals(typeText, "classic", StringComparison.Ordinal))
+            return WorkerScriptType.Classic;
         if (string.Equals(typeText, "module", StringComparison.Ordinal))
-            return;
+            return WorkerScriptType.Module;
 
         throw new JsRuntimeException(
             JsErrorKind.TypeError,
-            "Only module workers are currently supported",
-            "WEB_WORKER_TYPE_UNSUPPORTED"
+            "Worker type must be \"classic\" or \"module\"",
+            "WEB_WORKER_TYPE_INVALID"
         );
     }
 

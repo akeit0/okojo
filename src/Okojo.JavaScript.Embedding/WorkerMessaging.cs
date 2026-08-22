@@ -36,12 +36,13 @@ public sealed class WorkerMessaging
 
     public (WorkerHostBinding Binding, JsPlainObject Handle) CreateWorkerHandle(
         JsRealm ownerRealm,
-        string? moduleEntry,
-        string? ownerReferrer
+        string? scriptEntry,
+        string? ownerReferrer,
+        WorkerScriptType scriptType
     )
     {
         ArgumentNullException.ThrowIfNull(ownerRealm);
-        var binding = host.CreateWorker(ownerRealm, moduleEntry, ownerReferrer);
+        var binding = host.CreateWorker(ownerRealm, scriptEntry, ownerReferrer, scriptType);
         var handle = WorkerHandleFactory.CreateHandle(
             ownerRealm,
             binding,

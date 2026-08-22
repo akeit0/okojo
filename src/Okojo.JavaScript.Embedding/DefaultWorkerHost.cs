@@ -8,15 +8,26 @@ internal sealed class DefaultWorkerHost : IWorkerHost
 
     public WorkerHostBinding CreateWorker(
         JsRealm ownerRealm,
-        string? moduleEntry,
-        string? ownerReferrer
+        string? scriptEntry,
+        string? ownerReferrer,
+        WorkerScriptType scriptType
     )
     {
         var agent = ownerRealm.Agent.CreateWorkerAgent();
         var realm = agent.MainRealm;
         var workerPump = new HostPump(agent);
-        if (!string.IsNullOrEmpty(moduleEntry))
-            _ = agent.EvaluateModule(realm, moduleEntry, ownerReferrer);
+        if (!string.IsNullOrEmpty(scriptEntry))
+        {
+            if (scriptType == WorkerScriptType.Module)
+            {
+                _ = agent.EvaluateModule(realm, scriptEntry, ownerReferrer);
+            }
+            else
+            {
+                var source = ownerRealm.LoadWorkerScript(scriptEntry, ownerReferrer);
+                realm.Execute(source);
+            }
+        }
 
         return new()
         {

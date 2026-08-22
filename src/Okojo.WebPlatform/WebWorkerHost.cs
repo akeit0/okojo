@@ -17,8 +17,9 @@ public sealed class WebWorkerHost : IHostingJsWorkerHost
 
     public WorkerRuntime CreateWorker(
         JsRealm ownerRealm,
-        string? moduleEntry,
-        string? ownerReferrer
+        string? scriptEntry,
+        string? ownerReferrer,
+        WorkerScriptType scriptType
     )
     {
         ArgumentNullException.ThrowIfNull(ownerRealm);
@@ -27,8 +28,9 @@ public sealed class WebWorkerHost : IHostingJsWorkerHost
             ownerRealm,
             hostedWorker =>
             {
-                hostedWorker.ModuleEntry = moduleEntry;
-                hostedWorker.ModuleReferrer = ownerReferrer;
+                hostedWorker.ScriptEntry = scriptEntry;
+                hostedWorker.ScriptReferrer = ownerReferrer;
+                hostedWorker.ScriptType = scriptType;
                 hostedWorker.StartBackgroundHost = options.StartBackgroundHost;
             }
         );

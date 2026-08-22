@@ -253,7 +253,7 @@ public class WebWorkerTests
     }
 
     [Test]
-    public void UseWebWorkers_RejectsUnsupportedClassicWorkerType()
+    public void UseWebWorkers_RejectsUnsupportedWorkerType()
     {
         using var engine = JsRuntime.CreateBuilder().UseWebWorkers().Build();
         var realm = engine.MainRealm;
@@ -261,12 +261,12 @@ public class WebWorkerTests
         var ex = Assert.Throws<JsRuntimeException>(() =>
             realm.Eval(
                 """
-                new Worker("/mods/worker-entry.js", { type: "classic" });
+                new Worker("/mods/worker-entry.js", { type: "shared" });
                 """
             )
         );
 
-        Assert.That(ex!.DetailCode, Is.EqualTo("WEB_WORKER_TYPE_UNSUPPORTED"));
+        Assert.That(ex!.DetailCode, Is.EqualTo("WEB_WORKER_TYPE_INVALID"));
     }
 
     [Test]

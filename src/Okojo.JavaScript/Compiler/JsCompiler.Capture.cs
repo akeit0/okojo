@@ -156,7 +156,11 @@ public sealed partial class JsCompiler
                         MarkCapturedByChildBinding(f.Name);
                 }
 
-                MarkDirectCapturesFromNestedFunction(f.ParameterInitializers, f.Body);
+                MarkDirectCapturesFromNestedFunction(
+                    f.ParameterInitializers,
+                    f.ParameterPatterns,
+                    f.Body
+                );
                 break;
             case JsClassDeclaration c:
                 ScanForDirectNestedFunctionCapturesInExpression(c.ClassExpression);
@@ -184,6 +188,10 @@ public sealed partial class JsCompiler
                 if (t.Finalizer is not null)
                     ScanForDirectNestedFunctionCapturesInStatement(t.Finalizer);
                 break;
+            case JsWithStatement w:
+                ScanForDirectNestedFunctionCapturesInExpression(w.Object);
+                ScanForDirectNestedFunctionCapturesInStatement(w.Body);
+                break;
             case JsSwitchStatement sw:
                 ScanForDirectNestedFunctionCapturesInExpression(sw.Discriminant);
                 PushSwitchLexicalAliases(sw);
@@ -202,6 +210,9 @@ public sealed partial class JsCompiler
                     PopSwitchLexicalAliases(sw);
                 }
 
+                break;
+            case JsExportDefaultDeclaration exportDefault:
+                ScanForDirectNestedFunctionCapturesInExpression(exportDefault.Expression);
                 break;
         }
     }
@@ -224,7 +235,11 @@ public sealed partial class JsCompiler
                         MarkCapturedByChildBinding(f.Name);
                 }
 
-                MarkDirectCapturesFromNestedFunction(f.ParameterInitializers, f.Body);
+                MarkDirectCapturesFromNestedFunction(
+                    f.ParameterInitializers,
+                    f.ParameterPatterns,
+                    f.Body
+                );
                 break;
             case JsAssignmentExpression a:
                 ScanForDirectNestedFunctionCapturesInExpression(a.Left);
@@ -308,6 +323,13 @@ public sealed partial class JsCompiler
                 if (importCall.Options is not null)
                     ScanForDirectNestedFunctionCapturesInExpression(importCall.Options);
                 break;
+            case JsIntrinsicCallExpression intrinsicCall:
+                foreach (var arg in intrinsicCall.Arguments)
+                    ScanForDirectNestedFunctionCapturesInExpression(arg);
+                break;
+            case JsParameterInitializerExpression parameterInitializer:
+                ScanForDirectNestedFunctionCapturesInExpression(parameterInitializer.Expression);
+                break;
         }
     }
 
@@ -387,6 +409,7 @@ public sealed partial class JsCompiler
                 if (element.Value is not null)
                     MarkDirectCapturesFromNestedFunction(
                         element.Value.ParameterInitializers,
+                        element.Value.ParameterPatterns,
                         element.Value.Body
                     );
             }
@@ -407,6 +430,7 @@ public sealed partial class JsCompiler
 
     private void MarkDirectCapturesFromNestedFunction(
         IReadOnlyList<JsExpression?> parameterInitializers,
+        IReadOnlyList<JsExpression?> parameterPatterns,
         JsBlockStatement body,
         bool allowArgumentsCapture = true
     )
@@ -414,6 +438,9 @@ public sealed partial class JsCompiler
         foreach (var initializer in parameterInitializers)
             if (initializer is not null)
                 MarkCapturedNamesReferencedByNestedFunction(initializer, allowArgumentsCapture);
+        foreach (var pattern in parameterPatterns)
+            if (pattern is not null)
+                MarkCapturedNamesReferencedByNestedFunction(pattern, allowArgumentsCapture);
 
         foreach (var stmt in body.Statements)
             MarkCapturedNamesReferencedByNestedFunction(stmt, allowArgumentsCapture);
@@ -573,6 +600,7 @@ public sealed partial class JsCompiler
                     var nested = functionDeclaration;
                     MarkDirectCapturesFromNestedFunction(
                         nested.ParameterInitializers,
+                        nested.ParameterPatterns,
                         nested.Body,
                         false
                     );
@@ -611,6 +639,10 @@ public sealed partial class JsCompiler
                 if (t.Finalizer is not null)
                     MarkCapturedNamesReferencedByNestedFunction(t.Finalizer, allowArgumentsCapture);
                 break;
+            case JsWithStatement w:
+                MarkCapturedNamesReferencedByNestedFunction(w.Object, allowArgumentsCapture);
+                MarkCapturedNamesReferencedByNestedFunction(w.Body, allowArgumentsCapture);
+                break;
             case JsSwitchStatement sw:
                 MarkCapturedNamesReferencedByNestedFunction(sw.Discriminant, allowArgumentsCapture);
                 PushSwitchLexicalAliases(sw);
@@ -632,6 +664,12 @@ public sealed partial class JsCompiler
                     PopSwitchLexicalAliases(sw);
                 }
 
+                break;
+            case JsExportDefaultDeclaration exportDefault:
+                MarkCapturedNamesReferencedByNestedFunction(
+                    exportDefault.Expression,
+                    allowArgumentsCapture
+                );
                 break;
         }
     }
@@ -698,6 +736,10 @@ public sealed partial class JsCompiler
                         allowArgumentsCapture
                     );
                 break;
+            case JsIntrinsicCallExpression intrinsicCall:
+                foreach (var arg in intrinsicCall.Arguments)
+                    MarkCapturedNamesReferencedByNestedFunction(arg, allowArgumentsCapture);
+                break;
             case JsAssignmentExpression a:
                 MarkCapturedNamesReferencedByNestedFunction(a.Left, allowArgumentsCapture);
                 MarkCapturedNamesReferencedByNestedFunction(a.Right, allowArgumentsCapture);
@@ -740,6 +782,7 @@ public sealed partial class JsCompiler
             case JsFunctionExpression f:
                 MarkDirectCapturesFromNestedFunction(
                     f.ParameterInitializers,
+                    f.ParameterPatterns,
                     f.Body,
                     f.IsArrow && allowArgumentsCapture
                 );
@@ -785,6 +828,12 @@ public sealed partial class JsCompiler
             case JsSequenceExpression s:
                 foreach (var e in s.Expressions)
                     MarkCapturedNamesReferencedByNestedFunction(e, allowArgumentsCapture);
+                break;
+            case JsParameterInitializerExpression parameterInitializer:
+                MarkCapturedNamesReferencedByNestedFunction(
+                    parameterInitializer.Expression,
+                    allowArgumentsCapture
+                );
                 break;
         }
     }
@@ -856,6 +905,7 @@ public sealed partial class JsCompiler
                 if (element.Value is not null)
                     MarkDirectCapturesFromNestedFunction(
                         element.Value.ParameterInitializers,
+                        element.Value.ParameterPatterns,
                         element.Value.Body,
                         element.Value.IsArrow && allowArgumentsCapture
                     );
