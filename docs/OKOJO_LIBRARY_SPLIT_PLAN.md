@@ -323,6 +323,33 @@ slice. The supported-contract and friend-assembly cleanup remains deferred.
 - Reflection, WebAssembly, WebPlatform, Browser, and Node reference the smallest required layer
 - Test262Runner and integration tests reference the embedding/profile packages they execute
 
+### Phase 5A — production friend audit: complete
+
+Each production candidate was tested independently by removing one friend
+entry and building its direct consumer in Release mode. The result is an
+inventory, not a public-API redesign.
+
+| Friend assembly | Granting assembly | Result | Concrete dependency or evidence |
+| --- | --- | --- | --- |
+| `Okojo.Browser` | `Okojo.JavaScript.Embedding` | removed as stale | Direct `Okojo.Browser` build succeeds without embedding internals. |
+| `Okojo.Node` | `Okojo.JavaScript.Embedding` | removed as stale | Direct `Okojo.Node` build succeeds without embedding internals. |
+| `Okojo.WebAssembly` | `Okojo.JavaScript.Embedding` | removed as stale | Direct `Okojo.WebAssembly` build succeeds without embedding internals. |
+| `Okojo.WebAssembly.Wasmtime` | `Okojo.JavaScript.Embedding` | removed as stale | Direct `Okojo.WebAssembly.Wasmtime` build succeeds without embedding internals. |
+| `Okojo.Hosting` | `Okojo.JavaScript.Embedding` | retained | `WorkerMessaging` in `WorkerGlobalsApiModule.cs`; later cleanup should expose a supported worker-projection composition path. |
+| `Okojo.Reflection` | `Okojo.JavaScript.Embedding` | retained | `EnableClrAccess` on `JsRuntimeBuilder`, `JsRuntimeOptions`, and `JsRuntimeCoreOptions` in `ClrAccessExtensions.cs`; later cleanup should define the smallest supported CLR-access configuration contract. |
+| `Okojo.WebPlatform` | `Okojo.JavaScript.Embedding` | retained | `WorkerMessaging` in `WebWorkerApiModule.cs`; later cleanup should use the supported worker-projection composition path. |
+| `Okojo.JavaScript.Embedding` | `Okojo.JavaScript` | retained | `ISharedWaiterControllerFactory`, `JsArrayBufferObject.ISharedWaiterController`, `JsArrayBufferObject.SharedWaiter`, and `IClrAccessProvider` are consumed by runtime options and default wait/CLR composition. |
+| `Okojo.Hosting` | `Okojo.JavaScript` | retained | `JsRealm.GetCurrentModuleResolvedIdOrNull`, `JsRealm.BridgeFromOtherRealm`, `JsRealm.InvokeFunction`, `JsAgent.EvaluateModule`, `JsAgent.PendingJobCount`, `ITimerFactory`, `ITimerFactory.CreateJsTimer`, `JsGlobalObject.TryGetPropertyAtom`, and `JsPlainObject.TryGetPropertyAtom` are used by worker and host-loop implementations. |
+| `Okojo.Reflection` | `Okojo.JavaScript` | retained | CLR wrappers consume `IClrAccessProvider`, `HostTypeDescriptor`, `IClrTypedNullReference`, `IClrNamespaceReference`, `IClrByRefPlaceholder`, `IClrTypeFunctionData`, `HostRealmLayoutInfo`, `JsObject.TryGetPropertyAtomWithReceiverValue`, `JsObject.TryGetOwnNamedPropertyDescriptorAtom`, `JsObject.CollectOwnNamedPropertyAtoms`, and `JsObject.SetPropertyAtomWithReceiver`. |
+| `Okojo.Node` | `Okojo.JavaScript` | retained | Node built-ins use internal conversion/invocation, module/job, promise, prototype, typed-array, compiler, and property APIs, including `JsRealm.ToNumber`, `JsRealm.ToJsStringSlowPath`, `JsAgent.EvaluateModule`, `JsAgent.EnqueueHostPriorityJob`, `JsPromiseObject.State`, `TypedArrayElementKind`, and `JsObject.Prototype`. |
+| `Okojo.WebPlatform` | `Okojo.JavaScript` | retained | Web APIs use `JsRealm.WrapTaskOnHostQueue`, `JsRealm.InvokeFunction`, `JsObject.DefineDataPropertyAtom`, `JsObject.DefineAccessorPropertyAtom`, `JsGlobalObject.TryGetPropertyAtom`, `JsPlainObject.TryGetPropertyAtom`, `JsHostFunction.InitializePrototypeProperty`, and `JsRealm.GetCurrentModuleResolvedIdOrNull`. |
+| `Okojo.WebAssembly` | `Okojo.JavaScript` | retained | `WebAssemblyInstaller.cs` uses `JsRealm.PromiseResolveValue`, `JsRealm.PromiseRejectByConstructor`, `JsRealm.CreateErrorObjectFromException`, `JsRealm.InvokeFunction`, `JsRealm.ToIntegerOrInfinity`, `JsRealm.ToUint32`, `JsRealm.ToNumber`, `JsRealm.ToJsStringSlowPath`, `JsArrayBufferObject.GetByte`, `Intrinsics.CreateNativeErrorConstructor`, `Intrinsics.PromiseConstructor`, `Intrinsics.ErrorPrototype`, `Intrinsics.ErrorConstructor`, `JsRealm.ObjectPrototype`, `JsHostFunction.InitializePrototypeProperty`, and `JsObject.Prototype`. |
+| `Okojo.WebAssembly.Wasmtime` | `Okojo.JavaScript` | retained | `WasmtimeMemoryWrapper.cs` uses `JsRealm.SharedArrayBufferPrototype` and `JsRealm.ArrayBufferPrototype`. |
+
+The existing test/tooling friends were intentionally not audited in this
+slice. In particular, `Test262Runner` still needs the engine shared-waiter
+and timer internals plus embedding `UseSharedWaiterControllerFactory`.
+
 Do not reorganize all tests before the production split compiles. Keep `tests/Okojo.Tests` as the conformance/integration loop first; create `Okojo.JavaScript.Tests` and `Okojo.JavaScript.Embedding.Tests` only while moving tests that clearly belong to each boundary.
 
 Finally update:
