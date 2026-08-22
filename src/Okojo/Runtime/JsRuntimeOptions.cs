@@ -161,6 +161,15 @@ public sealed class JsRuntimeOptions
         return this;
     }
 
+    internal JsRuntimeOptions UseWorkerMessaging(
+        Func<WorkerMessaging, IRealmApiModule> createModule
+    )
+    {
+        ArgumentNullException.ThrowIfNull(createModule);
+        Core.AddRealmApiModuleFactory(createModule);
+        return this;
+    }
+
     public JsRuntimeOptions AddClrAssembly(params Assembly[] assemblies)
     {
         Core.AddClrAssembliesCore(assemblies);

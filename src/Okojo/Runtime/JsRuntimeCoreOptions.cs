@@ -10,11 +10,14 @@ public sealed class JsRuntimeCoreOptions
 {
     private readonly List<Assembly> clrAssemblies = new();
     private readonly List<IRealmApiModule> realmApiModules = new();
+    private readonly List<Func<WorkerMessaging?, IRealmApiModule>> realmApiModuleFactories = new();
     private int clrAssembliesVersion;
 
     public bool ClrAccessEnabled { get; private set; }
     public IReadOnlyList<Assembly> ClrAssemblies => clrAssemblies;
     public IReadOnlyList<IRealmApiModule> RealmApiModules => realmApiModules;
+    internal IReadOnlyList<Func<WorkerMessaging?, IRealmApiModule>> RealmApiModuleFactories =>
+        realmApiModuleFactories;
     internal IClrAccessProvider? ClrAccessProvider { get; private set; }
     internal int ClrAssembliesVersion => clrAssembliesVersion;
 
@@ -36,14 +39,26 @@ public sealed class JsRuntimeCoreOptions
     {
         ArgumentNullException.ThrowIfNull(module);
         if (!realmApiModules.Contains(module))
+        {
             realmApiModules.Add(module);
+            realmApiModuleFactories.Add(_ => module);
+        }
         return this;
     }
 
     public JsRuntimeCoreOptions UseRealmSetup(Action<JsRealm> setup)
     {
         ArgumentNullException.ThrowIfNull(setup);
-        realmApiModules.Add(new DelegateRealmApiModule(setup));
+        AddRealmApiModule(new DelegateRealmApiModule(setup));
+        return this;
+    }
+
+    internal JsRuntimeCoreOptions AddRealmApiModuleFactory(
+        Func<WorkerMessaging, IRealmApiModule> createModule
+    )
+    {
+        ArgumentNullException.ThrowIfNull(createModule);
+        realmApiModuleFactories.Add(workerMessaging => createModule(workerMessaging!));
         return this;
     }
 
@@ -88,6 +103,7 @@ public sealed class JsRuntimeCoreOptions
         };
         clone.clrAssemblies.AddRange(clrAssemblies);
         clone.realmApiModules.AddRange(realmApiModules);
+        clone.realmApiModuleFactories.AddRange(realmApiModuleFactories);
         return clone;
     }
 }

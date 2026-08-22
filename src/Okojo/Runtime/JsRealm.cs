@@ -183,7 +183,6 @@ public sealed partial class JsRealm
             : new(IdSymbolSearch, "Symbol.search", true);
 
         Intrinsics.InstallIntrinsics();
-        EnsureWorkerMessageDispatchHook();
         Stack.AsSpan().Fill(JsValue.Undefined);
 
         if (options is not null)

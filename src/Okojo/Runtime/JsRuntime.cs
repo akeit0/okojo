@@ -12,6 +12,8 @@ public sealed class JsRuntime : IDisposable
     private readonly List<JsAgent> agents = new();
     private readonly object agentsGate = new();
     private readonly object runtimeIdentity = new();
+    private readonly WorkerMessaging workerMessaging;
+    private readonly IReadOnlyList<IRealmApiModule> realmApiModules;
     private volatile bool disposed;
     private int nextAgentId = 1;
 
@@ -39,6 +41,20 @@ public sealed class JsRuntime : IDisposable
             Options.WorkerScriptSourceLoader
             ?? new WorkerScriptSourceLoaderFromModuleSourceLoader(ModuleSourceLoader);
         SourceMapRegistry = Options.Host.SourceMapRegistry;
+        workerMessaging = new(
+            Options.LowLevelHost.MessageSerializer,
+            Options.LowLevelHost.WorkerHost,
+            Options.LowLevelHost.WorkerMessageQueueKey
+        );
+        var moduleFactories = Options.Core.RealmApiModuleFactories;
+        var modules = new List<IRealmApiModule>(moduleFactories.Count);
+        for (var i = 0; i < moduleFactories.Count; i++)
+        {
+            var module = moduleFactories[i](workerMessaging);
+            ArgumentNullException.ThrowIfNull(module);
+            modules.Add(module);
+        }
+        realmApiModules = modules;
         MainAgent = CreateAgent(JsAgentKind.Main, 0, Options.Agent, null);
         lock (agentsGate)
         {
@@ -250,7 +266,7 @@ public sealed class JsRuntime : IDisposable
             ModuleSourceLoader,
             WorkerScriptSourceLoader.LoadScript,
             SourceMapRegistry,
-            Options.RealmApiModules,
+            realmApiModules,
             () => Options.ClrAssemblies,
             () => Options.ClrAssembliesVersion,
             assemblies => Options.AddClrAssembliesCore(assemblies),
@@ -259,8 +275,6 @@ public sealed class JsRuntime : IDisposable
             Options.SharedWaiterControllerFactory,
             Options.LowLevelHost.BackgroundScheduler,
             Options.LowLevelHost.MessageSerializer,
-            Options.LowLevelHost.WorkerHost,
-            Options.LowLevelHost.WorkerMessageQueueKey,
             CreateWorkerAgent
         );
         var hostJobs = new HostJobQueue(

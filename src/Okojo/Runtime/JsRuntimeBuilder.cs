@@ -27,7 +27,7 @@ public sealed class JsRuntimeBuilder
 
     public JsRuntimeBuilder AddRealmApiModule(IRealmApiModule module)
     {
-        options.Core.AddRealmApiModule(module);
+        options.AddRealmApiModule(module);
         return this;
     }
 

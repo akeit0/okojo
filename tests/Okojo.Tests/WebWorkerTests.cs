@@ -24,7 +24,7 @@ public class WebWorkerTests
                 ["/mods/owner.js"] = """
                 globalThis.recv = "";
                 onmessage = function (e) { recv = e.data; };
-                globalThis.w = createWorker("./worker-entry.js");
+                globalThis.w = new Worker("./worker-entry.js", { type: "module" });
                 """,
                 ["/mods/worker-entry.js"] = """
                 onmessage = function (e) { postMessage("web:" + e.data); };
@@ -56,6 +56,48 @@ public class WebWorkerTests
             ),
             Is.True
         );
+    }
+
+    [Test]
+    public void UseWebWorkers_DoesNotInstallHostingCreateWorker()
+    {
+        using var engine = JsRuntime.CreateBuilder().UseWebWorkers().Build();
+        var realm = engine.MainRealm;
+
+        Assert.That(realm.Eval("typeof Worker").AsString(), Is.EqualTo("function"));
+        Assert.That(realm.Eval("typeof createWorker").AsString(), Is.EqualTo("undefined"));
+    }
+
+    [Test]
+    public void UseWebWorkers_PreservesRegistrationOrderForLaterRealmSetup()
+    {
+        var observedWorkerType = string.Empty;
+        using var engine = JsRuntime
+            .CreateBuilder()
+            .UseWebWorkers()
+            .UseRealmSetup(realm => observedWorkerType = realm.Eval("typeof Worker").AsString())
+            .Build();
+
+        Assert.That(observedWorkerType, Is.EqualTo("function"));
+    }
+
+    [Test]
+    public void UseWebWorkers_ReusedOptions_CreateIndependentProjectionModules()
+    {
+        var options = new JsRuntimeOptions().UseWebWorkers();
+        using var first = JsRuntime.Create(options);
+        using var second = JsRuntime.Create(options);
+
+        var firstModule = first.MainAgent.RealmApiModules.Single(module =>
+            module is WebWorkerApiModule
+        );
+        var secondModule = second.MainAgent.RealmApiModules.Single(module =>
+            module is WebWorkerApiModule
+        );
+
+        Assert.That(firstModule, Is.Not.SameAs(secondModule));
+        Assert.That(first.Eval("typeof Worker").AsString(), Is.EqualTo("function"));
+        Assert.That(second.Eval("typeof Worker").AsString(), Is.EqualTo("function"));
     }
 
     [Test]
@@ -211,7 +253,7 @@ public class WebWorkerTests
     }
 
     [Test]
-    public void UseWebWorkers_CanDisableBackgroundHost_AndRequireExplicitPump()
+    public void UseWebWorkers_CanDisableBackgroundHost_AndRequireExplicitPump_WhenHostingGlobalsAreOptedIn()
     {
         var loader = new InMemoryModuleLoader(
             new(StringComparer.Ordinal)
@@ -226,6 +268,7 @@ public class WebWorkerTests
             .CreateBuilder()
             .UseModuleSourceLoader(loader)
             .UseWebWorkers(options => options.StartBackgroundHost = false)
+            .UseHosting(static hosting => hosting.UseWorkerGlobals())
             .Build();
         var realm = engine.MainRealm;
 

@@ -116,9 +116,14 @@ public sealed class WebPlatformBuilder
     public WebPlatformBuilder UseWebWorkers(WebWorkerHost workerHost)
     {
         ArgumentNullException.ThrowIfNull(workerHost);
-        options.AddRealmApiModule(WebWorkerApiModule.Shared);
+        options.UseWorkerMessaging(workerMessaging =>
+        {
+            var module = new WebWorkerApiModule();
+            module.AttachWorkerMessaging(workerMessaging);
+            return module;
+        });
         options.UseLowLevelHost(host => host.UseWorkerMessageQueue(WebTaskQueueKeys.Messages));
-        options.UseHosting(hosting => hosting.UseWorkerGlobals().UseJsWorkerHost(workerHost));
+        options.UseHosting(hosting => hosting.UseJsWorkerHost(workerHost));
         return this;
     }
 

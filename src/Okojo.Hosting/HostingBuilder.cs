@@ -27,7 +27,12 @@ public sealed class HostingBuilder
 
     public HostingBuilder UseWorkerGlobals()
     {
-        options.AddRealmApiModule(WorkerGlobalsApiModule.Shared);
+        options.UseWorkerMessaging(workerMessaging =>
+        {
+            var module = new WorkerGlobalsApiModule();
+            module.AttachWorkerMessaging(workerMessaging);
+            return module;
+        });
         return this;
     }
 

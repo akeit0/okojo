@@ -242,15 +242,27 @@ Behavior must remain unchanged while these couplings are removed:
 5. narrow `InternalsVisibleTo` consumers
 
 Progress: the broad `IJsRuntimeHost` seam has been removed. `JsAgent` now receives
-the concrete module, timing, interop, wait, scheduler, serializer, worker, and
-identity inputs it actually uses; `JsRealm` exposes engine-facing values through
-its agent. `HostJobQueue` now owns host and host-priority queues, scheduler
-delivery, and the default convenience-pump policy. Agent construction,
-host-queue attachment, and user initialization are separate stages. The next
-slice moves worker state and policy out of `JsRealm` without replacing
-`IHostMessageSerializer` with callbacks. Browser-controlled task selection and
-checkpoint timing must remain available through independent low-level operations.
-Worker messaging policy and remaining friend-assembly cleanup are still required
+the concrete module, timing, interop, wait, scheduler, identity, and
+`IHostMessageSerializer` inputs it actually uses; the same engine-owned serializer
+contract is also used by runtime-owned `WorkerMessaging` for raw worker transport.
+Worker policy and serialization are composed through that concrete component;
+projection modules are created per runtime from reusable option factories, while
+the shared registration sequence preserves builder call order.
+`JsRealm` exposes engine-facing values through its agent and keeps only the
+cross-realm bridge. `HostJobQueue` owns host
+and host-priority queues, scheduler delivery, and the default convenience-pump
+policy. Agent construction, host-queue attachment, and user initialization are
+separate stages. Promise checkpoints are FIFO and non-reentrant, while
+`RunOneHostJob()` and `RunPromiseJobs()` remain independently callable for a
+browser-controlled loop. `UseWebWorkers()` no longer installs the Hosting-only
+`createWorker` helper; `UseWorkerGlobals()` is the explicit opt-in.
+
+Worker state/policy is now removed from `JsRealm`, and `JsAgent` no longer stores
+the worker host or worker-message queue key; its serializer input remains for
+direct `PostMessage` delivery. WebPlatform/Hosting modules project raw delivery
+into their own globals, handles, event objects, and handlers. The physical move of
+`WorkerMessaging`, the default serializer, worker-host contracts, and
+`WorkerHandleFactory`, plus remaining friend-assembly cleanup, is still required
 before Phase 3.
 
 Keep focused module, agent, Promise, timer, worker, interop, and execution-check tests green after each step.

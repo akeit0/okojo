@@ -111,6 +111,54 @@ public class AgentJobQueueTests
     }
 
     [Test]
+    public void RunPromiseJobs_ReentrantCheckpoint_DoesNotRunNestedCheckpoint()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var order = new List<string>();
+
+        realm.Agent.EnqueuePromiseJob(() =>
+        {
+            order.Add("outer");
+            realm.Agent.EnqueuePromiseJob(() => order.Add("queued"));
+            Assert.That(realm.Agent.RunPromiseJobs(), Is.EqualTo(0));
+            order.Add("outer-end");
+        });
+
+        Assert.That(realm.Agent.RunPromiseJobs(), Is.EqualTo(2));
+        Assert.That(order, Is.EqualTo(new[] { "outer", "outer-end", "queued" }));
+    }
+
+    [Test]
+    public void HostSelectsOneTask_ThenExplicitCheckpoint_DoesNotPumpAnotherHostTask()
+    {
+        var scheduler = new SelectingHostTaskScheduler();
+        using var engine = JsRuntime
+            .CreateBuilder()
+            .UseLowLevelHost(host => host.UseTaskScheduler(scheduler))
+            .Build();
+        var worker = engine.CreateWorkerAgent();
+        var order = new List<string>();
+
+        worker.MessageReceived += (_, _) =>
+        {
+            order.Add("task");
+            worker.EnqueuePromiseJob(() => order.Add("promise"));
+        };
+
+        engine.MainAgent.PostMessage(worker, "ping");
+        engine.MainAgent.PostMessage(worker, "second");
+        Assert.That(scheduler.PendingCount, Is.EqualTo(2));
+        Assert.That(scheduler.PumpOne(), Is.True);
+        Assert.That(scheduler.PendingCount, Is.EqualTo(1));
+        Assert.That(worker.RunOneHostJob(), Is.True);
+        Assert.That(order, Is.EqualTo(new[] { "task" }));
+
+        Assert.That(worker.RunPromiseJobs(), Is.EqualTo(1));
+        Assert.That(order, Is.EqualTo(new[] { "task", "promise" }));
+        Assert.That(scheduler.PendingCount, Is.EqualTo(1));
+    }
+
+    [Test]
     public void RunJobs_NamedHostQueue_ExecutesOnlyThatQueue()
     {
         var realm = JsRuntime.Create().DefaultRealm;
@@ -196,5 +244,66 @@ public class AgentJobQueueTests
             order,
             Is.EqualTo(new[] { "realm-promise", "realm", "agent-promise", "agent" })
         );
+    }
+
+    private sealed class SelectingHostTaskScheduler : IHostTaskScheduler
+    {
+        private readonly Queue<(
+            HostTaskTarget Target,
+            Action<object?> Callback,
+            object? State
+        )> pending = new();
+
+        public int PendingCount
+        {
+            get
+            {
+                lock (pending)
+                    return pending.Count;
+            }
+        }
+
+        public IHostAgentScheduler CreateAgentScheduler(HostTaskTarget target)
+        {
+            return new AgentScheduler(this, target);
+        }
+
+        public bool PumpOne()
+        {
+            (HostTaskTarget Target, Action<object?> Callback, object? State) task;
+            lock (pending)
+            {
+                if (pending.Count == 0)
+                    return false;
+                task = pending.Dequeue();
+            }
+
+            task.Target.EnqueueTask(task.Callback, task.State);
+            return true;
+        }
+
+        private void Enqueue(HostTaskTarget target, Action<object?> callback, object? state)
+        {
+            lock (pending)
+                pending.Enqueue((target, callback, state));
+        }
+
+        private sealed class AgentScheduler(SelectingHostTaskScheduler owner, HostTaskTarget target)
+            : IQueuedHostAgentScheduler
+        {
+            public void EnqueueTask(Action<object?> callback, object? state)
+            {
+                owner.Enqueue(target, callback, state);
+            }
+
+            public void EnqueueTask(
+                HostTaskQueueKey queueKey,
+                Action<object?> callback,
+                object? state
+            )
+            {
+                owner.Enqueue(target, callback, state);
+            }
+        }
     }
 }

@@ -5,6 +5,7 @@ internal static class WorkerHandleFactory
     public static JsPlainObject CreateHandle(
         JsRealm ownerRealm,
         WorkerHostBinding binding,
+        WorkerMessaging messaging,
         OkojoWorkerHandleAtoms atoms,
         Action<int> removeHandleByAgentId
     )
@@ -12,6 +13,7 @@ internal static class WorkerHandleFactory
         var runtimeData = new WorkerHandleRuntimeData
         {
             Binding = binding,
+            Messaging = messaging,
             RemoveHandleByAgentId = removeHandleByAgentId,
         };
 
@@ -38,14 +40,8 @@ internal static class WorkerHandleFactory
                 var callee = (JsHostFunction)info.Function;
                 var data = (WorkerHandleRuntimeData)callee.UserData!;
                 var payload =
-                    args.Length != 0
-                        ? realm.Agent.MessageSerializer.SerializeOutgoing(realm, args[0])
-                        : null;
-                realm.Agent.PostMessage(
-                    data.Binding.Agent,
-                    payload,
-                    realm.Agent.WorkerMessageQueueKey
-                );
+                    args.Length != 0 ? data.Messaging.SerializeOutgoing(realm, args[0]) : null;
+                data.Messaging.PostSerializedMessage(realm.Agent, data.Binding.Agent, payload);
                 return JsValue.Undefined;
             },
             "postMessage",
@@ -170,6 +166,7 @@ internal static class WorkerHandleFactory
     private sealed class WorkerHandleRuntimeData
     {
         public required WorkerHostBinding Binding;
+        public required WorkerMessaging Messaging;
         public required Action<int> RemoveHandleByAgentId;
     }
 

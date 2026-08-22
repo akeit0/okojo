@@ -71,6 +71,7 @@ public sealed partial class JsAgent : IDisposable
     internal ulong ExecutionCheckCountdown;
     internal volatile int ExecutionCheckpointHookBits;
     private bool isPumpingJobs;
+    private bool isRunningPromiseJobs;
 
     private int nextPrivateBrandId;
     private DebuggerStepRequest? stepRequest;
@@ -95,8 +96,6 @@ public sealed partial class JsAgent : IDisposable
         ISharedWaiterControllerFactory sharedWaiterControllerFactory,
         IBackgroundScheduler backgroundScheduler,
         IHostMessageSerializer messageSerializer,
-        IWorkerHost workerHost,
-        HostTaskQueueKey workerMessageQueueKey,
         Func<Action<JsAgentOptions>?, JsAgent> createWorkerAgent
     )
     {
@@ -117,8 +116,6 @@ public sealed partial class JsAgent : IDisposable
         SharedWaiterControllerFactory = sharedWaiterControllerFactory;
         BackgroundScheduler = backgroundScheduler;
         MessageSerializer = messageSerializer;
-        WorkerHost = workerHost;
-        WorkerMessageQueueKey = workerMessageQueueKey;
         this.createWorkerAgent = createWorkerAgent;
         Options = options.Clone();
         Atoms = new();
@@ -178,8 +175,6 @@ public sealed partial class JsAgent : IDisposable
     internal ISharedWaiterControllerFactory SharedWaiterControllerFactory { get; }
     internal IBackgroundScheduler BackgroundScheduler { get; }
     internal IHostMessageSerializer MessageSerializer { get; }
-    internal IWorkerHost WorkerHost { get; }
-    internal HostTaskQueueKey WorkerMessageQueueKey { get; }
     public JsAgentKind Kind { get; }
     public int Id { get; }
     public JsAgent? ParentAgent { get; }
@@ -1133,9 +1128,57 @@ public sealed partial class JsAgent : IDisposable
     {
         if (terminated)
             return 0;
+        if (queueName == JobQueueName.PromiseJobs)
+            return RunPromiseJobs();
         if (queueName is not JobQueueName.ScriptJobs and not JobQueueName.PromiseJobs)
             return runHostJobs(queueName);
 
+        return RunQueuedJobs(queueName);
+    }
+
+    /// <summary>Runs all pending ScriptJobs queue jobs, FIFO.</summary>
+    public int RunScriptJobs() => RunJobs(JobQueueName.ScriptJobs);
+
+    /// <summary>Runs all pending PromiseJobs queue jobs, FIFO (the microtask checkpoint).</summary>
+    public int RunPromiseJobs()
+    {
+        if (terminated)
+            return 0;
+
+        lock (jobsGate)
+        {
+            if (isRunningPromiseJobs)
+                return 0;
+            isRunningPromiseJobs = true;
+        }
+
+        try
+        {
+            return RunQueuedJobs(JobQueueName.PromiseJobs);
+        }
+        finally
+        {
+            lock (jobsGate)
+            {
+                isRunningPromiseJobs = false;
+            }
+        }
+    }
+
+    /// <summary>Runs all pending host priority jobs, FIFO.</summary>
+    internal int RunHostPriorityJobs() => RunJobs(JobQueueName.HostPriorityJobs);
+
+    /// <summary>Runs one pending host job selected by the embedding host.</summary>
+    public bool RunOneHostJob()
+    {
+        return runOneHostJob();
+    }
+
+    /// <summary>Runs all pending host jobs, FIFO.</summary>
+    internal int RunHostJobs() => runHostJobs(JobQueueName.HostJobs);
+
+    private int RunQueuedJobs(string queueName)
+    {
         var executed = 0;
         while (TryDequeueJob(queueName, out var job))
         {
@@ -1145,24 +1188,6 @@ public sealed partial class JsAgent : IDisposable
 
         return executed;
     }
-
-    /// <summary>Runs all pending ScriptJobs queue jobs, FIFO.</summary>
-    public int RunScriptJobs() => RunJobs(JobQueueName.ScriptJobs);
-
-    /// <summary>Runs all pending PromiseJobs queue jobs, FIFO (the microtask checkpoint).</summary>
-    public int RunPromiseJobs() => RunJobs(JobQueueName.PromiseJobs);
-
-    /// <summary>Runs all pending host priority jobs, FIFO.</summary>
-    internal int RunHostPriorityJobs() => RunJobs(JobQueueName.HostPriorityJobs);
-
-    /// <summary>Runs one pending host job.</summary>
-    internal bool RunOneHostJob()
-    {
-        return runOneHostJob();
-    }
-
-    /// <summary>Runs all pending host jobs, FIFO.</summary>
-    internal int RunHostJobs() => runHostJobs(JobQueueName.HostJobs);
 
     public void Terminate()
     {
