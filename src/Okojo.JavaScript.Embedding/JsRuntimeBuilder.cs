@@ -65,6 +65,12 @@ public sealed class JsRuntimeBuilder
         return this;
     }
 
+    public JsRuntimeBuilder UseAtomicsWaitPolicy(IAtomicsWaitPolicy policy)
+    {
+        options.Host.UseAtomicsWaitPolicy(policy);
+        return this;
+    }
+
     public JsRuntimeBuilder UseRealmSetup(Action<JsRealm> setup)
     {
         options.Core.UseRealmSetup(setup);

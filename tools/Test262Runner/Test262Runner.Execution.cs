@@ -462,9 +462,7 @@ internal static partial class Program
                 engineOptions.UseWorkerGlobals();
                 engineOptions.UseWebRuntimeGlobals();
                 engineOptions.ConfigureOptions(options =>
-                    options.UseSharedWaiterControllerFactory(
-                        Test262RunnerSharedWaiterControllerFactory.Shared
-                    )
+                    options.UseAtomicsWaitPolicy(Test262RunnerAtomicsWaitPolicy.Shared)
                 );
                 if (runnerTime is not null)
                     engineOptions.UseTimeProvider(runnerTime);
@@ -475,9 +473,7 @@ internal static partial class Program
                 engineOptions.UseWorkerGlobals();
                 engineOptions.UseWebRuntimeGlobals();
                 engineOptions.ConfigureOptions(options =>
-                    options.UseSharedWaiterControllerFactory(
-                        Test262RunnerSharedWaiterControllerFactory.Shared
-                    )
+                    options.UseAtomicsWaitPolicy(Test262RunnerAtomicsWaitPolicy.Shared)
                 );
 
                 if (runnerTime is not null)

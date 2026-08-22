@@ -30,10 +30,8 @@ public sealed class JsRuntimeOptions
     public TimeProvider? TimeProvider => Host.TimeProvider;
     public IModuleSourceLoader? ModuleSourceLoader => Host.ModuleSourceLoader;
     public IWorkerScriptSourceLoader? WorkerScriptSourceLoader => Host.WorkerScriptSourceLoader;
+    public IAtomicsWaitPolicy AtomicsWaitPolicy => Host.AtomicsWaitPolicy;
     internal JsRuntimeLowLevelHostOptions HostServices => LowLevelHost;
-
-    internal ISharedWaiterControllerFactory SharedWaiterControllerFactory { get; private set; } =
-        DefaultSharedWaiterControllerFactory.Shared;
 
     public bool ClrAccessEnabled => Core.ClrAccessEnabled;
     public IReadOnlyList<Assembly> ClrAssemblies => Core.ClrAssemblies;
@@ -105,6 +103,12 @@ public sealed class JsRuntimeOptions
         return this;
     }
 
+    public JsRuntimeOptions UseAtomicsWaitPolicy(IAtomicsWaitPolicy policy)
+    {
+        Host.UseAtomicsWaitPolicy(policy);
+        return this;
+    }
+
     /// <summary>
     ///     Advanced host seam configuration for embedders who need direct control over
     ///     scheduling, worker, and message integration. Prefer this over the individual
@@ -145,15 +149,6 @@ public sealed class JsRuntimeOptions
         return this;
     }
 
-    internal JsRuntimeOptions UseSharedWaiterControllerFactory(
-        ISharedWaiterControllerFactory controllerFactory
-    )
-    {
-        ArgumentNullException.ThrowIfNull(controllerFactory);
-        SharedWaiterControllerFactory = controllerFactory;
-        return this;
-    }
-
     [EditorBrowsable(EditorBrowsableState.Never)]
     public JsRuntimeOptions UseWorkerMessageQueue(HostTaskQueueKey queueKey)
     {
@@ -190,7 +185,6 @@ public sealed class JsRuntimeOptions
         clone.LowLevelHost.UseMessageSerializer(LowLevelHost.MessageSerializer);
         clone.LowLevelHost.UseWorkerHost(LowLevelHost.WorkerHost);
         clone.LowLevelHost.UseWorkerMessageQueue(LowLevelHost.WorkerMessageQueueKey);
-        clone.SharedWaiterControllerFactory = SharedWaiterControllerFactory;
         return clone;
     }
 }

@@ -16,6 +16,8 @@ public sealed class JsRuntimeHostOptions
     public TimeProvider? TimeProvider { get; private set; }
     public IModuleSourceLoader? ModuleSourceLoader { get; private set; }
     public IWorkerScriptSourceLoader? WorkerScriptSourceLoader { get; private set; }
+    public IAtomicsWaitPolicy AtomicsWaitPolicy { get; private set; } =
+        DefaultAtomicsWaitPolicy.Shared;
 
     public JsRuntimeHostOptions UseTimeProvider(TimeProvider timeProvider)
     {
@@ -56,6 +58,13 @@ public sealed class JsRuntimeHostOptions
         return this;
     }
 
+    public JsRuntimeHostOptions UseAtomicsWaitPolicy(IAtomicsWaitPolicy policy)
+    {
+        ArgumentNullException.ThrowIfNull(policy);
+        AtomicsWaitPolicy = policy;
+        return this;
+    }
+
     internal IModuleSourceLoader ApplyModuleSourceLoaderDecorators(IModuleSourceLoader baseLoader)
     {
         ArgumentNullException.ThrowIfNull(baseLoader);
@@ -73,6 +82,7 @@ public sealed class JsRuntimeHostOptions
             TimeProvider = TimeProvider,
             ModuleSourceLoader = ModuleSourceLoader,
             WorkerScriptSourceLoader = WorkerScriptSourceLoader,
+            AtomicsWaitPolicy = AtomicsWaitPolicy,
         };
 
         clone.moduleSourceLoaderDecorators.AddRange(moduleSourceLoaderDecorators);

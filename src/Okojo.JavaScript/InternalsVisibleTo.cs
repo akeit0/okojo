@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("Okojo.Tests")]
-[assembly: InternalsVisibleTo("Okojo.JavaScript.Embedding")] // Lockstep host composition: shared waiters and CLR provider wiring.
+[assembly: InternalsVisibleTo("Okojo.JavaScript.Embedding")] // Lockstep CLR provider wiring.
 [assembly: InternalsVisibleTo("Okojo.Compiler.Tests")]
 [assembly: InternalsVisibleTo("Okojo.Compiler.Experimental")]
 [assembly: InternalsVisibleTo("Okojo.Benchmarks")]

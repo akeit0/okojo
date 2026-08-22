@@ -272,7 +272,7 @@ public sealed class JsRuntime : IDisposable
             assemblies => Options.AddClrAssembliesCore(assemblies),
             Options.ClrAccessEnabled,
             Options.ClrAccessProvider,
-            Options.SharedWaiterControllerFactory,
+            Options.Host.AtomicsWaitPolicy,
             Options.LowLevelHost.BackgroundScheduler,
             Options.LowLevelHost.MessageSerializer,
             CreateWorkerAgent

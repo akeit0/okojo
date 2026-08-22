@@ -371,7 +371,7 @@ public partial class Intrinsics
             args.Length > 2 ? args[2] : JsValue.Undefined
         );
         var timeout = NormalizeWaitTimeout(realm, args.Length > 3 ? args[3] : JsValue.Undefined);
-        return AtomicsWaitCore(realm, view, (uint)index, expected, timeout, false);
+        return AtomicsWaitCore(realm, view, (uint)index, expected, timeout);
     }
 
     private JsValue AtomicsWaitAsync(in CallInfo info)
@@ -449,7 +449,16 @@ public partial class Intrinsics
         }
 
         var timeoutDuration = ToAtomicsWaitTimeout(timeout);
-        waiter!.ArmAsyncTimeout(timeoutDuration);
+        try
+        {
+            waiter!.ArmAsyncTimeout(timeoutDuration);
+        }
+        catch
+        {
+            buffer.RemoveSharedWaiter(byteIndex, waiter!);
+            waiter!.Dispose();
+            throw;
+        }
 
         return JsValue.FromObject(result);
     }
@@ -567,10 +576,15 @@ public partial class Intrinsics
         JsTypedArrayObject view,
         uint index,
         in JsValue expected,
-        double timeout,
-        bool asyncMode
+        double timeout
     )
     {
+        if (!realm.Agent.AtomicsWaitPolicy.CanSuspend(realm))
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Atomics.wait cannot be called in this context"
+            );
+
         var byteIndex = GetTypedArrayByteIndex(view, index);
         var buffer = view.Buffer;
         var syncRoot = buffer.GetSharedSyncRoot();
@@ -579,27 +593,25 @@ public partial class Intrinsics
         {
             var current = buffer.ReadTypedArrayElement(realm, view.Kind, byteIndex);
             if (!AtomicsSame(view.Kind, current, expected))
-                return asyncMode
-                    ? JsValue.FromObject(CreateAtomicsWaitAsyncResult(realm, false, "not-equal"))
-                    : JsValue.FromString("not-equal");
+                return JsValue.FromString("not-equal");
 
             if (timeout <= 0 || double.IsNaN(timeout))
-                return asyncMode
-                    ? JsValue.FromObject(CreateAtomicsWaitAsyncResult(realm, false, "timed-out"))
-                    : JsValue.FromString("timed-out");
+                return JsValue.FromString("timed-out");
 
-            if (!asyncMode)
-                waiter = buffer.AddSharedWaiterLocked(realm, byteIndex);
+            waiter = buffer.AddSharedWaiterLocked(realm, byteIndex);
         }
 
-        if (asyncMode)
-            return JsValue.FromObject(CreateAtomicsWaitAsyncResult(realm, true, JsValue.Undefined));
-
         using var ownedWaiter = waiter!;
-        var timeoutDuration = ToAtomicsWaitTimeout(timeout);
-        var notified = ownedWaiter.Wait(timeoutDuration);
-        buffer.RemoveSharedWaiter(byteIndex, ownedWaiter);
-        return JsValue.FromString(notified ? "ok" : "timed-out");
+        try
+        {
+            var timeoutDuration = ToAtomicsWaitTimeout(timeout);
+            var notified = ownedWaiter.Wait(timeoutDuration);
+            return JsValue.FromString(notified ? "ok" : "timed-out");
+        }
+        finally
+        {
+            buffer.RemoveSharedWaiter(byteIndex, ownedWaiter);
+        }
     }
 
     private static JsPlainObject CreateAtomicsWaitAsyncResult(

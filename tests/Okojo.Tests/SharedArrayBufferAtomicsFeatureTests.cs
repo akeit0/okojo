@@ -139,6 +139,95 @@ public class SharedArrayBufferAtomicsFeatureTests
     }
 
     [Test]
+    public void Atomics_Wait_Uses_Public_Host_Suspension_Policy()
+    {
+        var policy = new ControlledAtomicsWaitPolicy(canSuspend: false);
+        using var runtime = JsRuntime.CreateBuilder().UseAtomicsWaitPolicy(policy).Build();
+
+        var ex = Assert.Throws<JsRuntimeException>(() =>
+            runtime.DefaultRealm.Eval(
+                """
+                globalThis.waitConversions = [];
+                const waitView = new Int32Array(new SharedArrayBuffer(4));
+                Atomics.wait(
+                  waitView,
+                  { valueOf() { waitConversions.push("index"); return 0; } },
+                  { valueOf() { waitConversions.push("expected"); return 0; } },
+                  { valueOf() { waitConversions.push("timeout"); return 1; } }
+                );
+                """
+            )
+        );
+
+        Assert.That(ex!.Kind, Is.EqualTo(JsErrorKind.TypeError));
+        Assert.That(
+            runtime.DefaultRealm.Eval("waitConversions.join(',')").AsString(),
+            Is.EqualTo("index,expected,timeout")
+        );
+        Assert.That(policy.CanSuspendCallCount, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void Atomics_WaitAsync_Uses_Public_Host_Timeout_Policy()
+    {
+        var policy = new ControlledAtomicsWaitPolicy(canSuspend: true);
+        using var runtime = JsRuntime.CreateBuilder().UseAtomicsWaitPolicy(policy).Build();
+        var realm = runtime.DefaultRealm;
+
+        _ = realm.Eval(
+            """
+            globalThis.waitStatus = "pending";
+            const waitView = new Int32Array(new SharedArrayBuffer(4));
+            Atomics.waitAsync(waitView, 0, 0, 25).value.then(
+              value => { waitStatus = value; }
+            );
+            """
+        );
+
+        policy.FireTimeout();
+        realm.PumpJobs();
+
+        Assert.That(realm.Eval("waitStatus").AsString(), Is.EqualTo("timed-out"));
+    }
+
+    [Test]
+    public void Atomics_Wait_Uses_Public_Host_Wait_Policy()
+    {
+        var policy = new ControlledAtomicsWaitPolicy(canSuspend: true) { WaitResult = false };
+        using var runtime = JsRuntime.CreateBuilder().UseAtomicsWaitPolicy(policy).Build();
+
+        var result = runtime.DefaultRealm.Eval(
+            "Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1000)"
+        );
+
+        Assert.That(result.AsString(), Is.EqualTo("timed-out"));
+        Assert.That(policy.WaitCallCount, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void Atomics_WaitPolicy_Failures_Do_Not_Leave_Waiters()
+    {
+        var policy = new ControlledAtomicsWaitPolicy(canSuspend: true) { ThrowOnWait = true };
+        using var runtime = JsRuntime.CreateBuilder().UseAtomicsWaitPolicy(policy).Build();
+        var realm = runtime.DefaultRealm;
+
+        _ = realm.Eval("globalThis.waitBuffer = new SharedArrayBuffer(4)");
+        var waitException = Assert.Throws<JsRuntimeException>(() =>
+            realm.Eval("Atomics.wait(new Int32Array(waitBuffer), 0, 0, 1)")
+        );
+        Assert.That(waitException!.InnerException, Is.TypeOf<InvalidOperationException>());
+        Assert.That(HasSharedWaiterAtInt32Index(realm, "waitBuffer", 0), Is.False);
+
+        policy.ThrowOnWait = false;
+        policy.ThrowOnSchedule = true;
+        var scheduleException = Assert.Throws<JsRuntimeException>(() =>
+            realm.Eval("Atomics.waitAsync(new Int32Array(waitBuffer), 0, 0, 1)")
+        );
+        Assert.That(scheduleException!.InnerException, Is.TypeOf<InvalidOperationException>());
+        Assert.That(HasSharedWaiterAtInt32Index(realm, "waitBuffer", 0), Is.False);
+    }
+
+    [Test]
     public void Atomics_Operates_On_NonShared_Integer_TypedArrays_Except_WaitNotify()
     {
         var realm = JsRuntime.Create().DefaultRealm;
@@ -441,6 +530,59 @@ public class SharedArrayBufferAtomicsFeatureTests
         {
             return storage.WaitersByByteIndex.TryGetValue(byteIndex, out var waiters)
                 && waiters.Count > 0;
+        }
+    }
+
+    private sealed class ControlledAtomicsWaitPolicy(bool canSuspend) : IAtomicsWaitPolicy
+    {
+        private Action? timeoutCallback;
+
+        public int CanSuspendCallCount { get; private set; }
+        public bool ThrowOnSchedule { get; set; }
+        public bool ThrowOnWait { get; set; }
+        public int WaitCallCount { get; private set; }
+        public bool? WaitResult { get; set; }
+
+        public bool CanSuspend(JsRealm realm)
+        {
+            ArgumentNullException.ThrowIfNull(realm);
+            CanSuspendCallCount++;
+            return canSuspend;
+        }
+
+        public bool Wait(JsRealm realm, AtomicsWaitSignal signal, TimeSpan? timeout)
+        {
+            ArgumentNullException.ThrowIfNull(realm);
+            ArgumentNullException.ThrowIfNull(signal);
+            WaitCallCount++;
+            if (ThrowOnWait)
+                throw new InvalidOperationException("Wait failed.");
+            if (WaitResult is { } result)
+                return result;
+            if (timeout is null)
+            {
+                signal.Wait();
+                return true;
+            }
+
+            return signal.Wait(timeout.Value);
+        }
+
+        public IDisposable? ScheduleTimeout(JsRealm realm, TimeSpan timeout, Action callback)
+        {
+            ArgumentNullException.ThrowIfNull(realm);
+            ArgumentNullException.ThrowIfNull(callback);
+            if (ThrowOnSchedule)
+                throw new InvalidOperationException("Timeout scheduling failed.");
+            timeoutCallback = callback;
+            return null;
+        }
+
+        public void FireTimeout()
+        {
+            var callback = Interlocked.Exchange(ref timeoutCallback, null);
+            Assert.That(callback, Is.Not.Null, "No Atomics.waitAsync timeout was scheduled.");
+            callback!();
         }
     }
 }

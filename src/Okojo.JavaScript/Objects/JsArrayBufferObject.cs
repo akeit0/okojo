@@ -778,9 +778,7 @@ public class JsArrayBufferObject : JsObject
     {
         if (sharedStorage is null && externalSharedWaitersByByteIndex is null)
             throw new InvalidOperationException("ArrayBuffer is not shared.");
-        var waiter = new SharedWaiter(
-            realm.Agent.SharedWaiterControllerFactory.CreateController(realm)
-        );
+        var waiter = new SharedWaiter(realm, realm.Agent.AtomicsWaitPolicy);
         lock (GetSharedSyncRoot())
         {
             var waitersByByteIndex = sharedStorage is not null
@@ -811,9 +809,7 @@ public class JsArrayBufferObject : JsObject
             waitersByByteIndex[byteIndex] = waiters;
         }
 
-        var waiter = new SharedWaiter(
-            realm.Agent.SharedWaiterControllerFactory.CreateController(realm)
-        );
+        var waiter = new SharedWaiter(realm, realm.Agent.AtomicsWaitPolicy);
         waiters.Add(waiter);
         return waiter;
     }
@@ -982,12 +978,6 @@ public class JsArrayBufferObject : JsObject
         }
     }
 
-    internal interface ISharedWaiterController : IDisposable
-    {
-        void ArmAsyncTimeout(SharedWaiter waiter, TimeSpan? timeout);
-        bool Wait(SharedWaiter waiter, TimeSpan? timeout);
-    }
-
     internal sealed class SharedBufferStorage
     {
         public byte[] Bytes;
@@ -1006,11 +996,14 @@ public class JsArrayBufferObject : JsObject
         public Dictionary<uint, List<SharedWaiter>> WaitersByByteIndex { get; } = new();
     }
 
-    internal sealed class SharedWaiter(ISharedWaiterController controller) : IDisposable
+    internal sealed class SharedWaiter(JsRealm realm, IAtomicsWaitPolicy policy) : IDisposable
     {
+        private readonly object gate = new();
+        private readonly AtomicsWaitSignal signal = new();
+        private bool disposed;
         private int signalState;
+        private IDisposable? timeoutRegistration;
 
-        public ManualResetEventSlim Event { get; } = new(false);
         public Action<object?>? Continuation { get; set; }
         public object? ContinuationState { get; set; }
 
@@ -1018,26 +1011,29 @@ public class JsArrayBufferObject : JsObject
 
         public void Dispose()
         {
-            controller.Dispose();
-            Event.Dispose();
+            IDisposable? registration;
+            lock (gate)
+            {
+                if (disposed)
+                    return;
+
+                disposed = true;
+                registration = timeoutRegistration;
+                timeoutRegistration = null;
+                signal.Dispose();
+            }
+
+            registration?.Dispose();
         }
 
         public bool TryNotify()
         {
-            if (Interlocked.CompareExchange(ref signalState, 1, 0) != 0)
-                return false;
-
-            Event.Set();
-            return true;
+            return TrySignal(1);
         }
 
         public bool TryTimeout()
         {
-            if (Interlocked.CompareExchange(ref signalState, 2, 0) != 0)
-                return false;
-
-            Event.Set();
-            return true;
+            return TrySignal(2);
         }
 
         public void Complete()
@@ -1047,12 +1043,47 @@ public class JsArrayBufferObject : JsObject
 
         public void ArmAsyncTimeout(TimeSpan? timeout)
         {
-            controller.ArmAsyncTimeout(this, timeout);
+            if (timeout is null)
+                return;
+
+            var registration = policy.ScheduleTimeout(realm, timeout.Value, OnTimeout);
+            var disposeRegistration = false;
+            lock (gate)
+            {
+                if (disposed || signalState != 0)
+                    disposeRegistration = true;
+                else
+                    timeoutRegistration = registration;
+            }
+
+            if (disposeRegistration)
+                registration?.Dispose();
         }
 
         public bool Wait(TimeSpan? timeout)
         {
-            return controller.Wait(this, timeout);
+            if (!policy.Wait(realm, signal, timeout))
+                TryTimeout();
+            return Notified;
+        }
+
+        private void OnTimeout()
+        {
+            if (TryTimeout())
+                Complete();
+        }
+
+        private bool TrySignal(int state)
+        {
+            lock (gate)
+            {
+                if (disposed || signalState != 0)
+                    return false;
+
+                signalState = state;
+                signal.Set();
+                return true;
+            }
         }
     }
 }

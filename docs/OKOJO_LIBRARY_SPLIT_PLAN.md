@@ -45,6 +45,9 @@ Arrows point from a dependency to a consumer. Cycles are forbidden.
 
 - Browser and other host profiles own task readiness, selection, waiting,
   fairness, rendering opportunities, and microtask-checkpoint timing.
+- Hosts control whether an agent may suspend for `Atomics.wait` and how
+  synchronous waits and `Atomics.waitAsync` timeouts are scheduled through the
+  public `IAtomicsWaitPolicy` contract.
 - The engine owns Promise-job state and an independently callable,
   non-reentrant checkpoint that preserves FIFO order and drains recursively
   queued Promise jobs.

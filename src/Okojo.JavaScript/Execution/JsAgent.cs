@@ -93,7 +93,7 @@ public sealed partial class JsAgent : IDisposable
         Action<Assembly[]> addClrAssemblies,
         bool isClrAccessEnabled,
         IClrAccessProvider? clrAccessProvider,
-        ISharedWaiterControllerFactory sharedWaiterControllerFactory,
+        IAtomicsWaitPolicy atomicsWaitPolicy,
         IBackgroundScheduler backgroundScheduler,
         IHostMessageSerializer messageSerializer,
         Func<Action<JsAgentOptions>?, JsAgent> createWorkerAgent
@@ -113,7 +113,7 @@ public sealed partial class JsAgent : IDisposable
         this.addClrAssemblies = addClrAssemblies;
         IsClrAccessEnabled = isClrAccessEnabled;
         ClrAccessProvider = clrAccessProvider;
-        SharedWaiterControllerFactory = sharedWaiterControllerFactory;
+        AtomicsWaitPolicy = atomicsWaitPolicy;
         BackgroundScheduler = backgroundScheduler;
         MessageSerializer = messageSerializer;
         this.createWorkerAgent = createWorkerAgent;
@@ -172,7 +172,7 @@ public sealed partial class JsAgent : IDisposable
     internal IReadOnlyList<IRealmApiModule> RealmApiModules { get; }
     public bool IsClrAccessEnabled { get; }
     internal IClrAccessProvider? ClrAccessProvider { get; }
-    internal ISharedWaiterControllerFactory SharedWaiterControllerFactory { get; }
+    internal IAtomicsWaitPolicy AtomicsWaitPolicy { get; }
     internal IBackgroundScheduler BackgroundScheduler { get; }
     internal IHostMessageSerializer MessageSerializer { get; }
     public JsAgentKind Kind { get; }
