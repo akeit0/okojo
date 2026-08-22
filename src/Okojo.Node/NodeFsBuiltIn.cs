@@ -186,7 +186,7 @@ internal sealed class NodeFsBuiltIn(NodeRuntime runtime)
                 )
                     encoding = info.GetArgument(1).IsString
                         ? info.GetArgument(1).AsString()
-                        : info.Realm.ToJsStringSlowPath(info.GetArgument(1));
+                        : info.Realm.ToJsString(info.GetArgument(1));
 
                 if (
                     string.Equals(encoding, "utf8", StringComparison.OrdinalIgnoreCase)
@@ -220,9 +220,7 @@ internal sealed class NodeFsBuiltIn(NodeRuntime runtime)
                     if (third.TryGetObject(out var thirdObj) && thirdObj is JsFunction thirdFn)
                         callback = thirdFn;
                     else if (!third.IsUndefined && !third.IsNull)
-                        encoding = third.IsString
-                            ? third.AsString()
-                            : info.Realm.ToJsStringSlowPath(third);
+                        encoding = third.IsString ? third.AsString() : info.Realm.ToJsString(third);
                 }
 
                 if (info.ArgumentCount > 3)
@@ -244,7 +242,7 @@ internal sealed class NodeFsBuiltIn(NodeRuntime runtime)
                 File.WriteAllText(path, content);
 
                 if (callback is not null)
-                    info.Realm.InvokeFunction(callback, JsValue.Undefined, [JsValue.Undefined]);
+                    info.Realm.Call(callback, JsValue.Undefined, [JsValue.Undefined]);
 
                 return JsValue.Undefined;
             },
@@ -349,12 +347,7 @@ internal sealed class NodeFsBuiltIn(NodeRuntime runtime)
 
     private static JsTypedArrayObject CreateUint8Array(JsRealm realm, byte[] bytes)
     {
-        var array = new JsTypedArrayObject(
-            realm,
-            (uint)bytes.Length,
-            TypedArrayElementKind.Uint8,
-            realm.Uint8ArrayPrototype
-        );
+        var array = new JsTypedArrayObject(realm, (uint)bytes.Length);
         for (uint i = 0; i < bytes.Length; i++)
             array.TrySetNormalizedElement(i, JsValue.FromInt32(bytes[i]));
         return array;
@@ -372,6 +365,6 @@ internal sealed class NodeFsBuiltIn(NodeRuntime runtime)
 
     private static string GetWriteFileContent(JsValue value, JsRealm realm)
     {
-        return value.IsString ? value.AsString() : realm.ToJsStringSlowPath(value);
+        return value.IsString ? value.AsString() : realm.ToJsString(value);
     }
 }

@@ -106,7 +106,8 @@ internal sealed class NodeEventsBuiltIn(NodeRuntime runtime)
     {
         var emitter = new JsUserDataObject<EventEmitterState>(realm, false);
         emitter.UserData = new();
-        emitter.Prototype = GetPrototypeObject();
+        if (!emitter.TrySetPrototype(GetPrototypeObject()))
+            throw new InvalidOperationException("EventEmitter prototype could not be assigned.");
         return emitter;
     }
 
@@ -116,11 +117,11 @@ internal sealed class NodeEventsBuiltIn(NodeRuntime runtime)
         if (emitterStates.TryGetValue(receiver, out _))
             return;
 
-        var stateBox = new JsUserDataObject<EventEmitterState>(realm, false)
-        {
-            UserData = new(),
-            Prototype = null,
-        };
+        var stateBox = new JsUserDataObject<EventEmitterState>(realm, false) { UserData = new() };
+        if (!stateBox.TrySetPrototype(null))
+            throw new InvalidOperationException(
+                "EventEmitter state prototype could not be cleared."
+            );
 
         emitterStates.Add(receiver, stateBox);
     }
@@ -545,9 +546,7 @@ internal sealed class NodeEventsBuiltIn(NodeRuntime runtime)
     private static string GetEventName(in CallInfo info)
     {
         var eventValue = info.GetArgument(0);
-        return eventValue.IsString
-            ? eventValue.AsString()
-            : info.Realm.ToJsStringSlowPath(eventValue);
+        return eventValue.IsString ? eventValue.AsString() : info.Realm.ToJsString(eventValue);
     }
 
     internal sealed class EventEmitterState

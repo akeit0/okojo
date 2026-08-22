@@ -124,7 +124,8 @@ internal sealed class NodeConsoleBuiltIn(NodeRuntime runtime, NodeTtyBuiltIn tty
     )
     {
         var console = new JsPlainObject(realm, useDictionaryMode: true);
-        console.Prototype = GetConsolePrototype();
+        if (!console.TrySetPrototype(GetConsolePrototype()))
+            throw new InvalidOperationException("Console prototype could not be assigned.");
         InitializeConsoleReceiver(console, stdout, stderr, ignoreErrors, true);
         return console;
     }
@@ -138,7 +139,8 @@ internal sealed class NodeConsoleBuiltIn(NodeRuntime runtime, NodeTtyBuiltIn tty
     )
     {
         if (!preservePrototype)
-            receiver.Prototype = GetConsolePrototype();
+            if (!receiver.TrySetPrototype(GetConsolePrototype()))
+                throw new InvalidOperationException("Console prototype could not be assigned.");
 
         var state = new ConsoleInstanceState(stdout, stderr, ignoreErrors);
         states.Remove(receiver);

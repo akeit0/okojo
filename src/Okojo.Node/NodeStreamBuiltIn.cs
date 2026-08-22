@@ -152,7 +152,8 @@ internal sealed class NodeStreamBuiltIn(NodeRuntime runtime, NodeEventsBuiltIn e
         var shape = instanceShape ??= CreateInstanceShape(realm);
         var instance = new JsUserDataObject<NodeEventsBuiltIn.EventEmitterState>(shape, false);
         instance.UserData = new();
-        instance.Prototype = GetStreamPrototype();
+        if (!instance.TrySetPrototype(GetStreamPrototype()))
+            throw new InvalidOperationException("Stream prototype could not be assigned.");
         var state = new StreamState(readable, writable);
         states.Add(instance, state);
         instance.SetNamedSlotUnchecked(
@@ -176,7 +177,8 @@ internal sealed class NodeStreamBuiltIn(NodeRuntime runtime, NodeEventsBuiltIn e
         var realm = runtime.MainRealm;
         var shape = prototypeShape ??= CreatePrototypeShape(realm);
         var prototype = new JsPlainObject(shape);
-        prototype.Prototype = eventsBuiltIn.GetPrototypeObject();
+        if (!prototype.TrySetPrototype(eventsBuiltIn.GetPrototypeObject()))
+            throw new InvalidOperationException("Stream base prototype could not be assigned.");
         prototype.SetNamedSlotUnchecked(
             PrototypeWriteSlot,
             JsValue.FromObject(CreateWriteFunction(realm))

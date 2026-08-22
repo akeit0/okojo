@@ -1075,14 +1075,7 @@ internal sealed class NodeBuiltInModuleRegistry
                         );
 
                     return JsValue.FromObject(
-                        new JsTypedArrayObject(
-                            info.Realm,
-                            arrayBuffer,
-                            byteOffset,
-                            length,
-                            TypedArrayElementKind.Uint8,
-                            info.Realm.Uint8ArrayPrototype
-                        )
+                        new JsTypedArrayObject(info.Realm, arrayBuffer, byteOffset, length)
                     );
                 }
 
@@ -1196,12 +1189,7 @@ internal sealed class NodeBuiltInModuleRegistry
 
     private static JsTypedArrayObject CreateUint8Array(JsRealm realm, byte[] bytes)
     {
-        var array = new JsTypedArrayObject(
-            realm,
-            (uint)bytes.Length,
-            TypedArrayElementKind.Uint8,
-            realm.Uint8ArrayPrototype
-        );
+        var array = new JsTypedArrayObject(realm, (uint)bytes.Length);
         for (uint i = 0; i < bytes.Length; i++)
             array.TrySetNormalizedElement(i, JsValue.FromInt32(bytes[i]));
         return array;

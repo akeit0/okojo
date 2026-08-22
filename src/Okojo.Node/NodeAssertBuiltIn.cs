@@ -122,8 +122,8 @@ internal sealed class NodeAssertBuiltIn(NodeRuntime runtime)
         if (info.Arguments.Length > 2 && info.Arguments[2].IsString)
             return info.Arguments[2].AsString();
 
-        var actualText = info.Realm.ToJsStringSlowPath(actual);
-        var expectedText = info.Realm.ToJsStringSlowPath(expected);
+        var actualText = info.Realm.ToJsString(actual);
+        var expectedText = info.Realm.ToJsString(expected);
         return equal
             ? $"Expected strict equality: actual={actualText}, expected={expectedText}"
             : $"Expected values to differ: actual={actualText}, expected={expectedText}";

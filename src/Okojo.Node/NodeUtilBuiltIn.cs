@@ -200,7 +200,7 @@ internal sealed class NodeUtilBuiltIn(NodeRuntime runtime)
 
     private static string RenderForString(JsRealm realm, in JsValue value)
     {
-        return value.IsString ? value.AsString() : realm.ToJsStringSlowPath(value);
+        return value.IsString ? value.AsString() : realm.ToJsString(value);
     }
 
     private static string RenderForJsonLike(JsRealm realm, in JsValue value)
@@ -266,9 +266,7 @@ internal sealed class NodeUtilBuiltIn(NodeRuntime runtime)
                     out var keyValue
                 )
             )
-                keys.Add(
-                    keyValue.IsString ? keyValue.AsString() : realm.ToJsStringSlowPath(keyValue)
-                );
+                keys.Add(keyValue.IsString ? keyValue.AsString() : realm.ToJsString(keyValue));
 
         return keys;
     }

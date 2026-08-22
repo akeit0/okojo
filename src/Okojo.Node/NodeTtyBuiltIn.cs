@@ -120,7 +120,8 @@ internal sealed class NodeTtyBuiltIn(
     {
         var shape = streamShape ??= CreateStreamShape(realm);
         var stream = new JsUserDataObject<StreamState>(shape);
-        stream.Prototype = eventsBuiltIn.GetPrototypeObject();
+        if (!stream.TrySetPrototype(eventsBuiltIn.GetPrototypeObject()))
+            throw new InvalidOperationException("TTY stream prototype could not be assigned.");
         eventsBuiltIn.InitializeEmitterReceiver(realm, stream);
         stream.UserData = new(writer, fd, isTty, columns, rows);
         stream.SetNamedSlotUnchecked(
@@ -160,7 +161,8 @@ internal sealed class NodeTtyBuiltIn(
     {
         var shape = inputShape ??= CreateInputShape(realm);
         var input = new JsUserDataObject<InputState>(shape);
-        input.Prototype = eventsBuiltIn.GetPrototypeObject();
+        if (!input.TrySetPrototype(eventsBuiltIn.GetPrototypeObject()))
+            throw new InvalidOperationException("TTY input prototype could not be assigned.");
         eventsBuiltIn.InitializeEmitterReceiver(realm, input);
         input.UserData = new(fd, isTty);
         input.SetNamedSlotUnchecked(InputReadSlot, JsValue.FromObject(CreateReadFunction(realm)));
@@ -349,7 +351,7 @@ internal sealed class NodeTtyBuiltIn(
                 var text =
                     info.Arguments.Length == 0 ? string.Empty
                     : info.GetArgument(0).IsString ? info.GetArgument(0).AsString()
-                    : info.Realm.ToJsStringSlowPath(info.GetArgument(0));
+                    : info.Realm.ToJsString(info.GetArgument(0));
 
                 WriteToStream(info.ThisValue, text);
                 return JsValue.True;
@@ -483,7 +485,7 @@ internal sealed class NodeTtyBuiltIn(
                 input.UserData!.Encoding =
                     info.Arguments.Length == 0 ? "utf8"
                     : info.GetArgument(0).IsString ? info.GetArgument(0).AsString()
-                    : info.Realm.ToJsStringSlowPath(info.GetArgument(0));
+                    : info.Realm.ToJsString(info.GetArgument(0));
                 return info.ThisValue;
             },
             false
@@ -500,7 +502,7 @@ internal sealed class NodeTtyBuiltIn(
             {
                 var input = RequireInputObject(info.ThisValue);
                 input.UserData!.RawModeEnabled =
-                    info.Arguments.Length != 0 && JsRealm.ToBoolean(info.GetArgument(0));
+                    info.Arguments.Length != 0 && info.GetArgument(0).ToBoolean();
                 return info.ThisValue;
             },
             false

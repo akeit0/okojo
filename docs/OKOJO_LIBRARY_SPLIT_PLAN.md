@@ -55,34 +55,24 @@ Arrows point from a dependency to a consumer. Cycles are forbidden.
   delivery, timers, and cross-realm ownership checks. A warning or failing test
   is a defect, not an accepted migration state.
 
+## Friend access policy
+
+`InternalsVisibleTo` is allowed for official packages that are versioned and
+changed in lockstep in this repository. Removing every friend relationship is
+not a goal. For each use, classify it as:
+
+- stale access to remove;
+- a capability required by external embedders, which needs a supported public
+  contract; or
+- intentional privileged access for performance, invariant preservation, or
+  tightly coupled implementation work.
+
+Retain the third category when its reason is concrete and document that reason
+next to the assembly attribute. Do not publish unstable object-model, atom,
+shape, VM, or typed-array internals, and do not add wrappers or one-use
+interfaces solely to eliminate a friend relationship.
+
 ## Remaining work
-
-### CLR and Reflection boundary
-
-Remove both Reflection friend relationships:
-
-- `Okojo.JavaScript` → `Okojo.Reflection`
-- `Okojo.JavaScript.Embedding` → `Okojo.Reflection`
-
-Define the smallest supported CLR integration contract around the existing
-builder composition path. Do not expose atom IDs, shape storage, raw property
-operations, or reflection implementation descriptors merely to remove a friend
-entry. Resolve the ownership of `IClrAccessProvider` and the Reflection wrapper
-contracts as one coherent change.
-
-### Engine and Embedding boundary
-
-Remove `Okojo.JavaScript` → `Okojo.JavaScript.Embedding`. The remaining known
-uses involve shared-waiter composition and CLR access. Keep scheduler and event
-loop policy in Embedding, and expose only contracts that an external embedder
-must implement.
-
-### Node boundary
-
-Remove `Okojo.JavaScript` → `Okojo.Node`. Audit Node's conversion, module/job,
-Promise, prototype, typed-array, compiler, and property dependencies together.
-Prefer existing public operations, then narrow supported host contracts; do not
-publish general VM or object-layout internals.
 
 ### Diagnostic and tooling friends
 
@@ -115,9 +105,10 @@ only for Test262 changes.
 
 The split is complete when:
 
-- no production host/profile relies on an unreviewed friend relationship;
-- intentional compiler, diagnostic, test, and tooling friends are minimal and
-  documented next to their declarations;
+- every production, compiler, diagnostic, test, and tooling friend relationship
+  has been reviewed;
+- stale access is removed and intentional lockstep access is minimal and
+  documented next to its declaration;
 - engine, Embedding, Reflection, Node, and the full solution build independently
   without warnings;
 - focused and full tests pass without accepted failures; and

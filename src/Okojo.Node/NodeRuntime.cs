@@ -77,7 +77,7 @@ public sealed class NodeRuntime : IDisposable
         return moduleFormatResolver.DetermineFormat(resolvedId) switch
         {
             NodeModuleFormat.CommonJs => LoadCommonJsModule(resolvedId),
-            NodeModuleFormat.EsModule => Runtime.MainAgent.EvaluateModule(MainRealm, resolvedId),
+            NodeModuleFormat.EsModule => Runtime.MainAgent.Modules.Evaluate(MainRealm, resolvedId),
             _ => throw new InvalidOperationException("Unsupported Node module format."),
         };
     }
@@ -231,13 +231,13 @@ public sealed class NodeRuntime : IDisposable
         if (
             module.CompletionValue.TryGetObject(out var completionObject)
             && completionObject is JsPromiseObject promise
-            && promise.State == JsPromiseObject.PromiseState.Pending
+            && promise.IsPending
         )
         {
-            for (var i = 0; i < 16 && promise.State == JsPromiseObject.PromiseState.Pending; i++)
+            for (var i = 0; i < 16 && promise.IsPending; i++)
                 MainRealm.PumpJobs();
 
-            if (promise.State == JsPromiseObject.PromiseState.Fulfilled)
+            if (promise.IsFulfilled)
                 return JsValue.FromObject(module.Object);
         }
 

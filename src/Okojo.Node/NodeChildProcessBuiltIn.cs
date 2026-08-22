@@ -221,7 +221,7 @@ internal sealed class NodeChildProcessBuiltIn(NodeRuntime runtime)
         var args = new string[length];
         for (var i = 0; i < length; i++)
             if (obj.TryGetProperty(i.ToString(), out var element))
-                args[i] = element.IsString ? element.AsString() : realm.ToJsStringSlowPath(element);
+                args[i] = element.IsString ? element.AsString() : realm.ToJsString(element);
             else
                 args[i] = string.Empty;
 
@@ -245,7 +245,7 @@ internal sealed class NodeChildProcessBuiltIn(NodeRuntime runtime)
         )
             encoding = encodingValue.IsString
                 ? encodingValue.AsString()
-                : realm.ToJsStringSlowPath(encodingValue);
+                : realm.ToJsString(encodingValue);
 
         if (obj.TryGetProperty("timeout", out var timeoutValue) && !timeoutValue.IsUndefined)
         {
@@ -279,14 +279,12 @@ internal sealed class NodeChildProcessBuiltIn(NodeRuntime runtime)
                 {
                     if (!keysObj.TryGetProperty(i.ToString(), out var keyValue))
                         continue;
-                    var key = keyValue.IsString
-                        ? keyValue.AsString()
-                        : realm.ToJsStringSlowPath(keyValue);
+                    var key = keyValue.IsString ? keyValue.AsString() : realm.ToJsString(keyValue);
                     if (!envObj.TryGetProperty(key, out var propertyValue))
                         continue;
                     env[key] = propertyValue.IsString
                         ? propertyValue.AsString()
-                        : realm.ToJsStringSlowPath(propertyValue);
+                        : realm.ToJsString(propertyValue);
                 }
             }
         }
