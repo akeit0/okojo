@@ -182,27 +182,55 @@ Supporting architecture document for the current next slice:
 
 ## Test Workflow (Required)
 
-### Fast local loop
+Choose the workflow that matches the change. The workflows below are alternatives, not a sequence to execute from top to bottom.
+
+### Focused-first workflow
+
+For a change with a meaningful focused test, run it first:
 
 ```powershell
-dotnet test tests/Okojo.Tests/Okojo.Tests.csproj
+dotnet test tests/Okojo.Tests/Okojo.Tests.csproj -c Release --filter <Name>
 ```
 
-When doing repeated focused runs, prefer:
+After the focused test passes, run the full suite once without rebuilding:
 
 ```powershell
-dotnet build tests/Okojo.Tests/Okojo.Tests.csproj
-dotnet test tests/Okojo.Tests/Okojo.Tests.csproj --no-build --filter <Name>
+dotnet test tests/Okojo.Tests/Okojo.Tests.csproj -c Release --no-build
+```
+
+The first `dotnet test` builds the test project before running the filter. A successful full suite includes the focused coverage; do not run the same filter again afterward.
+
+### Repeated focused workflow
+
+When iterating repeatedly, build once and reuse that build for focused runs:
+
+```powershell
+dotnet build tests/Okojo.Tests/Okojo.Tests.csproj -c Release
+dotnet test tests/Okojo.Tests/Okojo.Tests.csproj -c Release --no-build --filter <Name>
 ```
 
 This avoids transient `Okojo.dll` copy/file-lock races during tight local iteration.
 
+After the final focused run passes, run the full suite once:
+
+```powershell
+dotnet test tests/Okojo.Tests/Okojo.Tests.csproj -c Release --no-build
+```
+
+### Full-only workflow
+
+For a broad change with no meaningful focused filter, run the full suite directly:
+
+```powershell
+dotnet test tests/Okojo.Tests/Okojo.Tests.csproj -c Release
+```
+
 Discipline:
 
 - Do not run `dotnet build` and `dotnet test` in parallel.
-- If a build is needed, wait for the build to finish before running tests.
-- If only one verification command is needed, prefer a single `dotnet test ...` command instead of `build` plus `test --no-build`.
-- Use `build` + `test --no-build` only for repeated focused loops after the sequential build has completed.
+- Do not run a focused test after a successful full suite unless diagnosing a later failure.
+- Use `build` plus `test --no-build` only for repeated focused iterations.
+- Documentation-only changes do not require a .NET build or test unless the document changes a generated or executable artifact.
 - Treat every build warning and test failure as a blocker; fix it before committing unless the user explicitly approves an exception.
 
 ### Test262 workflow
