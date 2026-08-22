@@ -350,6 +350,17 @@ The existing test/tooling friends were intentionally not audited in this
 slice. In particular, `Test262Runner` still needs the engine shared-waiter
 and timer internals plus embedding `UseSharedWaiterControllerFactory`.
 
+### Phase 5B — worker projection composition: complete
+
+`WorkerMessaging` remains a concrete runtime-owned component with an internal
+constructor. `JsRuntimeOptions.UseWorkerMessaging` is the supported composition
+path; it passes the runtime-created component to Hosting and WebPlatform
+projection modules. Worker-handle atom selection remains inside Embedding, and
+the projections receive only worker creation, receiver registration, and value
+message operations. The `Okojo.Hosting` and `Okojo.WebPlatform` friends were
+removed from `Okojo.JavaScript.Embedding` after independent consumer builds.
+No transport interface or compatibility facade was added.
+
 Do not reorganize all tests before the production split compiles. Keep `tests/Okojo.Tests` as the conformance/integration loop first; create `Okojo.JavaScript.Tests` and `Okojo.JavaScript.Embedding.Tests` only while moving tests that clearly belong to each boundary.
 
 Finally update:

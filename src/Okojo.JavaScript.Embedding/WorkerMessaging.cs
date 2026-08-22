@@ -2,36 +2,68 @@ using Okojo.JavaScript.Objects;
 
 namespace Okojo.JavaScript.Embedding;
 
-internal sealed class WorkerMessaging(
-    IHostMessageSerializer messageSerializer,
-    IWorkerHost workerHost,
-    HostTaskQueueKey workerMessageQueueKey
-)
+public sealed class WorkerMessaging
 {
-    private readonly IHostMessageSerializer serializer = messageSerializer;
-    private readonly IWorkerHost host = workerHost;
-    private readonly HostTaskQueueKey queueKey = workerMessageQueueKey;
+    private readonly IHostMessageSerializer serializer;
+    private readonly IWorkerHost host;
+    private readonly HostTaskQueueKey queueKey;
+
+    internal WorkerMessaging(
+        IHostMessageSerializer messageSerializer,
+        IWorkerHost workerHost,
+        HostTaskQueueKey workerMessageQueueKey
+    )
+    {
+        serializer = messageSerializer;
+        host = workerHost;
+        queueKey = workerMessageQueueKey;
+    }
+
+    private static readonly WorkerHandleFactory.OkojoWorkerHandleAtoms WorkerHandleAtoms = new(
+        AtomTable.IdOnmessage,
+        AtomTable.IdOnmessageerror,
+        AtomTable.IdPostMessage,
+        AtomTable.IdEval,
+        AtomTable.IdLoadModule,
+        AtomTable.IdPump,
+        AtomTable.IdTerminate
+    );
+
     private readonly object realmsGate = new();
     private readonly Dictionary<JsRealm, RealmState> realms = new(
         ReferenceEqualityComparer.Instance
     );
 
-    internal (WorkerHostBinding Binding, JsPlainObject Handle) CreateWorkerHandle(
+    public (WorkerHostBinding Binding, JsPlainObject Handle) CreateWorkerHandle(
         JsRealm ownerRealm,
         string? moduleEntry,
-        string? ownerReferrer,
-        WorkerHandleFactory.OkojoWorkerHandleAtoms atoms
+        string? ownerReferrer
     )
     {
+        ArgumentNullException.ThrowIfNull(ownerRealm);
         var binding = host.CreateWorker(ownerRealm, moduleEntry, ownerReferrer);
         var handle = WorkerHandleFactory.CreateHandle(
             ownerRealm,
             binding,
             this,
-            atoms,
+            WorkerHandleAtoms,
             agentId => RemoveWorkerHandle(ownerRealm, agentId)
         );
         return (binding, handle);
+    }
+
+    public void PostMessage(JsRealm sourceRealm, JsAgent target, JsValue? value)
+    {
+        ArgumentNullException.ThrowIfNull(sourceRealm);
+        ArgumentNullException.ThrowIfNull(target);
+        object? payload = null;
+        if (value.HasValue)
+        {
+            var valueToSerialize = value.Value;
+            payload = serializer.SerializeOutgoing(sourceRealm, in valueToSerialize);
+        }
+
+        PostSerializedMessage(sourceRealm.Agent, target, payload);
     }
 
     internal object? SerializeOutgoing(JsRealm realm, in JsValue value)
@@ -44,8 +76,9 @@ internal sealed class WorkerMessaging(
         source.PostMessage(target, payload, queueKey);
     }
 
-    internal void RegisterGlobalReceiver(JsRealm realm, Action<JsValue, bool> receiver)
+    public void RegisterGlobalReceiver(JsRealm realm, Action<JsValue, bool> receiver)
     {
+        ArgumentNullException.ThrowIfNull(realm);
         ArgumentNullException.ThrowIfNull(receiver);
         var state = GetState(realm);
         lock (state.Gate)
@@ -56,12 +89,13 @@ internal sealed class WorkerMessaging(
         EnsureMessageDispatchHook(realm, state);
     }
 
-    internal void RegisterWorkerHandle(
+    public void RegisterWorkerHandle(
         JsRealm ownerRealm,
         int workerAgentId,
         Action<JsValue, bool> receiver
     )
     {
+        ArgumentNullException.ThrowIfNull(ownerRealm);
         ArgumentNullException.ThrowIfNull(receiver);
         var state = GetState(ownerRealm);
         lock (state.Gate)

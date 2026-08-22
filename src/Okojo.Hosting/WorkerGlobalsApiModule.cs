@@ -8,11 +8,9 @@ namespace Okojo.Hosting;
 
 public sealed class WorkerGlobalsApiModule : IRealmApiModule
 {
-    private WorkerMessaging? workerMessaging;
+    private readonly WorkerMessaging workerMessaging;
 
-    internal WorkerGlobalsApiModule() { }
-
-    internal void AttachWorkerMessaging(WorkerMessaging workerMessaging)
+    public WorkerGlobalsApiModule(WorkerMessaging workerMessaging)
     {
         ArgumentNullException.ThrowIfNull(workerMessaging);
         this.workerMessaging = workerMessaging;
@@ -20,9 +18,7 @@ public sealed class WorkerGlobalsApiModule : IRealmApiModule
 
     public void Install(JsRealm realm)
     {
-        var messaging =
-            workerMessaging
-            ?? throw new InvalidOperationException("Worker messaging is not attached.");
+        var messaging = workerMessaging;
         messaging.RegisterGlobalReceiver(
             realm,
             (data, isError) => DispatchGlobalMessageEvent(realm, data, isError)
@@ -51,9 +47,11 @@ public sealed class WorkerGlobalsApiModule : IRealmApiModule
                             );
 
                         var args = info.Arguments;
-                        var payload =
-                            args.Length != 0 ? messaging.SerializeOutgoing(realm, args[0]) : null;
-                        messaging.PostSerializedMessage(realm.Agent, target, payload);
+                        messaging.PostMessage(
+                            realm,
+                            target,
+                            args.Length != 0 ? (JsValue?)args[0] : null
+                        );
                         return JsValue.Undefined;
                     },
                     "postMessage",
@@ -95,16 +93,7 @@ public sealed class WorkerGlobalsApiModule : IRealmApiModule
                     var created = messaging.CreateWorkerHandle(
                         realm,
                         moduleEntry,
-                        realm.GetCurrentModuleResolvedIdOrNull(),
-                        new(
-                            AtomTable.IdOnmessage,
-                            AtomTable.IdOnmessageerror,
-                            AtomTable.IdPostMessage,
-                            AtomTable.IdEval,
-                            AtomTable.IdLoadModule,
-                            AtomTable.IdPump,
-                            AtomTable.IdTerminate
-                        )
+                        realm.GetCurrentModuleResolvedIdOrNull()
                     );
                     messaging.RegisterWorkerHandle(
                         realm,

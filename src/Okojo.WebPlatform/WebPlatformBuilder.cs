@@ -118,12 +118,7 @@ public sealed class WebPlatformBuilder
     public WebPlatformBuilder UseWebWorkers(WebWorkerHost workerHost)
     {
         ArgumentNullException.ThrowIfNull(workerHost);
-        options.UseWorkerMessaging(workerMessaging =>
-        {
-            var module = new WebWorkerApiModule();
-            module.AttachWorkerMessaging(workerMessaging);
-            return module;
-        });
+        options.UseWorkerMessaging(workerMessaging => new WebWorkerApiModule(workerMessaging));
         options.UseLowLevelHost(host => host.UseWorkerMessageQueue(WebTaskQueueKeys.Messages));
         options.UseHosting(hosting => hosting.UseJsWorkerHost(workerHost));
         return this;

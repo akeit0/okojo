@@ -29,12 +29,7 @@ public sealed class HostingBuilder
 
     public HostingBuilder UseWorkerGlobals()
     {
-        options.UseWorkerMessaging(workerMessaging =>
-        {
-            var module = new WorkerGlobalsApiModule();
-            module.AttachWorkerMessaging(workerMessaging);
-            return module;
-        });
+        options.UseWorkerMessaging(workerMessaging => new WorkerGlobalsApiModule(workerMessaging));
         return this;
     }
 

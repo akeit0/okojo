@@ -161,9 +161,7 @@ public sealed class JsRuntimeOptions
         return this;
     }
 
-    internal JsRuntimeOptions UseWorkerMessaging(
-        Func<WorkerMessaging, IRealmApiModule> createModule
-    )
+    public JsRuntimeOptions UseWorkerMessaging(Func<WorkerMessaging, IRealmApiModule> createModule)
     {
         ArgumentNullException.ThrowIfNull(createModule);
         Core.AddRealmApiModuleFactory(createModule);
