@@ -1,10 +1,10 @@
 namespace Okojo.Text.RegularExpressions;
 
 /// <summary>Allocation-free metadata for the whole match.</summary>
-public readonly record struct EcmaMatch(int Index, int Length)
+public readonly record struct MatchRange(int Index, int Length)
 {
     /// <summary>A sentinel describing a failed match.</summary>
-    public static EcmaMatch Failure => new(-1, 0);
+    public static MatchRange Failure => new(-1, 0);
 
     /// <summary>True if this describes a successful match.</summary>
     public bool Success => Index >= 0;
@@ -18,20 +18,20 @@ public readonly record struct EcmaMatch(int Index, int Length)
 }
 
 /// <summary>
-/// Allocating convenience result. Use <see cref="EcmaRegex.TryMatch(ReadOnlySpan{char},Span{EcmaCapture},out EcmaMatch)"/>
+/// Allocating convenience result. Use <see cref="RegExp.TryMatch(ReadOnlySpan{char},Span{CaptureRange},out MatchRange)"/>
 /// on hot paths.
 /// </summary>
-public sealed class EcmaMatchResult
+public sealed class MatchResult
 {
     private readonly string _input;
-    private readonly EcmaCapture[] _captures;
+    private readonly CaptureRange[] _captures;
 
     /// <summary>Capture indices (ascending) sharing each group name.</summary>
     private readonly IReadOnlyDictionary<string, int[]> _nameGroups;
 
-    internal EcmaMatchResult(
+    internal MatchResult(
         string input,
-        EcmaCapture[] captures,
+        CaptureRange[] captures,
         IReadOnlyDictionary<string, int[]> nameGroups
     )
     {
@@ -40,26 +40,23 @@ public sealed class EcmaMatchResult
         _nameGroups = nameGroups;
     }
 
-    /// <summary>True if a match was found.</summary>
-    public bool Success => _captures.Length != 0 && _captures[0].Success;
-
-    /// <summary>Start offset of the whole match, or -1 when failed.</summary>
-    public int Index => Success ? _captures[0].Index : -1;
+    /// <summary>Start offset of the whole match.</summary>
+    public int Index => _captures[0].Index;
 
     /// <summary>Length of the whole match.</summary>
-    public int Length => Success ? _captures[0].Length : 0;
+    public int Length => _captures[0].Length;
 
     /// <summary>Exclusive end offset of the whole match.</summary>
-    public int End => Success ? _captures[0].End : -1;
+    public int End => _captures[0].End;
 
     /// <summary>Matched text of the whole match.</summary>
-    public string Value => Success ? _input.Substring(Index, Length) : string.Empty;
+    public string Value => _input.Substring(Index, Length);
 
     /// <summary>Number of explicit capturing groups.</summary>
     public int CaptureCount => Math.Max(0, _captures.Length - 1);
 
     /// <summary>All capture ranges, index zero being the whole match.</summary>
-    public ReadOnlyMemory<EcmaCapture> Captures => _captures;
+    public ReadOnlyMemory<CaptureRange> Captures => _captures;
 
     private IReadOnlyDictionary<string, int>? _groupNames;
 
@@ -72,7 +69,7 @@ public sealed class EcmaMatchResult
         );
 
     /// <summary>Returns the capture for a numeric group.</summary>
-    public EcmaCapture GetCapture(int groupNumber)
+    public CaptureRange GetCapture(int groupNumber)
     {
         if ((uint)groupNumber >= (uint)_captures.Length)
             throw new ArgumentOutOfRangeException(nameof(groupNumber));
@@ -80,7 +77,7 @@ public sealed class EcmaMatchResult
     }
 
     /// <summary>Returns the most recently matched capture for a named group.</summary>
-    public EcmaCapture GetCapture(string groupName)
+    public CaptureRange GetCapture(string groupName)
     {
         ArgumentNullException.ThrowIfNull(groupName);
         if (!_nameGroups.TryGetValue(groupName, out int[]? groups))
@@ -90,20 +87,20 @@ public sealed class EcmaMatchResult
             if (_captures[group].Success)
                 return _captures[group];
         }
-        return EcmaCapture.Unmatched;
+        return CaptureRange.Unmatched;
     }
 
     /// <summary>Returns the matched text of a numeric group, or null if unmatched.</summary>
     public string? GetGroupValue(int groupNumber)
     {
-        EcmaCapture capture = GetCapture(groupNumber);
+        CaptureRange capture = GetCapture(groupNumber);
         return capture.Success ? _input.Substring(capture.Index, capture.Length) : null;
     }
 
     /// <summary>Returns the matched text of a named group, or null if unmatched.</summary>
     public string? GetGroupValue(string groupName)
     {
-        EcmaCapture capture = GetCapture(groupName);
+        CaptureRange capture = GetCapture(groupName);
         return capture.Success ? _input.Substring(capture.Index, capture.Length) : null;
     }
 }

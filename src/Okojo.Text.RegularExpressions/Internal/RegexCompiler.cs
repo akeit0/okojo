@@ -8,8 +8,8 @@ internal static class RegexCompiler
     internal static RegexProgram Compile(
         RegexNode root,
         int captureCount,
-        EcmaRegexFlagSet flags,
-        EcmaRegexOptions options
+        RegExpFlags flags,
+        RegExpOptions options
     )
     {
         var context = new CompilerContext(captureCount, flags, options);
@@ -28,8 +28,8 @@ internal static class RegexCompiler
     private sealed class CompilerContext
     {
         private readonly int _captureCount;
-        private readonly EcmaRegexFlagSet _flags;
-        private readonly EcmaRegexOptions _options;
+        private readonly RegExpFlags _flags;
+        private readonly RegExpOptions _options;
         private readonly List<SegmentBuilder> _segments = [];
         private readonly List<CharSet> _classes = [];
         private readonly Dictionary<CharSet, int> _classIndices = new(
@@ -42,14 +42,14 @@ internal static class RegexCompiler
         private int _stateSlots;
         private int _instructionCount;
 
-        internal CompilerContext(int captureCount, EcmaRegexFlagSet flags, EcmaRegexOptions options)
+        internal CompilerContext(int captureCount, RegExpFlags flags, RegExpOptions options)
         {
             _captureCount = captureCount;
             _flags = flags;
             _options = options;
         }
 
-        internal EcmaRegexOptions Options => _options;
+        internal RegExpOptions Options => _options;
 
         internal SegmentBuilder CreateSegment(int direction, int firstCapture, int lastCapture)
         {
@@ -63,10 +63,10 @@ internal static class RegexCompiler
         {
             if (++_instructionCount > _options.MaxProgramSize)
             {
-                throw new EcmaRegexParseException(
+                throw new RegExpParseException(
                     "Compiled regular-expression program exceeds MaxProgramSize.",
                     -1,
-                    EcmaRegexError.PatternTooLarge
+                    RegExpParseError.PatternTooLarge
                 );
             }
         }
@@ -346,10 +346,10 @@ internal static class RegexCompiler
                 || (node.Maximum >= 0 && node.Maximum > _context.Options.MaxRepeatCount)
             )
             {
-                throw new EcmaRegexParseException(
+                throw new RegExpParseException(
                     "Quantifier exceeds MaxRepeatCount.",
                     -1,
-                    EcmaRegexError.PatternTooLarge
+                    RegExpParseError.PatternTooLarge
                 );
             }
 

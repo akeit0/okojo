@@ -127,7 +127,7 @@ internal sealed class RegexProgram
 
     /// <summary>String-capable /v character classes, addressed by <see cref="OpCode.ClassSet"/>.</summary>
     internal required ClassSetInfo[] ClassSets { get; init; }
-    internal required EcmaRegexFlagSet Flags { get; init; }
+    internal required RegExpFlags Flags { get; init; }
 
     /// <summary>Explicit capture count, excluding group zero.</summary>
     internal required int CaptureCount { get; init; }
@@ -139,7 +139,7 @@ internal sealed class RegexProgram
         StringBuilder builder = new();
         builder.AppendLine(
             CultureInfo.InvariantCulture,
-            $"flags: {EcmaRegexFlagParser.Format(Flags)}"
+            $"flags: {RegExpFlagParser.Format(Flags)}"
         );
         builder.AppendLine(
             CultureInfo.InvariantCulture,

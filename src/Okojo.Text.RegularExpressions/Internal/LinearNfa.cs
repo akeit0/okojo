@@ -44,7 +44,7 @@ internal sealed class LinearProgram
 
 internal static class LinearNfaCompiler
 {
-    internal static LinearProgram? TryCompile(RegexNode root, EcmaRegexOptions options)
+    internal static LinearProgram? TryCompile(RegexNode root, RegExpOptions options)
     {
         if (!options.EnableLinearEngine || !root.IsLinearEligible)
             return null;
@@ -57,7 +57,7 @@ internal static class LinearNfaCompiler
 
     private sealed class Builder
     {
-        private readonly EcmaRegexOptions _options;
+        private readonly RegExpOptions _options;
         private readonly List<LinearInstruction> _code = [];
         private readonly List<CharSet> _classes = [];
         private readonly Dictionary<CharSet, int> _classIndices = new(
@@ -65,7 +65,7 @@ internal static class LinearNfaCompiler
         );
         private int _repeatExpansion;
 
-        internal Builder(EcmaRegexOptions options) => _options = options;
+        internal Builder(RegExpOptions options) => _options = options;
 
         internal int Emit(LinearOpCode op, int a = 0, int b = 0)
         {
@@ -227,7 +227,7 @@ internal static class LinearNfaRunner
         int startIndex,
         bool sticky,
         bool unicode,
-        EcmaRegexOptions options,
+        RegExpOptions options,
         SearchPlan? plan
     )
     {

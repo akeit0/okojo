@@ -1,9 +1,9 @@
 namespace Okojo.Text.RegularExpressions;
 
-/// <summary>Compilation and execution limits for an <see cref="EcmaRegex"/>.</summary>
-public sealed record EcmaRegexOptions
+/// <summary>Compilation and execution limits for an <see cref="RegExp"/>.</summary>
+public sealed record RegExpOptions
 {
-    public static EcmaRegexOptions Default { get; } = new();
+    public static RegExpOptions Default { get; } = new();
 
     /// <summary>Maximum UTF-16 pattern length accepted by the compiler.</summary>
     public int MaxPatternLength { get; init; } = 1_000_000;

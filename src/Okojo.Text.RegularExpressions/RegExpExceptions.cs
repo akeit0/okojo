@@ -1,7 +1,7 @@
 namespace Okojo.Text.RegularExpressions;
 
 /// <summary>Categories of ECMAScript pattern or flag syntax errors.</summary>
-public enum EcmaRegexError
+public enum RegExpParseError
 {
     UnexpectedToken,
     UnexpectedEnd,
@@ -24,9 +24,9 @@ public enum EcmaRegexError
 }
 
 /// <summary>Thrown when an ECMAScript pattern or flag sequence is invalid.</summary>
-public sealed class EcmaRegexParseException : ArgumentException
+public sealed class RegExpParseException : ArgumentException
 {
-    public EcmaRegexParseException(string message, int patternIndex, EcmaRegexError error)
+    public RegExpParseException(string message, int patternIndex, RegExpParseError error)
         : base(patternIndex >= 0 ? $"{message} (at pattern index {patternIndex})." : message)
     {
         PatternIndex = patternIndex;
@@ -37,11 +37,11 @@ public sealed class EcmaRegexParseException : ArgumentException
     public int PatternIndex { get; }
 
     /// <summary>The category of the parse error.</summary>
-    public EcmaRegexError Error { get; }
+    public RegExpParseError Error { get; }
 }
 
 /// <summary>Categories of matching resource limits.</summary>
-public enum EcmaRegexLimitKind
+public enum RegExpExecutionLimit
 {
     Steps,
     Backtracks,
@@ -51,14 +51,14 @@ public enum EcmaRegexLimitKind
 }
 
 /// <summary>Thrown when a configured matching resource limit is exceeded.</summary>
-public sealed class EcmaRegexExecutionException : Exception
+public sealed class RegExpExecutionException : Exception
 {
-    public EcmaRegexExecutionException(EcmaRegexLimitKind limitKind)
-        : base($"Regular-expression execution exceeded the configured {limitKind} limit.")
+    public RegExpExecutionException(RegExpExecutionLimit limit)
+        : base($"Regular-expression execution exceeded the configured {limit} limit.")
     {
-        LimitKind = limitKind;
+        Limit = limit;
     }
 
     /// <summary>The limit that was exceeded.</summary>
-    public EcmaRegexLimitKind LimitKind { get; }
+    public RegExpExecutionLimit Limit { get; }
 }

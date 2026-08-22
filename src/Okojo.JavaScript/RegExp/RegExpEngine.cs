@@ -1,80 +1,78 @@
 using Okojo.Text.RegularExpressions;
-using EcmaCapture = Okojo.Text.RegularExpressions.EcmaCapture;
-using EcmaRegexFlagSet = Okojo.Text.RegularExpressions.EcmaRegexFlagSet;
-using EcmaRegexOptions = Okojo.Text.RegularExpressions.EcmaRegexOptions;
+using CompiledRegExp = Okojo.Text.RegularExpressions.RegExp;
 
 namespace Okojo.JavaScript.RegExp;
 
 /// <summary>
-///     Engine-internal ECMAScript regex engine backed by <see cref="Okojo.Text.RegularExpressions.EcmaRegex"/>.
+///     Engine-internal ECMAScript regex engine backed by <see cref="Okojo.Text.RegularExpressions.RegExp"/>.
 /// </summary>
 internal sealed class RegExpEngine
 {
     public static RegExpEngine Default { get; } = new();
 
-    private readonly EcmaRegexOptions _options;
+    private readonly RegExpOptions _options;
 
-    private RegExpEngine(EcmaRegexOptions? options = null)
+    private RegExpEngine(RegExpOptions? options = null)
     {
-        _options = options ?? EcmaRegexOptions.Default;
+        _options = options ?? RegExpOptions.Default;
     }
 
     public RegExpCompiledPattern Compile(string pattern, string flags)
     {
-        var ecma = EcmaRegex.Compile(pattern, flags, _options);
+        var regexp = CompiledRegExp.Compile(pattern, flags, _options);
         return new(
             pattern,
-            ecma.FlagsText,
+            regexp.FlagsText,
             pattern,
-            ToNamedGroupNames(ecma),
-            ToRuntimeFlags(ecma.Flags)
+            ToNamedGroupNames(regexp),
+            ToRuntimeFlags(regexp.Flags)
         )
         {
-            EngineState = ecma,
+            EngineState = regexp,
         };
     }
 
     public RegExpMatchResult? Exec(RegExpCompiledPattern compiled, string input, int startIndex)
     {
-        if (compiled.EngineState is not EcmaRegex ecma)
+        if (compiled.EngineState is not CompiledRegExp regexp)
             throw new ArgumentException(
                 "Compiled pattern was not created by RegExpEngine.",
                 nameof(compiled)
             );
 
-        var captures = new EcmaCapture[ecma.RequiredCaptureCount];
-        if (!ecma.TryMatch(input, startIndex, captures, out _))
+        var captures = new CaptureRange[regexp.RequiredCaptureCount];
+        if (!regexp.TryMatch(input, startIndex, captures, out _))
             return null;
 
-        return BuildMatchResult(compiled, ecma, input, captures);
+        return BuildMatchResult(compiled, regexp, input, captures);
     }
 
-    private static string[] ToNamedGroupNames(EcmaRegex ecma)
+    private static string[] ToNamedGroupNames(CompiledRegExp regexp)
     {
-        var names = new string[ecma.GroupNames.Count];
+        var names = new string[regexp.GroupNames.Count];
         var i = 0;
-        foreach (var name in ecma.GroupNames.Keys)
+        foreach (var name in regexp.GroupNames.Keys)
             names[i++] = name;
         return names;
     }
 
-    private static RegExpRuntimeFlags ToRuntimeFlags(EcmaRegexFlagSet flags) =>
+    private static RegExpRuntimeFlags ToRuntimeFlags(RegExpFlags flags) =>
         new(
-            (flags & EcmaRegexFlagSet.Global) != 0,
-            (flags & EcmaRegexFlagSet.IgnoreCase) != 0,
-            (flags & EcmaRegexFlagSet.Multiline) != 0,
-            (flags & EcmaRegexFlagSet.HasIndices) != 0,
-            (flags & EcmaRegexFlagSet.Sticky) != 0,
-            (flags & (EcmaRegexFlagSet.Unicode | EcmaRegexFlagSet.UnicodeSets)) != 0,
-            (flags & EcmaRegexFlagSet.UnicodeSets) != 0,
-            (flags & EcmaRegexFlagSet.DotAll) != 0
+            (flags & RegExpFlags.Global) != 0,
+            (flags & RegExpFlags.IgnoreCase) != 0,
+            (flags & RegExpFlags.Multiline) != 0,
+            (flags & RegExpFlags.HasIndices) != 0,
+            (flags & RegExpFlags.Sticky) != 0,
+            (flags & (RegExpFlags.Unicode | RegExpFlags.UnicodeSets)) != 0,
+            (flags & RegExpFlags.UnicodeSets) != 0,
+            (flags & RegExpFlags.DotAll) != 0
         );
 
     private static RegExpMatchResult BuildMatchResult(
         RegExpCompiledPattern compiled,
-        EcmaRegex ecma,
+        CompiledRegExp regexp,
         string input,
-        EcmaCapture[] captures
+        CaptureRange[] captures
     )
     {
         var hasIndices = compiled.ParsedFlags.HasIndices;
@@ -106,17 +104,14 @@ internal sealed class RegExpEngine
             {
                 string? value = null;
                 RegExpMatchRange? range = null;
-                if (ecma.NameGroups.TryGetValue(name, out var indexes))
+                foreach (var index in regexp.GetCaptureIndices(name))
                 {
-                    foreach (var index in indexes)
-                    {
-                        if (!captures[index].Success)
-                            continue;
+                    if (!captures[index].Success)
+                        continue;
 
-                        value = groups[index];
-                        range = groupIndices?[index];
-                        break;
-                    }
+                    value = groups[index];
+                    range = groupIndices?[index];
+                    break;
                 }
 
                 valueDict[name] = value;

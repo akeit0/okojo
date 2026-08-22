@@ -1,10 +1,10 @@
 namespace Okojo.Text.RegularExpressions;
 
 /// <summary>A UTF-16 range for a successful capture, or <see cref="Unmatched"/>.</summary>
-public readonly record struct EcmaCapture(int Index, int Length)
+public readonly record struct CaptureRange(int Index, int Length)
 {
     /// <summary>A sentinel describing an unmatched group.</summary>
-    public static EcmaCapture Unmatched => new(-1, 0);
+    public static CaptureRange Unmatched => new(-1, 0);
 
     /// <summary>True if the group participated in the match.</summary>
     public bool Success => Index >= 0;

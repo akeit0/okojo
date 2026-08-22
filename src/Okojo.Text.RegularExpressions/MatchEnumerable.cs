@@ -5,11 +5,11 @@ namespace Okojo.Text.RegularExpressions;
 /// <summary>Allocation-free input view with one pooled capture buffer per enumeration.</summary>
 public readonly ref struct MatchEnumerable
 {
-    private readonly EcmaRegex _regex;
+    private readonly RegExp _regex;
     private readonly ReadOnlySpan<char> _input;
     private readonly int _startIndex;
 
-    internal MatchEnumerable(EcmaRegex regex, ReadOnlySpan<char> input, int startIndex)
+    internal MatchEnumerable(RegExp regex, ReadOnlySpan<char> input, int startIndex)
     {
         _regex = regex;
         _input = input;
@@ -23,18 +23,18 @@ public readonly ref struct MatchEnumerable
 /// <summary>Enumeration over successive non-overlapping matches, renting one capture buffer.</summary>
 public ref struct MatchEnumerator
 {
-    private readonly EcmaRegex _regex;
+    private readonly RegExp _regex;
     private readonly ReadOnlySpan<char> _input;
-    private EcmaCapture[]? _captures;
+    private CaptureRange[]? _captures;
     private int _nextIndex;
     private bool _finished;
     private MatchView _current;
 
-    internal MatchEnumerator(EcmaRegex regex, ReadOnlySpan<char> input, int startIndex)
+    internal MatchEnumerator(RegExp regex, ReadOnlySpan<char> input, int startIndex)
     {
         _regex = regex;
         _input = input;
-        _captures = ArrayPool<EcmaCapture>.Shared.Rent(regex.RequiredCaptureCount);
+        _captures = ArrayPool<CaptureRange>.Shared.Rent(regex.RequiredCaptureCount);
         _nextIndex = startIndex;
         _finished = false;
         _current = default;
@@ -46,11 +46,11 @@ public ref struct MatchEnumerator
     /// <summary>Advances to the next match, returning false when no more matches exist.</summary>
     public bool MoveNext()
     {
-        EcmaCapture[]? array = _captures;
+        CaptureRange[]? array = _captures;
         if (_finished || array is null || _nextIndex > _input.Length)
             return false;
-        Span<EcmaCapture> captures = array.AsSpan(0, _regex.RequiredCaptureCount);
-        if (!_regex.TryMatch(_input, _nextIndex, captures, out EcmaMatch match))
+        Span<CaptureRange> captures = array.AsSpan(0, _regex.RequiredCaptureCount);
+        if (!_regex.TryMatch(_input, _nextIndex, captures, out MatchRange match))
         {
             _finished = true;
             return false;
@@ -64,12 +64,12 @@ public ref struct MatchEnumerator
     /// <summary>Returns the rented capture buffer to the pool.</summary>
     public void Dispose()
     {
-        EcmaCapture[]? array = _captures;
+        CaptureRange[]? array = _captures;
         _captures = null;
         _finished = true;
         _current = default;
         if (array is not null)
-            ArrayPool<EcmaCapture>.Shared.Return(array, clearArray: false);
+            ArrayPool<CaptureRange>.Shared.Return(array, clearArray: false);
     }
 }
 
@@ -77,36 +77,36 @@ public ref struct MatchEnumerator
 public readonly ref struct MatchView
 {
     private readonly ReadOnlySpan<char> _input;
-    private readonly ReadOnlySpan<EcmaCapture> _captures;
+    private readonly ReadOnlySpan<CaptureRange> _captures;
 
     internal MatchView(
         ReadOnlySpan<char> input,
-        EcmaMatch match,
-        ReadOnlySpan<EcmaCapture> captures
+        MatchRange match,
+        ReadOnlySpan<CaptureRange> captures
     )
     {
         _input = input;
         _captures = captures;
-        Match = match;
+        Range = match;
     }
 
     /// <summary>Metadata for the whole match.</summary>
-    public EcmaMatch Match { get; }
+    public MatchRange Range { get; }
 
     /// <summary>Start offset of the whole match.</summary>
-    public int Index => Match.Index;
+    public int Index => Range.Index;
 
     /// <summary>Length of the whole match.</summary>
-    public int Length => Match.Length;
+    public int Length => Range.Length;
 
     /// <summary>Matched text of the whole match.</summary>
-    public ReadOnlySpan<char> Value => Match.Value(_input);
+    public ReadOnlySpan<char> Value => Range.Value(_input);
 
     /// <summary>All capture ranges, index zero being the whole match.</summary>
-    public ReadOnlySpan<EcmaCapture> Captures => _captures;
+    public ReadOnlySpan<CaptureRange> Captures => _captures;
 
     /// <summary>Returns the captured text of a group, or empty if unmatched.</summary>
-    public ReadOnlySpan<char> GroupValue(int group)
+    public ReadOnlySpan<char> GetGroupValue(int group)
     {
         if ((uint)group >= (uint)_captures.Length)
             throw new ArgumentOutOfRangeException(nameof(group));

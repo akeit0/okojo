@@ -2,7 +2,7 @@ namespace Okojo.Text.RegularExpressions;
 
 /// <summary>Flags defined by ECMAScript RegExp.</summary>
 [Flags]
-public enum EcmaRegexFlagSet
+public enum RegExpFlags
 {
     /// <summary>No flags set.</summary>
     None = 0,
@@ -32,77 +32,77 @@ public enum EcmaRegexFlagSet
     Sticky = 1 << 7,
 }
 
-internal static class EcmaRegexFlagParser
+internal static class RegExpFlagParser
 {
-    internal static EcmaRegexFlagSet Parse(string? text)
+    internal static RegExpFlags Parse(string? text)
     {
-        EcmaRegexFlagSet result = EcmaRegexFlagSet.None;
+        RegExpFlags result = RegExpFlags.None;
         if (string.IsNullOrEmpty(text))
             return result;
 
         foreach (char ch in text)
         {
-            EcmaRegexFlagSet flag = ch switch
+            RegExpFlags flag = ch switch
             {
-                'd' => EcmaRegexFlagSet.HasIndices,
-                'g' => EcmaRegexFlagSet.Global,
-                'i' => EcmaRegexFlagSet.IgnoreCase,
-                'm' => EcmaRegexFlagSet.Multiline,
-                's' => EcmaRegexFlagSet.DotAll,
-                'u' => EcmaRegexFlagSet.Unicode,
-                'v' => EcmaRegexFlagSet.UnicodeSets,
-                'y' => EcmaRegexFlagSet.Sticky,
-                _ => throw new EcmaRegexParseException(
+                'd' => RegExpFlags.HasIndices,
+                'g' => RegExpFlags.Global,
+                'i' => RegExpFlags.IgnoreCase,
+                'm' => RegExpFlags.Multiline,
+                's' => RegExpFlags.DotAll,
+                'u' => RegExpFlags.Unicode,
+                'v' => RegExpFlags.UnicodeSets,
+                'y' => RegExpFlags.Sticky,
+                _ => throw new RegExpParseException(
                     $"Unknown ECMAScript regular-expression flag '{ch}'.",
                     -1,
-                    EcmaRegexError.InvalidFlag
+                    RegExpParseError.InvalidFlag
                 ),
             };
 
             if ((result & flag) != 0)
             {
-                throw new EcmaRegexParseException(
+                throw new RegExpParseException(
                     $"Duplicate ECMAScript regular-expression flag '{ch}'.",
                     -1,
-                    EcmaRegexError.InvalidFlag
+                    RegExpParseError.InvalidFlag
                 );
             }
             result |= flag;
         }
 
         if (
-            (result & (EcmaRegexFlagSet.Unicode | EcmaRegexFlagSet.UnicodeSets))
-            == (EcmaRegexFlagSet.Unicode | EcmaRegexFlagSet.UnicodeSets)
+            (result & (RegExpFlags.Unicode | RegExpFlags.UnicodeSets))
+            == (RegExpFlags.Unicode | RegExpFlags.UnicodeSets)
         )
         {
-            throw new EcmaRegexParseException(
+            throw new RegExpParseException(
                 "The ECMAScript 'u' and 'v' flags are mutually exclusive.",
                 -1,
-                EcmaRegexError.IncompatibleFlags
+                RegExpParseError.IncompatibleFlags
             );
         }
         return result;
     }
 
-    internal static string Format(EcmaRegexFlagSet flags)
+    internal static string Format(RegExpFlags flags)
     {
         Span<char> buffer = stackalloc char[8];
         int length = 0;
-        if ((flags & EcmaRegexFlagSet.HasIndices) != 0)
+        if ((flags & RegExpFlags.HasIndices) != 0)
             buffer[length++] = 'd';
-        if ((flags & EcmaRegexFlagSet.Global) != 0)
+        if ((flags & RegExpFlags.Global) != 0)
             buffer[length++] = 'g';
-        if ((flags & EcmaRegexFlagSet.IgnoreCase) != 0)
+        if ((flags & RegExpFlags.IgnoreCase) != 0)
             buffer[length++] = 'i';
-        if ((flags & EcmaRegexFlagSet.Multiline) != 0)
+        if ((flags & RegExpFlags.Multiline) != 0)
             buffer[length++] = 'm';
-        if ((flags & EcmaRegexFlagSet.DotAll) != 0)
+        if ((flags & RegExpFlags.DotAll) != 0)
             buffer[length++] = 's';
-        if ((flags & EcmaRegexFlagSet.Unicode) != 0)
+        if ((flags & RegExpFlags.Unicode) != 0)
             buffer[length++] = 'u';
-        if ((flags & EcmaRegexFlagSet.UnicodeSets) != 0)
+        if ((flags & RegExpFlags.UnicodeSets) != 0)
             buffer[length++] = 'v';
-        if ((flags & EcmaRegexFlagSet.Sticky) != 0)
+        if ((flags & RegExpFlags.Sticky) != 0)
             buffer[length++] = 'y';
         return new string(buffer[..length]);
     }

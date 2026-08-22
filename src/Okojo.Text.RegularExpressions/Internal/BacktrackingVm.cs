@@ -52,7 +52,7 @@ internal static class BacktrackingVm
         int startIndex,
         bool sticky,
         Span<int> captures,
-        EcmaRegexOptions options,
+        RegExpOptions options,
         out int endPosition
     )
     {
@@ -77,8 +77,7 @@ internal static class BacktrackingVm
 
         try
         {
-            bool unicode =
-                (program.Flags & (EcmaRegexFlagSet.Unicode | EcmaRegexFlagSet.UnicodeSets)) != 0;
+            bool unicode = (program.Flags & (RegExpFlags.Unicode | RegExpFlags.UnicodeSets)) != 0;
             SearchPlan plan = program.SearchPlan;
 
             if (sticky)
@@ -244,7 +243,7 @@ internal static class BacktrackingVm
         int candidate,
         Span<int> captures,
         Span<int> states,
-        EcmaRegexOptions options,
+        RegExpOptions options,
         ref ValueStack<TrailEntry> captureTrail,
         ref ValueStack<TrailEntry> stateTrail,
         ref ExecutionBudget budget,
@@ -279,7 +278,7 @@ internal static class BacktrackingVm
         int startPosition,
         Span<int> captures,
         Span<int> states,
-        EcmaRegexOptions options,
+        RegExpOptions options,
         ref ValueStack<TrailEntry> captureTrail,
         ref ValueStack<TrailEntry> stateTrail,
         ref ExecutionBudget budget,
@@ -798,8 +797,8 @@ internal static class BacktrackingVm
                         case OpCode.Assertion:
                         {
                             if (assertionDepth >= options.MaxAssertionDepth)
-                                throw new EcmaRegexExecutionException(
-                                    EcmaRegexLimitKind.AssertionDepth
+                                throw new RegExpExecutionException(
+                                    RegExpExecutionLimit.AssertionDepth
                                 );
 
                             int captureCheckpoint = captureTrail.Count;
@@ -1402,14 +1401,14 @@ internal static class BacktrackingVm
     private static void PushFrame(
         int pc,
         int position,
-        EcmaRegexOptions options,
+        RegExpOptions options,
         ref ValueStack<BacktrackFrame> frames,
         int captureTrail,
         int stateTrail
     )
     {
         if (frames.Count >= options.MaxBacktrackDepth)
-            throw new EcmaRegexExecutionException(EcmaRegexLimitKind.BacktrackDepth);
+            throw new RegExpExecutionException(RegExpExecutionLimit.BacktrackDepth);
         frames.Push(
             new BacktrackFrame(BacktrackKind.Resume, pc, position, captureTrail, stateTrail)
         );
@@ -1421,14 +1420,14 @@ internal static class BacktrackingVm
         int position,
         int scanId,
         int count,
-        EcmaRegexOptions options,
+        RegExpOptions options,
         ref ValueStack<BacktrackFrame> frames,
         int captureTrail,
         int stateTrail
     )
     {
         if (frames.Count >= options.MaxBacktrackDepth)
-            throw new EcmaRegexExecutionException(EcmaRegexLimitKind.BacktrackDepth);
+            throw new RegExpExecutionException(RegExpExecutionLimit.BacktrackDepth);
         frames.Push(
             new BacktrackFrame(kind, pc, position, captureTrail, stateTrail, scanId, count)
         );

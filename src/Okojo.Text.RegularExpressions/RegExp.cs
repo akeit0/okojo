@@ -9,19 +9,19 @@ namespace Okojo.Text.RegularExpressions;
 /// Immutable compiled ECMAScript regular expression. Matching is allocation-free on the common
 /// stack-sized path; larger workspaces spill to <see cref="ArrayPool{T}"/>.
 /// </summary>
-public sealed class EcmaRegex
+public sealed class RegExp
 {
     private readonly RegexProgram _program;
     private readonly LinearProgram? _linearProgram;
-    private readonly EcmaRegexOptions _options;
+    private readonly RegExpOptions _options;
     private readonly ReadOnlyDictionary<string, int> _groupNames;
     private readonly ReadOnlyDictionary<string, int[]> _nameGroups;
     private readonly bool _unicode;
 
-    private EcmaRegex(
+    private RegExp(
         string pattern,
-        EcmaRegexFlagSet flags,
-        EcmaRegexOptions options,
+        RegExpFlags flags,
+        RegExpOptions options,
         ParseResult parseResult,
         RegexProgram program,
         LinearProgram? linearProgram
@@ -29,7 +29,7 @@ public sealed class EcmaRegex
     {
         Pattern = pattern;
         Flags = flags;
-        FlagsText = EcmaRegexFlagParser.Format(flags);
+        FlagsText = RegExpFlagParser.Format(flags);
         CaptureCount = parseResult.CaptureCount;
         RequiredCaptureCount = CaptureCount + 1;
         _options = options;
@@ -42,14 +42,14 @@ public sealed class EcmaRegex
         foreach ((string name, int[] groups) in parseResult.GroupNames)
             representatives.Add(name, groups[0]);
         _groupNames = new ReadOnlyDictionary<string, int>(representatives);
-        _unicode = (flags & (EcmaRegexFlagSet.Unicode | EcmaRegexFlagSet.UnicodeSets)) != 0;
+        _unicode = (flags & (RegExpFlags.Unicode | RegExpFlags.UnicodeSets)) != 0;
     }
 
     /// <summary>The original source pattern text.</summary>
     public string Pattern { get; }
 
     /// <summary>The parsed ECMAScript flags.</summary>
-    public EcmaRegexFlagSet Flags { get; }
+    public RegExpFlags Flags { get; }
 
     /// <summary>The canonical flag string (e.g. <c>"dgimsuvy"</c>).</summary>
     public string FlagsText { get; }
@@ -63,44 +63,27 @@ public sealed class EcmaRegex
     /// <summary>Maps each group name to its representative capture index.</summary>
     public IReadOnlyDictionary<string, int> GroupNames => _groupNames;
 
-    /// <summary>
-    /// Capture indices (ascending) sharing each group name. Names with multiple
-    /// indices are duplicate named capturing groups; a named-group value is the
-    /// most recently matched index among the set.
-    /// </summary>
-    public IReadOnlyDictionary<string, int[]> NameGroups => _nameGroups;
-
-    /// <summary>True if <see cref="IsMatch(ReadOnlySpan{char},int)"/> uses the linear Boolean engine.</summary>
-    public bool UsesLinearEngineForIsMatch => _linearProgram is not null;
-
-    /// <summary>Description of the Unicode data source used for property matching.</summary>
-    public static string UnicodeDataSource => UnicodePropertyDatabase.DataSource;
-
     /// <summary>Compiles a pattern with flags given as a string (e.g. <c>"gi"</c>).</summary>
-    public static EcmaRegex Compile(
+    public static RegExp Compile(
         string pattern,
         string? flags = null,
-        EcmaRegexOptions? options = null
-    ) => Compile(pattern, EcmaRegexFlagParser.Parse(flags), options);
+        RegExpOptions? options = null
+    ) => Compile(pattern, RegExpFlagParser.Parse(flags), options);
 
     /// <summary>Compiles a pattern with an explicit flag set.</summary>
-    public static EcmaRegex Compile(
-        string pattern,
-        EcmaRegexFlagSet flags,
-        EcmaRegexOptions? options = null
-    )
+    public static RegExp Compile(string pattern, RegExpFlags flags, RegExpOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(pattern);
         ValidateFlags(flags);
-        options ??= EcmaRegexOptions.Default;
+        options ??= RegExpOptions.Default;
         options.Validate();
 
         if (pattern.Length > options.MaxPatternLength)
         {
-            throw new EcmaRegexParseException(
+            throw new RegExpParseException(
                 "Pattern exceeds MaxPatternLength.",
                 options.MaxPatternLength,
-                EcmaRegexError.PatternTooLarge
+                RegExpParseError.PatternTooLarge
             );
         }
 
@@ -112,14 +95,14 @@ public sealed class EcmaRegex
             options
         );
         LinearProgram? linear = LinearNfaCompiler.TryCompile(parsed.Root, options);
-        return new EcmaRegex(pattern, flags, options, parsed, program, linear);
+        return new RegExp(pattern, flags, options, parsed, program, linear);
     }
 
     /// <summary>Tests for a match without materializing capture ranges.</summary>
     public bool IsMatch(ReadOnlySpan<char> input, int startIndex = 0)
     {
         ValidateStart(input, startIndex);
-        bool sticky = (Flags & EcmaRegexFlagSet.Sticky) != 0;
+        bool sticky = (Flags & RegExpFlags.Sticky) != 0;
         if (_linearProgram is not null)
         {
             return LinearNfaRunner.IsMatch(
@@ -169,27 +152,27 @@ public sealed class EcmaRegex
     public bool TryMatch(
         ReadOnlySpan<char> input,
         int startIndex,
-        Span<EcmaCapture> captures,
-        out EcmaMatch match
+        Span<CaptureRange> captures,
+        out MatchRange match
     )
     {
-        bool sticky = (Flags & EcmaRegexFlagSet.Sticky) != 0;
+        bool sticky = (Flags & RegExpFlags.Sticky) != 0;
         return TryMatchCore(input, startIndex, sticky, captures, out match);
     }
 
     /// <summary>Searches at or after index zero, unless the <c>y</c> flag is set.</summary>
     public bool TryMatch(
         ReadOnlySpan<char> input,
-        Span<EcmaCapture> captures,
-        out EcmaMatch match
+        Span<CaptureRange> captures,
+        out MatchRange match
     ) => TryMatch(input, 0, captures, out match);
 
     /// <summary>Attempts a match exactly at <paramref name="startIndex"/>, independent of flags.</summary>
     public bool TryMatchAt(
         ReadOnlySpan<char> input,
         int startIndex,
-        Span<EcmaCapture> captures,
-        out EcmaMatch match
+        Span<CaptureRange> captures,
+        out MatchRange match
     ) => TryMatchCore(input, startIndex, sticky: true, captures, out match);
 
     /// <summary>
@@ -199,22 +182,22 @@ public sealed class EcmaRegex
     public bool TryExec(
         ReadOnlySpan<char> input,
         ref int lastIndex,
-        Span<EcmaCapture> captures,
-        out EcmaMatch match
+        Span<CaptureRange> captures,
+        out MatchRange match
     )
     {
-        bool stateful = (Flags & (EcmaRegexFlagSet.Global | EcmaRegexFlagSet.Sticky)) != 0;
+        bool stateful = (Flags & (RegExpFlags.Global | RegExpFlags.Sticky)) != 0;
         int start = stateful ? Math.Max(0, lastIndex) : 0;
         if ((uint)start > (uint)input.Length)
         {
             if (stateful)
                 lastIndex = 0;
             ClearCaptureBuffer(captures);
-            match = EcmaMatch.Failure;
+            match = MatchRange.Failure;
             return false;
         }
 
-        bool sticky = (Flags & EcmaRegexFlagSet.Sticky) != 0;
+        bool sticky = (Flags & RegExpFlags.Sticky) != 0;
         if (TryMatchCore(input, start, sticky, captures, out match))
         {
             if (stateful)
@@ -228,22 +211,22 @@ public sealed class EcmaRegex
     }
 
     /// <summary>Allocating convenience execution API.</summary>
-    public EcmaMatchResult? Exec(string input, ref int lastIndex)
+    public MatchResult? Exec(string input, ref int lastIndex)
     {
         ArgumentNullException.ThrowIfNull(input);
-        EcmaCapture[] captures = new EcmaCapture[RequiredCaptureCount];
+        CaptureRange[] captures = new CaptureRange[RequiredCaptureCount];
         return TryExec(input.AsSpan(), ref lastIndex, captures, out _)
-            ? new EcmaMatchResult(input, captures, _nameGroups)
+            ? new MatchResult(input, captures, _nameGroups)
             : null;
     }
 
     /// <summary>Allocating convenience search API that does not use JavaScript state.</summary>
-    public EcmaMatchResult? Match(string input, int startIndex = 0)
+    public MatchResult? Match(string input, int startIndex = 0)
     {
         ArgumentNullException.ThrowIfNull(input);
-        EcmaCapture[] captures = new EcmaCapture[RequiredCaptureCount];
+        CaptureRange[] captures = new CaptureRange[RequiredCaptureCount];
         return TryMatch(input.AsSpan(), startIndex, captures, out _)
-            ? new EcmaMatchResult(input, captures, _nameGroups)
+            ? new MatchResult(input, captures, _nameGroups)
             : null;
     }
 
@@ -263,8 +246,16 @@ public sealed class EcmaRegex
             : throw new KeyNotFoundException($"No capture group named '{name}' exists.");
     }
 
-    /// <summary>Returns a human-readable disassembly of the compiled program.</summary>
-    public string GetDebugView()
+    /// <summary>Returns capture indices sharing a group name, in ascending order.</summary>
+    public ReadOnlySpan<int> GetCaptureIndices(string name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        return _nameGroups.TryGetValue(name, out var indices)
+            ? indices
+            : throw new KeyNotFoundException($"No capture group named '{name}' exists.");
+    }
+
+    internal string GetDebugView()
     {
         string linear = _linearProgram is null
             ? "not eligible"
@@ -283,8 +274,8 @@ public sealed class EcmaRegex
         ReadOnlySpan<char> input,
         int startIndex,
         bool sticky,
-        Span<EcmaCapture> captures,
-        out EcmaMatch match
+        Span<CaptureRange> captures,
+        out MatchRange match
     )
     {
         ValidateStart(input, startIndex);
@@ -316,8 +307,8 @@ public sealed class EcmaRegex
                 )
             )
             {
-                captures[..RequiredCaptureCount].Fill(EcmaCapture.Unmatched);
-                match = EcmaMatch.Failure;
+                captures[..RequiredCaptureCount].Fill(CaptureRange.Unmatched);
+                match = MatchRange.Failure;
                 return false;
             }
 
@@ -327,18 +318,18 @@ public sealed class EcmaRegex
                 int finish = registers[group * 2 + 1];
                 if (start < 0 || finish < 0)
                 {
-                    captures[group] = EcmaCapture.Unmatched;
+                    captures[group] = CaptureRange.Unmatched;
                 }
                 else
                 {
                     if (start > finish)
                         (start, finish) = (finish, start);
-                    captures[group] = new EcmaCapture(start, finish - start);
+                    captures[group] = new CaptureRange(start, finish - start);
                 }
             }
 
-            EcmaCapture whole = captures[0];
-            match = new EcmaMatch(whole.Index, whole.Length);
+            CaptureRange whole = captures[0];
+            match = new MatchRange(whole.Index, whole.Length);
             System.Diagnostics.Debug.Assert(match.End == end);
             return true;
         }
@@ -349,7 +340,7 @@ public sealed class EcmaRegex
         }
     }
 
-    private void ClearCaptureBuffer(Span<EcmaCapture> captures)
+    private void ClearCaptureBuffer(Span<CaptureRange> captures)
     {
         if (captures.Length < RequiredCaptureCount)
         {
@@ -358,7 +349,7 @@ public sealed class EcmaRegex
                 nameof(captures)
             );
         }
-        captures[..RequiredCaptureCount].Fill(EcmaCapture.Unmatched);
+        captures[..RequiredCaptureCount].Fill(CaptureRange.Unmatched);
     }
 
     private static void ValidateStart(ReadOnlySpan<char> input, int startIndex)
@@ -367,28 +358,28 @@ public sealed class EcmaRegex
             throw new ArgumentOutOfRangeException(nameof(startIndex));
     }
 
-    private static void ValidateFlags(EcmaRegexFlagSet flags)
+    private static void ValidateFlags(RegExpFlags flags)
     {
-        const EcmaRegexFlagSet all =
-            EcmaRegexFlagSet.HasIndices
-            | EcmaRegexFlagSet.Global
-            | EcmaRegexFlagSet.IgnoreCase
-            | EcmaRegexFlagSet.Multiline
-            | EcmaRegexFlagSet.DotAll
-            | EcmaRegexFlagSet.Unicode
-            | EcmaRegexFlagSet.UnicodeSets
-            | EcmaRegexFlagSet.Sticky;
+        const RegExpFlags all =
+            RegExpFlags.HasIndices
+            | RegExpFlags.Global
+            | RegExpFlags.IgnoreCase
+            | RegExpFlags.Multiline
+            | RegExpFlags.DotAll
+            | RegExpFlags.Unicode
+            | RegExpFlags.UnicodeSets
+            | RegExpFlags.Sticky;
         if ((flags & ~all) != 0)
             throw new ArgumentOutOfRangeException(nameof(flags));
         if (
-            (flags & (EcmaRegexFlagSet.Unicode | EcmaRegexFlagSet.UnicodeSets))
-            == (EcmaRegexFlagSet.Unicode | EcmaRegexFlagSet.UnicodeSets)
+            (flags & (RegExpFlags.Unicode | RegExpFlags.UnicodeSets))
+            == (RegExpFlags.Unicode | RegExpFlags.UnicodeSets)
         )
         {
-            throw new EcmaRegexParseException(
+            throw new RegExpParseException(
                 "The ECMAScript 'u' and 'v' flags are mutually exclusive.",
                 -1,
-                EcmaRegexError.IncompatibleFlags
+                RegExpParseError.IncompatibleFlags
             );
         }
     }

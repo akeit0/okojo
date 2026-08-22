@@ -11,7 +11,7 @@ internal struct ExecutionBudget
     private long _steps;
     private long _backtracks;
 
-    internal ExecutionBudget(EcmaRegexOptions options)
+    internal ExecutionBudget(RegExpOptions options)
     {
         _maxSteps = options.MaxSteps;
         _maxBacktracks = options.MaxBacktracks;
@@ -34,9 +34,9 @@ internal struct ExecutionBudget
     {
         long value = ++_steps;
         if (value > _maxSteps)
-            Throw(EcmaRegexLimitKind.Steps);
+            Throw(RegExpExecutionLimit.Steps);
         if ((value & 0x3FFF) == 0 && Stopwatch.GetTimestamp() > _deadline)
-            Throw(EcmaRegexLimitKind.Timeout);
+            Throw(RegExpExecutionLimit.Timeout);
     }
 
     /// <summary>Charges a vectorized batch of work to the step budget.</summary>
@@ -47,9 +47,9 @@ internal struct ExecutionBudget
             return;
         long value = _steps + count;
         if (value > _maxSteps)
-            Throw(EcmaRegexLimitKind.Steps);
+            Throw(RegExpExecutionLimit.Steps);
         if (Stopwatch.GetTimestamp() > _deadline)
-            Throw(EcmaRegexLimitKind.Timeout);
+            Throw(RegExpExecutionLimit.Timeout);
         _steps = value;
     }
 
@@ -57,10 +57,10 @@ internal struct ExecutionBudget
     internal void Backtrack()
     {
         if (++_backtracks > _maxBacktracks)
-            Throw(EcmaRegexLimitKind.Backtracks);
+            Throw(RegExpExecutionLimit.Backtracks);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static void Throw(EcmaRegexLimitKind kind) =>
-        throw new EcmaRegexExecutionException(kind);
+    private static void Throw(RegExpExecutionLimit kind) =>
+        throw new RegExpExecutionException(kind);
 }

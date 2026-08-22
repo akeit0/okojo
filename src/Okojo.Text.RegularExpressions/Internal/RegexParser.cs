@@ -26,36 +26,32 @@ internal sealed class RegexParser
     private int _groupDepth;
     private NodeOptions _options;
 
-    private RegexParser(string pattern, EcmaRegexFlagSet flags, EcmaRegexOptions options)
+    private RegexParser(string pattern, RegExpFlags flags, RegExpOptions options)
     {
         _pattern = pattern;
-        _unicodeSets = (flags & EcmaRegexFlagSet.UnicodeSets) != 0;
-        _unicode = _unicodeSets || (flags & EcmaRegexFlagSet.Unicode) != 0;
+        _unicodeSets = (flags & RegExpFlags.UnicodeSets) != 0;
+        _unicode = _unicodeSets || (flags & RegExpFlags.Unicode) != 0;
         _options = ToNodeOptions(flags);
         _maxParseDepth = options.MaxParseDepth;
         (_totalCaptures, _groupNames) = ScanCaptures(pattern, _unicodeSets);
         if (_totalCaptures > options.MaxCaptureCount)
         {
-            throw new EcmaRegexParseException(
+            throw new RegExpParseException(
                 "Pattern exceeds MaxCaptureCount.",
                 0,
-                EcmaRegexError.PatternTooLarge
+                RegExpParseError.PatternTooLarge
             );
         }
     }
 
-    internal static ParseResult Parse(
-        string pattern,
-        EcmaRegexFlagSet flags,
-        EcmaRegexOptions options
-    )
+    internal static ParseResult Parse(string pattern, RegExpFlags flags, RegExpOptions options)
     {
         ArgumentNullException.ThrowIfNull(pattern);
         RegexParser parser = new(pattern, flags, options);
         RegexNode root = parser.ParseDisjunction(stopAtCloseParenthesis: false, names: null);
         if (parser._position != pattern.Length)
         {
-            parser.Throw("Unexpected token.", EcmaRegexError.UnexpectedToken);
+            parser.Throw("Unexpected token.", RegExpParseError.UnexpectedToken);
         }
         if (parser._captureCursor != parser._totalCaptures)
         {
@@ -99,16 +95,16 @@ internal sealed class RegexParser
                 break;
             if (ch == ')' && !stopAtCloseParenthesis)
             {
-                Throw("Unmatched closing parenthesis.", EcmaRegexError.UnexpectedToken);
+                Throw("Unmatched closing parenthesis.", RegExpParseError.UnexpectedToken);
             }
 
             if (ch is '*' or '+' or '?')
             {
-                Throw("Nothing to repeat.", EcmaRegexError.NothingToRepeat);
+                Throw("Nothing to repeat.", RegExpParseError.NothingToRepeat);
             }
             if (ch == '{' && LooksLikeQuantifier(_position))
             {
-                Throw("Nothing to repeat.", EcmaRegexError.NothingToRepeat);
+                Throw("Nothing to repeat.", RegExpParseError.NothingToRepeat);
             }
 
             RegexNode atom = ParseAtom(out bool quantifiable, out HashSet<string> contributed);
@@ -123,7 +119,7 @@ internal sealed class RegexParser
                         _position = quantifierPosition;
                         Throw(
                             "Assertions cannot be quantified in Unicode-aware mode.",
-                            EcmaRegexError.NothingToRepeat
+                            RegExpParseError.NothingToRepeat
                         );
                     }
                     bool greedy = true;
@@ -137,7 +133,7 @@ internal sealed class RegexParser
                 else if (_pattern[quantifierPosition] == '{' && _unicode)
                 {
                     _position = quantifierPosition;
-                    Throw("Invalid Unicode-mode quantifier.", EcmaRegexError.InvalidQuantifier);
+                    Throw("Invalid Unicode-mode quantifier.", RegExpParseError.InvalidQuantifier);
                 }
             }
             terms.Add(atom);
@@ -153,7 +149,7 @@ internal sealed class RegexParser
             {
                 Throw(
                     $"Duplicate capture group name '{name}' in the same alternative.",
-                    EcmaRegexError.DuplicateGroupName
+                    RegExpParseError.DuplicateGroupName
                 );
             }
         }
@@ -163,7 +159,7 @@ internal sealed class RegexParser
     {
         if (_position >= _pattern.Length)
         {
-            Throw("Unexpected end of pattern.", EcmaRegexError.UnexpectedEnd);
+            Throw("Unexpected end of pattern.", RegExpParseError.UnexpectedEnd);
         }
 
         int atomPosition = _position;
@@ -196,21 +192,24 @@ internal sealed class RegexParser
                 if (_unicode)
                 {
                     _position = atomPosition;
-                    Throw($"Unescaped syntax character '{ch}'.", EcmaRegexError.UnexpectedToken);
+                    Throw($"Unescaped syntax character '{ch}'.", RegExpParseError.UnexpectedToken);
                 }
                 return RegexNode.Literal(ch, _options);
             case '{':
                 if (_unicode)
                 {
                     _position = atomPosition;
-                    Throw("Invalid quantifier or unescaped '{'.", EcmaRegexError.InvalidQuantifier);
+                    Throw(
+                        "Invalid quantifier or unescaped '{'.",
+                        RegExpParseError.InvalidQuantifier
+                    );
                 }
                 return RegexNode.Literal(ch, _options);
             default:
                 if (ch is '*' or '+' or '?' or '|' or ')')
                 {
                     _position = atomPosition;
-                    Throw("Unexpected regular-expression token.", EcmaRegexError.UnexpectedToken);
+                    Throw("Unexpected regular-expression token.", RegExpParseError.UnexpectedToken);
                 }
                 return RegexNode.Literal(ReadPatternCodePoint(ch), _options);
         }
@@ -222,7 +221,7 @@ internal sealed class RegexParser
         {
             Throw(
                 "Regular-expression group nesting exceeds MaxParseDepth.",
-                EcmaRegexError.PatternTooLarge
+                RegExpParseError.PatternTooLarge
             );
         }
 
@@ -292,7 +291,7 @@ internal sealed class RegexParser
             }
             else
             {
-                Throw("Invalid group prefix.", EcmaRegexError.UnexpectedToken);
+                Throw("Invalid group prefix.", RegExpParseError.UnexpectedToken);
             }
         }
         else
@@ -304,7 +303,7 @@ internal sealed class RegexParser
         RegexNode body = ParseDisjunction(stopAtCloseParenthesis: true, bodyNames);
         if (!Consume(')'))
         {
-            Throw("Unterminated group.", EcmaRegexError.UnterminatedGroup);
+            Throw("Unterminated group.", RegExpParseError.UnterminatedGroup);
         }
 
         _options = savedOptions;
@@ -313,7 +312,7 @@ internal sealed class RegexParser
         {
             Throw(
                 $"Duplicate capture group name '{name}' in the same alternative.",
-                EcmaRegexError.DuplicateGroupName
+                RegExpParseError.DuplicateGroupName
             );
         }
         contributed.UnionWith(bodyNames);
@@ -337,7 +336,7 @@ internal sealed class RegexParser
         )
         {
             if ((add & flag) != 0)
-                Throw("Duplicate inline modifier flag.", EcmaRegexError.InvalidFlag);
+                Throw("Duplicate inline modifier flag.", RegExpParseError.InvalidFlag);
             add |= flag;
             any = true;
             _position++;
@@ -350,7 +349,7 @@ internal sealed class RegexParser
             )
             {
                 if ((remove & flag) != 0)
-                    Throw("Duplicate inline modifier flag.", EcmaRegexError.InvalidFlag);
+                    Throw("Duplicate inline modifier flag.", RegExpParseError.InvalidFlag);
                 remove |= flag;
                 any = true;
                 _position++;
@@ -370,7 +369,7 @@ internal sealed class RegexParser
         {
             Throw(
                 "An inline modifier cannot be both enabled and disabled.",
-                EcmaRegexError.InvalidFlag
+                RegExpParseError.InvalidFlag
             );
         }
         savedOptions = _options;
@@ -383,7 +382,7 @@ internal sealed class RegexParser
         quantifiable = true;
         if (_position >= _pattern.Length)
         {
-            Throw("Trailing reverse solidus.", EcmaRegexError.InvalidEscape);
+            Throw("Trailing reverse solidus.", RegExpParseError.InvalidEscape);
         }
         int escapePosition = _position - 1;
         char ch = _pattern[_position++];
@@ -437,7 +436,10 @@ internal sealed class RegexParser
                     if (!_groupNames.TryGetValue(name, out int[]? groups))
                     {
                         _position = escapePosition;
-                        Throw($"Unknown named capture '{name}'.", EcmaRegexError.UnknownGroupName);
+                        Throw(
+                            $"Unknown named capture '{name}'.",
+                            RegExpParseError.UnknownGroupName
+                        );
                     }
                     return groups!.Length == 1
                         ? RegexNode.Backreference(groups[0], _options)
@@ -446,7 +448,7 @@ internal sealed class RegexParser
                 if (_unicode)
                 {
                     _position = escapePosition;
-                    Throw("Invalid named backreference.", EcmaRegexError.InvalidBackreference);
+                    Throw("Invalid named backreference.", RegExpParseError.InvalidBackreference);
                 }
                 return RegexNode.Literal('k', _options);
             default:
@@ -480,7 +482,7 @@ internal sealed class RegexParser
             _position = escapePosition;
             Throw(
                 "Backreference exceeds the number of capturing groups.",
-                EcmaRegexError.InvalidBackreference
+                RegExpParseError.InvalidBackreference
             );
         }
 
@@ -529,7 +531,7 @@ internal sealed class RegexParser
                         _position = escapePosition;
                         Throw(
                             "Legacy octal escapes are invalid in Unicode-aware mode.",
-                            EcmaRegexError.InvalidEscape
+                            RegExpParseError.InvalidEscape
                         );
                     }
                     return ParseLegacyOctal('0');
@@ -553,7 +555,7 @@ internal sealed class RegexParser
                 if (_unicode)
                 {
                     _position = escapePosition;
-                    Throw("Invalid control escape.", EcmaRegexError.InvalidEscape);
+                    Throw("Invalid control escape.", RegExpParseError.InvalidEscape);
                 }
                 return 'c';
             case 'x':
@@ -562,7 +564,7 @@ internal sealed class RegexParser
                 if (_unicode)
                 {
                     _position = escapePosition;
-                    Throw("Invalid hexadecimal escape.", EcmaRegexError.InvalidEscape);
+                    Throw("Invalid hexadecimal escape.", RegExpParseError.InvalidEscape);
                 }
                 return 'x';
             case 'u':
@@ -575,7 +577,7 @@ internal sealed class RegexParser
                 if (_unicode && !IsValidUnicodeIdentityEscape(ch, inClass))
                 {
                     _position = escapePosition;
-                    Throw($"Invalid identity escape '\\{ch}'.", EcmaRegexError.InvalidEscape);
+                    Throw($"Invalid identity escape '\\{ch}'.", RegExpParseError.InvalidEscape);
                 }
                 return ch;
         }
@@ -613,7 +615,7 @@ internal sealed class RegexParser
                 return 'u';
             }
             _position = escapePosition;
-            Throw("Invalid Unicode escape.", EcmaRegexError.InvalidEscape);
+            Throw("Invalid Unicode escape.", RegExpParseError.InvalidEscape);
         }
 
         if (
@@ -645,7 +647,10 @@ internal sealed class RegexParser
         if (!TryReadFixedHex(4, out int first))
         {
             _position = escapePosition;
-            Throw("Invalid Unicode escape in capture group name.", EcmaRegexError.InvalidGroupName);
+            Throw(
+                "Invalid Unicode escape in capture group name.",
+                RegExpParseError.InvalidGroupName
+            );
         }
         if (
             Utf16.IsHighSurrogate(first)
@@ -675,7 +680,7 @@ internal sealed class RegexParser
             if (hex < 0 || value > 0x10FFFF >> 4)
             {
                 _position = escapePosition;
-                Throw("Invalid braced Unicode escape.", EcmaRegexError.InvalidEscape);
+                Throw("Invalid braced Unicode escape.", RegExpParseError.InvalidEscape);
             }
             value = (value << 4) | hex;
             digits++;
@@ -689,7 +694,7 @@ internal sealed class RegexParser
         )
         {
             _position = escapePosition;
-            Throw("Invalid braced Unicode escape.", EcmaRegexError.InvalidEscape);
+            Throw("Invalid braced Unicode escape.", RegExpParseError.InvalidEscape);
         }
         return value;
     }
@@ -718,7 +723,7 @@ internal sealed class RegexParser
             _position = start;
             Throw(
                 "Unicode property escape requires braces.",
-                EcmaRegexError.InvalidUnicodeProperty
+                RegExpParseError.InvalidUnicodeProperty
             );
         }
         int contentStart = _position;
@@ -729,21 +734,21 @@ internal sealed class RegexParser
             {
                 Throw(
                     "Invalid character in Unicode property escape.",
-                    EcmaRegexError.InvalidUnicodeProperty
+                    RegExpParseError.InvalidUnicodeProperty
                 );
             }
             _position++;
         }
         if (_position == contentStart || !Consume('}'))
         {
-            Throw("Unterminated Unicode property escape.", EcmaRegexError.InvalidUnicodeProperty);
+            Throw("Unterminated Unicode property escape.", RegExpParseError.InvalidUnicodeProperty);
         }
         string expression = _pattern[contentStart..(_position - 1)];
         if (!UnicodePropertyDatabase.TryResolve(expression, out int propertyId))
         {
             Throw(
                 $"Unknown or unsupported Unicode property '{expression}'.",
-                EcmaRegexError.InvalidUnicodeProperty
+                RegExpParseError.InvalidUnicodeProperty
             );
         }
         int maximum = _unicode ? 0x10FFFF : 0xFFFF;
@@ -794,7 +799,7 @@ internal sealed class RegexParser
                     {
                         Throw(
                             "A character-class range endpoint must be a character.",
-                            EcmaRegexError.InvalidCharacterRange
+                            RegExpParseError.InvalidCharacterRange
                         );
                     }
                     builder.AddSet(left.Set.CodePoints);
@@ -806,7 +811,7 @@ internal sealed class RegexParser
                 {
                     Throw(
                         "Character-class range is out of order.",
-                        EcmaRegexError.InvalidCharacterRange
+                        RegExpParseError.InvalidCharacterRange
                     );
                 }
                 builder.Add(left.Single, right.Single);
@@ -818,7 +823,7 @@ internal sealed class RegexParser
         }
         if (!closed)
         {
-            Throw("Unterminated character class.", EcmaRegexError.UnterminatedCharacterClass);
+            Throw("Unterminated character class.", RegExpParseError.UnterminatedCharacterClass);
         }
         CharSet set = builder.Build();
         return new ParsedCharacterClass(set, negated);
@@ -828,7 +833,7 @@ internal sealed class RegexParser
     {
         if (_position >= _pattern.Length)
         {
-            Throw("Unterminated character class.", EcmaRegexError.UnterminatedCharacterClass);
+            Throw("Unterminated character class.", RegExpParseError.UnterminatedCharacterClass);
         }
         int escapePosition = _position;
         char ch = _pattern[_position++];
@@ -838,7 +843,7 @@ internal sealed class RegexParser
         }
         if (_position >= _pattern.Length)
         {
-            Throw("Trailing reverse solidus in character class.", EcmaRegexError.InvalidEscape);
+            Throw("Trailing reverse solidus in character class.", RegExpParseError.InvalidEscape);
         }
         char escaped = _pattern[_position++];
         if (_unicodeSets && IsClassSetReservedPunctuator(escaped))
@@ -896,7 +901,7 @@ internal sealed class RegexParser
                 {
                     Throw(
                         "A /v character class cannot mix intersection with union or subtraction at one level.",
-                        EcmaRegexError.UnexpectedToken
+                        RegExpParseError.UnexpectedToken
                     );
                 }
             }
@@ -917,7 +922,7 @@ internal sealed class RegexParser
                 {
                     Throw(
                         "A /v character class cannot mix subtraction with union or intersection at one level.",
-                        EcmaRegexError.UnexpectedToken
+                        RegExpParseError.UnexpectedToken
                     );
                 }
             }
@@ -929,7 +934,7 @@ internal sealed class RegexParser
                 {
                     Throw(
                         "A /v character class cannot mix union or ranges with &&/-- at one level.",
-                        EcmaRegexError.UnexpectedToken
+                        RegExpParseError.UnexpectedToken
                     );
                 }
             }
@@ -937,7 +942,7 @@ internal sealed class RegexParser
 
         if (!Consume(']'))
         {
-            Throw("Unterminated Unicode set class.", EcmaRegexError.UnterminatedCharacterClass);
+            Throw("Unterminated Unicode set class.", RegExpParseError.UnterminatedCharacterClass);
         }
         if (!negated)
             return value;
@@ -945,7 +950,7 @@ internal sealed class RegexParser
         {
             Throw(
                 "Negated /v character classes may not contain strings.",
-                EcmaRegexError.UnsupportedUnicodeSetString
+                RegExpParseError.UnsupportedUnicodeSetString
             );
         }
         return UnicodeSet.FromCodePoints(
@@ -982,7 +987,7 @@ internal sealed class RegexParser
                 ClassAtom right = ParseUnicodeSetOperand();
                 if (!right.IsSingle || left.Single > right.Single)
                 {
-                    Throw("Invalid Unicode set range.", EcmaRegexError.InvalidCharacterRange);
+                    Throw("Invalid Unicode set range.", RegExpParseError.InvalidCharacterRange);
                 }
                 CharSetBuilder range = new();
                 range.Add(left.Single, right.Single);
@@ -997,7 +1002,7 @@ internal sealed class RegexParser
         }
         if (!any)
         {
-            Throw("Unicode set expression requires an operand.", EcmaRegexError.UnexpectedToken);
+            Throw("Unicode set expression requires an operand.", RegExpParseError.UnexpectedToken);
         }
         return value;
     }
@@ -1006,11 +1011,14 @@ internal sealed class RegexParser
     {
         if (_position >= _pattern.Length)
         {
-            Throw("Unterminated Unicode set class.", EcmaRegexError.UnterminatedCharacterClass);
+            Throw("Unterminated Unicode set class.", RegExpParseError.UnterminatedCharacterClass);
         }
         if (_pattern[_position] == ']')
         {
-            Throw("Unicode set operator requires a right operand.", EcmaRegexError.UnexpectedToken);
+            Throw(
+                "Unicode set operator requires a right operand.",
+                RegExpParseError.UnexpectedToken
+            );
         }
         if (Consume('['))
         {
@@ -1045,14 +1053,14 @@ internal sealed class RegexParser
         {
             Throw(
                 $"Reserved double punctuator '{ch}{ch}' cannot be a /v class operand.",
-                EcmaRegexError.UnexpectedToken
+                RegExpParseError.UnexpectedToken
             );
         }
         if (ch != '\\' && (IsClassSetSyntaxCharacter(ch) || IsClassSetReservedPunctuator(ch)))
         {
             Throw(
                 $"Reserved Unicode-set punctuator '{ch}' must be escaped.",
-                EcmaRegexError.UnexpectedToken
+                RegExpParseError.UnexpectedToken
             );
         }
         return ParseClassicClassAtom();
@@ -1082,7 +1090,10 @@ internal sealed class RegexParser
                 _position++;
                 continue;
             }
-            Throw("Unterminated /v string disjunction.", EcmaRegexError.UnterminatedCharacterClass);
+            Throw(
+                "Unterminated /v string disjunction.",
+                RegExpParseError.UnterminatedCharacterClass
+            );
         }
         return UnicodeSet.FromStrings(alternatives);
     }
@@ -1091,21 +1102,24 @@ internal sealed class RegexParser
     {
         if (_position >= _pattern.Length)
         {
-            Throw("Unexpected end of /v string disjunction.", EcmaRegexError.UnexpectedEnd);
+            Throw("Unexpected end of /v string disjunction.", RegExpParseError.UnexpectedEnd);
         }
         char ch = _pattern[_position++];
         if (ch == '-')
         {
             Throw(
                 "A '-' in a /v string disjunction must be escaped.",
-                EcmaRegexError.UnexpectedToken
+                RegExpParseError.UnexpectedToken
             );
         }
         if (ch != '\\')
             return ReadPatternCodePoint(ch);
         if (_position >= _pattern.Length)
         {
-            Throw("Trailing reverse solidus in string disjunction.", EcmaRegexError.InvalidEscape);
+            Throw(
+                "Trailing reverse solidus in string disjunction.",
+                RegExpParseError.InvalidEscape
+            );
         }
         char escaped = _pattern[_position++];
         switch (escaped)
@@ -1127,7 +1141,7 @@ internal sealed class RegexParser
                 {
                     Throw(
                         "Decimal escapes are invalid in /v string disjunctions.",
-                        EcmaRegexError.InvalidEscape
+                        RegExpParseError.InvalidEscape
                     );
                 }
                 return 0;
@@ -1138,13 +1152,13 @@ internal sealed class RegexParser
                     return char.ToUpperInvariant(control) % 32;
                 }
                 _position = escapePosition;
-                Throw("Invalid control escape.", EcmaRegexError.InvalidEscape);
+                Throw("Invalid control escape.", RegExpParseError.InvalidEscape);
                 return 0;
             case 'x':
                 if (TryReadFixedHex(2, out int hexadecimal))
                     return hexadecimal;
                 _position = escapePosition;
-                Throw("Invalid hexadecimal escape.", EcmaRegexError.InvalidEscape);
+                Throw("Invalid hexadecimal escape.", RegExpParseError.InvalidEscape);
                 return 0;
             case 'u':
                 return ReadUnicodeEscape(escapePosition);
@@ -1154,7 +1168,7 @@ internal sealed class RegexParser
                 _position = escapePosition;
                 Throw(
                     $"Invalid identity escape '\\{escaped}' in string disjunction.",
-                    EcmaRegexError.InvalidEscape
+                    RegExpParseError.InvalidEscape
                 );
                 return 0;
         }
@@ -1211,7 +1225,7 @@ internal sealed class RegexParser
         {
             Throw(
                 $"Property of strings '{expression}' cannot be negated.",
-                EcmaRegexError.InvalidUnicodeProperty
+                RegExpParseError.InvalidUnicodeProperty
             );
         }
         stringSet = UnicodeSet.FromStrings(strings);
@@ -1272,7 +1286,7 @@ internal sealed class RegexParser
                     _position = saved;
                     Throw(
                         "Quantifier maximum is smaller than its minimum.",
-                        EcmaRegexError.QuantifierRangeOutOfOrder
+                        RegExpParseError.QuantifierRangeOutOfOrder
                     );
                 }
                 return true;
@@ -1368,7 +1382,7 @@ internal sealed class RegexParser
                 {
                     Throw(
                         "Only Unicode escapes are allowed in a capture name.",
-                        EcmaRegexError.InvalidGroupName
+                        RegExpParseError.InvalidGroupName
                     );
                 }
                 cp = ReadGroupNameUnicodeEscape(segmentStart);
@@ -1387,13 +1401,13 @@ internal sealed class RegexParser
 
             if (first ? !IsGroupNameStart(cp) : !IsGroupNameContinue(cp))
             {
-                Throw("Invalid capture group name.", EcmaRegexError.InvalidGroupName);
+                Throw("Invalid capture group name.", RegExpParseError.InvalidGroupName);
             }
             first = false;
         }
         if (first || !Consume('>'))
         {
-            Throw("Unterminated or empty capture group name.", EcmaRegexError.InvalidGroupName);
+            Throw("Unterminated or empty capture group name.", RegExpParseError.InvalidGroupName);
         }
         return builder?.ToString() ?? _pattern[startPosition..(_position - 1)];
     }
@@ -1434,8 +1448,8 @@ internal sealed class RegexParser
         return false;
     }
 
-    private void Throw(string message, EcmaRegexError error) =>
-        throw new EcmaRegexParseException(message, _position, error);
+    private void Throw(string message, RegExpParseError error) =>
+        throw new RegExpParseException(message, _position, error);
 
     private static bool IsQuantifierStart(char ch) => ch is '*' or '+' or '?' or '{';
 
@@ -1526,18 +1540,18 @@ internal sealed class RegexParser
     private static bool IsGroupNameContinue(int cp) =>
         UnicodePropertyDatabase.IsIdentifierContinue(cp);
 
-    private static NodeOptions ToNodeOptions(EcmaRegexFlagSet flags)
+    private static NodeOptions ToNodeOptions(RegExpFlags flags)
     {
         NodeOptions result = NodeOptions.None;
-        if ((flags & EcmaRegexFlagSet.IgnoreCase) != 0)
+        if ((flags & RegExpFlags.IgnoreCase) != 0)
             result |= NodeOptions.IgnoreCase;
-        if ((flags & EcmaRegexFlagSet.Multiline) != 0)
+        if ((flags & RegExpFlags.Multiline) != 0)
             result |= NodeOptions.Multiline;
-        if ((flags & EcmaRegexFlagSet.DotAll) != 0)
+        if ((flags & RegExpFlags.DotAll) != 0)
             result |= NodeOptions.DotAll;
-        if ((flags & (EcmaRegexFlagSet.Unicode | EcmaRegexFlagSet.UnicodeSets)) != 0)
+        if ((flags & (RegExpFlags.Unicode | RegExpFlags.UnicodeSets)) != 0)
             result |= NodeOptions.Unicode;
-        if ((flags & EcmaRegexFlagSet.UnicodeSets) != 0)
+        if ((flags & RegExpFlags.UnicodeSets) != 0)
             result |= NodeOptions.UnicodeSets;
         return result;
     }
@@ -1614,10 +1628,10 @@ internal sealed class RegexParser
                     }
                     if (i >= pattern.Length)
                     {
-                        throw new EcmaRegexParseException(
+                        throw new RegExpParseException(
                             "Unterminated named capture.",
                             nameStart,
-                            EcmaRegexError.InvalidGroupName
+                            RegExpParseError.InvalidGroupName
                         );
                     }
                     string raw = pattern[nameStart..i];
@@ -1659,10 +1673,10 @@ internal sealed class RegexParser
             int escapeStart = i++;
             if (i >= raw.Length || raw[i++] != 'u')
             {
-                throw new EcmaRegexParseException(
+                throw new RegExpParseException(
                     "Invalid escape in capture group name.",
                     sourcePosition + escapeStart,
-                    EcmaRegexError.InvalidGroupName
+                    RegExpParseError.InvalidGroupName
                 );
             }
 
@@ -1685,10 +1699,10 @@ internal sealed class RegexParser
                     || codePoint is >= 0xD800 and <= 0xDFFF
                 )
                 {
-                    throw new EcmaRegexParseException(
+                    throw new RegExpParseException(
                         "Invalid Unicode escape in capture group name.",
                         sourcePosition + escapeStart,
-                        EcmaRegexError.InvalidGroupName
+                        RegExpParseError.InvalidGroupName
                     );
                 }
                 i = close + 1;
@@ -1705,10 +1719,10 @@ internal sealed class RegexParser
                     )
                 )
                 {
-                    throw new EcmaRegexParseException(
+                    throw new RegExpParseException(
                         "Invalid Unicode escape in capture group name.",
                         sourcePosition + escapeStart,
-                        EcmaRegexError.InvalidGroupName
+                        RegExpParseError.InvalidGroupName
                     );
                 }
                 i += 4;
