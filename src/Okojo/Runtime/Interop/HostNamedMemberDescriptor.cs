@@ -295,7 +295,7 @@ internal sealed class HostNamedMemberDescriptor
         int genericParameterCount
     )
     {
-        if (realm.EngineHost.ClrAccessProvider is { } provider)
+        if (realm.Agent.ClrAccessProvider is { } provider)
             return provider.BindGenericMethod(
                 realm,
                 Name,
@@ -570,7 +570,7 @@ internal sealed class HostNamedMemberDescriptor
             return new double[length];
         if (elementType == typeof(decimal))
             return new decimal[length];
-        if (realm.EngineHost.ClrAccessProvider is { } provider)
+        if (realm.Agent.ClrAccessProvider is { } provider)
             return provider.CreateParamsArray(elementType, length);
 
         throw new InvalidOperationException(

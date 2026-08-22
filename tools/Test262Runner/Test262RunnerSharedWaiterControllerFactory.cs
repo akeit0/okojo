@@ -15,7 +15,7 @@ internal sealed class Test262RunnerSharedWaiterControllerFactory : ISharedWaiter
         : JsArrayBufferObject.ISharedWaiterController
     {
         private readonly Test262RunnerTimeProvider? runnerTime =
-            realm.Engine.TimeProvider as Test262RunnerTimeProvider;
+            realm.TimeProvider as Test262RunnerTimeProvider;
         private ITimer? asyncTimeoutTimer;
 
         public void ArmAsyncTimeout(JsArrayBufferObject.SharedWaiter waiter, TimeSpan? timeout)
@@ -29,7 +29,7 @@ internal sealed class Test262RunnerSharedWaiterControllerFactory : ISharedWaiter
                 : timeout.Value.TotalMilliseconds >= int.MaxValue
                     ? TimeSpan.FromMilliseconds(int.MaxValue)
                 : timeout.Value;
-            asyncTimeoutTimer = realm.Engine.TimeProvider.CreateTimer(
+            asyncTimeoutTimer = realm.TimeProvider.CreateTimer(
                 static state =>
                 {
                     var waiter = (JsArrayBufferObject.SharedWaiter)state!;
@@ -76,8 +76,7 @@ internal sealed class Test262RunnerSharedWaiterControllerFactory : ISharedWaiter
             {
                 if (!runnerTime.AdvanceForAsyncPump())
                     runnerTime.Advance(TimeSpan.FromMilliseconds(1));
-                if (((JsRuntime)realm.Engine).Agents.Count > 1)
-                    Thread.Yield();
+                Thread.Yield();
             }
 
             return waiter.Notified;

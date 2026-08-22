@@ -735,7 +735,7 @@ public class JsArrayBufferObject : JsObject
         if (sharedStorage is null && externalSharedWaitersByByteIndex is null)
             throw new InvalidOperationException("ArrayBuffer is not shared.");
         var waiter = new SharedWaiter(
-            realm.Engine.Options.SharedWaiterControllerFactory.CreateController(realm)
+            realm.Agent.SharedWaiterControllerFactory.CreateController(realm)
         );
         lock (GetSharedSyncRoot())
         {
@@ -768,7 +768,7 @@ public class JsArrayBufferObject : JsObject
         }
 
         var waiter = new SharedWaiter(
-            realm.Engine.Options.SharedWaiterControllerFactory.CreateController(realm)
+            realm.Agent.SharedWaiterControllerFactory.CreateController(realm)
         );
         waiters.Add(waiter);
         return waiter;

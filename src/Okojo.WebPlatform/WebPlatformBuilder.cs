@@ -23,7 +23,7 @@ public sealed class WebPlatformBuilder
         {
             var scheduler =
                 state.WebRuntimeDelayScheduler
-                ?? new TimeProviderDelayScheduler(realm.Engine.TimeProvider);
+                ?? new TimeProviderDelayScheduler(realm.TimeProvider);
             new WebRuntimeApiModule(_ => scheduler, state.WebRuntimeTimerQueueKey).Install(realm);
         });
         return this;

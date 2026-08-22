@@ -47,7 +47,7 @@ internal sealed class ModuleGraph(JsAgent agent)
             {
                 if (HasTextImportType(importDecl.Attributes))
                     continue;
-                var depResolved = agent.Engine.ModuleSourceLoader.ResolveSpecifier(
+                var depResolved = agent.ModuleSourceLoader.ResolveSpecifier(
                     importDecl.Source,
                     node.ResolvedId
                 );
@@ -61,7 +61,7 @@ internal sealed class ModuleGraph(JsAgent agent)
             {
                 if (HasTextImportType(named.Attributes))
                     continue;
-                var depResolved = agent.Engine.ModuleSourceLoader.ResolveSpecifier(
+                var depResolved = agent.ModuleSourceLoader.ResolveSpecifier(
                     named.Source!,
                     node.ResolvedId
                 );
@@ -72,7 +72,7 @@ internal sealed class ModuleGraph(JsAgent agent)
             {
                 if (HasTextImportType(star.Attributes))
                     continue;
-                var depResolved = agent.Engine.ModuleSourceLoader.ResolveSpecifier(
+                var depResolved = agent.ModuleSourceLoader.ResolveSpecifier(
                     star.Source,
                     node.ResolvedId
                 );

@@ -47,7 +47,7 @@ public sealed class DebuggerSession : IDebuggerSession
         this.agent = agent;
         this.options = options;
         this.outputLine = outputLine ?? Console.WriteLine;
-        sourceMapRegistry = agent.Engine.SourceMapRegistry;
+        sourceMapRegistry = agent.SourceMapRegistry;
         stepGranularity = options.StepGranularity;
         traceCommands = Environment.GetEnvironmentVariable("OKOJO_DEBUG_TRACE_COMMANDS") == "1";
         agent.SubscribeBreakpointResolved(HandleBreakpointResolved);

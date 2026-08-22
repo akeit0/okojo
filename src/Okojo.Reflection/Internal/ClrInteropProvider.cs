@@ -342,7 +342,7 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
     private static RealmClrState GetState(JsRealm realm)
     {
         var state = SStates.GetOrCreateValue(realm);
-        var version = realm.Engine.Options.ClrAssembliesVersion;
+        var version = realm.Agent.ClrAssembliesVersion;
         if (state.ClrAssembliesVersion != version)
         {
             state.PathCache.Clear();
@@ -550,7 +550,7 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
 
     private static Type? FindClrType(JsRealm realm, string path)
     {
-        var assemblies = realm.Engine.Options.ClrAssemblies;
+        var assemblies = realm.Agent.ClrAssemblies;
         for (var i = 0; i < assemblies.Count; i++)
         {
             var assembly = assemblies[i];
@@ -718,7 +718,7 @@ internal sealed class ClrInteropProvider : IClrAccessProvider
     private static bool HasClrNamespace(JsRealm realm, string path)
     {
         var prefix = path.Replace('+', '.') + ".";
-        var assemblies = realm.Engine.Options.ClrAssemblies;
+        var assemblies = realm.Agent.ClrAssemblies;
         for (var i = 0; i < assemblies.Count; i++)
             foreach (var type in assemblies[i].GetTypes())
             {

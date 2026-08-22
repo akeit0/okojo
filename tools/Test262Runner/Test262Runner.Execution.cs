@@ -481,7 +481,7 @@ internal static partial class Program
                 if (runnerTime is not null)
                     engineOptions.UseTimeProvider(runnerTime);
             });
-        using var hostContext = new Test262HostContext(engine.TimeProvider);
+        using var hostContext = new Test262HostContext(engine);
         var vm = engine.DefaultRealm;
         InstallOkojoHarnessGlobals(vm, hostContext);
         var asyncDone = new TaskCompletionSource<JsValue>(

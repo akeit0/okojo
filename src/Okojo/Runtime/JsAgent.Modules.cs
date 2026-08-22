@@ -1228,7 +1228,7 @@ public sealed partial class JsAgent
     {
         try
         {
-            return Engine.ModuleSourceLoader.ResolveSpecifier(specifier, referrer);
+            return ModuleSourceLoader.ResolveSpecifier(specifier, referrer);
         }
         catch (JsRuntimeException)
         {

@@ -190,7 +190,7 @@ One temporary engine-to-runtime friend relationship is acceptable during the mov
 
 The standalone projects exist and the monolith references them. Update stale friend-assembly names when the engine assembly is renamed.
 
-### Phase 2 — make the boundary real inside the current assembly: next
+### Phase 2 — make the boundary real inside the current assembly: active
 
 Behavior must remain unchanged while these couplings are removed:
 
@@ -199,6 +199,14 @@ Behavior must remain unchanged while these couplings are removed:
 3. move worker messaging and serialization out of `JsRealm`
 4. split generic host callback contracts from reflection implementation
 5. narrow `InternalsVisibleTo` consumers
+
+Progress: the broad `IJsRuntimeHost` seam has been removed. `JsAgent` now receives
+the concrete module, timing, interop, wait, scheduler, serializer, worker, and
+identity inputs it actually uses; `JsRealm` exposes engine-facing values through
+its agent. `HostJobQueue` now owns host and host-priority queues, scheduler
+delivery, and pump policy. Agent construction, host-queue attachment, and user
+initialization are separate stages. Worker messaging policy and remaining
+friend-assembly cleanup are still required before Phase 3.
 
 Keep focused module, agent, Promise, timer, worker, interop, and execution-check tests green after each step.
 

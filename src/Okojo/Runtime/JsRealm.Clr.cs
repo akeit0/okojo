@@ -13,7 +13,7 @@ public sealed partial class JsRealm
     public void AddClrAssembly(params Assembly[] assemblies)
     {
         EnsureClrAccessEnabled();
-        Engine.Options.AddClrAssembliesCore(assemblies);
+        Agent.AddClrAssemblies(assemblies);
     }
 
     public bool TryGetClrValue(string path, out JsValue value)
@@ -88,7 +88,7 @@ public sealed partial class JsRealm
 
     private IClrAccessProvider GetClrAccessProvider()
     {
-        return EngineHost.ClrAccessProvider
+        return Agent.ClrAccessProvider
             ?? throw new InvalidOperationException(
                 "CLR access is disabled. Configure JsRuntime with options => options.AllowClrAccess()."
             );

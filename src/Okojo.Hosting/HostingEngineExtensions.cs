@@ -14,7 +14,7 @@ public static class HostingEngineExtensions
     {
         ArgumentNullException.ThrowIfNull(engine);
         ArgumentNullException.ThrowIfNull(agent);
-        if (!ReferenceEquals(agent.Engine, engine))
+        if (!engine.Agents.Contains(agent))
             throw new InvalidOperationException("Agent does not belong to this engine.");
 
         return new(agent);

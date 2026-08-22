@@ -25,7 +25,7 @@ public sealed class AbortApiModule : IRealmApiModule
 
     public static AbortApiModule Shared { get; } =
         new(
-            static realm => new TimeProviderDelayScheduler(realm.Engine.TimeProvider),
+            static realm => new TimeProviderDelayScheduler(realm.TimeProvider),
             WebTaskQueueKeys.Timers
         );
 

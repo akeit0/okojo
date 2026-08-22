@@ -27,7 +27,7 @@ public sealed class WebRuntimeApiModule : IRealmApiModule
 
     public static WebRuntimeApiModule Shared { get; } =
         new(
-            static realm => new TimeProviderDelayScheduler(realm.Engine.TimeProvider),
+            static realm => new TimeProviderDelayScheduler(realm.TimeProvider),
             WebTaskQueueKeys.Timers
         );
 

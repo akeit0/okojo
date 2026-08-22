@@ -147,4 +147,54 @@ public class AgentJobQueueTests
         Assert.That(realm.Agent.RunScriptJobs(), Is.EqualTo(1));
         Assert.That(realm.Global["order"].AsString(), Is.EqualTo("s"));
     }
+
+    [Test]
+    public void PumpJobs_DrainsPriorityJobsQueuedDuringPromiseCheckpoint()
+    {
+        using var engine = JsRuntime.Create();
+        var agent = engine.MainAgent;
+        var order = new List<string>();
+
+        agent.EnqueuePromiseJob(() =>
+        {
+            order.Add("promise-1");
+            agent.EnqueuePromiseJob(() => order.Add("promise-2"));
+            agent.EnqueueHostPriorityJob(() => order.Add("next-tick"));
+        });
+
+        agent.PumpJobs();
+
+        Assert.That(order, Is.EqualTo(new[] { "promise-1", "promise-2", "next-tick" }));
+        Assert.That(agent.GetJobCount(JobQueueName.HostPriorityJobs), Is.EqualTo(0));
+    }
+
+    [Test]
+    public void InitializationCallbacksCanPumpAfterHostQueueAttachment()
+    {
+        var order = new List<string>();
+        using var engine = JsRuntime
+            .CreateBuilder()
+            .UseRealm(options =>
+                options.Initialize = realm =>
+                {
+                    realm.Agent.EnqueuePromiseJob(() => order.Add("realm-promise"));
+                    realm.PumpJobs();
+                    order.Add("realm");
+                }
+            )
+            .UseAgent(options =>
+                options.Initialize = agent =>
+                {
+                    agent.EnqueuePromiseJob(() => order.Add("agent-promise"));
+                    agent.PumpJobs();
+                    order.Add("agent");
+                }
+            )
+            .Build();
+
+        Assert.That(
+            order,
+            Is.EqualTo(new[] { "realm-promise", "realm", "agent-promise", "agent" })
+        );
+    }
 }

@@ -12,7 +12,7 @@ internal sealed class DefaultWorkerHost : IWorkerHost
         string? ownerReferrer
     )
     {
-        var agent = ownerRealm.Engine.CreateWorkerAgent();
+        var agent = ownerRealm.Agent.CreateWorkerAgent();
         var realm = agent.MainRealm;
         var workerPump = new HostPump(agent);
         if (!string.IsNullOrEmpty(moduleEntry))

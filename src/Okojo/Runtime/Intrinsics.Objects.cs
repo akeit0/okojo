@@ -129,7 +129,7 @@ public partial class Intrinsics
         Realm.Global["Intl"] = CreateIntlObject();
         Realm.Global["Math"] = CreateMathObject();
         Realm.Global["JSON"] = CreateJsonObject();
-        if (Realm.Engine.IsClrAccessEnabled)
+        if (Realm.Agent.IsClrAccessEnabled)
         {
             Realm.Global["clr"] = JsValue.FromObject(Realm.GetClrNamespace());
             Realm.Global["$null"] = JsValue.FromObject(Realm.CreateClrTypedNullHelperFunction());
@@ -138,7 +138,7 @@ public partial class Intrinsics
             Realm.Global["$using"] = JsValue.FromObject(Realm.CreateClrUsingHelperFunction());
         }
 
-        var apiModules = Realm.Engine.Options.RealmApiModules;
+        var apiModules = Realm.Agent.RealmApiModules;
         for (var i = 0; i < apiModules.Count; i++)
             apiModules[i].Install(Realm);
     }

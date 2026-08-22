@@ -7,10 +7,11 @@ namespace Okojo.Runtime;
 ///     Root Okojo runtime object.
 ///     Prefer the builder or options-based factory for embedding code.
 /// </summary>
-public sealed class JsRuntime : IJsRuntimeHostInternal, IDisposable
+public sealed class JsRuntime : IDisposable
 {
     private readonly List<JsAgent> agents = new();
     private readonly object agentsGate = new();
+    private readonly object runtimeIdentity = new();
     private volatile bool disposed;
     private int nextAgentId = 1;
 
@@ -38,7 +39,7 @@ public sealed class JsRuntime : IJsRuntimeHostInternal, IDisposable
             Options.WorkerScriptSourceLoader
             ?? new WorkerScriptSourceLoaderFromModuleSourceLoader(ModuleSourceLoader);
         SourceMapRegistry = Options.Host.SourceMapRegistry;
-        MainAgent = new(this, JsAgentKind.Main, 0, Options.Agent);
+        MainAgent = CreateAgent(JsAgentKind.Main, 0, Options.Agent, null);
         lock (agentsGate)
         {
             agents.Add(MainAgent);
@@ -67,8 +68,6 @@ public sealed class JsRuntime : IJsRuntimeHostInternal, IDisposable
     public bool IsDisposed => disposed;
 
     public bool IsClrAccessEnabled => Options.ClrAccessEnabled;
-    IClrAccessProvider? IJsRuntimeHostInternal.ClrAccessProvider => Options.ClrAccessProvider;
-    internal IClrAccessProvider? ClrAccessProvider => Options.ClrAccessProvider;
 
     public IReadOnlyList<JsAgent> Agents
     {
@@ -216,13 +215,7 @@ public sealed class JsRuntime : IJsRuntimeHostInternal, IDisposable
             ThrowIfDisposed();
             var agentOptions = Options.Agent.Clone();
             configure?.Invoke(agentOptions);
-            var agent = new JsAgent(
-                this,
-                JsAgentKind.Worker,
-                nextAgentId++,
-                agentOptions,
-                MainAgent
-            );
+            var agent = CreateAgent(JsAgentKind.Worker, nextAgentId++, agentOptions, MainAgent);
             agents.Add(agent);
             return agent;
         }
@@ -238,6 +231,57 @@ public sealed class JsRuntime : IJsRuntimeHostInternal, IDisposable
     {
         if (disposed)
             throw new ObjectDisposedException(nameof(JsRuntime));
+    }
+
+    private JsAgent CreateAgent(
+        JsAgentKind kind,
+        int id,
+        JsAgentOptions options,
+        JsAgent? parentAgent
+    )
+    {
+        var agent = new JsAgent(
+            kind,
+            id,
+            options,
+            parentAgent,
+            runtimeIdentity,
+            TimeProvider,
+            ModuleSourceLoader,
+            WorkerScriptSourceLoader.LoadScript,
+            SourceMapRegistry,
+            Options.RealmApiModules,
+            () => Options.ClrAssemblies,
+            () => Options.ClrAssembliesVersion,
+            assemblies => Options.AddClrAssembliesCore(assemblies),
+            Options.ClrAccessEnabled,
+            Options.ClrAccessProvider,
+            Options.SharedWaiterControllerFactory,
+            Options.LowLevelHost.BackgroundScheduler,
+            Options.LowLevelHost.MessageSerializer,
+            Options.LowLevelHost.WorkerHost,
+            Options.LowLevelHost.WorkerMessageQueueKey,
+            CreateWorkerAgent
+        );
+        var hostJobs = new HostJobQueue(
+            TimeProvider,
+            Options.LowLevelHost.HostTaskScheduler,
+            () => agent.IsTerminated,
+            agent.SignalJobsAvailable,
+            agent.RunPromiseJobs
+        );
+        agent.AttachHostJobQueue(
+            () => hostJobs.PendingJobCount,
+            hostJobs.GetJobCount,
+            hostJobs.Enqueue,
+            hostJobs.Enqueue,
+            hostJobs.RunJobs,
+            hostJobs.RunOneHostJob,
+            hostJobs.PumpJobs,
+            hostJobs.Clear
+        );
+        agent.Initialize();
+        return agent;
     }
 
     private static JsRuntimeOptions CreateOptions(Action<JsRuntimeOptions> configure)

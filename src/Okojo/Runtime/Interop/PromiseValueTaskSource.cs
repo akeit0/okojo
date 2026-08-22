@@ -159,7 +159,7 @@ internal sealed class PumpedPromiseValueTaskSource<T> : IValueTaskSource<T>
         this.realm = realm;
         this.cancellationToken = cancellationToken;
         core.RunContinuationsAsynchronously = true;
-        realm.Engine.Options.HostServices.BackgroundScheduler.Queue(
+        realm.Agent.BackgroundScheduler.Queue(
             static state =>
             {
                 ((PumpedPromiseValueTaskSource<T>)state!).RunPumpLoop();

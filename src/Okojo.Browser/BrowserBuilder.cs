@@ -29,7 +29,7 @@ public sealed class BrowserBuilder
         options.UseRealmSetup(realm =>
         {
             new BrowserApiModule(
-                _ => new TimeProviderDelayScheduler(realm.Engine.TimeProvider),
+                _ => new TimeProviderDelayScheduler(realm.TimeProvider),
                 WebTaskQueueKeys.Timers,
                 state.AnimationFrameQueueKey,
                 state.AnimationFrameInterval

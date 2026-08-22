@@ -17,7 +17,7 @@ public sealed partial class JsAgent
                 return descriptor;
 
             descriptor =
-                EngineHost.ClrAccessProvider?.CreateHostTypeDescriptor(
+                ClrAccessProvider?.CreateHostTypeDescriptor(
                     this,
                     clrType,
                     Interlocked.Increment(ref nextHostTypeId)
@@ -82,7 +82,7 @@ public sealed partial class JsAgent
                     Interlocked.Increment(ref nextHostTypeId),
                     bindingOverride
                 )
-                : EngineHost.ClrAccessProvider?.CreateHostTypeDescriptor(
+                : ClrAccessProvider?.CreateHostTypeDescriptor(
                     this,
                     clrType,
                     Interlocked.Increment(ref nextHostTypeId)

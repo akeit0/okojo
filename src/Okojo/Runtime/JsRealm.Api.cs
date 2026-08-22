@@ -81,7 +81,10 @@ public sealed partial class JsRealm
 
     public string LoadWorkerScript(string path, string? referrer = null)
     {
-        return EngineHost.LoadWorkerScript(path, referrer ?? GetCurrentModuleResolvedIdOrNull());
+        return Agent.LoadWorkerScript(
+            path,
+            referrer ?? GetCurrentModuleResolvedIdOrNull()
+        );
     }
 
     public JsRealm CreateRealm(Action<JsRealmOptions>? configure = null)

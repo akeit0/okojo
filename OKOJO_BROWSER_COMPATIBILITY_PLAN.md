@@ -393,7 +393,7 @@ Also keep these boundaries explicit:
 ## 2026 Execution Priorities
 
 1. keep all non-legacy, non-staging Test262 coverage passing
-2. remove host queue, worker, and runtime-option coupling from `JsAgent` and `JsRealm`
+2. remove host queue, worker, and runtime-option coupling from `JsAgent` and `JsRealm` (the broad `IJsRuntimeHost` seam is now removed)
 3. split `Okojo.JavaScript` from `Okojo.JavaScript.Runtime`
 4. migrate host/profile projects to the new dependency graph
 5. tighten module/job/worker host seams for browser-like embedding

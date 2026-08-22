@@ -123,8 +123,6 @@ public sealed partial class JsRealm
     public JsValue Accumulator => acc;
 
     public JsValue CurrentNewTarget => GetFrameNewTarget(fp);
-    internal TimeProvider TimeProvider => Engine.TimeProvider;
-
     public ref readonly CallFrame CurrentCallFrame =>
         ref Unsafe.As<JsValue, CallFrame>(ref Stack[fp]);
     internal ref CallFrame CurrentCallFrameRef => ref Unsafe.As<JsValue, CallFrame>(ref Stack[fp]);
@@ -5020,7 +5018,7 @@ public sealed partial class JsRealm
         if (
             hasSourceLocation
             && sourcePath is { Length: > 0 }
-            && Agent.Engine.SourceMapRegistry is { } sourceMaps
+            && Agent.SourceMapRegistry is { } sourceMaps
             && sourceMaps.TryMapToOriginal(
                 sourcePath,
                 sourceLine,

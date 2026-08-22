@@ -37,7 +37,7 @@ public sealed class BrowserApiModule : IRealmApiModule
 
     public static BrowserApiModule Shared { get; } =
         new(
-            static realm => new TimeProviderDelayScheduler(realm.Engine.TimeProvider),
+            static realm => new TimeProviderDelayScheduler(realm.TimeProvider),
             WebTaskQueueKeys.Timers,
             WebTaskQueueKeys.Rendering,
             TimeSpan.FromMilliseconds(16)
@@ -80,7 +80,7 @@ public sealed class BrowserApiModule : IRealmApiModule
     {
         return realmStates.GetValue(
             realm,
-            static key => new RealmBrowserState { TimeOrigin = key.Engine.TimeProvider.GetUtcNow() }
+            static key => new RealmBrowserState { TimeOrigin = key.TimeProvider.GetUtcNow() }
         );
     }
 
@@ -206,7 +206,7 @@ public sealed class BrowserApiModule : IRealmApiModule
             requests = dueState.State.AnimationFrameRequests.Values.ToArray();
             dueState.State.AnimationFrameRequests.Clear();
             timestamp = (
-                dueState.Realm.Engine.TimeProvider.GetUtcNow() - dueState.State.TimeOrigin
+                dueState.Realm.TimeProvider.GetUtcNow() - dueState.State.TimeOrigin
             ).TotalMilliseconds;
         }
 

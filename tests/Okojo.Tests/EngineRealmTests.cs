@@ -12,8 +12,6 @@ public class EngineRealmTests
         var realm2 = engine.CreateRealm();
 
         Assert.That(ReferenceEquals(realm1.Atoms, realm2.Atoms), Is.True);
-        Assert.That(realm1.Engine, Is.SameAs(engine));
-        Assert.That(realm2.Engine, Is.SameAs(engine));
         Assert.That(realm1.Agent, Is.SameAs(engine.MainAgent));
         Assert.That(realm2.Agent, Is.SameAs(engine.MainAgent));
         Assert.That(realm1.Id, Is.EqualTo(0));
@@ -38,6 +36,18 @@ public class EngineRealmTests
 
         _ = agent1.Atoms.InternNoCheck("worker-only-key");
         Assert.That(agent2.Atoms.TryGetInterned("worker-only-key", out _), Is.False);
+    }
+
+    [Test]
+    public void CrossRuntimeAgentMessagesAreRejectedWithoutRuntimeReferenceOnAgent()
+    {
+        using var first = JsRuntime.Create();
+        using var second = JsRuntime.Create();
+
+        Assert.That(
+            () => first.MainAgent.PostMessage(second.MainAgent, null),
+            Throws.TypeOf<InvalidOperationException>()
+        );
     }
 
     [Test]

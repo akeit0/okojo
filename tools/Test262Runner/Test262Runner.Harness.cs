@@ -726,11 +726,12 @@ internal static partial class Program
         int TotalLines
     );
 
-    private sealed class Test262HostContext(TimeProvider timeProvider) : IDisposable
+    private sealed class Test262HostContext(JsRuntime runtime) : IDisposable
     {
         private const string WorkerLeaveMessage = "!";
         private readonly object faultGate = new();
-        private readonly long monotonicStartTimestamp = timeProvider.GetTimestamp();
+        private readonly TimeProvider timeProvider = runtime.TimeProvider;
+        private readonly long monotonicStartTimestamp = runtime.TimeProvider.GetTimestamp();
         private readonly ConcurrentQueue<JsValue> reports = new();
         private readonly ConcurrentDictionary<int, Test262WorkerHost> workers = new();
         private volatile bool disposed;
@@ -794,7 +795,7 @@ internal static partial class Program
             ThrowIfFaulted();
             ThrowIfDisposed();
 
-            var knownAgentIds = ((JsRuntime)mainRealm.Engine)
+            var knownAgentIds = runtime
                 .Agents.Select(static a => a.Id)
                 .ToHashSet();
             var createWorker = RequireFunction(mainRealm, "createWorker");
@@ -809,7 +810,7 @@ internal static partial class Program
                     "TEST262_AGENT_START"
                 );
 
-            var workerAgent = ((JsRuntime)mainRealm.Engine).Agents.FirstOrDefault(agent =>
+            var workerAgent = runtime.Agents.FirstOrDefault(agent =>
                 !knownAgentIds.Contains(agent.Id)
             );
             if (workerAgent is null)
@@ -1037,7 +1038,7 @@ internal static partial class Program
         {
             try
             {
-                var runnerTime = workerRealm.Engine.TimeProvider as Test262RunnerTimeProvider;
+                var runnerTime = workerRealm.TimeProvider as Test262RunnerTimeProvider;
                 Test262RunnerPump.RunWorkerLoop(workerRealm, () => leaving || disposed, runnerTime);
             }
             catch (Exception ex)

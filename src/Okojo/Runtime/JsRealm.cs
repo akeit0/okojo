@@ -21,12 +21,12 @@ public sealed partial class JsRealm
     internal const int IntlRangePartValueSlot = 1;
     internal const int IntlRangePartSourceSlot = 2;
     private readonly JsPlainObject bootstrapObjectPrototype;
+    private readonly Action<JsRealm>? initialize;
     public readonly Intrinsics Intrinsics;
 
     internal JsRealm(JsAgent agent, int id, JsRealmOptions? options = null)
     {
         Id = id;
-        Engine = agent.Engine;
         Agent = agent;
         EmptyShape = new(this, new());
         FunctionPrototypeObjectShape = new(
@@ -189,14 +189,19 @@ public sealed partial class JsRealm
         if (options is not null)
         {
             HostDefined = options.HostDefined;
-            options.Initialize?.Invoke(this);
+            initialize = options.Initialize;
         }
     }
 
+    internal void Initialize()
+    {
+        initialize?.Invoke(this);
+    }
+
     public int Id { get; }
-    public IJsRuntimeHost Engine { get; }
-    internal IJsRuntimeHostInternal EngineHost => (IJsRuntimeHostInternal)Engine;
     public JsAgent Agent { get; }
+    public TimeProvider TimeProvider => Agent.TimeProvider;
+    public bool IsClrAccessEnabled => Agent.IsClrAccessEnabled;
 
     public object? HostDefined { get; set; }
     internal JsHostFunction? BootstrapFunctionPrototype { get; set; }

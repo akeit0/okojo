@@ -1,5 +1,7 @@
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using Okojo.Bytecode;
+using Okojo.SourceMaps;
 
 namespace Okojo.Runtime;
 
@@ -17,7 +19,6 @@ public sealed partial class JsAgent : IDisposable
 
     private readonly JsBreakpointRegistry breakpointRegistry = new();
     private readonly Dictionary<string, Symbol> globalSymbolRegistry = new(StringComparer.Ordinal);
-    private readonly HostTaskTarget hostTaskTarget;
     private readonly AutoResetEvent jobsAvailable = new(false);
     private readonly object jobsGate = new();
 
@@ -48,8 +49,20 @@ public sealed partial class JsAgent : IDisposable
     );
     private readonly object stepGate = new();
     private readonly object symbolRegistryGate = new();
-    private readonly Queue<PendingJob> hostJobs = new();
-    private readonly Queue<PendingJob> hostPriorityJobs = new();
+    private readonly object runtimeIdentity;
+    private readonly Func<string, string?, string> loadWorkerScript;
+    private readonly Func<Action<JsAgentOptions>?, JsAgent> createWorkerAgent;
+    private readonly Func<IReadOnlyList<Assembly>> getClrAssemblies;
+    private readonly Func<int> getClrAssembliesVersion;
+    private readonly Action<Assembly[]> addClrAssemblies;
+    private Func<int> getPendingHostJobCount = static () => 0;
+    private Func<string, int> getHostJobCount = static _ => 0;
+    private Action<string, Action<object?>, object?> enqueueHostJob = static (_, _, _) => { };
+    private Action<HostTaskQueueKey, Action<object?>, object?> enqueueHostTask = static (_, _, _) => { };
+    private Func<string, int> runHostJobs = static _ => 0;
+    private Func<bool> runOneHostJob = static () => false;
+    private Action pumpHostJobs = static () => { };
+    private Action clearHostJobs = static () => { };
     private volatile bool disposed;
     internal ulong ExecutionCheckCountdown;
     internal volatile int ExecutionCheckpointHookBits;
@@ -60,46 +73,110 @@ public sealed partial class JsAgent : IDisposable
     private volatile bool terminated;
 
     internal JsAgent(
-        JsRuntime engine,
         JsAgentKind kind,
         int id,
         JsAgentOptions options,
-        JsAgent? parentAgent = null
+        JsAgent? parentAgent,
+        object runtimeIdentity,
+        TimeProvider timeProvider,
+        IModuleSourceLoader moduleSourceLoader,
+        Func<string, string?, string> loadWorkerScript,
+        SourceMapRegistry? sourceMapRegistry,
+        IReadOnlyList<IRealmApiModule> realmApiModules,
+        Func<IReadOnlyList<Assembly>> getClrAssemblies,
+        Func<int> getClrAssembliesVersion,
+        Action<Assembly[]> addClrAssemblies,
+        bool isClrAccessEnabled,
+        IClrAccessProvider? clrAccessProvider,
+        ISharedWaiterControllerFactory sharedWaiterControllerFactory,
+        IBackgroundScheduler backgroundScheduler,
+        IHostMessageSerializer messageSerializer,
+        IWorkerHost workerHost,
+        HostTaskQueueKey workerMessageQueueKey,
+        Func<Action<JsAgentOptions>?, JsAgent> createWorkerAgent
     )
     {
-        Engine = engine;
         Kind = kind;
         Id = id;
         ParentAgent = parentAgent;
+        this.runtimeIdentity = runtimeIdentity;
+        TimeProvider = timeProvider;
+        ModuleSourceLoader = moduleSourceLoader;
+        this.loadWorkerScript = loadWorkerScript;
+        SourceMapRegistry = sourceMapRegistry;
+        RealmApiModules = realmApiModules;
+        this.getClrAssemblies = getClrAssemblies;
+        this.getClrAssembliesVersion = getClrAssembliesVersion;
+        this.addClrAssemblies = addClrAssemblies;
+        IsClrAccessEnabled = isClrAccessEnabled;
+        ClrAccessProvider = clrAccessProvider;
+        SharedWaiterControllerFactory = sharedWaiterControllerFactory;
+        BackgroundScheduler = backgroundScheduler;
+        MessageSerializer = messageSerializer;
+        WorkerHost = workerHost;
+        WorkerMessageQueueKey = workerMessageQueueKey;
+        this.createWorkerAgent = createWorkerAgent;
         Options = options.Clone();
         Atoms = new();
         ModuleGraph = new(this);
-        ModuleLinker = new(() => Engine.ModuleSourceLoader);
-        ExecutionCheckPolicy = new(Options, Engine.TimeProvider);
+        ModuleLinker = new(() => ModuleSourceLoader);
+        ExecutionCheckPolicy = new(Options, TimeProvider);
         ExecutionCheckInterval = Math.Min(Options.CheckInterval, Options.MaxInstructions);
         ExecutionCheckpointHookBits = (int)Options.ExecutionCheckpointHooks;
         ExecutionCheckCountdown = ExecutionCheckPolicy.HasPeriodicChecks
             ? ExecutionCheckInterval
             : ulong.MaxValue;
         HostDefined = Options.HostDefined;
-        hostTaskTarget = new(Engine.TimeProvider, EnqueueHostJobDirect, () => IsTerminated);
-        HostTaskScheduler = Engine.Options.HostServices.HostTaskScheduler.CreateAgentScheduler(
-            hostTaskTarget
-        );
         var realm = new JsRealm(this, realms.Count, Options.Realm);
         lock (realmsGate)
         {
             realms.Add(realm);
         }
 
+    }
+
+    internal void AttachHostJobQueue(
+        Func<int> getPendingHostJobCount,
+        Func<string, int> getHostJobCount,
+        Action<string, Action<object?>, object?> enqueueHostJob,
+        Action<HostTaskQueueKey, Action<object?>, object?> enqueueHostTask,
+        Func<string, int> runHostJobs,
+        Func<bool> runOneHostJob,
+        Action pumpHostJobs,
+        Action clearHostJobs
+    )
+    {
+        this.getPendingHostJobCount = getPendingHostJobCount;
+        this.getHostJobCount = getHostJobCount;
+        this.enqueueHostJob = enqueueHostJob;
+        this.enqueueHostTask = enqueueHostTask;
+        this.runHostJobs = runHostJobs;
+        this.runOneHostJob = runOneHostJob;
+        this.pumpHostJobs = pumpHostJobs;
+        this.clearHostJobs = clearHostJobs;
+    }
+
+    internal void Initialize()
+    {
+        MainRealm.Initialize();
         Options.Initialize?.Invoke(this);
     }
 
     internal ExecutionCheckPolicy ExecutionCheckPolicy { get; }
     internal ulong ExecutionCheckInterval { get; private set; }
 
-    public IJsRuntimeHost Engine { get; }
-    internal IJsRuntimeHostInternal EngineHost => (IJsRuntimeHostInternal)Engine;
+    internal object RuntimeIdentity => runtimeIdentity;
+    public TimeProvider TimeProvider { get; }
+    public IModuleSourceLoader ModuleSourceLoader { get; }
+    public SourceMapRegistry? SourceMapRegistry { get; }
+    internal IReadOnlyList<IRealmApiModule> RealmApiModules { get; }
+    public bool IsClrAccessEnabled { get; }
+    internal IClrAccessProvider? ClrAccessProvider { get; }
+    internal ISharedWaiterControllerFactory SharedWaiterControllerFactory { get; }
+    internal IBackgroundScheduler BackgroundScheduler { get; }
+    internal IHostMessageSerializer MessageSerializer { get; }
+    internal IWorkerHost WorkerHost { get; }
+    internal HostTaskQueueKey WorkerMessageQueueKey { get; }
     public JsAgentKind Kind { get; }
     public int Id { get; }
     public JsAgent? ParentAgent { get; }
@@ -139,10 +216,7 @@ public sealed partial class JsAgent : IDisposable
                 return 0;
             lock (jobsGate)
             {
-                return scriptJobs.Count
-                    + promiseJobs.Count
-                    + hostJobs.Count
-                    + hostPriorityJobs.Count;
+                return scriptJobs.Count + promiseJobs.Count + getPendingHostJobCount();
             }
         }
     }
@@ -159,14 +233,15 @@ public sealed partial class JsAgent : IDisposable
             {
                 JobQueueName.ScriptJobs => scriptJobs.Count,
                 JobQueueName.PromiseJobs => promiseJobs.Count,
-                JobQueueName.HostJobs => hostJobs.Count,
-                JobQueueName.HostPriorityJobs => hostPriorityJobs.Count,
+                JobQueueName.HostJobs => getHostJobCount(JobQueueName.HostJobs),
+                JobQueueName.HostPriorityJobs => getHostJobCount(JobQueueName.HostPriorityJobs),
                 _ => 0,
             };
         }
     }
 
-    internal IHostAgentScheduler HostTaskScheduler { get; }
+    public IReadOnlyList<Assembly> ClrAssemblies => getClrAssemblies();
+    internal int ClrAssembliesVersion => getClrAssembliesVersion();
 
     public bool IsDebuggerStatementHookEnabled =>
         (ExecutionCheckpointHookBits & (int)ExecutionCheckpointHooks.DebuggerStatement) != 0;
@@ -237,14 +312,28 @@ public sealed partial class JsAgent : IDisposable
 
     internal JsRealm CreateRealm(JsRealmOptions? options = null)
     {
-        JsRealm realm;
         lock (realmsGate)
         {
-            realm = new(this, realms.Count, options ?? Options.Realm);
+            var realm = new JsRealm(this, realms.Count, options ?? Options.Realm);
+            realm.Initialize();
             realms.Add(realm);
+            return realm;
         }
+    }
 
-        return realm;
+    public JsAgent CreateWorkerAgent(Action<JsAgentOptions>? configure = null)
+    {
+        return createWorkerAgent(configure);
+    }
+
+    internal string LoadWorkerScript(string path, string? referrer = null)
+    {
+        return loadWorkerScript(path, referrer);
+    }
+
+    internal void AddClrAssemblies(params Assembly[] assemblies)
+    {
+        addClrAssemblies(assemblies);
     }
 
     internal Symbol GetOrCreateRegisteredSymbol(string key)
@@ -454,7 +543,7 @@ public sealed partial class JsAgent : IDisposable
     public void SetExecutionTimeout(TimeSpan timeout)
     {
         Options.SetExecutionTimeout(timeout);
-        ExecutionCheckPolicy.SetExecutionTimeout(Engine.TimeProvider, timeout);
+        ExecutionCheckPolicy.SetExecutionTimeout(TimeProvider, timeout);
         RefreshExecutionCheckScheduling(false);
     }
 
@@ -467,7 +556,7 @@ public sealed partial class JsAgent : IDisposable
 
     public bool ResetExecutionTimeout()
     {
-        var reset = ExecutionCheckPolicy.ResetExecutionTimeout(Engine.TimeProvider);
+        var reset = ExecutionCheckPolicy.ResetExecutionTimeout(TimeProvider);
         if (reset)
             RefreshExecutionCheckScheduling(false);
         return reset;
@@ -697,7 +786,7 @@ public sealed partial class JsAgent : IDisposable
                 return cachedSource;
         }
 
-        var source = Engine.ModuleSourceLoader.LoadModule(resolvedId).GetRequiredSourceText();
+        var source = ModuleSourceLoader.LoadModule(resolvedId).GetRequiredSourceText();
         lock (moduleCacheGate)
         {
             moduleSourceCache.TryAdd(resolvedId, source);
@@ -922,6 +1011,13 @@ public sealed partial class JsAgent : IDisposable
     {
         if (terminated)
             return;
+
+        if (queueName is not JobQueueName.ScriptJobs and not JobQueueName.PromiseJobs)
+        {
+            enqueueHostJob(queueName, callback, state);
+            return;
+        }
+
         lock (jobsGate)
         {
             switch (queueName)
@@ -931,12 +1027,6 @@ public sealed partial class JsAgent : IDisposable
                     break;
                 case JobQueueName.PromiseJobs:
                     promiseJobs.Enqueue(new(callback, state));
-                    break;
-                case JobQueueName.HostPriorityJobs:
-                    hostPriorityJobs.Enqueue(new(callback, state));
-                    break;
-                default:
-                    hostJobs.Enqueue(new(callback, state));
                     break;
             }
         }
@@ -953,14 +1043,7 @@ public sealed partial class JsAgent : IDisposable
     /// <summary>Enqueues a host task that runs before Promise jobs (e.g. Node nextTick).</summary>
     internal void EnqueueHostPriorityJob(Action<object?> callback, object? state)
     {
-        if (terminated)
-            return;
-        lock (jobsGate)
-        {
-            hostPriorityJobs.Enqueue(new(callback, state));
-        }
-
-        SignalJobsAvailable();
+        enqueueHostJob(JobQueueName.HostPriorityJobs, callback, state);
     }
 
     /// <summary>Enqueues a host task. Routes through the host scheduler when one is queued.</summary>
@@ -982,26 +1065,7 @@ public sealed partial class JsAgent : IDisposable
         object? state
     )
     {
-        if (terminated)
-            return;
-
-        if (HostTaskScheduler is IQueuedHostAgentScheduler queuedScheduler)
-            queuedScheduler.EnqueueTask(queueKey, callback, state);
-        else
-            HostTaskScheduler.EnqueueTask(callback, state);
-    }
-
-    /// <summary>Delivery target used by host schedulers: enqueues straight into the host job queue.</summary>
-    private void EnqueueHostJobDirect(Action<object?> callback, object? state)
-    {
-        if (terminated)
-            return;
-        lock (jobsGate)
-        {
-            hostJobs.Enqueue(new(callback, state));
-        }
-
-        SignalJobsAvailable();
+        enqueueHostTask(queueKey, callback, state);
     }
 
     // Cross-agent messaging follows host-task semantics (message events are host tasks).
@@ -1012,14 +1076,12 @@ public sealed partial class JsAgent : IDisposable
 
     public void PostMessage(JsAgent target, object? payload, HostTaskQueueKey queueKey)
     {
-        if (!ReferenceEquals(target.Engine, Engine))
+        if (!ReferenceEquals(target.RuntimeIdentity, RuntimeIdentity))
             throw new InvalidOperationException("Cross-engine postMessage is not supported.");
         if (terminated || target.terminated)
             return;
 
-        var clonedPayload = Engine.Options.HostServices.MessageSerializer.CloneCrossAgentPayload(
-            payload
-        );
+        var clonedPayload = MessageSerializer.CloneCrossAgentPayload(payload);
         target.EnqueueHostTask(
             queueKey,
             SPostMessageTask,
@@ -1051,7 +1113,7 @@ public sealed partial class JsAgent : IDisposable
 
         try
         {
-            PumpJobsCore();
+            pumpHostJobs();
         }
         finally
         {
@@ -1068,6 +1130,9 @@ public sealed partial class JsAgent : IDisposable
     {
         if (terminated)
             return 0;
+        if (queueName is not JobQueueName.ScriptJobs and not JobQueueName.PromiseJobs)
+            return runHostJobs(queueName);
+
         var executed = 0;
         while (TryDequeueJob(queueName, out var job))
         {
@@ -1090,31 +1155,11 @@ public sealed partial class JsAgent : IDisposable
     /// <summary>Runs one pending host job.</summary>
     internal bool RunOneHostJob()
     {
-        if (!TryDequeueJob(JobQueueName.HostJobs, out var job))
-            return false;
-        job.Invoke();
-        return true;
+        return runOneHostJob();
     }
 
     /// <summary>Runs all pending host jobs, FIFO.</summary>
-    internal int RunHostJobs() => RunJobs(JobQueueName.HostJobs);
-
-    private void PumpJobsCore()
-    {
-        while (true)
-        {
-            while (
-                TryDequeueJob(JobQueueName.HostPriorityJobs, out var priorityJob)
-                || TryDequeueJob(JobQueueName.PromiseJobs, out priorityJob)
-            )
-                priorityJob.Invoke();
-
-            if (!TryDequeueJob(JobQueueName.HostJobs, out var hostJob))
-                break;
-
-            hostJob.Invoke();
-        }
-    }
+    internal int RunHostJobs() => runHostJobs(JobQueueName.HostJobs);
 
     public void Terminate()
     {
@@ -1132,10 +1177,9 @@ public sealed partial class JsAgent : IDisposable
         {
             scriptJobs.Clear();
             promiseJobs.Clear();
-            hostJobs.Clear();
-            hostPriorityJobs.Clear();
             isPumpingJobs = false;
         }
+        clearHostJobs();
 
         lock (moduleCacheGate)
         {
@@ -1156,9 +1200,13 @@ public sealed partial class JsAgent : IDisposable
             {
                 JobQueueName.ScriptJobs => scriptJobs,
                 JobQueueName.PromiseJobs => promiseJobs,
-                JobQueueName.HostPriorityJobs => hostPriorityJobs,
-                _ => hostJobs,
+                _ => null,
             };
+            if (queue is null)
+            {
+                job = default;
+                return false;
+            }
             if (queue.Count == 0)
             {
                 job = default;
@@ -1170,7 +1218,7 @@ public sealed partial class JsAgent : IDisposable
         }
     }
 
-    private void SignalJobsAvailable()
+    internal void SignalJobsAvailable()
     {
         if (disposed)
             return;

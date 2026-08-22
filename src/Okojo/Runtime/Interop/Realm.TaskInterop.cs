@@ -519,7 +519,7 @@ namespace Okojo.Runtime
             if (value is Task task)
             {
                 if (
-                    realm.EngineHost.ClrAccessProvider is { } provider
+                    realm.Agent.ClrAccessProvider is { } provider
                     && provider.TryConvertTaskObjectToJsValue(realm, value, out jsValue)
                 )
                     return true;
@@ -540,7 +540,7 @@ namespace Okojo.Runtime
                 && valueType.GetGenericTypeDefinition() == typeof(ValueTask<>)
             )
                 if (
-                    realm.EngineHost.ClrAccessProvider is { } provider
+                    realm.Agent.ClrAccessProvider is { } provider
                     && provider.TryConvertTaskObjectToJsValue(realm, value, out jsValue)
                 )
                     return true;
@@ -572,7 +572,7 @@ namespace Okojo.Runtime
             }
 
             if (
-                realm.EngineHost.ClrAccessProvider is { } provider
+                    realm.Agent.ClrAccessProvider is { } provider
                 && provider.TryConvertJsValueToTaskObject(
                     realm,
                     value,
@@ -1068,8 +1068,8 @@ namespace Okojo.Runtime
 
         private async Task WaitForJobsAsync(CancellationToken cancellationToken)
         {
-            await Engine
-                .Options.HostServices.BackgroundScheduler.WaitHandleAsync(
+            await Agent
+                .BackgroundScheduler.WaitHandleAsync(
                     Agent.JobsAvailableWaitHandle,
                     cancellationToken
                 )

@@ -49,7 +49,7 @@ public sealed partial class JsRealm
 
                         var payload =
                             args.Length != 0
-                                ? realm.Engine.Options.HostServices.MessageSerializer.SerializeOutgoing(
+                                ? realm.Agent.MessageSerializer.SerializeOutgoing(
                                     realm,
                                     args[0]
                                 )
@@ -57,7 +57,7 @@ public sealed partial class JsRealm
                         realm.Agent.PostMessage(
                             target,
                             payload,
-                            realm.Engine.Options.HostServices.WorkerMessageQueueKey
+                            realm.Agent.WorkerMessageQueueKey
                         );
                         return JsValue.Undefined;
                     },
@@ -87,7 +87,7 @@ public sealed partial class JsRealm
         var payloadValue = JsValue.Undefined;
         try
         {
-            payloadValue = Engine.Options.HostServices.MessageSerializer.DeserializeIncoming(
+            payloadValue = Agent.MessageSerializer.DeserializeIncoming(
                 this,
                 payload
             );
@@ -131,7 +131,7 @@ public sealed partial class JsRealm
         var dataValue = JsValue.Undefined;
         try
         {
-            dataValue = Engine.Options.HostServices.MessageSerializer.DeserializeIncoming(
+            dataValue = Agent.MessageSerializer.DeserializeIncoming(
                 this,
                 payload
             );
@@ -162,7 +162,7 @@ public sealed partial class JsRealm
             JsValue dataValue;
             try
             {
-                dataValue = Engine.Options.HostServices.MessageSerializer.DeserializeIncoming(
+                dataValue = Agent.MessageSerializer.DeserializeIncoming(
                     this,
                     payload
                 );
@@ -216,7 +216,7 @@ public sealed partial class JsRealm
 
     internal JsPlainObject CreateWorkerHandleObject(string? moduleEntry)
     {
-        var workerBinding = Engine.Options.HostServices.WorkerHost.CreateWorker(
+        var workerBinding = Agent.WorkerHost.CreateWorker(
             this,
             moduleEntry,
             GetCurrentModuleResolvedIdOrNull()

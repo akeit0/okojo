@@ -7,7 +7,7 @@ internal sealed class DefaultSharedWaiterControllerFactory : ISharedWaiterContro
     public JsArrayBufferObject.ISharedWaiterController CreateController(JsRealm realm)
     {
         ArgumentNullException.ThrowIfNull(realm);
-        return new DefaultSharedWaiterController(realm.Engine.TimeProvider);
+        return new DefaultSharedWaiterController(realm.Agent.TimeProvider);
     }
 
     private sealed class DefaultSharedWaiterController(TimeProvider timeProvider)

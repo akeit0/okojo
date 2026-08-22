@@ -7,16 +7,14 @@ public sealed class WorkerRuntime : IDisposable
     private readonly JsAgentThreadHost? threadHost;
     private bool disposed;
 
-    internal WorkerRuntime(JsRuntime engine, JsAgent agent, JsAgentThreadHost? threadHost)
+    internal WorkerRuntime(JsAgent agent, JsAgentThreadHost? threadHost)
     {
-        Engine = engine;
         Agent = agent;
         Realm = agent.MainRealm;
         Pump = new(agent);
         this.threadHost = threadHost;
     }
 
-    public JsRuntime Engine { get; }
     public JsAgent Agent { get; }
     public JsRealm Realm { get; }
     public HostPump Pump { get; }

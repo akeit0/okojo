@@ -10,7 +10,7 @@ public static class WorkerRuntimeFactory
     )
     {
         ArgumentNullException.ThrowIfNull(engine);
-        return CreateWorkerRuntimeCore(engine, configure);
+        return CreateWorkerRuntimeCore(engine.CreateWorkerAgent, configure);
     }
 
     public static WorkerRuntime CreateWorkerRuntime(
@@ -20,7 +20,7 @@ public static class WorkerRuntimeFactory
     {
         ArgumentNullException.ThrowIfNull(ownerRealm);
         return CreateWorkerRuntimeCore(
-            (JsRuntime)ownerRealm.Engine,
+            ownerRealm.Agent.CreateWorkerAgent,
             options =>
             {
                 options.ModuleReferrer ??= ownerRealm.GetCurrentModuleResolvedIdOrNull();
@@ -30,21 +30,21 @@ public static class WorkerRuntimeFactory
     }
 
     private static WorkerRuntime CreateWorkerRuntimeCore(
-        JsRuntime engine,
+        Func<Action<JsAgentOptions>?, JsAgent> createWorkerAgent,
         Action<WorkerRuntimeOptions>? configure
     )
     {
         var options = new WorkerRuntimeOptions();
         configure?.Invoke(options);
 
-        var agent = engine.CreateWorkerAgent();
+        var agent = createWorkerAgent(null);
         var realm = agent.MainRealm;
         var threadHost = options.StartBackgroundHost ? new JsAgentThreadHost(agent) : null;
 
         if (!string.IsNullOrEmpty(options.ModuleEntry))
             _ = agent.EvaluateModule(realm, options.ModuleEntry, options.ModuleReferrer);
 
-        var hostedWorker = new WorkerRuntime(engine, agent, threadHost);
+        var hostedWorker = new WorkerRuntime(agent, threadHost);
         if (options.StartBackgroundHost)
             hostedWorker.StartBackgroundHost();
 

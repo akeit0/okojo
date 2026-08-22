@@ -105,8 +105,7 @@ public sealed class HostPump
 
     public async Task WaitForWorkAsync(CancellationToken cancellationToken = default)
     {
-        await Agent
-            .Engine.Options.HostServices.BackgroundScheduler.WaitHandleAsync(
+        await Agent.BackgroundScheduler.WaitHandleAsync(
                 Agent.JobsAvailableWaitHandle,
                 cancellationToken
             )

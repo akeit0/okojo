@@ -39,7 +39,7 @@ internal static class WorkerHandleFactory
                 var data = (WorkerHandleRuntimeData)callee.UserData!;
                 var payload =
                     args.Length != 0
-                        ? realm.Engine.Options.HostServices.MessageSerializer.SerializeOutgoing(
+                        ? realm.Agent.MessageSerializer.SerializeOutgoing(
                             realm,
                             args[0]
                         )
@@ -47,7 +47,7 @@ internal static class WorkerHandleFactory
                 realm.Agent.PostMessage(
                     data.Binding.Agent,
                     payload,
-                    realm.Engine.Options.HostServices.WorkerMessageQueueKey
+                    realm.Agent.WorkerMessageQueueKey
                 );
                 return JsValue.Undefined;
             },
