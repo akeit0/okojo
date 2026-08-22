@@ -385,7 +385,6 @@ Every substantial feature or compliance slice should still keep its own focused 
 Current supporting documents:
 
 - `docs/OKOJO_LIBRARY_SPLIT_PLAN.md`
-- `docs/OKOJO_LIBRARY_SPLIT_PHASE2_BOUNDARY.md`
 - `docs/OKOJO_MULTI_PASS_COMPILER_DESIGN.md`
 - `docs/OKOJO_NODE_RUNTIME_PLAN.md`
 
