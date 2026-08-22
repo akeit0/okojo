@@ -63,7 +63,7 @@ internal static class WebAssemblyInstaller
                         bindings.Backend,
                         compiled
                     );
-                    return info.Realm.PromiseResolveValue(JsValue.FromObject(module));
+                    return info.Realm.CreateResolvedPromise(JsValue.FromObject(module));
                 }
                 catch (Exception ex)
                 {
@@ -100,7 +100,7 @@ internal static class WebAssemblyInstaller
                             )
                         );
                         var instanceObject = CreateInstanceObject(info.Realm, bindings, instance);
-                        return info.Realm.PromiseResolveValue(JsValue.FromObject(instanceObject));
+                        return info.Realm.CreateResolvedPromise(JsValue.FromObject(instanceObject));
                     }
 
                     var wasm = ReadWasmBytes(info.Realm, args[0]);
@@ -134,7 +134,7 @@ internal static class WebAssemblyInstaller
                         JsValue.FromObject(createdInstanceObject),
                         JsShapePropertyFlags.Open
                     );
-                    return info.Realm.PromiseResolveValue(JsValue.FromObject(result));
+                    return info.Realm.CreateResolvedPromise(JsValue.FromObject(result));
                 }
                 catch (Exception ex)
                 {
@@ -197,26 +197,9 @@ internal static class WebAssemblyInstaller
 
     private static WebAssemblyBindings CreateBindings(JsRealm realm, IWasmBackend backend)
     {
-        var runtimeErrorPrototype = CreateNativeErrorPrototype(realm, "RuntimeError");
-        var compileErrorPrototype = CreateNativeErrorPrototype(realm, "CompileError");
-        var linkErrorPrototype = CreateNativeErrorPrototype(realm, "LinkError");
-
-        var runtimeErrorConstructor = realm.Intrinsics.CreateNativeErrorConstructor(
-            "RuntimeError",
-            runtimeErrorPrototype
-        );
-        var compileErrorConstructor = realm.Intrinsics.CreateNativeErrorConstructor(
-            "CompileError",
-            compileErrorPrototype
-        );
-        var linkErrorConstructor = realm.Intrinsics.CreateNativeErrorConstructor(
-            "LinkError",
-            linkErrorPrototype
-        );
-
-        InitializeNativeErrorConstructor(realm, runtimeErrorConstructor, runtimeErrorPrototype);
-        InitializeNativeErrorConstructor(realm, compileErrorConstructor, compileErrorPrototype);
-        InitializeNativeErrorConstructor(realm, linkErrorConstructor, linkErrorPrototype);
+        var runtimeErrorConstructor = realm.CreateErrorConstructor("RuntimeError");
+        var compileErrorConstructor = realm.CreateErrorConstructor("CompileError");
+        var linkErrorConstructor = realm.CreateErrorConstructor("LinkError");
 
         var modulePrototype = CreatePrototypeObject(realm);
         var instancePrototype = CreatePrototypeObject(realm);
@@ -373,39 +356,19 @@ internal static class WebAssemblyInstaller
         return bindings;
     }
 
-    private static JsPlainObject CreateNativeErrorPrototype(JsRealm realm, string name)
-    {
-        var prototype = new JsPlainObject(realm, false)
-        {
-            Prototype = realm.Intrinsics.ErrorPrototype,
-        };
-        prototype.DefineDataProperty("name", JsValue.FromString(name), BuiltinDataPropertyFlags);
-        prototype.DefineDataProperty(
-            "message",
-            JsValue.FromString(string.Empty),
-            BuiltinDataPropertyFlags
-        );
-        return prototype;
-    }
-
-    private static void InitializeNativeErrorConstructor(
-        JsRealm realm,
-        JsHostFunction constructor,
-        JsPlainObject prototype
-    )
-    {
-        constructor.Prototype = realm.Intrinsics.ErrorConstructor;
-        prototype.DefineDataProperty(
-            "constructor",
-            JsValue.FromObject(constructor),
-            BuiltinDataPropertyFlags
-        );
-        constructor.InitializePrototypeProperty(prototype);
-    }
-
     private static JsPlainObject CreatePrototypeObject(JsRealm realm)
     {
-        return new(realm, false) { Prototype = realm.ObjectPrototype };
+        return new(realm);
+    }
+
+    private static JsPlainObject CreateObjectWithPrototype(JsRealm realm, JsPlainObject prototype)
+    {
+        var obj = new JsPlainObject(realm, false);
+        if (!obj.TrySetPrototype(prototype))
+            throw new InvalidOperationException(
+                "WebAssembly object prototype could not be assigned."
+            );
+        return obj;
     }
 
     private static void InitializePrototypeConstructorPair(
@@ -588,7 +551,7 @@ internal static class WebAssemblyInstaller
     )
     {
         var prototype = explicitPrototype ?? bindings!.ModulePrototype;
-        var obj = new JsPlainObject(realm, false) { Prototype = prototype };
+        var obj = CreateObjectWithPrototype(realm, prototype);
         obj.DefineDataProperty(
             "__jsWasmBackend",
             JsValue.FromObject(new JsBoxObject(realm, backend)),
@@ -610,7 +573,7 @@ internal static class WebAssemblyInstaller
     )
     {
         var prototype = explicitPrototype ?? bindings!.InstancePrototype;
-        var obj = new JsPlainObject(realm, false) { Prototype = prototype };
+        var obj = CreateObjectWithPrototype(realm, prototype);
         obj.DefineDataProperty(
             "__jsWasmInstance",
             JsValue.FromObject(new JsBoxObject(realm, instance)),
@@ -637,7 +600,7 @@ internal static class WebAssemblyInstaller
     )
     {
         var prototype = explicitPrototype ?? bindings!.MemoryPrototype;
-        var obj = new JsPlainObject(realm, false) { Prototype = prototype };
+        var obj = CreateObjectWithPrototype(realm, prototype);
         obj.DefineDataProperty(
             "__jsWasmMemory",
             JsValue.FromObject(new JsBoxObject(realm, memory)),
@@ -654,7 +617,7 @@ internal static class WebAssemblyInstaller
     )
     {
         var prototype = explicitPrototype ?? bindings!.TablePrototype;
-        var obj = new JsPlainObject(realm, false) { Prototype = prototype };
+        var obj = CreateObjectWithPrototype(realm, prototype);
         obj.DefineDataProperty(
             "__jsWasmTable",
             JsValue.FromObject(new JsBoxObject(realm, table)),
@@ -671,7 +634,7 @@ internal static class WebAssemblyInstaller
     )
     {
         var prototype = explicitPrototype ?? bindings!.GlobalPrototype;
-        var obj = new JsPlainObject(realm, false) { Prototype = prototype };
+        var obj = CreateObjectWithPrototype(realm, prototype);
         obj.DefineDataProperty(
             "__jsWasmGlobal",
             JsValue.FromObject(new JsBoxObject(realm, global)),
@@ -860,6 +823,11 @@ internal static class WebAssemblyInstaller
                 JsErrorKind.TypeError,
                 "WebAssembly bytes must be an ArrayBuffer or ArrayBufferView"
             );
+        if (!ReferenceEquals(obj.Realm.Atoms, realm.Atoms))
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "WebAssembly bytes belong to a different JavaScript agent"
+            );
 
         return obj switch
         {
@@ -887,10 +855,7 @@ internal static class WebAssemblyInstaller
         uint byteLength
     )
     {
-        var copy = new byte[byteLength];
-        for (uint i = 0; i < byteLength; i++)
-            copy[i] = buffer.GetByte(byteOffset + i);
-        return copy;
+        return buffer.ReadBytes(byteOffset, byteLength);
     }
 
     private static WasmMemoryType ReadMemoryType(JsRealm realm, in JsValue descriptorValue)
@@ -926,7 +891,7 @@ internal static class WebAssemblyInstaller
                 "WebAssembly.Table descriptor.element is required"
             );
 
-        var element = realm.ToJsStringSlowPath(elementValue);
+        var element = realm.ToJsString(elementValue);
         var kind = element switch
         {
             "anyfunc" or "funcref" => WasmValueKind.FuncRef,
@@ -964,7 +929,7 @@ internal static class WebAssemblyInstaller
                 "WebAssembly.Global descriptor.value is required"
             );
 
-        var valueKind = realm.ToJsStringSlowPath(valueType);
+        var valueKind = realm.ToJsString(valueType);
         var mutable = ReadOptionalBooleanProperty(descriptor, "mutable");
         return new(ParseValueKind(valueKind), mutable ? WasmMutability.Var : WasmMutability.Const);
     }
@@ -1130,7 +1095,7 @@ internal static class WebAssemblyInstaller
     )
     {
         var reason = MapExceptionToReason(realm, bindings, ex);
-        return realm.PromiseRejectByConstructor(realm.Intrinsics.PromiseConstructor, reason);
+        return realm.CreateRejectedPromise(reason);
     }
 
     private static JsValue MapExceptionToReason(
@@ -1140,8 +1105,7 @@ internal static class WebAssemblyInstaller
     )
     {
         if (ex is JsRuntimeException jsRuntimeException)
-            return jsRuntimeException.ThrownValue
-                ?? realm.CreateErrorObjectFromException(jsRuntimeException);
+            return realm.CreateErrorValue(jsRuntimeException);
 
         if (ex is WasmCompileException compileException)
             return CreateErrorValue(
@@ -1162,7 +1126,7 @@ internal static class WebAssemblyInstaller
     private static JsValue CreateErrorValue(JsRealm realm, JsFunction constructor, string message)
     {
         var messageValue = JsValue.FromString(message);
-        return realm.InvokeFunction(constructor, JsValue.Undefined, [messageValue]);
+        return realm.Call(constructor, JsValue.Undefined, [messageValue]);
     }
 
     private readonly record struct WasmModuleHandle(
@@ -1261,7 +1225,7 @@ internal static class WebAssemblyInstaller
                         for (var i = 0; i < args.Length; i++)
                             jsArgs[i] = ConvertValue(realm, args[i]);
 
-                        var result = realm.InvokeFunction(
+                        var result = realm.Call(
                             function,
                             JsValue.Undefined,
                             jsArgs.AsSpan(0, args.Length)
@@ -1275,14 +1239,12 @@ internal static class WebAssemblyInstaller
                             return;
                         }
 
-                        if (
-                            !result.TryGetObject(out var resultObj)
-                            || resultObj is not JsArray resultArray
-                        )
+                        if (!result.TryGetObject(out var resultObj) || resultObj is not JsArray)
                             throw new JsRuntimeException(
                                 JsErrorKind.TypeError,
                                 "Multi-value WebAssembly import result must be an Array"
                             );
+                        var resultArray = (JsArray)resultObj;
 
                         for (var i = 0; i < type.ResultCount; i++)
                             returnValues[i] = ConvertJsToWasmValue(

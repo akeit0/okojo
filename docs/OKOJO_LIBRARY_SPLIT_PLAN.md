@@ -345,7 +345,7 @@ inventory, not a public-API redesign.
 | `Okojo.Reflection` | `Okojo.JavaScript` | retained | CLR wrappers consume `IClrAccessProvider`, `HostTypeDescriptor`, `IClrTypedNullReference`, `IClrNamespaceReference`, `IClrByRefPlaceholder`, `IClrTypeFunctionData`, `HostRealmLayoutInfo`, `JsObject.TryGetPropertyAtomWithReceiverValue`, `JsObject.TryGetOwnNamedPropertyDescriptorAtom`, `JsObject.CollectOwnNamedPropertyAtoms`, and `JsObject.SetPropertyAtomWithReceiver`. |
 | `Okojo.Node` | `Okojo.JavaScript` | retained | Node built-ins use internal conversion/invocation, module/job, promise, prototype, typed-array, compiler, and property APIs, including `JsRealm.ToNumber`, `JsRealm.ToJsStringSlowPath`, `JsAgent.EvaluateModule`, `JsAgent.EnqueueHostPriorityJob`, `JsPromiseObject.State`, `TypedArrayElementKind`, and `JsObject.Prototype`. |
 | `Okojo.WebPlatform` | `Okojo.JavaScript` | removed in Phase 5D | Web APIs now use public task-queue wrapping, invocation, referrer, string-key property, prototype, and symbol-property operations. |
-| `Okojo.WebAssembly` | `Okojo.JavaScript` | retained | `WebAssemblyInstaller.cs` uses `JsRealm.PromiseResolveValue`, `JsRealm.PromiseRejectByConstructor`, `JsRealm.CreateErrorObjectFromException`, `JsRealm.InvokeFunction`, `JsRealm.ToIntegerOrInfinity`, `JsRealm.ToUint32`, `JsRealm.ToNumber`, `JsRealm.ToJsStringSlowPath`, `JsArrayBufferObject.GetByte`, `Intrinsics.CreateNativeErrorConstructor`, `Intrinsics.PromiseConstructor`, `Intrinsics.ErrorPrototype`, `Intrinsics.ErrorConstructor`, `JsRealm.ObjectPrototype`, `JsHostFunction.InitializePrototypeProperty`, and `JsObject.Prototype`. |
+| `Okojo.WebAssembly` | `Okojo.JavaScript` | removed in Phase 5E | WebAssembly uses the supported realm coercion, Promise, error-constructor, error-value, invocation, prototype, and `JsArrayBufferObject.ReadBytes` operations; no intrinsic or raw buffer API is consumed. |
 | `Okojo.WebAssembly.Wasmtime` | `Okojo.JavaScript` | removed in Phase 5C | `WasmtimeMemoryWrapper.cs` uses the public external-buffer factories without explicit prototype arguments. |
 
 The existing test/tooling friends were intentionally not audited in this
@@ -392,6 +392,26 @@ draining, non-reentrant checkpoints, and run-to-completion behavior are
 unchanged. `ITimerFactory` remains internal because Test262Runner still uses
 its fake-time implementation; Hosting now uses `TimeProvider.CreateTimer`
 directly.
+
+### Phase 5E — WebAssembly supported engine contract: complete
+
+The `Okojo.WebAssembly` engine friend was removed after independent Release
+builds of WebAssembly and Wasmtime. Existing supported operations cover
+invocation, prototype setup, constructor prototype initialization, and
+`ToUint32`. The new semantic operations are `JsRealm.ToNumber`,
+`JsRealm.ToIntegerOrInfinity`, `JsRealm.ToJsString`,
+`JsRealm.CreateResolvedPromise`, `JsRealm.CreateRejectedPromise`,
+`JsRealm.CreateErrorConstructor`, `JsRealm.CreateErrorValue`, and
+`JsArrayBufferObject.ReadBytes`.
+
+`CreateErrorConstructor` creates the complete WebAssembly native-error
+constructor/prototype pair, while `CreateErrorValue` preserves an existing
+`JsRuntimeException.ThrownValue`. `ReadBytes` performs one validated bulk read
+across local, shared, and external backing stores. `Intrinsics`, intrinsic
+prototype properties, Promise capabilities, raw atom operations,
+`JsArrayBufferObject.GetByte`, backing storage, and `JsObject.Prototype` setters
+remain internal. Numeric and string coercion retain ECMAScript Symbol errors;
+worker, scheduler, event-loop, and CLR boundaries are unchanged.
 
 Do not reorganize all tests before the production split compiles. Keep `tests/Okojo.Tests` as the conformance/integration loop first; create `Okojo.JavaScript.Tests` and `Okojo.JavaScript.Embedding.Tests` only while moving tests that clearly belong to each boundary.
 

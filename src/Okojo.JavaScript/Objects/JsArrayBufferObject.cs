@@ -205,6 +205,24 @@ public class JsArrayBufferObject : JsObject
 
     public void RefreshExternalBackingStore() { }
 
+    /// <summary>Reads a validated byte range from this buffer.</summary>
+    public byte[] ReadBytes(uint byteOffset, uint byteLength)
+    {
+        var currentByteLength = ByteLength;
+        if (
+            IsDetached
+            || byteOffset > currentByteLength
+            || byteLength > currentByteLength - byteOffset
+        )
+            throw new JsRuntimeException(JsErrorKind.TypeError, "ArrayBuffer is detached");
+        if (byteLength > int.MaxValue)
+            throw new ArgumentOutOfRangeException(nameof(byteLength));
+
+        var result = new byte[(int)byteLength];
+        CopyBytesTo(byteOffset, result);
+        return result;
+    }
+
     internal JsArrayBufferObject Slice(
         uint startByteIndex,
         uint newByteLength,
@@ -728,6 +746,32 @@ public class JsArrayBufferObject : JsObject
 
         EnsureReadableRange(sourceByteIndex, checked((int)byteCount));
         target.CopyBytesFromLocal(bytes, targetByteIndex, sourceByteIndex, byteCount);
+    }
+
+    private void CopyBytesTo(uint sourceByteIndex, Span<byte> destination)
+    {
+        var byteCount = destination.Length;
+        if (sharedStorage is not null)
+            lock (sharedStorage.SyncRoot)
+            {
+                EnsureReadableRange(sharedStorage, sourceByteIndex, byteCount);
+                sharedStorage.Bytes.AsSpan((int)sourceByteIndex, byteCount).CopyTo(destination);
+                return;
+            }
+
+        if (externalBackingStore is not null)
+            lock (externalBackingStore.SyncRoot)
+            {
+                EnsureReadableRange(sourceByteIndex, byteCount);
+                externalBackingStore
+                    .GetSpan()
+                    .Slice((int)sourceByteIndex, byteCount)
+                    .CopyTo(destination);
+                return;
+            }
+
+        EnsureReadableRange(sourceByteIndex, byteCount);
+        bytes.AsSpan((int)sourceByteIndex, byteCount).CopyTo(destination);
     }
 
     internal SharedWaiter AddSharedWaiter(JsRealm realm, uint byteIndex)

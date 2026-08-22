@@ -103,9 +103,127 @@ public sealed partial class JsRealm
         return InvokeFunction(okojoFunction, thisValue, args);
     }
 
+    /// <summary>Performs ECMAScript ToNumber on a value.</summary>
+    public double ToNumber(in JsValue value)
+    {
+        EnsureCompatibleValue(value, nameof(value));
+        return this.ToNumberFastPath(value);
+    }
+
+    /// <summary>Performs ECMAScript ToIntegerOrInfinity on a value.</summary>
+    public double ToIntegerOrInfinity(in JsValue value)
+    {
+        EnsureCompatibleValue(value, nameof(value));
+        return this.ToIntegerOrInfinitySlowPath(value);
+    }
+
+    /// <summary>Performs ECMAScript ToUint32 on a value.</summary>
+    public uint ToUint32(in JsValue value)
+    {
+        EnsureCompatibleValue(value, nameof(value));
+        return this.ToUint32SlowPath(value);
+    }
+
+    /// <summary>Performs ECMAScript ToString on a value.</summary>
+    public string ToJsString(in JsValue value)
+    {
+        EnsureCompatibleValue(value, nameof(value));
+        return this.ToJsStringSlowPath(value);
+    }
+
+    /// <summary>Creates a Promise resolved with the supplied value.</summary>
+    public JsValue CreateResolvedPromise(in JsValue value)
+    {
+        EnsureCompatibleValue(value, nameof(value));
+        return this.PromiseResolveValue(value);
+    }
+
+    /// <summary>Creates a Promise rejected with the supplied reason.</summary>
+    public JsValue CreateRejectedPromise(in JsValue reason)
+    {
+        EnsureCompatibleValue(reason, nameof(reason));
+        return this.PromiseRejectByConstructor(Intrinsics.PromiseConstructor, reason);
+    }
+
+    /// <summary>Creates a native error constructor and its prototype pair.</summary>
+    public JsHostFunction CreateErrorConstructor(string name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+
+        var prototype = new JsPlainObject(this, false);
+        if (!prototype.TrySetPrototype(ErrorPrototype))
+            throw new InvalidOperationException("Error prototype could not be assigned.");
+        prototype.DefineDataProperty(
+            "name",
+            JsValue.FromString(name),
+            JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable
+        );
+        prototype.DefineDataProperty(
+            "message",
+            JsValue.FromString(string.Empty),
+            JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable
+        );
+
+        var constructor = Intrinsics.CreateNativeErrorConstructor(name, prototype);
+        constructor.Prototype = ErrorConstructor;
+        prototype.DefineDataProperty(
+            "constructor",
+            JsValue.FromObject(constructor),
+            JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable
+        );
+        constructor.InitializePrototypeProperty(prototype);
+        return constructor;
+    }
+
+    /// <summary>Creates the JavaScript error value for a runtime exception.</summary>
+    public JsValue CreateErrorValue(JsRuntimeException exception)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+        if (exception.ErrorRealm is not null && !ReferenceEquals(exception.ErrorRealm.Atoms, Atoms))
+            throw new ArgumentException(
+                "Exception belongs to a different JavaScript agent.",
+                nameof(exception)
+            );
+        if (exception.ThrownValue is { } thrownValue)
+            EnsureCompatibleValue(thrownValue, nameof(exception));
+        return exception.ThrownValue ?? CreateErrorObjectFromException(exception);
+    }
+
     /// <summary>Returns the resolved identifier of the currently evaluating module, if any.</summary>
     public string? CurrentModuleResolvedId =>
         Agent.TryGetCurrentModuleResolvedId(out var resolvedId) ? resolvedId : null;
+
+    private void EnsureCompatibleValue(in JsValue value, string parameterName)
+    {
+        if (value.TryGetObject(out var obj))
+        {
+            if (!ReferenceEquals(obj.Realm.Atoms, Atoms))
+                throw new ArgumentException(
+                    "Value belongs to a different JavaScript agent.",
+                    parameterName
+                );
+            return;
+        }
+
+        if (value.IsSymbol)
+        {
+            var symbol = value.AsSymbol();
+            var isOwned =
+                (
+                    Atoms.TryGetSymbolByAtom(symbol.Atom, out var atomSymbol)
+                    && ReferenceEquals(atomSymbol, symbol)
+                )
+                || (
+                    Agent.TryGetRegisteredSymbolByAtom(symbol.Atom, out var registeredSymbol)
+                    && ReferenceEquals(registeredSymbol, symbol)
+                );
+            if (!isOwned)
+                throw new ArgumentException(
+                    "Value belongs to a different JavaScript agent.",
+                    parameterName
+                );
+        }
+    }
 
     private JsScript CompileScript(string source)
     {

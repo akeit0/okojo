@@ -62,6 +62,7 @@ public class WebAssemblyFeatureTests
 
         Assert.That(realm.Accumulator.IsTrue, Is.True);
         Assert.That(bytes[1], Is.EqualTo(99));
+        Assert.That(buffer.ReadBytes(0, 4), Is.EqualTo(new byte[] { 1, 99, 3, 4 }));
     }
 
     [Test]
@@ -92,6 +93,22 @@ public class WebAssemblyFeatureTests
         realm.Execute(script);
 
         Assert.That(realm.Accumulator.IsTrue, Is.True);
+        Assert.That(buffer.ReadBytes(0, 4), Is.EqualTo(new byte[] { 12, 0, 0, 0 }));
+    }
+
+    [Test]
+    public void ArrayBuffer_ReadBytes_ValidatesRanges()
+    {
+        using var engine = JsRuntime.Create();
+        var realm = engine.DefaultRealm;
+        var buffer = new JsArrayBufferObject(realm, 4);
+
+        realm.GlobalObject["buffer"] = buffer;
+        _ = realm.Eval("new Uint8Array(buffer).set([1, 2, 3, 4]);");
+
+        Assert.That(buffer.ReadBytes(1, 2), Is.EqualTo(new byte[] { 2, 3 }));
+        Assert.That(() => buffer.ReadBytes(3, 2), Throws.TypeOf<JsRuntimeException>());
+        Assert.That(() => buffer.ReadBytes(0, uint.MaxValue), Throws.TypeOf<JsRuntimeException>());
     }
 
     [Test]
@@ -174,6 +191,217 @@ public class WebAssemblyFeatureTests
         realm.Execute(script);
 
         Assert.That(realm.Accumulator.IsTrue, Is.True);
+    }
+
+    [Test]
+    public void UseWebAssembly_ErrorConstructors_PreservePrototypeChains()
+    {
+        using var runtime = JsRuntime
+            .CreateBuilder()
+            .UseWebAssembly(wasmBuilder =>
+                wasmBuilder.UseBackend(static () => new WasmtimeBackend()).InstallGlobals()
+            )
+            .Build();
+
+        var result = runtime.Eval(
+            """
+            const constructors = [WebAssembly.RuntimeError, WebAssembly.CompileError, WebAssembly.LinkError];
+            const errors = constructors.map((Constructor, index) => new Constructor("error-" + index));
+            errors.every((error, index) =>
+              error instanceof Error &&
+              error instanceof constructors[index] &&
+              error.constructor === constructors[index] &&
+              Object.getPrototypeOf(error) === constructors[index].prototype &&
+              Object.getPrototypeOf(constructors[index]) === Error &&
+              error.message === "error-" + index
+            );
+            """
+        );
+
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
+    public void UseWebAssembly_Compile_Rejects_With_CompileError()
+    {
+        using var runtime = JsRuntime
+            .CreateBuilder()
+            .UseWebAssembly(wasmBuilder =>
+                wasmBuilder.UseBackend(static () => new WasmtimeBackend()).InstallGlobals()
+            )
+            .Build();
+
+        var result = runtime.Eval(
+            """
+            globalThis.outcome = "pending";
+            WebAssembly.compile(new Uint8Array([0, 0, 0, 0])).then(
+              () => outcome = "resolved",
+              error => outcome = [
+                error instanceof WebAssembly.CompileError,
+                error instanceof Error,
+                error.name
+              ].join("|")
+            );
+            outcome;
+            """
+        );
+        runtime.DefaultRealm.PumpJobs();
+
+        Assert.That(result.AsString(), Is.EqualTo("pending"));
+        Assert.That(runtime.Eval("outcome").AsString(), Is.EqualTo("true|true|CompileError"));
+    }
+
+    [Test]
+    public void WebAssembly_Reads_ArrayBufferView_Byte_Ranges()
+    {
+        var wasm = Module.ConvertText(
+            """
+            (module
+              (func (export "run") (result i32)
+                i32.const 42))
+            """
+        );
+
+        using var runtime = JsRuntime
+            .CreateBuilder()
+            .UseWebAssembly(wasmBuilder =>
+                wasmBuilder.UseBackend(static () => new WasmtimeBackend()).InstallGlobals()
+            )
+            .Build();
+        var realm = runtime.DefaultRealm;
+        realm.GlobalObject["wasmBytes"] = JsArrayBufferObject.CreateExternal(
+            realm,
+            new JsArrayBufferObject.DelegateExternalBufferBackingStore(
+                () => wasm.AsSpan(),
+                () => IntPtr.Zero,
+                new()
+            )
+        );
+
+        var result = realm.Eval(
+            """
+            const typed = new Uint8Array(wasmBytes, 0, wasmBytes.byteLength);
+            const dataView = new DataView(wasmBytes, 0, wasmBytes.byteLength);
+            WebAssembly.validate(wasmBytes) &&
+              WebAssembly.validate(typed) &&
+              WebAssembly.validate(dataView);
+            """
+        );
+
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
+    public void WebAssembly_Rejects_ArrayBuffer_From_AnotherAgent()
+    {
+        using var runtime = JsRuntime
+            .CreateBuilder()
+            .UseWebAssembly(wasmBuilder =>
+                wasmBuilder.UseBackend(static () => new WasmtimeBackend()).InstallGlobals()
+            )
+            .Build();
+        var workerBuffer = new JsArrayBufferObject(runtime.CreateWorkerAgent().MainRealm, 1);
+        runtime.MainRealm.GlobalObject["foreignBuffer"] = workerBuffer;
+
+        Assert.That(
+            () => runtime.Eval("WebAssembly.validate(foreignBuffer);"),
+            Throws.TypeOf<JsRuntimeException>()
+        );
+    }
+
+    [Test]
+    public void JsRealm_WebAssembly_CoercionOperations_RejectSymbolsForNumberAndString()
+    {
+        using var runtime = JsRuntime.Create();
+        var realm = runtime.DefaultRealm;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(realm.ToNumber(JsValue.FromString("12.5")), Is.EqualTo(12.5));
+            Assert.That(realm.ToIntegerOrInfinity(JsValue.FromString("12.9")), Is.EqualTo(12));
+            Assert.That(realm.ToUint32(JsValue.FromString("4294967297")), Is.EqualTo(1u));
+            Assert.That(realm.ToJsString(JsValue.FromInt32(12)), Is.EqualTo("12"));
+            Assert.That(
+                () => realm.ToNumber(JsValue.FromSymbol(realm.ToStringTagSymbol)),
+                Throws.TypeOf<JsRuntimeException>()
+            );
+            Assert.That(
+                () => realm.ToJsString(JsValue.FromSymbol(realm.ToStringTagSymbol)),
+                Throws.TypeOf<JsRuntimeException>()
+            );
+        });
+    }
+
+    [Test]
+    public void JsRealm_WebAssemblyOperations_RejectValuesFromAnotherAgent()
+    {
+        using var runtime = JsRuntime.Create();
+        var realm = runtime.DefaultRealm;
+        var foreignRealm = runtime.CreateWorkerAgent().MainRealm;
+        var foreignObject = new JsPlainObject(foreignRealm);
+        var foreignSymbol = JsValue.FromSymbol(foreignRealm.ToStringTagSymbol);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                () => realm.ToNumber(JsValue.FromObject(foreignObject)),
+                Throws.TypeOf<ArgumentException>()
+            );
+            Assert.That(
+                () => realm.ToIntegerOrInfinity(JsValue.FromObject(foreignObject)),
+                Throws.TypeOf<ArgumentException>()
+            );
+            Assert.That(
+                () => realm.ToUint32(JsValue.FromObject(foreignObject)),
+                Throws.TypeOf<ArgumentException>()
+            );
+            Assert.That(() => realm.ToJsString(foreignSymbol), Throws.TypeOf<ArgumentException>());
+            Assert.That(
+                () => realm.CreateResolvedPromise(JsValue.FromObject(foreignObject)),
+                Throws.TypeOf<ArgumentException>()
+            );
+            Assert.That(
+                () => realm.CreateRejectedPromise(JsValue.FromObject(foreignObject)),
+                Throws.TypeOf<ArgumentException>()
+            );
+            Assert.That(
+                () =>
+                    realm.CreateErrorValue(
+                        new JsRuntimeException(
+                            JsErrorKind.TypeError,
+                            "foreign thrown value",
+                            thrownValue: JsValue.FromObject(foreignObject)
+                        )
+                    ),
+                Throws.TypeOf<ArgumentException>()
+            );
+            Assert.That(
+                () =>
+                    realm.CreateErrorValue(
+                        new JsRuntimeException(
+                            JsErrorKind.TypeError,
+                            "foreign error realm",
+                            errorRealm: foreignRealm
+                        )
+                    ),
+                Throws.TypeOf<ArgumentException>()
+            );
+        });
+    }
+
+    [Test]
+    public void JsRealm_WebAssemblyOperations_AcceptSameAgentSymbolForValues()
+    {
+        using var runtime = JsRuntime.Create();
+        var realm = runtime.DefaultRealm;
+        var symbol = realm.Eval("Symbol.for('same-agent')");
+
+        Assert.That(symbol.IsSymbol, Is.True);
+        Assert.That(() => realm.ToJsString(symbol), Throws.TypeOf<JsRuntimeException>());
+
+        var promise = realm.CreateResolvedPromise(symbol);
+        Assert.That(promise.TryGetObject(out var promiseObject), Is.True);
+        Assert.That(promiseObject, Is.TypeOf<JsPromiseObject>());
     }
 
     [Test]

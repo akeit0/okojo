@@ -308,7 +308,7 @@ internal static class RealmExtensions
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal double ToNumber(in JsValue value)
+        internal double ToNumberFastPath(in JsValue value)
         {
             if (value.IsFloat64)
                 return value.FastFloat64Value;
@@ -1010,7 +1010,7 @@ internal static class RealmExtensions
             return realm.HasTypedArrayIndexWithoutGet(obj.Prototype, index);
         }
 
-        internal double ToIntegerOrInfinity(in JsValue value)
+        internal double ToIntegerOrInfinitySlowPath(in JsValue value)
         {
             var number = realm.ToNumberSlowPath(value);
             if (double.IsNaN(number) || number == 0d)
@@ -1020,7 +1020,7 @@ internal static class RealmExtensions
             return Math.Truncate(number);
         }
 
-        public uint ToUint32(in JsValue value)
+        internal uint ToUint32SlowPath(in JsValue value)
         {
             var number = realm.ToNumberSlowPath(value);
             if (double.IsNaN(number) || number == 0d || double.IsInfinity(number))
