@@ -13,5 +13,4 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("Okojo.DebugServer.Core")]
 [assembly: InternalsVisibleTo("Okojo.WebPlatform")]
 [assembly: InternalsVisibleTo("Okojo.WebAssembly")]
-[assembly: InternalsVisibleTo("Okojo.WebAssembly.Wasmtime")]
 [assembly: InternalsVisibleTo("Test262Runner")]

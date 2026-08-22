@@ -344,7 +344,7 @@ inventory, not a public-API redesign.
 | `Okojo.Node` | `Okojo.JavaScript` | retained | Node built-ins use internal conversion/invocation, module/job, promise, prototype, typed-array, compiler, and property APIs, including `JsRealm.ToNumber`, `JsRealm.ToJsStringSlowPath`, `JsAgent.EvaluateModule`, `JsAgent.EnqueueHostPriorityJob`, `JsPromiseObject.State`, `TypedArrayElementKind`, and `JsObject.Prototype`. |
 | `Okojo.WebPlatform` | `Okojo.JavaScript` | retained | Web APIs use `JsRealm.WrapTaskOnHostQueue`, `JsRealm.InvokeFunction`, `JsObject.DefineDataPropertyAtom`, `JsObject.DefineAccessorPropertyAtom`, `JsGlobalObject.TryGetPropertyAtom`, `JsPlainObject.TryGetPropertyAtom`, `JsHostFunction.InitializePrototypeProperty`, and `JsRealm.GetCurrentModuleResolvedIdOrNull`. |
 | `Okojo.WebAssembly` | `Okojo.JavaScript` | retained | `WebAssemblyInstaller.cs` uses `JsRealm.PromiseResolveValue`, `JsRealm.PromiseRejectByConstructor`, `JsRealm.CreateErrorObjectFromException`, `JsRealm.InvokeFunction`, `JsRealm.ToIntegerOrInfinity`, `JsRealm.ToUint32`, `JsRealm.ToNumber`, `JsRealm.ToJsStringSlowPath`, `JsArrayBufferObject.GetByte`, `Intrinsics.CreateNativeErrorConstructor`, `Intrinsics.PromiseConstructor`, `Intrinsics.ErrorPrototype`, `Intrinsics.ErrorConstructor`, `JsRealm.ObjectPrototype`, `JsHostFunction.InitializePrototypeProperty`, and `JsObject.Prototype`. |
-| `Okojo.WebAssembly.Wasmtime` | `Okojo.JavaScript` | retained | `WasmtimeMemoryWrapper.cs` uses `JsRealm.SharedArrayBufferPrototype` and `JsRealm.ArrayBufferPrototype`. |
+| `Okojo.WebAssembly.Wasmtime` | `Okojo.JavaScript` | removed in Phase 5C | `WasmtimeMemoryWrapper.cs` uses the public external-buffer factories without explicit prototype arguments. |
 
 The existing test/tooling friends were intentionally not audited in this
 slice. In particular, `Test262Runner` still needs the engine shared-waiter
@@ -360,6 +360,13 @@ the projections receive only worker creation, receiver registration, and value
 message operations. The `Okojo.Hosting` and `Okojo.WebPlatform` friends were
 removed from `Okojo.JavaScript.Embedding` after independent consumer builds.
 No transport interface or compatibility facade was added.
+
+### Phase 5C — Wasmtime friend removal: complete
+
+`Okojo.WebAssembly.Wasmtime` no longer needs an engine friend. The existing
+public `JsArrayBufferObject.CreateExternal` and `CreateExternalShared` factory
+defaults select the correct intrinsic prototype, so no intrinsic or prototype
+API was exposed and WebAssembly behavior is unchanged.
 
 Do not reorganize all tests before the production split compiles. Keep `tests/Okojo.Tests` as the conformance/integration loop first; create `Okojo.JavaScript.Tests` and `Okojo.JavaScript.Embedding.Tests` only while moving tests that clearly belong to each boundary.
 

@@ -47,18 +47,8 @@ internal sealed class WasmtimeMemoryWrapper(Memory memory, WasmMemoryType type) 
             : null;
 
         cachedBuffer = Type.IsShared
-            ? JsArrayBufferObject.CreateExternalShared(
-                realm,
-                backingStore,
-                maxByteLength,
-                realm.SharedArrayBufferPrototype
-            )
-            : JsArrayBufferObject.CreateExternal(
-                realm,
-                backingStore,
-                maxByteLength,
-                realm.ArrayBufferPrototype
-            );
+            ? JsArrayBufferObject.CreateExternalShared(realm, backingStore, maxByteLength)
+            : JsArrayBufferObject.CreateExternal(realm, backingStore, maxByteLength);
 
         return cachedBuffer;
     }
