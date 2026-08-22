@@ -20,15 +20,24 @@ Debug/Checked-runtime-only knobs (ignored by product runtime, set manually):
   DOTNET_JitDisasmAssemblies, DOTNET_JitPrintInlinedMethods,
   DOTNET_JitDisasmWithGC, DOTNET_JitDisasmWithDebugInfo
 
+Snapshot dir: artifacts/vmloopopt/snapshots/<timestamp>-<AttemptId>
+
+Default configs: pgo-off only - without profile-guided recompilation the
+optimized code shape is deterministic, giving fast, stable A/B comparisons.
+Add pgo-on / tiered-off explicitly only when studying specialization or
+tiering effects.
+
 .EXAMPLE
 pwsh tools/VmLoopProbe/capture-jit.ps1 -AttemptId 0000-baseline -Cases smi-sum-loop,for-loop-sum
+
+pwsh tools/VmLoopProbe/capture-jit.ps1 -AttemptId 0002-x -Configs pgo-off,pgo-on
 #>
 [CmdletBinding()]
 param(
     [string]$AttemptId = "baseline",
     [string[]]$Cases = @("smi-sum-loop"),
     [ValidateSet("pgo-on", "pgo-off", "tiered-off")]
-    [string[]]$Configs = @("pgo-on", "pgo-off", "tiered-off"),
+    [string[]]$Configs = @("pgo-off"),
     [string]$MethodFilter = "*JsRealm:Run*",
     [int]$Iterations = 200,
     [int]$Warmup = 400,

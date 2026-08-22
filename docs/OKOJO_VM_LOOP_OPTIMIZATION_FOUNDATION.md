@@ -50,10 +50,28 @@ Configs: `pgo-on` (`DOTNET_TieredPGO=1`), `pgo-off` (`DOTNET_TieredPGO=0`),
 `DOTNET_JitDisasmDiffable=1`; JIT output is separated from program output via
 `DOTNET_JitStdOutFile`.
 
+**Default config set is `pgo-off` only.** Without profile-guided
+recompilation the optimized code shape is deterministic (single Tier1-OSR +
+Tier1 listing, no PGO specialization churn), so attempt-vs-baseline A/B
+comparisons run faster and stay stable. Add `-Configs pgo-off,pgo-on`
+explicitly when studying specialization effects.
+
 The default workflow is deliberately light (probe + JIT dumps only, about a
 minute). BenchmarkDotNet never runs automatically; pass `-Benchmark` once an
 attempt looks promising to add a confirmation run and copy its reports into
 the snapshot's `bench/` directory.
+
+### Comparing snapshots
+
+```powershell
+pwsh tools/VmLoopProbe/compare-jit.ps1 -Case smi-sum-loop
+```
+
+Diffs `jit/<case>.<config>.jit.txt` between two snapshots (defaults: newest
+vs newest baseline), prints per-listing code-size deltas, saves a unified
+diff into the newer snapshot as
+`jit/<case>.<config>.vs-<fromSnapshot>.diff.txt`, and shows the first diff
+hunk inline.
 
 JIT dump knobs follow the dotnet/runtime document
 "Viewing JIT disassembly and dumps"
@@ -126,7 +144,8 @@ Rules for every attempt:
 
 1. One hypothesis per attempt; fill `notice.md` from the template.
 2. Compare dasm of the SAME case/config against the newest accepted baseline
-   snapshot (diffable output exists for this).
+   snapshot with `compare-jit.ps1`; use `pgo-off` as the default comparison
+   config so diffs reflect engine changes, not PGO specialization drift.
 3. Confirm with BenchmarkDotNet before changing engine code defaults.
 4. Language/compiler/VM decisions reference V8 (`tools/V8BytecodeTool`);
    built-in/runtime API decisions reference Node.
