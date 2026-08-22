@@ -1,378 +1,295 @@
 # Okojo Library Split Plan
 
-## Purpose
+## Status and authority
 
-This document defines the target architecture for splitting the current monolithic `src/Okojo` project into a set of clean, independently usable libraries.
+This is the canonical document for Okojo assembly, package, namespace, and API ownership.
 
-Goals:
+`OKOJO_BROWSER_COMPATIBILITY_PLAN.md` remains the product/compatibility roadmap. Focused feature notes may describe implementation details, but must not define a conflicting package boundary.
 
-- JS-compatible C# implementation libraries that are **engine-independent** (no dependency on `JsValue`, `JsRealm`, or the VM)
-- a JS **engine** assembly that depends on those libraries
-- a JS **runtime** (embedding/container) assembly on top of the engine
-- ECMA-262-correct job queue semantics instead of host event-loop queues baked into the core agent
-- one regex engine (`Okojo.Text.RegularExpressions`) replacing the current two-and-a-half engines
+The split is intentionally not backward compatible. The repository is still pre-release, so the old `Okojo` package and namespace will not be kept as a facade unless a real published-consumer requirement appears.
 
-Backward compatibility is explicitly not a goal. This plan optimizes for the best dependency shape.
+## Goals
 
-## Current State Summary
+- keep engine-independent JavaScript-compatible algorithms usable without the engine
+- make the ECMAScript engine independent of embedding, I/O, worker, and event-loop policy
+- provide one small embedding runtime above the engine
+- keep host profiles and optional tooling outside both core assemblies
+- preserve behavior while moving code; namespace cleanup is a separate mechanical step
 
-`src/Okojo` is a single assembly (~131k lines, zero NuGet deps) containing:
+## Naming decisions
 
-- parser (`Okojo.Parsing`), compiler (`Okojo.Compiler`), bytecode (`Okojo.Bytecode`)
-- object model (`Okojo.Values`, `Okojo.Objects`), VM + intrinsics (`Okojo.Runtime`)
-- an embedded Scratch regex engine + Unicode tables (`Okojo.RegExp`, 32 files, ~39k lines)
-- Intl/globalization logic (`Runtime/Intl/*`, `Intrinsics.Intl.cs`, `Js*Objects.cs`, embedded `.txt` data)
-- host concepts mixed into the core: agent task queues, workers, CLR interop, module source loading, host scheduling
+| Name | Meaning |
+| --- | --- |
+| `Okojo.JavaScript` | ECMAScript engine package, assembly, and root namespace |
+| `Okojo.JavaScript.Runtime` | Embedding/container package and namespace (`JsRuntime`, builder, options) |
+| `Okojo.Hosting` | Optional .NET host implementations and event-loop helpers |
+| `Okojo.Diagnostics` | Optional engine diagnostics and rendering |
+| `Okojo.Reflection` | Optional CLR reflection binding |
+| `Okojo.WebPlatform`, `Okojo.Browser`, `Okojo.Node` | Host profiles above the embedding runtime |
 
-Separate standalone projects already exist:
+These names are deliberately not used:
 
-- `EcmaRegex/` — an engine-independent ECMAScript regex library (git submodule), exposed to the engine through the `Okojo.RegExp.EcmaRegex` adapter implementing `IRegExpEngine`
-- `Okojo.Hosting`, `Okojo.WebPlatform`, `Okojo.Browser`, `Okojo.Node`, etc. — host/profile layers
+- `Okojo.Core`: “core” does not identify a responsibility.
+- `Okojo.Engine`: the `Okojo.JavaScript` package already is the engine.
+- `Okojo.Runtime`: it is ambiguous with the current VM/execution namespace.
+- `Okojo.JavaScript.Engine`: redundant and longer than `Okojo.JavaScript`.
 
-Key problems this plan fixes:
+The current engine implementation namespace `Okojo.Runtime` must not be mechanically renamed to `Okojo.JavaScript.Runtime`; that name belongs to the embedding package. Engine execution types move to `Okojo.JavaScript.Execution`.
 
-1. `Okojo` mixes engine, runtime, and host policy in one assembly.
-2. The regex subsystem is triplicated: Scratch engine, EcmaRegex library, and a .NET `System.Text.RegularExpressions` fallback bridge in `JsRegExpRuntime.cs`.
-3. Unicode data is duplicated in different encodings (`ScratchUnicode*` vs `EcmaRegex/Internal/Unicode*`).
-4. `JsAgent` models `priorityMicrotasks` / `microtasks` / `tasks` queues — an HTML/Node event-loop shape, not the ECMA-262 job queue model.
-5. Intl logic is split between engine-coupled `Js*Objects` and portable data/logic that should live in a standalone globalization library.
+Public types keep domain names such as `JsValue`, `JsRealm`, `JsAgent`, and `JsRuntime`. Do not add `Okojo` or `Engine` prefixes merely to repeat package identity.
 
-## Target Architecture
-
-### Dependency graph
-
-```text
-Okojo.Text.Unicode          Okojo.Numerics          (leaf libraries, no Okojo deps)
-        │                         │
-        │                         │
-        ▼                         ▼
-Okojo.Text.RegularExpressions  Okojo.Globalization  (mid libraries)
-        │                   │ (uses Unicode + Numerics)
-        └────────────┬────────────┘
-                     ▼
-            Okojo.JavaScript        (JS engine: parser, compiler, bytecode, VM,
-                     │               object model, ECMA-262 intrinsics, job queues)
-                     ▼
-       Okojo.JavaScript.Runtime     (embedding runtime: JsRuntime, builder, agents,
-                     │               modules, workers, host scheduling seams, CLR interop)
-                     ▼
-       Okojo.Hosting / Okojo.WebPlatform / Okojo.Browser / Okojo.Node / ...
-```
-
-Direction of the dependency arrows (`A ↑ B` reads "B depends on A"):
+## Target dependency graph
 
 ```text
-Okojo.Text.Unicode
-    ↑
-Okojo.Text.RegularExpressions
-    ↑
-Okojo.JavaScript
-
-Okojo.Globalization
-    ↑
-Okojo.JavaScript
-
-Okojo.Numerics
-    ↑
-Okojo.JavaScript
+Okojo.Text.Unicode                 Okojo.Numerics
+        │                                │
+        ▼                                ▼
+Okojo.Text.RegularExpressions     Okojo.Globalization
+        └──────────────┬─────────────────┘
+                       ▼
+              Okojo.JavaScript
+                 ┌─────┴──────────┐
+                 ▼                ▼
+Okojo.JavaScript.Runtime   Okojo.Diagnostics
+        │
+        ├──────────────► Okojo.Hosting
+        ├──────────────► Okojo.Reflection
+        ├──────────────► Okojo.WebAssembly
+        └──────────────► Okojo.WebPlatform / Okojo.Browser / Okojo.Node
 ```
 
-### Repository layout
+All arrows point from a dependency to a consumer. Cycles are forbidden.
 
-```text
-src/
-  Okojo.Text.Unicode/
-  Okojo.Numerics/
-  Okojo.Text.RegularExpressions/
-  Okojo.Globalization/
-  Okojo.JavaScript/                   # the engine
-  Okojo.JavaScript.Runtime/           # the embedding runtime
-  Okojo.Hosting/
-  Okojo.WebPlatform/
-  Okojo.Browser/
-  Okojo.Node/
-  ...                                # diagnostics, debug server, repl, wasm,
-                                     # dotnet/reflection interop, annotations, sourcegen
-tests/
-  Okojo.Text.Unicode.Tests/
-  Okojo.Numerics.Tests/
-  Okojo.Text.RegularExpressions.Tests/
-  Okojo.Globalization.Tests/
-  Okojo.JavaScript.Tests/
-  Okojo.JavaScript.Runtime.Tests/
-  Okojo.Tests/                        # test262 + integration (becomes the JS conformance suite)
-```
+`Okojo.Diagnostics` depends on the engine, not the embedding runtime. Profile and integration packages may also reference `Okojo.JavaScript` directly when their public API mentions engine value types, but host policy must enter through `Okojo.JavaScript.Runtime`.
 
-The `EcmaRegex/` submodule is vendored into `src/Okojo.Text.RegularExpressions` and the submodule is removed. The repo no longer depends on an external regex repo.
+## Library ownership
 
-## Library Definitions
+### Engine-independent libraries
 
-### 1. `Okojo.Text.Unicode`
+The following projects are already extracted and remain independent of `JsValue`, `JsRealm`, and the VM:
 
-Engine-independent, zero dependencies (BCL only).
+- `Okojo.Text.Unicode`: UTF-16/code-point operations, Unicode data, casing, segmentation
+- `Okojo.Numerics`: ECMAScript numeric formatting, exact arithmetic helpers, `BigInt`
+- `Okojo.Text.RegularExpressions`: the single ECMAScript regular-expression engine
+- `Okojo.Globalization`: portable ECMA-402 data and algorithms
 
-Owns:
+Do not create more leaf libraries unless a real non-engine consumer exists. In particular, parser, compiler, bytecode, and VM stay together.
 
-- code point / UTF-16 utilities: surrogate pair decoding, `AdvanceStringIndex`, code point iteration over `ReadOnlySpan<char>`
-- Unicode data tables (single source of truth): General_Category, binary properties (ID_Start/ID_Continue, WhiteSpace, Emoji, ...), Script / Script_Extensions, string properties (RGI_Emoji etc.), case-folding equivalence classes
-- case mapping algorithms (default + special casing, final sigma)
-- Unicode segmentation algorithms and data (grapheme / word / sentence, UAX #29)
-- generated-tooling: the table generator that currently lives in `EcmaRegex/tools/generate_unicode.py` is moved here so tables are reproducible
+### `Okojo.JavaScript`
 
-Sources:
+Owns ECMAScript semantics:
 
-- `EcmaRegex/src/EcmaRegex/Internal/UnicodePropertyDatabase.cs`, `UnicodePropertyData*.Generated.cs`, `UnicodeStringPropertyData.Generated.cs`, `UnicodeCaseFolding*.cs`, `Utf16Utility.cs`
-- `src/Okojo/Runtime/JsStringCaseOperations.cs` (algorithm over `ReadOnlySpan<char>` instead of `JsString`)
-- `src/Okojo/Runtime/JsSegmenterObjects.cs` segmentation cores
-- Scratch Unicode tables in `src/Okojo/RegExp/ScratchUnicode*` are **deleted**; the `Okojo.Text.Unicode` tables replace them
-
-### 2. `Okojo.Numerics`
-
-Engine-independent, zero dependencies (BCL only).
-
-Owns:
-
-- `BigInt` — ECMAScript arbitrary-precision integer semantics (value type; thin wrapper over `System.Numerics.BigInteger` with spec-radix parse/format, `AsIntN`/`AsUintN`, `NumberToBigInt`)
-- exact decimal (`ExactDecimal`) — `BigInteger` unscaled + scale + rounding modes, currently private inside `JsNumberFormatObject`
-- double → string (ECMAScript `Number::toString(10)`) and radix 2..36 conversions
-- exact-precision formatting (`FormatExponential`, `FormatPrecision`, `RoundToSignificantDigits`)
-- `SumPrecise` (Shewchuk exact summation)
-- ECMA-262 time math: `MakeDay`/`MakeTime`/`MakeDate`/`TimeClip`, civil ↔ day-number, ISO/legacy date parsing and UTC formatting
-
-Sources:
-
-- `src/Okojo/Values/JsBigInt.cs`
-- `src/Okojo/Runtime/JsNumberFormatting.cs`, `JsNumberPrecisionFormatting.cs`
-- `src/Okojo/Internals/Sumprecise.cs`
-- `src/Okojo/Runtime/Intrinsics.BigInt.cs` (pure helpers only)
-- `src/Okojo/Runtime/Intrinsics.Date.cs` (pure math portion)
-- `src/Okojo/Runtime/Intrinsics.NumberPrototype.cs` (radix conversion helpers)
-- `src/Okojo/Runtime/JsNumberFormatObjects.cs` (`ExactDecimalValue` + rounding/grouping core)
-- `src/Okojo/Runtime/JsDurationFormatObjects.cs` (fractional/BigInteger math)
-
-### 3. `Okojo.Text.RegularExpressions`
-
-The single ECMAScript regex engine. Depends only on `Okojo.Text.Unicode`.
-
-This is the vendored + re-namespaced EcmaRegex library.
-
-- project/assembly: `Okojo.Text.RegularExpressions`
-- root namespace: `Okojo.Text.RegularExpressions` (mirrors `System.Text.RegularExpressions`)
-- public types: `EcmaRegex` (compiled regex), `EcmaRegexOptions`, `EcmaRegexFlagSet`, `EcmaMatch`/`EcmaCapture`, `MatchEnumerable`, exceptions
-- internal pipeline: parser → capture pre-scan → character-class algebra → prioritized bytecode + backtracking VM → optional linear NFA
-
-Intentional differences vs today:
-
-- delete `src/Okojo/RegExp/Scratch*` engine (parser, bytecode, matcher, Unicode tables) — `EcmaRegex` becomes the one engine
-- delete `src/Okojo.RegExp.EcmaRegex` adapter project
-- delete the .NET `System.Text.RegularExpressions` fallback bridge in `src/Okojo/Runtime/JsRegExpRuntime.cs`
-- delete the `IRegExpEngine` seam; the engine's `RegExp` built-in calls `Okojo.Text.RegularExpressions` directly (a small internal wrapper in the engine can keep the old `Compile`/`Exec` shape)
-- Unicode property data moves to `Okojo.Text.Unicode`; the regex library consumes it
-
-### 4. `Okojo.Globalization`
-
-ECMA-402 (Intl)-compatible cores. Depends on `Okojo.Text.Unicode` and `Okojo.Numerics`.
-
-Owns all portable Intl data and algorithms:
-
-- locale data: tag mappings, likely subtags, canonicalization/validation algorithms (from `OkojoIntl*Data` + the pure cluster in `Intrinsics.Intl.cs`)
-- collation: `CollatorCore`
-- number formatting: `NumberFormatterCore` (compact/scientific/currency/unit, grouping incl. Indian, rounding modes, exact decimal)
-- date/time formatting: `DateTimeFormatCore` (field/part building over `CultureInfo` + portable date-parts struct + calendar data)
-- plural rules: `PluralRulesCore`
-- relative time: `RelativeTimeFormatCore`
-- list format: `ListFormatCore`
-- display names: `DisplayNamesCore`
-- duration format: `DurationParserCore` + fractional formatting
-- segmentation: `SegmenterCore`
-- locale-aware string casing (Turkic/Lithuanian/sigma) over `ReadOnlySpan<char>`
-- numbering-system data + digit transliteration
-- time zone canonicalization data
-- embedded data resources (`CalendarData.txt`, `LocaleData.txt`, `LikelySubtags.txt`) move with this assembly
-
-The engine keeps only thin `Js*Object` wrappers (state + part-object/array creation + bound callbacks + `JsValue` argument coercion), delegating to these cores.
-
-### 5. `Okojo.JavaScript` — the JS engine
-
-Pure ECMAScript engine. Depends on `Okojo.Text.Unicode`, `Okojo.Numerics`, `Okojo.Text.RegularExpressions`, `Okojo.Globalization`.
-
-Owns:
-
-- parser (`Parsing`), compiler (`Compiler`), bytecode (`Bytecode`)
-- object model: `JsValue`, `JsString`, `JsObject`, shapes/layouts, all `Objects/*`
-- VM, realms, agents (ECMA-262 agent part), execution contexts, call frames, generators
-- ECMAScript intrinsics (Object, Array, String, Number, BigInt, Promise, RegExp, Intl wrappers, ...)
-- ECMA-262 module graph, linking, and evaluation semantics
-- ECMA-262 job queue model (see below) — **script jobs and promise jobs only**
+- values and object model
+- parser, compiler, bytecode, and VM
+- realms, agents, execution contexts, generators, and intrinsics
+- script and Promise jobs
+- module records, graph, linking, and evaluation
+- a minimal module-loading contract required by the module graph
+- generic host-call and host-object contracts required to invoke callbacks
+- debugger/checkpoint primitives required while executing code
 
 Does not own:
 
-- host task scheduling, event loops, timers
-- module source loaders, file/network I/O
-- workers/messaging, CLR interop
-- debug server, repl, diagnostics rendering
+- `JsRuntime` or builder policy
+- file/network module loaders
+- host task queues, event-loop pumping, timers, or delayed scheduling
+- worker lifecycle or message serialization
+- CLR reflection binding
+- source-map loading/registration policy
+- diagnostic text rendering, REPLs, or debug servers
 
-Recommended namespaces (rename from current `Okojo.*`):
+Recommended namespaces:
 
-- `Okojo.JavaScript` (core: `JsValue`, `Tag`)
+- `Okojo.JavaScript`
 - `Okojo.JavaScript.Values`
 - `Okojo.JavaScript.Objects`
 - `Okojo.JavaScript.Parsing`
 - `Okojo.JavaScript.Compiler`
 - `Okojo.JavaScript.Bytecode`
-- `Okojo.JavaScript.Execution` (realms/VM/jobs — formerly `Okojo.Runtime`)
+- `Okojo.JavaScript.Execution`
 - `Okojo.JavaScript.Intrinsics`
 
-### 6. `Okojo.JavaScript.Runtime` — the embedding runtime
+Do not split compiler or bytecode into new production assemblies. They share contracts with the VM, and separating them would add a lower “core” assembly or a dependency cycle without providing a current consumer benefit.
 
-Depends on `Okojo.JavaScript`.
+### `Okojo.JavaScript.Runtime`
 
-Owns:
+Owns embedding and process/container concerns:
 
-- `JsRuntime`, `JsRuntimeBuilder`, `JsRuntimeOptions`/`Core`/`Host`/`LowLevelHost` options
-- `JsAgent` host-side surface: worker hosting, cross-agent messaging, host job sources
-- `HostPump`, `JsAgentRunner`
-- module source loading (`IModuleSourceLoader`, file/worker script loaders)
-- host scheduling seams (`IHostTaskScheduler`, `IHostDelayScheduler`, `IQueuedHostDelayScheduler`, `HostTaskQueueKey`)
-- CLR interop (`Runtime/Interop/*`, `Okojo.Reflection`, `Okojo.DotNet.Modules` surface)
-- source maps, debugger/checkpoint glue, `JsGlobalInstaller`
-- `Okojo.SourceGenerator` + `Okojo.Annotations` remain build-time tooling for this layer
+- `JsRuntime`, `JsRuntimeBuilder`, and runtime options
+- engine/agent/realm creation and lifetime composition
+- file module and worker-script loader implementations
+- worker creation, cross-agent messaging, and message serialization
+- host scheduling contracts used to connect an event loop
+- source-map registry and runtime-side debugger glue
+- explicit global/module installation composition
 
-Host profiles (`Okojo.Hosting`, `Okojo.WebPlatform`, `Okojo.Browser`, `Okojo.Node`) keep their roles on top of the runtime.
+The runtime may implement engine-owned contracts, but the engine must never reference the runtime assembly.
 
-## ECMA-262 Job Queue Correction
+### Optional layers
 
-### What is wrong today
+- `Okojo.Hosting`: concrete schedulers, event loops, pumps, turn runners, and default worker infrastructure
+- `Okojo.Diagnostics`: disassembly, formatting, and inspection over engine types
+- `Okojo.Reflection`: reflection-based CLR binding; depends on runtime plus the engine contracts it implements
+- `Okojo.DotNet.Modules`: .NET module/profile integration above `Okojo.Reflection`
+- `Okojo.WebAssembly`: WebAssembly integration above the runtime
+- `Okojo.WebPlatform`, `Okojo.Browser`, `Okojo.Node`: host APIs and profile policy
 
-`JsAgent` (in the engine) owns three queues — `priorityMicrotasks`, `microtasks`, `tasks` — and `PumpJobsCore` drains priority-microtasks → microtasks → one task, repeatedly. That is an HTML/Node event-loop shape:
+## Boundary decisions from the current code
 
-- Node `nextTick` priority
-- HTML microtask checkpoint
-- HTML task queue
+### `JsAgent` and `JsRealm` stay whole in the engine
 
-ECMA-262 defines none of that. It defines:
+Both are partial classes. A partial type cannot span assemblies, so there is no “engine half” and “runtime half” of either type.
 
-- a **Job Queue**: a FIFO queue of PendingJobs, named (spec examples: `ScriptJobs`, `PromiseJobs`; hosts may define more)
-- **ScriptJobs** created by ScriptEvaluation/ModuleEvaluation
-- **PromiseJobs** created by `HostEnqueuePromiseJob` (promise reactions, async/await continuations, `queueMicrotask`)
-- the host deciding job-class ordering via `HostEnqueueJob` / `HostCallJobCallback`
+Before the physical split:
 
-Baking `tasks`/`microtasks`/`priorityMicrotasks` into the agent couples the language core to a specific host's event loop and leaks host policy into every embedder.
+- remove host task queues and `HostTaskScheduler` ownership from `JsAgent`
+- move worker messaging behavior out of `JsRealm`
+- retain small engine entry points for Promise jobs, callbacks, and host-defined delivery
+- let the runtime own agent creation and attach host behavior by composition
 
-### Target model
+The engine owns only ECMAScript job state. `HostJobs`, `HostPriorityJobs`, `PumpJobs` policy, queue keys, and host wait handles belong above it.
 
-Engine (`Okojo.JavaScript`) owns only the ECMA-262 job queue:
+### Replace the broad runtime-host dependency
+
+`IJsRuntimeHost` is transitional. It currently exposes `JsRuntimeOptions`, source maps, worker loading, CLR state, and agent creation to engine types.
+
+Before moving projects, replace that dependency with the smallest engine-owned inputs actually required by each subsystem. Prefer constructor inputs and narrow callbacks. Add a cohesive public host interface only where an external runtime genuinely must implement one; do not replace one broad interface with several speculative interfaces.
+
+### Module loading is split by contract and implementation
+
+The engine module graph currently consumes `IModuleSourceLoader`, so the minimal resolve/load contract stays in `Okojo.JavaScript` to avoid a cycle. File, network, Node, and worker-script implementations live in the runtime or profile packages.
+
+Module parsing, linking, live bindings, and evaluation stay entirely in the engine.
+
+### Host interop is split by role, not directory
+
+Do not move `Runtime/Interop/*` wholesale.
+
+- generic callback ABI and host-object contracts (`CallInfo`, host functions, required descriptors) stay in the engine
+- reflection/type discovery and CLR conversion implementation move to `Okojo.Reflection`
+- runtime composition exposes opt-in registration without making reflection a required dependency
+
+### Friend assemblies are temporary migration aids
+
+The current broad `InternalsVisibleTo` list is evidence of missing boundaries. The target is:
+
+- engine internals visible only to engine tests and explicitly experimental compiler/tooling projects
+- runtime internals visible only to runtime tests
+- host/profile projects use supported contracts
+
+One temporary engine-to-runtime friend relationship is acceptable during the move, but it must not become the final API.
+
+## Migration plan
+
+### Phase 1 — independent libraries: complete
+
+- `Okojo.Text.Unicode`
+- `Okojo.Numerics`
+- `Okojo.Text.RegularExpressions`
+- `Okojo.Globalization`
+
+The standalone projects exist and the monolith references them. Update stale friend-assembly names when the engine assembly is renamed.
+
+### Phase 2 — make the boundary real inside the current assembly: next
+
+Behavior must remain unchanged while these couplings are removed:
+
+1. detach `JsAgent` from concrete `JsRuntime` and `JsRuntimeOptions`
+2. move host queues/scheduler pumping out of `JsAgent`
+3. move worker messaging and serialization out of `JsRealm`
+4. split generic host callback contracts from reflection implementation
+5. narrow `InternalsVisibleTo` consumers
+
+Keep focused module, agent, Promise, timer, worker, interop, and execution-check tests green after each step.
+
+### Phase 3 — physical project split
+
+Create only two projects:
 
 ```text
-JsAgent (engine part)
-  ├─ ScriptJobs queue        # script/module evaluation
-  ├─ PromiseJobs queue       # reactions, async continuations, queueMicrotask
-  └─ EnqueueJob(queueName, job)   # host-defined named queues allowed
-     RunJobs() / PumpJobs()       # FIFO within each queue
-     HostEnqueuePromiseJob seam
+src/Okojo.JavaScript/Okojo.JavaScript.csproj
+src/Okojo.JavaScript.Runtime/Okojo.JavaScript.Runtime.csproj
 ```
 
-- The engine exposes `EnqueueScriptJob`, `EnqueuePromiseJob`, and `HostEnqueueJob(queueName, job)`.
-- Job execution is FIFO per queue. The host decides ordering across job classes through a scheduling seam; the engine does not hardcode a "task vs microtask" drain.
-- `queueMicrotask` is a host-installed global that enqueues into the engine's `PromiseJobs` queue (per HTML's `HostEnqueuePromiseJob` mapping).
-- HTML task sources (timers, messages, rendering, Node `check`/`nextTick`) are **host job sources**, implemented in `Okojo.Hosting` / `Okojo.WebPlatform` / `Okojo.Browser` / `Okojo.Node`, injecting work into the engine through `HostEnqueueJob` and the `IHostTaskScheduler` seam.
-- The engine never stores `Action` task queues or host queue keys. `HostTaskQueueKey`/`IHostTaskQueuePump`/`ThreadAffinityHostLoop`/`ManualHostEventLoop` already live in `Okojo.Hosting` and stay there.
+Move files with history. Initially preserve namespaces so compiler errors identify assembly-boundary violations separately from namespace-renaming errors.
 
-### Split of `JsAgent`
+Project references:
 
-- engine part (in `Okojo.JavaScript`): realm list, symbol registry, private brands, module graph, execution contexts, `ScriptJobs`/`PromiseJobs` queues, breakpoint registry
-- runtime part (in `Okojo.JavaScript.Runtime`): host task scheduling, worker messaging, `PostMessage`, host job enqueueing, `IHostTaskScheduler` wiring, pump/runner
-
-## Migration Map
-
-### From `EcmaRegex/` (vendored)
-
-| Current | New home |
-|---|---|
-| `src/EcmaRegex/EcmaRegex.cs`, `EcmaMatch.cs`, `EcmaCapture.cs`, `EcmaRegexOptions.cs`, `EcmaRegexFlags.cs`, `EcmaRegexExceptions.cs`, `EcmaRegexPattern.cs`, `MatchEnumerable.cs` | `src/Okojo.Text.RegularExpressions/`, namespace `Okojo.Text.RegularExpressions` |
-| `Internal/Ast.cs`, `RegexParser.cs`, `RegexCompiler.cs`, `BacktrackingVm.cs`, `LinearNfa.cs`, `CharacterClass.cs`, `RegexProgram.cs`, `ExecutionBudget.cs`, `ValueStack.cs` | `src/Okojo.Text.RegularExpressions/Internal/` |
-| `Internal/Unicode*.Generated.cs`, `UnicodeCaseFolding*.cs`, `UnicodePropertyDatabase.cs`, `Utf16Utility.cs` | `src/Okojo.Text.Unicode/` |
-| `tools/generate_unicode.py`, string-property generators | `src/Okojo.Text.Unicode/tools/` |
-| `benchmarks/EcmaRegex.Benchmarks`, `samples`, `tests` | fold into `Okojo.Text.RegularExpressions` counterparts |
-
-### From `src/Okojo/` (engine → libraries)
-
-| Current location | New home |
-|---|---|
-| `RegExp/ScratchUnicode*` | **delete** (replaced by `Okojo.Text.Unicode` tables) |
-| `RegExp/ScratchRegExp*`, `RegExp/CompiledProgram.cs`, `RegExp/RegExpIr.cs`, `RegExp/RegExpBytecode.cs`, `RegExp/RegExpCharacterSet.cs`, `RegExp/RegExpEngine.cs`, `RegExp/ScratchPooled*` | **delete** (replaced by `Okojo.Text.RegularExpressions`) |
-| `RegExp/IRegExpEngine.cs`, `RegExpCompiledPattern.cs`, `RegExpMatchResult.cs`, `RegExpRuntimeFlags.cs` | **delete** seam; engine calls `Okojo.Text.RegularExpressions` directly |
-| `Runtime/Intl/*.cs` | `Okojo.Globalization` |
-| `Runtime/Intl/Data/*.txt` | `Okojo.Globalization` resources |
-| `Runtime/JsStringCaseOperations.cs`, `JsStringLocaleCaseOperations.cs` | `Okojo.Text.Unicode` (algorithm) + `Okojo.Globalization` (locale-aware wrapper) |
-| `Runtime/JsSegmenterObjects.cs` (segmentation cores) | `Okojo.Text.Unicode` |
-| `Runtime/JsNumberFormatting.cs`, `JsNumberPrecisionFormatting.cs` | `Okojo.Numerics` |
-| `Runtime/JsCollatorObject.cs`, `JsNumberFormatObject.cs`, `JsDateTimeFormatObject.cs`, `JsPluralRulesObject.cs`, `JsRelativeTimeFormatObject.cs`, `JsListFormatObject.cs`, `JsDisplayNamesObject.cs`, `JsDurationFormatObject.cs`, `JsLocaleObject.cs` | cores → `Okojo.Globalization`; thin `Js*Object` wrappers stay in `Okojo.JavaScript` |
-| `Runtime/Intrinsics.Intl.cs` | pure string-tag/validation/canonicalization cluster → `Okojo.Globalization`; constructor/prototype glue stays in engine |
-| `Values/JsBigInt.cs`, `Internals/Sumprecise.cs` | `Okojo.Numerics` |
-| `Runtime/Intrinsics.BigInt.cs` (pure helpers), `Intrinsics.Date.cs` (pure math), `Intrinsics.NumberPrototype.cs` (radix helpers) | `Okojo.Numerics` |
-| `Runtime/JsRuntime.cs`, `JsRuntimeBuilder.cs`, `JsRuntime*Options.cs` | `Okojo.JavaScript.Runtime` |
-| `Runtime/Interop/*`, `Runtime/Worker*`, `Runtime/DefaultHostTaskScheduler.cs`, `Runtime/HostTask*`, `Runtime/HostPump.cs`, `Runtime/JsAgentRunner.cs`, `Runtime/FileModuleSourceLoader.cs`, `Runtime/*WorkerScriptSourceLoader*`, `Runtime/IModuleSourceLoader.cs`, `Runtime/IHostTaskScheduler.cs`, `Runtime/IHostDelayScheduler.cs`, `Runtime/ITimerFactory.cs`, `Runtime/IBackgroundScheduler.cs`, `Runtime/IHostMessageSerializer.cs`, `Runtime/JsDefaultHostMessageSerializer.cs` | `Okojo.JavaScript.Runtime` |
-| `SourceMaps/*` | `Okojo.JavaScript.Runtime` |
-| everything else (Parsing, Compiler, Bytecode, Objects, Values, JsRealm/VM, intrinsics, module graph, agent job queues) | `Okojo.JavaScript` |
-
-### Project references (after split)
-
-- `Okojo.Text.RegularExpressions` → `Okojo.Text.Unicode`
-- `Okojo.Globalization` → `Okojo.Text.Unicode`, `Okojo.Numerics`
-- `Okojo.JavaScript` → Text.Unicode, Numerics, Text.RegularExpressions, Globalization
+- `Okojo.JavaScript` → Unicode, Numerics, RegularExpressions, Globalization
 - `Okojo.JavaScript.Runtime` → `Okojo.JavaScript`
-- `Okojo.Hosting` / `Okojo.WebPlatform` / `Okojo.Browser` / `Okojo.Node` → `Okojo.JavaScript.Runtime` (+ each other as today)
-- `tools/Test262Runner` → `Okojo.JavaScript.Runtime` (+ `Okojo.Hosting`, `Okojo.WebPlatform`); drop `Okojo.RegExp.EcmaRegex` reference and the `--regexp-engine ecmaregex` switch
-- `tests/Okojo.Tests` → `Okojo.JavaScript.Runtime` (+ profiles used by specific tests)
 
-## Tooling / Solution / Test Strategy
+Each project must build independently before continuing.
 
-- `Okojo.slnx` is reorganized to the new `src/` layout; a second solution section (or directory-build-props) keeps the leaf libraries independently buildable.
-- Library test projects:
-  - `Okojo.Text.Unicode.Tests` — tables, code points, case mapping, segmentation
-  - `Okojo.Numerics.Tests` — BigInt, exact decimal, double↔string, time math
-  - `Okojo.Text.RegularExpressions.Tests` — the existing `EcmaRegex.Tests` + `EcmaRegex.Test262` projects move here (namespace + package rename only)
-  - `Okojo.Globalization.Tests` — collation/number/date-time/plural/relative/list/display/duration/segmenter cores
-  - `Okojo.JavaScript.Tests` — parser/compiler/VM/object-model unit tests
-  - `Okojo.JavaScript.Runtime.Tests` — embedding, jobs, modules, workers, interop
-  - `Okojo.Tests` — test262 + end-to-end conformance (existing `Intl*`, `RegExp*`, `BigInt*`, `AgentJobQueue*` tests move with their component)
-- `dotnet test tests/Okojo.Tests/Okojo.Tests.csproj` remains the fast conformance loop; the `Okojo.Compiler.Tests` split approach continues inside `Okojo.JavaScript.Tests`.
-- test262 runs target `Okojo.JavaScript.Runtime` through `Test262Runner`.
+### Phase 4 — namespace rename
 
-## Migration Phases
+Perform the namespace migration as one mechanical pass after both assemblies build:
 
-1. ✅ **Extract `Okojo.Text.Unicode` + `Okojo.Numerics`** (pure, no reverse deps).
-   - Done: `Okojo.Numerics` (NumberFormatting, NumberPrecisionFormatting, SumPrecise, PooledList) and `Okojo.Text.Unicode` (Utf16, UnicodeCaseFolding + generated data, generator tooling).
-2. ✅ **Vendor `EcmaRegex` as `Okojo.Text.RegularExpressions`**, re-pointing its Unicode data at `Okojo.Text.Unicode`.
-   - Done: submodule vendored, namespace `Okojo.Text.RegularExpressions`, engine rewired to the library as the single regex engine. Scratch engine, `IRegExpEngine` seam, `.NET Regex` bridge, `Okojo.RegExp.EcmaRegex` adapter, and `--regexp-engine` variants deleted. Full test262 (non-staging, non-annexB) passes with zero regex regressions.
-3. **Extract `Okojo.Globalization`** cores from the `Js*Objects` + `Intrinsics.Intl.cs` pure cluster + `Runtime/Intl` data.
-   - Engine `Js*Object` wrappers become thin delegates.
-4. **Split `Okojo` into `Okojo.JavaScript` (engine) and `Okojo.JavaScript.Runtime` (runtime)**.
-   - ✅ **Seam first**: `IJsRuntimeHost` / `IJsRuntimeHostInternal` decouple `JsRealm`/`JsAgent` from the concrete `JsRuntime` container.
-   - Remaining: physically split the assembly. Parser/compiler/VM/object model/intrinsics/realms/agents/jobs stay in `Okojo.JavaScript`; the container (`JsRuntime`, builder, options, host seams, workers, interop, modules) moves to `Okojo.JavaScript.Runtime`. Host tools that need container-specific members cast to `JsRuntime`.
-5. ✅ **Fix the job queue model** in the engine (ScriptJobs/PromiseJobs/`HostEnqueueJob`), move host task sources to the runtime + `Okojo.Hosting`.
-   - Done: `JsAgent` now owns named ECMA-262 job queues (`ScriptJobs`, `PromiseJobs`, `HostJobs`, `HostPriorityJobs`) with granular manual run primitives (`RunJobs`, `RunPromiseJobs`, `EnqueueJob(queueName, ...)`, `GetJobCount`). Host task sources route through the host scheduler seam; browsers can drive the loop manually.
-   - Regression-targeted by `AgentJobQueueTests`, `TimerTests`, `WorkerAgentTests`, `WebWorkerTests`, `AsyncPromiseTests`.
-6. ✅ **Delete dead paths**: Scratch engine, `IRegExpEngine`, `.NET Regex` bridge, `Okojo.RegExp.EcmaRegex`, `--regexp-engine` variants.
-   - Done as part of the regex consolidation in phase 2.
-7. **Rename engine namespaces** to `Okojo.JavaScript.*` (mechanical, after behavior is green).
-8. **Update planning docs** (`OKOJO_BROWSER_COMPATIBILITY_PLAN.md`, `OKOJO_CONCRETE_ARCHITECTURE.md`, `OKOJO_API_POLICY.md`, `OKOJO_CORE_API_REFINEMENT_PLAN.md`) to the new layer names.
+- `Okojo.Values` → `Okojo.JavaScript.Values`
+- `Okojo.Objects` → `Okojo.JavaScript.Objects`
+- `Okojo.Parsing` → `Okojo.JavaScript.Parsing`
+- `Okojo.Compiler` → `Okojo.JavaScript.Compiler`
+- `Okojo.Bytecode` → `Okojo.JavaScript.Bytecode`
+- engine-owned `Okojo.Runtime` → `Okojo.JavaScript.Execution`
+- embedding types → `Okojo.JavaScript.Runtime`
 
-## Decisions Made
+Update global usings, generated-source inputs, XML documentation references, and friend assembly names in the same pass.
 
-- Each library presents a **standalone, obvious public API**: ECMA-402 type names (`PluralRules`, `Collator`, `ListFormat`, `RelativeTimeFormat`, `NumberFormat`, `DateTimeFormat`) with spec-aligned `*Options` records, never `*Core`-suffixed or positional-constructor-heavy surfaces.
-- Data classes use clean domain names (`LocaleData`, `CalendarData`, `NumberingSystemData`, `TimeZoneData`, `UnitData`, `LunisolarCalendar`, `LikelySubtags`), not `Okojo*`-prefixed names.
-- The regex library is `EcmaRegex` in `Okojo.Text.RegularExpressions`; `Ecma`-prefixed types are intentional (ECMAScript semantics), consistent within the library.
-- Keep `BigInt` as a `BigInteger`-backed value type; do not write a limb-level bignum unless profiling requires it.
-- Keep `.NET` culture data as the backing store for `Okojo.Globalization` (via `CultureInfo`); the library supplies ECMA-402 algorithm logic on top.
-- `Okojo.Text.*` mirrors `System.Text`: `Okojo.Text.Unicode` (code points, tables, case, segmentation) and `Okojo.Text.RegularExpressions` (regex) form the text-processing library family.
-- The engine may keep `InternalsVisibleTo` to `Okojo.JavaScript.Tests` and `Okojo.Compiler.Experimental`, but not to host projects.
-- Task queues and host scheduling live in the runtime/host layer only; the engine owns only ECMA-262 job queues.
+### Phase 5 — consumers, tests, and packages
 
-## Risks
+- `Okojo.Diagnostics` and `Okojo.Compiler.Experimental` reference the engine
+- `Okojo.Hosting` references the runtime
+- Reflection, WebAssembly, WebPlatform, Browser, and Node reference the smallest required layer
+- Test262Runner and integration tests reference the runtime/profile packages they execute
 
-- ✅ **Behavior parity during the regex consolidation** — resolved: full test262 (non-staging, non-annexB) passes after Scratch deletion; only intentional message-text differences were adjusted in tests.
-- ✅ **Intl formatter extraction churn** — resolved: `Js*Objects` are thin wrappers delegating to `Okojo.Globalization` formatters; pure date-math glue stays in the engine for now (a future `Okojo.Numerics` ECMA time-math slice can absorb `Intrinsics.GetEcmaDateTimePartsForIntl`).
-- **Job queue regression** — the current drain order is relied on by host profiles; migrate `Okojo.Hosting` loop implementations to the new seam before removing old agent queues.
-- **Compiler split history** — the compiler cannot leave the engine assembly until bytecode/VM types share an assembly; the engine assembly is the natural home for both, so `Okojo.JavaScript` keeps parser+compiler+VM together (per `OKOJO_COMPILER_ASSEMBLY_SPLIT.md`, the lower shared layer becomes `Okojo.JavaScript` itself).
+Do not reorganize all tests before the production split compiles. Keep `tests/Okojo.Tests` as the conformance/integration loop first; create `Okojo.JavaScript.Tests` and `Okojo.JavaScript.Runtime.Tests` only while moving tests that clearly belong to each boundary.
+
+Finally update:
+
+- `Okojo.slnx`
+- root and package READMEs
+- `eng/PackageVersions.props`
+- `.github/workflows/publish-packages.yml`
+- examples, tools, and package workflow documentation
+
+Delete `src/Okojo/Okojo.csproj` after all references are gone. Do not retain an empty compatibility package by default.
+
+## Verification
+
+For each behavior-bearing boundary change:
+
+```powershell
+dotnet test tests/Okojo.Tests/Okojo.Tests.csproj
+```
+
+For repeated focused work, build first and then run filtered tests with `--no-build`; do not build and test in parallel.
+
+High-risk areas:
+
+- agent and Promise job ordering
+- modules and dynamic import
+- worker lifecycle and messaging
+- host interop
+- execution limits/checkpoints
+- Node and WebPlatform host loops
+
+After the split, build the engine and runtime projects independently, then run the full conformance and profile test suites.
+
+## Retired documents
+
+The following documents were deleted because their active decisions are now captured here and their old package model conflicted with this plan:
+
+- `docs/OKOJO_API_POLICY.md`
+- `docs/OKOJO_CONCRETE_ARCHITECTURE.md`
+- `docs/OKOJO_CORE_API_REFINEMENT_PLAN.md`
+- `docs/OKOJO_COMPILER_ASSEMBLY_SPLIT.md`
+- `docs/OKOJO_ECMA262_JOB_QUEUE.md`
+- `docs/OKOJO_HOST_EVENT_LOOP_DESIGN.md`
+
+Git history remains the source for historical rationale. Do not add tombstone documents for deleted plans.
+
+## Deferred until evidence exists
+
+- an `Okojo` compatibility facade
+- separate parser/compiler/bytecode packages
+- new abstractions for hypothetical embedders
+- synchronized versioning for every Okojo package

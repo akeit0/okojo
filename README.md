@@ -651,6 +651,7 @@ That last column is usually the best single number to use for practical baseline
 ## Key docs
 
 - [`OKOJO_BROWSER_COMPATIBILITY_PLAN.md`](OKOJO_BROWSER_COMPATIBILITY_PLAN.md) - top-level compatibility direction
+- [`docs/OKOJO_LIBRARY_SPLIT_PLAN.md`](docs/OKOJO_LIBRARY_SPLIT_PLAN.md) - target package, namespace, and ownership boundaries
 - [`docs/TEST262_SKIP_TAXONOMY.md`](docs/TEST262_SKIP_TAXONOMY.md) - skip taxonomy and inventory
 - [`docs/OKOJO_PACKABLE_PACKAGE_WORKFLOW.md`](docs/OKOJO_PACKABLE_PACKAGE_WORKFLOW.md) - packable package versioning and publishing strategy
 

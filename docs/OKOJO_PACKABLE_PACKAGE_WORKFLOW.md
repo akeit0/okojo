@@ -2,6 +2,8 @@
 
 This note defines the **steady-state operating model** for Okojo package versioning, internal references, and publishing.
 
+Package and assembly naming is defined by [`OKOJO_LIBRARY_SPLIT_PLAN.md`](OKOJO_LIBRARY_SPLIT_PLAN.md). The project/package tables below describe the current pre-split repository. When the split lands, `Okojo` is replaced by `Okojo.JavaScript` and `Okojo.JavaScript.Runtime`; the same `ProjectReference`, independent-versioning, and publishing rules continue to apply.
+
 The repository is still prerelease, but the policy here is intended to describe the normal shape to keep as the package set grows.
 
 ## Summary

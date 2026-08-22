@@ -172,7 +172,7 @@ Current top-level anchor document:
 
 Supporting architecture document for the current next slice:
 
-- `OKOJO_API_ASSEMBLY_TASK_QUEUE_PLAN.md`
+- `docs/OKOJO_LIBRARY_SPLIT_PLAN.md`
 
 ## Test Workflow (Required)
 

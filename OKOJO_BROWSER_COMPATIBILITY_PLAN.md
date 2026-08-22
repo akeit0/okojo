@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines the top-level direction for turning `src/Okojo` into a much more browser-compatible JavaScript engine with stronger ECMA-262 alignment and a cleaner embedding API.
+This document defines the top-level direction for turning Okojo into a browser-compatible JavaScript engine with stronger ECMA-262 alignment and a cleaner embedding API.
 
 Target outcome:
 
@@ -10,7 +10,7 @@ Target outcome:
 - Okojo passes all `test262` tests except:
   - intentionally unsupported legacy coverage
   - staging-only coverage
-- `src/Okojo` exposes a smaller, cleaner, more durable public API focused on embedding and host integration instead of leaking broad runtime internals.
+- `Okojo.JavaScript` exposes a deliberate engine API, with embedding and host policy layered above it.
 
 ## Current status
 
@@ -89,7 +89,7 @@ Because Okojo is heavily influenced by V8:
 
 ## API Split Goal
 
-`src/Okojo` should be refactored toward four clear API layers.
+The package and namespace boundary is defined by [docs/OKOJO_LIBRARY_SPLIT_PLAN.md](docs/OKOJO_LIBRARY_SPLIT_PLAN.md). This roadmap uses four conceptual API layers; it does not define an alternate assembly graph.
 
 Compiler architecture note:
 
@@ -351,24 +351,18 @@ Definition of done for the main compliance goal:
   - legacy exclusions approved by project policy
   - staging exclusions approved by project policy
 
-## Suggested `src/Okojo` Package/Namespace Direction
+## Package and Namespace Direction
 
-This is a direction, not an immediate mandatory rename plan.
+The decided top-level shape is:
 
-Potential future grouping:
+- `Okojo.JavaScript`: ECMAScript engine
+- `Okojo.JavaScript.Runtime`: embedding/container API
+- `Okojo.Hosting`: optional .NET host implementations
+- `Okojo.Diagnostics`: optional engine diagnostics
+- `Okojo.Reflection`: optional CLR reflection binding
+- `Okojo.WebPlatform`, `Okojo.Browser`, and `Okojo.Node`: host profiles
 
-- `Okojo`
-  - stable embedding API
-- `Okojo.Hosting`
-  - module/worker/scheduler/host service contracts
-- `Okojo.Diagnostics`
-  - parser, bytecode, tracing, disassembly
-- `Okojo.Interop`
-  - host/CLR binding surface
-- `Okojo.Internal` or internal-only namespaces
-  - runtime/compiler/object model internals
-
-The main goal is not aesthetic namespace cleanup. The main goal is to make compatibility work safer by reducing accidental public contracts.
+Parser, compiler, bytecode, object model, and VM remain together in `Okojo.JavaScript`. See the library split plan for ownership and migration order.
 
 ## Documentation Rules For This Roadmap
 
@@ -381,10 +375,10 @@ Every substantial feature or compliance slice should still keep its own focused 
 - Test262 completion target
 - stable vs internal Okojo surface policy
 
-Current supporting top-level inventory:
+Current supporting documents:
 
-- `OKOJO_PUBLIC_API_INVENTORY.md`
-- `OKOJO_API_ASSEMBLY_TASK_QUEUE_PLAN.md`
+- `docs/OKOJO_LIBRARY_SPLIT_PLAN.md`
+- `docs/OKOJO_MULTI_PASS_COMPILER_DESIGN.md`
 - `docs/OKOJO_NODE_RUNTIME_PLAN.md`
 
 ## Licensing Note
@@ -398,11 +392,11 @@ Also keep these boundaries explicit:
 
 ## 2026 Execution Priorities
 
-1. finish narrowing the compatibility target to "all non-legacy, non-staging Test262"
-2. split host configuration concerns from stable engine options
-3. define task queue ownership so ECMAScript jobs stay in core and host tasks stay host-driven
-4. define target assembly boundaries for `Okojo`, `Okojo.Hosting`, `Okojo.Diagnostics`, and `Okojo.WebPlatform`
+1. keep all non-legacy, non-staging Test262 coverage passing
+2. remove host queue, worker, and runtime-option coupling from `JsAgent` and `JsRealm`
+3. split `Okojo.JavaScript` from `Okojo.JavaScript.Runtime`
+4. migrate host/profile projects to the new dependency graph
 5. tighten module/job/worker host seams for browser-like embedding
 6. continue Proxy/Object/descriptor correctness work
 7. keep shape/dictionary and property hot paths simple while preserving semantics
-8. document stable API vs diagnostics vs internal runtime boundaries as changes land
+8. complete and adopt the experimental compiler path without splitting compiler and VM assemblies
