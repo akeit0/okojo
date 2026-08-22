@@ -175,6 +175,53 @@ Deferred/rejected ideas stay recorded here with reasons instead of being
 retried silently (AGENTS.md: no old fast-path experiments without profiling
 evidence).
 
+## Attempt Log
+
+### a2-hot-cold-split - ACCEPTED (branch vmopt-a2-hot-cold-split)
+
+Extracted 7 cold opcode arm groups into NoInlining handlers returning the
+consumed-delta (CreateClosure, CreateFunctionContext family, context-slot
+families, StaGlobal family, GetNamedPropertyFromSuper, CreateObjectLiteral).
+
+- Tier1 code size 22373 -> 21058 (-5.9%), Tier0 -10.1%.
+- bench-ab (5 alternating rounds, pgo-off): for-loop-sum -4.1%,
+  closure-heavy -1.6%, pure-function-call -1.2%, others within noise.
+  Degradable cases show no handler-call regression.
+- Full suite green. Merged --no-ff into vm-opt.
+
+Knowledge produced by this attempt:
+
+1. **C# ref-reassignment pitfall**: `pc = ref Unsafe.Add(ref pc, n)` inside a
+   callee rebinds only the callee's ref slot; the caller's ref local is never
+   reseated. A pc cursor cannot be advanced through-writes (it would
+   overwrite bytecode). Extracted handlers MUST return the consumed delta and
+   arms apply `pc = ref Unsafe.Add(ref pc, Handler(...))`. This is WHY the
+   pre-existing Handle* helpers use that convention. Documented in
+   JsRealm.VmLoop.cs above `HandleCreateClosure`.
+2. **Diagnosis workflow for VM dispatch bugs** (worked end-to-end):
+   probe mode fallback -> minimal repro app -> targeted `[diag]` lines in
+   handler/store path -> per-dispatch `[optrace]` line comparing working vs
+   broken -> raw bytecode byte dump to disprove misleading disasm listing.
+   The OkojoBytecodeTool listing showed operand bytes as separate pseudo-
+   instructions; raw byte dump settled it.
+3. **A1 implementation hint**: reduce locals C-style - declare shared temps
+   once at method top (the loop-head already does this for num/intNum/reg);
+   extend that pattern rather than adding per-arm locals when extracting.
+
+## Optimization Work Rules (binding for this effort)
+
+1. Never skip or defer a bug discovered mid-attempt; fix it before measuring.
+2. Every attempt must also improve reusable tooling when a gap appears
+   (bench-ab.ps1 and compare-jit.ps1 were born this way).
+3. Record all findings/failures in the snapshot notice.md AND this document;
+   rejected attempts stay on their branches as recoverable knowledge.
+4. Measure hot cases AND degradable cases (workloads that execute the changed
+   cold paths) before accept/reject.
+5. Accept/reject only on bench-ab medians plus dasm evidence; single probe
+   runs are not decisions.
+6. To compare two revisions fairly use `tools/VmLoopProbe/bench-ab.ps1`
+   (git-worktree isolation, alternating rounds).
+
 Rules for every attempt:
 
 1. One hypothesis per attempt; fill `notice.md` from the template.
