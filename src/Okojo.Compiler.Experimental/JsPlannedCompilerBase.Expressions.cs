@@ -52,11 +52,101 @@ internal abstract partial class JsPlannedCompilerBase
             case AstKind.SequenceExpression:
                 EmitSequenceExpression(ast, node);
                 return;
+            case AstKind.CallExpression:
+                EmitCallExpression(ast, node);
+                return;
+            case AstKind.MemberExpression:
+                EmitMemberExpression(ast, node);
+                return;
             default:
                 throw new NotSupportedException(
                     $"{CompilerName} does not support flat expression '{node.Kind}'."
                 );
         }
+    }
+
+    private void EmitCallExpression(FlatAst ast, AstNode node)
+    {
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            ref readonly var callee = ref ast[node.Arg0];
+            if (callee.Kind == AstKind.MemberExpression)
+            {
+                EmitExpression(ast, callee.Arg0);
+                var objectRegister = builder.AllocateTemporaryRegister();
+                EmitStar(objectRegister);
+                EmitMemberLoad(ast, callee, objectRegister);
+                var functionRegister = builder.AllocateTemporaryRegister();
+                EmitStar(functionRegister);
+                var argumentStart = EmitCallArguments(ast, node.Arg1, node.Arg2);
+                builder.EmitCallProperty(
+                    functionRegister,
+                    objectRegister,
+                    argumentStart,
+                    node.Arg2
+                );
+                return;
+            }
+
+            EmitExpression(ast, node.Arg0);
+            var directFunctionRegister = builder.AllocateTemporaryRegister();
+            EmitStar(directFunctionRegister);
+            var directArgumentStart = EmitCallArguments(ast, node.Arg1, node.Arg2);
+            builder.EmitCallUndefinedReceiver(
+                directFunctionRegister,
+                directArgumentStart,
+                node.Arg2
+            );
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+        }
+    }
+
+    private int EmitCallArguments(FlatAst ast, int offset, int count)
+    {
+        if (count == 0)
+            return 0;
+        var start = builder.AllocateTemporaryRegisterBlock(count);
+        var arguments = ast.ChildRange(offset, count);
+        for (var i = 0; i < arguments.Length; i++)
+        {
+            EmitExpression(ast, arguments[i]);
+            EmitStar(start + i);
+        }
+        return start;
+    }
+
+    private void EmitMemberExpression(FlatAst ast, AstNode node)
+    {
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            EmitExpression(ast, node.Arg0);
+            var objectRegister = builder.AllocateTemporaryRegister();
+            EmitStar(objectRegister);
+            EmitMemberLoad(ast, node, objectRegister);
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+        }
+    }
+
+    private void EmitMemberLoad(FlatAst ast, AstNode member, int objectRegister)
+    {
+        if (((AstMemberFlags)member.Arg2 & AstMemberFlags.Computed) != 0)
+        {
+            EmitExpression(ast, member.Arg1);
+            builder.EmitLdaKeyedProperty(objectRegister);
+            return;
+        }
+
+        var nameIndex = builder.AddAtomizedStringConstant(ast.GetString(member.Arg1));
+        var feedbackSlot = builder.AllocateFeedbackSlot();
+        builder.EmitLdaNamedProperty(objectRegister, nameIndex, feedbackSlot);
     }
 
     private void EmitBinaryExpression(FlatAst ast, AstNode node)

@@ -321,7 +321,7 @@ public sealed partial class JsCompiler
 
     private void EmitLdaKeyedProperty(int targetRegister)
     {
-        EmitRegisterOp(JsOpCode.LdaKeyedProperty, targetRegister);
+        builder.EmitLdaKeyedProperty(targetRegister);
     }
 
     private void EmitDefineOwnKeyedProperty(int targetRegister, int keyRegister)
@@ -747,13 +747,7 @@ public sealed partial class JsCompiler
 
     private void EmitLdaNamedPropertyByIndex(int objReg, int nameIdx, int feedbackSlot)
     {
-        EmitNamedPropertyByIndex(
-            JsOpCode.LdaNamedProperty,
-            JsOpCode.LdaNamedPropertyWide,
-            objReg,
-            nameIdx,
-            feedbackSlot
-        );
+        builder.EmitLdaNamedProperty(objReg, nameIdx, feedbackSlot);
     }
 
     private void EmitStaNamedPropertyByIndex(int objReg, int nameIdx, int feedbackSlot)

@@ -305,6 +305,98 @@ public sealed class BytecodeBuilder : IDisposable
         return slot;
     }
 
+    internal void EmitCallUndefinedReceiver(
+        int functionRegister,
+        int argumentStart,
+        int argumentCount
+    ) =>
+        EmitScaledOperands(
+            JsOpCode.CallUndefinedReceiver,
+            [functionRegister, argumentStart, argumentCount]
+        );
+
+    internal void EmitCallProperty(
+        int functionRegister,
+        int objectRegister,
+        int argumentStart,
+        int argumentCount
+    ) =>
+        EmitScaledOperands(
+            JsOpCode.CallProperty,
+            [functionRegister, objectRegister, argumentStart, argumentCount]
+        );
+
+    internal void EmitCallRuntime(int runtimeId, int argumentStart, int argumentCount) =>
+        EmitScaledOperands(JsOpCode.CallRuntime, [runtimeId, argumentStart, argumentCount]);
+
+    internal void EmitConstruct(int functionRegister, int argumentStart, int argumentCount) =>
+        EmitScaledOperands(JsOpCode.Construct, [functionRegister, argumentStart, argumentCount]);
+
+    internal void EmitLdaKeyedProperty(int objectRegister) =>
+        EmitScaledOperands(JsOpCode.LdaKeyedProperty, [objectRegister]);
+
+    internal void EmitLdaNamedProperty(int objectRegister, int nameIndex, int feedbackSlot)
+    {
+        if (
+            (uint)objectRegister <= byte.MaxValue
+            && (uint)nameIndex <= byte.MaxValue
+            && (uint)feedbackSlot <= byte.MaxValue
+        )
+        {
+            Emit(
+                JsOpCode.LdaNamedProperty,
+                (byte)objectRegister,
+                (byte)nameIndex,
+                (byte)feedbackSlot
+            );
+            return;
+        }
+        if (
+            (uint)objectRegister <= ushort.MaxValue
+            && (uint)nameIndex <= ushort.MaxValue
+            && (uint)feedbackSlot <= ushort.MaxValue
+        )
+        {
+            Emit(
+                JsOpCode.LdaNamedPropertyWide,
+                (byte)objectRegister,
+                (byte)(objectRegister >> 8),
+                (byte)nameIndex,
+                (byte)(nameIndex >> 8),
+                (byte)feedbackSlot,
+                (byte)(feedbackSlot >> 8)
+            );
+            return;
+        }
+        throw new InvalidOperationException(
+            "Named property operands exceed ushort operand capacity."
+        );
+    }
+
+    private void EmitScaledOperands(JsOpCode op, ReadOnlySpan<int> operands)
+    {
+        var max = 0;
+        for (var i = 0; i < operands.Length; i++)
+        {
+            if (operands[i] < 0 || operands[i] > ushort.MaxValue)
+                throw new InvalidOperationException($"{op} operand exceeds ushort capacity.");
+            max = Math.Max(max, operands[i]);
+        }
+
+        var wide = max > byte.MaxValue;
+        if (wide)
+            Emit(BytecodeInfo.GetOperandScalePrefix(BytecodeInfo.OperandScale.Wide));
+        Span<byte> encoded = stackalloc byte[operands.Length * (wide ? 2 : 1)];
+        var cursor = 0;
+        for (var i = 0; i < operands.Length; i++)
+        {
+            encoded[cursor++] = (byte)operands[i];
+            if (wide)
+                encoded[cursor++] = (byte)(operands[i] >> 8);
+        }
+        Emit(op, encoded);
+    }
+
     public int AddNumericConstant(double value)
     {
         for (var i = 0; i < numericConstants.Count; i++)

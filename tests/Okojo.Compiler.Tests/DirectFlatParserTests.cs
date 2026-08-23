@@ -1,4 +1,5 @@
 using Okojo.JavaScript;
+using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Compiler.Experimental;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Objects;
@@ -117,6 +118,54 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_ExecutesDirectCall()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+
+        var script = compiler.Compile(
+            "function add(left, right) { return left + right; } add(40, 2);"
+        );
+
+        realm.Execute(script);
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(42));
+    }
+
+    [Test]
+    public void CompileString_ExecutesWideDirectCallOperands()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var arguments = string.Join(", ", Enumerable.Range(0, 260).Select(static i => i));
+
+        var script = compiler.Compile(
+            $"function first(value) {{ return value; }} first({arguments});"
+        );
+
+        realm.Execute(script);
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(0));
+        Assert.That(script.Bytecode, Does.Contain((byte)JsOpCode.Wide));
+        Assert.That(script.Bytecode, Does.Contain((byte)JsOpCode.CallUndefinedReceiver));
+    }
+
+    [Test]
+    public void CompileString_ExecutesMemberCallAndLoadsWithReceiver()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile(
+            "function read(target, key) { return target.add(2) + target[key]; } read;"
+        );
+        realm.Execute(script);
+        var read = (JsFunction)realm.Accumulator.Obj!;
+        var target = realm.Evaluate("({ value: 40, add(n) { return this.value + n; } })");
+
+        var result = realm.InvokeFunction(read, JsValue.Undefined, [target, "value"]);
+
+        Assert.That(result.Int32Value, Is.EqualTo(82));
+    }
+
+    [Test]
     public void ParseScript_AllocatesLessThanClassParseAndLowerBridge()
     {
         var source = string.Join(
@@ -144,7 +193,7 @@ public class DirectFlatParserTests
     public void ParseScript_RejectsUnsupportedSyntaxWithoutClassParserFallback()
     {
         var exception = Assert.Throws<JsParseException>(() =>
-            FlatJavaScriptParser.ParseScript("answer();")
+            FlatJavaScriptParser.ParseScript("new Answer();")
         );
 
         Assert.That(exception!.Message, Does.Contain("FlatJavaScriptParser"));

@@ -305,10 +305,68 @@ internal static class FlatAstLowerer
                     conditional.Position
                 ),
                 JsSequenceExpression sequence => LowerSequence(sequence),
+                JsCallExpression call => LowerCall(call),
+                JsMemberExpression member => LowerMember(member),
                 _ => throw new NotSupportedException(
                     $"{compilerName} does not support expression '{expression.GetType().Name}'."
                 ),
             };
+        }
+
+        private int LowerCall(JsCallExpression call)
+        {
+            if (call.IsOptionalChainSegment)
+                throw new NotSupportedException(
+                    $"Optional calls are not supported by {compilerName}."
+                );
+
+            var arguments = ArrayPool<int>.Shared.Rent(call.Arguments.Count);
+            try
+            {
+                for (var i = 0; i < call.Arguments.Count; i++)
+                {
+                    if (call.Arguments[i] is JsSpreadExpression)
+                        throw new NotSupportedException(
+                            $"Spread calls are not supported by {compilerName}."
+                        );
+                    arguments[i] = LowerExpression(call.Arguments[i]);
+                }
+                var children = Arena.AddChildren(arguments.AsSpan(0, call.Arguments.Count));
+                return Arena.Add(
+                    AstKind.CallExpression,
+                    LowerExpression(call.Callee),
+                    children.Offset,
+                    children.Count,
+                    call.Position
+                );
+            }
+            finally
+            {
+                ArrayPool<int>.Shared.Return(arguments);
+            }
+        }
+
+        private int LowerMember(JsMemberExpression member)
+        {
+            if (member.IsPrivate || member.IsOptionalChainSegment)
+                throw new NotSupportedException(
+                    $"Private and optional members are not supported by {compilerName}."
+                );
+
+            var property =
+                member.IsComputed ? LowerExpression(member.Property)
+                : member.Property is JsLiteralExpression { Value: string name }
+                    ? Arena.AddString(name)
+                : throw new NotSupportedException(
+                    $"Named member shape is not supported by {compilerName}."
+                );
+            return Arena.Add(
+                AstKind.MemberExpression,
+                LowerExpression(member.Object),
+                property,
+                (int)(member.IsComputed ? AstMemberFlags.Computed : AstMemberFlags.None),
+                member.Position
+            );
         }
 
         private int LowerSequence(JsSequenceExpression sequence)

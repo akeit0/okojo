@@ -307,6 +307,17 @@ internal static partial class CompilerBindingCollector
                     for (var i = 0; i < expressions.Length; i++)
                         VisitExpression(ast, expressions[i], scopeId);
                     return;
+                case AstKind.CallExpression:
+                    VisitExpression(ast, node.Arg0, scopeId);
+                    var arguments = ast.ChildRange(node.Arg1, node.Arg2);
+                    for (var i = 0; i < arguments.Length; i++)
+                        VisitExpression(ast, arguments[i], scopeId);
+                    return;
+                case AstKind.MemberExpression:
+                    VisitExpression(ast, node.Arg0, scopeId);
+                    if (((AstMemberFlags)node.Arg2 & AstMemberFlags.Computed) != 0)
+                        VisitExpression(ast, node.Arg1, scopeId);
+                    return;
                 case AstKind.NumericLiteral:
                 case AstKind.StringLiteral:
                 case AstKind.BooleanLiteral:

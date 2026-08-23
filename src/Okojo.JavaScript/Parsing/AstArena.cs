@@ -70,6 +70,13 @@ internal enum AstKind : byte
     ExportSpecifier,
 }
 
+[Flags]
+internal enum AstMemberFlags : byte
+{
+    None = 0,
+    Computed = 1,
+}
+
 /// <summary>
 ///     Flat-array AST node. 16 bytes fixed size.
 ///     Children referenced by integer index into the owning arena's node

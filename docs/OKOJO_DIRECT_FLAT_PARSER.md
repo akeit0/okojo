@@ -16,6 +16,9 @@ ordinary loops, loop control, returns, and the current flat expression families.
 Unsupported syntax fails explicitly; it does not silently restart through the
 class parser.
 
+This slice adds ordinary calls plus named/computed member loads. It excludes
+spread, optional chaining, `super`, private names, construction, and member writes.
+
 ## Minimal Repros
 
 ```js
@@ -31,6 +34,13 @@ function outer(x) {
 }
 ```
 
+```js
+function invoke(target, key) {
+  target.method(1);
+  return target[key];
+}
+```
+
 ## Planned Tests
 
 - `tests/Okojo.Compiler.Tests/DirectFlatParserTests.cs`
@@ -38,6 +48,7 @@ function outer(x) {
   - direct compile and execution
   - nested function capture
   - allocated-byte comparison against class parse plus lowering
+  - direct/member calls and named/computed property loads
 
 ## Reference Observations
 
@@ -45,6 +56,13 @@ V8 builds parser nodes in zone-owned memory and carries scope/function metadata
 alongside the parse result. Okojo copies the single-owner lifetime and dense node
 IDs using pooled managed arrays. It intentionally keeps the production class AST
 available until flat syntax coverage is sufficient for migration.
+
+For calls and property loads, V8 and production Okojo agree on the useful
+register shape: evaluate the callee/receiver first, keep it in a register, place
+arguments in a contiguous register range, and distinguish undefined-receiver
+calls from property calls. Named loads carry a constant-pool key and feedback
+slot; computed loads keep the key in the accumulator. The flat emitter copies
+that shape while using Okojo's existing opcode ABI.
 
 ## Performance Plan
 
@@ -63,8 +81,9 @@ Initial Release measurement for 80 declaration/update pairs after warm-up:
 
 ## Deferred
 
-- calls and member access
 - arrays, objects, templates, classes, modules, destructuring, and advanced
   parameter forms
+- spread calls, optional chaining, construction, private/super members, and
+  member assignment/update
 - converging the remaining production grammar on flat node handles
 - direct production `JsCompiler` migration

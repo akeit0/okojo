@@ -224,8 +224,8 @@ Performance plan:
 - current bridge: measure class parse + flat lowering + plan + emit together
 - next architecture step: make the parser produce `FlatAst` directly; the bridge
   cannot remove the already-incurred class-node allocations
-- add calls/member access before using application-sized compile throughput as a
-  migration gate
+- add literals and member writes before using application-sized compile
+  throughput as a migration gate
 - add per-iteration context cloning before claiming closure-correct lexical loops
 
 ## 10. C1 Phase 5 - Direct Flat Parser Slice
@@ -249,5 +249,7 @@ Measured allocated bytes for 80 declaration/update pairs after warm-up:
 
 This is an approximately 87% allocation reduction for parsing/lowering the
 supported slice. The bridge remains necessary for the full production grammar;
-calls and member access are the next coverage gate before application-sized
+ordinary calls and named/computed member loads now use the same register shape and
+centralized bytecode operand encoder as the production compiler. Object/array
+literals and member writes are the next coverage gate before application-sized
 throughput comparisons.

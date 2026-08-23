@@ -102,7 +102,7 @@ internal sealed partial class JsParser
             return new(key, identifierId, null, false, true, false);
         }
 
-        if (IsIdentifierNameToken(current.Kind))
+        if (JsTokenFacts.IsIdentifierName(current.Kind))
         {
             var tokenKind = current.Kind;
             var identifierId = GetIdentifierId(current);

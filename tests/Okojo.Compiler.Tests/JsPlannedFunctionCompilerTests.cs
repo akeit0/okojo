@@ -45,6 +45,19 @@ public class JsPlannedFunctionCompilerTests
     }
 
     [Test]
+    public void CompileFunction_ExecutesClassBridgeMemberCallAndComputedLoad()
+    {
+        var (realm, compiled) = CompileFunction(
+            "function invoke(target, key) { return target.add(2) + target[key]; }"
+        );
+        var target = realm.Evaluate("({ value: 40, add(n) { return this.value + n; } })");
+
+        var result = realm.InvokeFunction(compiled, JsValue.Undefined, [target, "value"]);
+
+        Assert.That(result.Int32Value, Is.EqualTo(82));
+    }
+
+    [Test]
     public void CompileFunction_ExecutesCompoundAndShortCircuitAssignments()
     {
         var (realm, compiled) = CompileFunction(

@@ -478,7 +478,7 @@ internal sealed class FlatJavaScriptParser
             return Arena.Add(AstKind.UpdateExpression, argument, (int)op, 1, position);
         }
 
-        var expression = ParsePrimary();
+        var expression = ParsePostfix();
         if (
             !current.HasLineTerminatorBefore
             && current.Kind is JsTokenKind.PlusPlus or JsTokenKind.MinusMinus
@@ -489,12 +489,86 @@ internal sealed class FlatJavaScriptParser
             EnsureIdentifierUpdateTarget(expression, position);
             expression = Arena.Add(AstKind.UpdateExpression, expression, (int)op, 0, position);
         }
-        if (current.Kind is JsTokenKind.LeftParen or JsTokenKind.Dot or JsTokenKind.LeftBracket)
-            throw Error(
-                "Call and member expressions are not supported by FlatJavaScriptParser",
-                current.Position
-            );
         return expression;
+    }
+
+    private int ParsePostfix()
+    {
+        var expression = ParsePrimary();
+        while (true)
+        {
+            var position = Arena.GetPosition(expression);
+            if (Match(JsTokenKind.Dot))
+            {
+                if (!JsTokenFacts.IsIdentifierName(current.Kind))
+                    throw Error($"Expected Identifier but found {current.Kind}", current.Position);
+                var property = current;
+                Next();
+                expression = Arena.Add(
+                    AstKind.MemberExpression,
+                    expression,
+                    Arena.AddString(GetIdentifierText(property)),
+                    (int)AstMemberFlags.None,
+                    position
+                );
+                continue;
+            }
+
+            if (Match(JsTokenKind.LeftBracket))
+            {
+                var property = ParseExpression();
+                Expect(JsTokenKind.RightBracket);
+                expression = Arena.Add(
+                    AstKind.MemberExpression,
+                    expression,
+                    property,
+                    (int)AstMemberFlags.Computed,
+                    position
+                );
+                continue;
+            }
+
+            if (Match(JsTokenKind.LeftParen))
+            {
+                expression = ParseCallArguments(expression, position);
+                continue;
+            }
+
+            return expression;
+        }
+    }
+
+    private int ParseCallArguments(int callee, int position)
+    {
+        Span<int> initial = stackalloc int[4];
+        var arguments = new NodeList(initial);
+        try
+        {
+            while (current.Kind != JsTokenKind.RightParen)
+            {
+                if (current.Kind == JsTokenKind.Ellipsis)
+                    throw Error(
+                        "Spread calls are not supported by FlatJavaScriptParser",
+                        current.Position
+                    );
+                arguments.Add(ParseAssignment(allowIn: true));
+                if (!Match(JsTokenKind.Comma))
+                    break;
+            }
+            Expect(JsTokenKind.RightParen);
+            var children = Arena.AddChildren(arguments.AsSpan());
+            return Arena.Add(
+                AstKind.CallExpression,
+                callee,
+                children.Offset,
+                children.Count,
+                position
+            );
+        }
+        finally
+        {
+            arguments.Dispose();
+        }
     }
 
     private int ParsePrimary()
