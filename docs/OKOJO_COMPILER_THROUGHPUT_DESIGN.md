@@ -1,172 +1,185 @@
 # Compiler Throughput Design - Research and Proposals
 
-Research into how V8, Roslyn, and other production compilers optimize
-their compilation pipelines, mapped to concrete Okojo proposals.
+Research into V8, Roslyn, Rust-based parsers (Oxc), and flat AST designs,
+mapped to concrete Okojo improvement proposals.
 
 ## Current Baseline (linq-js 34KB minified)
 
 | phase | time | share |
 |---|---|---|
-| Parse (lexer + AST construction) | ~2.85ms | 17% |
+| Parse | ~2.85ms | 17% |
 | Compile (AST -> bytecode) | ~5.66ms | 83% |
 | Total | ~8.5ms | |
 
-Post-lock-removal trace hotspots:
+Post-lock-removal trace hotspots: PollGC 30%, MarkCapturedNames 7%,
+CastHelpers.IsInstanceOfClass 4.5%, residual Monitor.Enter 2.4%.
 
-| hotspot | exclusive | root cause |
-|---|---|---|
-| PollGC | ~30% | AST records, hashsets, temp lists |
-| MarkCapturedNames... | ~2.7% | capture analysis walk |
-| CastHelpers.IsInstanceOfClass | ~4.5% | `is` type dispatch |
-| Monitor.Enter_Slowpath | ~2.4% | residual locks outside pool |
+## 1. V8 Parser Pipeline
 
-## 1. V8: Zone Allocation + Lazy Parsing
+Zone allocation (bump allocator) for all AST/scopes/parser state.
+Lazy parsing + preparser: function bodies skipped until called.
+PreparseData serialization avoids re-preparsing nested functions.
+CRTP shared ParserBase eliminates parser/preparser code divergence.
 
-### Zone allocation
+## 2. Roslyn Green/Red Trees
 
-V8 allocates ALL AST nodes, scopes, and parser state in a Zone (bump
-allocator). Memory comes from contiguous blocks; individual nodes are
-never freed individually. The entire zone is discarded in O(1) when
-compilation finishes.
+Green tree: immutable, persistent, no positions, built bottom-up.
+Red tree: lazy facade providing positions/parents on demand.
+Green node caching: <=3 children interned in 65K-entry table (55% hit).
+Trivia pooling: common whitespace patterns are singleton instances.
+List optimizations: empty=null, singleton=direct pointer, small=specialized.
 
-Our AST uses C# record classes, each allocating individually on the GC
-heap. For 34KB producing thousands of nodes plus hashsets/lists, this
-creates Gen0 pressure. Trace shows PollGC at 30%.
+Impact: tokens+trivia+lists (75% of tree) incur zero red allocations.
 
-### Lazy parsing + preparser
+## 3. Oxc (Rust) - Fastest JS Parser
 
-V8 pre-parses function bodies it encounters during top-level parsing:
-validates syntax without building an AST. When the function is called,
-it fully parses on demand. This avoids compiling code that never runs.
+Memory arena (bumpalo): O(1) alloc, O(1) dealloc, cache-friendly linear layout.
+CompactString: strings <=24 bytes inlined, no heap allocation.
+Minimal heap: ONLY arena + CompactString, nothing else heap-allocated.
+Separation of concerns: scope binding in semantic analyzer, not parser.
+SIMD whitespace skipping in lexer.
+Result: 3x faster than swc, 5x faster than Biome, 100% test262.
 
-The preparser tracks variable declarations/references across scopes so
-closure allocation decisions are correct. Preparse data is serialized
-so inner functions are not re-preparsed when the outer function is
-finally compiled.
+## 4. Super-Flat AST Pattern
 
-## 2. Roslyn: Green/Red Trees + Pooled Nodes
+Progressive optimization from jhwlr.io/super-flat-ast:
+1. Traditional tree: Box<Expr> + Vec<Stmt> = many small allocations
+2. Flat AST: nodes in contiguous array, referenced by integer index
+3. + Bump allocation: arena-backed, amortizes allocation cost
+4. Super-flat: + pointer compression + string interning
+Result: 3x less memory than tree, faster at every scale.
 
-### Green/red separation
+## 5. Mapping to Okojo
 
-Roslyn splits syntax into two layers:
-- Green tree: immutable, persistent, no positions/parents, built bottom-up.
-  Tracks only relative widths. Heavily shared across edits and files.
-- Red tree: lazy facade providing positions and parents, built on demand.
+Our pipeline: Lexer -> Parser (AST records on GC heap) -> JsCompiler (bytecode).
 
-Green nodes with <=3 children are cached in a 65K-entry intern table
-(55% hit rate on the Roslyn codebase itself). Common trivia patterns
-(single space, newline, indentation) are pre-cached singletons.
+Key differences from fast implementations:
+- AST nodes are individually GC-allocated records (~230KB per compile)
+- No arena; GC collects them normally causing Gen0 pressure (PollGC 30%)
+- Capture analysis is a separate walk AFTER parsing (V8 does it in preparser)
+- No string interning for identifiers beyond the lexer table
+- Visitor methods use type-testing chains (`is JsXExpression`)
 
-### List optimizations
+## 6. Proposals (C-series)
 
-- Empty list = null (zero allocation)
-- Singleton = parent points directly at child (no list node)
-- Small lists have specialized implementations
+### C1: Arena Allocator - DEFERRED
+True arena impractical in safe C#. See prior assessment.
 
-### Impact
+### C3c: Seal AST Classes - DONE
+All classes already sealed.
 
-Tokens, trivia, and lists constitute 75%+ of tree elements but incur
-ZERO red allocations. Combined with green sharing, the syntax layer
-allocates very little under normal usage.
+### C4: Pool Warm-Up - DONE
+Pre-warmed common collection types at realm creation.
 
-## 3. Mapped to Okojo: Current Pain Points
+### C6: AST Node Count Reduction
+Reduce total node count emitted by parser:
+- Skip single-statement Block wrappers when no lexical declarations exist
+- Flatten single-element Sequence expressions to their inner expression
+- Eliminate redundant ExpressionStatement wrappers around expression-only
+  return bodies
 
-Our compile pipeline: Lexer -> Parser (AST records) -> JsCompiler (bytecode).
+Each eliminated node = one fewer heap allocation = one fewer GC object.
 
-Pain points mapped to research findings:
+### C7: Identifier Interning
+DONE. CreateIdentifierExpression now interns by (Name, NameId) pair.
+Minified files reference same short identifiers hundreds of times;
+sharing one immutable instance eliminates redundant allocations.
+Measured: Gen0 collections 23 -> 22 per 100 compiles (~4%).
 
-| symptom | root cause | V8/Roslyn solution |
-|---|---|---|
-| PollGC 30% | per-node GC allocation for AST records | Zone/arena allocation (V8) |
-| MarkCapturedNames ~7% | repeated identifier walks per nested function | Precompute in parser pass (V8 preparser variable tracking) |
-| CastHelpers.IsInstanceOfClass 4.5% | `is JsIdentifierExpression x` type dispatch | Specialized node types / visitor pattern with enum dispatch |
-| Monitor.Enter residual 2.4% | InstallIntrinsics + realm init locks | Pre-warm outside measurement |
-| Array.Copy 22.7% inclusive | collection growth during compile | Pooled builders (Roslyn list optimizations) |
+### C8: Capture Analysis Merge into Parser
+Currently PrecomputeDirectChildCaptures walks the entire AST BEFORE
+compilation starts, then MarkCapturedNamesReferencedByNestedFunction
+runs DURING compilation. Two full traversals.
 
-## 4. Proposals
+V8/Oxc approach: track captures during PARSING. When the parser enters
+a function scope, it pushes scope info. When it sees an identifier
+reference, it checks if the binding lives in an outer function scope
+and marks it captured immediately.
 
-### C1: AST Arena Allocator
+Moving this into the parser eliminates one full AST traversal AND
+removes the need for the separate PrecomputeDirectChildCaptures pass.
 
-Introduce an arena allocator for AST nodes. Nodes are allocated
-contiguously; no individual GC tracking. The arena is discarded when
-compilation completes.
+Effort: large (requires parser to track scope stack + binding table).
+Impact: eliminates ~7% of compile time plus reduces temp collections.
 
-Requirements:
-- ArenaAllocator class (bump pointer over pooled blocks)
-- AST nodes hold no unmanaged resources (already true)
-- No finalizers on nodes (already true)
-- Nodes may hold references to strings (those outlive the arena via
-  interning, or are also arena-allocated)
+### C9: NodeType Enum Dispatch
+Add `public abstract JsNodeType Type { get; }` to JsNode base class.
+Implementations return enum constants. VisitExpression/VisitStatement
+switch on enum instead of type-testing chains.
 
-Impact: eliminates PollGC pressure from AST construction.
-Risk: medium - requires changing how AST nodes are created but not
-how they are consumed.
+Enum comparisons are direct integer compares; `is` checks call
+CastHelpers.IsInstanceOfClass (~4.5% of compile time).
 
-### C2: Single-Pass Compile (Merge Capture Analysis)
+Effort: medium (touch every node class + visitor switch).
+Impact: eliminates CastHelpers overhead from hot paths.
 
-Currently: parse -> compile (which internally does capture analysis
-via PrecomputeDirectChildCaptures then AssignCurrentContextSlots).
+## 7. Priority
 
-V8 merges this into the parser/preparser. The parser tracks variable
-declarations and references as it goes, so by the time compilation
-starts, capture information is already known.
+| ID | what | impact | effort |
+|---|---|---|---|
+| C7 | Identifier interning | ~4% GC reduction | DONE |
+| C6 | Node count reduction | proportional to nodes saved | medium |
+| C9 | Enum dispatch | ~4.5% compile time | medium |
+| C8 | Capture merge into parser | ~7% + reduced collections | large |
 
-Proposal: move capture marking into the parser pass. When the parser
-sees an identifier reference inside a nested function scope, it marks
-the outer binding immediately. This eliminates the separate
-PrecomputeDirectChildCaptures walk entirely.
+## 8. 2026 State of the Art - Flat Array ASTs
 
-Impact: removes MarkCapturedNamesReferencedByNestedFunction (~7%)
-and MarkDirectCapturesFromNestedFunction overhead.
-Risk: high - requires restructuring parser/compiler boundary.
+### Key finding from production parsers (Yuku/Zig, Oxc/Rust)
 
-### C3: Type Dispatch Optimization
+The industry has converged on replacing pointer-based AST trees with
+flat arrays of struct nodes referenced by integer index. This eliminates
+ALL of the following simultaneously:
+- Per-node heap allocation (one bulk array instead of N objects)
+- Cache misses from pointer chasing (linear memory layout)
+- GC pressure (no individual objects to track)
+- Serialization cost (flat arrays are already wire format)
 
-The compiler uses pattern matching (`is JsIdentifierExpression id`)
-throughout VisitExpression/VisitStatement. Each check is a
-CastHelpers.IsInstanceOfClass call.
+Yuku (Zig): ~1 node per 2 source bytes; 50KB file = ~25K nodes in a
+handful of contiguous arrays. 3-10x faster than alternatives.
 
-Options:
-a) Add a NodeType enum to each AST node; switch on enum instead of
-   type testing. Enum comparisons are direct integer compares.
-b) Use a visitor pattern with virtual dispatch instead of
-   type-testing chains (JIT can devirtualize sealed classes).
-c) Make AST node classes sealed so the JIT can devirtualize
-   `is` checks into simple type handles.
+### Data-oriented design principles
 
-Option (c) is zero-risk and can be done incrementally.
-Option (a) is the highest impact but requires touching every node.
+1. Indices not pointers: NodeIndex = u32, half the size of a pointer,
+   position-independent, reserved value encodes "no child".
+2. Structure-of-arrays layout: separate arrays for each field type
+   improve cache utilization during traversals that access one field.
+3. Scratch buffers: reusable per-parser buffers for building child lists;
+   flushed to side tables when block is complete; reset for next use.
+4. Arena owns everything: single teardown when compilation finishes.
+5. Compile-time layout validation: size asserts fail the build if any
+   node type exceeds its budget.
 
-### C4: Collection Pool Warm-Up
+### C# adaptation path
 
-The pool still allocates on first use per type per realm. For a fresh
-realm compiling linq-js, the first RentList/RentDictionary call allocates
-new collections. Pre-warming common types at realm creation would avoid
-this cold-start cost.
+True arena allocation is impractical for managed classes. But a
+struct-based AST stored in pooled arrays IS feasible:
 
-### C5: Lazy Function Compilation
+// Instead of: class JsBinaryExpression : JsExpression { ... }
+// Use:
+struct AstNode {
+    AstKind Kind;        // enum byte
+    int Child0;          // index or -1
+    int Child1;
+    int ExtraOffset;     // into side table for lists/strings
+    // ... packed fields
+}
 
-V8 pre-parses function bodies without building ASTs, deferring full
-compilation until the function is actually called. This is the single
-biggest throughput optimization in V8's pipeline.
+// All nodes in one contiguous array:
+AstNode[] _nodes = new AstNode[estimatedCount];
+int _nodeCount = 0;
 
-For Okojo: when the compiler encounters a function declaration/expression,
-it could emit a CreateClosure placeholder and store the source range +
-scope metadata. The function body is compiled lazily on first invocation.
+// Children referenced by index:
+int MakeBinary(int op, int left, int right) {
+    var idx = _nodeCount++;
+    _nodes[idx] = new AstNode(AstKind.Binary, left, right, op);
+    return idx;
+}
 
-This is a major architectural change requiring:
-- Source range tracking in bytecode functions
-- A lazy compilation entry point
-- Scope/variable metadata serialization (like V8 PreparseData)
+Consumers walk via indices instead of references. No GC tracking,
+no per-node allocation, linear memory = cache-friendly traversal.
 
-## 5. Priority and Dependencies
-
-| ID | proposal | impact | effort | dependency |
-|---|---|---|---|---|
-| C3c | Seal AST classes | low risk, incremental | small | none |
-| C1 | AST arena allocator | high (kills 30% GC) | medium | C3c recommended first |
-| C4 | Pool warm-up | low-medium | trivial | none |
-| C2 | Single-pass capture analysis | medium-high | large | C1 (arena helps) |
-| C5 | Lazy function compilation | very high (architectural) | very large | C2 |
-
-Recommended order: C3c -> C1 -> C4 -> C2 -> C5
+This requires rewriting the parser output format and every compiler
+consumer. It is the single largest remaining optimization but also
+the one with the highest ceiling: it addresses PollGC (30%), improves
+cache locality for ALL subsequent passes, and reduces memory footprint
+proportionally.

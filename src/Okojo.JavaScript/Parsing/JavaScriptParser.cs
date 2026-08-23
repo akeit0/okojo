@@ -3177,10 +3177,25 @@ internal sealed partial class JsParser
         );
     }
 
+    private Dictionary<(string Name, int NameId), JsIdentifierExpression>? _identifierIntern;
+
     private JsExpression CreateIdentifierExpression(JsToken tok)
     {
         //EnsureIdentifierAllowedInCurrentMode(tok.Text, tok.Position);
-        return new JsIdentifierExpression(GetIdentifierText(tok), GetIdentifierId(tok));
+        var name = GetIdentifierText(tok);
+        var nameId = GetIdentifierId(tok);
+
+        // C1-lite: intern repeated identifier expressions. Minified code
+        // references the same short names hundreds of times; sharing one
+        // immutable instance eliminates redundant heap allocations.
+        _identifierIntern ??= new();
+        var key = (name, nameId);
+        if (_identifierIntern.TryGetValue(key, out var cached))
+            return cached;
+
+        var expr = new JsIdentifierExpression(name, nameId);
+        _identifierIntern[key] = expr;
+        return expr;
     }
 
     private JsExpression ParseRegExpLiteral()
