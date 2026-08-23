@@ -190,7 +190,10 @@ internal abstract partial class JsPlannedCompilerBase
     private void EmitForInOfStatement(FlatAst ast, int nodeIndex, AstNode node)
     {
         if (node.Arg2 != 0)
-            throw new NotSupportedException($"{CompilerName} does not support for-of yet.");
+        {
+            EmitForOfStatement(ast, nodeIndex, node);
+            return;
+        }
 
         var parts = ast.ChildRange(node.Arg0, node.Arg1);
         var left = parts[0];
@@ -231,7 +234,7 @@ internal abstract partial class JsPlannedCompilerBase
             builder.BindLabel(loopStart);
             EmitForInRegisterOperation(JsOpCode.ForInNext, RuntimeId.ForInNext, enumeratorRegister);
             builder.EmitJump(JsOpCode.JumpIfUndefined, breakTarget);
-            EmitForInAssignment(ast, left);
+            EmitForIterationAssignment(ast, left);
 
             PushIterationControlScope(breakTarget, continueTarget);
             try
@@ -258,7 +261,100 @@ internal abstract partial class JsPlannedCompilerBase
         }
     }
 
-    private void EmitForInAssignment(FlatAst ast, int left)
+    private void EmitForOfStatement(FlatAst ast, int nodeIndex, AstNode node)
+    {
+        var parts = ast.ChildRange(node.Arg0, node.Arg1);
+        var left = parts[0];
+        var hasLexicalScope =
+            ast[left].Kind == AstKind.VariableDeclaration
+            && (JsVariableDeclarationKind)ast[left].Arg2
+                is JsVariableDeclarationKind.Let
+                    or JsVariableDeclarationKind.Const;
+        if (hasLexicalScope)
+        {
+            var scope = FindChildScope(
+                activeScopes.Peek().ScopeId,
+                CompilerCollectedScopeKind.Block,
+                ast.GetPosition(nodeIndex)
+            );
+            EnterScope(scope.ScopeId);
+        }
+
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            EmitExpression(ast, parts[1]);
+            var sourceRegister = builder.AllocateTemporaryRegister();
+            EmitStar(sourceRegister);
+            builder.EmitCallRuntime(
+                (int)RuntimeId.CreateArrayDestructureIterator,
+                sourceRegister,
+                1
+            );
+            var iteratorRegister = builder.AllocateTemporaryRegister();
+            EmitStar(iteratorRegister);
+            var valueRegister = builder.AllocateTemporaryRegister();
+            var exceptionRegister = builder.AllocateTemporaryRegister();
+            var loopStart = builder.CreateLabel();
+            var continueTarget = builder.CreateLabel();
+            var breakTarget = builder.CreateLabel();
+            var catchTarget = builder.CreateLabel();
+            var needsPerIterationContext =
+                hasLexicalScope && ShouldReplaceLoopHeadContextPerIteration(activeScopes.Peek());
+
+            builder.BindLabel(loopStart);
+            EmitLdar(iteratorRegister);
+            builder.EmitCallRuntime(
+                (int)RuntimeId.DestructureIteratorStepValue,
+                iteratorRegister,
+                1
+            );
+            EmitStar(valueRegister);
+            builder.EmitLda(JsOpCode.LdaTheHole);
+            EmitRegisterWithSlotOp(JsOpCode.TestEqualStrict, valueRegister);
+            EmitJumpIfToBooleanTrue(breakTarget);
+
+            builder.EmitJump(JsOpCode.PushTry, catchTarget);
+            PushForOfControlScope(breakTarget, continueTarget, iteratorRegister);
+            PushTryControlScope();
+            try
+            {
+                EmitLdar(valueRegister);
+                EmitForIterationAssignment(ast, left);
+                EmitStatement(ast, parts[2]);
+            }
+            finally
+            {
+                controlScopes.Pop();
+                controlScopes.Pop();
+            }
+            builder.Emit(JsOpCode.PopTry);
+
+            builder.BindLabel(continueTarget);
+            if (needsPerIterationContext)
+                EmitReplaceCurrentContext(activeScopes.Peek().ContextSlotCount);
+            EmitJump(loopStart);
+
+            builder.BindLabel(catchTarget);
+            EmitStar(exceptionRegister);
+            builder.EmitCallRuntime(
+                (int)RuntimeId.DestructureIteratorCloseBestEffort,
+                iteratorRegister,
+                1
+            );
+            EmitLdar(exceptionRegister);
+            builder.Emit(JsOpCode.Throw);
+            builder.BindLabel(breakTarget);
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+            if (hasLexicalScope)
+                LeaveScope();
+        }
+    }
+
+    private void EmitForIterationAssignment(FlatAst ast, int left)
     {
         ref readonly var node = ref ast[left];
         if (node.Kind == AstKind.VariableDeclaration)
@@ -370,6 +466,24 @@ internal abstract partial class JsPlannedCompilerBase
         );
     }
 
+    private void PushForOfControlScope(
+        BytecodeBuilder.Label breakTarget,
+        BytecodeBuilder.Label continueTarget,
+        int iteratorRegister
+    )
+    {
+        controlScopes.Push(
+            new ControlScope(
+                ControlScopeKind.ForOf,
+                breakTarget,
+                continueTarget,
+                default,
+                CurrentContextDepth,
+                IteratorRegister: iteratorRegister
+            )
+        );
+    }
+
     private void PushSwitchControlScope(BytecodeBuilder.Label breakTarget)
     {
         controlScopes.Push(
@@ -394,6 +508,31 @@ internal abstract partial class JsPlannedCompilerBase
             if (scope.Kind == ControlScopeKind.Try)
             {
                 builder.Emit(JsOpCode.PopTry);
+                continue;
+            }
+            if (scope.Kind == ControlScopeKind.ForOf)
+            {
+                if (command == AbruptCommand.Continue)
+                {
+                    EmitJump(scope.Continue);
+                    return;
+                }
+                var returnValueRegister =
+                    command == AbruptCommand.Return ? builder.AllocateTemporaryRegister() : -1;
+                if (returnValueRegister >= 0)
+                    EmitStar(returnValueRegister);
+                builder.EmitCallRuntime(
+                    (int)RuntimeId.DestructureIteratorClose,
+                    scope.IteratorRegister,
+                    1
+                );
+                if (command == AbruptCommand.Break)
+                {
+                    EmitJump(scope.Break);
+                    return;
+                }
+                EmitLdar(returnValueRegister);
+                builder.ReleaseTemporaryRegister(returnValueRegister);
                 continue;
             }
             if (scope.Kind == ControlScopeKind.Finally)
@@ -560,7 +699,7 @@ internal abstract partial class JsPlannedCompilerBase
         try
         {
             var canCrossIteration = controlScopes.Any(static scope =>
-                scope.Kind == ControlScopeKind.Iteration
+                scope.Kind is ControlScopeKind.Iteration or ControlScopeKind.ForOf
             );
             var completionKind = builder.AllocateTemporaryRegister();
             var completionValue = builder.AllocateTemporaryRegister();

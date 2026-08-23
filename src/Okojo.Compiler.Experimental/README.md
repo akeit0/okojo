@@ -86,6 +86,8 @@ Both planned compilers currently support:
 - capture-gated per-iteration contexts for lexical ordinary `for` heads
 - `for-in` enumeration with declaration/pattern heads, identifier assignment,
   loop control, and captured per-iteration lexicals
+- synchronous `for-of` iteration with declaration/pattern heads, per-iteration
+  capture, and IteratorClose for abrupt completion
 
 `JsPlannedScriptCompiler.Compile(string)` uses the direct flat parser. The
 `Compile(JsProgram)` overload remains as the compatibility bridge for parser and
@@ -100,7 +102,7 @@ Still intentionally unsupported in the experimental pipeline:
 - generator/async and `super` object methods
 - tagged template literals
 - module/global binding emission
-- `for-of` iteration/close behavior and member assignment heads for iteration
+- member assignment heads for iteration and `for-await-of`
 - labeled loop control
 - direct production replacement of `JsCompiler`
 

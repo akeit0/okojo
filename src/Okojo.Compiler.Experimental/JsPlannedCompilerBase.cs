@@ -67,6 +67,7 @@ internal abstract partial class JsPlannedCompilerBase
     private enum ControlScopeKind : byte
     {
         Iteration,
+        ForOf,
         Switch,
         Try,
         Finally,
@@ -79,7 +80,8 @@ internal abstract partial class JsPlannedCompilerBase
         BytecodeBuilder.Label Finally,
         int ContextDepth,
         int CompletionKindRegister = -1,
-        int CompletionValueRegister = -1
+        int CompletionValueRegister = -1,
+        int IteratorRegister = -1
     );
 
     private enum ExpressionResultMode : byte

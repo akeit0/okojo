@@ -95,12 +95,73 @@ public class DirectFlatParserTests
         Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
 
     [Test]
-    public void CompileString_RejectsForOfUntilIteratorCloseLoweringLands()
+    public void CompileString_ExecutesForOfWithIteratorClose()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        Assert.Throws<NotSupportedException>(() =>
-            new JsPlannedScriptCompiler(realm).Compile("for (const value of []) {}")
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let closes = 0;
+            function iterable(throwOnClose = false) {
+                return {
+                    [Symbol.iterator]() {
+                        let value = 0;
+                        return {
+                            next() { value++; return { value: [value], done: value > 4 }; },
+                            return() { closes++; if (throwOnClose) throw 'close'; return {}; }
+                        };
+                    }
+                };
+            }
+            let result = '';
+            let reads = [];
+            for (const [value] of iterable()) {
+                reads.push(() => value);
+                if (value === 2) continue;
+                result += value;
+                if (value === 3) break;
+            }
+            function first(values) { for (const value of values) return value; }
+            let returned = first(iterable());
+            let thrown = '';
+            try { for (const value of iterable(true)) throw 'body'; }
+            catch (error) { thrown = error; }
+            let closeError = '';
+            try { for (const value of iterable(true)) break; }
+            catch (error) { closeError = error; }
+            for (const value of iterable()) { if (value[0] < 0) break; }
+            let finallyFlow = '';
+            for (const value of [[1], [2]]) {
+                try { finallyFlow += value[0]; continue; }
+                finally { finallyFlow += 'f'; }
+            }
+            for (const value of iterable()) {
+                try { finallyFlow += 'b'; break; }
+                finally { finallyFlow += 'f'; }
+            }
+            result + '|' + reads[0]() + ',' + reads[1]() + ',' + reads[2]()
+                + '|' + returned[0] + '|' + thrown + '|' + closeError
+                + '|' + finallyFlow + '|' + closes;
+            """
         );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("13|1,2,3|1|body|close|1f2fbf|5"));
+    }
+
+    [Test]
+    public void CompileAst_ExecutesForOfEnumeration()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            JavaScriptParser.ParseScript(
+                "let result = ''; for (const value of [1, 2, 3]) result += value; result;"
+            )
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("123"));
     }
 
     [Test]

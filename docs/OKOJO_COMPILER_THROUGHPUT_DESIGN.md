@@ -310,7 +310,6 @@ hoisting without compiler-specific rewrites.
 - explicit effect/value/test expression emission modes
 - extend the landed abrupt-command stack to labeled targets and richer handler
   metadata
-- `for-of`
 - labeled statements and labeled `break`/`continue`
 - tagged template literals and cached site identity
 - optional calls/chains and delete-chain behavior
@@ -335,9 +334,11 @@ are converted with `ToString` at their source position, empty quasis are skipped
 and `Add` accumulates the result. The flat parser reuses one lexer and the dense
 child pool, so this adds no nested parser owner or template side table. `for-in`
 now emits the existing enumerate/next/step ABI directly, including captured
-per-iteration lexical contexts. Labeled targets, `for-of` iterator close, full
-early errors, tagged-template site metadata, and diagnostic handler metadata
-remain part of P1.
+per-iteration lexical contexts. Synchronous `for-of` reuses the generic iterator
+create/step/close runtime and routes continue, break, return, and throw through a
+dedicated control scope. A measured fast-array specialization can follow without
+changing the flat node or control contract. Labeled targets, full early errors,
+tagged-template site metadata, and diagnostic handler metadata remain part of P1.
 
 Exit gate: the direct path compiles the synchronous non-class application corpus
 and has differential execution coverage for every new control-flow form.

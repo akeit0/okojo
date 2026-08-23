@@ -51,7 +51,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 |---|---|---|
 | Parse goal | scripts | modules, standalone function goal |
 | Declarations | `var`/`let`/`const`, ordinary function declarations, function/block declaration prologues, function-scoped `var`, persistent script globals/lexicals, initial global conflict validation | classes, imports/exports, complete declaration early errors, Annex B |
-| Blocks/control | block, `if`, `while`, `do`, ordinary `for`, `for-in`, `switch`, unlabeled `break`/`continue`, `return`, `throw`, `try`/`catch`/`finally`, empty/expression statement | `for-of`, labels, `debugger` |
+| Blocks/control | block, `if`, `while`, `do`, ordinary `for`, `for-in`, synchronous `for-of`, `switch`, unlabeled `break`/`continue`, `return`, `throw`, `try`/`catch`/`finally`, empty/expression statement | labels, `debugger`, `for-await-of` |
 | Primitive expressions | number, BigInt, string, boolean, null, regexp, untagged template, identifier, `this`, `new.target`, grouping | tagged templates, `super`, `import.meta` |
 | Operators | precedence table, assignment, arithmetic/logical/bitwise/comparison, conditionals, sequence, updates, property/identifier/value `delete` | optional-chain operators and delete-chain behavior, remaining edge-specific early errors |
 | References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed properties | imports, private and super references |
@@ -254,8 +254,7 @@ use for observability, while the hot execution path stays a single frame load.
 
 The direct path supports synchronous `for-in` with single identifier or nested
 pattern declarations, identifier assignment targets, `break`/`continue`, and
-captured lexical loop heads. `for-of`, member assignment heads, and iterator-close
-control remain separate slices.
+captured lexical loop heads. Member assignment heads remain a separate slice.
 The reference case is `artifacts/okojobytecodetool/cases/flat_ast_for_in.js`;
 focused tests cover inherited enumerable keys, nullish inputs, assignment targets,
 abrupt loop control, and per-iteration closure capture.
@@ -267,6 +266,23 @@ registers. The planned compiler will emit that existing sequence directly and
 reuse its loop control/context rotation machinery. The flat node stores one dense
 three-child range (`left`, `right`, `body`) plus an in/of flag so `for-of` can reuse
 the parser and storage-planning shape without changing the arena ABI.
+
+### `for-of` iterator-close slice
+
+The direct path supports synchronous `for-of` on the shared flat loop node. The
+reference case is `artifacts/okojobytecodetool/cases/flat_ast_for_of.js`; focused
+tests cover arrays and custom iterators, declaration patterns, per-iteration
+capture, normal exhaustion, `continue`, `break`, `return`, and thrown bodies.
+
+V8 marks the iterator done before stepping, clears done only after a value is
+obtained, and routes abrupt body completion through iterator finalization. Okojo
+already has generic create/step/close runtime helpers used by destructuring. The
+planned compiler reuses them and adds one for-of control scope: `continue` jumps
+without closing, `break` and `return` perform normal close, and the VM exception
+handler performs best-effort close before rethrowing the original exception. This
+keeps iterator machinery off the common non-iterator control path and avoids a
+second runtime implementation.
+
 
 ### Destructuring
 
@@ -602,7 +618,7 @@ function read(value = function nested(next = outer) { return next; }) {
 - extend effect/value/test modes to the remaining expressions
 - extend abrupt-completion routing to labels and iterator cleanup; switch breaks
   are landed
-- `for-of` and labels
+- labels
 - `debugger`
 - tagged template literals and cached site identity
 - optional chaining/calls
