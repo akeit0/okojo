@@ -397,6 +397,46 @@ public sealed class BytecodeBuilder : IDisposable
         );
     }
 
+    internal void EmitCreateObjectLiteral(int constantIndex, byte flags = 0)
+    {
+        if ((uint)constantIndex <= byte.MaxValue)
+        {
+            Emit(JsOpCode.CreateObjectLiteral, (byte)constantIndex, flags);
+            return;
+        }
+        if ((uint)constantIndex <= ushort.MaxValue)
+        {
+            Emit(
+                JsOpCode.CreateObjectLiteralWide,
+                (byte)constantIndex,
+                (byte)(constantIndex >> 8),
+                flags
+            );
+            return;
+        }
+        throw new InvalidOperationException(
+            "CreateObjectLiteral operands exceed ushort operand capacity."
+        );
+    }
+
+    internal void EmitInitializeNamedProperty(int objectRegister, int slot)
+    {
+        if ((uint)objectRegister > ushort.MaxValue || (uint)slot > ushort.MaxValue)
+            throw new InvalidOperationException(
+                "InitializeNamedProperty operands exceed ushort operand capacity."
+            );
+        Emit(
+            JsOpCode.InitializeNamedProperty,
+            (byte)objectRegister,
+            (byte)(objectRegister >> 8),
+            (byte)slot,
+            (byte)(slot >> 8)
+        );
+    }
+
+    internal void EmitDefineOwnKeyedProperty(int objectRegister, int keyRegister) =>
+        EmitScaledOperands(JsOpCode.DefineOwnKeyedProperty, [objectRegister, keyRegister]);
+
     private void EmitScaledOperands(JsOpCode op, ReadOnlySpan<int> operands)
     {
         var max = 0;

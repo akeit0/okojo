@@ -324,6 +324,16 @@ internal static partial class CompilerBindingCollector
                         if (elements[i] >= 0)
                             VisitExpression(ast, elements[i], scopeId);
                     return;
+                case AstKind.ObjectExpression:
+                    var properties = ast.GetObjectProperties(node.Arg0, node.Arg1);
+                    for (var i = 0; i < properties.Length; i++)
+                    {
+                        ref readonly var property = ref properties[i];
+                        if (property.IsComputed)
+                            VisitExpression(ast, property.Key, scopeId);
+                        VisitExpression(ast, property.ValueNode, scopeId);
+                    }
+                    return;
                 case AstKind.NumericLiteral:
                 case AstKind.StringLiteral:
                 case AstKind.BooleanLiteral:

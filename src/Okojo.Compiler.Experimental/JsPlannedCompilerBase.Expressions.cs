@@ -1,4 +1,6 @@
 using Okojo.JavaScript.Bytecode;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
 using Okojo.JavaScript.Parsing;
 
 namespace Okojo.JavaScript.Compiler.Experimental;
@@ -61,10 +63,76 @@ internal abstract partial class JsPlannedCompilerBase
             case AstKind.ArrayExpression:
                 EmitArrayExpression(ast, node);
                 return;
+            case AstKind.ObjectExpression:
+                EmitObjectExpression(ast, node);
+                return;
             default:
                 throw new NotSupportedException(
                     $"{CompilerName} does not support flat expression '{node.Kind}'."
                 );
+        }
+    }
+
+    private void EmitObjectExpression(FlatAst ast, AstNode node)
+    {
+        var properties = ast.GetObjectProperties(node.Arg0, node.Arg1);
+        var shape = Vm.EmptyShape;
+        var shapePrefixCount = 0;
+        for (; shapePrefixCount < properties.Length; shapePrefixCount++)
+        {
+            ref readonly var property = ref properties[shapePrefixCount];
+            if (property.IsComputed)
+                break;
+            var name = ast.GetString(property.Key);
+            if (AtomTable.TryGetArrayIndexFromCanonicalString(name, out _))
+                break;
+            var atom = Vm.Atoms.InternNoCheck(name);
+            if (shape.TryGetSlotInfo(atom, out _))
+                break;
+            shape = shape.GetOrAddTransition(atom, JsShapePropertyFlags.Open, out _);
+        }
+
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            builder.EmitCreateObjectLiteral(builder.AddObjectConstant(shape));
+            var objectRegister = builder.AllocateTemporaryRegister();
+            EmitStar(objectRegister);
+            var keyRegister = -1;
+            for (var i = 0; i < properties.Length; i++)
+            {
+                ref readonly var property = ref properties[i];
+                if (i < shapePrefixCount)
+                {
+                    EmitExpression(ast, property.ValueNode);
+                    var atom = Vm.Atoms.InternNoCheck(ast.GetString(property.Key));
+                    if (!shape.TryGetSlotInfo(atom, out var slotInfo))
+                        throw new InvalidOperationException(
+                            "Missing precomputed flat object-literal shape slot."
+                        );
+                    builder.EmitInitializeNamedProperty(objectRegister, slotInfo.Slot);
+                    continue;
+                }
+
+                if (keyRegister < 0)
+                    keyRegister = builder.AllocateTemporaryRegister();
+                if (property.IsComputed)
+                {
+                    EmitExpression(ast, property.Key);
+                    EmitStar(keyRegister);
+                    builder.EmitCallRuntime((byte)RuntimeId.NormalizePropertyKey, keyRegister, 1);
+                }
+                else
+                    EmitStringLiteral(ast.GetString(property.Key));
+                EmitStar(keyRegister);
+                EmitExpression(ast, property.ValueNode);
+                builder.EmitDefineOwnKeyedProperty(objectRegister, keyRegister);
+            }
+            EmitLdar(objectRegister);
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
         }
     }
 

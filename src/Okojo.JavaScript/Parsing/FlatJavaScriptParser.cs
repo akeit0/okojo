@@ -616,6 +616,8 @@ internal sealed class FlatJavaScriptParser
                 return expression;
             case JsTokenKind.LeftBracket:
                 return ParseArrayLiteral();
+            case JsTokenKind.LeftBrace:
+                return ParseObjectLiteral();
             default:
                 throw Error(
                     $"Expression token '{token.Kind}' is not supported by FlatJavaScriptParser",
@@ -660,6 +662,96 @@ internal sealed class FlatJavaScriptParser
         {
             elements.Dispose();
         }
+    }
+
+    private int ParseObjectLiteral()
+    {
+        var position = Expect(JsTokenKind.LeftBrace).Position;
+        Span<FlatObjectProperty> initial = stackalloc FlatObjectProperty[8];
+        var properties = new ObjectPropertyList(initial);
+        try
+        {
+            while (current.Kind != JsTokenKind.RightBrace)
+            {
+                if (current.Kind == JsTokenKind.Ellipsis)
+                    throw Error(
+                        "Object spread is not supported by FlatJavaScriptParser",
+                        current.Position
+                    );
+
+                var propertyPosition = current.Position;
+                var computed = Match(JsTokenKind.LeftBracket);
+                int key;
+                JsToken shorthandToken = default;
+                if (computed)
+                {
+                    key = ParseAssignment(allowIn: true);
+                    Expect(JsTokenKind.RightBracket);
+                }
+                else
+                {
+                    shorthandToken = current;
+                    key = Arena.AddString(GetObjectPropertyName(current));
+                    Next();
+                }
+
+                int value;
+                if (Match(JsTokenKind.Colon))
+                    value = ParseAssignment(allowIn: true);
+                else if (
+                    !computed
+                    && shorthandToken.Kind == JsTokenKind.Identifier
+                    && current.Kind != JsTokenKind.LeftParen
+                )
+                    value = Arena.Add(
+                        AstKind.Identifier,
+                        Arena.AddString(GetIdentifierText(shorthandToken)),
+                        shorthandToken.IdentifierId,
+                        position: shorthandToken.Position
+                    );
+                else
+                    throw Error(
+                        "Object methods and accessors are not supported by FlatJavaScriptParser",
+                        current.Position
+                    );
+
+                properties.Add(
+                    new FlatObjectProperty(
+                        key,
+                        value,
+                        propertyPosition,
+                        computed ? FlatObjectPropertyFlags.Computed : FlatObjectPropertyFlags.None
+                    )
+                );
+                if (!Match(JsTokenKind.Comma) && current.Kind != JsTokenKind.RightBrace)
+                    throw Error("Expected ',' or '}'", current.Position);
+            }
+            Next();
+            var range = ast.AddObjectProperties(properties.AsSpan());
+            return Arena.Add(
+                AstKind.ObjectExpression,
+                range.Offset,
+                range.Count,
+                position: position
+            );
+        }
+        finally
+        {
+            properties.Dispose();
+        }
+    }
+
+    private string GetObjectPropertyName(in JsToken token)
+    {
+        if (JsTokenFacts.IsIdentifierName(token.Kind))
+            return GetIdentifierText(token);
+        return token.Kind switch
+        {
+            JsTokenKind.String => lexer.GetStringLiteral(token),
+            JsTokenKind.Number => JsValue.NumberToJsString(token.NumberLiteral),
+            JsTokenKind.BigInt => lexer.GetBigIntLiteral(token).Value.ToString(),
+            _ => throw Error("Expected object property name", token.Position),
+        };
     }
 
     private bool IsUseStrictDirective(int statement)
@@ -862,6 +954,47 @@ internal sealed class FlatJavaScriptParser
             buffer.CopyTo(next);
             if (rented is not null)
                 ArrayPool<FlatParameter>.Shared.Return(rented);
+            rented = next;
+            buffer = next;
+        }
+    }
+
+    private ref struct ObjectPropertyList
+    {
+        private Span<FlatObjectProperty> buffer;
+        private FlatObjectProperty[]? rented;
+
+        public ObjectPropertyList(Span<FlatObjectProperty> initialBuffer)
+        {
+            buffer = initialBuffer;
+        }
+
+        public int Count { get; private set; }
+
+        public void Add(FlatObjectProperty property)
+        {
+            if (Count == buffer.Length)
+                Grow();
+            buffer[Count++] = property;
+        }
+
+        public ReadOnlySpan<FlatObjectProperty> AsSpan() => buffer[..Count];
+
+        public void Dispose()
+        {
+            if (rented is not null)
+                ArrayPool<FlatObjectProperty>.Shared.Return(rented);
+            rented = null;
+            buffer = [];
+            Count = 0;
+        }
+
+        private void Grow()
+        {
+            var next = ArrayPool<FlatObjectProperty>.Shared.Rent(Math.Max(8, buffer.Length * 2));
+            buffer.CopyTo(next);
+            if (rented is not null)
+                ArrayPool<FlatObjectProperty>.Shared.Return(rented);
             rented = next;
             buffer = next;
         }

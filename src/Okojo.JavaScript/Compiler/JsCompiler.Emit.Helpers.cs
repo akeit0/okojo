@@ -89,22 +89,7 @@ public sealed partial class JsCompiler
 
     private void EmitInitializeNamedProperty(int objectRegister, int slot)
     {
-        if ((uint)objectRegister > ushort.MaxValue)
-            throw new InvalidOperationException(
-                "InitializeNamedProperty object register exceeds ushort operand capacity."
-            );
-        if ((uint)slot > ushort.MaxValue)
-            throw new InvalidOperationException(
-                "InitializeNamedProperty slot exceeds ushort operand capacity."
-            );
-
-        EmitRaw(
-            JsOpCode.InitializeNamedProperty,
-            (byte)(objectRegister & 0xFF),
-            (byte)((objectRegister >> 8) & 0xFF),
-            (byte)(slot & 0xFF),
-            (byte)((slot >> 8) & 0xFF)
-        );
+        builder.EmitInitializeNamedProperty(objectRegister, slot);
     }
 
     private void EmitStarRegister(int register)
@@ -310,7 +295,7 @@ public sealed partial class JsCompiler
 
     private void EmitDefineOwnKeyedProperty(int targetRegister, int keyRegister)
     {
-        EmitRegisterRegisterOp(JsOpCode.DefineOwnKeyedProperty, targetRegister, keyRegister);
+        builder.EmitDefineOwnKeyedProperty(targetRegister, keyRegister);
     }
 
     private void EmitStaKeyedProperty(int targetRegister, int keyRegister)
@@ -647,26 +632,7 @@ public sealed partial class JsCompiler
 
     private void EmitCreateObjectLiteralByIndex(int idx, int feedbackSlot = 0, byte flags = 0)
     {
-        if ((uint)idx <= byte.MaxValue)
-        {
-            EmitRaw(JsOpCode.CreateObjectLiteral, (byte)idx, flags);
-            return;
-        }
-
-        if ((uint)idx <= ushort.MaxValue)
-        {
-            EmitRaw(
-                JsOpCode.CreateObjectLiteralWide,
-                (byte)(idx & 0xFF),
-                (byte)((idx >> 8) & 0xFF),
-                flags
-            );
-            return;
-        }
-
-        throw new InvalidOperationException(
-            "CreateObjectLiteral operands exceed ushort operand capacity."
-        );
+        builder.EmitCreateObjectLiteral(idx, flags);
     }
 
     private void EmitLdaGlobalByIndex(int nameIdx, int feedbackSlot)

@@ -20,6 +20,9 @@ This slice adds ordinary calls plus named/computed member loads. It excludes
 spread, optional chaining, `super`, private names, construction, and member writes.
 The following slice adds array literals with elisions and dynamic elements;
 array spread remains explicit unsupported syntax.
+The object-literal slice uses a parsing-owned dense property table. This iteration
+covers named, string, numeric, computed, and shorthand data properties. Methods,
+accessors, spread, and legacy `__proto__` prototype mutation are excluded.
 
 ## Minimal Repros
 
@@ -48,6 +51,12 @@ let values = [1, 2 + 3, , 4];
 values.length + values[1];
 ```
 
+```js
+function make(value, key) {
+  return { first: 1, [key]: value, second: value + 1, first: 4 };
+}
+```
+
 ## Planned Tests
 
 - `tests/Okojo.Compiler.Tests/DirectFlatParserTests.cs`
@@ -57,6 +66,7 @@ values.length + values[1];
   - allocated-byte comparison against class parse plus lowering
   - direct/member calls and named/computed property loads
   - array length, holes, and dynamic element initialization
+  - object property order, computed keys, shorthand, duplicates, and indices
 
 ## Reference Observations
 
@@ -76,6 +86,12 @@ V8 uses an array boilerplate and patches dynamic elements. Okojo intentionally
 creates a length-sized array and initializes only present elements in source
 order; skipped indices remain holes without emitting hole stores.
 
+For object literals, V8 and production Okojo create a boilerplate/shape for the
+stable named prefix and emit keyed definitions after the first dynamic key. The
+flat emitter copies that structure. Computed keys are normalized before their
+values execute, preserving observable evaluation order. Numeric keys bypass shape
+transitions, and duplicate named keys fall into the keyed tail.
+
 ## Performance Plan
 
 - reuse `JsLexer` and its identifier/string tables
@@ -93,8 +109,9 @@ Initial Release measurement for 80 declaration/update pairs after warm-up:
 
 ## Deferred
 
-- objects, templates, classes, modules, destructuring, and advanced
+- templates, classes, modules, destructuring, and advanced
   parameter forms
+- object methods, accessors, and spread
 - array spread
 - spread calls, optional chaining, construction, private/super members, and
   member assignment/update

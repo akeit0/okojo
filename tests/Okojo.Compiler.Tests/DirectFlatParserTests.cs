@@ -178,6 +178,34 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_ExecutesObjectLiteralPropertyShapes()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile(
+            "function make(value, key) { return { first: 1, [key]: value, second: value + 1, first: 4, value, 2: 5, 'quoted': 6 }; } let result = make(40, 'dynamic'); result.first + result.dynamic + result.second + result.value + result[2] + result.quoted;"
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(136));
+    }
+
+    [Test]
+    public void CompileString_NormalizesComputedObjectKeyBeforeValue()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile(
+            "let order = 0; let result = { [(order = order + 1)]: (order = order + 1), after: order }; order * 100 + result[1] * 10 + result.after;"
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(222));
+    }
+
+    [Test]
     public void ParseScript_AllocatesLessThanClassParseAndLowerBridge()
     {
         var source = string.Join(
@@ -209,6 +237,16 @@ public class DirectFlatParserTests
         );
 
         Assert.That(exception!.Message, Does.Contain("FlatJavaScriptParser"));
+    }
+
+    [Test]
+    public void ParseScript_RejectsUnsupportedObjectMethod()
+    {
+        var exception = Assert.Throws<JsParseException>(() =>
+            FlatJavaScriptParser.ParseScript("let value = { method() {} };")
+        );
+
+        Assert.That(exception!.Message, Does.Contain("methods and accessors"));
     }
 
     [TestCase("return 1;")]

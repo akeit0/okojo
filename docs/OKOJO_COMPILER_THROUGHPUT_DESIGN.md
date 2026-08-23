@@ -252,5 +252,10 @@ supported slice. The bridge remains necessary for the full production grammar;
 ordinary calls and named/computed member loads now use the same register shape and
 centralized bytecode operand encoder as the production compiler. Array literals
 now preserve holes while initializing present elements in source order. Object
-literals and member writes are the next coverage gate before application-sized
-throughput comparisons.
+literals now follow the same stable-prefix shape strategy. Member writes are the
+next coverage gate before application-sized throughput comparisons.
+
+Data-property object literals now use parsing-owned dense property spans. The
+flat emitter prebuilds the stable named prefix as an Okojo transition shape, then
+uses normalized keyed definitions for computed, indexed, and duplicate tails.
+This copies the production/V8 split without retaining class property objects.

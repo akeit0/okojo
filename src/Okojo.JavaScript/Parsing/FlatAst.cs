@@ -8,6 +8,8 @@ internal sealed class FlatAst : IDisposable
     private int functionCount;
     private FlatParameter[] parameters;
     private int parameterCount;
+    private FlatObjectProperty[] objectProperties;
+    private int objectPropertyCount;
     private bool disposed;
 
     public FlatAst(string source, string? sourcePath = null)
@@ -17,6 +19,7 @@ internal sealed class FlatAst : IDisposable
         SourcePath = sourcePath;
         functions = ArrayPool<FlatFunctionInfo>.Shared.Rent(8);
         parameters = ArrayPool<FlatParameter>.Shared.Rent(16);
+        objectProperties = ArrayPool<FlatObjectProperty>.Shared.Rent(16);
     }
 
     public AstArena Arena { get; }
@@ -52,6 +55,18 @@ internal sealed class FlatAst : IDisposable
 
     public ReadOnlySpan<FlatParameter> GetParameters(in FlatFunctionInfo function) =>
         parameters.AsSpan(function.ParameterOffset, function.ParameterCount);
+
+    public (int Offset, int Count) AddObjectProperties(ReadOnlySpan<FlatObjectProperty> values)
+    {
+        EnsureObjectPropertyCapacity(values.Length);
+        var offset = objectPropertyCount;
+        values.CopyTo(objectProperties.AsSpan(offset));
+        objectPropertyCount += values.Length;
+        return (offset, values.Length);
+    }
+
+    public ReadOnlySpan<FlatObjectProperty> GetObjectProperties(int offset, int count) =>
+        objectProperties.AsSpan(offset, count);
 
     public int AddFunction(FlatFunctionInfo function)
     {
@@ -89,6 +104,18 @@ internal sealed class FlatAst : IDisposable
         functions = next;
     }
 
+    private void EnsureObjectPropertyCapacity(int additional)
+    {
+        if (objectPropertyCount + additional <= objectProperties.Length)
+            return;
+        var next = ArrayPool<FlatObjectProperty>.Shared.Rent(
+            Math.Max(objectProperties.Length * 2, objectPropertyCount + additional)
+        );
+        Array.Copy(objectProperties, next, objectPropertyCount);
+        ArrayPool<FlatObjectProperty>.Shared.Return(objectProperties);
+        objectProperties = next;
+    }
+
     public void Dispose()
     {
         if (disposed)
@@ -96,10 +123,13 @@ internal sealed class FlatAst : IDisposable
         disposed = true;
         ArrayPool<FlatFunctionInfo>.Shared.Return(functions);
         ArrayPool<FlatParameter>.Shared.Return(parameters);
+        ArrayPool<FlatObjectProperty>.Shared.Return(objectProperties);
         functions = [];
         parameters = [];
+        objectProperties = [];
         functionCount = 0;
         parameterCount = 0;
+        objectPropertyCount = 0;
         Arena.Dispose();
     }
 }
@@ -128,4 +158,21 @@ internal readonly record struct FlatParameter(
 {
     public bool IsSimple =>
         Kind == JsFormalParameterBindingKind.Plain && InitializerNode < 0 && PatternNode < 0;
+}
+
+[Flags]
+internal enum FlatObjectPropertyFlags : byte
+{
+    None = 0,
+    Computed = 1,
+}
+
+internal readonly record struct FlatObjectProperty(
+    int Key,
+    int ValueNode,
+    int Position,
+    FlatObjectPropertyFlags Flags
+)
+{
+    public bool IsComputed => (Flags & FlatObjectPropertyFlags.Computed) != 0;
 }

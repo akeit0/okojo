@@ -308,6 +308,7 @@ internal static class FlatAstLowerer
                 JsCallExpression call => LowerCall(call),
                 JsMemberExpression member => LowerMember(member),
                 JsArrayExpression array => LowerArray(array),
+                JsObjectExpression obj => LowerObject(obj),
                 _ => throw new NotSupportedException(
                     $"{compilerName} does not support expression '{expression.GetType().Name}'."
                 ),
@@ -341,6 +342,48 @@ internal static class FlatAstLowerer
             finally
             {
                 ArrayPool<int>.Shared.Return(elements);
+            }
+        }
+
+        private int LowerObject(JsObjectExpression obj)
+        {
+            var properties = ArrayPool<FlatObjectProperty>.Shared.Rent(obj.Properties.Count);
+            try
+            {
+                for (var i = 0; i < obj.Properties.Count; i++)
+                {
+                    var property = obj.Properties[i];
+                    if (property.Kind != JsObjectPropertyKind.Data)
+                        throw new NotSupportedException(
+                            $"Object property kind '{property.Kind}' is not supported by {compilerName}."
+                        );
+                    if (property.Value is JsFunctionExpression)
+                        throw new NotSupportedException(
+                            $"Object methods are not supported by {compilerName}."
+                        );
+
+                    properties[i] = new FlatObjectProperty(
+                        property.IsComputed
+                            ? LowerExpression(property.ComputedKey!)
+                            : Arena.AddString(property.Key),
+                        LowerExpression(property.Value),
+                        property.Position,
+                        property.IsComputed
+                            ? FlatObjectPropertyFlags.Computed
+                            : FlatObjectPropertyFlags.None
+                    );
+                }
+                var range = Ast.AddObjectProperties(properties.AsSpan(0, obj.Properties.Count));
+                return Arena.Add(
+                    AstKind.ObjectExpression,
+                    range.Offset,
+                    range.Count,
+                    position: obj.Position
+                );
+            }
+            finally
+            {
+                ArrayPool<FlatObjectProperty>.Shared.Return(properties);
             }
         }
 
