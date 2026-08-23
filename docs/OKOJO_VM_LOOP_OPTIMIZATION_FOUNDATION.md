@@ -313,7 +313,7 @@ Knowledge:
 | A4 inline audit | ACCEPTED (merged) |
 | A5 countdown | REJECTED (ceiling: <=0.4%) |
 | A6 EH scope | REJECTED (IL no-op) |
-| A7 dispatch table | open |
+| A7 dispatch table | REJECTED (design + E1 microbench; see OKOJO_A7_DISPATCH_DESIGN.md) |
 | A8 per-op implementation | open (per-op) |
 | A9 opcode set | open (needs bytecode evidence) |
 | A10 IC devirt friendliness | ACCEPTED (merged) |
