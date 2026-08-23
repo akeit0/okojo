@@ -59,7 +59,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Arrays/objects | holes, data properties, computed/shorthand/index keys, stable shape prefix | array/object spread emission, methods, getters/setters, legacy `__proto__` intentionally excluded |
 | Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings | class, module bindings and remaining early errors |
 | Assignments | identifier/member targets, compound/logical/update, array/object destructuring | private/super targets, optional-chain restrictions |
-| Functions | ordinary declarations/expressions, closures, simple/default/rest/pattern parameters, named self, `this`, demand-driven mapped/unmapped `arguments` | arrows, async, generators, name inference, lazy bodies |
+| Functions | ordinary declarations/expressions, closures, simple/default/rest/pattern parameters, named self, ordinary anonymous-function name inference, `this`, demand-driven mapped/unmapped `arguments` | arrows, async, generators, class-name inference, lazy bodies |
 | Classes | none | declaration/expression, constructors, methods, fields, static blocks, private names, super |
 | Modules | none | parse goal, entries, linking metadata, live bindings, top-level await |
 
@@ -80,7 +80,7 @@ planned compiler still needs:
   are landed
 - a general parameter/body environment model; the current exclusion marker fixes
   ordinary cases but is not the final nested-environment representation
-- anonymous function/class name inference
+- class name inference; ordinary anonymous-function inference is landed
 - remaining strict/sloppy assignment edge cases outside ordinary lexical bindings
 - complete source-position, handler, local-name, and debugger scope metadata
 
@@ -143,6 +143,32 @@ per iteration; non-captured heads remain register-only.
 Function expressions create their closure at expression evaluation. Named
 expressions initialize a function-local self binding before parameter defaults.
 `this` is a zero-payload node that emits Okojo's existing `LdaThis` frame load.
+
+### Function-name inference slice
+
+This iteration covers anonymous ordinary function expressions in identifier
+declarations and assignments, ordinary parameter/default binding positions, and
+object-literal data properties. Minimal repros are `let f = function () {}`,
+`f = function () {}`, `function read(value = function () {}) {}`, destructuring
+defaults, `{ method: function () {} }`, and `{ [key]: function () {} }` including
+symbol keys. The connected regression target is
+`DirectFlatParserTests.CompileString_InfersAnonymousFunctionNames`.
+
+V8's parser assigns identifier and static-property names before bytecode emission
+(`SetFunctionNameFromIdentifierRef` and `SetFunctionNameFromPropertyName`). For a
+computed object key, Ignition retains the evaluated key and emits
+`Runtime::kSetFunctionName` only when the value needs a name. The flat compiler
+copies the semantic split: static names are passed directly into nested function
+metadata without mutating `FlatAst`; computed keys reuse Okojo's existing fused
+`DefineOwnKeyedProperty` name assignment. Member assignments remain unnamed,
+matching V8 and Node. The shared keyed-property helper now preserves explicit
+function names instead of replacing them with the property key.
+
+The hot static path adds no runtime operation, AST object, or new string: it reuses
+the pooled identifier/property string. Computed properties add no function-specific
+runtime call beyond their existing keyed definition. Explicit function-expression
+names remain authoritative and continue to create the only function-local self
+binding.
 
 ### Exceptions and finally
 
@@ -371,9 +397,9 @@ Implement before adding large syntax families:
   lexical/var/restricted-property conflicts, ordinary function/block hoisting,
   and function-scoped `var` are landed
 - function, block, catch, class, module, and parameter environment records
-- function-name inference; demand-driven mapped/unmapped `arguments`,
+- ordinary function-name inference, demand-driven mapped/unmapped `arguments`,
   local/captured `const`, and strict/sloppy named-function self assignment are
-  landed
+  landed; class-name inference remains with class coverage
 - source/handler/local-name metadata
 
 Focused corpus:

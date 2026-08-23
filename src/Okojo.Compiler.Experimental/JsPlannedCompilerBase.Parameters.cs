@@ -62,7 +62,14 @@ internal abstract partial class JsPlannedCompilerBase
                         EmitJumpIfUndefined(useDefault);
                         EmitJump(initialized);
                         builder.BindLabel(useDefault);
-                        EmitExpression(ast, parameter.InitializerNode);
+                        if (parameter.PatternNode >= 0)
+                            EmitExpression(ast, parameter.InitializerNode);
+                        else
+                            EmitExpressionWithInferredName(
+                                ast,
+                                parameter.InitializerNode,
+                                ast.GetString(parameter.NameStringIndex)
+                            );
                         builder.BindLabel(initialized);
                     }
                 }

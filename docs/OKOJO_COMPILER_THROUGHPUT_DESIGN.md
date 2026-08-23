@@ -216,6 +216,9 @@ The direct flat work has already established several reusable rules:
   lexical head
 - create function-expression closures at expression evaluation and initialize a
   named expression's self binding before parameter defaults
+- pass inferred identifier and static-property names directly into nested function
+  metadata; computed properties reuse the keyed-definition slow path, explicit
+  names are preserved, and no class AST is reconstructed
 - represent `finally` exits as a completion kind plus optional value, then replay
   return/break/continue after the finalizer through the same control-scope stack
 - save lexical context in the VM exception-handler entry as part of the handler
@@ -275,7 +278,8 @@ them:
   model that remains correct through nested parameter functions
 - arrow lexical capture of outer `arguments`; ordinary demand-driven mapped and
   unmapped arguments objects are landed
-- anonymous function/class name inference
+- ordinary anonymous-function name inference is landed; class name inference
+  remains with class coverage
 - remaining strict/sloppy assignment edge cases; local/captured `const` and
   named-function self assignment enforcement are landed
 - complete source-position, source-map, local-name, and handler metadata needed by

@@ -44,10 +44,12 @@ internal sealed partial class JsPlannedFunctionCompiler
         FlatAst ast,
         in FlatFunctionInfo function,
         int bodyRoot,
-        bool hasSelfBinding = false
+        bool hasSelfBinding = false,
+        string? inferredName = null
     )
     {
-        var name = ast.GetString(function.NameStringIndex);
+        var declaredName = ast.GetString(function.NameStringIndex);
+        var name = declaredName.Length == 0 ? inferredName ?? string.Empty : declaredName;
         InitializeParameterRegisterMap(ast, function);
         using var collected = CompilerBindingCollector.CollectFunction(
             ast,

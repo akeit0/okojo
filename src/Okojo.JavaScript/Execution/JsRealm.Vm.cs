@@ -6180,7 +6180,7 @@ public sealed partial class JsRealm
         if (!functionValue.TryGetObject(out var functionObject))
             return;
 
-        SetFunctionNameProperty(realm, functionObject, name, true);
+        SetFunctionNameProperty(realm, functionObject, name, false);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

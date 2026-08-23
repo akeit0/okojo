@@ -130,6 +130,53 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_InfersAnonymousFunctionNames()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let declared = function () {};
+            let assigned;
+            assigned = function () {};
+            let [arrayDefault = function () {}] = [];
+            let objectDefault;
+            ({ missing: objectDefault = function () {} } = {});
+            function defaults(value = function () {}) { return value.name; }
+            let key = 'computed';
+            let symbol = Symbol('symbolic');
+            let object = {
+                method: function () {},
+                [key]: function () {},
+                [symbol]: function () {},
+                explicit: function named() {}
+            };
+            let member = {};
+            member.property = function () {};
+            let parenthesized;
+            (parenthesized) = function () {};
+            let inferred = function () { inferred = 1; return inferred; };
+            let inferredName = inferred.name;
+            let invoke = inferred;
+            let outerWrite = invoke();
+            declared.name + '|' + assigned.name + '|' + arrayDefault.name + '|'
+                + objectDefault.name + '|' + defaults() + '|' + object.method.name + '|'
+                + object[key].name + '|' + object[symbol].name + '|' + object.explicit.name + '|'
+                + member.property.name + '|' + parenthesized.name + '|' + inferredName + '|'
+                + outerWrite;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(
+            realm.Accumulator.AsString(),
+            Is.EqualTo(
+                "declared|assigned|arrayDefault|objectDefault|value|method|computed|[symbolic]|named|||inferred|1"
+            )
+        );
+    }
+
+    [Test]
     public void CompileString_InitializesNamedFunctionSelfBeforeParameterDefaults()
     {
         var realm = JsRuntime.Create().DefaultRealm;

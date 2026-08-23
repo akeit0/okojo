@@ -69,7 +69,8 @@ internal abstract partial class JsPlannedCompilerBase
                     ast,
                     ast.GetString(ast[node.Arg0].Arg0),
                     (JsAssignmentOperator)node.Arg2,
-                    node.Arg1
+                    node.Arg1,
+                    ast.GetPosition(nodeIndex) == ast.GetPosition(node.Arg0)
                 );
                 return;
             case AstKind.AssignmentExpression when ast[node.Arg0].Kind == AstKind.MemberExpression:
@@ -231,15 +232,34 @@ internal abstract partial class JsPlannedCompilerBase
         builder.BindLabel(trueFallthrough);
     }
 
-    private void EmitFunctionExpression(FlatAst ast, int functionIndex, int bodyRoot)
+    private void EmitExpressionWithInferredName(FlatAst ast, int nodeIndex, string inferredName)
+    {
+        ref readonly var node = ref ast[nodeIndex];
+        if (node.Kind == AstKind.FunctionExpression)
+        {
+            EmitFunctionExpression(ast, node.Arg0, node.Arg1, inferredName);
+            return;
+        }
+
+        EmitExpression(ast, nodeIndex);
+    }
+
+    private void EmitFunctionExpression(
+        FlatAst ast,
+        int functionIndex,
+        int bodyRoot,
+        string? inferredName = null
+    )
     {
         var function = ast.GetFunction(functionIndex);
+        var hasSelfBinding = ast.GetString(function.NameStringIndex).Length != 0;
         var functionCompiler = new JsPlannedFunctionCompiler(Vm, BuildChildCaptureBindings());
         var functionObject = functionCompiler.CompileFunction(
             ast,
             function,
             bodyRoot,
-            hasSelfBinding: ast.GetString(function.NameStringIndex).Length != 0
+            hasSelfBinding,
+            inferredName
         );
         EmitCreateClosureByIndex(builder.AddObjectConstant(functionObject));
     }
@@ -284,8 +304,9 @@ internal abstract partial class JsPlannedCompilerBase
                 ref readonly var property = ref properties[i];
                 if (i < shapePrefixCount)
                 {
-                    EmitExpression(ast, property.ValueNode);
-                    var atom = Vm.Atoms.InternNoCheck(ast.GetString(property.Key));
+                    var name = ast.GetString(property.Key);
+                    EmitExpressionWithInferredName(ast, property.ValueNode, name);
+                    var atom = Vm.Atoms.InternNoCheck(name);
                     if (!shape.TryGetSlotInfo(atom, out var slotInfo))
                         throw new InvalidOperationException(
                             "Missing precomputed flat object-literal shape slot."
@@ -305,7 +326,14 @@ internal abstract partial class JsPlannedCompilerBase
                 else
                     EmitStringLiteral(ast.GetString(property.Key));
                 EmitStar(keyRegister);
-                EmitExpression(ast, property.ValueNode);
+                if (property.IsComputed)
+                    EmitExpression(ast, property.ValueNode);
+                else
+                    EmitExpressionWithInferredName(
+                        ast,
+                        property.ValueNode,
+                        ast.GetString(property.Key)
+                    );
                 builder.EmitDefineOwnKeyedProperty(objectRegister, keyRegister);
             }
             EmitLdar(objectRegister);
@@ -1049,7 +1077,8 @@ internal abstract partial class JsPlannedCompilerBase
         FlatAst ast,
         string name,
         JsAssignmentOperator op,
-        int right
+        int right,
+        bool inferName
     )
     {
         var hasLocalBinding = TryResolveBindingAccess(name, out var binding, out var contextDepth);
@@ -1062,7 +1091,10 @@ internal abstract partial class JsPlannedCompilerBase
         switch (op)
         {
             case JsAssignmentOperator.Assign:
-                EmitExpression(ast, right);
+                if (inferName)
+                    EmitExpressionWithInferredName(ast, right, name);
+                else
+                    EmitExpression(ast, right);
                 EmitResolvedIdentifierStore(
                     name,
                     hasLocalBinding,

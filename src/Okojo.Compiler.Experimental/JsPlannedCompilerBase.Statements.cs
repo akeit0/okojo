@@ -590,7 +590,7 @@ internal abstract partial class JsPlannedCompilerBase
                 throw new InvalidOperationException($"No planned binding found for '{name}'.");
 
             if (declarator.Arg2 >= 0)
-                EmitExpression(ast, declarator.Arg2);
+                EmitExpressionWithInferredName(ast, declarator.Arg2, name);
             else
                 builder.EmitLda(JsOpCode.LdaUndefined);
 
@@ -717,7 +717,7 @@ internal abstract partial class JsPlannedCompilerBase
                         );
                     EmitArrayBindingStep(iteratorRegister, doneRegister, valueRegister);
                     if (defaultIndex >= 0)
-                        EmitBindingDefault(ast, defaultIndex, valueRegister);
+                        EmitBindingDefault(ast, targetIndex, defaultIndex, valueRegister);
                     EmitStoreDestructuringTarget(ast, targetIndex, assignment, preparedTarget);
                 }
                 finally
@@ -817,7 +817,12 @@ internal abstract partial class JsPlannedCompilerBase
         EmitStoreDestructuringTarget(ast, targetIndex, assignment, preparedTarget);
     }
 
-    private void EmitBindingDefault(FlatAst ast, int defaultIndex, int valueRegister)
+    private void EmitBindingDefault(
+        FlatAst ast,
+        int targetIndex,
+        int defaultIndex,
+        int valueRegister
+    )
     {
         var useDefaultLabel = builder.CreateLabel();
         var endLabel = builder.CreateLabel();
@@ -826,7 +831,10 @@ internal abstract partial class JsPlannedCompilerBase
         EmitJumpIfUndefined(useDefaultLabel);
         EmitJump(endLabel);
         builder.BindLabel(useDefaultLabel);
-        EmitExpression(ast, defaultIndex);
+        if (ast[targetIndex].Kind == AstKind.Identifier)
+            EmitExpressionWithInferredName(ast, defaultIndex, ast.GetString(ast[targetIndex].Arg0));
+        else
+            EmitExpression(ast, defaultIndex);
         builder.BindLabel(endLabel);
     }
 
@@ -944,7 +952,12 @@ internal abstract partial class JsPlannedCompilerBase
                         }
                     }
                     if (defaultIndex >= 0)
-                        EmitBindingDefault(ast, defaultIndex, builder.AllocateTemporaryRegister());
+                        EmitBindingDefault(
+                            ast,
+                            targetIndex,
+                            defaultIndex,
+                            builder.AllocateTemporaryRegister()
+                        );
                     EmitStoreDestructuringTarget(ast, targetIndex, assignment, preparedTarget);
                 }
                 finally
