@@ -1238,6 +1238,38 @@ public class DirectFlatParserTests
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(42));
     }
 
+    [Test]
+    public void CompileString_LoadsStoresUpdatesAndTypesGlobalBindings()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        realm.Evaluate("globalThis.__flatGlobal = 39;");
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            "__flatGlobal++; __flatGlobal += 2; typeof __flatMissing === 'undefined' ? __flatGlobal : 0;"
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(42));
+    }
+
+    [Test]
+    public void CompileString_AppliesSloppyAndStrictUnresolvableStoreRules()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+
+        realm.Execute(new JsPlannedScriptCompiler(realm).Compile("__flatSloppyCreated = 42;"));
+
+        Assert.That(realm.Evaluate("__flatSloppyCreated").Int32Value, Is.EqualTo(42));
+        Assert.Throws<JsRuntimeException>(() =>
+            realm.Execute(
+                new JsPlannedScriptCompiler(realm).Compile("'use strict'; __flatStrictMissing = 1;")
+            )
+        );
+        Assert.Throws<JsRuntimeException>(() =>
+            realm.Execute(new JsPlannedScriptCompiler(realm).Compile("__flatReadMissing;"))
+        );
+    }
+
     [TestCase("throw\n1;")]
     [TestCase("try {}")]
     [TestCase("try {} catch ({ value, value }) {}")]

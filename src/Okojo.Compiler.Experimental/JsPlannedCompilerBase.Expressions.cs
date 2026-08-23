@@ -389,12 +389,10 @@ internal abstract partial class JsPlannedCompilerBase
                 out var externalBinding,
                 out var externalDepth
             );
-            if (!hasLocalBinding && !hasExternalBinding)
-                throw new NotSupportedException(
-                    $"{CompilerName} does not support assignment to '{name}'."
-                );
             EmitResolvedIdentifierStore(
+                name,
                 hasLocalBinding,
+                hasExternalBinding,
                 binding,
                 contextDepth,
                 externalBinding,
@@ -714,6 +712,20 @@ internal abstract partial class JsPlannedCompilerBase
                 $"{CompilerName} does not support the delete operator yet."
             );
 
+        if (op == JsUnaryOperator.Typeof && ast[node.Arg0].Kind == AstKind.Identifier)
+        {
+            var name = ast.GetString(ast[node.Arg0].Arg0);
+            if (
+                !string.Equals(name, "undefined", StringComparison.Ordinal)
+                && !TryResolveBinding(name, out _)
+                && !TryResolveExternalBinding(name, out _, out _)
+            )
+            {
+                EmitGlobalAccess(name, JsOpCode.TypeOfGlobal, JsOpCode.TypeOfGlobalWide);
+                return;
+            }
+        }
+
         EmitExpression(ast, node.Arg0);
         switch (op)
         {
@@ -776,8 +788,6 @@ internal abstract partial class JsPlannedCompilerBase
             out var externalBinding,
             out var externalDepth
         );
-        if (!hasLocalBinding && !hasExternalBinding)
-            throw new NotSupportedException($"{CompilerName} does not support update of '{name}'.");
 
         EmitIdentifierLoad(name);
         var oldValueRegister = node.Arg2 == 0 ? builder.AllocateTemporaryRegister() : -1;
@@ -791,7 +801,9 @@ internal abstract partial class JsPlannedCompilerBase
                     : JsOpCode.Dec
             );
             EmitResolvedIdentifierStore(
+                name,
                 hasLocalBinding,
+                hasExternalBinding,
                 binding,
                 contextDepth,
                 externalBinding,
@@ -969,17 +981,15 @@ internal abstract partial class JsPlannedCompilerBase
             out var externalBinding,
             out var externalDepth
         );
-        if (!hasLocalBinding && !hasExternalBinding)
-            throw new NotSupportedException(
-                $"{CompilerName} does not support assignment to '{name}'."
-            );
 
         switch (op)
         {
             case JsAssignmentOperator.Assign:
                 EmitExpression(ast, right);
                 EmitResolvedIdentifierStore(
+                    name,
                     hasLocalBinding,
+                    hasExternalBinding,
                     binding,
                     contextDepth,
                     externalBinding,
@@ -1001,7 +1011,9 @@ internal abstract partial class JsPlannedCompilerBase
                 EmitIdentifierLoad(name);
                 EmitCompoundRightExpression(ast, op, right);
                 EmitResolvedIdentifierStore(
+                    name,
                     hasLocalBinding,
+                    hasExternalBinding,
                     binding,
                     contextDepth,
                     externalBinding,
@@ -1017,6 +1029,7 @@ internal abstract partial class JsPlannedCompilerBase
                     op,
                     right,
                     hasLocalBinding,
+                    hasExternalBinding,
                     binding,
                     contextDepth,
                     externalBinding,
@@ -1065,6 +1078,7 @@ internal abstract partial class JsPlannedCompilerBase
         JsAssignmentOperator op,
         int right,
         bool hasLocalBinding,
+        bool hasExternalBinding,
         BindingStorage binding,
         int contextDepth,
         CapturedBindingAccess externalBinding,
@@ -1076,7 +1090,9 @@ internal abstract partial class JsPlannedCompilerBase
         EmitLogicalAssignmentShortCircuit(op, end);
         EmitExpression(ast, right);
         EmitResolvedIdentifierStore(
+            name,
             hasLocalBinding,
+            hasExternalBinding,
             binding,
             contextDepth,
             externalBinding,
@@ -1231,9 +1247,8 @@ internal abstract partial class JsPlannedCompilerBase
                 return;
             }
 
-            throw new NotSupportedException(
-                $"{CompilerName} does not support unbound identifier '{name}'."
-            );
+            EmitGlobalAccess(name, JsOpCode.LdaGlobal, JsOpCode.LdaGlobalWide);
+            return;
         }
 
         switch (binding.Planned.StorageKind)
@@ -1286,7 +1301,9 @@ internal abstract partial class JsPlannedCompilerBase
     }
 
     private void EmitResolvedIdentifierStore(
+        string name,
         bool hasLocalBinding,
+        bool hasExternalBinding,
         BindingStorage binding,
         int contextDepth,
         CapturedBindingAccess externalBinding,
@@ -1299,6 +1316,12 @@ internal abstract partial class JsPlannedCompilerBase
             return;
         }
 
-        EmitStaContextSlot(externalBinding.Slot, externalDepth);
+        if (hasExternalBinding)
+        {
+            EmitStaContextSlot(externalBinding.Slot, externalDepth);
+            return;
+        }
+
+        EmitGlobalAccess(name, JsOpCode.StaGlobal, JsOpCode.StaGlobalWide);
     }
 }

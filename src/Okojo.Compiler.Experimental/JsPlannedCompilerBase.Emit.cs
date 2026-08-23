@@ -290,6 +290,29 @@ internal abstract partial class JsPlannedCompilerBase
         builder.Emit(op, unchecked((byte)(sbyte)value), 0);
     }
 
+    private void EmitGlobalAccess(string name, JsOpCode narrow, JsOpCode wide)
+    {
+        var nameIndex = builder.AddAtomizedStringConstant(name);
+        var feedbackSlot = builder.GetOrAllocateGlobalBindingFeedbackSlot(name);
+        if ((uint)nameIndex <= byte.MaxValue && (uint)feedbackSlot <= byte.MaxValue)
+        {
+            builder.Emit(narrow, (byte)nameIndex, (byte)feedbackSlot);
+            return;
+        }
+        if ((uint)nameIndex <= ushort.MaxValue && (uint)feedbackSlot <= ushort.MaxValue)
+        {
+            builder.Emit(
+                wide,
+                (byte)(nameIndex & 0xFF),
+                (byte)(nameIndex >> 8),
+                (byte)(feedbackSlot & 0xFF),
+                (byte)(feedbackSlot >> 8)
+            );
+            return;
+        }
+        throw new InvalidOperationException("Global operands exceed ushort capacity.");
+    }
+
     private void EmitJump(BytecodeBuilder.Label target)
     {
         builder.EmitJump(JsOpCode.Jump, target);

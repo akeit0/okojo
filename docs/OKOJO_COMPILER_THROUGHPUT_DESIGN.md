@@ -218,6 +218,9 @@ The direct flat work has already established several reusable rules:
 - save lexical context in the VM exception-handler entry as part of the handler
   ABI; restoring only stack and PC is insufficient when an exception skips a
   captured block's `PopContext`
+- lower unbound identifier read/store/`typeof` through the existing global-binding
+  feedback ABI; the VM remains responsible for missing-read and strict/sloppy
+  unresolvable-store behavior
 
 These are compiler contracts, not parser conveniences. New syntax should lower to
 the same small set of prepared-reference, iterator, context, call, and abrupt-flow
@@ -246,7 +249,8 @@ go through centralized builders.
 Complete these before broad grammar because nearly every application depends on
 them:
 
-- global and unresolvable name load/store/`typeof`/delete behavior
+- complete global declaration instantiation and identifier `delete` behavior;
+  unbound load/store/`typeof` now use the production global-binding opcodes
 - script and function declaration instantiation, including `var` and function
   hoisting
 - correct function, block, catch, class, module, and parameter environment

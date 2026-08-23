@@ -54,7 +54,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Blocks/control | block, `if`, `while`, `do`, ordinary `for`, unlabeled `break`/`continue`, `return`, `throw`, `try`/`catch`/`finally`, empty/expression statement | `switch`, `for-in/of`, labels, `debugger` |
 | Primitive expressions | number, string, boolean, null, identifier, `this`, grouping | regexp, BigInt, templates, `super`, `new.target`, `import.meta` |
 | Operators | precedence table, assignment, arithmetic/logical/bitwise/comparison, conditionals, sequence, updates | delete completion, optional-chain operators, remaining edge-specific early errors |
-| References | locals, lexical contexts, named/computed properties | globals/unresolvable names, imports, private and super references |
+| References | locals, lexical contexts, globals/unresolvable load/store/`typeof`, named/computed properties | identifier delete, imports, private and super references |
 | Calls/construction | direct/member calls, spread calls, ordinary/spread `new`, wide operands | optional calls, dynamic import, super call |
 | Arrays/objects | holes, data properties, computed/shorthand/index keys, stable shape prefix | array/object spread emission, methods, getters/setters, legacy `__proto__` intentionally excluded |
 | Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings | class, module bindings and remaining early errors |
@@ -72,7 +72,8 @@ change diagnostics, and conceal coverage gaps.
 Syntax coverage alone is not enough to replace production compilation. The
 planned compiler still needs:
 
-- global binding and unresolvable-reference operations
+- global declaration instantiation and identifier-delete semantics; ordinary
+  unbound load/store/`typeof` already use the VM global-binding ABI
 - script/function declaration instantiation and source-independent hoisting
 - a general parameter/body environment model; the current exclusion marker fixes
   ordinary cases but is not the final nested-environment representation
@@ -161,6 +162,24 @@ stack, and PC together at a handler target, and suspended generators retain the
 same saved handler contexts. This fixes exceptions that bypass bytecode
 `PopContext` from captured lexical blocks.
 
+### Global references
+
+An identifier unresolved by local scope planning or an outer flat-function
+capture emits the existing `LdaGlobal`, `StaGlobal`, or `TypeOfGlobal` family.
+Names and global-binding feedback slots are deduplicated by `BytecodeBuilder`,
+and one helper selects narrow or wide operands. This matches production Okojo
+bytecode and V8's global feedback shape while leaving ReferenceError and
+strict/sloppy store decisions in the VM.
+
+Minimal repros are `hostValue += 2`, `typeof missingValue`, a missing ordinary
+read, and strict versus sloppy assignment to an unresolvable name. Regression
+targets are
+`DirectFlatParserTests.CompileString_LoadsStoresUpdatesAndTypesGlobalBindings`
+and `CompileString_AppliesSloppyAndStrictUnresolvableStoreRules`. No new runtime
+operation or compiler binding object was added. Global declaration instantiation
+and identifier delete remain separate because they require environment semantics,
+not another identifier-load branch.
+
 ## Reference Lessons Applied
 
 ### V8
@@ -228,7 +247,8 @@ future shared Okojo grammar core, not two permanently divergent parsers.
 
 Implement before adding large syntax families:
 
-- global/unresolvable load, store, `typeof`, and delete
+- global declaration instantiation and identifier delete; unbound load, store,
+  update, compound/logical assignment, and `typeof` are landed
 - declaration instantiation and function/`var` hoisting
 - function, block, catch, class, module, and parameter environment records
 - `arguments`, function-name inference, immutable binding enforcement
