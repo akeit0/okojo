@@ -397,3 +397,30 @@ enum against stability for zero runtime gain). If loop-level instrumentation
 or OSR-style feedback is ever needed, implementing JumpLoop emission is the
 designated insertion point.
 
+
+## 9. Jint comparison follow-up - regexp/call-path investigation (in progress)
+
+Isolation probes (identical JS, fresh engines, Jint 4.2.2):
+
+| op (100x100-char strings) | Jint | Okojo | ratio |
+| ------------------------- | ---- | ----- | ----- |
+| match /aaaaaaaaaa/g       | ~86ms | ~171ms | ~2x |
+| test /a/                  | ~6ms  | ~5ms   | ok   |
+| replace g -> literal      | ~4ms  | ~8ms   | ~2x  |
+| split /.*/                | ~8ms  | ~10ms  | ok   |
+
+Landed: [Symbol.match] /g fast path - when receiver resolves exec to the
+intrinsic RegExp.prototype.exec, step RegExpEngine directly
+(RegExpEngine.TryMatchRange, thread-static capture buffer reuse) returning
+only group-0 strings; skips per-match exec-result object construction and
+exec-function invocation. Gates: receiver is JsRegExpObject + intrinsic-exec
+identity. lastIndex reset-to-0-on-failure preserved. Verified:
+Okojo.Tests 2179/0; test262 built-ins RegExp 1949/0 forced rerun;
+String/match + language regexp literals 0 fail.
+
+Remaining whole-file gap decomposition (dromaeo-object-regexp-modern):
+split(/.*/) & replace-global paths still generic (replace uses per-match
+ExecMatchResult + replacement-template machinery; replace-with-callback adds
+call-lane cost), and per-match Substring+array-element stores remain.
+Next candidates: mirror the same fast stepping into [Symbol.replace] string
+case; audit String.split(regex) loop allocations.

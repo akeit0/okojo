@@ -822,35 +822,82 @@ public partial class Intrinsics
 
                 var result = realm.CreateArrayObject();
                 uint resultIndex = 0;
-                while (true)
+
+                // A8-regexp fast path: when the receiver is an unmodified
+                // JsRegExpObject (its exec still resolves to the intrinsic
+                // RegExp.prototype.exec), step the engine directly and skip
+                // constructing intermediate exec-result objects. Only group 0
+                // is observable to this algorithm.
+                if (
+                    obj.TryGetPropertyAtom(realm, IdExec, out var fastExec, out _)
+                    && fastExec.TryGetObject(out var fastExecObj)
+                    && ReferenceEquals(fastExecObj, execFn)
+                    && thisValue.AsObject() is JsRegExpObject fastRx
+                )
                 {
-                    var step = RegExpExecGeneric(realm, thisValue, input);
-                    if (step.IsNull || !step.TryGetObject(out var stepObj))
-                        break;
-
-                    var matchEntry = stepObj.TryGetProperty("0", out var stepValue)
-                        ? stepValue
-                        : JsValue.FromString(string.Empty);
-                    FreshArrayOperations.DefineElement(result, resultIndex++, matchEntry);
-
-                    var matched = realm.ToJsStringSlowPath(matchEntry);
-                    if (matched.Length == 0)
+                    SetPropertyAtomOrThrow(
+                        realm,
+                        obj,
+                        IdLastIndex,
+                        JsValue.FromInt32(0),
+                        "[Symbol.match]"
+                    );
+                    int lastIndex = 0;
+                    while (true)
                     {
-                        var lastIndex = obj.TryGetPropertyAtom(
+                        var matched = JsRegExpRuntime.ExecMatchedString(
                             realm,
-                            IdLastIndex,
-                            out var lastIndexValue,
-                            out _
-                        )
-                            ? ToLength(lastIndexValue, realm)
-                            : 0;
-                        SetPropertyAtomOrThrow(
-                            realm,
-                            obj,
-                            IdLastIndex,
-                            FromLengthValue(AdvanceStringIndexLong(input, lastIndex, fullUnicode)),
-                            "[Symbol.match]"
+                            fastRx,
+                            input,
+                            ref lastIndex
                         );
+                        if (matched is null)
+                            break;
+
+                        FreshArrayOperations.DefineElement(
+                            result,
+                            resultIndex++,
+                            JsValue.FromString(matched)
+                        );
+
+                        if (matched.Length == 0)
+                            lastIndex =
+                                (int)
+                                AdvanceStringIndexLong(input, (uint)lastIndex, fullUnicode);
+                    }
+                }
+                else
+                {
+                    while (true)
+                    {
+                        var step = RegExpExecGeneric(realm, thisValue, input);
+                        if (step.IsNull || !step.TryGetObject(out var stepObj))
+                            break;
+
+                        var matchEntry = stepObj.TryGetProperty("0", out var stepValue)
+                            ? stepValue
+                            : JsValue.FromString(string.Empty);
+                        FreshArrayOperations.DefineElement(result, resultIndex++, matchEntry);
+
+                        var matched = realm.ToJsStringSlowPath(matchEntry);
+                        if (matched.Length == 0)
+                        {
+                            var lastIndex = obj.TryGetPropertyAtom(
+                                realm,
+                                IdLastIndex,
+                                out var lastIndexValue,
+                                out _
+                            )
+                                ? ToLength(lastIndexValue, realm)
+                                : 0;
+                            SetPropertyAtomOrThrow(
+                                realm,
+                                obj,
+                                IdLastIndex,
+                                FromLengthValue(AdvanceStringIndexLong(input, lastIndex, fullUnicode)),
+                                "[Symbol.match]"
+                            );
+                        }
                     }
                 }
 

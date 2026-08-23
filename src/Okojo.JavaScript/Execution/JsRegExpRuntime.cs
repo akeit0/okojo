@@ -102,8 +102,7 @@ internal static class JsRegExpRuntime
         string input
     )
     {
-        var lastIndex = GetLastIndex(realm, rx);
-        var global = rx.Global;
+        var lastIndex = GetLastIndex(realm, rx);        var global = rx.Global;
         var sticky = rx.Sticky;
         var useLastIndex = global || sticky;
         var startIndex = useLastIndex ? (int)Math.Min(lastIndex, int.MaxValue) : 0;
@@ -126,6 +125,39 @@ internal static class JsRegExpRuntime
             SetLastIndex(realm, rx, engineMatch.Index + engineMatch.Length);
 
         return engineMatch;
+    }
+
+    /// <summary>
+    ///     A8-regexp fast path for Symbol.match global loops: executes the
+    ///     pattern once from <paramref name="lastIndex"/> and returns only the
+    ///     group-0 substring without constructing intermediate match objects.
+    ///     On failure resets lastIndex to 0 (mirroring exec semantics) and
+    ///     returns null.
+    /// </summary>
+    internal static string? ExecMatchedString(
+        JsRealm realm,
+        JsRegExpObject rx,
+        string input,
+        ref int lastIndex
+    )
+    {
+        if (
+            !RegExpEngine.Default.TryMatchRange(
+                rx.CompiledPattern,
+                input,
+                lastIndex,
+                out var index,
+                out var length
+            )
+        )
+        {
+            SetLastIndex(realm, rx, 0);
+            return null;
+        }
+
+        var matched = input.Substring(index, length);
+        lastIndex = index + length;
+        return matched;
     }
 
     private static JsValue BuildExecResult(
