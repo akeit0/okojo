@@ -616,6 +616,89 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_ExecutesArrayAndObjectLiteralSpread()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let symbol = Symbol('copied');
+            let array = [0, ...[1, 2], , 4];
+            let object = {
+                before: 1,
+                ...{ before: 9, copied: 2, [symbol]: 4 },
+                copied: 3
+            };
+            array.length + '|' + array[0] + array[1] + array[2] + '|'
+                + (typeof array[3]) + '|' + array[4] + '|'
+                + object.before + object.copied + object[symbol];
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("5|012|undefined|4|934"));
+    }
+
+    [Test]
+    public void CompileString_EvaluatesLiteralSpreadInOrderWithoutArrayFunctionNamesOrSetters()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        realm.Evaluate("globalThis.__flatLiteralSpreadOrder = [];");
+        var iterable = realm.Evaluate(
+            "(function* () { __flatLiteralSpreadOrder.push('i'); yield 1; __flatLiteralSpreadOrder.push('j'); yield 2; })()"
+        );
+        var source = realm.Evaluate(
+            "({ get value() { __flatLiteralSpreadOrder.push('g'); return 4; } })"
+        );
+        var later = realm.Evaluate(
+            "(function () { __flatLiteralSpreadOrder.push('l'); return 3; })"
+        );
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            function build(iterable, source, later) {
+                let array = [...iterable, later(), function () {}];
+                let object = { ...source, tail: later() };
+                return [array, object];
+            }
+            build;
+            """
+        );
+        realm.Execute(script);
+        var build = (JsFunction)realm.Accumulator.Obj!;
+
+        var result = realm.InvokeFunction(build, JsValue.Undefined, [iterable, source, later]);
+        var inspect = (JsFunction)
+            realm
+                .Evaluate(
+                    "(function (result) { return result[0].length + '|' + result[0][0] + result[0][1] + result[0][2] + '|' + result[0][3].name + '|' + result[1].value + result[1].tail; })"
+                )
+                .Obj!;
+        var summary = realm.InvokeFunction(inspect, JsValue.Undefined, [result]);
+
+        Assert.That(summary.AsString(), Is.EqualTo("4|123||43"));
+        Assert.That(
+            realm.Evaluate("__flatLiteralSpreadOrder.join('')").AsString(),
+            Is.EqualTo("ijlgl")
+        );
+
+        var setterRealm = JsRuntime.Create().DefaultRealm;
+        setterRealm.Evaluate(
+            "Object.defineProperty(Array.prototype, '0', { set: function () { throw new Error('prototype setter'); }, configurable: true });"
+        );
+        try
+        {
+            setterRealm.Execute(
+                new JsPlannedScriptCompiler(setterRealm).Compile("[...[], 42][0];")
+            );
+            Assert.That(setterRealm.Accumulator.Int32Value, Is.EqualTo(42));
+        }
+        finally
+        {
+            setterRealm.Evaluate("delete Array.prototype[0];");
+        }
+    }
+
+    [Test]
     public void CompileString_ExecutesNestedArrayBindingsWithDefaultsElisionsAndRest()
     {
         var realm = JsRuntime.Create().DefaultRealm;

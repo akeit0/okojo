@@ -340,6 +340,7 @@ internal static class JsScriptDebugInfo
                 registers.Add(ReadU16(bytecode, opcodePc + 1));
                 break;
             case JsOpCode.DefineOwnKeyedProperty:
+            case JsOpCode.DefineOwnKeyedPropertyNoName:
                 registers.Add(BytecodeInfo.ReadUnsignedOperand(operands, 0, scale));
                 registers.Add(BytecodeInfo.ReadUnsignedOperand(operands, 1, scale));
                 break;

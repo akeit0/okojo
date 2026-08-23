@@ -56,7 +56,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Operators | precedence table, assignment, arithmetic/logical/bitwise/comparison, conditionals, sequence, updates, property/identifier/value `delete` | optional-chain operators and delete-chain behavior, remaining edge-specific early errors |
 | References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed properties | imports, private and super references |
 | Calls/construction | direct/member calls, spread calls, ordinary/spread `new`, wide operands | optional calls, dynamic import, super call |
-| Arrays/objects | holes, data properties, computed/shorthand/index keys, stable shape prefix | array/object spread emission, methods, getters/setters, legacy `__proto__` intentionally excluded |
+| Arrays/objects | holes, array/object spread, data properties, computed/shorthand/index keys, stable shape prefix | methods, getters/setters, legacy `__proto__` intentionally excluded |
 | Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings | class, module bindings and remaining early errors |
 | Assignments | identifier/member targets, compound/logical/update, array/object destructuring | private/super targets, optional-chain restrictions |
 | Functions | ordinary declarations/expressions, closures, simple/default/rest/pattern parameters, named self, ordinary anonymous-function name inference, `this`, demand-driven mapped/unmapped `arguments` | arrows, async, generators, class-name inference, lazy bodies |
@@ -109,6 +109,28 @@ numeric indices never become shape transitions.
 Member assignment prepares the base and normalized computed key once. Compound,
 logical, prefix, postfix, and destructuring stores reuse that prepared reference,
 so observable base/key expressions are never duplicated.
+
+### Literal spread slice
+
+This iteration emits array and object literal spread from the existing flat
+`SpreadElement`/object-property records. Repros live in
+`artifacts/okojobytecodetool/cases/flat_ast_literal_spread.js`; focused tests cover
+left-to-right iterator/getter effects, array holes after a dynamic prefix, symbol
+copying, overwrite order, and anonymous array-element function names.
+
+V8 builds an empty array when any element is spread, tracks the next dynamic index,
+and expands each iterator at its source position before later element effects.
+Okojo copies that ordering with its existing `AppendArraySpread` runtime. Dynamic
+non-spread elements still require CreateDataProperty semantics: they must bypass
+prototype setters and must not infer an object-property name for anonymous
+functions. The planned path therefore uses a dedicated no-name own-property opcode
+rather than overloading assignment or Okojo's object-literal keyed define.
+
+Object spread evaluates the source then invokes the existing
+`CopyDataProperties` slow path against the already-created target. Stable named
+properties before the first spread keep the precomputed shape prefix; subsequent
+properties remain keyed so spread overwrite order is preserved. No temporary
+property lists or class expressions are built.
 
 ### Destructuring
 
@@ -447,7 +469,6 @@ function read(value = function nested(next = outer) { return next; }) {
 - `for-in`/`for-of` and labels
 - `debugger`
 - regexp, BigInt, and template literals
-- array/object spread
 - object methods and accessors
 - ordinary arrows with lexical `this`, `arguments`, and `new.target`
 - optional chaining/calls

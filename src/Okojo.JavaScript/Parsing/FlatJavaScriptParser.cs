@@ -1226,8 +1226,6 @@ internal sealed class FlatJavaScriptParser
                             position: spreadPosition
                         )
                     );
-                    if (current.Kind == JsTokenKind.Comma)
-                        throw Error("Rest assignment must be the final element", current.Position);
                 }
                 else
                     elements.Add(ParseAssignment(allowIn: true));
@@ -1269,10 +1267,8 @@ internal sealed class FlatJavaScriptParser
                             FlatObjectPropertyFlags.Rest
                         )
                     );
-                    if (current.Kind == JsTokenKind.Comma)
-                        throw Error("Rest assignment must be the final property", current.Position);
-                    if (current.Kind != JsTokenKind.RightBrace)
-                        throw Error("Expected '}' after rest assignment", current.Position);
+                    if (!Match(JsTokenKind.Comma) && current.Kind != JsTokenKind.RightBrace)
+                        throw Error("Expected ',' or '}'", current.Position);
                     continue;
                 }
 

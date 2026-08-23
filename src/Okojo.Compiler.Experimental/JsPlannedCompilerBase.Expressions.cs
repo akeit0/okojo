@@ -268,11 +268,7 @@ internal abstract partial class JsPlannedCompilerBase
     {
         var properties = ast.GetObjectProperties(node.Arg0, node.Arg1);
         for (var i = 0; i < properties.Length; i++)
-            if (properties[i].IsRest)
-                throw new NotSupportedException(
-                    $"Object spread is not supported by {CompilerName}."
-                );
-            else if (properties[i].IsCoverInitializedName)
+            if (properties[i].IsCoverInitializedName)
                 throw new NotSupportedException(
                     "Object shorthand initializers are only valid in destructuring assignments."
                 );
@@ -281,7 +277,7 @@ internal abstract partial class JsPlannedCompilerBase
         for (; shapePrefixCount < properties.Length; shapePrefixCount++)
         {
             ref readonly var property = ref properties[shapePrefixCount];
-            if (property.IsComputed)
+            if (property.IsComputed || property.IsRest)
                 break;
             var name = ast.GetString(property.Key);
             if (AtomTable.TryGetArrayIndexFromCanonicalString(name, out _))
@@ -315,6 +311,11 @@ internal abstract partial class JsPlannedCompilerBase
                     continue;
                 }
 
+                if (property.IsRest)
+                {
+                    EmitObjectLiteralSpread(ast, objectRegister, property.ValueNode);
+                    continue;
+                }
                 if (keyRegister < 0)
                     keyRegister = builder.AllocateTemporaryRegister();
                 if (property.IsComputed)
@@ -344,10 +345,36 @@ internal abstract partial class JsPlannedCompilerBase
         }
     }
 
+    private void EmitObjectLiteralSpread(FlatAst ast, int objectRegister, int sourceNode)
+    {
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            var arguments = builder.AllocateTemporaryRegisterBlock(2);
+            EmitLdar(objectRegister);
+            EmitStar(arguments);
+            EmitExpression(ast, sourceNode);
+            EmitStar(arguments + 1);
+            builder.EmitCallRuntime((int)RuntimeId.CopyDataProperties, arguments, 2);
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+        }
+    }
+
     private void EmitArrayExpression(FlatAst ast, AstNode node)
     {
         if ((uint)node.Arg1 > ushort.MaxValue)
             throw new NotSupportedException("Flat array literal exceeds ushort element capacity.");
+
+        var elements = ast.ChildRange(node.Arg0, node.Arg1);
+        for (var i = 0; i < elements.Length; i++)
+            if (elements[i] >= 0 && ast[elements[i]].Kind == AstKind.SpreadElement)
+            {
+                EmitArrayExpressionWithSpread(ast, elements);
+                return;
+            }
 
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
@@ -356,19 +383,79 @@ internal abstract partial class JsPlannedCompilerBase
             builder.EmitCreateArrayLiteral(literalIndex);
             var arrayRegister = builder.AllocateTemporaryRegister();
             EmitStar(arrayRegister);
-            var elements = ast.ChildRange(node.Arg0, node.Arg1);
             for (var i = 0; i < elements.Length; i++)
             {
                 if (elements[i] < 0)
                     continue;
-                if (ast[elements[i]].Kind == AstKind.SpreadElement)
-                    throw new NotSupportedException(
-                        $"Array spread is not supported by {CompilerName}."
-                    );
                 EmitExpression(ast, elements[i]);
                 builder.EmitInitializeArrayElement(arrayRegister, i);
             }
             EmitLdar(arrayRegister);
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+        }
+    }
+
+    private void EmitArrayExpressionWithSpread(FlatAst ast, ReadOnlySpan<int> elements)
+    {
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            builder.Emit(JsOpCode.CreateEmptyArrayLiteral);
+            var arrayRegister = builder.AllocateTemporaryRegister();
+            EmitStar(arrayRegister);
+            var keyRegister = builder.AllocateTemporaryRegister();
+            var indexRegister = builder.AllocateTemporaryRegister();
+            builder.EmitLda(JsOpCode.LdaZero);
+            EmitStar(indexRegister);
+
+            for (var i = 0; i < elements.Length; i++)
+            {
+                if (elements[i] >= 0 && ast[elements[i]].Kind == AstKind.SpreadElement)
+                {
+                    EmitArraySpread(ast, arrayRegister, indexRegister, ast[elements[i]].Arg0);
+                    continue;
+                }
+
+                EmitLdar(indexRegister);
+                EmitStar(keyRegister);
+                if (elements[i] < 0)
+                    builder.EmitLda(JsOpCode.LdaTheHole);
+                else
+                    EmitExpression(ast, elements[i]);
+                builder.EmitDefineOwnKeyedPropertyNoName(arrayRegister, keyRegister);
+                EmitLdar(indexRegister);
+                builder.Emit(JsOpCode.Inc);
+                EmitStar(indexRegister);
+            }
+
+            EmitLdar(arrayRegister);
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+        }
+    }
+
+    private void EmitArraySpread(FlatAst ast, int arrayRegister, int indexRegister, int sourceNode)
+    {
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            EmitExpression(ast, sourceNode);
+            var sourceRegister = builder.AllocateTemporaryRegister();
+            EmitStar(sourceRegister);
+            var arguments = builder.AllocateTemporaryRegisterBlock(3);
+            EmitLdar(arrayRegister);
+            EmitStar(arguments);
+            EmitLdar(sourceRegister);
+            EmitStar(arguments + 1);
+            EmitLdar(indexRegister);
+            EmitStar(arguments + 2);
+            builder.EmitCallRuntime((int)RuntimeId.AppendArraySpread, arguments, 3);
+            EmitStar(indexRegister);
         }
         finally
         {

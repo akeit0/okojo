@@ -478,6 +478,9 @@ public sealed class BytecodeBuilder : IDisposable
     internal void EmitDefineOwnKeyedProperty(int objectRegister, int keyRegister) =>
         EmitScaledOperands(JsOpCode.DefineOwnKeyedProperty, [objectRegister, keyRegister]);
 
+    internal void EmitDefineOwnKeyedPropertyNoName(int objectRegister, int keyRegister) =>
+        EmitScaledOperands(JsOpCode.DefineOwnKeyedPropertyNoName, [objectRegister, keyRegister]);
+
     private void EmitScaledOperands(JsOpCode op, ReadOnlySpan<int> operands)
     {
         var max = 0;
@@ -1353,6 +1356,7 @@ public sealed class BytecodeBuilder : IDisposable
                 return true;
             case JsOpCode.StaKeyedProperty:
             case JsOpCode.DefineOwnKeyedProperty:
+            case JsOpCode.DefineOwnKeyedPropertyNoName:
                 if (operands.Length < 2 * (int)scale)
                     return false;
                 register0 = BytecodeInfo.ReadUnsignedOperand(operands, 0, scale);

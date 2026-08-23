@@ -272,7 +272,7 @@ public static class Disassembler
                 $"obj:r{FormatUnsignedOperand(operands, 0, scale)}, key:r{FormatUnsignedOperand(operands, 1, scale)}",
             JsOpCode.InitializeArrayElement =>
                 $"obj:r{operands[0] | (operands[1] << 8)}, index:{operands[2] | (operands[3] << 8)}",
-            JsOpCode.DefineOwnKeyedProperty =>
+            JsOpCode.DefineOwnKeyedProperty or JsOpCode.DefineOwnKeyedPropertyNoName =>
                 $"obj:r{FormatUnsignedOperand(operands, 0, scale)}, key:r{FormatUnsignedOperand(operands, 1, scale)}",
             JsOpCode.InitializeNamedProperty =>
                 $"obj:r{operands[0] | (operands[1] << 8)}, slot:{operands[2] + (operands[3] << 8)}",

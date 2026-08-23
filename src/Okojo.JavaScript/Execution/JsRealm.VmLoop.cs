@@ -1795,6 +1795,7 @@ public sealed partial class JsRealm
                             }
                             break;
                         case JsOpCode.DefineOwnKeyedProperty:
+                        case JsOpCode.DefineOwnKeyedPropertyNoName:
                             {
                                 operandOffset = 0;
                                 reg = ReadScaledUnsignedOperand(
@@ -1818,7 +1819,8 @@ public sealed partial class JsRealm
                                     this,
                                     obj!,
                                     keyVal,
-                                    acc
+                                    acc,
+                                    op == JsOpCode.DefineOwnKeyedProperty
                                 );
                             }
                             break;

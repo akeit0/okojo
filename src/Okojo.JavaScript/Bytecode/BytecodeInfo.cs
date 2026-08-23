@@ -107,6 +107,7 @@ internal static class BytecodeInfo
             or JsOpCode.LdaContextSlotNoTdz
             or JsOpCode.StaKeyedProperty
             or JsOpCode.DefineOwnKeyedProperty
+            or JsOpCode.DefineOwnKeyedPropertyNoName
             or JsOpCode.Add
             or JsOpCode.Sub
             or JsOpCode.Mul
@@ -153,9 +154,7 @@ internal static class BytecodeInfo
             or JsOpCode.InvokeIntrinsic
             or JsOpCode.CreateClosureWide => 3,
 
-            JsOpCode.CallAny
-            or JsOpCode.CallUndefinedReceiver
-            or JsOpCode.Construct => 3,
+            JsOpCode.CallAny or JsOpCode.CallUndefinedReceiver or JsOpCode.Construct => 3,
 
             JsOpCode.InitializeNamedProperty
             or JsOpCode.InitializeArrayElement
@@ -279,6 +278,7 @@ internal static class BytecodeInfo
                 or JsOpCode.LdaKeyedProperty
                 or JsOpCode.StaKeyedProperty
                 or JsOpCode.DefineOwnKeyedProperty
+                or JsOpCode.DefineOwnKeyedPropertyNoName
                 or JsOpCode.Construct;
     }
 
@@ -347,5 +347,3 @@ internal static class BytecodeInfo
         ExtraWide = 4,
     }
 }
-
-

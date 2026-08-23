@@ -6,20 +6,22 @@ internal static class PropertyInitializationOperations
         JsRealm realm,
         JsObject target,
         in JsValue key,
-        in JsValue value
+        in JsValue value,
+        bool inferFunctionName = true
     )
     {
         var normalizedKey = JsRealm.NormalizePropertyKey(realm, key);
 
         if (normalizedKey.IsSymbol)
         {
-            JsRealm.AssignFunctionNameFromResolvedPropertyKey(
-                realm,
-                value,
-                normalizedKey.AsSymbol().Description is { Length: > 0 } description
-                    ? $"[{description}]"
-                    : string.Empty
-            );
+            if (inferFunctionName)
+                JsRealm.AssignFunctionNameFromResolvedPropertyKey(
+                    realm,
+                    value,
+                    normalizedKey.AsSymbol().Description is { Length: > 0 } description
+                        ? $"[{description}]"
+                        : string.Empty
+                );
             _ = target.DefineOwnDataPropertyExact(
                 realm,
                 normalizedKey.AsSymbol().Atom,
@@ -32,7 +34,8 @@ internal static class PropertyInitializationOperations
         if (normalizedKey.IsString)
         {
             var text = normalizedKey.AsString();
-            JsRealm.AssignFunctionNameFromResolvedPropertyKey(realm, value, text);
+            if (inferFunctionName)
+                JsRealm.AssignFunctionNameFromResolvedPropertyKey(realm, value, text);
             if (TryGetArrayIndexFromCanonicalString(text, out var index))
             {
                 target.DefineElementDescriptor(index, PropertyDescriptor.OpenData(value));
@@ -51,7 +54,8 @@ internal static class PropertyInitializationOperations
         if (normalizedKey.IsNumber)
         {
             var numberText = JsValue.NumberToJsString(normalizedKey.NumberValue);
-            JsRealm.AssignFunctionNameFromResolvedPropertyKey(realm, value, numberText);
+            if (inferFunctionName)
+                JsRealm.AssignFunctionNameFromResolvedPropertyKey(realm, value, numberText);
             if (TryGetArrayIndexFromNumber(normalizedKey.NumberValue, out var index))
             {
                 target.DefineElementDescriptor(index, PropertyDescriptor.OpenData(value));
@@ -68,7 +72,8 @@ internal static class PropertyInitializationOperations
         }
 
         var fallbackText = realm.ToJsStringSlowPath(normalizedKey);
-        JsRealm.AssignFunctionNameFromResolvedPropertyKey(realm, value, fallbackText);
+        if (inferFunctionName)
+            JsRealm.AssignFunctionNameFromResolvedPropertyKey(realm, value, fallbackText);
         if (TryGetArrayIndexFromCanonicalString(fallbackText, out var fallbackIndex))
         {
             target.DefineElementDescriptor(fallbackIndex, PropertyDescriptor.OpenData(value));
