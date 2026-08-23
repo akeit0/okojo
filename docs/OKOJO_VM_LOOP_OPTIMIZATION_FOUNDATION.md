@@ -243,6 +243,44 @@ Knowledge:
 4. ThrowInvalidOperandScale appears as 21 cold throw-tails (one per arm with
    scale checks); harmless footprint, revisit only if code size matters.
 
+### a5a6-dispatch-overhead - REJECTED (branch vmopt-a5a6-dispatch-overhead, preserved)
+
+Two hypotheses killed with evidence; branch kept unmerged.
+
+- A5 countdown placement/width: ceiling measurement (check fully disabled)
+  gained only -0.4% on the dispatch-heaviest case. dec+jz is free. Moving
+  the check would also break debugger checkpoint precision (slow path
+  receives the current opcode's pc). Do not revisit without profiler
+  evidence.
+- A6 EH scope: `while { try {} catch {} }` already emits ONE IL EH region
+  covering the loop; restructuring to try-around-while is an IL no-op
+  (+3B IL, +-1.2% noise). There was never a per-iteration region to narrow.
+
+Methodology note: the "ceiling measurement" (disable the feature entirely,
+measure max possible win before designing any clever version) is the cheap
+way to kill speculative micro-optimizations and is now standard here.
+
+## Attempt Log Status
+
+| ID | Verdict |
+| -- | ------- |
+| A1 locals diet | ACCEPTED (merged) |
+| A2 hot/cold split | ACCEPTED (merged) |
+| A3 Unsafe redundant checks | open |
+| A4 inline audit | ACCEPTED (merged) |
+| A5 countdown | REJECTED (ceiling: <=0.4%) |
+| A6 EH scope | REJECTED (IL no-op) |
+| A7 dispatch table | open |
+| A8 per-op implementation | open (per-op) |
+| A9 opcode set | open (needs bytecode evidence) |
+| A10 IC devirt friendliness | open |
+| A11 tree walk | open (last resort) |
+
+Cumulative vs 0000-baseline: Tier1 code 22373 -> 20562 (-8.1%), IL locals
+137 -> 93 (-32%), residual hot-accessor calls eliminated, timings neutral
+to better (for-loop-sum -4.1%, closure-heavy -1.6%), full suite green at
+every merge.
+
 ## Optimization Work Rules (binding for this effort)
 
 1. Never skip or defer a bug discovered mid-attempt; fix it before measuring.
