@@ -1270,6 +1270,78 @@ public class DirectFlatParserTests
         );
     }
 
+    [Test]
+    public void CompileString_HoistsFunctionDeclarationsAtScopeEntry()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let root = answer();
+            function answer() { return 10; }
+            function outer() {
+                let before = inner();
+                function inner() { return 1; }
+                function inner() { return 20; }
+                {
+                    before += inside();
+                    function inside() { return 3; }
+                }
+                return before;
+            }
+            function capture() {
+                function read() { return late; }
+                let result = read();
+                var late = 42;
+                return result === void 0;
+            }
+            root * 10000 + outer() * 10 + (capture() ? 1 : 0);
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(100231));
+    }
+
+    [Test]
+    public void CompileString_HoistsVarWithoutResettingParametersAtDeclarationSite()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            function run(value) {
+                value += 1;
+                {
+                    var value;
+                    let local = 40;
+                    var lifted = local + 1;
+                }
+                return value * 100 + lifted;
+            }
+            run(1);
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(241));
+    }
+
+    [Test]
+    public void Collect_LiftsAndMergesCompatibleVarBindings()
+    {
+        using var ast = FlatJavaScriptParser.ParseScript(
+            "{ var value = 1; } var value; function value() { return 2; }"
+        );
+        using var collected = CompilerBindingCollector.Collect(ast);
+
+        var binding = collected
+            .Bindings.ToArray()
+            .Single(static binding => binding.Name == "value");
+
+        Assert.That(binding.ScopeId, Is.Zero);
+    }
+
     [TestCase("throw\n1;")]
     [TestCase("try {}")]
     [TestCase("try {} catch ({ value, value }) {}")]

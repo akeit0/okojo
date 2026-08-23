@@ -91,6 +91,7 @@ internal sealed partial class JsPlannedFunctionCompiler
         EmitFunctionSelfBinding();
         if (flatFunction is { } function)
             EmitParameterPrologue(ast, function);
+        EmitDeclarationPrologue(ast, bodyRoot);
 
         ref readonly var root = ref ast[bodyRoot];
         var statements = ast.ChildRange(root.Arg0, root.Arg1);

@@ -14,10 +14,14 @@ internal abstract partial class JsPlannedCompilerBase
         switch (node.Kind)
         {
             case AstKind.VariableDeclaration:
-                EmitVariableDeclaration(ast, node.Arg0, node.Arg1);
+                EmitVariableDeclaration(
+                    ast,
+                    node.Arg0,
+                    node.Arg1,
+                    (JsVariableDeclarationKind)node.Arg2
+                );
                 return;
             case AstKind.FunctionDeclaration:
-                EmitFunctionDeclaration(ast, node.Arg0, node.Arg1);
                 return;
             case AstKind.BlockStatement:
                 EmitBlockStatement(ast, nodeIndex);
@@ -498,6 +502,7 @@ internal abstract partial class JsPlannedCompilerBase
         try
         {
             var statements = ast.ChildRange(block.Arg0, block.Arg1);
+            EmitDeclarationPrologue(ast, block.Arg0, block.Arg1);
             for (var i = 0; i < statements.Length; i++)
                 EmitStatement(ast, statements[i]);
         }
@@ -526,7 +531,37 @@ internal abstract partial class JsPlannedCompilerBase
         }
     }
 
-    private void EmitVariableDeclaration(FlatAst ast, int offset, int count)
+    protected void EmitDeclarationPrologue(FlatAst ast, int bodyRoot)
+    {
+        ref readonly var body = ref ast[bodyRoot];
+        EmitDeclarationPrologue(ast, body.Arg0, body.Arg1);
+    }
+
+    private void EmitDeclarationPrologue(FlatAst ast, int offset, int count)
+    {
+        var scope = activeScopes.Peek();
+        for (var i = 0; i < scope.Bindings.Count; i++)
+            if (scope.Bindings[i].Planned.Kind == CompilerCollectedBindingKind.Var)
+            {
+                builder.EmitLda(JsOpCode.LdaUndefined);
+                EmitStore(scope.Bindings[i]);
+            }
+
+        var statements = ast.ChildRange(offset, count);
+        for (var i = 0; i < statements.Length; i++)
+        {
+            ref readonly var statement = ref ast[statements[i]];
+            if (statement.Kind == AstKind.FunctionDeclaration)
+                EmitFunctionDeclaration(ast, statement.Arg0, statement.Arg1);
+        }
+    }
+
+    private void EmitVariableDeclaration(
+        FlatAst ast,
+        int offset,
+        int count,
+        JsVariableDeclarationKind declarationKind
+    )
     {
         var declarators = ast.ChildRange(offset, count);
         for (var i = 0; i < declarators.Length; i++)
@@ -546,6 +581,9 @@ internal abstract partial class JsPlannedCompilerBase
                 }
                 continue;
             }
+
+            if (declarationKind == JsVariableDeclarationKind.Var && declarator.Arg2 < 0)
+                continue;
 
             var name = ast.GetString(declarator.Arg0);
             if (!TryResolveBinding(name, out var binding))

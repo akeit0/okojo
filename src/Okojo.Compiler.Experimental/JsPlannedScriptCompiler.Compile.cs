@@ -27,6 +27,7 @@ internal sealed partial class JsPlannedScriptCompiler
         InitializePlanIndexes(collected, plan);
         InitializeRootBindings();
         EmitFunctionContextSetup();
+        EmitDeclarationPrologue(ast, ast.Root);
 
         ref readonly var root = ref ast[ast.Root];
         var statements = ast.ChildRange(root.Arg0, root.Arg1);

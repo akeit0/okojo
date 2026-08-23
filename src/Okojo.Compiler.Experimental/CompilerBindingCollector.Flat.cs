@@ -43,6 +43,10 @@ internal static partial class CompilerBindingCollector
         private readonly PooledArrayBuilder<CompilerCollectedScope> scopes = new(16);
         private readonly PooledArrayBuilder<CompilerCollectedBinding> bindings = new(32);
         private readonly PooledArrayBuilder<CompilerCollectedReference> references = new(64);
+        private readonly Dictionary<
+            (int ScopeId, string Name),
+            CompilerCollectedBindingKind
+        > mergeableBindings = new();
         private int nextScopeId = 1;
         private int parameterBodyScopeId = -1;
 
@@ -227,9 +231,34 @@ internal static partial class CompilerBindingCollector
                     ? CompilerCollectedBindingKind.Var
                     : CompilerCollectedBindingKind.Lexical;
             var isConst = declarationKind == JsVariableDeclarationKind.Const;
+            var bindingScopeId =
+                declarationKind == JsVariableDeclarationKind.Var
+                    ? FindVariableScope(scopeId)
+                    : scopeId;
             var declarators = ast.ChildRange(declaration.Arg0, declaration.Arg1);
             for (var i = 0; i < declarators.Length; i++)
-                VisitVariableDeclarator(ast, declarators[i], scopeId, bindingKind, isConst);
+                VisitVariableDeclarator(
+                    ast,
+                    declarators[i],
+                    bindingScopeId,
+                    bindingKind,
+                    isConst,
+                    scopeId
+                );
+        }
+
+        private int FindVariableScope(int scopeId)
+        {
+            var allScopes = scopes.AsSpan();
+            while (
+                allScopes[scopeId].Kind
+                    is not (
+                        CompilerCollectedScopeKind.Program
+                        or CompilerCollectedScopeKind.Function
+                    )
+            )
+                scopeId = allScopes[scopeId].ParentScopeId;
+            return scopeId;
         }
 
         private void VisitVariableDeclarator(
@@ -237,14 +266,24 @@ internal static partial class CompilerBindingCollector
             int declaratorIndex,
             int scopeId,
             CompilerCollectedBindingKind bindingKind,
-            bool isConst
+            bool isConst,
+            int initializerScopeId = -1
         )
         {
+            if (initializerScopeId < 0)
+                initializerScopeId = scopeId;
             ref readonly var declarator = ref ast[declaratorIndex];
             if (declarator.Kind == AstKind.VariableDeclaratorPattern)
             {
-                VisitBindingPattern(ast, declarator.Arg0, scopeId, bindingKind, isConst);
-                VisitExpression(ast, declarator.Arg1, scopeId);
+                VisitBindingPattern(
+                    ast,
+                    declarator.Arg0,
+                    scopeId,
+                    bindingKind,
+                    isConst,
+                    initializerScopeId
+                );
+                VisitExpression(ast, declarator.Arg1, initializerScopeId);
                 return;
             }
 
@@ -257,7 +296,7 @@ internal static partial class CompilerBindingCollector
                 ast.GetPosition(declaratorIndex)
             );
             if (declarator.Arg2 >= 0)
-                VisitExpression(ast, declarator.Arg2, scopeId);
+                VisitExpression(ast, declarator.Arg2, initializerScopeId);
         }
 
         private void VisitBindingPattern(
@@ -265,9 +304,12 @@ internal static partial class CompilerBindingCollector
             int nodeIndex,
             int scopeId,
             CompilerCollectedBindingKind bindingKind,
-            bool isConst
+            bool isConst,
+            int initializerScopeId = -1
         )
         {
+            if (initializerScopeId < 0)
+                initializerScopeId = scopeId;
             ref readonly var node = ref ast[nodeIndex];
             switch (node.Kind)
             {
@@ -286,7 +328,14 @@ internal static partial class CompilerBindingCollector
                     var elements = ast.ChildRange(node.Arg0, node.Arg1);
                     for (var i = 0; i < elements.Length; i++)
                         if (elements[i] >= 0)
-                            VisitBindingPattern(ast, elements[i], scopeId, bindingKind, isConst);
+                            VisitBindingPattern(
+                                ast,
+                                elements[i],
+                                scopeId,
+                                bindingKind,
+                                isConst,
+                                initializerScopeId
+                            );
                     return;
                 }
                 case AstKind.ObjectBindingPattern:
@@ -296,18 +345,39 @@ internal static partial class CompilerBindingCollector
                     {
                         ref readonly var property = ref properties[i];
                         if (property.IsComputed)
-                            VisitExpression(ast, property.Key, scopeId);
-                        VisitBindingPattern(ast, property.ValueNode, scopeId, bindingKind, isConst);
+                            VisitExpression(ast, property.Key, initializerScopeId);
+                        VisitBindingPattern(
+                            ast,
+                            property.ValueNode,
+                            scopeId,
+                            bindingKind,
+                            isConst,
+                            initializerScopeId
+                        );
                     }
                     return;
                 }
                 case AstKind.SpreadElement:
-                    VisitBindingPattern(ast, node.Arg0, scopeId, bindingKind, isConst);
+                    VisitBindingPattern(
+                        ast,
+                        node.Arg0,
+                        scopeId,
+                        bindingKind,
+                        isConst,
+                        initializerScopeId
+                    );
                     return;
                 case AstKind.AssignmentExpression
                     when (JsAssignmentOperator)node.Arg2 == JsAssignmentOperator.Assign:
-                    VisitBindingPattern(ast, node.Arg0, scopeId, bindingKind, isConst);
-                    VisitExpression(ast, node.Arg1, scopeId);
+                    VisitBindingPattern(
+                        ast,
+                        node.Arg0,
+                        scopeId,
+                        bindingKind,
+                        isConst,
+                        initializerScopeId
+                    );
+                    VisitExpression(ast, node.Arg1, initializerScopeId);
                     return;
                 default:
                     throw new NotSupportedException(
@@ -600,9 +670,23 @@ internal static partial class CompilerBindingCollector
             int position = 0
         )
         {
+            var key = (scopeId, name);
+            if (
+                mergeableBindings.TryGetValue(key, out var existingKind)
+                && IsVariableEnvironmentBinding(existingKind)
+                && IsVariableEnvironmentBinding(kind)
+            )
+                return;
+            mergeableBindings.TryAdd(key, kind);
             bindings.Add(
                 new CompilerCollectedBinding(scopeId, kind, name, nameId, isConst, position)
             );
         }
+
+        private static bool IsVariableEnvironmentBinding(CompilerCollectedBindingKind kind) =>
+            kind
+                is CompilerCollectedBindingKind.Parameter
+                    or CompilerCollectedBindingKind.Var
+                    or CompilerCollectedBindingKind.FunctionDeclaration;
     }
 }

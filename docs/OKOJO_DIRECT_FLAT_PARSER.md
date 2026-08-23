@@ -50,7 +50,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | area | implemented direct path | remaining |
 |---|---|---|
 | Parse goal | scripts | modules, standalone function goal |
-| Declarations | `var`/`let`/`const`, ordinary function declarations | classes, imports/exports, full declaration instantiation/hoisting |
+| Declarations | `var`/`let`/`const`, ordinary function declarations, function/block declaration prologues, function-scoped `var` | classes, imports/exports, persistent global instantiation, declaration early errors, Annex B |
 | Blocks/control | block, `if`, `while`, `do`, ordinary `for`, unlabeled `break`/`continue`, `return`, `throw`, `try`/`catch`/`finally`, empty/expression statement | `switch`, `for-in/of`, labels, `debugger` |
 | Primitive expressions | number, string, boolean, null, identifier, `this`, grouping | regexp, BigInt, templates, `super`, `new.target`, `import.meta` |
 | Operators | precedence table, assignment, arithmetic/logical/bitwise/comparison, conditionals, sequence, updates | delete completion, optional-chain operators, remaining edge-specific early errors |
@@ -74,7 +74,8 @@ planned compiler still needs:
 
 - global declaration instantiation and identifier-delete semantics; ordinary
   unbound load/store/`typeof` already use the VM global-binding ABI
-- script/function declaration instantiation and source-independent hoisting
+- persistent global declaration instantiation, declaration early errors, and
+  Annex-B block functions; ordinary local declaration hoisting is landed
 - a general parameter/body environment model; the current exclusion marker fixes
   ordinary cases but is not the final nested-environment representation
 - correct `arguments` creation and mapped/unmapped behavior
@@ -180,6 +181,31 @@ operation or compiler binding object was added. Global declaration instantiation
 and identifier delete remain separate because they require environment semantics,
 not another identifier-load branch.
 
+### Declaration instantiation
+
+The discover pass now assigns every `var` binding to its nearest function or
+program scope and merges compatible parameter/var/function declarations by
+scope and name. Initializer references still retain their source lexical scope,
+so `{ let local = 40; var lifted = local + 2; }` resolves `local` correctly while
+storing `lifted` in the function environment.
+
+Emission has a scope-entry declaration prologue. It initializes each canonical
+`var` binding to `undefined`, creates function-declaration closures in source
+order so the last compatible declaration wins, and treats declaration statements
+as runtime no-ops. Block functions use the same prologue when their block scope
+is entered. A `var` declaration without an initializer performs no source-position
+store, so it cannot reset a parameter or earlier assignment.
+
+This copies V8's declaration-instantiation timing and the observed Ignition
+shape—`CreateClosure` precedes the first body call—while retaining Okojo's dense
+binding plan and existing closure opcodes. Regression targets are
+`CompileString_HoistsFunctionDeclarationsAtScopeEntry`,
+`CompileString_HoistsVarWithoutResettingParametersAtDeclarationSite`, and
+`Collect_LiftsAndMergesCompatibleVarBindings`. The pass adds one temporary
+semantic dictionary for declaration merging; bytecode emission allocates no
+hoisting objects. Persistent global declarations, lexical/var conflict early
+errors, and Annex-B behavior remain explicit follow-up work.
+
 ## Reference Lessons Applied
 
 ### V8
@@ -249,7 +275,9 @@ Implement before adding large syntax families:
 
 - global declaration instantiation and identifier delete; unbound load, store,
   update, compound/logical assignment, and `typeof` are landed
-- declaration instantiation and function/`var` hoisting
+- persistent global declaration instantiation, declaration early errors, and
+  Annex-B behavior; ordinary function/block hoisting and function-scoped `var`
+  are landed
 - function, block, catch, class, module, and parameter environment records
 - `arguments`, function-name inference, immutable binding enforcement
 - source/handler/local-name metadata

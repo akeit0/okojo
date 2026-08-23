@@ -221,6 +221,9 @@ The direct flat work has already established several reusable rules:
 - lower unbound identifier read/store/`typeof` through the existing global-binding
   feedback ABI; the VM remains responsible for missing-read and strict/sloppy
   unresolvable-store behavior
+- instantiate function declarations at script/function/block scope entry, lift
+  `var` bindings to the containing variable environment, and merge compatible
+  parameter/var/function declarations into one planned storage location
 
 These are compiler contracts, not parser conveniences. New syntax should lower to
 the same small set of prepared-reference, iterator, context, call, and abrupt-flow
@@ -251,8 +254,9 @@ them:
 
 - complete global declaration instantiation and identifier `delete` behavior;
   unbound load/store/`typeof` now use the production global-binding opcodes
-- script and function declaration instantiation, including `var` and function
-  hoisting
+- finish persistent global declaration instantiation, declaration early errors,
+  and Annex-B block-function behavior; ordinary script/function/block function
+  hoisting and function-scoped `var` are landed
 - correct function, block, catch, class, module, and parameter environment
   boundaries
 - replace the current parameter/body exclusion marker with a general environment
