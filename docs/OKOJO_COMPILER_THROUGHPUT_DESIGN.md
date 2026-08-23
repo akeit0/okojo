@@ -505,7 +505,14 @@ checks, and observable function names match the production engine and V8.
   existing signed-cell VM opcodes, and child functions retain module-cell access.
   V8-special namespace imports use lexical/context storage and are initialized by
   one cold module-prologue runtime lookup that preserves import attributes.
-- linking/evaluation integration
+- an internal experimental option now routes synchronous production module-graph
+  evaluation through the planned compiler without creating a core-to-experimental
+  assembly dependency. Runtime slot allocation uses the same deterministic signed
+  cell order as the flat descriptor, including linked named, namespace, aliased,
+  and anonymous-default exports. There is no fallback to `JsCompiler` in this mode.
+- replace the remaining class-AST linker parse/`ModuleExecutionPlan` with persistent
+  metadata transferred from the flat module descriptor; the current opt-in proves
+  linked execution but still parses once for linking and once for flat compilation
 - dynamic import, `import.meta`, top-level await, and async dependency ordering
 
 Exit gate: the production module linker consumes flat compiler metadata directly;

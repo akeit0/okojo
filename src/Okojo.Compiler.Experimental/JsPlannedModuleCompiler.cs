@@ -16,7 +16,7 @@ internal sealed class JsPlannedModuleCompiler(JsRealm realm) : JsPlannedCompiler
         using var plan = CompilerStoragePlanner.Plan(collected, ast);
         InitializePlanIndexes(collected, plan);
         InitializeRootBindings();
-        EmitFunctionContextSetup();
+        EmitModuleContextSetup();
         EmitScopeLexicalHoleInitialization();
         EmitNamespaceImports(ast);
         EmitDeclarationPrologue(ast, ast.Root);

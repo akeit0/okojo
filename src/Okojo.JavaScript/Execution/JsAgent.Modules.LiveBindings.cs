@@ -295,7 +295,8 @@ public sealed partial class JsAgent
     ) BuildModuleVariableSlots(
         IReadOnlyList<JsResolvedImportBinding> importBindings,
         IReadOnlyDictionary<string, string> exportLocalByName,
-        IReadOnlySet<string> preinitializedLocalExportNames
+        IReadOnlySet<string> preinitializedLocalExportNames,
+        bool useV8CellOrder
     )
     {
         var regularExports = new List<ModuleVariableSlot>(exportLocalByName.Count);
@@ -305,9 +306,16 @@ public sealed partial class JsAgent
             StringComparer.Ordinal
         );
 
-        for (var i = 0; i < importBindings.Count; i++)
+        IReadOnlyList<JsResolvedImportBinding> orderedImports = importBindings;
+        if (useV8CellOrder)
+            orderedImports = importBindings
+                .OrderBy(static binding => binding.Kind == ModuleImportBindingKind.Namespace)
+                .ThenBy(static binding => binding.LocalName, StringComparer.Ordinal)
+                .ToArray();
+
+        for (var i = 0; i < orderedImports.Count; i++)
         {
-            var binding = importBindings[i];
+            var binding = orderedImports[i];
             if (map.ContainsKey(binding.LocalName))
                 continue;
 
@@ -338,7 +346,10 @@ public sealed partial class JsAgent
             );
         }
 
-        foreach (var pair in exportLocalByName)
+        IEnumerable<KeyValuePair<string, string>> orderedExports = useV8CellOrder
+            ? exportLocalByName.OrderBy(static pair => pair.Value, StringComparer.Ordinal)
+            : exportLocalByName;
+        foreach (var pair in orderedExports)
         {
             var localName = pair.Value;
             if (map.ContainsKey(localName))

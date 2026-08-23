@@ -129,7 +129,8 @@ public sealed partial class JsAgent
                     BuildModuleVariableSlots(
                         targetPlan.ResolvedImportBindings,
                         targetPlan.ExecutionPlan.ExportLocalByName,
-                        targetPlan.ExecutionPlan.PreinitializedLocalExportNames
+                        targetPlan.ExecutionPlan.PreinitializedLocalExportNames,
+                        Options.ModuleExecutionCompiler is not null
                     );
                 var defaultNameEligibleLocals = CollectDefaultNameEligibleExportLocals(
                     targetPlan.ExecutionPlan.Operations

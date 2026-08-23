@@ -161,6 +161,12 @@ internal abstract partial class JsPlannedCompilerBase
         EmitRootContextBindings();
     }
 
+    protected void EmitModuleContextSetup()
+    {
+        EmitCreateFunctionContextWithCells(rootContextSlotCount);
+        EmitRootContextBindings();
+    }
+
     protected void EmitScopeLexicalHoleInitialization()
     {
         var scope = activeScopes.Peek();

@@ -1,3 +1,5 @@
+using Okojo.JavaScript.Bytecode;
+
 namespace Okojo.JavaScript.Execution;
 
 /// <summary>
@@ -19,6 +21,13 @@ public sealed class JsAgentOptions
         ExecutionCheckpointHooks.DebuggerStatement | ExecutionCheckpointHooks.Breakpoint;
 
     public IDebuggerSession? DebuggerSession { get; set; }
+    internal Func<
+        JsRealm,
+        string,
+        string?,
+        ModuleExecutionPlan,
+        JsScript
+    >? ModuleExecutionCompiler { get; set; }
     public IReadOnlyList<IExecutionConstraint> Constraints => constraints;
     public JsRealmOptions Realm { get; } = new();
 
@@ -179,6 +188,7 @@ public sealed class JsAgentOptions
             ExecutionCancellationToken = ExecutionCancellationToken,
             ExecutionCheckpointHooks = ExecutionCheckpointHooks,
             DebuggerSession = DebuggerSession,
+            ModuleExecutionCompiler = ModuleExecutionCompiler,
         };
         clone.constraints.AddRange(constraints);
         return clone.ApplyRealm(Realm.Clone());

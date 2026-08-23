@@ -155,6 +155,35 @@ public class JsPlannedScriptCompilerTests
     }
 
     [Test]
+    public void CompileModule_ExecutesThroughLinkedModuleGraph()
+    {
+        var loader = new TestModuleSourceLoader(
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["dependency"] = """
+                export let source = 40;
+                source += 2;
+                export const other = 1;
+                """,
+                ["entry"] = """
+                import { source as z, other as a } from "./dependency";
+                import * as dependency from "./dependency";
+                export const answer = z + a + dependency.other - 2;
+                export default answer;
+                """,
+            }
+        );
+        var options = new JsRuntimeOptions().UseModuleSourceLoader(loader);
+        options.Agent.UsePlannedModuleCompiler();
+        using var runtime = JsRuntime.Create(options);
+
+        var module = runtime.MainRealm.LoadModule("entry");
+
+        Assert.That(module.GetExport("answer").Int32Value, Is.EqualTo(42));
+        Assert.That(module.GetExport("default").Int32Value, Is.EqualTo(42));
+    }
+
+    [Test]
     public void Compile_RejectsUnsupportedStatements_WithoutTouchingJsCompiler()
     {
         var runtime = JsRuntime.Create();
@@ -175,12 +204,16 @@ public class JsPlannedScriptCompilerTests
         Assert.That(ex!.Message, Does.Contain("does not support statement"));
     }
 
-    private sealed class TestModuleSourceLoader : IModuleSourceLoader
+    private sealed class TestModuleSourceLoader(IReadOnlyDictionary<string, string>? modules = null)
+        : IModuleSourceLoader
     {
         public string ResolveSpecifier(string specifier, string? referrer) =>
             specifier.StartsWith("./", StringComparison.Ordinal) ? specifier[2..] : specifier;
 
-        public string LoadSource(string resolvedId) => string.Empty;
+        public string LoadSource(string resolvedId) =>
+            modules is not null && modules.TryGetValue(resolvedId, out var source)
+                ? source
+                : string.Empty;
     }
 
     [Test]

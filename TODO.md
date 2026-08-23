@@ -11,7 +11,7 @@
 - [ ] tighten the remaining intended first-class `JsRuntime` / `JsRealm` API surface against the clean API plan
 - [ ] clarify `Okojo.Hosting` presets and keep environment globals separate from embedder control APIs
 - [ ] complete the experimental compiler and make it usable in real execution paths
-- [ ] expand direct flat parsing beyond completed calls/member loads, data literals, bindings, destructuring assignments, pattern parameters, ordinary function expressions, and `this` through classes and modules before replacing the production class parser
+- [ ] replace the production class parser/compiler with the direct flat path after closing semantic, metadata, and workload gates
 - [ ] improve hot-path runtime allocation and branch behavior
 - [ ] improve `Okojo.Node` compatibility against real Node-facing workloads
 - [ ] attempt a real HTML/CSS renderer integration for DOM-manipulation browser compatibility testing
@@ -22,7 +22,7 @@
 ### Active supporting work
 
 - [ ] continue module/runtime simplification without reintroducing wrapper-heavy paths
-- [ ] direct-flat modules: connect planned module bytecode to production linker/runtime execution, then add dynamic import/`import.meta` and top-level-await execution
+- [ ] direct-flat modules: replace the remaining class-AST linker metadata parse with persistent flat descriptors, establish hoisted-function instantiation ownership, then add dynamic import/`import.meta` and top-level-await execution
 - [ ] explicit-resource-management: the current compiler/runtime seam for top-level-module `await using` is still awkward; give module async cleanup a dedicated lowering path instead of leaning on normal async-function suspension flow
 - [ ] explicit-resource-management: async disposal still loses non-`Error` thrown values through the host async bridge in the remaining staging `await using` rejection case; give disposal promise completion a JS-value-preserving path instead of relying on generic task fault wrapping
 - [ ] keep shape/dictionary rollout aligned with hot-path simplicity

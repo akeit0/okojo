@@ -50,19 +50,19 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 
 | area | implemented direct path | remaining |
 |---|---|---|
-| Parse goal | scripts, strict module goal with import/export descriptors | module execution, standalone function goal |
+| Parse goal | scripts, strict module goal with import/export descriptors, experimental linked module execution | flat linker metadata, standalone function goal |
 | Declarations | `var`/`let`/`const`, ordinary function and base-class declarations, function/block declaration prologues, function-scoped `var`, persistent script globals/lexicals, initial global conflict validation, side-effect/default/named/namespace imports, local/default/indirect/namespace/star exports | complete declaration early errors, Annex B |
 | Blocks/control | block, `if`, `while`, `do`, ordinary `for`, `for-in`, synchronous `for-of`, `for-await-of`, `switch`, chained labels, labeled/unlabeled `break`/`continue`, `return`, `throw`, `try`/`catch`/`finally`, `debugger`, empty/expression statement | remaining declaration/control early errors |
 | Primitive expressions | number, BigInt, string, boolean, null, regexp, tagged/untagged template, identifier, `this`, `new.target`, contextual `super` roots, grouping | `import.meta` |
 | Operators | precedence table, assignment, arithmetic/logical/bitwise/comparison, conditionals, sequence, updates, optional chains, property/identifier/value/optional-chain `delete` | remaining edge-specific early errors |
-| References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed ordinary and `super` properties, private field/method/accessor loads, calls, stores, updates, `#x in value`, planned regular import/local-export module-cell loads/stores through nested functions, and namespace-import prologue initialization | production linker/runtime consumption |
+| References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed ordinary and `super` properties, private field/method/accessor loads, calls, stores, updates, `#x in value`, planned regular import/local-export module-cell loads/stores through nested functions, namespace-import prologue initialization, and opt-in production module-graph execution | flat linker metadata consumption |
 | Calls/construction | direct/member/optional calls, spread calls, ordinary/spread `new`, implicit/explicit/spread `super()`, super-property calls, wide operands | dynamic import |
 | Arrays/objects | holes, array/object spread, data properties, ordinary/generator/async concise methods, getters/setters, computed/shorthand/index keys, stable data shape prefix, demand-driven super home objects | legacy `__proto__` intentionally excluded |
-| Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings, class declaration and inner-name bindings, read-only import bindings in a module root scope, module-wide import/`var`/lexical/function/class conflict and local-export validation, deterministic signed module cells | linker consumption and remaining early errors |
+| Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings, class declaration and inner-name bindings, read-only import bindings in a module root scope, module-wide import/`var`/lexical/function/class conflict and local-export validation, deterministic signed module cells, runtime cell-order integration | flat linker ownership and remaining early errors |
 | Assignments | identifier/ordinary/super/private-field member targets, compound/logical/update, array/object destructuring, core optional-chain target restrictions | remaining early errors |
 | Functions | ordinary declarations/expressions, closures, synchronous and async generators with `yield`/`yield*`, async declarations/expressions/object methods with `await`, synchronous and async arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`/`new.target`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function/class name inference, demand-driven mapped/unmapped `arguments` | lazy bodies |
 | Classes | base/derived declarations and expressions, explicit/implicit constructors, heritage/prototype setup, derived `this`/return rules, public/private instance/static methods and accessors, named/computed public fields, instance/static private fields and brands, source-ordered static blocks, named/computed super loads/calls/stores/updates, strict bodies, declaration TDZ/const storage, inner class-name capture, anonymous name inference including named/computed fields, private methods, and private accessors | full ordering differential and Test262 gate |
-| Modules | strict parse goal, side-effect/default/named/namespace imports, string import names, import attributes, local/declaration/default/indirect/namespace/star exports, compact request/import/export tables, module binding validation, imported-export canonicalization, signed live-cell assignment | linker metadata consumption, dynamic import, `import.meta`, top-level await |
+| Modules | strict parse goal, side-effect/default/named/namespace imports, string import names, import attributes, local/declaration/default/indirect/namespace/star exports, compact request/import/export tables, module binding validation, imported-export canonicalization, signed live-cell assignment, opt-in linked synchronous evaluation | persistent flat linker metadata, hoisted-function instantiation ownership, dynamic import, `import.meta`, top-level await |
 
 The direct parser rejects unsupported grammar. It does not catch an error and
 restart through `JavaScriptParser`; that would allocate both representations,
@@ -1245,12 +1245,41 @@ Namespace-import prologue slice landed:
 - performance plan: one cold runtime call per namespace import; regular named/default
   imports remain direct signed-cell loads
 
+Production module execution opt-in slice landed:
+
+- iteration scope: execute the planned module compiler inside the existing production
+  module graph while keeping the default compiler untouched and avoiding a core to
+  experimental assembly reference
+- minimal graph: one dependency exports mutated and constant live bindings; the entry
+  imports them in non-cell order, imports the namespace, and exposes named plus
+  anonymous-default exports
+- focused test: `CompileModule_ExecutesThroughLinkedModuleGraph` proves linked named,
+  namespace, local-export, and default-export cells through `JsRealm.LoadModule`
+- V8 observation: `SourceTextModuleDescriptor` finalization assigns regular imports
+  negative cells and local exports positive cells by stable local name, while namespace
+  imports are initialized separately by the bytecode-generator module prologue
+- Okojo implementation: an internal agent compiler delegate selects the experimental
+  path; the existing linker allocates cells in the finalized flat order, and every
+  planned module emits a root function context so active runtime module bindings are
+  attached even when it has no captured lexical slots
+- Oxc insight: parser-owned compact module tables should transfer into the persistent
+  module record as data, not be rebuilt as class nodes. The current delegate is only an
+  adoption seam; it is not a second public compiler framework.
+- intentional interim difference: linking still uses the class parser and
+  `ModuleExecutionPlan`, then execution parses directly to `FlatAst`. The opt-in has no
+  compiler fallback and rejects exported hoisted functions until instantiation ownership
+  moves to flat metadata; it is not yet the final single-parse throughput path.
+- next slice: make `FlatAst` module descriptors feed module linking/instantiation,
+  establish hoisted-function ownership there, and delete the duplicate class-AST parse
+- performance plan: measure this opt-in only as an execution-integration baseline;
+  claim parser throughput only after the linker consumes flat metadata once
+
 ### Stage F4 - Modules
 
-- module parse goal and module early errors
-- compact import/export entry tables
-- module scopes, live binding references, and storage
-- linker-facing metadata without class-AST wrappers
+- module parse goal and initial module early errors are landed
+- compact import/export entry tables are landed
+- module scopes, live binding references, storage, and opt-in linked execution are landed
+- linker-facing persistent metadata without class-AST wrappers remains
 - dynamic import, `import.meta`, top-level await, and async dependency order
 
 Module records outlive a single bytecode function, so their ownership boundary

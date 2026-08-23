@@ -15,30 +15,43 @@ internal static class ModuleExecutor
         bool waitForTopLevelAwaitCompletion = true
     )
     {
-        using var compiler = JsCompiler.CreateForModuleExecution(realm, moduleVariableBindings);
-
         JsValue result;
-        if (executionPlan.RequiresTopLevelAwait)
+        if (realm.Agent.Options.ModuleExecutionCompiler is { } moduleCompiler)
         {
-            var compiled = compiler.CompileModuleExecutionAsync(
-                executionPlan,
-                moduleSourceText,
+            var compiled = moduleCompiler(
+                realm,
+                moduleSourceText ?? string.Empty,
                 moduleSourcePath,
-                moduleIdentifierTable
+                executionPlan
             );
-            realm.Execute(compiled, waitForTopLevelAwaitCompletion);
+            realm.Execute(compiled);
             result = realm.Accumulator;
         }
         else
         {
-            var compiled = compiler.CompileModuleExecution(
-                executionPlan,
-                moduleSourceText,
-                moduleSourcePath,
-                moduleIdentifierTable
-            );
-            realm.Execute(compiled);
-            result = realm.Accumulator;
+            using var compiler = JsCompiler.CreateForModuleExecution(realm, moduleVariableBindings);
+            if (executionPlan.RequiresTopLevelAwait)
+            {
+                var compiled = compiler.CompileModuleExecutionAsync(
+                    executionPlan,
+                    moduleSourceText,
+                    moduleSourcePath,
+                    moduleIdentifierTable
+                );
+                realm.Execute(compiled, waitForTopLevelAwaitCompletion);
+                result = realm.Accumulator;
+            }
+            else
+            {
+                var compiled = compiler.CompileModuleExecution(
+                    executionPlan,
+                    moduleSourceText,
+                    moduleSourcePath,
+                    moduleIdentifierTable
+                );
+                realm.Execute(compiled);
+                result = realm.Accumulator;
+            }
         }
 
         if (
