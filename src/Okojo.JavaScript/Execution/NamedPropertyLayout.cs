@@ -14,8 +14,11 @@ public abstract class NamedPropertyLayout(JsRealm owner, NamedPropertyLayoutKind
     public JsRealm Owner { get; } = owner;
     internal NamedPropertyLayoutKind Kind { get; set; } = kind;
 
-    internal bool IsDynamic =>
-        Kind is NamedPropertyLayoutKind.DynamicLinear or NamedPropertyLayoutKind.DynamicMap;
+    internal bool IsDynamic
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => Kind is NamedPropertyLayoutKind.DynamicLinear or NamedPropertyLayoutKind.DynamicMap;
+    }
 
     protected int EntryLength => Entries.Length;
 
