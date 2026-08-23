@@ -159,6 +159,32 @@ For each remaining feature, the implementation note must identify the relevant V
 scope and Ignition bytecode shape first, then state whether Okojo copies it or keeps
 an intentional ABI-level difference.
 
+Use a local V8 checkout as source, not only the overview documents. For each
+feature, trace this sequence:
+
+1. grammar production and parser state in `src/parsing/parser-base.h`
+2. cover-grammar or delayed-error handling in `src/parsing/expression-scope.h`
+3. declaration/reference resolution and allocation in `src/ast/scopes.*`
+4. evaluation order and result mode in
+   `src/interpreter/bytecode-generator.cc`
+5. control/handler shape in `src/interpreter/control-flow-builders.*` and
+   `handler-table-builder.*`
+6. final opcode and operand contract in `src/interpreter/bytecodes.*` and
+   `bytecode-array-builder.*`
+
+Copy the semantic layering, not C++ mechanics. `ParserBase<Parser>` and
+`ParserBase<PreParser>` demonstrate one grammar with different products;
+`ExpressionScope` demonstrates scoped ambiguity/error state; `Scope` resolves
+before allocating; and `BytecodeGenerator` carries explicit effect/value/test,
+register, context, and abrupt-control scopes. Okojo should represent the same
+facts with dense IDs and pooled tables.
+
+The next control-flow implementation should establish one reusable abrupt-command
+path before adding `try`/`finally`. V8's `ControlScopeForTryFinally` intercepts
+return, break, continue, and rethrow, saves any result and a continuation token,
+runs `finally`, and then dispatches the original command. This is the reference
+shape for F1; isolated jump patching in each statement emitter is not sufficient.
+
 ### Oxc
 
 - one arena owns parser products and arena-aware collections
@@ -208,6 +234,7 @@ function read(value = function nested(next = outer) { return next; }) {
 
 ### Stage F1 - Synchronous application grammar
 
+- add effect/value/test expression modes and the shared abrupt-command path
 - `throw`, `try`/`catch`/`finally`, and abrupt-completion routing
 - `switch`
 - `for-in`/`for-of` and labels

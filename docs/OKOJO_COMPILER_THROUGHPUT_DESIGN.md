@@ -118,6 +118,36 @@ Okojo decisions:
 - do not copy V8's pointer-heavy Zone AST; pooled index arrays are the managed
   equivalent that better fits Okojo
 
+#### Concrete V8 source map
+
+Use these V8 implementation files, in this order, when designing a compiler
+slice. Paths are relative to a V8 checkout. The source mapping below was checked
+against V8 revision `08dadaff028` (2026-03-27).
+
+| concern | V8 source | Okojo application |
+|---|---|---|
+| Shared grammar | `src/parsing/parser-base.h`, `parser.h`, `preparser.h` | Keep one production core capable of driving the eager flat builder and a future syntax-only/preparse builder. Do not grow two independent grammars. |
+| Cover grammar and early errors | `src/parsing/expression-scope.h` | Model expression/pattern/arrow ambiguity with scoped parser state and delayed diagnostics rather than reparsing or constructing temporary class nodes. |
+| Function parse ownership | `src/parsing/parse-info.*`, `preparse-data.*` | Keep function source ranges, flags, and outer-scope requirements as the eventual lazy-compilation boundary. |
+| Name resolution and storage | `src/ast/scopes.h`, `scopes.cc` | Resolve references recursively before allocating registers/context slots. Emit a compact runtime scope record only for scopes that need a context or observability metadata. |
+| AST-to-bytecode lowering | `src/interpreter/bytecode-generator.h`, `bytecode-generator.cc` | Use explicit effect/value/test result modes plus scoped register, context, and control state. Avoid forcing every expression through an accumulator value when a branch or effect form is sufficient. |
+| Bytecode assembly | `src/interpreter/bytecode-array-builder.*`, `bytecode-array-writer.*` | Centralize operand scaling, labels, source positions, constant operands, and final bytecode serialization. Feature emitters should express operations, not encode widths themselves. |
+| Temporary registers | `src/interpreter/bytecode-register-allocator.h` | Preserve Okojo's current monotonic high-water allocator and marker-based bulk release; allocate contiguous ranges for calls and runtime operations. |
+| Structured control flow | `src/interpreter/control-flow-builders.*`, `handler-table-builder.*` | Give loops, switches, catch, and finally dedicated builders. Route abrupt commands through a control-scope stack so contexts unwind correctly. |
+| Opcode ABI | `src/interpreter/bytecodes.*`, `bytecode-operands.*` | Treat operand roles, scaling, accumulator use, and register ranges as reviewable ABI contracts. |
+
+The highest-value near-term copy is V8's separation between expression result
+mode and abrupt-control routing. Okojo already has register markers and an
+Ignition-like accumulator, but `try`/`finally`, labels, optional chains, and
+resumable functions will become fragile if each emitter hand-assembles its own
+exit behavior.
+
+For `finally`, follow the shape in `BytecodeGenerator::ControlScopeForTryFinally`:
+intercept the outgoing command, preserve any accumulator result, record a compact
+continuation token, enter `finally`, then dispatch the saved command afterward.
+The exact V8 token representation is not an ABI requirement; the centralized
+control contract and context unwinding are.
+
 ### Oxc: copy lifetime discipline and phase separation
 
 Oxc uses a bump allocator and arena-aware collections for AST ownership. Its AST
@@ -228,6 +258,9 @@ hoisting without compiler-specific rewrites.
 
 ### P1 - Common synchronous grammar
 
+- explicit effect/value/test expression emission modes
+- one abrupt-command stack for return, throw/rethrow, break, and continue,
+  including context unwinding and finally continuation dispatch
 - `throw`, `try`/`catch`/`finally`, and completion routing
 - `switch`
 - `for-in` and `for-of`
