@@ -75,8 +75,8 @@ The implemented path has these properties:
 - 16-byte `AstNode` values in pooled contiguous arrays
 - integer node handles with `-1` for an absent child
 - post-order construction, so most children precede their parent
-- dense side tables for child lists, object properties, nested functions, and
-  formal parameters
+- dense side tables for child lists, object properties, nested functions, formal
+  parameters, classes, and class elements
 - one disposable `FlatAst` owning the script and every nested function body
 - separate binding collection, capture resolution, storage planning, and emit
   passes
@@ -91,7 +91,8 @@ array/object data literals, binding and assignment destructuring, advanced
 parameters, ordinary function expressions, closures, `this`, `throw`, and
 `try`/`catch`/`finally` with optional or destructured catch bindings, synchronous
 generators, ordinary async functions with `await`, async generators, and
-`for-await-of`.
+`for-await-of`, plus base class declarations/expressions with explicit or implicit
+constructors and public named/computed instance/static methods and accessors.
 
 ## Reference Architecture Insights
 
@@ -216,6 +217,9 @@ The direct flat work has already established several reusable rules:
 - represent ordinary concise methods with one flat-function metadata bit; keep
   data methods in the shape prefix and lower accessors through the existing keyed
   accessor runtime until measurements justify a V8-style paired accessor table
+- represent a class as one compact record plus a dense source-ordered element
+  range; create and initialize the constructor/inner class binding first, then
+  reuse the existing prototype, method, and accessor runtime operations
 - keep RegExp pattern/flags and canonical BigInt digits as arena string IDs;
   construct fresh RegExp objects through the existing runtime and load parsed
   BigInt constants through the typed constant-pool opcode
@@ -319,8 +323,8 @@ them:
   model that remains correct through nested parameter functions
 - arrow lexical capture of outer `arguments`; ordinary demand-driven mapped and
   unmapped arguments objects are landed
-- ordinary anonymous-function name inference is landed; class name inference
-  remains with class coverage
+- ordinary anonymous-function inference and named-class inner binding are landed;
+  anonymous class-expression name inference remains with class coverage
 - remaining strict/sloppy assignment edge cases; local/captured `const` and
   named-function self assignment enforcement are landed
 - complete source-position, source-map, local-name, and handler metadata needed by
@@ -409,12 +413,18 @@ the new compiler for the supported function families.
 
 ### P3 - Classes and advanced references
 
-- class declarations and expressions
-- base/derived constructors and `new.target`
-- methods, accessors, fields, and static blocks
+- landed baseline: base class declarations/expressions, explicit and implicit
+  constructors, declaration TDZ/const storage, inner class-name capture, and
+  public named/computed instance/static methods and accessors
+- add heritage, derived constructors, and `super()` while preserving constructor
+  call rejection, `new.target`, and derived-this initialization rules
+- add public fields and static blocks using dense initializer records scheduled in
+  specification order rather than parser-time execution
 - `super` calls and named/computed super properties
 - private names, brands, accessors, and `#x in object`
-- computed-key and field-initializer ordering
+- complete computed-key, field-initializer, static-block, and heritage ordering
+- infer names for anonymous class expressions from declarations, assignments, and
+  property definitions without mutating the flat arena during emission
 
 Exit gate: class initialization order, derived-constructor rules, private-brand
 checks, and observable function names match the production engine and V8.

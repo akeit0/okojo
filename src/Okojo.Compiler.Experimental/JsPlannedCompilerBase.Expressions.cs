@@ -164,6 +164,9 @@ internal abstract partial class JsPlannedCompilerBase
             case AstKind.ArrowFunctionExpression:
                 EmitFunctionExpression(ast, node.Arg0, node.Arg1);
                 return;
+            case AstKind.ClassExpression:
+                EmitClassExpression(ast, node.Arg0);
+                return;
             default:
                 throw new NotSupportedException(
                     $"{CompilerName} does not support flat expression '{node.Kind}'."

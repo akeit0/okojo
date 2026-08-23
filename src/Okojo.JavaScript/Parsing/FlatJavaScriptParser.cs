@@ -77,6 +77,8 @@ internal sealed class FlatJavaScriptParser
     private int ParseStatement()
     {
         var position = current.Position;
+        if (IsCurrentIdentifierName("class"))
+            return ParseClass(isDeclaration: true);
         if (IsAsyncFunctionPrefix())
             return ParseFunction(isDeclaration: true, isAsync: true);
         if (current.Kind == JsTokenKind.Identifier && PeekToken().Kind == JsTokenKind.Colon)
@@ -453,7 +455,9 @@ internal sealed class FlatJavaScriptParser
         int position,
         bool isMethod,
         bool isGenerator = false,
-        bool isAsync = false
+        bool isAsync = false,
+        bool isClassConstructor = false,
+        bool isDerivedConstructor = false
     )
     {
         var generatorDepthBeforeFunction = generatorFunctionDepth;
@@ -474,7 +478,9 @@ internal sealed class FlatJavaScriptParser
                 isGenerator,
                 generatorDepthBeforeFunction,
                 isAsync,
-                asyncDepthBeforeFunction
+                asyncDepthBeforeFunction,
+                isClassConstructor,
+                isDerivedConstructor
             );
         }
         finally
@@ -495,7 +501,9 @@ internal sealed class FlatJavaScriptParser
         bool isGenerator,
         int generatorDepthBeforeFunction,
         bool isAsync,
-        int asyncDepthBeforeFunction
+        int asyncDepthBeforeFunction,
+        bool isClassConstructor,
+        bool isDerivedConstructor
     )
     {
         Expect(JsTokenKind.LeftParen);
@@ -686,7 +694,9 @@ internal sealed class FlatJavaScriptParser
                     position,
                     isMethod,
                     IsGenerator: isGenerator,
-                    IsAsync: isAsync
+                    IsAsync: isAsync,
+                    IsClassConstructor: isClassConstructor,
+                    IsDerivedConstructor: isDerivedConstructor
                 )
             );
             return Arena.Add(
@@ -700,6 +710,256 @@ internal sealed class FlatJavaScriptParser
         {
             parameterList.Dispose();
         }
+    }
+
+    private int ParseClass(bool isDeclaration)
+    {
+        var position = current.Position;
+        if (!IsCurrentIdentifierName("class"))
+            throw Error("Expected class", position);
+        Next();
+
+        var name = string.Empty;
+        var nameId = -1;
+        if (current.Kind == JsTokenKind.Identifier)
+        {
+            var nameToken = current;
+            name = GetIdentifierText(nameToken);
+            ValidateBindingIdentifier(nameToken);
+            nameId = nameToken.IdentifierId;
+            Next();
+        }
+        else if (isDeclaration)
+            throw Error("Expected class name", current.Position);
+
+        if (IsCurrentIdentifierName("extends"))
+            throw Error("Class heritage is not supported by the flat parser yet", current.Position);
+
+        Expect(JsTokenKind.LeftBrace);
+        var strictBeforeClass = strictMode;
+        strictMode = true;
+        Span<FlatClassElement> initial = stackalloc FlatClassElement[8];
+        var elements = new ClassElementList(initial);
+        var constructorNode = -1;
+        try
+        {
+            while (current.Kind != JsTokenKind.RightBrace)
+            {
+                if (current.Kind == JsTokenKind.Eof)
+                    throw Error("Unterminated class", position);
+                if (Match(JsTokenKind.Semicolon))
+                    continue;
+
+                var elementPosition = current.Position;
+                var isStatic = false;
+                if (IsCurrentIdentifierName("static"))
+                {
+                    var next = PeekToken();
+                    if (
+                        !next.HasLineTerminatorBefore
+                        && next.Kind
+                            is not (
+                                JsTokenKind.LeftParen
+                                or JsTokenKind.Assign
+                                or JsTokenKind.Semicolon
+                                or JsTokenKind.RightBrace
+                            )
+                    )
+                    {
+                        isStatic = true;
+                        Next();
+                        if (current.Kind == JsTokenKind.LeftBrace)
+                            throw Error(
+                                "Class static blocks are not supported by the flat parser yet",
+                                elementPosition
+                            );
+                    }
+                }
+
+                var isAsync = false;
+                if (IsCurrentIdentifierName("async"))
+                {
+                    var next = PeekToken();
+                    if (
+                        !next.HasLineTerminatorBefore
+                        && next.Kind
+                            is not (
+                                JsTokenKind.LeftParen
+                                or JsTokenKind.Assign
+                                or JsTokenKind.Semicolon
+                                or JsTokenKind.RightBrace
+                            )
+                    )
+                    {
+                        isAsync = true;
+                        Next();
+                    }
+                }
+
+                var isGenerator = Match(JsTokenKind.Star);
+                var computed = Match(JsTokenKind.LeftBracket);
+                int key;
+                if (computed)
+                {
+                    key = ParseAssignment(allowIn: true);
+                    Expect(JsTokenKind.RightBracket);
+                }
+                else
+                {
+                    if (current.Kind == JsTokenKind.PrivateIdentifier)
+                        throw Error(
+                            "Private class elements are not supported by the flat parser yet",
+                            current.Position
+                        );
+                    key = Arena.AddString(GetObjectPropertyName(current));
+                    Next();
+                }
+
+                var staticName = computed ? null : ast.GetString(key);
+                if (
+                    !isGenerator
+                    && !isAsync
+                    && staticName is "get" or "set"
+                    && current.Kind != JsTokenKind.LeftParen
+                )
+                {
+                    var isGetter = staticName == "get";
+                    computed = Match(JsTokenKind.LeftBracket);
+                    if (computed)
+                    {
+                        key = ParseAssignment(allowIn: true);
+                        Expect(JsTokenKind.RightBracket);
+                    }
+                    else
+                    {
+                        if (current.Kind == JsTokenKind.PrivateIdentifier)
+                            throw Error(
+                                "Private class elements are not supported by the flat parser yet",
+                                current.Position
+                            );
+                        key = Arena.AddString(GetObjectPropertyName(current));
+                        Next();
+                    }
+
+                    var accessor = ParseFunctionTail(
+                        isDeclaration: false,
+                        string.Empty,
+                        -1,
+                        elementPosition,
+                        isMethod: true
+                    );
+                    var accessorFunction = ast.GetFunction(Arena[accessor].Arg0);
+                    if (isGetter && accessorFunction.ParameterCount != 0)
+                        throw Error("Getter must not have parameters", elementPosition);
+                    if (
+                        !isGetter
+                        && (
+                            accessorFunction.ParameterCount != 1
+                            || accessorFunction.RestParameterIndex >= 0
+                        )
+                    )
+                        throw Error("Expected setter parameter", elementPosition);
+                    elements.Add(
+                        new FlatClassElement(
+                            key,
+                            accessor,
+                            elementPosition,
+                            isGetter ? JsClassElementKind.Getter : JsClassElementKind.Setter,
+                            (isStatic ? FlatClassElementFlags.Static : 0)
+                                | (computed ? FlatClassElementFlags.Computed : 0)
+                        )
+                    );
+                    continue;
+                }
+
+                if (current.Kind != JsTokenKind.LeftParen)
+                    throw Error(
+                        "Class fields are not supported by the flat parser yet",
+                        current.Position
+                    );
+
+                var isConstructor =
+                    !isStatic && !computed && string.Equals(staticName, "constructor");
+                if (isConstructor && (isGenerator || isAsync))
+                    throw Error(
+                        "Class constructor may not be async or a generator",
+                        elementPosition
+                    );
+                if (isConstructor && constructorNode >= 0)
+                    throw Error("Duplicate constructor in class", elementPosition);
+                var method = ParseFunctionTail(
+                    isDeclaration: false,
+                    string.Empty,
+                    -1,
+                    elementPosition,
+                    isMethod: !isConstructor,
+                    isGenerator,
+                    isAsync,
+                    isClassConstructor: isConstructor
+                );
+                if (isConstructor)
+                    constructorNode = method;
+                elements.Add(
+                    new FlatClassElement(
+                        key,
+                        method,
+                        elementPosition,
+                        isConstructor ? JsClassElementKind.Constructor : JsClassElementKind.Method,
+                        (isStatic ? FlatClassElementFlags.Static : 0)
+                            | (computed ? FlatClassElementFlags.Computed : 0)
+                    )
+                );
+            }
+            Expect(JsTokenKind.RightBrace);
+            if (constructorNode < 0)
+                constructorNode = AddImplicitClassConstructor(name, position);
+            var elementRange = ast.AddClassElements(elements.AsSpan());
+            var classIndex = ast.AddClass(
+                new FlatClassInfo(
+                    Arena.AddString(name),
+                    nameId,
+                    elementRange.Offset,
+                    elementRange.Count,
+                    constructorNode,
+                    -1,
+                    position
+                )
+            );
+            return Arena.Add(
+                isDeclaration ? AstKind.ClassDeclaration : AstKind.ClassExpression,
+                classIndex,
+                position: position
+            );
+        }
+        finally
+        {
+            elements.Dispose();
+            strictMode = strictBeforeClass;
+        }
+    }
+
+    private int AddImplicitClassConstructor(string name, int position)
+    {
+        var empty = Arena.AddChildren(ReadOnlySpan<int>.Empty);
+        var body = Arena.Add(AstKind.Program, empty.Offset, empty.Count, position: position);
+        var parameters = ast.AddParameters(ReadOnlySpan<FlatParameter>.Empty);
+        var functionIndex = ast.AddFunction(
+            new FlatFunctionInfo(
+                Arena.AddString(name),
+                -1,
+                parameters.Offset,
+                parameters.Count,
+                0,
+                -1,
+                true,
+                true,
+                false,
+                position,
+                false,
+                IsClassConstructor: true
+            )
+        );
+        return Arena.Add(AstKind.FunctionExpression, functionIndex, body, position: position);
     }
 
     private void TrackParameterPatternNames(
@@ -1586,6 +1846,8 @@ internal sealed class FlatJavaScriptParser
     private int ParsePrimary()
     {
         var token = current;
+        if (IsCurrentIdentifierName("class"))
+            return ParseClass(isDeclaration: false);
         if (IsAsyncFunctionPrefix())
             return ParseFunctionExpression(isAsync: true);
         switch (token.Kind)
@@ -2529,6 +2791,10 @@ internal sealed class FlatJavaScriptParser
             : source.Substring(token.Position, token.SourceLength);
     }
 
+    private bool IsCurrentIdentifierName(string value) =>
+        current.Kind is JsTokenKind.Identifier or JsTokenKind.ReservedWord
+        && source.AsSpan(current.Position, current.SourceLength).SequenceEqual(value.AsSpan());
+
     private void ValidateBindingIdentifier(in JsToken token)
     {
         if (
@@ -2857,6 +3123,47 @@ internal sealed class FlatJavaScriptParser
             buffer.CopyTo(next);
             if (rented is not null)
                 ArrayPool<FlatObjectProperty>.Shared.Return(rented);
+            rented = next;
+            buffer = next;
+        }
+    }
+
+    private ref struct ClassElementList
+    {
+        private Span<FlatClassElement> buffer;
+        private FlatClassElement[]? rented;
+
+        public ClassElementList(Span<FlatClassElement> initialBuffer)
+        {
+            buffer = initialBuffer;
+        }
+
+        public int Count { get; private set; }
+
+        public void Add(FlatClassElement element)
+        {
+            if (Count == buffer.Length)
+                Grow();
+            buffer[Count++] = element;
+        }
+
+        public ReadOnlySpan<FlatClassElement> AsSpan() => buffer[..Count];
+
+        public void Dispose()
+        {
+            if (rented is not null)
+                ArrayPool<FlatClassElement>.Shared.Return(rented);
+            rented = null;
+            buffer = [];
+            Count = 0;
+        }
+
+        private void Grow()
+        {
+            var next = ArrayPool<FlatClassElement>.Shared.Rent(Math.Max(8, buffer.Length * 2));
+            buffer.CopyTo(next);
+            if (rented is not null)
+                ArrayPool<FlatClassElement>.Shared.Return(rented);
             rented = next;
             buffer = next;
         }

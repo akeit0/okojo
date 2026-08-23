@@ -10,6 +10,10 @@ internal sealed class FlatAst : IDisposable
     private int parameterCount;
     private FlatObjectProperty[] objectProperties;
     private int objectPropertyCount;
+    private FlatClassInfo[] classes;
+    private int classCount;
+    private FlatClassElement[] classElements;
+    private int classElementCount;
     private bool disposed;
 
     public FlatAst(string source, string? sourcePath = null)
@@ -20,6 +24,8 @@ internal sealed class FlatAst : IDisposable
         functions = ArrayPool<FlatFunctionInfo>.Shared.Rent(8);
         parameters = ArrayPool<FlatParameter>.Shared.Rent(16);
         objectProperties = ArrayPool<FlatObjectProperty>.Shared.Rent(16);
+        classes = ArrayPool<FlatClassInfo>.Shared.Rent(4);
+        classElements = ArrayPool<FlatClassElement>.Shared.Rent(16);
     }
 
     public AstArena Arena { get; }
@@ -67,6 +73,39 @@ internal sealed class FlatAst : IDisposable
 
     public ReadOnlySpan<FlatObjectProperty> GetObjectProperties(int offset, int count) =>
         objectProperties.AsSpan(offset, count);
+
+    public (int Offset, int Count) AddClassElements(ReadOnlySpan<FlatClassElement> values)
+    {
+        EnsureClassElementCapacity(values.Length);
+        var offset = classElementCount;
+        values.CopyTo(classElements.AsSpan(offset));
+        classElementCount += values.Length;
+        return (offset, values.Length);
+    }
+
+    public ReadOnlySpan<FlatClassElement> GetClassElements(in FlatClassInfo info) =>
+        classElements.AsSpan(info.ElementOffset, info.ElementCount);
+
+    public int AddClass(FlatClassInfo info)
+    {
+        if (classCount == classes.Length)
+        {
+            var next = ArrayPool<FlatClassInfo>.Shared.Rent(classes.Length * 2);
+            Array.Copy(classes, next, classCount);
+            ArrayPool<FlatClassInfo>.Shared.Return(classes);
+            classes = next;
+        }
+        var index = classCount++;
+        classes[index] = info;
+        return index;
+    }
+
+    public FlatClassInfo GetClass(int index)
+    {
+        if ((uint)index >= (uint)classCount)
+            throw new ArgumentOutOfRangeException(nameof(index));
+        return classes[index];
+    }
 
     public int AddFunction(FlatFunctionInfo function)
     {
@@ -116,6 +155,18 @@ internal sealed class FlatAst : IDisposable
         objectProperties = next;
     }
 
+    private void EnsureClassElementCapacity(int additional)
+    {
+        if (classElementCount + additional <= classElements.Length)
+            return;
+        var next = ArrayPool<FlatClassElement>.Shared.Rent(
+            Math.Max(classElements.Length * 2, classElementCount + additional)
+        );
+        Array.Copy(classElements, next, classElementCount);
+        ArrayPool<FlatClassElement>.Shared.Return(classElements);
+        classElements = next;
+    }
+
     public void Dispose()
     {
         if (disposed)
@@ -124,12 +175,18 @@ internal sealed class FlatAst : IDisposable
         ArrayPool<FlatFunctionInfo>.Shared.Return(functions);
         ArrayPool<FlatParameter>.Shared.Return(parameters);
         ArrayPool<FlatObjectProperty>.Shared.Return(objectProperties);
+        ArrayPool<FlatClassInfo>.Shared.Return(classes);
+        ArrayPool<FlatClassElement>.Shared.Return(classElements);
         functions = [];
         parameters = [];
         objectProperties = [];
+        classes = [];
+        classElements = [];
         functionCount = 0;
         parameterCount = 0;
         objectPropertyCount = 0;
+        classCount = 0;
+        classElementCount = 0;
         Arena.Dispose();
     }
 }
@@ -148,7 +205,9 @@ internal readonly record struct FlatFunctionInfo(
     bool IsMethod,
     bool IsArrow = false,
     bool IsGenerator = false,
-    bool IsAsync = false
+    bool IsAsync = false,
+    bool IsClassConstructor = false,
+    bool IsDerivedConstructor = false
 );
 
 internal readonly record struct FlatParameter(
@@ -189,4 +248,37 @@ internal readonly record struct FlatObjectProperty(
     public bool IsAccessor => IsGetter || IsSetter;
     public bool IsCoverInitializedName =>
         (Flags & FlatObjectPropertyFlags.CoverInitializedName) != 0;
+}
+
+internal readonly record struct FlatClassInfo(
+    int NameStringIndex,
+    int NameId,
+    int ElementOffset,
+    int ElementCount,
+    int ConstructorNode,
+    int ExtendsNode,
+    int Position
+)
+{
+    public bool HasExtends => ExtendsNode >= 0;
+}
+
+[Flags]
+internal enum FlatClassElementFlags : byte
+{
+    None = 0,
+    Static = 1,
+    Computed = 2,
+}
+
+internal readonly record struct FlatClassElement(
+    int Key,
+    int ValueNode,
+    int Position,
+    JsClassElementKind Kind,
+    FlatClassElementFlags Flags
+)
+{
+    public bool IsStatic => (Flags & FlatClassElementFlags.Static) != 0;
+    public bool IsComputed => (Flags & FlatClassElementFlags.Computed) != 0;
 }

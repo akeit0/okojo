@@ -23,6 +23,9 @@ internal abstract partial class JsPlannedCompilerBase
                 return;
             case AstKind.FunctionDeclaration:
                 return;
+            case AstKind.ClassDeclaration:
+                EmitClassDeclaration(ast, node);
+                return;
             case AstKind.BlockStatement:
                 EmitBlockStatement(ast, nodeIndex);
                 return;

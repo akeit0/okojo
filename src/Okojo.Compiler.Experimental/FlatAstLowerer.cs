@@ -67,6 +67,12 @@ internal static class FlatAstLowerer
                 JsEmptyObjectBindingDeclarationStatement emptyObjectBinding =>
                     LowerEmptyObjectBindingDeclaration(emptyObjectBinding),
                 JsFunctionDeclaration function => LowerFunctionDeclaration(function),
+                JsClassDeclaration classDeclaration => LowerClass(
+                    classDeclaration.ClassExpression,
+                    isDeclaration: true,
+                    classDeclaration.Name,
+                    classDeclaration.NameId
+                ),
                 JsBlockStatement block => LowerBlock(block),
                 JsIfStatement ifStatement => Arena.Add(
                     AstKind.IfStatement,
@@ -235,7 +241,12 @@ internal static class FlatAstLowerer
             );
         }
 
-        private int LowerFunctionExpression(JsFunctionExpression function)
+        private int LowerFunctionExpression(
+            JsFunctionExpression function,
+            bool implicitlyStrict = false,
+            bool isMethod = false,
+            bool isClassConstructor = false
+        )
         {
             var bodyRoot = LowerFunctionBody(function.Body);
             var parameters = LowerParameters(
@@ -254,14 +265,15 @@ internal static class FlatAstLowerer
                     parameters.Count,
                     function.FunctionLength,
                     function.RestParameterIndex,
-                    function.Body.StrictDeclared,
+                    implicitlyStrict || function.Body.StrictDeclared,
                     function.HasSimpleParameterList,
                     function.HasDuplicateParameters,
                     function.Position,
-                    function.HasSuperBindingHint,
+                    isMethod || function.HasSuperBindingHint,
                     function.IsArrow,
                     function.IsGenerator,
-                    function.IsAsync
+                    function.IsAsync,
+                    IsClassConstructor: isClassConstructor
                 )
             );
             return Arena.Add(
@@ -658,6 +670,12 @@ internal static class FlatAstLowerer
                 ),
                 JsSequenceExpression sequence => LowerSequence(sequence),
                 JsFunctionExpression function => LowerFunctionExpression(function),
+                JsClassExpression classExpression => LowerClass(
+                    classExpression,
+                    isDeclaration: false,
+                    classExpression.Name,
+                    classExpression.NameId
+                ),
                 JsCallExpression call => LowerCall(call),
                 JsNewExpression @new => LowerNew(@new),
                 JsMemberExpression member => LowerMember(member),
@@ -675,6 +693,118 @@ internal static class FlatAstLowerer
                     $"{compilerName} does not support expression '{expression.GetType().Name}'."
                 ),
             };
+        }
+
+        private int LowerClass(
+            JsClassExpression classExpression,
+            bool isDeclaration,
+            string? name,
+            int nameId
+        )
+        {
+            if (classExpression.HasExtends)
+                throw new NotSupportedException(
+                    $"{compilerName} does not support class heritage yet."
+                );
+
+            var elements = ArrayPool<FlatClassElement>.Shared.Rent(
+                Math.Max(1, classExpression.Elements.Count)
+            );
+            var constructorNode = -1;
+            try
+            {
+                for (var i = 0; i < classExpression.Elements.Count; i++)
+                {
+                    var element = classExpression.Elements[i];
+                    if (
+                        element.IsPrivate
+                        || element.Kind
+                            is JsClassElementKind.Field
+                                or JsClassElementKind.StaticBlock
+                    )
+                        throw new NotSupportedException(
+                            $"{compilerName} does not support class element '{element.Kind}' yet."
+                        );
+                    if (element.Value is null)
+                        throw new InvalidOperationException("Class method value is missing.");
+                    var value = LowerFunctionExpression(
+                        element.Value,
+                        implicitlyStrict: true,
+                        isMethod: element.Kind != JsClassElementKind.Constructor,
+                        isClassConstructor: element.Kind == JsClassElementKind.Constructor
+                    );
+                    if (element.Kind == JsClassElementKind.Constructor)
+                        constructorNode = value;
+                    elements[i] = new FlatClassElement(
+                        element.ComputedKey is null
+                            ? Arena.AddString(element.Key ?? string.Empty)
+                            : LowerExpression(element.ComputedKey),
+                        value,
+                        element.Position,
+                        element.Kind,
+                        (element.IsStatic ? FlatClassElementFlags.Static : 0)
+                            | (element.ComputedKey is not null ? FlatClassElementFlags.Computed : 0)
+                    );
+                }
+
+                if (constructorNode < 0)
+                    constructorNode = AddImplicitClassConstructor(
+                        name ?? string.Empty,
+                        classExpression.Position
+                    );
+                var range = Ast.AddClassElements(
+                    elements.AsSpan(0, classExpression.Elements.Count)
+                );
+                var classIndex = Ast.AddClass(
+                    new FlatClassInfo(
+                        Arena.AddString(name ?? string.Empty),
+                        nameId,
+                        range.Offset,
+                        range.Count,
+                        constructorNode,
+                        -1,
+                        classExpression.Position
+                    )
+                );
+                return Arena.Add(
+                    isDeclaration ? AstKind.ClassDeclaration : AstKind.ClassExpression,
+                    classIndex,
+                    position: classExpression.Position
+                );
+            }
+            finally
+            {
+                ArrayPool<FlatClassElement>.Shared.Return(elements);
+            }
+        }
+
+        private int AddImplicitClassConstructor(string name, int position)
+        {
+            var bodyChildren = Arena.AddChildren(ReadOnlySpan<int>.Empty);
+            var body = Arena.Add(
+                AstKind.Program,
+                bodyChildren.Offset,
+                bodyChildren.Count,
+                position: position
+            );
+            var parameters = Ast.AddParameters(ReadOnlySpan<FlatParameter>.Empty);
+            var functionIndex = Ast.AddFunction(
+                new FlatFunctionInfo(
+                    Arena.AddString(name),
+                    -1,
+                    parameters.Offset,
+                    parameters.Count,
+                    0,
+                    -1,
+                    true,
+                    true,
+                    false,
+                    position,
+                    false,
+                    IsClassConstructor: true
+                )
+            );
+            return Arena.Add(AstKind.FunctionExpression, functionIndex, body, position: position);
         }
 
         private int LowerAssignment(JsAssignmentExpression assignment)

@@ -35,6 +35,8 @@ internal sealed partial class JsPlannedFunctionCompiler
                 false,
                 false,
                 false,
+                false,
+                false,
                 false
             ),
             collected,
@@ -71,7 +73,9 @@ internal sealed partial class JsPlannedFunctionCompiler
                 function.IsMethod,
                 function.IsArrow,
                 function.IsGenerator,
-                function.IsAsync
+                function.IsAsync,
+                function.IsClassConstructor,
+                function.IsDerivedConstructor
             ),
             collected,
             ast,
@@ -141,8 +145,8 @@ internal sealed partial class JsPlannedFunctionCompiler
             isMethod: metadata.IsMethod,
             formalParameterCount: metadata.ParameterCount,
             hasSimpleParameterList: metadata.HasSimpleParameterList,
-            isClassConstructor: false,
-            isDerivedConstructor: false,
+            isClassConstructor: metadata.IsClassConstructor,
+            isDerivedConstructor: metadata.IsDerivedConstructor,
             hasEagerGeneratorParameterBinding: isGenerator && !metadata.HasSimpleParameterList,
             expectedArgumentCount: metadata.FunctionLength
         );
@@ -229,6 +233,8 @@ internal sealed partial class JsPlannedFunctionCompiler
         bool IsMethod,
         bool IsArrow,
         bool IsGenerator,
-        bool IsAsync
+        bool IsAsync,
+        bool IsClassConstructor,
+        bool IsDerivedConstructor
     );
 }

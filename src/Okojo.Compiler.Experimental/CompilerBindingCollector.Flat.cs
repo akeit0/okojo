@@ -205,6 +205,9 @@ internal static partial class CompilerBindingCollector
                 case AstKind.FunctionDeclaration:
                     VisitFunctionDeclaration(ast, node, scopeId);
                     return;
+                case AstKind.ClassDeclaration:
+                    VisitClass(ast, node, scopeId, isDeclaration: true);
+                    return;
                 case AstKind.IfStatement:
                     VisitExpression(ast, node.Arg0, scopeId);
                     VisitStatement(ast, node.Arg1, scopeId);
@@ -708,6 +711,9 @@ internal static partial class CompilerBindingCollector
                 case AstKind.ArrowFunctionExpression:
                     VisitFunctionExpression(ast, node, scopeId);
                     return;
+                case AstKind.ClassExpression:
+                    VisitClass(ast, node, scopeId, isDeclaration: false);
+                    return;
                 case AstKind.NumericLiteral:
                 case AstKind.BigIntLiteral:
                 case AstKind.StringLiteral:
@@ -744,6 +750,50 @@ internal static partial class CompilerBindingCollector
                 );
             CollectFlatParameters(ast, function, functionScopeId);
             CollectBody(ast, node.Arg1, functionScopeId);
+        }
+
+        private void VisitClass(FlatAst ast, AstNode node, int parentScopeId, bool isDeclaration)
+        {
+            var info = ast.GetClass(node.Arg0);
+            var name = ast.GetString(info.NameStringIndex);
+            if (isDeclaration)
+                AddBinding(
+                    parentScopeId,
+                    CompilerCollectedBindingKind.ClassDeclaration,
+                    name,
+                    info.NameId,
+                    isConst: true,
+                    position: info.Position
+                );
+            var classScopeId = AddScope(
+                parentScopeId,
+                CompilerCollectedScopeKind.Class,
+                info.Position
+            );
+            if (name.Length != 0)
+                AddBinding(
+                    classScopeId,
+                    CompilerCollectedBindingKind.ClassLexicalAlias,
+                    name,
+                    info.NameId,
+                    isConst: true,
+                    position: info.Position
+                );
+            if (info.ExtendsNode >= 0)
+                VisitExpression(ast, info.ExtendsNode, classScopeId);
+
+            var visitedConstructor = false;
+            var elements = ast.GetClassElements(info);
+            for (var i = 0; i < elements.Length; i++)
+            {
+                ref readonly var element = ref elements[i];
+                if (element.IsComputed)
+                    VisitExpression(ast, element.Key, classScopeId);
+                VisitFunctionExpression(ast, ast[element.ValueNode], classScopeId);
+                visitedConstructor |= element.ValueNode == info.ConstructorNode;
+            }
+            if (!visitedConstructor)
+                VisitFunctionExpression(ast, ast[info.ConstructorNode], classScopeId);
         }
 
         private void CollectParameters(FunctionParameterPlan parameterPlan, int scopeId)

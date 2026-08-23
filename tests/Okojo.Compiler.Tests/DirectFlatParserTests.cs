@@ -3141,6 +3141,119 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_ExecutesBaselineClasses()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            class Counter {
+                constructor(value) { this.value = value; }
+                increment(step = 1) { return this.value += step; }
+                get current() { return this.value; }
+                set current(value) { this.value = value; }
+                static create(value) { return new Counter(value); }
+                static get kind() { return 'counter'; }
+            }
+            let instance = Counter.create(2);
+            let before = instance.current;
+            instance.current = 5;
+            let callRejected = false;
+            let constructRejected = false;
+            try { Counter(1); }
+            catch (error) { callRejected = error instanceof TypeError; }
+            try { new instance.increment(); }
+            catch (error) { constructRejected = error instanceof TypeError; }
+            before + '|' + instance.increment() + '|' + Counter.kind + '|'
+                + callRejected + '|' + constructRejected;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("2|6|counter|true|true"));
+        var functions = script.ObjectConstants.OfType<JsBytecodeFunction>().ToArray();
+        Assert.That(
+            functions.Single(static function => function.Name == "Counter").IsClassConstructor,
+            Is.True
+        );
+        Assert.That(
+            functions
+                .Where(static function => function.Name != "Counter")
+                .All(static function => function.IsMethod),
+            Is.True
+        );
+        Assert.That(functions.All(static function => function.IsStrict), Is.True);
+    }
+
+    [Test]
+    public void CompileString_EvaluatesComputedClassKeysAndCapturesInnerName()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let effects = '';
+            function key(value) { effects += value + ','; return value; }
+            let Alias = class Inner {
+                [key('read')]() { return Inner; }
+                static [key('make')]() { return new Inner(); }
+            };
+            let instance = Alias.make();
+            effects + '|' + (instance.read() === Alias) + '|' + typeof Inner;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("read,make,|true|undefined"));
+    }
+
+    [Test]
+    public void CompileString_EnforcesClassTdzConstAndBlockScope()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let tdz = false;
+            try { Before; }
+            catch (error) { tdz = error instanceof ReferenceError; }
+            class Before {}
+            let inside;
+            { class Local {} inside = typeof Local; }
+            let assignmentRejected = false;
+            try { Before = 1; }
+            catch (error) { assignmentRejected = error instanceof TypeError; }
+            tdz + '|' + inside + '|' + typeof Local + '|' + assignmentRejected;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("true|function|undefined|true"));
+    }
+
+    [Test]
+    public void CompileAst_ExecutesBaselineClassBridge()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            JavaScriptParser.ParseScript(
+                "class Value { constructor(value) { this.value = value; } read() { return this.value; } } new Value(4).read();"
+            )
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(4));
+    }
+
+    [TestCase("class Derived extends Base {}")]
+    [TestCase("class Fields { value = 1; }")]
+    [TestCase("class Private { #value; }")]
+    [TestCase("class StaticBlock { static {} }")]
+    public void ParseScript_RejectsDeferredClassElements(string source) =>
+        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+
+    [Test]
     public void CompileString_DeletesPropertiesAndEvaluatesNonReferencesOnce()
     {
         var realm = JsRuntime.Create().DefaultRealm;

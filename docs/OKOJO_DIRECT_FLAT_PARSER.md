@@ -36,7 +36,8 @@ The direct path follows these contracts:
 - `-1` means absent child; no nullable node objects are allocated
 - nodes are normally appended post-order
 - variable-length children live in dense pooled spans
-- object properties and formal parameters use typed pooled side tables
+- object properties, formal parameters, classes, and class elements use typed
+  pooled side tables
 - source locations are integer offsets into the retained source text
 - the parser records syntax and early-error facts, not register allocation
 - semantic passes resolve names, captures, storage, and runtime environments
@@ -50,17 +51,17 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | area | implemented direct path | remaining |
 |---|---|---|
 | Parse goal | scripts | modules, standalone function goal |
-| Declarations | `var`/`let`/`const`, ordinary function declarations, function/block declaration prologues, function-scoped `var`, persistent script globals/lexicals, initial global conflict validation | classes, imports/exports, complete declaration early errors, Annex B |
+| Declarations | `var`/`let`/`const`, ordinary function and base-class declarations, function/block declaration prologues, function-scoped `var`, persistent script globals/lexicals, initial global conflict validation | imports/exports, complete declaration early errors, Annex B |
 | Blocks/control | block, `if`, `while`, `do`, ordinary `for`, `for-in`, synchronous `for-of`, `for-await-of`, `switch`, chained labels, labeled/unlabeled `break`/`continue`, `return`, `throw`, `try`/`catch`/`finally`, `debugger`, empty/expression statement | remaining declaration/control early errors |
 | Primitive expressions | number, BigInt, string, boolean, null, regexp, tagged/untagged template, identifier, `this`, `new.target`, grouping | `super`, `import.meta` |
 | Operators | precedence table, assignment, arithmetic/logical/bitwise/comparison, conditionals, sequence, updates, optional chains, property/identifier/value/optional-chain `delete` | remaining edge-specific early errors |
 | References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed properties | imports, private and super references |
 | Calls/construction | direct/member/optional calls, spread calls, ordinary/spread `new`, wide operands | dynamic import, super call |
 | Arrays/objects | holes, array/object spread, data properties, ordinary/generator/async concise methods, getters/setters, computed/shorthand/index keys, stable data shape prefix | `super` methods, legacy `__proto__` intentionally excluded |
-| Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings | class, module bindings and remaining early errors |
+| Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings, class declaration and inner-name bindings | module bindings and remaining early errors |
 | Assignments | identifier/member targets, compound/logical/update, array/object destructuring, core optional-chain target restrictions | private/super targets, remaining early errors |
-| Functions | ordinary declarations/expressions, closures, synchronous and async generators with `yield`/`yield*`, async declarations/expressions/object methods with `await`, synchronous and async arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`/`new.target`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function name inference, demand-driven mapped/unmapped `arguments` | class-name inference, lazy bodies |
-| Classes | none | declaration/expression, constructors, methods, fields, static blocks, private names, super |
+| Functions | ordinary declarations/expressions, closures, synchronous and async generators with `yield`/`yield*`, async declarations/expressions/object methods with `await`, synchronous and async arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`/`new.target`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function name inference, demand-driven mapped/unmapped `arguments` | anonymous class-expression name inference, lazy bodies |
+| Classes | base declarations/expressions, explicit/implicit constructors, public named/computed instance/static methods and accessors, strict bodies, declaration TDZ/const storage, inner class-name capture | heritage/derived constructors, `super`, fields, static blocks, private names/brands, anonymous class-expression name inference |
 | Modules | none | parse goal, entries, linking metadata, live bindings, top-level await |
 
 The direct parser rejects unsupported grammar. It does not catch an error and
@@ -80,7 +81,8 @@ planned compiler still needs:
   are landed
 - a general parameter/body environment model; the current exclusion marker fixes
   ordinary cases but is not the final nested-environment representation
-- class name inference; ordinary anonymous-function inference is landed
+- anonymous class-expression name inference; named class inner bindings and
+  ordinary anonymous-function inference are landed
 - remaining strict/sloppy assignment edge cases outside ordinary lexical bindings
 - complete source-position, handler, local-name, and debugger scope metadata
 
@@ -881,6 +883,33 @@ state. This keeps suspension layout and promise plumbing out of syntax metadata.
 Computed keys, static initialization, and instance fields must not be collapsed
 into parser-time execution order. Store source order explicitly and let the class
 emitter schedule spec phases.
+
+Baseline class slice landed:
+
+- iteration scope: base class declarations/expressions with explicit or implicit
+  constructors plus public named/computed instance/static methods and accessors
+- minimal repro:
+  `class C { constructor(v) { this.v = v } get value() { return this.v }
+  static make(v) { return new C(v) } }`
+- reference case:
+  `artifacts/okojobytecodetool/cases/flat_ast_class_baseline.js`
+- focused regressions cover strict method bodies, constructor call rejection,
+  declaration TDZ, inner class-name visibility, computed-key ordering, method
+  names/non-constructibility, static versus prototype placement, and class-AST
+  bridge execution
+- V8 observation: class scope and inner name resolution precede emission; the
+  constructor closure is created first, its prototype is established, and public
+  elements are defined in source order with computed keys evaluated at class
+  definition time
+- Okojo implementation: reuse `ClassGetPrototypeAndSetConstructor`, `DefineClassMethod`,
+  `DefineClassAccessor`, planned closures, and existing lexical storage; add one
+  pooled class-element table rather than class-specific node objects
+- intentional first-slice boundary: heritage/derived `super`, fields, static
+  blocks, and private names remain in the existing Stage F3 queue and `TODO.md`
+- performance plan: keep source-order element records dense, compile each method
+  once into the shared function table, allocate constructor/prototype registers
+  in one temporary scope, and avoid dictionaries until private-name resolution
+  requires them
 
 ### Stage F4 - Modules
 
