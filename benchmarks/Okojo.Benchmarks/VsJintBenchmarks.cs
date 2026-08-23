@@ -30,7 +30,19 @@ public class VsJintBenchmarks
     private string source = string.Empty;
 
     //scripts/*.js
-    [Params("for-loop-sum", "pure-function-call", "many-object")] // "indexing", "lexical-block"//"loop","generator",
+    [Params(
+        "for-loop-sum",
+        "smi-sum-loop",
+        "arith",
+        "lexical-block",
+        "closure-heavy",
+        "pure-function-call",
+        "math-call",
+        "named-get",
+        "object",
+        "many-object",
+        "indexing"
+    )]
     // [Params("nop", "arith", "loop", "object", "many-object", "function-call", "closure-heavy", "with-eval-heavy",
     //     "math-call")]
     public string Scenario { get; set; } = "indexing";
