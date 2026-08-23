@@ -51,27 +51,91 @@ public readonly struct JsValue : IEquatable<JsValue>
         }
     }
 
-    public bool IsFloat64 => (U & BoxMask) != BoxHdr;
-    public bool IsInt32 => (U & Top32Mask) == JsInt32Top32Bits;
-    public bool IsNumber => (U & BoxMask) != BoxHdr || (U & Top32Mask) == JsInt32Top32Bits;
+    public bool IsFloat64
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => (U & BoxMask) != BoxHdr;
+    }
+    public bool IsInt32
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => (U & Top32Mask) == JsInt32Top32Bits;
+    }
+    public bool IsNumber
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => (U & BoxMask) != BoxHdr || (U & Top32Mask) == JsInt32Top32Bits;
+    }
 
-    public bool IsNumeric =>
-        (U & BoxMask) != BoxHdr
-        || (U & Top32Mask) is JsInt32Top32Bits or (JsBigIntBits & Top32Mask);
+    public bool IsNumeric
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get =>
+            (U & BoxMask) != BoxHdr
+            || (U & Top32Mask) is JsInt32Top32Bits or (JsBigIntBits & Top32Mask);
+    }
 
-    public bool IsSymbol => U == JsSymbolBits;
-    public bool IsString => U == JsStringBits;
-    public bool IsObject => U == JsObjectBits;
-    public bool IsBigInt => U == JsBigIntBits;
-    public bool IsTrue => U == (BoxHdr | ((ulong)Tag.JsTagBool << TagShift) | 1UL);
-    public bool IsFalse => U == (BoxHdr | ((ulong)Tag.JsTagBool << TagShift));
-    public bool IsBool => (U & ~1ul) == (BoxHdr | ((ulong)Tag.JsTagBool << TagShift));
-    public bool IsNull => U == JsNullBits;
-    public bool IsUndefined => U == JsUndefinedBits;
-    public bool IsNullOrUndefined => U is JsUndefinedBits or JsNullBits;
+    public bool IsSymbol
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => U == JsSymbolBits;
+    }
+    public bool IsString
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => U == JsStringBits;
+    }
+    public bool IsObject
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => U == JsObjectBits;
+    }
+    public bool IsBigInt
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => U == JsBigIntBits;
+    }
+    public bool IsTrue
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => U == (BoxHdr | ((ulong)Tag.JsTagBool << TagShift) | 1UL);
+    }
+    public bool IsFalse
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => U == (BoxHdr | ((ulong)Tag.JsTagBool << TagShift));
+    }
+    public bool IsBool
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => (U & ~1ul) == (BoxHdr | ((ulong)Tag.JsTagBool << TagShift));
+    }
+    public bool IsNull
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => U == JsNullBits;
+    }
+    public bool IsUndefined
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => U == JsUndefinedBits;
+    }
+    public bool IsNullOrUndefined
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => U is JsUndefinedBits or JsNullBits;
+    }
 
-    public bool IsTheHole => U == JsTheHoleBits;
-    public bool IsNaN => U == JsNan;
+    public bool IsTheHole
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => U == JsTheHoleBits;
+    }
+    public bool IsNaN
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => U == JsNan;
+    }
 
     internal JsValue(ulong u)
     {
@@ -91,11 +155,13 @@ public readonly struct JsValue : IEquatable<JsValue>
         Obj = obj;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static JsValue FromInt32(int value)
     {
         return new(Tag.JsTagInt, (uint)value);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static JsValue FromFloat64(double value)
     {
         return new(value);
@@ -177,6 +243,7 @@ public readonly struct JsValue : IEquatable<JsValue>
         return FromBigInt(new(-bigint));
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool TryGetObject([NotNullWhen(true)] out JsObject? obj)
     {
         if (IsObject)
@@ -543,6 +610,7 @@ public readonly struct JsValue : IEquatable<JsValue>
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public JsValue(double d)
     {
         if (double.IsNaN(d))
@@ -556,17 +624,26 @@ public readonly struct JsValue : IEquatable<JsValue>
     public JsValue(bool v)
         : this(Tag.JsTagBool, v ? 1u : 0u) { }
 
-    internal double FastFloat64Value => Unsafe.As<ulong, double>(ref Unsafe.AsRef(in U));
+    internal double FastFloat64Value
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => Unsafe.As<ulong, double>(ref Unsafe.AsRef(in U));
+    }
 
     public double Float64Value =>
         IsFloat64 ? Unsafe.As<ulong, double>(ref Unsafe.AsRef(in U))
         : IsInt32 ? Int32Value
         : double.NaN;
 
-    public int Int32Value => (int)(U & 0xFFFFFFFFUL);
+    public int Int32Value
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => (int)(U & 0xFFFFFFFFUL);
+    }
 
     internal double FastNumberValue
     {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
         {
             if ((U & BoxMask) != BoxHdr)
@@ -578,6 +655,7 @@ public readonly struct JsValue : IEquatable<JsValue>
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static bool TryGetNumberValue(in JsValue value, out double number)
     {
         if ((value.U & BoxMask) != BoxHdr)

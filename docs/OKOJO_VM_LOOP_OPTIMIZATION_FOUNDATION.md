@@ -222,6 +222,27 @@ arith) plus one shared `operandOffset` replacing 10 per-arm declarations.
   legal as overloads). Lesson: after bulk method replacement, grep the old
   signature shape to confirm zero leftovers before merging.
 
+### a4-inline-audit - ACCEPTED (branch vmopt-a4-inline-audit)
+
+Dasm call-site audit: extracted every `call` target from Run's Tier1 listing
+and classified them. Tiny hot accessors on the 16-byte JsValue struct were
+left un-inlined by JIT heuristics (IsNumber x9, IsInt32 x8, FastNumberValue
+x7, IsFloat64 x4, ctor(double) x12, IsDynamic x6, TryGetObject x2).
+Forced AggressiveInlining (accessor-target for properties) removed all of
+them at ~+150B Tier1 code size; bench-ab neutral; suite green.
+
+Knowledge:
+
+1. Audit recipe: `rg 'call.*\[Okojo' <tier1 dasm>` grouped by target -
+   anything tiny and hot that still shows up is an inline candidate;
+   big/slow helpers showing up confirm NoInlining is doing its job.
+2. MethodImpl(AggressiveInlining) cannot annotate a property directly; it
+   must go on the get accessor.
+3. RyuJIT refusing 1-line struct accessors in huge methods is real; do not
+   assume trivial members inline themselves under register pressure.
+4. ThrowInvalidOperandScale appears as 21 cold throw-tails (one per arm with
+   scale checks); harmless footprint, revisit only if code size matters.
+
 ## Optimization Work Rules (binding for this effort)
 
 1. Never skip or defer a bug discovered mid-attempt; fix it before measuring.
