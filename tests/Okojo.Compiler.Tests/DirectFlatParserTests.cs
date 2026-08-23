@@ -3431,6 +3431,39 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_ExecutesStaticPublicClassFieldsInSourceOrder()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let order = [];
+            class Base { static inherited = 4; }
+            class Derived extends Base {
+                static offset = 1;
+                static self = Derived;
+                static first = (order.push('first'), this.offset);
+                static [(order.push('key'), 'computed')] =
+                    (order.push('value'), super.inherited + this.first);
+                static empty;
+            }
+            Derived.first + '|' + Derived.computed + '|'
+                + (Derived.empty === undefined) + '|' + order.join(',') + '|'
+                + (Derived.self === Derived);
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("1|5|true|key,first,value|true"));
+    }
+
+    [Test]
+    public void ParseScript_RejectsStaticPrototypeField() =>
+        Assert.Throws<JsParseException>(() =>
+            FlatJavaScriptParser.ParseScript("class Invalid { static prototype = 1; }")
+        );
+
+    [Test]
     public void CompileAst_ExecutesBaselineClassBridge()
     {
         var realm = JsRuntime.Create().DefaultRealm;
@@ -3486,6 +3519,21 @@ public class DirectFlatParserTests
         realm.Execute(script);
 
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(5));
+    }
+
+    [Test]
+    public void CompileAst_ExecutesStaticPublicClassFieldBridge()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            JavaScriptParser.ParseScript(
+                "class Base { static value = 2; } class Derived extends Base { static result = super.value + 1; } Derived.result;"
+            )
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(3));
     }
 
     [TestCase("class Base { constructor() { super(); } }")]

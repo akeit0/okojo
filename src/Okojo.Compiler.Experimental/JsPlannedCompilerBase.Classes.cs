@@ -1,3 +1,4 @@
+using System.Buffers;
 using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Parsing;
 
@@ -70,22 +71,51 @@ internal abstract partial class JsPlannedCompilerBase
             EmitAttachMethodEnvironmentIfNeeded(ast, info.ConstructorNode, prototypeRegister);
 
             var elements = ast.GetClassElements(info);
-            for (var i = 0; i < elements.Length; i++)
+            var staticFieldKeyRegisters = ArrayPool<int>.Shared.Rent(Math.Max(1, elements.Length));
+            Array.Fill(staticFieldKeyRegisters, -1, 0, elements.Length);
+            try
             {
-                ref readonly var element = ref elements[i];
-                if (element.Kind == JsClassElementKind.Constructor)
-                    continue;
-                EmitClassElement(ast, element, constructorRegister, prototypeRegister);
-            }
+                for (var i = 0; i < elements.Length; i++)
+                {
+                    ref readonly var element = ref elements[i];
+                    if (element.Kind == JsClassElementKind.Constructor)
+                        continue;
+                    if (element.Kind == JsClassElementKind.Field)
+                    {
+                        if (!element.IsStatic)
+                            throw new NotSupportedException(
+                                "Flat instance class fields are not implemented yet."
+                            );
+                        var keyRegister = builder.AllocateTemporaryRegister();
+                        EmitClassElementKey(ast, element, keyRegister);
+                        staticFieldKeyRegisters[i] = keyRegister;
+                        continue;
+                    }
+                    EmitClassElement(ast, element, constructorRegister, prototypeRegister);
+                }
 
-            if (declaredName.Length != 0)
+                if (declaredName.Length != 0)
+                {
+                    if (!TryResolveBinding(declaredName, out var classAlias))
+                        throw new InvalidOperationException(
+                            $"No planned class lexical binding found for '{declaredName}'."
+                        );
+                    EmitLdar(constructorRegister);
+                    EmitStore(classAlias, isInitialization: true);
+                }
+
+                for (var i = 0; i < elements.Length; i++)
+                    if (staticFieldKeyRegisters[i] >= 0)
+                        EmitStaticClassFieldInitializer(
+                            ast,
+                            elements[i],
+                            constructorRegister,
+                            staticFieldKeyRegisters[i]
+                        );
+            }
+            finally
             {
-                if (!TryResolveBinding(declaredName, out var classAlias))
-                    throw new InvalidOperationException(
-                        $"No planned class lexical binding found for '{declaredName}'."
-                    );
-                EmitLdar(constructorRegister);
-                EmitStore(classAlias, isInitialization: true);
+                ArrayPool<int>.Shared.Return(staticFieldKeyRegisters);
             }
 
             EmitLdar(constructorRegister);
@@ -139,6 +169,34 @@ internal abstract partial class JsPlannedCompilerBase
             EmitClassElementFunction(ast, element, targetRegister);
             EmitStar(methodArguments + 2);
             builder.EmitCallRuntime((int)RuntimeId.DefineClassMethod, methodArguments, 3);
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+        }
+    }
+
+    private void EmitStaticClassFieldInitializer(
+        FlatAst ast,
+        in FlatClassElement element,
+        int constructorRegister,
+        int keyRegister
+    )
+    {
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            var arguments = builder.AllocateTemporaryRegisterBlock(3);
+            EmitLdar(constructorRegister);
+            EmitStar(arguments);
+            EmitLdar(keyRegister);
+            EmitStar(arguments + 1);
+            EmitClassElementFunction(ast, element, constructorRegister);
+            var initializerRegister = builder.AllocateTemporaryRegister();
+            EmitStar(initializerRegister);
+            builder.EmitCallProperty(initializerRegister, constructorRegister, 0, 0);
+            EmitStar(arguments + 2);
+            builder.EmitCallRuntime((int)RuntimeId.DefineClassField, arguments, 3);
         }
         finally
         {

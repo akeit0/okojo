@@ -61,7 +61,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings, class declaration and inner-name bindings | module bindings and remaining early errors |
 | Assignments | identifier/ordinary/super-member targets, compound/logical/update, array/object destructuring, core optional-chain target restrictions | private targets and remaining early errors |
 | Functions | ordinary declarations/expressions, closures, synchronous and async generators with `yield`/`yield*`, async declarations/expressions/object methods with `await`, synchronous and async arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`/`new.target`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function/class name inference, demand-driven mapped/unmapped `arguments` | lazy bodies |
-| Classes | base/derived declarations and expressions, explicit/implicit constructors, heritage/prototype setup, derived `this`/return rules, public named/computed instance/static methods and accessors, named/computed super loads/calls/stores/updates, strict bodies, declaration TDZ/const storage, inner class-name capture, anonymous name inference | fields, static blocks, private names/brands |
+| Classes | base/derived declarations and expressions, explicit/implicit constructors, heritage/prototype setup, derived `this`/return rules, public named/computed instance/static methods and accessors, named/computed static public fields, named/computed super loads/calls/stores/updates, strict bodies, declaration TDZ/const storage, inner class-name capture, anonymous name inference | instance fields, static blocks, private names/brands |
 | Modules | none | parse goal, entries, linking metadata, live bindings, top-level await |
 
 The direct parser rejects unsupported grammar. It does not catch an error and
@@ -985,6 +985,33 @@ Super-property and home-object slice landed:
   the constant pool, computed keys evaluate once, and load/store/update reuse one
   prepared reference. The class-AST bridge conservatively marks legacy class
   methods because that parser does not retain per-method super-use metadata.
+
+Static public-field slice landed:
+
+- iteration scope: named/computed static public fields, missing initializers,
+  source-order key/value effects, and `this`/`super` in initializers
+- minimal repro: `class C extends B { static [key()] = super.make(this) }`
+- reference case: `artifacts/okojobytecodetool/cases/flat_ast_class_static_fields.js`
+- focused tests cover method/field ordering, computed keys once, receiver/home object,
+  inherited static access, inner class-name availability, undefined defaults,
+  static `prototype` early rejection, and the class-AST bridge
+- V8 observation: `BuildClassLiteral` evaluates each static computed key at class
+  definition, then invokes a synthetic initializer with the constructor as `this`
+  before defining the next static element
+- Okojo implementation: reuse the dense class-element record, planned nested-function
+  compilation, `CallProperty`, and `DefineClassField`; do not add a field AST or
+  opcode. Each static initializer is a synthetic strict method body invoked with
+  the constructor receiver, so normal capture and demand-driven super planning
+  remain shared. Class definition first evaluates every computed key and defines
+  methods/accessors, then initializes the inner class binding, then runs static
+  field initializers in source order.
+- intentional boundary: instance fields require constructor-entry/post-`super()`
+  scheduling and computed-key transport; static blocks require their own return/
+  arguments early-error context, so both follow as separate slices. Anonymous
+  field-initializer function/class naming should land once for static and instance
+  fields with the shared initializer-result path.
+- performance plan: retain one constructor register, evaluate each key once into a
+  temporary, and attach a method environment only when the initializer uses `super`
 
 ### Stage F4 - Modules
 

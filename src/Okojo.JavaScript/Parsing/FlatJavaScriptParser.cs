@@ -893,10 +893,35 @@ internal sealed class FlatJavaScriptParser
                 }
 
                 if (current.Kind != JsTokenKind.LeftParen)
-                    throw Error(
-                        "Class fields are not supported by the flat parser yet",
-                        current.Position
+                {
+                    if (!isStatic)
+                        throw Error(
+                            "Instance class fields are not supported by the flat parser yet",
+                            current.Position
+                        );
+                    if (isGenerator || isAsync)
+                        throw Error("Invalid static class field", elementPosition);
+                    if (!computed && string.Equals(staticName, "prototype"))
+                        throw Error(
+                            "Classes may not have a static field named 'prototype'",
+                            elementPosition
+                        );
+                    var initializer = Match(JsTokenKind.Assign)
+                        ? ParseStaticClassFieldInitializer(elementPosition)
+                        : AddStaticClassFieldInitializer(-1, elementPosition, false);
+                    elements.Add(
+                        new FlatClassElement(
+                            key,
+                            initializer,
+                            elementPosition,
+                            JsClassElementKind.Field,
+                            FlatClassElementFlags.Static
+                                | (computed ? FlatClassElementFlags.Computed : 0)
+                        )
                     );
+                    ConsumeSemicolon();
+                    continue;
+                }
 
                 var isConstructor =
                     !isStatic && !computed && string.Equals(staticName, "constructor");
@@ -960,6 +985,61 @@ internal sealed class FlatJavaScriptParser
             elements.Dispose();
             strictMode = strictBeforeClass;
         }
+    }
+
+    private int ParseStaticClassFieldInitializer(int position)
+    {
+        var allowSuperPropertyBeforeInitializer = allowSuperProperty;
+        var superPropertySeenBeforeInitializer = superPropertySeen;
+        allowSuperProperty = true;
+        superPropertySeen = false;
+        receiverFunctionDepth++;
+        try
+        {
+            var expression = ParseAssignment(allowIn: true);
+            return AddStaticClassFieldInitializer(expression, position, superPropertySeen);
+        }
+        finally
+        {
+            receiverFunctionDepth--;
+            allowSuperProperty = allowSuperPropertyBeforeInitializer;
+            superPropertySeen = superPropertySeenBeforeInitializer;
+        }
+    }
+
+    private int AddStaticClassFieldInitializer(
+        int expression,
+        int position,
+        bool hasSuperPropertyReference
+    )
+    {
+        var returnStatement = Arena.Add(AstKind.ReturnStatement, expression, position: position);
+        Span<int> statements = [returnStatement];
+        var bodyRange = Arena.AddChildren(statements);
+        var body = Arena.Add(
+            AstKind.Program,
+            bodyRange.Offset,
+            bodyRange.Count,
+            position: position
+        );
+        var parameters = ast.AddParameters(ReadOnlySpan<FlatParameter>.Empty);
+        var functionIndex = ast.AddFunction(
+            new FlatFunctionInfo(
+                Arena.AddString(string.Empty),
+                -1,
+                parameters.Offset,
+                parameters.Count,
+                0,
+                -1,
+                true,
+                true,
+                false,
+                position,
+                true,
+                HasSuperPropertyReference: hasSuperPropertyReference
+            )
+        );
+        return Arena.Add(AstKind.FunctionExpression, functionIndex, body, position: position);
     }
 
     private int AddImplicitClassConstructor(int position, bool isDerived = false)

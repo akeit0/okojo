@@ -729,23 +729,25 @@ internal static class FlatAstLowerer
                     var element = classExpression.Elements[i];
                     if (
                         element.IsPrivate
-                        || element.Kind
-                            is JsClassElementKind.Field
-                                or JsClassElementKind.StaticBlock
+                        || element.Kind == JsClassElementKind.StaticBlock
+                        || (element.Kind == JsClassElementKind.Field && !element.IsStatic)
                     )
                         throw new NotSupportedException(
                             $"{compilerName} does not support class element '{element.Kind}' yet."
                         );
-                    if (element.Value is null)
-                        throw new InvalidOperationException("Class method value is missing.");
-                    var value = LowerFunctionExpression(
-                        element.Value,
-                        implicitlyStrict: true,
-                        isMethod: element.Kind != JsClassElementKind.Constructor,
-                        isClassConstructor: element.Kind == JsClassElementKind.Constructor,
-                        isDerivedConstructor: element.Kind == JsClassElementKind.Constructor
-                            && classExpression.HasExtends
-                    );
+                    var value =
+                        element.Kind == JsClassElementKind.Field
+                            ? LowerStaticClassFieldInitializer(element)
+                        : element.Value is null
+                            ? throw new InvalidOperationException("Class method value is missing.")
+                        : LowerFunctionExpression(
+                            element.Value,
+                            implicitlyStrict: true,
+                            isMethod: element.Kind != JsClassElementKind.Constructor,
+                            isClassConstructor: element.Kind == JsClassElementKind.Constructor,
+                            isDerivedConstructor: element.Kind == JsClassElementKind.Constructor
+                                && classExpression.HasExtends
+                        );
                     if (element.Kind == JsClassElementKind.Constructor)
                         constructorNode = value;
                     elements[i] = new FlatClassElement(
@@ -789,6 +791,49 @@ internal static class FlatAstLowerer
             {
                 ArrayPool<FlatClassElement>.Shared.Return(elements);
             }
+        }
+
+        private int LowerStaticClassFieldInitializer(JsClassElement element)
+        {
+            var expression = element.FieldInitializer is null
+                ? -1
+                : LowerExpression(element.FieldInitializer);
+            var returnStatement = Arena.Add(
+                AstKind.ReturnStatement,
+                expression,
+                position: element.Position
+            );
+            Span<int> statements = [returnStatement];
+            var bodyChildren = Arena.AddChildren(statements);
+            var body = Arena.Add(
+                AstKind.Program,
+                bodyChildren.Offset,
+                bodyChildren.Count,
+                position: element.Position
+            );
+            var parameters = Ast.AddParameters(ReadOnlySpan<FlatParameter>.Empty);
+            var functionIndex = Ast.AddFunction(
+                new FlatFunctionInfo(
+                    Arena.AddString(string.Empty),
+                    -1,
+                    parameters.Offset,
+                    parameters.Count,
+                    0,
+                    -1,
+                    true,
+                    true,
+                    false,
+                    element.Position,
+                    true,
+                    HasSuperPropertyReference: true
+                )
+            );
+            return Arena.Add(
+                AstKind.FunctionExpression,
+                functionIndex,
+                body,
+                position: element.Position
+            );
         }
 
         private int AddImplicitClassConstructor(int position, bool isDerived = false)

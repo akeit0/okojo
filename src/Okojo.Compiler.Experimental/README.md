@@ -116,7 +116,7 @@ lowerer comparison.
 Still intentionally unsupported in the experimental pipeline:
 
 - private member access
-- class fields, static blocks, and private names
+- instance class fields, static blocks, and private names
 - module binding emission
 - direct production replacement of `JsCompiler`
 
@@ -141,6 +141,7 @@ Current milestone status:
 - ordinary concise object methods/getters/setters: done
 - base/derived classes, public methods/accessors, and `super()` construction: done
 - named/computed super properties, calls, stores, updates, and nested arrows: done
+- named/computed static public fields with source-ordered initializers: done
 - anonymous class name inference: done
 - BigInt and fresh-object RegExp literals: done
 - array binding declarations with iterator-safe step/store lowering: done
@@ -177,7 +178,7 @@ dotnet test tests/Okojo.Compiler.Tests/Okojo.Compiler.Tests.csproj --no-build
 
 Recommended next slices:
 
-1. class fields, static blocks, and private names
+1. instance class fields, static blocks, and private names
 2. module parse/binding/link metadata
 3. complete declaration early errors and debugger/source metadata
 4. planned-compiler Test262 mode and parser differential campaigns
