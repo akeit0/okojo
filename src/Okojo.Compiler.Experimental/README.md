@@ -71,7 +71,7 @@ Both planned compilers currently support:
 - ordinary calls and named/computed member loads with property-call receivers
 - array literals with holes and dynamic elements, excluding spread
 - object literals with named, indexed, computed, shorthand, and duplicate data properties
-- named/computed member assignment, compound assignment, and update
+- named/computed member assignment, compound/logical assignment, and update
 - nested capture and assignment for parameter, root, function, and block bindings
 - capture-gated per-iteration contexts for lexical ordinary `for` heads
 
@@ -84,7 +84,6 @@ lowerer comparison.
 Still intentionally unsupported in the experimental pipeline:
 
 - spread/optional calls, construction, and private/super member access
-- logical member assignment
 - destructuring
 - object methods/accessors/spread and array spread
 - module/global binding emission
@@ -142,6 +141,5 @@ Recommended next slices:
 1. destructuring
 2. construction and spread calls
 3. object methods and accessors
-4. logical member assignment
-5. `for-in` / `for-of`
-6. converge the complete production grammar on flat node handles
+4. `for-in` / `for-of`
+5. converge the complete production grammar on flat node handles

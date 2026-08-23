@@ -25,7 +25,8 @@ covers named, string, numeric, computed, and shorthand data properties. Methods,
 accessors, spread, and legacy `__proto__` prototype mutation are excluded.
 Member writes now share a prepared-reference lowering that evaluates the base and
 computed key once. Simple, arithmetic/bitwise compound, prefix, and postfix forms
-are covered; logical assignment remains deferred.
+are covered. Logical member assignment shares the same prepared reference and
+short-circuit branch lowering as identifier assignment.
 Captured lexical heads in ordinary `for` loops now receive a fresh context per
 iteration. Context replacement is capture-gated, so non-capturing loops retain
 the register-only path.
@@ -84,6 +85,7 @@ first() * 10 + second(); // 1
   - array length, holes, and dynamic element initialization
   - object property order, computed keys, shorthand, duplicates, and indices
   - named/computed member assignment, compound assignment, and update
+  - logical member assignment short-circuiting and computed-key evaluation count
   - capture-gated per-iteration loop-head contexts across `continue` and `break`
 
 ## Reference Observations
@@ -109,6 +111,12 @@ stable named prefix and emit keyed definitions after the first dynamic key. The
 flat emitter copies that structure. Computed keys are normalized before their
 values execute, preserving observable evaluation order. Numeric keys bypass shape
 transitions, and duplicate named keys fall into the keyed tail.
+
+V8 and production Okojo load the member once, branch on the loaded value, and
+store only when the logical operator selects the right-hand side. The flat emitter
+copies that branch shape while retaining its prepared base/key registers, so a
+computed key is normalized once before the load and is reused by the conditional
+store.
 
 For captured `for (let ...)` heads, V8 creates a new block context for each
 iteration and moves the value through the update path. Production Okojo clones a
@@ -140,6 +148,5 @@ Initial Release measurement for 80 declaration/update pairs after warm-up:
 - object methods, accessors, and spread
 - array spread
 - spread calls, optional chaining, construction, and private/super members
-- logical member assignment
 - converging the remaining production grammar on flat node handles
 - direct production `JsCompiler` migration

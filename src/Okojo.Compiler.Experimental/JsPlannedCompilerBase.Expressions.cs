@@ -429,16 +429,6 @@ internal abstract partial class JsPlannedCompilerBase
         int right
     )
     {
-        if (
-            op
-            is JsAssignmentOperator.LogicalAndAssign
-                or JsAssignmentOperator.LogicalOrAssign
-                or JsAssignmentOperator.NullishCoalescingAssign
-        )
-            throw new NotSupportedException(
-                $"{CompilerName} does not support logical member assignment yet."
-            );
-
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
         {
@@ -449,6 +439,16 @@ internal abstract partial class JsPlannedCompilerBase
             );
             if (op == JsAssignmentOperator.Assign)
                 EmitExpression(ast, right);
+            else if (IsLogicalAssignment(op))
+            {
+                EmitPreparedMemberLoad(reference);
+                var end = builder.CreateLabel();
+                EmitLogicalAssignmentShortCircuit(op, end);
+                EmitExpression(ast, right);
+                EmitPreparedMemberStore(reference);
+                builder.BindLabel(end);
+                return;
+            }
             else
             {
                 EmitPreparedMemberLoad(reference);
@@ -460,6 +460,14 @@ internal abstract partial class JsPlannedCompilerBase
         {
             builder.ReleaseTemporaryRegistersToMarker(marker);
         }
+    }
+
+    private static bool IsLogicalAssignment(JsAssignmentOperator op)
+    {
+        return op
+            is JsAssignmentOperator.LogicalAndAssign
+                or JsAssignmentOperator.LogicalOrAssign
+                or JsAssignmentOperator.NullishCoalescingAssign;
     }
 
     private void EmitMemberUpdate(FlatAst ast, AstNode member, AstNode update)
@@ -677,24 +685,8 @@ internal abstract partial class JsPlannedCompilerBase
     )
     {
         EmitIdentifierLoad(name);
-        var assign = builder.CreateLabel();
         var end = builder.CreateLabel();
-        switch (op)
-        {
-            case JsAssignmentOperator.LogicalAndAssign:
-                EmitJumpIfToBooleanFalse(end);
-                break;
-            case JsAssignmentOperator.LogicalOrAssign:
-                EmitJumpIfToBooleanTrue(end);
-                break;
-            case JsAssignmentOperator.NullishCoalescingAssign:
-                EmitJumpIfNull(assign);
-                EmitJumpIfUndefined(assign);
-                EmitJump(end);
-                builder.BindLabel(assign);
-                break;
-        }
-
+        EmitLogicalAssignmentShortCircuit(op, end);
         EmitExpression(ast, right);
         EmitResolvedIdentifierStore(
             hasLocalBinding,
@@ -704,6 +696,31 @@ internal abstract partial class JsPlannedCompilerBase
             externalDepth
         );
         builder.BindLabel(end);
+    }
+
+    private void EmitLogicalAssignmentShortCircuit(
+        JsAssignmentOperator op,
+        BytecodeBuilder.Label end
+    )
+    {
+        switch (op)
+        {
+            case JsAssignmentOperator.LogicalAndAssign:
+                EmitJumpIfToBooleanFalse(end);
+                return;
+            case JsAssignmentOperator.LogicalOrAssign:
+                EmitJumpIfToBooleanTrue(end);
+                return;
+            case JsAssignmentOperator.NullishCoalescingAssign:
+                var assign = builder.CreateLabel();
+                EmitJumpIfNull(assign);
+                EmitJumpIfUndefined(assign);
+                EmitJump(end);
+                builder.BindLabel(assign);
+                return;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(op));
+        }
     }
 
     private static bool TryMapBinaryOpcode(JsBinaryOperator op, out JsOpCode opcode)

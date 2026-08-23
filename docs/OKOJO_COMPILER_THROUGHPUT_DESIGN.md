@@ -253,7 +253,8 @@ ordinary calls and named/computed member loads now use the same register shape a
 centralized bytecode operand encoder as the production compiler. Array literals
 now preserve holes while initializing present elements in source order. Object
 literals now follow the same stable-prefix shape strategy. Member writes use a
-prepared reference so base/key evaluation is not duplicated across load and store.
+prepared reference so base/key evaluation is not duplicated across load and store;
+logical member assignments branch around the RHS/store using that same reference.
 Captured ordinary `for` heads now use per-iteration sibling-context replacement.
 The loop-head context is copied and replaced before the first test and before each
 update, so closures retain the prior iteration without inserting an extra context
