@@ -490,9 +490,14 @@ checks, and observable function names match the production engine and V8.
   attributes. Lazily allocated request/attribute/import tables follow V8's
   `SourceTextModuleDescriptor` split, import nodes only address dense ranges, and
   the binding collector creates a module root with read-only import bindings.
-- complete module early errors, especially import/local/export cross-declaration
-  conflicts
-- export entries in compact side tables
+- landed export-descriptor foundation: one tagged, lazily pooled table represents
+  local declaration/named/default exports and indirect namespace/star exports;
+  export nodes retain existing flat declaration/expression payloads. Whole-module
+  validation catches import/`var`/lexical/function/class conflicts, including
+  nested `var`, duplicate explicit exports, missing local exports, and forward
+  references after parsing, matching V8's descriptor-validation phase.
+- canonicalize source-free exports of imported bindings into indirect exports and
+  assign stable import/export live-cell indices
 - module scope and live binding storage
 - linking/evaluation integration
 - dynamic import, `import.meta`, top-level await, and async dependency ordering

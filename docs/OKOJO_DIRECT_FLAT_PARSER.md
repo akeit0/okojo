@@ -50,19 +50,19 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 
 | area | implemented direct path | remaining |
 |---|---|---|
-| Parse goal | scripts, initial strict module goal | module exports/execution, standalone function goal |
-| Declarations | `var`/`let`/`const`, ordinary function and base-class declarations, function/block declaration prologues, function-scoped `var`, persistent script globals/lexicals, initial global conflict validation, side-effect/default/named/namespace import descriptors | exports, cross-declaration module early errors, complete declaration early errors, Annex B |
+| Parse goal | scripts, strict module goal with import/export descriptors | module execution, standalone function goal |
+| Declarations | `var`/`let`/`const`, ordinary function and base-class declarations, function/block declaration prologues, function-scoped `var`, persistent script globals/lexicals, initial global conflict validation, side-effect/default/named/namespace imports, local/default/indirect/namespace/star exports | complete declaration early errors, Annex B |
 | Blocks/control | block, `if`, `while`, `do`, ordinary `for`, `for-in`, synchronous `for-of`, `for-await-of`, `switch`, chained labels, labeled/unlabeled `break`/`continue`, `return`, `throw`, `try`/`catch`/`finally`, `debugger`, empty/expression statement | remaining declaration/control early errors |
 | Primitive expressions | number, BigInt, string, boolean, null, regexp, tagged/untagged template, identifier, `this`, `new.target`, contextual `super` roots, grouping | `import.meta` |
 | Operators | precedence table, assignment, arithmetic/logical/bitwise/comparison, conditionals, sequence, updates, optional chains, property/identifier/value/optional-chain `delete` | remaining edge-specific early errors |
 | References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed ordinary and `super` properties, private field/method/accessor loads, calls, stores, updates, and `#x in value` | import live-cell emission |
 | Calls/construction | direct/member/optional calls, spread calls, ordinary/spread `new`, implicit/explicit/spread `super()`, super-property calls, wide operands | dynamic import |
 | Arrays/objects | holes, array/object spread, data properties, ordinary/generator/async concise methods, getters/setters, computed/shorthand/index keys, stable data shape prefix, demand-driven super home objects | legacy `__proto__` intentionally excluded |
-| Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings, class declaration and inner-name bindings, read-only import bindings in a module root scope | module local/export cells and remaining early errors |
+| Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings, class declaration and inner-name bindings, read-only import bindings in a module root scope, module-wide import/`var`/lexical/function/class conflict and local-export validation | module local/export cells and remaining early errors |
 | Assignments | identifier/ordinary/super/private-field member targets, compound/logical/update, array/object destructuring, core optional-chain target restrictions | remaining early errors |
 | Functions | ordinary declarations/expressions, closures, synchronous and async generators with `yield`/`yield*`, async declarations/expressions/object methods with `await`, synchronous and async arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`/`new.target`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function/class name inference, demand-driven mapped/unmapped `arguments` | lazy bodies |
 | Classes | base/derived declarations and expressions, explicit/implicit constructors, heritage/prototype setup, derived `this`/return rules, public/private instance/static methods and accessors, named/computed public fields, instance/static private fields and brands, source-ordered static blocks, named/computed super loads/calls/stores/updates, strict bodies, declaration TDZ/const storage, inner class-name capture, anonymous name inference including named/computed fields, private methods, and private accessors | full ordering differential and Test262 gate |
-| Modules | strict parse goal, side-effect/default/named/namespace imports, string import names, import attributes, compact request/import tables | export tables, linker metadata consumption, live cells, dynamic import, `import.meta`, top-level await |
+| Modules | strict parse goal, side-effect/default/named/namespace imports, string import names, import attributes, local/declaration/default/indirect/namespace/star exports, compact request/import/export tables, module binding validation | linker metadata consumption, imported-export canonicalization, live cells, dynamic import, `import.meta`, top-level await |
 
 The direct parser rejects unsupported grammar. It does not catch an error and
 restart through `JavaScriptParser`; that would allocate both representations,
@@ -1160,6 +1160,28 @@ Module import-descriptor slice landed:
   metadata lands
 - performance plan: module-only pooled tables, no class-AST import objects, and no
   impact on the script parser/compiler hot path
+
+Module export-descriptor slice landed:
+
+- iteration scope: local declaration/named/default exports, indirect named,
+  namespace, and star exports with shared module requests/attributes
+- minimal repro: `export const value = 1; export { value as renamed }`
+- reference case:
+  `artifacts/okojobytecodetool/cases/flat_ast_module_exports.js`
+- focused tests cover dense export entries, wrapped executable declarations/default
+  expressions, destructured declaration names, duplicate export-name errors,
+  re-export request metadata, and binding collection through export wrappers
+- V8 observation: local exports and special indirect/star exports are separate
+  descriptor entries; validation canonicalizes exports of imported bindings and
+  assigns live-cell indices after parsing
+- Okojo implementation: one tagged, lazily pooled export-entry table plus thin
+  export nodes retains wrapped flat declarations/expressions for the future module
+  execution plan without allocating `JsExport*` objects. A post-parse module pass
+  validates duplicate bindings, nested `var` conflicts, forward local exports,
+  missing locals, and duplicate explicit export names across the entire module.
+- performance plan: lazily rent export storage only for modules containing exports;
+  source-free exports add no module request and executable payloads reuse existing
+  flat nodes
 
 ### Stage F4 - Modules
 

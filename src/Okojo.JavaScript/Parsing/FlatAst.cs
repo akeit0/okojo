@@ -20,6 +20,8 @@ internal sealed class FlatAst : IDisposable
     private int importEntryCount;
     private FlatImportAttribute[] importAttributes;
     private int importAttributeCount;
+    private FlatExportEntry[] exportEntries;
+    private int exportEntryCount;
     private bool disposed;
 
     public FlatAst(string source, string? sourcePath = null)
@@ -35,6 +37,7 @@ internal sealed class FlatAst : IDisposable
         moduleRequests = [];
         importEntries = [];
         importAttributes = [];
+        exportEntries = [];
     }
 
     public AstArena Arena { get; }
@@ -134,6 +137,18 @@ internal sealed class FlatAst : IDisposable
 
     public ReadOnlySpan<FlatImportAttribute> GetImportAttributes(in FlatModuleRequest request) =>
         importAttributes.AsSpan(request.AttributeOffset, request.AttributeCount);
+
+    public (int Offset, int Count) AddExportEntries(ReadOnlySpan<FlatExportEntry> values)
+    {
+        EnsureExportEntryCapacity(values.Length);
+        var offset = exportEntryCount;
+        values.CopyTo(exportEntries.AsSpan(offset));
+        exportEntryCount += values.Length;
+        return (offset, values.Length);
+    }
+
+    public ReadOnlySpan<FlatExportEntry> GetExportEntries(in AstNode declaration) =>
+        exportEntries.AsSpan(declaration.Arg1, declaration.Arg2);
 
     public int AddClass(FlatClassInfo info)
     {
@@ -262,6 +277,19 @@ internal sealed class FlatAst : IDisposable
         importAttributes = next;
     }
 
+    private void EnsureExportEntryCapacity(int additional)
+    {
+        if (exportEntryCount + additional <= exportEntries.Length)
+            return;
+        var next = ArrayPool<FlatExportEntry>.Shared.Rent(
+            Math.Max(Math.Max(8, exportEntries.Length * 2), exportEntryCount + additional)
+        );
+        Array.Copy(exportEntries, next, exportEntryCount);
+        if (exportEntries.Length != 0)
+            ArrayPool<FlatExportEntry>.Shared.Return(exportEntries);
+        exportEntries = next;
+    }
+
     public void Dispose()
     {
         if (disposed)
@@ -278,6 +306,8 @@ internal sealed class FlatAst : IDisposable
             ArrayPool<FlatImportEntry>.Shared.Return(importEntries);
         if (importAttributes.Length != 0)
             ArrayPool<FlatImportAttribute>.Shared.Return(importAttributes);
+        if (exportEntries.Length != 0)
+            ArrayPool<FlatExportEntry>.Shared.Return(exportEntries);
         functions = [];
         parameters = [];
         objectProperties = [];
@@ -286,6 +316,7 @@ internal sealed class FlatAst : IDisposable
         moduleRequests = [];
         importEntries = [];
         importAttributes = [];
+        exportEntries = [];
         functionCount = 0;
         parameterCount = 0;
         objectPropertyCount = 0;
@@ -294,6 +325,7 @@ internal sealed class FlatAst : IDisposable
         moduleRequestCount = 0;
         importEntryCount = 0;
         importAttributeCount = 0;
+        exportEntryCount = 0;
         Arena.Dispose();
     }
 }
@@ -325,6 +357,25 @@ internal enum FlatImportKind : byte
     Default,
     Named,
     Namespace,
+}
+
+internal readonly record struct FlatExportEntry(
+    int ModuleRequestIndex,
+    int LocalNameStringIndex,
+    int ImportNameStringIndex,
+    int ExportNameStringIndex,
+    FlatExportKind Kind,
+    int Position
+);
+
+internal enum FlatExportKind : byte
+{
+    Local,
+    Indirect,
+    Namespace,
+    Star,
+    DefaultExpression,
+    DefaultDeclaration,
 }
 
 internal readonly record struct FlatFunctionInfo(

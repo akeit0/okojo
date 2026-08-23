@@ -28,6 +28,7 @@ internal sealed class FlatJavaScriptParser
     private int deferredAsyncParameterErrorPosition = -1;
     private List<ActiveLabel>? activeLabels;
     private HashSet<string>? moduleImportBindings;
+    private HashSet<string>? moduleExportNames;
 
     private FlatJavaScriptParser(string source, string? sourcePath, bool isModule = false)
     {
@@ -97,12 +98,218 @@ internal sealed class FlatJavaScriptParser
             }
 
             var children = Arena.AddChildren(statements.AsSpan());
-            return Arena.Add(AstKind.Program, children.Offset, children.Count);
+            var program = Arena.Add(AstKind.Program, children.Offset, children.Count);
+            if (isModule)
+                ValidateModuleBindings(program);
+            return program;
         }
         finally
         {
             statements.Dispose();
         }
+    }
+
+    private void ValidateModuleBindings(int program)
+    {
+        var bindings = new Dictionary<string, (bool IsVar, int Position)>(StringComparer.Ordinal);
+        var statements = Arena.ChildRange(Arena[program].Arg0, Arena[program].Arg1);
+        for (var i = 0; i < statements.Length; i++)
+            CollectModuleBindings(statements[i], isTopLevel: true, bindings);
+
+        for (var i = 0; i < statements.Length; i++)
+        {
+            ref readonly var statement = ref Arena[statements[i]];
+            if (statement.Kind != AstKind.ExportDeclaration)
+                continue;
+            var entries = ast.GetExportEntries(statement);
+            for (var j = 0; j < entries.Length; j++)
+            {
+                ref readonly var entry = ref entries[j];
+                if (entry.Kind != FlatExportKind.Local)
+                    continue;
+                var name = Arena.GetString(entry.LocalNameStringIndex);
+                if (!bindings.ContainsKey(name))
+                    throw Error($"Exported binding '{name}' is not declared", entry.Position);
+            }
+        }
+    }
+
+    private void CollectModuleBindings(
+        int statementIndex,
+        bool isTopLevel,
+        Dictionary<string, (bool IsVar, int Position)> bindings
+    )
+    {
+        ref readonly var statement = ref Arena[statementIndex];
+        switch (statement.Kind)
+        {
+            case AstKind.ImportDeclaration:
+                var imports = ast.GetImportEntries(statement);
+                for (var i = 0; i < imports.Length; i++)
+                    DeclareModuleBinding(
+                        Arena.GetString(imports[i].LocalNameStringIndex),
+                        isVar: false,
+                        imports[i].Position,
+                        bindings
+                    );
+                return;
+            case AstKind.ExportDeclaration:
+                if (statement.Arg0 < 0)
+                    return;
+                var exports = ast.GetExportEntries(statement);
+                if (exports.Length == 0)
+                    return;
+                if (exports[0].Kind == FlatExportKind.Local)
+                    CollectModuleBindings(statement.Arg0, isTopLevel: true, bindings);
+                else if (exports[0].Kind == FlatExportKind.DefaultDeclaration)
+                {
+                    var name = Arena.GetString(exports[0].LocalNameStringIndex);
+                    if (name.Length != 0 && name[0] != '\0')
+                        DeclareModuleBinding(name, isVar: false, exports[0].Position, bindings);
+                }
+                return;
+            case AstKind.VariableDeclaration:
+                var kind = (JsVariableDeclarationKind)statement.Arg2;
+                if (!isTopLevel && kind != JsVariableDeclarationKind.Var)
+                    return;
+                var declarators = Arena.ChildRange(statement.Arg0, statement.Arg1);
+                for (var i = 0; i < declarators.Length; i++)
+                {
+                    ref readonly var declarator = ref Arena[declarators[i]];
+                    if (declarator.Kind == AstKind.VariableDeclarator)
+                        DeclareModuleBinding(
+                            Arena.GetString(declarator.Arg0),
+                            kind == JsVariableDeclarationKind.Var,
+                            Arena.GetPosition(declarators[i]),
+                            bindings
+                        );
+                    else
+                        CollectPatternModuleBindings(
+                            declarator.Arg0,
+                            kind == JsVariableDeclarationKind.Var,
+                            bindings
+                        );
+                }
+                return;
+            case AstKind.FunctionDeclaration when isTopLevel:
+                var function = ast.GetFunction(statement.Arg0);
+                DeclareModuleBinding(
+                    ast.GetString(function.NameStringIndex),
+                    isVar: false,
+                    function.Position,
+                    bindings
+                );
+                return;
+            case AstKind.ClassDeclaration when isTopLevel:
+                var info = ast.GetClass(statement.Arg0);
+                DeclareModuleBinding(
+                    ast.GetString(info.NameStringIndex),
+                    isVar: false,
+                    info.Position,
+                    bindings
+                );
+                return;
+            case AstKind.BlockStatement:
+                var blockStatements = Arena.ChildRange(statement.Arg0, statement.Arg1);
+                for (var i = 0; i < blockStatements.Length; i++)
+                    CollectModuleBindings(blockStatements[i], isTopLevel: false, bindings);
+                return;
+            case AstKind.IfStatement:
+                CollectModuleBindings(statement.Arg1, isTopLevel: false, bindings);
+                if (statement.Arg2 >= 0)
+                    CollectModuleBindings(statement.Arg2, isTopLevel: false, bindings);
+                return;
+            case AstKind.WhileStatement:
+                CollectModuleBindings(statement.Arg1, isTopLevel: false, bindings);
+                return;
+            case AstKind.DoWhileStatement:
+                CollectModuleBindings(statement.Arg0, isTopLevel: false, bindings);
+                return;
+            case AstKind.ForStatement:
+                var forParts = Arena.ChildRange(statement.Arg0, statement.Arg1);
+                if (forParts[0] >= 0 && Arena[forParts[0]].Kind == AstKind.VariableDeclaration)
+                    CollectModuleBindings(forParts[0], isTopLevel: false, bindings);
+                CollectModuleBindings(forParts[3], isTopLevel: false, bindings);
+                return;
+            case AstKind.ForInOfStatement:
+                var iterationParts = Arena.ChildRange(statement.Arg0, statement.Arg1);
+                if (Arena[iterationParts[0]].Kind == AstKind.VariableDeclaration)
+                    CollectModuleBindings(iterationParts[0], isTopLevel: false, bindings);
+                CollectModuleBindings(iterationParts[2], isTopLevel: false, bindings);
+                return;
+            case AstKind.LabeledStatement:
+                CollectModuleBindings(statement.Arg1, isTopLevel: false, bindings);
+                return;
+            case AstKind.TryStatement:
+                CollectModuleBindings(statement.Arg0, isTopLevel: false, bindings);
+                if (statement.Arg1 >= 0)
+                    CollectModuleBindings(Arena[statement.Arg1].Arg1, isTopLevel: false, bindings);
+                if (statement.Arg2 >= 0)
+                    CollectModuleBindings(statement.Arg2, isTopLevel: false, bindings);
+                return;
+            case AstKind.SwitchStatement:
+                var cases = Arena.ChildRange(statement.Arg1, statement.Arg2);
+                for (var i = 0; i < cases.Length; i++)
+                {
+                    ref readonly var switchCase = ref Arena[cases[i]];
+                    var caseStatements = Arena.ChildRange(switchCase.Arg1, switchCase.Arg2);
+                    for (var j = 0; j < caseStatements.Length; j++)
+                        CollectModuleBindings(caseStatements[j], isTopLevel: false, bindings);
+                }
+                return;
+        }
+    }
+
+    private void CollectPatternModuleBindings(
+        int pattern,
+        bool isVar,
+        Dictionary<string, (bool IsVar, int Position)> bindings
+    )
+    {
+        ref readonly var node = ref Arena[pattern];
+        switch (node.Kind)
+        {
+            case AstKind.Identifier:
+                DeclareModuleBinding(
+                    Arena.GetString(node.Arg0),
+                    isVar,
+                    Arena.GetPosition(pattern),
+                    bindings
+                );
+                return;
+            case AstKind.AssignmentExpression:
+            case AstKind.SpreadElement:
+                CollectPatternModuleBindings(node.Arg0, isVar, bindings);
+                return;
+            case AstKind.ArrayBindingPattern:
+                var children = Arena.ChildRange(node.Arg0, node.Arg1);
+                for (var i = 0; i < children.Length; i++)
+                    if (children[i] >= 0)
+                        CollectPatternModuleBindings(children[i], isVar, bindings);
+                return;
+            case AstKind.ObjectBindingPattern:
+                var properties = ast.GetObjectProperties(node.Arg0, node.Arg1);
+                for (var i = 0; i < properties.Length; i++)
+                    CollectPatternModuleBindings(properties[i].ValueNode, isVar, bindings);
+                return;
+        }
+    }
+
+    private void DeclareModuleBinding(
+        string name,
+        bool isVar,
+        int position,
+        Dictionary<string, (bool IsVar, int Position)> bindings
+    )
+    {
+        if (!bindings.TryGetValue(name, out var existing))
+        {
+            bindings.Add(name, (isVar, position));
+            return;
+        }
+        if (isVar && existing.IsVar)
+            return;
+        throw Error($"Duplicate module binding '{name}'", position);
     }
 
     private int ParseModuleItem()
@@ -113,8 +320,225 @@ internal sealed class FlatJavaScriptParser
         )
             return ParseImportDeclaration();
         if (IsCurrentIdentifierName("export"))
-            throw Error("Module export declarations are not supported yet", current.Position);
+            return ParseExportDeclaration();
         return ParseStatement();
+    }
+
+    private int ParseExportDeclaration()
+    {
+        var position = current.Position;
+        Next();
+        if (Match(JsTokenKind.Star))
+            return ParseExportStar(position);
+        if (Match(JsTokenKind.LeftBrace))
+            return ParseExportSpecifiers(position);
+        if (Match(JsTokenKind.Default))
+            return ParseExportDefault(position);
+
+        int declaration;
+        if (current.Kind is JsTokenKind.Var or JsTokenKind.Let or JsTokenKind.Const)
+            declaration = ParseVariableDeclaration(consumeSemicolon: true);
+        else if (current.Kind == JsTokenKind.Function)
+            declaration = ParseFunctionDeclaration();
+        else if (IsAsyncFunctionPrefix())
+            declaration = ParseFunction(isDeclaration: true, isAsync: true);
+        else if (IsCurrentIdentifierName("class"))
+            declaration = ParseClass(isDeclaration: true);
+        else
+            throw Error("Unsupported export declaration", current.Position);
+
+        var entries = new List<FlatExportEntry>();
+        CollectDeclarationExportEntries(declaration, entries);
+        return AddExportNode(position, declaration, CollectionsMarshal.AsSpan(entries));
+    }
+
+    private int ParseExportStar(int position)
+    {
+        var exportedName = -1;
+        var kind = FlatExportKind.Star;
+        if (IsCurrentIdentifierName("as"))
+        {
+            Next();
+            var namePosition = current.Position;
+            var name = ParseModuleExportName();
+            DeclareModuleExportName(name, namePosition);
+            exportedName = Arena.AddString(name);
+            kind = FlatExportKind.Namespace;
+        }
+        ExpectContextualKeyword("from");
+        var sourceToken = Expect(JsTokenKind.String);
+        var requestIndex = AddModuleRequest(sourceToken, ParseImportAttributes());
+        ConsumeSemicolon();
+        Span<FlatExportEntry> entries = [new(requestIndex, -1, -1, exportedName, kind, position)];
+        return AddExportNode(position, -1, entries);
+    }
+
+    private int ParseExportSpecifiers(int position)
+    {
+        var pending = new List<PendingExportSpecifier>(4);
+        while (current.Kind != JsTokenKind.RightBrace)
+        {
+            var localPosition = current.Position;
+            var localWasString = current.Kind == JsTokenKind.String;
+            var localName = ParseModuleExportName();
+            var exportedName = localName;
+            if (IsCurrentIdentifierName("as"))
+            {
+                Next();
+                exportedName = ParseModuleExportName();
+            }
+            pending.Add(new(localName, exportedName, localWasString, localPosition));
+            if (!Match(JsTokenKind.Comma))
+                break;
+            if (current.Kind == JsTokenKind.RightBrace)
+                break;
+        }
+        Expect(JsTokenKind.RightBrace);
+
+        var requestIndex = -1;
+        if (IsCurrentIdentifierName("from"))
+        {
+            Next();
+            var sourceToken = Expect(JsTokenKind.String);
+            requestIndex = AddModuleRequest(sourceToken, ParseImportAttributes());
+        }
+        ConsumeSemicolon();
+
+        var entries = new FlatExportEntry[pending.Count];
+        for (var i = 0; i < pending.Count; i++)
+        {
+            var specifier = pending[i];
+            if (requestIndex < 0 && specifier.LocalWasString)
+                throw Error("String export names require a source module", specifier.Position);
+            DeclareModuleExportName(specifier.ExportedName, specifier.Position);
+            entries[i] = new(
+                requestIndex,
+                requestIndex < 0 ? Arena.AddString(specifier.LocalName) : -1,
+                requestIndex >= 0 ? Arena.AddString(specifier.LocalName) : -1,
+                Arena.AddString(specifier.ExportedName),
+                requestIndex < 0 ? FlatExportKind.Local : FlatExportKind.Indirect,
+                specifier.Position
+            );
+        }
+        return AddExportNode(position, -1, entries);
+    }
+
+    private int ParseExportDefault(int position)
+    {
+        int value;
+        var kind = FlatExportKind.DefaultExpression;
+        if (current.Kind == JsTokenKind.Function)
+        {
+            value = ParseFunctionExpression();
+            kind = FlatExportKind.DefaultDeclaration;
+        }
+        else if (IsAsyncFunctionPrefix())
+        {
+            value = ParseFunctionExpression(isAsync: true);
+            kind = FlatExportKind.DefaultDeclaration;
+        }
+        else if (IsCurrentIdentifierName("class"))
+        {
+            value = ParseClass(isDeclaration: false);
+            kind = FlatExportKind.DefaultDeclaration;
+        }
+        else
+        {
+            value = ParseAssignment(allowIn: true);
+            ConsumeSemicolon();
+        }
+        DeclareModuleExportName("default", position);
+        var localName = GetDefaultExportLocalName(value);
+        Span<FlatExportEntry> entries =
+        [
+            new(-1, Arena.AddString(localName), -1, Arena.AddString("default"), kind, position),
+        ];
+        return AddExportNode(position, value, entries);
+    }
+
+    private string GetDefaultExportLocalName(int value)
+    {
+        ref readonly var node = ref Arena[value];
+        if (node.Kind is AstKind.FunctionExpression or AstKind.ArrowFunctionExpression)
+        {
+            var name = ast.GetString(ast.GetFunction(node.Arg0).NameStringIndex);
+            return name.Length == 0 ? "\0default" : name;
+        }
+        if (node.Kind == AstKind.ClassExpression)
+        {
+            var name = ast.GetString(ast.GetClass(node.Arg0).NameStringIndex);
+            return name.Length == 0 ? "\0default" : name;
+        }
+        return "\0default";
+    }
+
+    private void CollectDeclarationExportEntries(int declaration, List<FlatExportEntry> entries)
+    {
+        ref readonly var node = ref Arena[declaration];
+        if (node.Kind == AstKind.VariableDeclaration)
+        {
+            var declarators = Arena.ChildRange(node.Arg0, node.Arg1);
+            for (var i = 0; i < declarators.Length; i++)
+            {
+                ref readonly var declarator = ref Arena[declarators[i]];
+                if (declarator.Kind == AstKind.VariableDeclarator)
+                    AddLocalExportEntry(Arena.GetString(declarator.Arg0), declarators[i], entries);
+                else
+                    CollectPatternExportEntries(declarator.Arg0, entries);
+            }
+            return;
+        }
+        var name = node.Kind switch
+        {
+            AstKind.FunctionDeclaration => ast.GetString(
+                ast.GetFunction(node.Arg0).NameStringIndex
+            ),
+            AstKind.ClassDeclaration => ast.GetString(ast.GetClass(node.Arg0).NameStringIndex),
+            _ => throw new InvalidOperationException($"Invalid exported declaration {node.Kind}."),
+        };
+        AddLocalExportEntry(name, declaration, entries);
+    }
+
+    private void CollectPatternExportEntries(int pattern, List<FlatExportEntry> entries)
+    {
+        ref readonly var node = ref Arena[pattern];
+        switch (node.Kind)
+        {
+            case AstKind.Identifier:
+                AddLocalExportEntry(Arena.GetString(node.Arg0), pattern, entries);
+                return;
+            case AstKind.AssignmentExpression:
+            case AstKind.SpreadElement:
+                CollectPatternExportEntries(node.Arg0, entries);
+                return;
+            case AstKind.ArrayBindingPattern:
+                var children = Arena.ChildRange(node.Arg0, node.Arg1);
+                for (var i = 0; i < children.Length; i++)
+                    if (children[i] >= 0)
+                        CollectPatternExportEntries(children[i], entries);
+                return;
+            case AstKind.ObjectBindingPattern:
+                var properties = ast.GetObjectProperties(node.Arg0, node.Arg1);
+                for (var i = 0; i < properties.Length; i++)
+                    CollectPatternExportEntries(properties[i].ValueNode, entries);
+                return;
+            default:
+                throw new InvalidOperationException($"Invalid exported binding {node.Kind}.");
+        }
+    }
+
+    private void AddLocalExportEntry(string name, int node, List<FlatExportEntry> entries)
+    {
+        var position = Arena.GetPosition(node);
+        DeclareModuleExportName(name, position);
+        var nameIndex = Arena.AddString(name);
+        entries.Add(new(-1, nameIndex, -1, nameIndex, FlatExportKind.Local, position));
+    }
+
+    private int AddExportNode(int position, int value, ReadOnlySpan<FlatExportEntry> entries)
+    {
+        var range = ast.AddExportEntries(entries);
+        return Arena.Add(AstKind.ExportDeclaration, value, range.Offset, range.Count, position);
     }
 
     private int ParseImportDeclaration()
@@ -141,13 +565,7 @@ internal sealed class FlatJavaScriptParser
         var sourceToken = Expect(JsTokenKind.String);
         var attributes = ParseImportAttributes();
         ConsumeSemicolon();
-        var requestIndex = ast.AddModuleRequest(
-            Arena.AddString(lexer.GetStringLiteral(sourceToken)),
-            sourceToken.Position,
-            attributes is null
-                ? ReadOnlySpan<FlatImportAttribute>.Empty
-                : CollectionsMarshal.AsSpan(attributes)
-        );
+        var requestIndex = AddModuleRequest(sourceToken, attributes);
         var entries = pending is null
             ? Span<FlatImportEntry>.Empty
             : CollectionsMarshal.AsSpan(pending);
@@ -272,6 +690,15 @@ internal sealed class FlatJavaScriptParser
         return attributes;
     }
 
+    private int AddModuleRequest(in JsToken sourceToken, List<FlatImportAttribute>? attributes) =>
+        ast.AddModuleRequest(
+            Arena.AddString(lexer.GetStringLiteral(sourceToken)),
+            sourceToken.Position,
+            attributes is null
+                ? ReadOnlySpan<FlatImportAttribute>.Empty
+                : CollectionsMarshal.AsSpan(attributes)
+        );
+
     private void ExpectContextualKeyword(string value)
     {
         if (!IsCurrentIdentifierName(value))
@@ -285,6 +712,20 @@ internal sealed class FlatJavaScriptParser
         if (!moduleImportBindings.Add(name))
             throw Error($"Duplicate module binding '{name}'", position);
     }
+
+    private void DeclareModuleExportName(string name, int position)
+    {
+        moduleExportNames ??= new(StringComparer.Ordinal);
+        if (!moduleExportNames.Add(name))
+            throw Error($"Duplicate export name '{name}'", position);
+    }
+
+    private readonly record struct PendingExportSpecifier(
+        string LocalName,
+        string ExportedName,
+        bool LocalWasString,
+        int Position
+    );
 
     private int ParseStatement()
     {
@@ -642,6 +1083,7 @@ internal sealed class FlatJavaScriptParser
         if (isDeclaration || current.Kind == JsTokenKind.Identifier)
         {
             var nameToken = ExpectIdentifier();
+            ValidateBindingIdentifier(nameToken);
             name = GetIdentifierText(nameToken);
             if ((asyncFunctionDepth > 0 || (isAsync && !isDeclaration)) && name == "await")
                 throw Error("Unexpected await binding", nameToken.Position);

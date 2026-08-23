@@ -252,6 +252,9 @@ internal static partial class CompilerBindingCollector
                             imports[i].Position
                         );
                     return;
+                case AstKind.ExportDeclaration:
+                    VisitExportDeclaration(ast, node, scopeId);
+                    return;
                 case AstKind.IfStatement:
                     VisitExpression(ast, node.Arg0, scopeId);
                     VisitStatement(ast, node.Arg1, scopeId);
@@ -302,6 +305,71 @@ internal static partial class CompilerBindingCollector
                         $"Flat binding collection does not support statement '{node.Kind}'."
                     );
             }
+        }
+
+        private void VisitExportDeclaration(FlatAst ast, AstNode node, int scopeId)
+        {
+            if (node.Arg0 < 0)
+                return;
+            var entries = ast.GetExportEntries(node);
+            if (entries.Length == 0)
+                return;
+            if (entries[0].Kind == FlatExportKind.Local)
+            {
+                VisitStatement(ast, node.Arg0, scopeId);
+                return;
+            }
+            if (entries[0].Kind == FlatExportKind.DefaultExpression)
+            {
+                AddBinding(
+                    scopeId,
+                    CompilerCollectedBindingKind.Lexical,
+                    ast.GetString(entries[0].LocalNameStringIndex),
+                    isConst: true,
+                    position: entries[0].Position
+                );
+                VisitExpression(ast, node.Arg0, scopeId);
+                return;
+            }
+
+            ref readonly var value = ref ast[node.Arg0];
+            if (value.Kind == AstKind.FunctionExpression)
+            {
+                var function = ast.GetFunction(value.Arg0);
+                if (ast.GetString(function.NameStringIndex).Length != 0)
+                    VisitFunctionDeclaration(ast, value, scopeId);
+                else
+                {
+                    AddBinding(
+                        scopeId,
+                        CompilerCollectedBindingKind.FunctionDeclaration,
+                        ast.GetString(entries[0].LocalNameStringIndex),
+                        isConst: true,
+                        position: entries[0].Position
+                    );
+                    VisitExpression(ast, node.Arg0, scopeId);
+                }
+                return;
+            }
+            if (value.Kind == AstKind.ClassExpression)
+            {
+                var info = ast.GetClass(value.Arg0);
+                if (ast.GetString(info.NameStringIndex).Length != 0)
+                    VisitClass(ast, value, scopeId, isDeclaration: true);
+                else
+                {
+                    AddBinding(
+                        scopeId,
+                        CompilerCollectedBindingKind.ClassDeclaration,
+                        ast.GetString(entries[0].LocalNameStringIndex),
+                        isConst: true,
+                        position: entries[0].Position
+                    );
+                    VisitExpression(ast, node.Arg0, scopeId);
+                }
+                return;
+            }
+            VisitExpression(ast, node.Arg0, scopeId);
         }
 
         private void VisitSwitchStatement(FlatAst ast, int nodeIndex, int parentScopeId)

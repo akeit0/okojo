@@ -101,6 +101,100 @@ public class DirectFlatParserTests
     public void ParseModule_RejectsInvalidImportDeclarations(string source) =>
         Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseModule(source));
 
+    [Test]
+    public void ParseModule_CollectsCompactExportDescriptorsAndBindings()
+    {
+        using var ast = FlatJavaScriptParser.ParseModule(
+            """
+            export const value = 1, { nested: local, ...rest } = { nested: 2 };
+            export function read() { return value; }
+            export class Type {}
+            export { value as renamed };
+            export { source as forwarded } from 'dependency' with { type: 'json' };
+            export * as namespaceValue from 'namespace';
+            export * from 'star';
+            export default class { static observed = this.name; }
+            """
+        );
+
+        var statements = ast.ChildRange(ast[ast.Root].Arg0, ast[ast.Root].Arg1).ToArray();
+        Assert.That(
+            statements.Select(index => ast[index].Kind),
+            Is.All.EqualTo(AstKind.ExportDeclaration)
+        );
+        Assert.That(ast.ModuleRequests.Length, Is.EqualTo(3));
+
+        var exports = statements
+            .SelectMany(index => ast.GetExportEntries(ast[index]).ToArray())
+            .ToArray();
+        Assert.That(
+            exports
+                .Where(entry => entry.Kind != FlatExportKind.Star)
+                .Select(entry =>
+                    (
+                        entry.LocalNameStringIndex < 0
+                            ? null
+                            : ast.GetString(entry.LocalNameStringIndex),
+                        entry.ImportNameStringIndex < 0
+                            ? null
+                            : ast.GetString(entry.ImportNameStringIndex),
+                        entry.ExportNameStringIndex < 0
+                            ? null
+                            : ast.GetString(entry.ExportNameStringIndex),
+                        entry.Kind
+                    )
+                )
+                .ToArray(),
+            Is.EqualTo(
+                new (string?, string?, string?, FlatExportKind)[]
+                {
+                    ("value", null, "value", FlatExportKind.Local),
+                    ("local", null, "local", FlatExportKind.Local),
+                    ("rest", null, "rest", FlatExportKind.Local),
+                    ("read", null, "read", FlatExportKind.Local),
+                    ("Type", null, "Type", FlatExportKind.Local),
+                    ("value", null, "renamed", FlatExportKind.Local),
+                    (null, "source", "forwarded", FlatExportKind.Indirect),
+                    (null, null, "namespaceValue", FlatExportKind.Namespace),
+                    ("\0default", null, "default", FlatExportKind.DefaultDeclaration),
+                }
+            )
+        );
+        Assert.That(exports.Count(entry => entry.Kind == FlatExportKind.Star), Is.EqualTo(1));
+
+        using var collected = CompilerBindingCollector.Collect(ast);
+        Assert.That(
+            collected
+                .Bindings.ToArray()
+                .Where(binding => binding.ScopeId == 0)
+                .Select(binding => binding.Name)
+                .ToArray(),
+            Is.EquivalentTo(new[] { "value", "local", "rest", "read", "Type", "\0default" })
+        );
+    }
+
+    [TestCase("export const value = 1; export { value };")]
+    [TestCase("export default 1; export default 2;")]
+    [TestCase("export * as value from 'a'; export { other as value } from 'b';")]
+    [TestCase("export { 'name' };")]
+    [TestCase("export { missing };")]
+    [TestCase("import value from 'pkg'; const value = 1;")]
+    [TestCase("{ var value; } import value from 'pkg';")]
+    [TestCase("let value; var value;")]
+    [TestCase("export function eval() {}")]
+    public void ParseModule_RejectsInvalidOrDuplicateExports(string source) =>
+        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseModule(source));
+
+    [Test]
+    public void ParseModule_AcceptsForwardLocalExportAndDuplicateVar()
+    {
+        using var ast = FlatJavaScriptParser.ParseModule(
+            "export { value }; { var value; } var value;"
+        );
+
+        Assert.That(ast.IsModule, Is.True);
+    }
+
     [TestCase("1 + 2 * 3", 7)]
     [TestCase("(1 + 2) * 3", 9)]
     [TestCase("2 ** 3 ** 2", 512)]
