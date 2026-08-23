@@ -1195,23 +1195,25 @@ internal sealed class FlatJavaScriptParser
     {
         var position = current.Position;
         Next();
-        if (Match(JsTokenKind.Star))
-            throw Error("yield* is not supported by FlatJavaScriptParser", position);
+        var isDelegate = Match(JsTokenKind.Star);
 
         var argument =
-            current.HasLineTerminatorBefore
-            || current.Kind
-                is JsTokenKind.Semicolon
-                    or JsTokenKind.Comma
-                    or JsTokenKind.Colon
-                    or JsTokenKind.RightParen
-                    or JsTokenKind.RightBrace
-                    or JsTokenKind.RightBracket
-                    or JsTokenKind.Eof
-                    or JsTokenKind.In
+            !isDelegate
+            && (
+                current.HasLineTerminatorBefore
+                || current.Kind
+                    is JsTokenKind.Semicolon
+                        or JsTokenKind.Comma
+                        or JsTokenKind.Colon
+                        or JsTokenKind.RightParen
+                        or JsTokenKind.RightBrace
+                        or JsTokenKind.RightBracket
+                        or JsTokenKind.Eof
+                        or JsTokenKind.In
+            )
                 ? -1
                 : ParseAssignment(allowIn);
-        return Arena.Add(AstKind.YieldExpression, argument, position: position);
+        return Arena.Add(AstKind.YieldExpression, argument, isDelegate ? 1 : 0, position: position);
     }
 
     private int ParseConditional(bool allowIn)

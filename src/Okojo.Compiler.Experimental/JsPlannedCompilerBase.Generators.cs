@@ -42,6 +42,11 @@ internal abstract partial class JsPlannedCompilerBase
     {
         if (!isGenerator)
             throw new InvalidOperationException("yield requires a generator function.");
+        if (node.Arg1 != 0)
+        {
+            EmitYieldDelegateExpression(ast, node.Arg0);
+            return;
+        }
         if (node.Arg0 >= 0)
             EmitExpression(ast, node.Arg0);
         else
@@ -49,7 +54,85 @@ internal abstract partial class JsPlannedCompilerBase
         EmitGeneratorSuspendResume(0xFF, guaranteedNextOnly: false);
     }
 
-    private void EmitGeneratorSuspendResume(byte generatorOperand, bool guaranteedNextOnly)
+    private void EmitYieldDelegateExpression(FlatAst ast, int argument)
+    {
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            EmitExpression(ast, argument);
+            var iterableRegister = builder.AllocateTemporaryRegister();
+            EmitStar(iterableRegister);
+            var methodRegister = builder.AllocateTemporaryRegister();
+            builder.EmitCallRuntime((int)RuntimeId.GetIteratorMethod, iterableRegister, 1);
+            EmitStar(methodRegister);
+            builder.EmitCallProperty(methodRegister, iterableRegister, 0, 0);
+            var iteratorRegister = builder.AllocateTemporaryRegister();
+            EmitStar(iteratorRegister);
+            EmitYieldDelegateLoop(iteratorRegister);
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+        }
+    }
+
+    private void EmitYieldDelegateLoop(int iteratorRegister)
+    {
+        if (iteratorRegister > byte.MaxValue)
+            throw new NotSupportedException(
+                "Generator delegate iterator register exceeds byte operand capacity."
+            );
+        builder.EmitLda(JsOpCode.LdaUndefined);
+        var sentRegister = builder.AllocateTemporaryRegister();
+        EmitStar(sentRegister);
+        var nextFunctionRegister = builder.AllocateTemporaryRegister();
+        var argumentRegister = builder.AllocateTemporaryRegister();
+        var resultRegister = builder.AllocateTemporaryRegister();
+        var nextName = builder.AddAtomizedStringConstant("next");
+        var doneName = builder.AddAtomizedStringConstant("done");
+        var valueName = builder.AddAtomizedStringConstant("value");
+        builder.EmitLdaNamedProperty(iteratorRegister, nextName, builder.AllocateFeedbackSlot());
+        EmitStar(nextFunctionRegister);
+
+        var loop = builder.CreateLabel();
+        var yield = builder.CreateLabel();
+        var done = builder.CreateLabel();
+        builder.BindLabel(loop);
+        EmitLdar(sentRegister);
+        EmitStar(argumentRegister);
+        builder.EmitCallProperty(nextFunctionRegister, iteratorRegister, argumentRegister, 1);
+        EmitStar(resultRegister);
+        var resultIsObject = builder.CreateLabel();
+        EmitLdar(resultRegister);
+        builder.EmitJump(JsOpCode.JumpIfJsReceiver, resultIsObject);
+        builder.EmitCallRuntime((int)RuntimeId.ThrowIteratorResultNotObject, 0, 0);
+        builder.BindLabel(resultIsObject);
+
+        builder.EmitLdaNamedProperty(resultRegister, doneName, builder.AllocateFeedbackSlot());
+        EmitJumpIfToBooleanFalse(yield);
+        builder.EmitLdaNamedProperty(resultRegister, valueName, builder.AllocateFeedbackSlot());
+        EmitJump(done);
+
+        builder.BindLabel(yield);
+        EmitLdar(resultRegister);
+        EmitGeneratorSuspendResume(
+            (byte)iteratorRegister,
+            guaranteedNextOnly: false,
+            inspectActiveDelegateOnNext: true,
+            delegateCompletedAsNext: done
+        );
+        EmitStar(sentRegister);
+        EmitJump(loop);
+
+        builder.BindLabel(done);
+    }
+
+    private void EmitGeneratorSuspendResume(
+        byte generatorOperand,
+        bool guaranteedNextOnly,
+        bool inspectActiveDelegateOnNext = false,
+        BytecodeBuilder.Label delegateCompletedAsNext = default
+    )
     {
         var registerCount = builder.RegisterCount;
         if (registerCount > byte.MaxValue)
@@ -102,6 +185,15 @@ internal abstract partial class JsPlannedCompilerBase
 
         builder.BindLabel(next);
         builder.EmitCallRuntime((int)RuntimeId.GeneratorClearResumeState, 0, 0);
+        if (inspectActiveDelegateOnNext)
+        {
+            var delegateActive = builder.CreateLabel();
+            builder.EmitCallRuntime((int)RuntimeId.GeneratorHasActiveDelegateIterator, 0, 0);
+            builder.EmitJump(JsOpCode.JumpIfTrue, delegateActive);
+            EmitLdar(generatorResumeValueRegister);
+            EmitJump(delegateCompletedAsNext);
+            builder.BindLabel(delegateActive);
+        }
         EmitLdar(generatorResumeValueRegister);
         EmitJump(done);
 

@@ -1089,11 +1089,10 @@ internal static class FlatAstLowerer
 
         private int LowerYield(JsYieldExpression yield)
         {
-            if (yield.IsDelegate)
-                throw new NotSupportedException($"{compilerName} does not support yield* yet.");
             return Arena.Add(
                 AstKind.YieldExpression,
                 yield.Argument is null ? -1 : LowerExpression(yield.Argument),
+                yield.IsDelegate ? 1 : 0,
                 position: yield.Position
             );
         }

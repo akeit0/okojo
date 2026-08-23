@@ -365,16 +365,17 @@ and has differential execution coverage for every new control-flow form.
 
 ### P2 - Resumable functions
 
-- extend landed synchronous generators and ordinary `yield` with `yield*`
 - async functions and `await`
 - async generators and `for-await-of`
 - measured live-range narrowing for the landed conservative register snapshot
 
-Foundation status: synchronous `function*` declarations/expressions, ordinary
-`yield`, eager advanced-parameter binding, suspend tables, sent values, and
-next/return/throw resume modes are landed. Return resumes reuse the abrupt-command
-stack so `finally` and iterator cleanup stay on the same path; throw resumes reuse
-the VM's restored exception-handler continuation.
+Foundation status: synchronous `function*` declarations/expressions,
+`yield`/`yield*`, eager advanced-parameter binding, suspend tables, sent values,
+and next/return/throw resume modes are landed. Return resumes reuse the
+abrupt-command stack so `finally` and iterator cleanup stay on the same path;
+throw resumes reuse the VM's restored exception-handler continuation. Delegation
+retains the active iterator in the existing continuation and forwards abrupt
+resumes in the VM.
 
 Exit gate: planned-compiler tests cover every resume mode and Test262 can target
 the new compiler for the supported function families.

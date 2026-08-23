@@ -2014,19 +2014,71 @@ public class DirectFlatParserTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsPlannedScriptCompiler(realm).Compile(
             JavaScriptParser.ParseScript(
-                "let make = function* () { yield 1; }; let iterator = make(); iterator.next().value + '|' + iterator.next().done;"
+                "let make = function* () { yield* [1, 2]; }; let iterator = make(); iterator.next().value + '|' + iterator.next().value + '|' + iterator.next().done;"
             )
         );
 
         realm.Execute(script);
 
-        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("1|true"));
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("1|2|true"));
     }
 
     [Test]
-    public void ParseScript_RejectsYieldDelegateUntilItsDedicatedSlice() =>
+    public void CompileString_ExecutesYieldDelegateResumeModes()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let log = '';
+            function* inner() {
+                try {
+                    let sent = yield 1;
+                    yield sent;
+                    return 3;
+                } finally { log += 'f'; }
+            }
+            function* outer() { return (yield* inner()) + 1; }
+            let normal = outer();
+            let first = normal.next();
+            let second = normal.next(2);
+            let third = normal.next();
+
+            function* innerReturn() {
+                try { yield 1; } finally { log += 'r'; }
+            }
+            function* outerReturn() { return yield* innerReturn(); }
+            let returning = outerReturn();
+            returning.next();
+            let returned = returning.return(9);
+
+            function* innerThrow() {
+                try { yield 1; } catch (error) { yield error; return 5; }
+            }
+            function* outerThrow() { return yield* innerThrow(); }
+            let throwing = outerThrow();
+            throwing.next();
+            let thrown = throwing.throw(7);
+            let throwDone = throwing.next();
+
+            first.value + '|' + first.done + '|' + second.value + '|' + second.done
+                + '|' + third.value + '|' + third.done + '|' + returned.value + '|'
+                + returned.done + '|' + thrown.value + '|' + thrown.done + '|'
+                + throwDone.value + '|' + throwDone.done + '|' + log;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(
+            realm.Accumulator.AsString(),
+            Is.EqualTo("1|false|2|false|4|true|9|true|7|false|5|true|fr")
+        );
+    }
+
+    [Test]
+    public void ParseScript_RejectsYieldDelegateWithoutOperand() =>
         Assert.Throws<JsParseException>(() =>
-            FlatJavaScriptParser.ParseScript("function* unsupported() { yield* []; }")
+            FlatJavaScriptParser.ParseScript("function* invalid() { yield*; }")
         );
 
     [TestCase("function* invalid(value = yield 1) {}")]
