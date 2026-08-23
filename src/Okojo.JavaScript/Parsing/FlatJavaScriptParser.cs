@@ -2536,8 +2536,10 @@ internal sealed class FlatJavaScriptParser
         {
             if (parsingAsyncParameters)
                 ReportAsyncParameterError(position);
-            if (asyncFunctionDepth > 0)
+            if (asyncFunctionDepth > 0 || (isModule && functionDepth == 0))
             {
+                if (asyncFunctionDepth == 0)
+                    ast.HasTopLevelAwait = true;
                 Next();
                 return Arena.Add(AstKind.AwaitExpression, ParseUnary(), position: position);
             }

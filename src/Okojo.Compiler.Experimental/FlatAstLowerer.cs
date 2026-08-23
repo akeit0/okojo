@@ -16,6 +16,7 @@ internal static class FlatAstLowerer
         try
         {
             lowerer.Ast.StrictDeclared = program.StrictDeclared;
+            lowerer.Ast.HasTopLevelAwait = program.HasTopLevelAwait;
             lowerer.Ast.Root = lowerer.LowerProgram(program);
             return lowerer.Ast;
         }

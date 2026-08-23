@@ -23,10 +23,12 @@ internal sealed class JsPlannedModuleCompiler(JsRealm realm) : JsPlannedCompiler
             throw new ArgumentException("A module FlatAst is required.", nameof(ast));
         builder.SetSourceText(ast.SourceText);
         strictDeclared = true;
+        isAsync = ast.HasTopLevelAwait;
         builder.SetStrictDeclared(true);
         using var collected = CompilerBindingCollector.Collect(ast);
         using var plan = CompilerStoragePlanner.Plan(collected, ast);
         InitializePlanIndexes(collected, plan);
+        EmitGeneratorPrologue();
         InitializeRootBindings();
         EmitModuleContextSetup();
         EmitScopeLexicalHoleInitialization();
@@ -40,13 +42,14 @@ internal sealed class JsPlannedModuleCompiler(JsRealm realm) : JsPlannedCompiler
 
         builder.EmitLda(JsOpCode.LdaUndefined);
         builder.Emit(JsOpCode.Return);
-        var script = builder.ToScript() with
+        PatchGeneratorSwitchTable();
+        var bodyScript = builder.ToScript() with
         {
             SourceCode = new SourceCode(ast.SourceText, ast.SourcePath),
             StrictDeclared = true,
         };
-        script.BindAgent(Vm.Agent);
-        return script;
+        bodyScript.BindAgent(Vm.Agent);
+        return ast.HasTopLevelAwait ? WrapAsyncModule(bodyScript, ast) : bodyScript;
     }
 
     internal ModuleExecutionCompilation CompileForExecution(FlatAst ast)
@@ -67,6 +70,36 @@ internal sealed class JsPlannedModuleCompiler(JsRealm realm) : JsPlannedCompiler
             )
                 initialContextSlots[bindings[i].StorageIndex] = JsValue.TheHole;
         return new(script, initialContextSlots, hoistedFunctions.ToArray());
+    }
+
+    private JsScript WrapAsyncModule(JsScript bodyScript, FlatAst ast)
+    {
+        var function = new JsBytecodeFunction(
+            Vm,
+            bodyScript,
+            string.Empty,
+            requiresClosureBinding: false,
+            isStrict: true,
+            kind: JsBytecodeFunctionKind.Async,
+            formalParameterCount: 0,
+            hasSimpleParameterList: true,
+            expectedArgumentCount: 0
+        );
+        using var wrapper = new BytecodeBuilder(Vm);
+        wrapper.SetSourceText(ast.SourceText);
+        wrapper.SetStrictDeclared(true);
+        wrapper.Emit(JsOpCode.CreateClosure, (byte)wrapper.AddObjectConstant(function), 0);
+        var functionRegister = wrapper.AllocateTemporaryRegister();
+        wrapper.Emit(JsOpCode.Star, (byte)functionRegister);
+        wrapper.EmitCallUndefinedReceiver(functionRegister, 0, 0);
+        wrapper.Emit(JsOpCode.Return);
+        var script = wrapper.ToScript() with
+        {
+            SourceCode = new SourceCode(ast.SourceText, ast.SourcePath),
+            StrictDeclared = true,
+        };
+        script.BindAgent(Vm.Agent);
+        return script;
     }
 
     protected override bool DeferHoistedFunction(

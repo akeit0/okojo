@@ -170,7 +170,7 @@ internal sealed class ModuleLinker(Func<IModuleSourceLoader> loaderProvider)
             [],
             exportLocalByName,
             preinitializedLocalExportNames,
-            false,
+            moduleProgram.HasTopLevelAwait,
             false,
             false
         );

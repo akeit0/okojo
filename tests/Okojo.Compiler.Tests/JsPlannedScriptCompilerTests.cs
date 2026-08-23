@@ -244,6 +244,34 @@ public class JsPlannedScriptCompilerTests
     }
 
     [Test]
+    public void CompileModule_AwaitsAsyncDependencyBeforeParentEvaluation()
+    {
+        var options = new JsRuntimeOptions().UseModuleSourceLoader(
+            new TestModuleSourceLoader(
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["entry"] = """
+                    import { value } from "./dependency";
+                    export const result = value + 1;
+                    """,
+                    ["dependency"] = """
+                    export let value = 1;
+                    await Promise.resolve();
+                    value = 41;
+                    """,
+                }
+            )
+        );
+        options.Agent.UsePlannedModuleCompiler();
+        using var runtime = JsRuntime.Create(options);
+
+        var module = runtime.MainRealm.Import("entry").AsObject();
+
+        Assert.That(module.TryGetProperty("result", out var result), Is.True);
+        Assert.That(result.Int32Value, Is.EqualTo(42));
+    }
+
+    [Test]
     public void CompileModule_InstantiatesHoistedExportOnceAcrossCycle()
     {
         var options = new JsRuntimeOptions().UseModuleSourceLoader(

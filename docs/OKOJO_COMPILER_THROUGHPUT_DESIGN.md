@@ -526,7 +526,14 @@ checks, and observable function names match the production engine and V8.
   one contiguous temporary register block and calls the existing promise runtime. V8
   also uses a runtime boundary; Okojo derives the referrer from the active script instead
   of passing the closure and phase as extra operands.
-- top-level await and async dependency ordering
+- top-level await now flows from one parser-owned flag into the flat module execution
+  plan. The planned body uses the existing async generator suspension bytecode and a
+  tiny wrapper that returns its promise; the production module graph retains ownership
+  of pending-dependency ordering. This follows V8's split between
+  `BytecodeGenerator::GenerateAsyncFunctionBody` for a TLA body and
+  `SourceTextModule` for async-parent scheduling, without adding an opcode or scheduler.
+- remaining: make the flat parser/compiler the default module path and validate its
+  performance and supported Test262 coverage
 
 Exit gate: the production module linker consumes flat compiler metadata directly;
 no class-AST module objects remain on the execution path.

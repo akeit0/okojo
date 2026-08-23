@@ -62,7 +62,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Assignments | identifier/ordinary/super/private-field member targets, compound/logical/update, array/object destructuring, core optional-chain target restrictions | remaining early errors |
 | Functions | ordinary declarations/expressions, closures, synchronous and async generators with `yield`/`yield*`, async declarations/expressions/object methods with `await`, synchronous and async arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`/`new.target`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function/class name inference, demand-driven mapped/unmapped `arguments` | lazy bodies |
 | Classes | base/derived declarations and expressions, explicit/implicit constructors, heritage/prototype setup, derived `this`/return rules, public/private instance/static methods and accessors, named/computed public fields, instance/static private fields and brands, source-ordered static blocks, named/computed super loads/calls/stores/updates, strict bodies, declaration TDZ/const storage, inner class-name capture, anonymous name inference including named/computed fields, private methods, and private accessors | full ordering differential and Test262 gate |
-| Modules | strict parse goal, side-effect/default/named/namespace imports, string import names, import attributes, local/declaration/default/indirect/namespace/star exports, compact request/import/export tables, module binding validation, imported-export canonicalization, signed live-cell assignment, single-parse opt-in linked synchronous evaluation and re-export linking, named/default-function instantiation before dependency evaluation, `import.meta` in module and closure contexts, dynamic import promise execution | top-level await, default-path adoption |
+| Modules | strict parse goal, side-effect/default/named/namespace imports, string import names, import attributes, local/declaration/default/indirect/namespace/star exports, compact request/import/export tables, module binding validation, imported-export canonicalization, signed live-cell assignment, single-parse opt-in linked evaluation and re-export linking, named/default-function instantiation before dependency evaluation, `import.meta` in module and closure contexts, dynamic import promise execution, top-level await and async dependency ordering | default-path adoption |
 
 The direct parser rejects unsupported grammar. It does not catch an error and
 restart through `JavaScriptParser`; that would allocate both representations,
@@ -1296,7 +1296,21 @@ Production module execution opt-in slice landed:
   execution resolves a planned dependency and updates a live export from `.then`.
   Like V8, evaluation order is explicit before the runtime call. Okojo intentionally
   derives the referrer from `JsScript.SourcePath`; import phases remain outside this slice.
-- next slice: add top-level-await dependency scheduling
+- top-level `await` sets one parser-owned `HasTopLevelAwait` bit and the linker transfers
+  it directly into `ModuleExecutionPlan`. The planned module body emits the existing
+  async generator prologue/resume table, while a tiny ordinary script wrapper creates
+  and calls that async closure so evaluation returns its promise.
+- V8 observation: `bytecode-generator.cc` handles
+  `kModuleWithTopLevelAwait` through `GenerateAsyncFunctionBody`, while
+  `source-text-module.cc` owns pending dependency counts and async-parent release.
+  Okojo copies that body/graph boundary: the existing production graph waits on the
+  returned promise and schedules parents, so no module-only opcode or parallel
+  scheduler is introduced.
+- focused graph coverage proves a parent observes an imported mutation performed after
+  its dependency resumes from `await Promise.resolve()`. `JsRealm.Import` waits for
+  completion; the lower-level `LoadModule` API intentionally remains a nonblocking
+  completion handle.
+- next slice: default-path adoption and replacement-gate measurement
 - performance plan: benchmark parse/link/plan/emit separately and compare this true
   single-parse path against class parse plus production compilation. Instantiation emits
   once and evaluation only executes the retained script; it does not recompile or replace
@@ -1311,7 +1325,7 @@ Production module execution opt-in slice landed:
 - named and default function declarations are instantiated from the flat execution artifact
 - `import.meta` is landed through the existing module runtime binding
 - dynamic import is landed through the existing promise runtime
-- top-level await and async dependency order
+- top-level await and async dependency order are landed through the existing module graph
 
 Module records outlive a single bytecode function, so their ownership boundary
 must be explicit rather than hidden in temporary parser tables.
@@ -1389,7 +1403,7 @@ must be excluded or reported as coverage failures, not reparsed invisibly.
 - [ ] F0 binding/declaration semantics complete
 - [ ] common synchronous application corpus compiles directly
 - [ ] classes compile directly
-- [ ] modules link/evaluate from flat metadata
+- [x] modules link/evaluate from flat metadata
 - [ ] planned-compiler Test262 gate established and green for supported coverage
 - [ ] source diagnostics, disassembly, stack traces, and debugger scopes verified
 - [ ] end-to-end Release benchmarks beat or match production across representative

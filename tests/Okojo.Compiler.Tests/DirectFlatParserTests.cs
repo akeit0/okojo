@@ -124,6 +124,19 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void ParseModule_MarksTopLevelAwaitOnlyOutsideFunctions()
+    {
+        using var ast = FlatJavaScriptParser.ParseModule("await Promise.resolve();");
+        var statement = ast.ChildRange(ast[ast.Root].Arg0, ast[ast.Root].Arg1)[0];
+
+        Assert.That(ast.HasTopLevelAwait, Is.True);
+        Assert.That(ast[ast[statement].Arg0].Kind, Is.EqualTo(AstKind.AwaitExpression));
+        Assert.Throws<JsParseException>(() =>
+            FlatJavaScriptParser.ParseModule("function invalid() { await 1; }")
+        );
+    }
+
+    [Test]
     public void ParseModule_CollectsCompactExportDescriptorsAndBindings()
     {
         using var ast = FlatJavaScriptParser.ParseModule(
