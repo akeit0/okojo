@@ -166,6 +166,7 @@ internal enum FlatObjectPropertyFlags : byte
     None = 0,
     Computed = 1,
     Rest = 2,
+    CoverInitializedName = 4,
 }
 
 internal readonly record struct FlatObjectProperty(
@@ -177,4 +178,6 @@ internal readonly record struct FlatObjectProperty(
 {
     public bool IsComputed => (Flags & FlatObjectPropertyFlags.Computed) != 0;
     public bool IsRest => (Flags & FlatObjectPropertyFlags.Rest) != 0;
+    public bool IsCoverInitializedName =>
+        (Flags & FlatObjectPropertyFlags.CoverInitializedName) != 0;
 }

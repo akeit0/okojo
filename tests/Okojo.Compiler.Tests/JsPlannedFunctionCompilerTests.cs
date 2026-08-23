@@ -188,6 +188,31 @@ public class JsPlannedFunctionCompilerTests
     }
 
     [Test]
+    public void CompileScript_ExecutesClassBridgeDestructuringAssignments()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var program = JavaScriptParser.ParseScript(
+            """
+            let first, tail, rest;
+            let target = {};
+            let arraySource = [1, 2, 3];
+            let objectSource = { value: 4, extra: 5 };
+            let arrayResult = ([first, target.array, ...tail] = arraySource);
+            let objectResult = ({ value: target.object, ...rest } = objectSource);
+            arrayResult === arraySource && objectResult === objectSource
+                ? first + target.array + tail.length + target.object + rest.extra
+                : -1;
+            """
+        );
+        var script = compiler.Compile(program);
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(13));
+    }
+
+    [Test]
     public void CompileFunction_ProducesBytecodeForParametersAndReturn()
     {
         var realm = JsRuntime.Create().DefaultRealm;

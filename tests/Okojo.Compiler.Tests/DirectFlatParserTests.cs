@@ -493,6 +493,162 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_ExecutesNestedDestructuringAssignmentsAndReturnsOriginalSources()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile(
+            """
+            let first, second, nested, tail, rest;
+            let target = {};
+            let arrayKey = 'slot';
+            let sourceKey = 'b';
+            let arraySource = [undefined, 3, [4], 5, 6];
+            let objectSource = { second: undefined, b: 7, nested: { x: 8 }, extra: 9 };
+            let arrayResult = ([first = 1, target[arrayKey], [nested], ...tail] = arraySource);
+            let objectResult = ({ second = 2, [sourceKey]: target.value, nested: { x: target.deep }, ...rest } = objectSource);
+            arrayResult === arraySource && objectResult === objectSource
+                ? first + second + nested + target.slot + target.value + target.deep + tail.length + rest.extra
+                : -1;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(36));
+    }
+
+    [Test]
+    public void CompileString_PreparesArrayAssignmentMemberBeforeIteratorStepAndClosesIterator()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        realm.Evaluate(
+            """
+            globalThis.__flatAssignmentOrder = '';
+            globalThis.__flatAssignmentTarget = {};
+            """
+        );
+        var source = realm.Evaluate(
+            """
+            ({
+                [Symbol.iterator]() {
+                    __flatAssignmentOrder += 'i';
+                    return {
+                        next() {
+                            __flatAssignmentOrder += 's';
+                            return { value: 42, done: false };
+                        },
+                        return() {
+                            __flatAssignmentOrder += 'c';
+                            return { done: true };
+                        }
+                    };
+                }
+            })
+            """
+        );
+        var receiver = realm.Evaluate(
+            "(function () { __flatAssignmentOrder += 'r'; return __flatAssignmentTarget; })"
+        );
+        var key = realm.Evaluate("(function () { __flatAssignmentOrder += 'k'; return 'value'; })");
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile(
+            "function run(source, receiver, key) { ([receiver()[key()]] = source); } run;"
+        );
+        realm.Execute(script);
+        var run = (JsFunction)realm.Accumulator.Obj!;
+
+        realm.InvokeFunction(run, JsValue.Undefined, [source, receiver, key]);
+
+        Assert.That(realm.Evaluate("__flatAssignmentOrder").AsString(), Is.EqualTo("irksc"));
+        Assert.That(realm.Evaluate("__flatAssignmentTarget.value").Int32Value, Is.EqualTo(42));
+    }
+
+    [Test]
+    public void CompileString_PreparesObjectAssignmentMemberBeforeSourceLoad()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        realm.Evaluate(
+            """
+            globalThis.__flatObjectAssignmentOrder = '';
+            globalThis.__flatObjectAssignmentTarget = {};
+            """
+        );
+        var source = realm.Evaluate(
+            "({ get value() { __flatObjectAssignmentOrder += 's'; return 42; } })"
+        );
+        var receiver = realm.Evaluate(
+            "(function () { __flatObjectAssignmentOrder += 'r'; return __flatObjectAssignmentTarget; })"
+        );
+        var key = realm.Evaluate(
+            "(function () { __flatObjectAssignmentOrder += 'k'; return 'value'; })"
+        );
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile(
+            "function run(source, receiver, key) { ({ value: receiver()[key()] } = source); } run;"
+        );
+        realm.Execute(script);
+        var run = (JsFunction)realm.Accumulator.Obj!;
+
+        realm.InvokeFunction(run, JsValue.Undefined, [source, receiver, key]);
+
+        Assert.That(realm.Evaluate("__flatObjectAssignmentOrder").AsString(), Is.EqualTo("rks"));
+        Assert.That(
+            realm.Evaluate("__flatObjectAssignmentTarget.value").Int32Value,
+            Is.EqualTo(42)
+        );
+    }
+
+    [Test]
+    public void CompileString_ClosesArrayAssignmentIteratorWhenDefaultThrows()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        realm.Evaluate("globalThis.__flatArrayAssignmentClosed = 0;");
+        var iterable = realm.Evaluate(
+            """
+            ({
+                [Symbol.iterator]() {
+                    return {
+                        next() { return { value: undefined, done: false }; },
+                        return() {
+                            __flatArrayAssignmentClosed++;
+                            return { done: true };
+                        }
+                    };
+                }
+            })
+            """
+        );
+        var fail = realm.Evaluate("(function () { throw new Error('boom'); })");
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile(
+            "function run(source, fail) { let value; ([value = fail()] = source); } run;"
+        );
+        realm.Execute(script);
+        var run = (JsFunction)realm.Accumulator.Obj!;
+
+        Assert.Throws<JsRuntimeException>(() =>
+            realm.InvokeFunction(run, JsValue.Undefined, [iterable, fail])
+        );
+        Assert.That(realm.Evaluate("__flatArrayAssignmentClosed").Int32Value, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void CompileString_ExecutesWideDestructuringAssignmentRegisters()
+    {
+        var declarations = string.Join(", ", Enumerable.Range(0, 260).Select(static i => $"v{i}"));
+        var values = string.Join(", ", Enumerable.Range(0, 260));
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile($"let {declarations}; [{declarations}] = [{values}]; v259;");
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(259));
+        Assert.That(script.Bytecode, Does.Contain((byte)JsOpCode.Wide));
+    }
+
+    [Test]
     public void ParseScript_RejectsTrailingCommaAfterObjectRestBinding()
     {
         var exception = Assert.Throws<JsParseException>(() =>

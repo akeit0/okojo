@@ -45,6 +45,10 @@ existing pooled `FlatObjectProperty` table. Properties retain static or computed
 source keys plus binding targets; rest is an explicit property flag. It covers
 empty, shorthand, aliased, computed, defaulted, nested, numeric, and rest bindings
 for `var`/`let`/`const` declarations.
+The destructuring-assignment slice reuses the dense array/object expression shape
+as an assignment-only cover grammar. It covers identifier and named/computed
+member targets, defaults, nesting, elisions, final rest targets, original-RHS
+completion values, and abrupt iterator close without creating class-AST nodes.
 
 ## Minimal Repros
 
@@ -110,6 +114,13 @@ let { a: first, [key()]: second = 7, c, ...rest } = source;
 first * 100 + second * 10 + c + rest.d;
 ```
 
+```js
+let first, tail, rest;
+let arrayResult = ([first = 1, target[key], ...tail] = arraySource);
+let objectResult = ({ a: target.value, ...rest } = objectSource);
+arrayResult === arraySource && objectResult === objectSource;
+```
+
 ## Planned Tests
 
 - `tests/Okojo.Compiler.Tests/DirectFlatParserTests.cs`
@@ -130,6 +141,8 @@ first * 100 + second * 10 + c + rest.d;
   - unshadowed and lexically shadowed `undefined` reads
   - object binding key order, defaults, nesting, numeric keys, rest exclusions,
     nullish rejection, wide operands, and class bridging
+  - destructuring assignment target order, defaults, nesting, rest, completion
+    values, abrupt iterator close, computed member evaluation, and class bridging
 
 ## Reference Observations
 
@@ -199,6 +212,16 @@ key excluded. The flat emitter copies that order and reuses Okojo's
 `CopyDataPropertiesExcluding` ABI. Numeric static keys use keyed loads so they stay
 off atom/shape-oriented paths.
 
+V8 preserves the assignment RHS in a register, prepares an array element's member
+reference before advancing its iterator, stores each value before the next step,
+and closes an unfinished iterator on normal or abrupt completion. For objects it
+checks coercibility before computed-key effects, retains normalized source keys
+for rest exclusion, and returns the original RHS. The flat emitter copies this
+ordering while reusing the binding iterator/property runtimes and prepared member
+reference operations. Production Okojo's array-assignment fallback packages
+targets into runtime thunks; the direct flat path intentionally emits the normal
+step/load/store opcode sequence instead.
+
 For captured `for (let ...)` heads, V8 creates a new block context for each
 iteration and moves the value through the update path. Production Okojo clones a
 function context because its loop aliases share function-level cells. The flat
@@ -219,6 +242,8 @@ outer capture depths unchanged and retains old contexts only through closures.
 - materialize spread iterables once at their source-order evaluation point
 - store array bindings between iterator steps and share the existing iterator-close runtimes
 - retain normalized computed object-binding keys only until a following rest copy
+- reuse binding-pattern iterator/property operations for assignments while
+  retaining only the RHS and currently prepared member reference
 
 Initial Release measurement for 80 declaration/update pairs after warm-up:
 
@@ -228,8 +253,7 @@ Initial Release measurement for 80 declaration/update pairs after warm-up:
 
 ## Deferred
 
-- templates, classes, modules, destructuring assignments, and destructuring
-  parameter forms
+- templates, classes, modules, and destructuring parameter forms
 - object methods, accessors, and spread
 - array spread
 - optional chaining, `new.target`, and private/super members

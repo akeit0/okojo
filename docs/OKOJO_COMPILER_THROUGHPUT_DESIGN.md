@@ -269,6 +269,11 @@ Object binding declarations reuse the parsing-owned dense property table with a
 distinct pattern node and rest flag. The emitter retains separate normalized
 computed-key registers only when rest requires them; patterns without rest reuse
 one key scratch register. Static numeric keys stay on keyed property loads.
+Destructuring assignments reuse the same dense array/object property spans and
+iterator/property runtime operations. The emitter preserves the original RHS,
+prepares member references at their specified evaluation point, releases their
+temporary registers after each store, and emits direct step/load/store bytecode
+instead of the production compiler's array-target thunk package.
 Captured ordinary `for` heads now use per-iteration sibling-context replacement.
 The loop-head context is copied and replaced before the first test and before each
 update, so closures retain the prior iteration without inserting an extra context

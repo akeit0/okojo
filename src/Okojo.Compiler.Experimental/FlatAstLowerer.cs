@@ -429,13 +429,7 @@ internal static class FlatAstLowerer
                     identifier.NameId,
                     position: identifier.Position
                 ),
-                JsAssignmentExpression assignment => Arena.Add(
-                    AstKind.AssignmentExpression,
-                    LowerExpression(assignment.Left),
-                    LowerExpression(assignment.Right),
-                    (int)assignment.Operator,
-                    assignment.Position
-                ),
+                JsAssignmentExpression assignment => LowerAssignment(assignment),
                 JsBinaryExpression binary => Arena.Add(
                     AstKind.BinaryExpression,
                     LowerExpression(binary.Left),
@@ -473,6 +467,118 @@ internal static class FlatAstLowerer
                     $"{compilerName} does not support expression '{expression.GetType().Name}'."
                 ),
             };
+        }
+
+        private int LowerAssignment(JsAssignmentExpression assignment)
+        {
+            var left =
+                assignment.Operator == JsAssignmentOperator.Assign
+                && assignment.Left is JsArrayExpression or JsObjectExpression
+                    ? LowerAssignmentTarget(assignment.Left)
+                    : LowerExpression(assignment.Left);
+            return Arena.Add(
+                AstKind.AssignmentExpression,
+                left,
+                LowerExpression(assignment.Right),
+                (int)assignment.Operator,
+                assignment.Position
+            );
+        }
+
+        private int LowerAssignmentTarget(JsExpression target)
+        {
+            return target switch
+            {
+                JsIdentifierExpression or JsMemberExpression => LowerExpression(target),
+                JsAssignmentExpression { Operator: JsAssignmentOperator.Assign } assignment =>
+                    Arena.Add(
+                        AstKind.AssignmentExpression,
+                        LowerAssignmentTarget(assignment.Left),
+                        LowerExpression(assignment.Right),
+                        (int)JsAssignmentOperator.Assign,
+                        assignment.Position
+                    ),
+                JsSpreadExpression spread => Arena.Add(
+                    AstKind.SpreadElement,
+                    LowerAssignmentTarget(spread.Argument),
+                    position: spread.Position
+                ),
+                JsArrayExpression array => LowerArrayAssignmentTarget(array),
+                JsObjectExpression obj => LowerObjectAssignmentTarget(obj),
+                _ => throw new NotSupportedException(
+                    $"Assignment target '{target.GetType().Name}' is not supported by {compilerName}."
+                ),
+            };
+        }
+
+        private int LowerArrayAssignmentTarget(JsArrayExpression array)
+        {
+            var elements = ArrayPool<int>.Shared.Rent(array.Elements.Count);
+            try
+            {
+                for (var i = 0; i < array.Elements.Count; i++)
+                    elements[i] = array.Elements[i] is { } element
+                        ? LowerAssignmentTarget(element)
+                        : -1;
+                var children = Arena.AddChildren(elements.AsSpan(0, array.Elements.Count));
+                return Arena.Add(
+                    AstKind.ArrayExpression,
+                    children.Offset,
+                    children.Count,
+                    position: array.Position
+                );
+            }
+            finally
+            {
+                ArrayPool<int>.Shared.Return(elements);
+            }
+        }
+
+        private int LowerObjectAssignmentTarget(JsObjectExpression obj)
+        {
+            var properties = ArrayPool<FlatObjectProperty>.Shared.Rent(obj.Properties.Count);
+            try
+            {
+                for (var i = 0; i < obj.Properties.Count; i++)
+                {
+                    var property = obj.Properties[i];
+                    if (property.Kind == JsObjectPropertyKind.Spread)
+                    {
+                        properties[i] = new(
+                            -1,
+                            LowerAssignmentTarget(property.Value),
+                            property.Position,
+                            FlatObjectPropertyFlags.Rest
+                        );
+                        continue;
+                    }
+                    if (property.Kind != JsObjectPropertyKind.Data)
+                        throw new NotSupportedException(
+                            $"Object assignment property '{property.Kind}' is not supported by {compilerName}."
+                        );
+                    properties[i] = new(
+                        property.IsComputed
+                            ? LowerExpression(property.ComputedKey!)
+                            : Arena.AddString(property.Key),
+                        LowerAssignmentTarget(property.Value),
+                        property.Position,
+                        property.IsComputed
+                            ? FlatObjectPropertyFlags.Computed
+                            : FlatObjectPropertyFlags.None
+                    );
+                }
+                var range = Ast.AddObjectProperties(properties.AsSpan(0, obj.Properties.Count));
+                return Arena.Add(
+                    AstKind.ObjectExpression,
+                    range.Offset,
+                    range.Count,
+                    position: obj.Position
+                );
+            }
+            finally
+            {
+                ArrayPool<FlatObjectProperty>.Shared.Return(properties);
+            }
         }
 
         private int LowerArray(JsArrayExpression array)

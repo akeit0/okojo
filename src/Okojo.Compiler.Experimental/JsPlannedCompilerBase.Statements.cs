@@ -341,15 +341,20 @@ internal abstract partial class JsPlannedCompilerBase
         }
     }
 
-    private void EmitArrayBindingPattern(FlatAst ast, AstNode pattern, int valueRegister)
+    private void EmitArrayBindingPattern(
+        FlatAst ast,
+        AstNode pattern,
+        int sourceRegister,
+        bool assignment = false
+    )
     {
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
         {
-            EmitLdar(valueRegister);
+            EmitLdar(sourceRegister);
             builder.EmitCallRuntime(
                 (int)RuntimeId.CreateArrayDestructureIterator,
-                valueRegister,
+                sourceRegister,
                 1
             );
             var iteratorRegister = builder.AllocateTemporaryRegister();
@@ -357,6 +362,7 @@ internal abstract partial class JsPlannedCompilerBase
             var doneRegister = builder.AllocateTemporaryRegister();
             builder.EmitLda(JsOpCode.LdaFalse);
             EmitStar(doneRegister);
+            var valueRegister = builder.AllocateTemporaryRegister();
             var catchLabel = builder.CreateLabel();
             var endLabel = builder.CreateLabel();
 
@@ -371,33 +377,57 @@ internal abstract partial class JsPlannedCompilerBase
                 }
 
                 ref readonly var element = ref ast[elements[i]];
-                if (element.Kind == AstKind.SpreadElement)
+                var targetMarker = builder.GetTemporaryRegisterScopeMarker();
+                try
                 {
-                    EmitArrayBindingRest(
-                        ast,
-                        element.Arg0,
-                        iteratorRegister,
-                        doneRegister,
-                        valueRegister
-                    );
-                    continue;
-                }
+                    if (element.Kind == AstKind.SpreadElement)
+                    {
+                        PreparedMemberReference? preparedRestTarget = null;
+                        if (assignment && ast[element.Arg0].Kind == AstKind.MemberExpression)
+                            preparedRestTarget = PrepareMemberReference(
+                                ast,
+                                ast[element.Arg0],
+                                normalizeComputedKey: false
+                            );
+                        EmitArrayBindingRest(
+                            ast,
+                            element.Arg0,
+                            iteratorRegister,
+                            doneRegister,
+                            valueRegister,
+                            assignment,
+                            preparedRestTarget
+                        );
+                        continue;
+                    }
 
-                var targetIndex = elements[i];
-                var defaultIndex = -1;
-                if (
-                    element.Kind == AstKind.AssignmentExpression
-                    && (JsAssignmentOperator)element.Arg2 == JsAssignmentOperator.Assign
-                )
+                    var targetIndex = elements[i];
+                    var defaultIndex = -1;
+                    if (
+                        element.Kind == AstKind.AssignmentExpression
+                        && (JsAssignmentOperator)element.Arg2 == JsAssignmentOperator.Assign
+                    )
+                    {
+                        targetIndex = element.Arg0;
+                        defaultIndex = element.Arg1;
+                    }
+
+                    PreparedMemberReference? preparedTarget = null;
+                    if (assignment && ast[targetIndex].Kind == AstKind.MemberExpression)
+                        preparedTarget = PrepareMemberReference(
+                            ast,
+                            ast[targetIndex],
+                            normalizeComputedKey: false
+                        );
+                    EmitArrayBindingStep(iteratorRegister, doneRegister, valueRegister);
+                    if (defaultIndex >= 0)
+                        EmitBindingDefault(ast, defaultIndex, valueRegister);
+                    EmitStoreDestructuringTarget(ast, targetIndex, assignment, preparedTarget);
+                }
+                finally
                 {
-                    targetIndex = element.Arg0;
-                    defaultIndex = element.Arg1;
+                    builder.ReleaseTemporaryRegistersToMarker(targetMarker);
                 }
-
-                EmitArrayBindingStep(iteratorRegister, doneRegister, valueRegister);
-                if (defaultIndex >= 0)
-                    EmitBindingDefault(ast, defaultIndex, valueRegister);
-                EmitStoreBindingTarget(ast, targetIndex);
             }
             builder.Emit(JsOpCode.PopTry);
             EmitCloseArrayBindingIterator(iteratorRegister, doneRegister);
@@ -469,7 +499,9 @@ internal abstract partial class JsPlannedCompilerBase
         int targetIndex,
         int iteratorRegister,
         int doneRegister,
-        int valueRegister
+        int valueRegister,
+        bool assignment,
+        PreparedMemberReference? preparedTarget
     )
     {
         var emptyLabel = builder.CreateLabel();
@@ -486,7 +518,7 @@ internal abstract partial class JsPlannedCompilerBase
         builder.BindLabel(emptyLabel);
         builder.EmitCreateArrayLiteral(builder.AddObjectConstant(0));
         builder.BindLabel(storeLabel);
-        EmitStoreBindingTarget(ast, targetIndex);
+        EmitStoreDestructuringTarget(ast, targetIndex, assignment, preparedTarget);
     }
 
     private void EmitBindingDefault(FlatAst ast, int defaultIndex, int valueRegister)
@@ -512,7 +544,12 @@ internal abstract partial class JsPlannedCompilerBase
         builder.BindLabel(endLabel);
     }
 
-    private void EmitObjectBindingPattern(FlatAst ast, AstNode pattern, int sourceRegister)
+    private void EmitObjectBindingPattern(
+        FlatAst ast,
+        AstNode pattern,
+        int sourceRegister,
+        bool assignment = false
+    )
     {
         var properties = ast.GetObjectProperties(pattern.Arg0, pattern.Arg1);
         var restIndex = -1;
@@ -530,7 +567,6 @@ internal abstract partial class JsPlannedCompilerBase
         {
             EmitLdar(sourceRegister);
             builder.EmitCallRuntime((int)RuntimeId.RequireObjectCoercible, sourceRegister, 1);
-            var propertyValueRegister = -1;
             var reusableKeyRegister = -1;
             for (var i = 0; i < properties.Length; i++)
             {
@@ -542,62 +578,83 @@ internal abstract partial class JsPlannedCompilerBase
                         property.ValueNode,
                         sourceRegister,
                         properties[..i],
-                        computedKeyRegisters!.AsSpan(0, i)
+                        computedKeyRegisters!.AsSpan(0, i),
+                        assignment
                     );
                     continue;
                 }
 
+                var sourceKeyRegister = -1;
                 if (property.IsComputed)
                 {
                     EmitExpression(ast, property.Key);
-                    var keyRegister =
+                    sourceKeyRegister =
                         restIndex >= 0 ? builder.AllocateTemporaryRegister()
                         : reusableKeyRegister >= 0 ? reusableKeyRegister
                         : reusableKeyRegister = builder.AllocateTemporaryRegister();
-                    EmitStar(keyRegister);
-                    builder.EmitCallRuntime((int)RuntimeId.NormalizePropertyKey, keyRegister, 1);
-                    EmitStar(keyRegister);
+                    EmitStar(sourceKeyRegister);
+                    builder.EmitCallRuntime(
+                        (int)RuntimeId.NormalizePropertyKey,
+                        sourceKeyRegister,
+                        1
+                    );
+                    EmitStar(sourceKeyRegister);
                     if (computedKeyRegisters is not null)
-                        computedKeyRegisters[i] = keyRegister;
-                    EmitLdar(keyRegister);
-                    builder.EmitLdaKeyedProperty(sourceRegister);
+                        computedKeyRegisters[i] = sourceKeyRegister;
                 }
-                else
+
+                var targetMarker = builder.GetTemporaryRegisterScopeMarker();
+                try
                 {
-                    var name = ast.GetString(property.Key);
-                    if (AtomTable.TryGetArrayIndexFromCanonicalString(name, out var index))
+                    var targetIndex = property.ValueNode;
+                    var defaultIndex = -1;
+                    ref readonly var target = ref ast[targetIndex];
+                    if (
+                        target.Kind == AstKind.AssignmentExpression
+                        && (JsAssignmentOperator)target.Arg2 == JsAssignmentOperator.Assign
+                    )
                     {
-                        EmitNumericLiteral(index);
+                        targetIndex = target.Arg0;
+                        defaultIndex = target.Arg1;
+                    }
+                    PreparedMemberReference? preparedTarget = null;
+                    if (assignment && ast[targetIndex].Kind == AstKind.MemberExpression)
+                        preparedTarget = PrepareMemberReference(
+                            ast,
+                            ast[targetIndex],
+                            normalizeComputedKey: false
+                        );
+
+                    if (sourceKeyRegister >= 0)
+                    {
+                        EmitLdar(sourceKeyRegister);
                         builder.EmitLdaKeyedProperty(sourceRegister);
                     }
                     else
                     {
-                        builder.EmitLdaNamedProperty(
-                            sourceRegister,
-                            builder.AddAtomizedStringConstant(name),
-                            builder.AllocateFeedbackSlot()
-                        );
+                        var name = ast.GetString(property.Key);
+                        if (AtomTable.TryGetArrayIndexFromCanonicalString(name, out var index))
+                        {
+                            EmitNumericLiteral(index);
+                            builder.EmitLdaKeyedProperty(sourceRegister);
+                        }
+                        else
+                        {
+                            builder.EmitLdaNamedProperty(
+                                sourceRegister,
+                                builder.AddAtomizedStringConstant(name),
+                                builder.AllocateFeedbackSlot()
+                            );
+                        }
                     }
+                    if (defaultIndex >= 0)
+                        EmitBindingDefault(ast, defaultIndex, builder.AllocateTemporaryRegister());
+                    EmitStoreDestructuringTarget(ast, targetIndex, assignment, preparedTarget);
                 }
-
-                var targetIndex = property.ValueNode;
-                var defaultIndex = -1;
-                ref readonly var target = ref ast[targetIndex];
-                if (
-                    target.Kind == AstKind.AssignmentExpression
-                    && (JsAssignmentOperator)target.Arg2 == JsAssignmentOperator.Assign
-                )
+                finally
                 {
-                    targetIndex = target.Arg0;
-                    defaultIndex = target.Arg1;
+                    builder.ReleaseTemporaryRegistersToMarker(targetMarker);
                 }
-                if (defaultIndex >= 0)
-                {
-                    if (propertyValueRegister < 0)
-                        propertyValueRegister = builder.AllocateTemporaryRegister();
-                    EmitBindingDefault(ast, defaultIndex, propertyValueRegister);
-                }
-                EmitStoreBindingTarget(ast, targetIndex);
             }
         }
         finally
@@ -613,7 +670,8 @@ internal abstract partial class JsPlannedCompilerBase
         int targetIndex,
         int sourceRegister,
         ReadOnlySpan<FlatObjectProperty> excludedProperties,
-        ReadOnlySpan<int> computedKeyRegisters
+        ReadOnlySpan<int> computedKeyRegisters,
+        bool assignment
     )
     {
         builder.Emit(JsOpCode.CreateEmptyObjectLiteral);
@@ -638,7 +696,20 @@ internal abstract partial class JsPlannedCompilerBase
             2 + excludedProperties.Length
         );
         EmitLdar(restRegister);
-        EmitStoreBindingTarget(ast, targetIndex);
+        EmitStoreDestructuringTarget(ast, targetIndex, assignment);
+    }
+
+    private void EmitStoreDestructuringTarget(
+        FlatAst ast,
+        int targetIndex,
+        bool assignment,
+        PreparedMemberReference? preparedTarget = null
+    )
+    {
+        if (assignment)
+            EmitStoreAssignmentTarget(ast, targetIndex, preparedTarget);
+        else
+            EmitStoreBindingTarget(ast, targetIndex);
     }
 
     private void EmitFunctionDeclaration(FlatAst ast, int functionIndex, int bodyRoot)

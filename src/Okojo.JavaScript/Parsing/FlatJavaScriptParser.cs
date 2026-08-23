@@ -602,7 +602,10 @@ internal sealed class FlatJavaScriptParser
         var left = ParseConditional(allowIn);
         if (!TryGetAssignmentOperator(current.Kind, out var op))
             return left;
-        if (Arena[left].Kind is not (AstKind.Identifier or AstKind.MemberExpression))
+        if (
+            Arena[left].Kind is not (AstKind.Identifier or AstKind.MemberExpression)
+            && (op != JsAssignmentOperator.Assign || !IsDestructuringAssignmentTarget(left))
+        )
             throw Error("Invalid assignment target", position);
         Next();
         return Arena.Add(
@@ -868,11 +871,21 @@ internal sealed class FlatJavaScriptParser
                     continue;
                 }
                 if (current.Kind == JsTokenKind.Ellipsis)
-                    throw Error(
-                        "Array spread is not supported by FlatJavaScriptParser",
-                        current.Position
+                {
+                    var spreadPosition = current.Position;
+                    Next();
+                    elements.Add(
+                        Arena.Add(
+                            AstKind.SpreadElement,
+                            ParseAssignment(allowIn: true),
+                            position: spreadPosition
+                        )
                     );
-                elements.Add(ParseAssignment(allowIn: true));
+                    if (current.Kind == JsTokenKind.Comma)
+                        throw Error("Rest assignment must be the final element", current.Position);
+                }
+                else
+                    elements.Add(ParseAssignment(allowIn: true));
                 if (!Match(JsTokenKind.Comma) && current.Kind != JsTokenKind.RightBracket)
                     throw Error("Expected ',' or ']'", current.Position);
             }
@@ -900,13 +913,24 @@ internal sealed class FlatJavaScriptParser
         {
             while (current.Kind != JsTokenKind.RightBrace)
             {
-                if (current.Kind == JsTokenKind.Ellipsis)
-                    throw Error(
-                        "Object spread is not supported by FlatJavaScriptParser",
-                        current.Position
-                    );
-
                 var propertyPosition = current.Position;
+                if (Match(JsTokenKind.Ellipsis))
+                {
+                    properties.Add(
+                        new FlatObjectProperty(
+                            -1,
+                            ParseAssignment(allowIn: true),
+                            propertyPosition,
+                            FlatObjectPropertyFlags.Rest
+                        )
+                    );
+                    if (current.Kind == JsTokenKind.Comma)
+                        throw Error("Rest assignment must be the final property", current.Position);
+                    if (current.Kind != JsTokenKind.RightBrace)
+                        throw Error("Expected '}' after rest assignment", current.Position);
+                    continue;
+                }
+
                 var computed = Match(JsTokenKind.LeftBracket);
                 int key;
                 JsToken shorthandToken = default;
@@ -923,6 +947,9 @@ internal sealed class FlatJavaScriptParser
                 }
 
                 int value;
+                var flags = computed
+                    ? FlatObjectPropertyFlags.Computed
+                    : FlatObjectPropertyFlags.None;
                 if (Match(JsTokenKind.Colon))
                     value = ParseAssignment(allowIn: true);
                 else if (
@@ -930,26 +957,32 @@ internal sealed class FlatJavaScriptParser
                     && shorthandToken.Kind == JsTokenKind.Identifier
                     && current.Kind != JsTokenKind.LeftParen
                 )
+                {
                     value = Arena.Add(
                         AstKind.Identifier,
                         Arena.AddString(GetIdentifierText(shorthandToken)),
                         shorthandToken.IdentifierId,
                         position: shorthandToken.Position
                     );
+                    if (Match(JsTokenKind.Assign))
+                    {
+                        flags |= FlatObjectPropertyFlags.CoverInitializedName;
+                        value = Arena.Add(
+                            AstKind.AssignmentExpression,
+                            value,
+                            ParseAssignment(allowIn: true),
+                            (int)JsAssignmentOperator.Assign,
+                            shorthandToken.Position
+                        );
+                    }
+                }
                 else
                     throw Error(
                         "Object methods and accessors are not supported by FlatJavaScriptParser",
                         current.Position
                     );
 
-                properties.Add(
-                    new FlatObjectProperty(
-                        key,
-                        value,
-                        propertyPosition,
-                        computed ? FlatObjectPropertyFlags.Computed : FlatObjectPropertyFlags.None
-                    )
-                );
+                properties.Add(new FlatObjectProperty(key, value, propertyPosition, flags));
                 if (!Match(JsTokenKind.Comma) && current.Kind != JsTokenKind.RightBrace)
                     throw Error("Expected ',' or '}'", current.Position);
             }
@@ -965,6 +998,55 @@ internal sealed class FlatJavaScriptParser
         finally
         {
             properties.Dispose();
+        }
+    }
+
+    private bool IsDestructuringAssignmentTarget(int nodeIndex)
+    {
+        ref readonly var node = ref Arena[nodeIndex];
+        switch (node.Kind)
+        {
+            case AstKind.Identifier:
+            case AstKind.MemberExpression:
+                return true;
+            case AstKind.AssignmentExpression:
+                return (JsAssignmentOperator)node.Arg2 == JsAssignmentOperator.Assign
+                    && IsDestructuringAssignmentTarget(node.Arg0);
+            case AstKind.SpreadElement:
+                return Arena[node.Arg0].Kind is AstKind.Identifier or AstKind.MemberExpression;
+            case AstKind.ArrayExpression:
+                var elements = Arena.ChildRange(node.Arg0, node.Arg1);
+                for (var i = 0; i < elements.Length; i++)
+                {
+                    if (elements[i] < 0)
+                        continue;
+                    if (!IsDestructuringAssignmentTarget(elements[i]))
+                        return false;
+                    if (
+                        Arena[elements[i]].Kind == AstKind.SpreadElement
+                        && i != elements.Length - 1
+                    )
+                        return false;
+                }
+                return true;
+            case AstKind.ObjectExpression:
+                var properties = ast.GetObjectProperties(node.Arg0, node.Arg1);
+                for (var i = 0; i < properties.Length; i++)
+                {
+                    if (
+                        properties[i].IsRest
+                        && Arena[properties[i].ValueNode].Kind
+                            is not (AstKind.Identifier or AstKind.MemberExpression)
+                    )
+                        return false;
+                    if (!IsDestructuringAssignmentTarget(properties[i].ValueNode))
+                        return false;
+                    if (properties[i].IsRest && i != properties.Length - 1)
+                        return false;
+                }
+                return true;
+            default:
+                return false;
         }
     }
 

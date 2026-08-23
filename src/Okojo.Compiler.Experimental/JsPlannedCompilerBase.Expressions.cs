@@ -27,6 +27,11 @@ internal abstract partial class JsPlannedCompilerBase
             case AstKind.Identifier:
                 EmitIdentifierLoad(ast.GetString(node.Arg0));
                 return;
+            case AstKind.AssignmentExpression
+                when (JsAssignmentOperator)node.Arg2 == JsAssignmentOperator.Assign
+                    && ast[node.Arg0].Kind is AstKind.ArrayExpression or AstKind.ObjectExpression:
+                EmitDestructuringAssignment(ast, node);
+                return;
             case AstKind.AssignmentExpression when ast[node.Arg0].Kind == AstKind.Identifier:
                 EmitIdentifierAssignment(
                     ast,
@@ -87,6 +92,15 @@ internal abstract partial class JsPlannedCompilerBase
     private void EmitObjectExpression(FlatAst ast, AstNode node)
     {
         var properties = ast.GetObjectProperties(node.Arg0, node.Arg1);
+        for (var i = 0; i < properties.Length; i++)
+            if (properties[i].IsRest)
+                throw new NotSupportedException(
+                    $"Object spread is not supported by {CompilerName}."
+                );
+            else if (properties[i].IsCoverInitializedName)
+                throw new NotSupportedException(
+                    "Object shorthand initializers are only valid in destructuring assignments."
+                );
         var shape = Vm.EmptyShape;
         var shapePrefixCount = 0;
         for (; shapePrefixCount < properties.Length; shapePrefixCount++)
@@ -164,6 +178,10 @@ internal abstract partial class JsPlannedCompilerBase
             {
                 if (elements[i] < 0)
                     continue;
+                if (ast[elements[i]].Kind == AstKind.SpreadElement)
+                    throw new NotSupportedException(
+                        $"Array spread is not supported by {CompilerName}."
+                    );
                 EmitExpression(ast, elements[i]);
                 builder.EmitInitializeArrayElement(arrayRegister, i);
             }
@@ -172,6 +190,106 @@ internal abstract partial class JsPlannedCompilerBase
         finally
         {
             builder.ReleaseTemporaryRegistersToMarker(marker);
+        }
+    }
+
+    private void EmitDestructuringAssignment(FlatAst ast, AstNode assignment)
+    {
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            EmitExpression(ast, assignment.Arg1);
+            var sourceRegister = builder.AllocateTemporaryRegister();
+            EmitStar(sourceRegister);
+            ref readonly var target = ref ast[assignment.Arg0];
+            if (target.Kind == AstKind.ArrayExpression)
+                EmitArrayBindingPattern(ast, target, sourceRegister, assignment: true);
+            else
+                EmitObjectBindingPattern(ast, target, sourceRegister, assignment: true);
+            EmitLdar(sourceRegister);
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+        }
+    }
+
+    private void EmitStoreAssignmentTarget(
+        FlatAst ast,
+        int targetIndex,
+        PreparedMemberReference? preparedTarget
+    )
+    {
+        ref readonly var target = ref ast[targetIndex];
+        if (target.Kind == AstKind.Identifier)
+        {
+            var name = ast.GetString(target.Arg0);
+            var hasLocalBinding = TryResolveBindingAccess(
+                name,
+                out var binding,
+                out var contextDepth
+            );
+            var hasExternalBinding = TryResolveExternalBinding(
+                name,
+                out var externalBinding,
+                out var externalDepth
+            );
+            if (!hasLocalBinding && !hasExternalBinding)
+                throw new NotSupportedException(
+                    $"{CompilerName} does not support assignment to '{name}'."
+                );
+            EmitResolvedIdentifierStore(
+                hasLocalBinding,
+                binding,
+                contextDepth,
+                externalBinding,
+                externalDepth
+            );
+            return;
+        }
+
+        if (target.Kind == AstKind.MemberExpression)
+        {
+            if (preparedTarget is { } prepared)
+            {
+                EmitPreparedMemberStore(prepared);
+                return;
+            }
+
+            var marker = builder.GetTemporaryRegisterScopeMarker();
+            try
+            {
+                var valueRegister = builder.AllocateTemporaryRegister();
+                EmitStar(valueRegister);
+                var reference = PrepareMemberReference(ast, target, normalizeComputedKey: false);
+                EmitLdar(valueRegister);
+                EmitPreparedMemberStore(reference);
+            }
+            finally
+            {
+                builder.ReleaseTemporaryRegistersToMarker(marker);
+            }
+            return;
+        }
+
+        if (target.Kind is not (AstKind.ArrayExpression or AstKind.ObjectExpression))
+            throw new NotSupportedException(
+                $"{CompilerName} does not support assignment target '{target.Kind}'."
+            );
+
+        var nestedMarker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            var sourceRegister = builder.AllocateTemporaryRegister();
+            EmitStar(sourceRegister);
+            if (target.Kind == AstKind.ArrayExpression)
+                EmitArrayBindingPattern(ast, target, sourceRegister, assignment: true);
+            else
+                EmitObjectBindingPattern(ast, target, sourceRegister, assignment: true);
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(nestedMarker);
         }
     }
 
