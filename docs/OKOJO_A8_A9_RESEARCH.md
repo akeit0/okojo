@@ -291,7 +291,7 @@ for-loop-sum and lexical-block should follow).
 | id | proposal | owner | gate |
 | -- | -------- | ----- | ---- |
 | R1 | Disassembler context-op formatting + header derivation + root-cause of let-loop context allocation | tooling/compiler | DONE (this branch) |
-| R2 | A8-L1 register per-iteration let bindings: gate EnsureLoopAliasContextSlots on IsCapturedByChildBinding | compiler | bench-ab + test262 |
+| R2 | A8-L1 register per-iteration let bindings: gate EnsureLoopAliasContextSlots on IsCapturedByChildBinding | compiler | DONE - **-29..-44% across all bench cases** (see a8l1 notice) |
 | R3 | Fusion: LdaZeroStar / LdaTheHoleStar / LdaUndefinedStar | compiler+VM contract | bench-ab + test262 |
 | R4 | Fusion: StaCurrentContextSlotFromReg | compiler+VM contract | R1, bench-ab |
 | R5 | Fusion: LdaGlobalToReg, GetNamedPropertyTo, AddToReg | compiler+VM contract | after R3/R4 experience |
