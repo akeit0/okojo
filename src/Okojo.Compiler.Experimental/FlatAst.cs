@@ -7,12 +7,17 @@ internal sealed class FlatAst : IDisposable
 {
     private readonly PooledArrayBuilder<FlatFunctionInfo> functions = new(8);
 
-    public FlatAst(string source)
+    public FlatAst(string source, string? sourcePath = null)
     {
         Arena = new AstArena(source);
+        SourceText = source;
+        SourcePath = sourcePath;
     }
 
     public AstArena Arena { get; }
+    public string SourceText { get; }
+    public string? SourcePath { get; }
+    public bool StrictDeclared { get; set; }
     public int Count => Arena.Count;
     public int Root
     {

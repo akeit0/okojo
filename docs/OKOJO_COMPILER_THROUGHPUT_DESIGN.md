@@ -227,3 +227,22 @@ Performance plan:
 - add calls/member access before using application-sized compile throughput as a
   migration gate
 - add per-iteration context cloning before claiming closure-correct lexical loops
+
+## 10. C1 Phase 5 - Direct Flat Parser Slice
+
+The experimental compiler now has a direct `Compile(string)` path using the
+existing lexer and emitting `FlatAst` nodes without constructing class AST
+statements or expressions. The initial slice covers the syntax already executable
+by the flat planned compiler and rejects unsupported syntax without fallback.
+
+Measured allocated bytes for 80 declaration/update pairs after warm-up:
+
+| path | allocated bytes |
+|---|---:|
+| direct lexer -> flat AST | ~10.5 KB |
+| class AST parse -> flat lowering | ~81.1 KB |
+
+This is an approximately 87% allocation reduction for parsing/lowering the
+supported slice. The bridge remains necessary for the full production grammar;
+calls and member access are the next coverage gate before application-sized
+throughput comparisons.

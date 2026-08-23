@@ -7,10 +7,21 @@ internal sealed partial class JsPlannedScriptCompiler
 {
     public JsScript Compile(JsProgram program)
     {
-        builder.SetSourceText(program.SourceText);
-        builder.SetStrictDeclared(program.StrictDeclared);
-
         using var ast = FlatAstLowerer.Lower(program);
+        ast.StrictDeclared = program.StrictDeclared;
+        return Compile(ast, program.SourcePath);
+    }
+
+    public JsScript Compile(string source, string? sourcePath = null)
+    {
+        using var ast = DirectFlatParser.ParseScript(source, sourcePath);
+        return Compile(ast, sourcePath);
+    }
+
+    private JsScript Compile(FlatAst ast, string? sourcePath)
+    {
+        builder.SetSourceText(ast.SourceText);
+        builder.SetStrictDeclared(ast.StrictDeclared);
         using var collected = CompilerBindingCollector.Collect(ast);
         using var plan = CompilerStoragePlanner.Plan(collected);
         InitializePlanIndexes(collected, plan);
@@ -29,10 +40,10 @@ internal sealed partial class JsPlannedScriptCompiler
         var script = builder.ToScript() with
         {
             SourceCode =
-                program.SourceText is null && program.SourcePath is null
+                string.IsNullOrEmpty(ast.SourceText) && sourcePath is null
                     ? null
-                    : new SourceCode(program.SourceText, program.SourcePath),
-            StrictDeclared = program.StrictDeclared,
+                    : new SourceCode(ast.SourceText, sourcePath),
+            StrictDeclared = ast.StrictDeclared,
         };
         script.BindAgent(Vm.Agent);
         return script;

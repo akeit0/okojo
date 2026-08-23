@@ -41,6 +41,9 @@ Current project contents:
   - pooled 16-byte nodes and side tables
   - one arena shared by scripts and nested functions
   - typed nested-function metadata
+- `DirectFlatParser`
+  - direct `JsLexer` to flat-node generation for the supported subset
+  - no class statement/expression nodes and no silent class-parser fallback
 - `CompilerBindingCollector`
   - flat scope, binding, and identifier-reference discovery
 - `CompilerStoragePlanner`
@@ -67,6 +70,10 @@ Both planned compilers currently support:
 - identifier assignment and compound/logical assignment
 - nested capture and assignment for parameter, root, function, and block bindings
 
+`JsPlannedScriptCompiler.Compile(string)` uses the direct flat parser. The
+`Compile(JsProgram)` overload remains as the compatibility bridge for parser and
+lowerer comparison.
+
 ## Not Supported Yet
 
 Still intentionally unsupported in the experimental pipeline:
@@ -89,6 +96,7 @@ Current milestone status:
 - separate experimental assembly: done
 - separate compiler-focused test project: done
 - flat script/function emitter: active
+- direct lexer-to-flat parser: active for the supported subset
 - shared flat nested-function arena: done for the supported subset
 - dense scope/capture planning: done
 - ordinary loop lowering: done, excluding per-iteration closure cloning
@@ -121,7 +129,7 @@ Recommended next slices:
 
 1. call expressions
 2. member access
-3. parser-direct flat output
+3. expand direct flat parsing to the same call/member slice
 4. per-iteration context cloning
 5. destructuring and literals
-6. measured production migration slices
+6. converge the complete production grammar on flat node handles
