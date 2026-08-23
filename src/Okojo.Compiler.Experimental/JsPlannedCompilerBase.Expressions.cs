@@ -306,6 +306,43 @@ internal abstract partial class JsPlannedCompilerBase
         EmitExpression(ast, nodeIndex);
     }
 
+    private void EmitExpressionWithComputedName(FlatAst ast, int nodeIndex, int nameRegister)
+    {
+        ref readonly var node = ref ast[nodeIndex];
+        if (node.Kind is AstKind.FunctionExpression or AstKind.ArrowFunctionExpression)
+        {
+            var function = ast.GetFunction(node.Arg0);
+            EmitFunctionExpression(ast, node.Arg0, node.Arg1);
+            if (ast.GetString(function.NameStringIndex).Length == 0)
+                EmitSetFunctionName(nameRegister);
+            return;
+        }
+        if (node.Kind == AstKind.ClassExpression)
+        {
+            EmitClassExpression(ast, node.Arg0, inferredNameRegister: nameRegister);
+            return;
+        }
+
+        EmitExpression(ast, nodeIndex);
+    }
+
+    private void EmitSetFunctionName(int nameRegister)
+    {
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            var arguments = builder.AllocateTemporaryRegisterBlock(2);
+            EmitStar(arguments);
+            EmitLdar(nameRegister);
+            EmitStar(arguments + 1);
+            builder.EmitCallRuntime((int)RuntimeId.SetFunctionName, arguments, 2);
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+        }
+    }
+
     private void EmitFunctionExpression(
         FlatAst ast,
         int functionIndex,

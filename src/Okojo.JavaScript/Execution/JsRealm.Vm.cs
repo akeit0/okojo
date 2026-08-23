@@ -6139,21 +6139,11 @@ public sealed partial class JsRealm
             ThrowTypeError("SET_FUNCTION_NAME_ARGC", "SetFunctionName requires target and name");
 
         var targetValue = Unsafe.Add(ref registers, argRegStart);
-        if (!targetValue.TryGetObject(out var target))
+        if (!targetValue.TryGetObject(out _))
             ThrowTypeError("SET_FUNCTION_NAME_TARGET", "SetFunctionName target must be object");
 
         var nameValue = Unsafe.Add(ref registers, argRegStart + 1);
-        try
-        {
-            SetFunctionNameProperty(realm, target, nameValue.AsString(), false);
-        }
-        catch (IndexOutOfRangeException ex)
-        {
-            throw new InvalidOperationException(
-                $"SetFunctionName failed: target={target.GetType().FullName}, name='{nameValue.AsString()}', targetName='{target}'",
-                ex
-            );
-        }
+        AssignFunctionNameFromPropertyKey(realm, targetValue, nameValue);
 
         acc = targetValue;
     }

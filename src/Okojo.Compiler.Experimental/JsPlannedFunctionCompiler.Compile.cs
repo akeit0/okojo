@@ -106,6 +106,8 @@ internal sealed partial class JsPlannedFunctionCompiler
             throw new NotSupportedException("Advanced parameters require flat function metadata.");
         strictDeclared = metadata.StrictDeclared;
         returnInferredNameStringIndex = flatFunction?.ReturnInferredNameStringIndex ?? -1;
+        returnInferredNameFromFirstParameter =
+            flatFunction?.ReturnInferredNameFromFirstParameter ?? false;
         builder.SetStrictDeclared(strictDeclared);
         using var plan = CompilerStoragePlanner.Plan(collected);
         InitializePlanIndexes(collected, plan);

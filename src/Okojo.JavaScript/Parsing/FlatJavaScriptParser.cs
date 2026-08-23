@@ -949,7 +949,8 @@ internal sealed class FlatJavaScriptParser
                                 expression,
                                 elementPosition,
                                 initializerUsesSuper,
-                                computed ? -1 : key
+                                computed ? -1 : key,
+                                computed
                             )
                             : expression;
                     }
@@ -958,7 +959,8 @@ internal sealed class FlatJavaScriptParser
                             -1,
                             elementPosition,
                             false,
-                            -1
+                            -1,
+                            computed
                         );
                     if (!isStatic)
                         instanceFieldsUseSuper |= initializerUsesSuper;
@@ -1167,7 +1169,8 @@ internal sealed class FlatJavaScriptParser
         int expression,
         int position,
         bool hasSuperPropertyReference,
-        int inferredNameStringIndex
+        int inferredNameStringIndex,
+        bool inferNameFromFirstParameter
     )
     {
         var returnStatement = Arena.Add(AstKind.ReturnStatement, expression, position: position);
@@ -1179,7 +1182,18 @@ internal sealed class FlatJavaScriptParser
             bodyRange.Count,
             position: position
         );
-        var parameters = ast.AddParameters(ReadOnlySpan<FlatParameter>.Empty);
+        var parameters = inferNameFromFirstParameter
+            ? ast.AddParameters([
+                new FlatParameter(
+                    Arena.AddString("\0computed field key"),
+                    -1,
+                    -1,
+                    -1,
+                    position,
+                    JsFormalParameterBindingKind.Plain
+                ),
+            ])
+            : ast.AddParameters(ReadOnlySpan<FlatParameter>.Empty);
         var functionIndex = ast.AddFunction(
             new FlatFunctionInfo(
                 Arena.AddString(string.Empty),
@@ -1194,7 +1208,8 @@ internal sealed class FlatJavaScriptParser
                 position,
                 true,
                 HasSuperPropertyReference: hasSuperPropertyReference,
-                ReturnInferredNameStringIndex: inferredNameStringIndex
+                ReturnInferredNameStringIndex: inferredNameStringIndex,
+                ReturnInferredNameFromFirstParameter: inferNameFromFirstParameter
             )
         );
         return Arena.Add(AstKind.FunctionExpression, functionIndex, body, position: position);

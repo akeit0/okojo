@@ -71,6 +71,8 @@ internal abstract partial class JsPlannedCompilerBase
                             node.Arg0,
                             ast.GetString(returnInferredNameStringIndex)
                         );
+                    else if (returnInferredNameFromFirstParameter)
+                        EmitExpressionWithComputedName(ast, node.Arg0, 0);
                     else
                         EmitExpression(ast, node.Arg0);
                     if (isGenerator && isAsync)

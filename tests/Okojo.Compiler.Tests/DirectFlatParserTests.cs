@@ -3701,6 +3701,58 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_InfersComputedClassFieldInitializerNames()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let coercions = 0;
+            let key = { toString() { coercions++; return 'instanceFn'; } };
+            let symbol = Symbol('token');
+            let staticKey = 'StaticClass';
+            class Names {
+                [key] = function () {};
+                [1] = () => {};
+                [symbol] = function () {};
+                ['InstanceClass'] = class { static observed = this.name; };
+                ['explicit'] = function own() {};
+                static ['staticFn'] = () => {};
+                static [staticKey] = class { static observed = this.name; };
+            }
+            let value = new Names();
+            value.instanceFn.name + '|' + value[1].name + '|' + value[symbol].name + '|'
+                + value.InstanceClass.name + '|' + value.InstanceClass.observed + '|'
+                + value.explicit.name + '|' + Names.staticFn.name + '|'
+                + Names.StaticClass.name + '|' + Names.StaticClass.observed + '|' + coercions;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(
+            realm.Accumulator.AsString(),
+            Is.EqualTo(
+                "instanceFn|1|[token]|InstanceClass|InstanceClass|own|staticFn|StaticClass|StaticClass|1"
+            )
+        );
+    }
+
+    [Test]
+    public void CompileAst_InfersComputedClassFieldInitializerNames()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            JavaScriptParser.ParseScript(
+                "let instanceKey = 'instance'; let staticKey = 'StaticValue'; class Names { [instanceKey] = function () {}; static [staticKey] = class { static observed = this.name; }; } let value = new Names(); value.instance.name + '|' + Names.StaticValue.name + '|' + Names.StaticValue.observed;"
+            )
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("instance|StaticValue|StaticValue"));
+    }
+
+    [Test]
     public void CompileString_ExecutesPrivateMethodsAndAccessors()
     {
         var realm = JsRuntime.Create().DefaultRealm;

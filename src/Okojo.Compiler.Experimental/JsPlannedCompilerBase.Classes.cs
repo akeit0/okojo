@@ -16,7 +16,12 @@ internal abstract partial class JsPlannedCompilerBase
         EmitStore(binding, isInitialization: true);
     }
 
-    private void EmitClassExpression(FlatAst ast, int classIndex, string? inferredName = null)
+    private void EmitClassExpression(
+        FlatAst ast,
+        int classIndex,
+        string? inferredName = null,
+        int inferredNameRegister = -1
+    )
     {
         var info = ast.GetClass(classIndex);
 
@@ -161,6 +166,11 @@ internal abstract partial class JsPlannedCompilerBase
                         );
                     EmitLdar(constructorRegister);
                     EmitStore(classAlias, isInitialization: true);
+                }
+                else if (inferredNameRegister >= 0)
+                {
+                    EmitLdar(constructorRegister);
+                    EmitSetFunctionName(inferredNameRegister);
                 }
 
                 for (var i = 0; i < elements.Length; i++)
@@ -414,7 +424,12 @@ internal abstract partial class JsPlannedCompilerBase
             EmitClassElementFunction(ast, element, constructorRegister);
             var initializerRegister = builder.AllocateTemporaryRegister();
             EmitStar(initializerRegister);
-            builder.EmitCallProperty(initializerRegister, constructorRegister, 0, 0);
+            builder.EmitCallProperty(
+                initializerRegister,
+                constructorRegister,
+                element.IsComputed ? keyRegister : 0,
+                element.IsComputed ? 1 : 0
+            );
             EmitStar(arguments + 2);
             builder.EmitCallRuntime((int)RuntimeId.DefineClassField, arguments, 3);
         }
@@ -606,7 +621,7 @@ internal abstract partial class JsPlannedCompilerBase
                                 ast.GetString(element.Key)
                             );
                         else
-                            EmitExpression(ast, element.ValueNode);
+                            EmitExpressionWithComputedName(ast, element.ValueNode, arguments + 1);
                     }
                     finally
                     {

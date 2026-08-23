@@ -464,7 +464,12 @@ the new compiler for the supported function families.
   direct private-field opcodes and function brand mappings.
 - landed named field initializer inference: anonymous function/class values receive
   public or `#private` source names across instance/static initialization by reusing
-  ordinary inferred-name closure compilation; computed field naming remains deferred
+  ordinary inferred-name closure compilation
+- landed computed field initializer inference: cached normalized instance/static
+  keys name anonymous functions, arrows, and classes, including numeric and symbol
+  keys. Computed static keys are passed into the existing synthetic initializer so
+  a nested class observes its name before static initialization, matching V8's
+  special `VisitClassLiteral(..., key)` path without a new opcode or key evaluation
 - landed private methods/accessors: closures are allocated once at class evaluation,
   instance descriptors are installed before every field initializer, and static
   descriptors precede static fields/blocks. Fixed brand/slot/value indices reuse

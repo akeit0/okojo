@@ -844,7 +844,19 @@ internal static class FlatAstLowerer
                 bodyChildren.Count,
                 position: element.Position
             );
-            var parameters = Ast.AddParameters(ReadOnlySpan<FlatParameter>.Empty);
+            var inferNameFromFirstParameter = element.ComputedKey is not null;
+            var parameters = inferNameFromFirstParameter
+                ? Ast.AddParameters([
+                    new FlatParameter(
+                        Arena.AddString("\0computed field key"),
+                        -1,
+                        -1,
+                        -1,
+                        element.Position,
+                        JsFormalParameterBindingKind.Plain
+                    ),
+                ])
+                : Ast.AddParameters(ReadOnlySpan<FlatParameter>.Empty);
             var functionIndex = Ast.AddFunction(
                 new FlatFunctionInfo(
                     Arena.AddString(string.Empty),
@@ -861,7 +873,8 @@ internal static class FlatAstLowerer
                     HasSuperPropertyReference: true,
                     ReturnInferredNameStringIndex: element.ComputedKey is null
                         ? Arena.AddString(element.Key ?? string.Empty)
-                        : -1
+                        : -1,
+                    ReturnInferredNameFromFirstParameter: inferNameFromFirstParameter
                 )
             );
             return Arena.Add(

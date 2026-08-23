@@ -61,7 +61,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings, class declaration and inner-name bindings | module bindings and remaining early errors |
 | Assignments | identifier/ordinary/super/private-field member targets, compound/logical/update, array/object destructuring, core optional-chain target restrictions | remaining early errors |
 | Functions | ordinary declarations/expressions, closures, synchronous and async generators with `yield`/`yield*`, async declarations/expressions/object methods with `await`, synchronous and async arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`/`new.target`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function/class name inference, demand-driven mapped/unmapped `arguments` | lazy bodies |
-| Classes | base/derived declarations and expressions, explicit/implicit constructors, heritage/prototype setup, derived `this`/return rules, public/private instance/static methods and accessors, named/computed public fields, instance/static private fields and brands, source-ordered static blocks, named/computed super loads/calls/stores/updates, strict bodies, declaration TDZ/const storage, inner class-name capture, anonymous name inference including named fields/private methods/private accessors | computed-field initializer anonymous naming |
+| Classes | base/derived declarations and expressions, explicit/implicit constructors, heritage/prototype setup, derived `this`/return rules, public/private instance/static methods and accessors, named/computed public fields, instance/static private fields and brands, source-ordered static blocks, named/computed super loads/calls/stores/updates, strict bodies, declaration TDZ/const storage, inner class-name capture, anonymous name inference including named/computed fields, private methods, and private accessors | full ordering differential and Test262 gate |
 | Modules | none | parse goal, entries, linking metadata, live bindings, top-level await |
 
 The direct parser rejects unsupported grammar. It does not catch an error and
@@ -1118,6 +1118,27 @@ Private method/accessor slice landed:
   initializer, including fields that reference a later private declaration
 - performance plan: create each private function closure once per class, use fixed
   brand/slot/value indices, and allocate no per-instance method/accessor closures
+
+Computed field-initializer naming slice landed:
+
+- iteration scope: anonymous function/arrow/class values in computed public
+  instance/static fields, including numeric and symbol keys
+- minimal repro:
+  `let k = 'value'; class C { [k] = function () {} } new C().value.name`
+- reference case:
+  `artifacts/okojobytecodetool/cases/flat_ast_class_computed_field_names.js`
+- focused tests cover direct and class-AST paths, instance/static fields,
+  numeric/symbol names, explicit-name preservation, one-time property-key
+  coercion, and class static initialization observing the inferred name
+- V8 observation: computed keys are normalized and cached during class evaluation;
+  Ignition's keyed field definition carries `kSetFunctionName`, while a class with
+  static initialization receives the key before its static initializer executes
+- Okojo implementation: cached normalized keys feed the existing
+  property-key-aware `SetFunctionName`; computed static-field keys travel as the
+  existing synthetic initializer's hidden argument, so nested class static
+  initialization observes the name at V8's point
+- performance plan: no new object or side table; one hidden argument only for a
+  computed static initializer and one runtime naming call only for anonymous values
 
 ### Stage F4 - Modules
 
