@@ -75,28 +75,26 @@ public sealed partial class JsRealm
         compileCollectionPool.ReturnStack(stack);
     }
 
+    // R6-compiler: lock removed - compilation is single-threaded per realm.
+    // The pool is a per-realm instance field, not shared across realms.
     private sealed class CompileCollectionPool
     {
         private const int MaxRetainedCollectionCapacity = 4096;
         private readonly Dictionary<Type, Stack<object>> dictionaries = new();
-        private readonly object gate = new();
         private readonly Dictionary<Type, Stack<object>> lists = new();
         private readonly Dictionary<Type, Stack<object>> sets = new();
         private readonly Dictionary<Type, Stack<object>> stacks = new();
 
         public List<T> RentList<T>(int minCapacity)
         {
-            lock (gate)
+            var key = typeof(List<T>);
+            if (lists.TryGetValue(key, out var pool) && pool.Count != 0)
             {
-                var key = typeof(List<T>);
-                if (lists.TryGetValue(key, out var pool) && pool.Count != 0)
-                {
-                    var list = (List<T>)pool.Pop();
-                    list.Clear();
-                    if (minCapacity > list.Capacity)
-                        list.Capacity = minCapacity;
-                    return list;
-                }
+                var list = (List<T>)pool.Pop();
+                list.Clear();
+                if (minCapacity > list.Capacity)
+                    list.Capacity = minCapacity;
+                return list;
             }
 
             return minCapacity > 0 ? new(minCapacity) : new List<T>();
@@ -110,17 +108,13 @@ public sealed partial class JsRealm
                 return;
 
             list.Clear();
-            lock (gate)
+            var key = typeof(List<T>);
+            if (!lists.TryGetValue(key, out var p))
             {
-                var key = typeof(List<T>);
-                if (!lists.TryGetValue(key, out var pool))
-                {
-                    pool = new();
-                    lists[key] = pool;
-                }
-
-                pool.Push(list);
+                p = new();
+                lists[key] = p;
             }
+            p.Push(list);
         }
 
         public Dictionary<TKey, TValue> RentDictionary<TKey, TValue>(
@@ -129,21 +123,20 @@ public sealed partial class JsRealm
         )
             where TKey : notnull
         {
-            lock (gate)
+            var key = typeof(Dictionary<TKey, TValue>);
+            if (dictionaries.TryGetValue(key, out var pool) && pool.Count != 0)
             {
-                var key = typeof(Dictionary<TKey, TValue>);
-                if (dictionaries.TryGetValue(key, out var pool) && pool.Count != 0)
-                {
-                    var dictionary = (Dictionary<TKey, TValue>)pool.Pop();
-                    if (comparer is not null && !ReferenceEquals(dictionary.Comparer, comparer))
-                        return minCapacity > 0
-                            ? new(minCapacity, comparer)
-                            : new Dictionary<TKey, TValue>(comparer);
+                var dictionary = (Dictionary<TKey, TValue>)pool.Pop();
+                if (
+                    comparer is not null && !ReferenceEquals(dictionary.Comparer, comparer)
+                )
+                    return minCapacity > 0
+                        ? new(minCapacity, comparer)
+                        : new Dictionary<TKey, TValue>(comparer);
 
-                    dictionary.Clear();
-                    dictionary.EnsureCapacity(minCapacity);
-                    return dictionary;
-                }
+                dictionary.Clear();
+                dictionary.EnsureCapacity(minCapacity);
+                return dictionary;
             }
 
             if (comparer is not null)
@@ -162,36 +155,29 @@ public sealed partial class JsRealm
                 return;
 
             dictionary.Clear();
-            lock (gate)
+            var key = typeof(Dictionary<TKey, TValue>);
+            if (!dictionaries.TryGetValue(key, out var p))
             {
-                var key = typeof(Dictionary<TKey, TValue>);
-                if (!dictionaries.TryGetValue(key, out var pool))
-                {
-                    pool = new();
-                    dictionaries[key] = pool;
-                }
-
-                pool.Push(dictionary);
+                p = new();
+                dictionaries[key] = p;
             }
+            p.Push(dictionary);
         }
 
         public HashSet<T> RentHashSet<T>(int minCapacity, IEqualityComparer<T>? comparer)
         {
-            lock (gate)
+            var key = typeof(HashSet<T>);
+            if (sets.TryGetValue(key, out var pool) && pool.Count != 0)
             {
-                var key = typeof(HashSet<T>);
-                if (sets.TryGetValue(key, out var pool) && pool.Count != 0)
-                {
-                    var set = (HashSet<T>)pool.Pop();
-                    if (comparer is not null && !ReferenceEquals(set.Comparer, comparer))
-                        return minCapacity > 0
-                            ? new(minCapacity, comparer)
-                            : new HashSet<T>(comparer);
+                var set = (HashSet<T>)pool.Pop();
+                if (comparer is not null && !ReferenceEquals(set.Comparer, comparer))
+                    return minCapacity > 0
+                        ? new(minCapacity, comparer)
+                        : new HashSet<T>(comparer);
 
-                    set.Clear();
-                    set.EnsureCapacity(minCapacity);
-                    return set;
-                }
+                set.Clear();
+                set.EnsureCapacity(minCapacity);
+                return set;
             }
 
             if (comparer is not null)
@@ -207,31 +193,24 @@ public sealed partial class JsRealm
                 return;
 
             set.Clear();
-            lock (gate)
+            var key = typeof(HashSet<T>);
+            if (!sets.TryGetValue(key, out var p))
             {
-                var key = typeof(HashSet<T>);
-                if (!sets.TryGetValue(key, out var pool))
-                {
-                    pool = new();
-                    sets[key] = pool;
-                }
-
-                pool.Push(set);
+                p = new();
+                sets[key] = p;
             }
+            p.Push(set);
         }
 
         public Stack<T> RentStack<T>(int minCapacity)
         {
-            lock (gate)
+            var key = typeof(Stack<T>);
+            if (stacks.TryGetValue(key, out var pool) && pool.Count != 0)
             {
-                var key = typeof(Stack<T>);
-                if (stacks.TryGetValue(key, out var pool) && pool.Count != 0)
-                {
-                    var stack = (Stack<T>)pool.Pop();
-                    stack.Clear();
-                    stack.EnsureCapacity(minCapacity);
-                    return stack;
-                }
+                var stack = (Stack<T>)pool.Pop();
+                stack.Clear();
+                stack.EnsureCapacity(minCapacity);
+                return stack;
             }
 
             return minCapacity > 0 ? new(minCapacity) : new Stack<T>();
@@ -245,17 +224,13 @@ public sealed partial class JsRealm
                 return;
 
             stack.Clear();
-            lock (gate)
+            var key = typeof(Stack<T>);
+            if (!stacks.TryGetValue(key, out var p))
             {
-                var key = typeof(Stack<T>);
-                if (!stacks.TryGetValue(key, out var pool))
-                {
-                    pool = new();
-                    stacks[key] = pool;
-                }
-
-                pool.Push(stack);
+                p = new();
+                stacks[key] = p;
             }
+            p.Push(stack);
         }
     }
 }

@@ -453,3 +453,13 @@ Deferred design requirements before retrying:
   2^53 boundary against test262 RegExp.prototype[Symbol.replace] cases.
 - Isolate the matchAll primitive-path TypeError separately from the fast
   path (may be a pre-existing bug worth its own fix).
+
+## 9b. R9 - call-path investigation (linq-js)
+
+Workload profile: single-line 34KB minified linq.js library. Every operation
+dispatches through CallProperty (`.moveNext()`, `.current()`,
+`.yieldReturn()`), creating deep chains of closure calls per element. This
+exercises: property-get IC hit rate, CallProperty arm, frame push/pop,
+callee entry/exit, and arguments window setup.
+
+Benchmark: Okojo 4,246us vs Jint 954us = 4.5x slower.
