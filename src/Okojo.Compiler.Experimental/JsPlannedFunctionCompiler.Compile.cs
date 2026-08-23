@@ -33,6 +33,7 @@ internal sealed partial class JsPlannedFunctionCompiler
                 parameterPlan.HasSimpleParameterList,
                 parameterPlan.FunctionLength,
                 false,
+                false,
                 false
             ),
             collected,
@@ -67,7 +68,8 @@ internal sealed partial class JsPlannedFunctionCompiler
                 function.HasSimpleParameterList,
                 function.FunctionLength,
                 function.IsMethod,
-                function.IsArrow
+                function.IsArrow,
+                function.IsGenerator
             ),
             collected,
             ast,
@@ -85,12 +87,14 @@ internal sealed partial class JsPlannedFunctionCompiler
     )
     {
         hasNewTarget = false;
+        isGenerator = metadata.IsGenerator;
         if (!metadata.HasSimpleParameterList && flatFunction is null)
             throw new NotSupportedException("Advanced parameters require flat function metadata.");
         strictDeclared = metadata.StrictDeclared;
         builder.SetStrictDeclared(strictDeclared);
         using var plan = CompilerStoragePlanner.Plan(collected);
         InitializePlanIndexes(collected, plan);
+        EmitGeneratorPrologue();
         for (var i = 0; i < metadata.ParameterCount; i++)
             builder.AllocatePinnedRegister();
         InitializeRootBindings(parameterRegisterByName);
@@ -102,6 +106,8 @@ internal sealed partial class JsPlannedFunctionCompiler
         if (flatFunction is { } function)
             EmitParameterPrologue(ast, function);
         EmitDeclarationPrologue(ast, bodyRoot);
+        if (isGenerator && !metadata.HasSimpleParameterList)
+            EmitGeneratorPrestartSuspend();
 
         ref readonly var root = ref ast[bodyRoot];
         var statements = ast.ChildRange(root.Arg0, root.Arg1);
@@ -110,6 +116,7 @@ internal sealed partial class JsPlannedFunctionCompiler
 
         builder.EmitLda(JsOpCode.LdaUndefined);
         builder.Emit(JsOpCode.Return);
+        PatchGeneratorSwitchTable();
         var script = builder.ToScript() with
         {
             SourceCode = null,
@@ -123,14 +130,14 @@ internal sealed partial class JsPlannedFunctionCompiler
             requiresClosureBinding: false,
             isStrict: metadata.StrictDeclared,
             hasNewTarget: hasNewTarget,
-            kind: JsBytecodeFunctionKind.Normal,
+            kind: isGenerator ? JsBytecodeFunctionKind.Generator : JsBytecodeFunctionKind.Normal,
             isArrow: metadata.IsArrow,
             isMethod: metadata.IsMethod,
             formalParameterCount: metadata.ParameterCount,
             hasSimpleParameterList: metadata.HasSimpleParameterList,
             isClassConstructor: false,
             isDerivedConstructor: false,
-            hasEagerGeneratorParameterBinding: false,
+            hasEagerGeneratorParameterBinding: isGenerator && !metadata.HasSimpleParameterList,
             expectedArgumentCount: metadata.FunctionLength
         );
         result.ArgumentsMappedSlots = BuildArgumentsMappedSlots(metadata);
@@ -214,6 +221,7 @@ internal sealed partial class JsPlannedFunctionCompiler
         bool HasSimpleParameterList,
         int FunctionLength,
         bool IsMethod,
-        bool IsArrow
+        bool IsArrow,
+        bool IsGenerator
     );
 }

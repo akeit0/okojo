@@ -18,7 +18,13 @@ internal abstract partial class JsPlannedCompilerBase
     protected bool emittingParameterInitializers;
     protected bool strictDeclared;
     protected bool hasNewTarget;
+    protected bool isGenerator;
     private BytecodeBuilder.Label optionalChainNullTarget;
+    private int nextGeneratorSuspendId;
+    private int generatorSwitchInstructionPc = -1;
+    private int generatorResumeValueRegister = -1;
+    private int generatorResumeModeRegister = -1;
+    private readonly List<int> generatorResumeTargets = [];
 
     protected JsPlannedCompilerBase(JsRealm realm)
     {

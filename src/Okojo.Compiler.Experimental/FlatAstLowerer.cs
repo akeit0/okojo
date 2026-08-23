@@ -201,6 +201,10 @@ internal static class FlatAstLowerer
 
         private int LowerFunctionDeclaration(JsFunctionDeclaration function)
         {
+            if (function.IsAsync)
+                throw new NotSupportedException(
+                    $"{compilerName} does not support async flat function declarations."
+                );
             var bodyRoot = LowerFunctionBody(function.Body);
             var parameters = LowerParameters(
                 function.Parameters,
@@ -222,7 +226,8 @@ internal static class FlatAstLowerer
                     function.HasSimpleParameterList,
                     function.HasDuplicateParameters,
                     function.Position,
-                    false
+                    false,
+                    IsGenerator: function.IsGenerator
                 )
             );
             return Arena.Add(
@@ -235,9 +240,9 @@ internal static class FlatAstLowerer
 
         private int LowerFunctionExpression(JsFunctionExpression function)
         {
-            if (function.IsGenerator || function.IsAsync)
+            if (function.IsAsync)
                 throw new NotSupportedException(
-                    $"{compilerName} only supports synchronous flat function expressions."
+                    $"{compilerName} does not support async flat function expressions."
                 );
 
             var bodyRoot = LowerFunctionBody(function.Body);
@@ -262,7 +267,8 @@ internal static class FlatAstLowerer
                     function.HasDuplicateParameters,
                     function.Position,
                     function.HasSuperBindingHint,
-                    function.IsArrow
+                    function.IsArrow,
+                    function.IsGenerator
                 )
             );
             return Arena.Add(
@@ -664,6 +670,7 @@ internal static class FlatAstLowerer
                 JsObjectExpression obj => LowerObject(obj),
                 JsTemplateExpression template => LowerTemplate(template),
                 JsTaggedTemplateExpression tagged => LowerTaggedTemplate(tagged),
+                JsYieldExpression yield => LowerYield(yield),
                 _ => throw new NotSupportedException(
                     $"{compilerName} does not support expression '{expression.GetType().Name}'."
                 ),
@@ -1078,6 +1085,17 @@ internal static class FlatAstLowerer
             {
                 ArrayPool<int>.Shared.Return(parts);
             }
+        }
+
+        private int LowerYield(JsYieldExpression yield)
+        {
+            if (yield.IsDelegate)
+                throw new NotSupportedException($"{compilerName} does not support yield* yet.");
+            return Arena.Add(
+                AstKind.YieldExpression,
+                yield.Argument is null ? -1 : LowerExpression(yield.Argument),
+                position: yield.Position
+            );
         }
 
         private int LowerLiteral(JsLiteralExpression literal)

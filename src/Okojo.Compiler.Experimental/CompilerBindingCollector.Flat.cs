@@ -646,6 +646,10 @@ internal static partial class CompilerBindingCollector
                 case AstKind.SpreadElement:
                     VisitExpression(ast, node.Arg0, scopeId);
                     return;
+                case AstKind.YieldExpression:
+                    if (node.Arg0 >= 0)
+                        VisitExpression(ast, node.Arg0, scopeId);
+                    return;
                 case AstKind.ConditionalExpression:
                     VisitExpression(ast, node.Arg0, scopeId);
                     VisitExpression(ast, node.Arg1, scopeId);

@@ -1924,6 +1924,117 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_ExecutesGeneratorsAndAbruptResumeModes()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let log = '';
+            function* sequence(value = (log += 'p', 2)) {
+                let current = value;
+                try {
+                    current += yield current;
+                    yield current;
+                    return current + 1;
+                } finally {
+                    log += 'f';
+                }
+            }
+            let iterator = sequence();
+            let before = log;
+            let first = iterator.next();
+            let second = iterator.next(3);
+            let third = iterator.next();
+
+            function* close() {
+                try { yield 1; } finally { log += 'r'; }
+            }
+            let closing = close();
+            closing.next();
+            let returned = closing.return(9);
+
+            function* caught() {
+                try { yield 1; } catch (error) { return error; } finally { log += 't'; }
+            }
+            let throwing = caught();
+            throwing.next();
+            let thrown = throwing.throw(7);
+
+            function* nestedExpression() { return 10 + (yield 2) + (yield 3); }
+            let nested = nestedExpression();
+            nested.next();
+            nested.next(4);
+            let nestedResult = nested.next(5);
+
+            function capturedFactory() {
+                let captured = 1;
+                return function* () { captured += yield captured; return captured; };
+            }
+            let captured = capturedFactory()();
+            captured.next();
+            let capturedResult = captured.next(4);
+
+            function* source() {
+                try { yield 1; yield 2; } finally { log += 'i'; }
+            }
+            function* loop() { for (const value of source()) yield value; }
+            let looping = loop();
+            looping.next();
+            let loopReturned = looping.return(8);
+
+            before + '|' + first.value + '|' + first.done + '|' + second.value + '|'
+                + second.done + '|' + third.value + '|' + third.done + '|'
+                + returned.value + '|' + returned.done + '|' + thrown.value + '|'
+                + thrown.done + '|' + nestedResult.value + '|' + nestedResult.done + '|'
+                + capturedResult.value + '|' + capturedResult.done + '|'
+                + loopReturned.value + '|' + loopReturned.done + '|' + log;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(
+            realm.Accumulator.AsString(),
+            Is.EqualTo("p|2|false|5|false|6|true|9|true|7|true|19|true|5|true|8|true|pfrti")
+        );
+        var sequence = script
+            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .Single(static function => function.Name == "sequence");
+        Assert.That(sequence.Kind, Is.EqualTo(JsBytecodeFunctionKind.Generator));
+        Assert.That(sequence.HasEagerGeneratorParameterBinding, Is.True);
+        Assert.That(sequence.Script.Bytecode, Does.Contain((byte)JsOpCode.SwitchOnGeneratorState));
+        Assert.That(sequence.Script.Bytecode, Does.Contain((byte)JsOpCode.SuspendGenerator));
+        Assert.That(sequence.Script.Bytecode, Does.Contain((byte)JsOpCode.ResumeGenerator));
+        Assert.That(sequence.Script.GeneratorSwitchTargets, Has.Length.EqualTo(3));
+    }
+
+    [Test]
+    public void CompileAst_ExecutesGeneratorBridge()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            JavaScriptParser.ParseScript(
+                "let make = function* () { yield 1; }; let iterator = make(); iterator.next().value + '|' + iterator.next().done;"
+            )
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("1|true"));
+    }
+
+    [Test]
+    public void ParseScript_RejectsYieldDelegateUntilItsDedicatedSlice() =>
+        Assert.Throws<JsParseException>(() =>
+            FlatJavaScriptParser.ParseScript("function* unsupported() { yield* []; }")
+        );
+
+    [TestCase("function* invalid(value = yield 1) {}")]
+    [TestCase("function* invalid() { let arrow = () => yield 1; }")]
+    public void ParseScript_RejectsYieldOutsideGeneratorBody(string source) =>
+        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+
+    [Test]
     public void CompileString_ExecutesArrowsWithLexicalThisAndArguments()
     {
         var realm = JsRuntime.Create().DefaultRealm;

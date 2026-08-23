@@ -154,6 +154,9 @@ internal abstract partial class JsPlannedCompilerBase
             case AstKind.TaggedTemplateExpression:
                 EmitTaggedTemplateExpression(ast, node);
                 return;
+            case AstKind.YieldExpression:
+                EmitYieldExpression(ast, node);
+                return;
             case AstKind.FunctionExpression:
             case AstKind.ArrowFunctionExpression:
                 EmitFunctionExpression(ast, node.Arg0, node.Arg1);

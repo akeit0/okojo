@@ -246,6 +246,9 @@ The direct flat work has already established several reusable rules:
   arguments stay after the branch so short-circuiting skips their effects
 - prepare a tagged-template callee/receiver before its cached site object and
   substitutions; keep cooked/raw quasi pairs dense and reuse `GetTemplateObject`
+- keep generator suspend IDs and resume tables in emission state, not AST nodes;
+  route return resumes through the existing abrupt-command stack and throw
+  resumes through restored VM handlers
 - lower `switch` as a saved tag, source-ordered strict comparisons, one shared
   case-block scope, and consecutively bound clause bodies; retain the existing
   zero-based `SwitchOnSmi` specialization until corpus data justifies its guard and
@@ -362,10 +365,16 @@ and has differential execution coverage for every new control-flow form.
 
 ### P2 - Resumable functions
 
-- generators and `yield`/`yield*`
+- extend landed synchronous generators and ordinary `yield` with `yield*`
 - async functions and `await`
 - async generators and `for-await-of`
-- suspension metadata, register/context preservation, and abrupt resume paths
+- measured live-range narrowing for the landed conservative register snapshot
+
+Foundation status: synchronous `function*` declarations/expressions, ordinary
+`yield`, eager advanced-parameter binding, suspend tables, sent values, and
+next/return/throw resume modes are landed. Return resumes reuse the abrupt-command
+stack so `finally` and iterator cleanup stay on the same path; throw resumes reuse
+the VM's restored exception-handler continuation.
 
 Exit gate: planned-compiler tests cover every resume mode and Test262 can target
 the new compiler for the supported function families.

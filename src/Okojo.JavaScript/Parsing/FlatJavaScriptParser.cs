@@ -10,6 +10,7 @@ internal sealed class FlatJavaScriptParser
     private JsToken current;
     private int functionDepth;
     private int receiverFunctionDepth;
+    private int generatorFunctionDepth;
     private int loopDepth;
     private int switchDepth;
     private bool strictMode;
@@ -409,8 +410,7 @@ internal sealed class FlatJavaScriptParser
     private int ParseFunction(bool isDeclaration)
     {
         var position = Expect(JsTokenKind.Function).Position;
-        if (Match(JsTokenKind.Star))
-            throw Error("Generator functions are not supported by FlatJavaScriptParser", position);
+        var isGenerator = Match(JsTokenKind.Star);
         var nameId = -1;
         string name;
         if (isDeclaration || current.Kind == JsTokenKind.Identifier)
@@ -421,7 +421,14 @@ internal sealed class FlatJavaScriptParser
         }
         else
             name = string.Empty;
-        return ParseFunctionTail(isDeclaration, name, nameId, position, isMethod: false);
+        return ParseFunctionTail(
+            isDeclaration,
+            name,
+            nameId,
+            position,
+            isMethod: false,
+            isGenerator
+        );
     }
 
     private int ParseFunctionTail(
@@ -429,16 +436,28 @@ internal sealed class FlatJavaScriptParser
         string name,
         int nameId,
         int position,
-        bool isMethod
+        bool isMethod,
+        bool isGenerator = false
     )
     {
+        var generatorDepthBeforeFunction = generatorFunctionDepth;
         receiverFunctionDepth++;
         try
         {
-            return ParseFunctionTailCore(isDeclaration, name, nameId, position, isMethod);
+            generatorFunctionDepth = 0;
+            return ParseFunctionTailCore(
+                isDeclaration,
+                name,
+                nameId,
+                position,
+                isMethod,
+                isGenerator,
+                generatorDepthBeforeFunction
+            );
         }
         finally
         {
+            generatorFunctionDepth = generatorDepthBeforeFunction;
             receiverFunctionDepth--;
         }
     }
@@ -448,7 +467,9 @@ internal sealed class FlatJavaScriptParser
         string name,
         int nameId,
         int position,
-        bool isMethod
+        bool isMethod,
+        bool isGenerator,
+        int generatorDepthBeforeFunction
     )
     {
         Expect(JsTokenKind.LeftParen);
@@ -598,6 +619,7 @@ internal sealed class FlatJavaScriptParser
             var switchDepthBeforeFunction = switchDepth;
             loopDepth = 0;
             switchDepth = 0;
+            generatorFunctionDepth = isGenerator ? generatorDepthBeforeFunction + 1 : 0;
             functionDepth++;
             int body;
             bool strictDeclared;
@@ -634,7 +656,8 @@ internal sealed class FlatJavaScriptParser
                     hasSimpleParameterList,
                     hasDuplicateParameters,
                     position,
-                    isMethod
+                    isMethod,
+                    IsGenerator: isGenerator
                 )
             );
             return Arena.Add(
@@ -1142,6 +1165,12 @@ internal sealed class FlatJavaScriptParser
     private int ParseAssignment(bool allowIn)
     {
         var position = current.Position;
+        if (
+            generatorFunctionDepth > 0
+            && current.Kind is JsTokenKind.Identifier or JsTokenKind.ReservedWord
+            && source.AsSpan(current.Position, current.SourceLength).SequenceEqual("yield".AsSpan())
+        )
+            return ParseYieldExpression(allowIn);
         var left = ParseConditional(allowIn);
         if (current.Kind == JsTokenKind.Arrow)
             return ParseArrowFunction(left, position);
@@ -1160,6 +1189,29 @@ internal sealed class FlatJavaScriptParser
             (int)op,
             position
         );
+    }
+
+    private int ParseYieldExpression(bool allowIn)
+    {
+        var position = current.Position;
+        Next();
+        if (Match(JsTokenKind.Star))
+            throw Error("yield* is not supported by FlatJavaScriptParser", position);
+
+        var argument =
+            current.HasLineTerminatorBefore
+            || current.Kind
+                is JsTokenKind.Semicolon
+                    or JsTokenKind.Comma
+                    or JsTokenKind.Colon
+                    or JsTokenKind.RightParen
+                    or JsTokenKind.RightBrace
+                    or JsTokenKind.RightBracket
+                    or JsTokenKind.Eof
+                    or JsTokenKind.In
+                ? -1
+                : ParseAssignment(allowIn);
+        return Arena.Add(AstKind.YieldExpression, argument, position: position);
     }
 
     private int ParseConditional(bool allowIn)
@@ -1715,6 +1767,8 @@ internal sealed class FlatJavaScriptParser
             loopDepth = 0;
             switchDepth = 0;
             functionDepth++;
+            var generatorDepthBeforeArrow = generatorFunctionDepth;
+            generatorFunctionDepth = 0;
             int body;
             bool strictDeclared;
             try
@@ -1743,6 +1797,7 @@ internal sealed class FlatJavaScriptParser
             finally
             {
                 functionDepth--;
+                generatorFunctionDepth = generatorDepthBeforeArrow;
                 loopDepth = loopDepthBeforeFunction;
                 switchDepth = switchDepthBeforeFunction;
             }

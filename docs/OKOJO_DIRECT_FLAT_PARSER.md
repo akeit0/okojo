@@ -59,7 +59,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Arrays/objects | holes, array/object spread, data properties, ordinary concise methods/getters/setters, computed/shorthand/index keys, stable data shape prefix | generator/async and `super` methods, legacy `__proto__` intentionally excluded |
 | Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings | class, module bindings and remaining early errors |
 | Assignments | identifier/member targets, compound/logical/update, array/object destructuring, core optional-chain target restrictions | private/super targets, remaining early errors |
-| Functions | ordinary declarations/expressions, closures, synchronous arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`/`new.target`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function name inference, demand-driven mapped/unmapped `arguments` | async, generators, class-name inference, lazy bodies |
+| Functions | ordinary declarations/expressions, closures, synchronous generators with ordinary `yield`, synchronous arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`/`new.target`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function name inference, demand-driven mapped/unmapped `arguments` | `yield*`, async, class-name inference, lazy bodies |
 | Classes | none | declaration/expression, constructors, methods, fields, static blocks, private names, super |
 | Modules | none | parse goal, entries, linking metadata, live bindings, top-level await |
 
@@ -350,6 +350,24 @@ runtime, which already caches one frozen template array per realm. The flat node
 stores dense cooked/raw quasi pairs interleaved with substitution node IDs; `-1`
 represents an undefined cooked quasi after an invalid tagged escape. No generic
 template object or parser-owned runtime cache is added.
+
+### Synchronous-generator slice
+
+This iteration starts resumable-function coverage with `function*`, ordinary
+`yield`, and next/return/throw resume modes. The minimal reference case is
+`artifacts/okojobytecodetool/cases/flat_ast_generator.js`; focused execution
+coverage also places `yield` under `try`/`finally` so abrupt resumes reuse the
+landed completion dispatcher. `yield*`, async functions, and async generators
+remain separate slices.
+
+V8 emits one entry `SwitchOnGeneratorState`, saves the live register range at
+each `SuspendGenerator`, resumes at the suspend ID, then dispatches the resume
+mode. Okojo copies that control shape through its existing generator bytecode and
+VM runtime IDs. Flat function metadata gains only the generator kind bit, and a
+yield node stores its optional operand directly; no continuation AST or new
+runtime object is introduced. The first implementation conservatively snapshots
+the complete planned register file. Narrower liveness is benchmark-gated after
+correctness.
 
 ### Destructuring
 
@@ -755,13 +773,14 @@ Try/finally slice note:
 
 ### Stage F2 - Resumable functions
 
-- generators, `yield`, and `yield*`
+- extend synchronous generators from landed ordinary `yield` to `yield*`
 - async functions and `await`
 - async generators and `for-await-of`
-- suspension/resume tables and preserved register/context ranges
+- narrow the landed conservative register snapshot only with measured liveness data
 
-The parser should record suspension points and function flags; the emitter and VM
-remain responsible for resume-state layout.
+The parser records the landed generator flag and fixed yield node; the emitter
+owns suspend IDs/tables and the VM owns continuation state. This keeps suspension
+layout out of syntax metadata.
 
 ### Stage F3 - Classes
 
