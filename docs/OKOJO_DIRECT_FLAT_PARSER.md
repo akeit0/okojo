@@ -56,7 +56,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Operators | precedence table, assignment, arithmetic/logical/bitwise/comparison, conditionals, sequence, updates, property/identifier/value `delete` | optional-chain operators and delete-chain behavior, remaining edge-specific early errors |
 | References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed properties | imports, private and super references |
 | Calls/construction | direct/member calls, spread calls, ordinary/spread `new`, wide operands | optional calls, dynamic import, super call |
-| Arrays/objects | holes, array/object spread, data properties, computed/shorthand/index keys, stable shape prefix | methods, getters/setters, legacy `__proto__` intentionally excluded |
+| Arrays/objects | holes, array/object spread, data properties, ordinary concise methods/getters/setters, computed/shorthand/index keys, stable data shape prefix | generator/async and `super` methods, legacy `__proto__` intentionally excluded |
 | Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings | class, module bindings and remaining early errors |
 | Assignments | identifier/member targets, compound/logical/update, array/object destructuring | private/super targets, optional-chain restrictions |
 | Functions | ordinary declarations/expressions, closures, simple/default/rest/pattern parameters, named self, ordinary anonymous-function name inference, `this`, demand-driven mapped/unmapped `arguments` | arrows, async, generators, class-name inference, lazy bodies |
@@ -131,6 +131,31 @@ Object spread evaluates the source then invokes the existing
 properties before the first spread keep the precomputed shape prefix; subsequent
 properties remain keyed so spread overwrite order is preserved. No temporary
 property lists or class expressions are built.
+
+### Object method/accessor slice
+
+Scope for this iteration is ordinary concise methods plus ordinary getters and
+setters with named, indexed, or computed keys. Generator/async methods and
+`super` remain with their corresponding function/class coverage. The reference
+case is `artifacts/okojobytecodetool/cases/flat_ast_object_methods.js`; focused
+tests target receiver `this`, computed-key evaluation order, accessor merging and
+names, closure capture, and method non-constructibility.
+
+V8's `VisitObjectLiteral` separates the static boilerplate from the dynamic tail,
+creates concise-method closures in an object-literal home-object context, uses
+own-property definition for methods, and batches static getter/setter pairs before
+runtime accessor definition. Production Okojo follows the same observable shape
+with `InitializeNamedProperty`, `DefineOwnKeyedProperty`, method-environment
+closures, and `DefineObjectAccessor`.
+
+The flat path will copy the split and reuse Okojo's existing accessor runtime. A
+single method bit in dense function metadata is sufficient for ordinary methods;
+no method AST subclass is needed. Until flat `super` references land, method
+closures do not allocate a home-object context. Accessors end the precomputed data
+shape prefix and use the keyed runtime path, preserving duplicate and computed-key
+order without adding an accessor-plan object. If profiling shows accessor-heavy
+literals matter, the later optimization is a dense pair table matching V8's
+batched static accessor pass.
 
 ### Destructuring
 
@@ -469,7 +494,6 @@ function read(value = function nested(next = outer) { return next; }) {
 - `for-in`/`for-of` and labels
 - `debugger`
 - regexp, BigInt, and template literals
-- object methods and accessors
 - ordinary arrows with lexical `this`, `arguments`, and `new.target`
 - optional chaining/calls
 

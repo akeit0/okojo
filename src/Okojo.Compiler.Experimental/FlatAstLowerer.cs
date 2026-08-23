@@ -210,7 +210,8 @@ internal static class FlatAstLowerer
                     function.Body.StrictDeclared,
                     function.HasSimpleParameterList,
                     function.HasDuplicateParameters,
-                    function.Position
+                    function.Position,
+                    false
                 )
             );
             return Arena.Add(
@@ -223,12 +224,7 @@ internal static class FlatAstLowerer
 
         private int LowerFunctionExpression(JsFunctionExpression function)
         {
-            if (
-                function.IsGenerator
-                || function.IsAsync
-                || function.IsArrow
-                || function.HasSuperBindingHint
-            )
+            if (function.IsGenerator || function.IsAsync || function.IsArrow)
                 throw new NotSupportedException(
                     $"{compilerName} only supports ordinary flat function expressions."
                 );
@@ -253,7 +249,8 @@ internal static class FlatAstLowerer
                     function.Body.StrictDeclared,
                     function.HasSimpleParameterList,
                     function.HasDuplicateParameters,
-                    function.Position
+                    function.Position,
+                    function.HasSuperBindingHint
                 )
             );
             return Arena.Add(
@@ -750,14 +747,24 @@ internal static class FlatAstLowerer
                 for (var i = 0; i < obj.Properties.Count; i++)
                 {
                     var property = obj.Properties[i];
-                    if (property.Kind != JsObjectPropertyKind.Data)
-                        throw new NotSupportedException(
-                            $"Object property kind '{property.Kind}' is not supported by {compilerName}."
+                    if (property.Kind == JsObjectPropertyKind.Spread)
+                    {
+                        properties[i] = new FlatObjectProperty(
+                            -1,
+                            LowerExpression(property.Value),
+                            property.Position,
+                            FlatObjectPropertyFlags.Rest
                         );
-                    if (property.Value is JsFunctionExpression { HasSuperBindingHint: true })
-                        throw new NotSupportedException(
-                            $"Object methods are not supported by {compilerName}."
-                        );
+                        continue;
+                    }
+
+                    var flags = property.IsComputed
+                        ? FlatObjectPropertyFlags.Computed
+                        : FlatObjectPropertyFlags.None;
+                    if (property.Kind == JsObjectPropertyKind.Getter)
+                        flags |= FlatObjectPropertyFlags.Getter;
+                    else if (property.Kind == JsObjectPropertyKind.Setter)
+                        flags |= FlatObjectPropertyFlags.Setter;
 
                     properties[i] = new FlatObjectProperty(
                         property.IsComputed
@@ -765,9 +772,7 @@ internal static class FlatAstLowerer
                             : Arena.AddString(property.Key),
                         LowerExpression(property.Value),
                         property.Position,
-                        property.IsComputed
-                            ? FlatObjectPropertyFlags.Computed
-                            : FlatObjectPropertyFlags.None
+                        flags
                     );
                 }
                 var range = Ast.AddObjectProperties(properties.AsSpan(0, obj.Properties.Count));

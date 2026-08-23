@@ -277,7 +277,7 @@ internal abstract partial class JsPlannedCompilerBase
         for (; shapePrefixCount < properties.Length; shapePrefixCount++)
         {
             ref readonly var property = ref properties[shapePrefixCount];
-            if (property.IsComputed || property.IsRest)
+            if (property.IsComputed || property.IsRest || property.IsAccessor)
                 break;
             var name = ast.GetString(property.Key);
             if (AtomTable.TryGetArrayIndexFromCanonicalString(name, out _))
@@ -327,6 +327,11 @@ internal abstract partial class JsPlannedCompilerBase
                 else
                     EmitStringLiteral(ast.GetString(property.Key));
                 EmitStar(keyRegister);
+                if (property.IsAccessor)
+                {
+                    EmitObjectLiteralAccessor(ast, objectRegister, keyRegister, property);
+                    continue;
+                }
                 if (property.IsComputed)
                     EmitExpression(ast, property.ValueNode);
                 else
@@ -338,6 +343,39 @@ internal abstract partial class JsPlannedCompilerBase
                 builder.EmitDefineOwnKeyedProperty(objectRegister, keyRegister);
             }
             EmitLdar(objectRegister);
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+        }
+    }
+
+    private void EmitObjectLiteralAccessor(
+        FlatAst ast,
+        int objectRegister,
+        int keyRegister,
+        in FlatObjectProperty property
+    )
+    {
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            var arguments = builder.AllocateTemporaryRegisterBlock(4);
+            EmitLdar(objectRegister);
+            EmitStar(arguments);
+            EmitLdar(keyRegister);
+            EmitStar(arguments + 1);
+            if (property.IsGetter)
+                EmitExpression(ast, property.ValueNode);
+            else
+                builder.EmitLda(JsOpCode.LdaUndefined);
+            EmitStar(arguments + 2);
+            if (property.IsSetter)
+                EmitExpression(ast, property.ValueNode);
+            else
+                builder.EmitLda(JsOpCode.LdaUndefined);
+            EmitStar(arguments + 3);
+            builder.EmitCallRuntime((int)RuntimeId.DefineObjectAccessor, arguments, 4);
         }
         finally
         {

@@ -1344,14 +1344,72 @@ public class DirectFlatParserTests
     }
 
     [Test]
-    public void ParseScript_RejectsUnsupportedObjectMethod()
+    public void CompileString_ExecutesObjectMethodsAndAccessors()
     {
-        var exception = Assert.Throws<JsParseException>(() =>
-            FlatJavaScriptParser.ParseScript("let value = { method() {} };")
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let order = '';
+            let bias = 1;
+            function key() { order += 'k'; return 'computed'; }
+            let object = {
+                base: 2,
+                method(value) { order += 'm'; return this.base + value + bias; },
+                [key()](value) { order += 'c'; return this.base * value; },
+                get value() { order += 'g'; return this.base; },
+                set value(value) { order += 's'; this.base = value; }
+            };
+            object.value = 4;
+            let total = object.method(1) + object.computed(2) + object.value;
+            let descriptor = Object.getOwnPropertyDescriptor(object, 'value');
+            let constructible = 1;
+            try { new object.method(); } catch (error) { constructible = 0; }
+            total + '|' + object.method.name + '|' + object.computed.name + '|'
+                + descriptor.get.name + '|' + descriptor.set.name + '|'
+                + (typeof object.method.prototype) + '|' + constructible + '|' + order;
+            """
         );
 
-        Assert.That(exception!.Message, Does.Contain("methods and accessors"));
+        realm.Execute(script);
+
+        Assert.That(
+            realm.Accumulator.AsString(),
+            Is.EqualTo("18|method|computed|get value|set value|undefined|0|ksmcg")
+        );
     }
+
+    [Test]
+    public void CompileString_ExecutesComputedAndIndexedObjectAccessorsInOrder()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let order = '';
+            let stored = 0;
+            function key() { order += 'k'; return 'item'; }
+            let object = {
+                get [key()]() { order += 'g'; return stored; },
+                set [key()](value) { order += 's'; stored = value; },
+                get 0() { return 7; }
+            };
+            object.item = 4;
+            let descriptor = Object.getOwnPropertyDescriptor(object, 'item');
+            object.item + object[0] + '|' + descriptor.get.name + '|'
+                + descriptor.set.name + '|' + order;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("11|get item|set item|kksg"));
+    }
+
+    [TestCase("let value = { get item(value) {} };")]
+    [TestCase("let value = { set item() {} };")]
+    [TestCase("let value = { set item(...value) {} };")]
+    [TestCase("let value = { method(value, value) {} };")]
+    public void ParseScript_RejectsInvalidObjectMethodParameters(string source) =>
+        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
 
     [TestCase("return 1;")]
     [TestCase("break;")]

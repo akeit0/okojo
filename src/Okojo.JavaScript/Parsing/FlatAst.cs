@@ -144,7 +144,8 @@ internal readonly record struct FlatFunctionInfo(
     bool StrictDeclared,
     bool HasSimpleParameterList,
     bool HasDuplicateParameters,
-    int Position
+    int Position,
+    bool IsMethod
 );
 
 internal readonly record struct FlatParameter(
@@ -167,6 +168,8 @@ internal enum FlatObjectPropertyFlags : byte
     Computed = 1,
     Rest = 2,
     CoverInitializedName = 4,
+    Getter = 8,
+    Setter = 16,
 }
 
 internal readonly record struct FlatObjectProperty(
@@ -178,6 +181,9 @@ internal readonly record struct FlatObjectProperty(
 {
     public bool IsComputed => (Flags & FlatObjectPropertyFlags.Computed) != 0;
     public bool IsRest => (Flags & FlatObjectPropertyFlags.Rest) != 0;
+    public bool IsGetter => (Flags & FlatObjectPropertyFlags.Getter) != 0;
+    public bool IsSetter => (Flags & FlatObjectPropertyFlags.Setter) != 0;
+    public bool IsAccessor => IsGetter || IsSetter;
     public bool IsCoverInitializedName =>
         (Flags & FlatObjectPropertyFlags.CoverInitializedName) != 0;
 }

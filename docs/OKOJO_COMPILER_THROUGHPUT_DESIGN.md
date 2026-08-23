@@ -211,6 +211,9 @@ The direct flat work has already established several reusable rules:
 - preserve the stable object-shape prefix before the first spread, then copy and
   define the remaining properties in source order through existing runtime/keyed
   paths
+- represent ordinary concise methods with one flat-function metadata bit; keep
+  data methods in the shape prefix and lower accessors through the existing keyed
+  accessor runtime until measurements justify a V8-style paired accessor table
 - step, default, and store destructuring elements in observable source order and
   close unfinished iterators on normal or abrupt completion
 - reserve incoming argument registers as an ABI prefix, materialize rest before
@@ -307,7 +310,6 @@ hoisting without compiler-specific rewrites.
 - `for-in` and `for-of`
 - labeled statements and labeled `break`/`continue`
 - template, regexp, and BigInt literals
-- object methods, getters, and setters
 - ordinary arrow functions
 - optional calls/chains and delete-chain behavior
 
@@ -318,9 +320,9 @@ and return emission shares one control-scope dispatcher. Direct `throw` and
 preserve the return value when required, run the finalizer, and replay the saved
 command; runtime throws continue through the VM handler path. The VM handler ABI
 now preserves lexical context across exceptions and generator suspension.
-Switch control and array/object literal spread are landed. Labeled targets,
-iterator control, full early errors, and diagnostic handler metadata remain part
-of P1.
+Switch control, literal spread, and ordinary object methods/accessors are landed.
+Labeled targets, iterator control, full early errors, and diagnostic handler
+metadata remain part of P1.
 
 Exit gate: the direct path compiles the synchronous non-class application corpus
 and has differential execution coverage for every new control-flow form.

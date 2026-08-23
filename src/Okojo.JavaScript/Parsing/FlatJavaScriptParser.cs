@@ -404,6 +404,17 @@ internal sealed class FlatJavaScriptParser
         }
         else
             name = string.Empty;
+        return ParseFunctionTail(isDeclaration, name, nameId, position, isMethod: false);
+    }
+
+    private int ParseFunctionTail(
+        bool isDeclaration,
+        string name,
+        int nameId,
+        int position,
+        bool isMethod
+    )
+    {
         Expect(JsTokenKind.LeftParen);
         Span<FlatParameter> initialParameters = stackalloc FlatParameter[8];
         var parameterList = new ParameterList(initialParameters);
@@ -571,7 +582,7 @@ internal sealed class FlatJavaScriptParser
                     "Illegal 'use strict' directive in function with non-simple parameters",
                     position
                 );
-            if (hasDuplicateParameters && (effectiveStrict || !hasSimpleParameterList))
+            if (hasDuplicateParameters && (isMethod || effectiveStrict || !hasSimpleParameterList))
                 throw Error("Duplicate parameter name", position);
             if (effectiveStrict && hasRestrictedParameterName)
                 throw Error("Unexpected eval or arguments in strict mode", position);
@@ -586,7 +597,8 @@ internal sealed class FlatJavaScriptParser
                     effectiveStrict,
                     hasSimpleParameterList,
                     hasDuplicateParameters,
-                    position
+                    position,
+                    isMethod
                 )
             );
             return Arena.Add(
@@ -1285,6 +1297,89 @@ internal sealed class FlatJavaScriptParser
                     shorthandToken = current;
                     key = Arena.AddString(GetObjectPropertyName(current));
                     Next();
+                }
+
+                var staticName = computed ? null : ast.GetString(key);
+                if (
+                    staticName is "get" or "set"
+                    && current.Kind
+                        is not (
+                            JsTokenKind.LeftParen
+                            or JsTokenKind.Colon
+                            or JsTokenKind.Comma
+                            or JsTokenKind.RightBrace
+                            or JsTokenKind.Assign
+                        )
+                )
+                {
+                    var isGetter = staticName == "get";
+                    computed = Match(JsTokenKind.LeftBracket);
+                    if (computed)
+                    {
+                        key = ParseAssignment(allowIn: true);
+                        Expect(JsTokenKind.RightBracket);
+                    }
+                    else
+                    {
+                        key = Arena.AddString(GetObjectPropertyName(current));
+                        Next();
+                    }
+
+                    var accessor = ParseFunctionTail(
+                        isDeclaration: false,
+                        string.Empty,
+                        -1,
+                        propertyPosition,
+                        isMethod: true
+                    );
+                    var accessorFunction = ast.GetFunction(Arena[accessor].Arg0);
+                    if (isGetter && accessorFunction.ParameterCount != 0)
+                        throw Error("Getter must not have parameters", propertyPosition);
+                    if (
+                        !isGetter
+                        && (
+                            accessorFunction.ParameterCount != 1
+                            || accessorFunction.RestParameterIndex >= 0
+                        )
+                    )
+                        throw Error("Expected setter parameter", propertyPosition);
+
+                    var accessorFlags = computed
+                        ? FlatObjectPropertyFlags.Computed
+                        : FlatObjectPropertyFlags.None;
+                    accessorFlags |= isGetter
+                        ? FlatObjectPropertyFlags.Getter
+                        : FlatObjectPropertyFlags.Setter;
+                    properties.Add(
+                        new FlatObjectProperty(key, accessor, propertyPosition, accessorFlags)
+                    );
+                    if (!Match(JsTokenKind.Comma) && current.Kind != JsTokenKind.RightBrace)
+                        throw Error("Expected ',' or '}'", current.Position);
+                    continue;
+                }
+
+                if (current.Kind == JsTokenKind.LeftParen)
+                {
+                    var method = ParseFunctionTail(
+                        isDeclaration: false,
+                        string.Empty,
+                        -1,
+                        propertyPosition,
+                        isMethod: true
+                    );
+                    properties.Add(
+                        new FlatObjectProperty(
+                            key,
+                            method,
+                            propertyPosition,
+                            computed
+                                ? FlatObjectPropertyFlags.Computed
+                                : FlatObjectPropertyFlags.None
+                        )
+                    );
+                    if (!Match(JsTokenKind.Comma) && current.Kind != JsTokenKind.RightBrace)
+                        throw Error("Expected ',' or '}'", current.Position);
+                    continue;
                 }
 
                 int value;

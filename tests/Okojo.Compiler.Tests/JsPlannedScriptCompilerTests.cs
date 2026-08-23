@@ -134,6 +134,21 @@ public class JsPlannedScriptCompilerTests
     }
 
     [Test]
+    public void Compile_LowersClassAstObjectMethodAccessorBridge()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            JavaScriptParser.ParseScript(
+                "let object = { base: 40, method() { return this.base + 2; }, get value() { return this.method(); } }; object.value;"
+            )
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(42));
+    }
+
+    [Test]
     public void Compile_ExecutesBlockScopedLexicals()
     {
         var runtime = JsRuntime.Create();

@@ -74,7 +74,8 @@ Both planned compilers currently support:
 - array literals with holes, dynamic elements, and spread
 - array binding declarations with elisions, defaults, nesting, and rest
 - object binding declarations with static/computed keys, defaults, nesting, and rest
-- object literals with named, indexed, computed, shorthand, duplicate, and spread data properties
+- object literals with named, indexed, computed, shorthand, duplicate, and spread
+  data properties plus ordinary concise methods/getters/setters
 - named/computed member assignment, compound/logical assignment, and update
 - nested capture and assignment for parameter, root, function, and block bindings
 - capture-gated per-iteration contexts for lexical ordinary `for` heads
@@ -89,7 +90,7 @@ Still intentionally unsupported in the experimental pipeline:
 
 - optional calls, `new.target`, and private/super member access
 - destructuring assignments and pattern parameters
-- object methods and accessors
+- generator/async and `super` object methods
 - module/global binding emission
 - `for-in` / `for-of` per-iteration behavior
 - labeled loop control
@@ -113,6 +114,7 @@ Current milestone status:
 - ordinary construction: done
 - spread calls and construction with source-ordered iterator materialization: done
 - array/object literal spread with source-ordered effects: done
+- ordinary concise object methods/getters/setters: done
 - array binding declarations with iterator-safe step/store lowering: done
 - object binding declarations with normalized-key rest exclusion: done
 - data-property object literals with stable-prefix shapes: done
