@@ -175,7 +175,11 @@ public sealed partial class JsRealm
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static int GetPcOffset(ref byte bytecode, ref byte pc)
     {
-        return checked((int)Unsafe.ByteOffset(ref bytecode, ref pc));
+        // A3: unchecked is provably safe - both refs point into the same
+        // managed byte[] (max 2^31 elements), so the offset always fits int.
+        // The former checked() emitted a dead overflow branch at every
+        // inlined call site (handlers + slow paths).
+        return unchecked((int)Unsafe.ByteOffset(ref bytecode, ref pc));
     }
 
     [Conditional("DEBUG")]
