@@ -140,6 +140,7 @@ internal abstract partial class JsPlannedCompilerBase
                 EmitTemplateExpression(ast, node);
                 return;
             case AstKind.FunctionExpression:
+            case AstKind.ArrowFunctionExpression:
                 EmitFunctionExpression(ast, node.Arg0, node.Arg1);
                 return;
             default:
@@ -259,7 +260,7 @@ internal abstract partial class JsPlannedCompilerBase
     private void EmitExpressionWithInferredName(FlatAst ast, int nodeIndex, string inferredName)
     {
         ref readonly var node = ref ast[nodeIndex];
-        if (node.Kind == AstKind.FunctionExpression)
+        if (node.Kind is AstKind.FunctionExpression or AstKind.ArrowFunctionExpression)
         {
             EmitFunctionExpression(ast, node.Arg0, node.Arg1, inferredName);
             return;

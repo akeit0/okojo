@@ -945,6 +945,8 @@ internal sealed class FlatJavaScriptParser
     {
         var position = current.Position;
         var left = ParseConditional(allowIn);
+        if (current.Kind == JsTokenKind.Arrow)
+            return ParseArrowFunction(left, position);
         if (!TryGetAssignmentOperator(current.Kind, out var op))
             return left;
         if (
@@ -1205,6 +1207,13 @@ internal sealed class FlatJavaScriptParser
                 return Arena.Add(AstKind.ThisExpression, position: token.Position);
             case JsTokenKind.LeftParen:
                 Next();
+                if (current.Kind == JsTokenKind.RightParen)
+                {
+                    Next();
+                    if (current.Kind != JsTokenKind.Arrow)
+                        throw Error("Expected expression", token.Position);
+                    return ParseArrowFunction(-1, token.Position);
+                }
                 var expression = ParseExpression();
                 Expect(JsTokenKind.RightParen);
                 return expression;
@@ -1222,6 +1231,156 @@ internal sealed class FlatJavaScriptParser
                     $"Expression token '{token.Kind}' is not supported by FlatJavaScriptParser",
                     token.Position
                 );
+        }
+    }
+
+    private int ParseArrowFunction(int head, int position)
+    {
+        if (current.HasLineTerminatorBefore)
+            throw Error("Line terminator is not allowed before '=>'", current.Position);
+
+        Span<int> initialNodes = stackalloc int[8];
+        var nodes = new NodeList(initialNodes);
+        Span<FlatParameter> initialParameters = stackalloc FlatParameter[8];
+        var parameters = new ParameterList(initialParameters);
+        ParameterNameTracker names = default;
+        var hasDuplicate = false;
+        var hasRestrictedName = false;
+        var hasSimpleParameterList = true;
+        var seenDefault = false;
+        var functionLength = 0;
+        try
+        {
+            if (head >= 0)
+            {
+                ref readonly var headNode = ref Arena[head];
+                if (headNode.Kind == AstKind.SequenceExpression)
+                {
+                    var children = Arena.ChildRange(headNode.Arg0, headNode.Arg1);
+                    for (var i = 0; i < children.Length; i++)
+                        nodes.Add(children[i]);
+                }
+                else
+                    nodes.Add(head);
+            }
+
+            var parameterNodes = nodes.AsSpan();
+            for (var i = 0; i < parameterNodes.Length; i++)
+            {
+                ref readonly var parameterNode = ref Arena[parameterNodes[i]];
+                var bindingNode = parameterNodes[i];
+                var initializer = -1;
+                if (
+                    parameterNode.Kind == AstKind.AssignmentExpression
+                    && (JsAssignmentOperator)parameterNode.Arg2 == JsAssignmentOperator.Assign
+                )
+                {
+                    bindingNode = parameterNode.Arg0;
+                    initializer = parameterNode.Arg1;
+                    hasSimpleParameterList = false;
+                    seenDefault = true;
+                }
+                ref readonly var binding = ref Arena[bindingNode];
+                if (binding.Kind != AstKind.Identifier)
+                    throw Error(
+                        "Arrow rest and pattern parameters are not supported by FlatJavaScriptParser",
+                        Arena.GetPosition(parameterNodes[i])
+                    );
+                if (!seenDefault)
+                    functionLength++;
+                var name = Arena.GetString(binding.Arg0);
+                TrackParameterName(name, ref names, ref hasDuplicate, ref hasRestrictedName);
+                parameters.Add(
+                    new FlatParameter(
+                        binding.Arg0,
+                        binding.Arg1,
+                        initializer,
+                        -1,
+                        Arena.GetPosition(bindingNode),
+                        JsFormalParameterBindingKind.Plain
+                    )
+                );
+            }
+
+            if (hasDuplicate)
+                throw Error("Duplicate parameter name", position);
+            Expect(JsTokenKind.Arrow);
+
+            var parameterRange = ast.AddParameters(parameters.AsSpan());
+            var strictBeforeFunction = strictMode;
+            var loopDepthBeforeFunction = loopDepth;
+            var switchDepthBeforeFunction = switchDepth;
+            loopDepth = 0;
+            switchDepth = 0;
+            functionDepth++;
+            int body;
+            bool strictDeclared;
+            try
+            {
+                if (current.Kind == JsTokenKind.LeftBrace)
+                    body = ParseBlock(out strictDeclared, AstKind.Program, allowDirectives: true);
+                else
+                {
+                    strictDeclared = false;
+                    var expression = ParseAssignment(allowIn: true);
+                    var returnStatement = Arena.Add(
+                        AstKind.ReturnStatement,
+                        expression,
+                        position: Arena.GetPosition(expression)
+                    );
+                    Span<int> statements = [returnStatement];
+                    var children = Arena.AddChildren(statements);
+                    body = Arena.Add(
+                        AstKind.Program,
+                        children.Offset,
+                        children.Count,
+                        position: position
+                    );
+                }
+            }
+            finally
+            {
+                functionDepth--;
+                loopDepth = loopDepthBeforeFunction;
+                switchDepth = switchDepthBeforeFunction;
+            }
+
+            var effectiveStrict = strictBeforeFunction || strictDeclared;
+            strictMode = strictBeforeFunction;
+            if (strictDeclared && !hasSimpleParameterList)
+                throw Error(
+                    "Illegal 'use strict' directive in function with non-simple parameters",
+                    position
+                );
+            if (effectiveStrict && hasRestrictedName)
+                throw Error("Unexpected eval or arguments in strict mode", position);
+            var functionIndex = ast.AddFunction(
+                new FlatFunctionInfo(
+                    Arena.AddString(string.Empty),
+                    -1,
+                    parameterRange.Offset,
+                    parameterRange.Count,
+                    functionLength,
+                    -1,
+                    effectiveStrict,
+                    hasSimpleParameterList,
+                    false,
+                    position,
+                    false,
+                    true
+                )
+            );
+            return Arena.Add(
+                AstKind.ArrowFunctionExpression,
+                functionIndex,
+                body,
+                position: position
+            );
+        }
+        finally
+        {
+            parameters.Dispose();
+            nodes.Dispose();
         }
     }
 

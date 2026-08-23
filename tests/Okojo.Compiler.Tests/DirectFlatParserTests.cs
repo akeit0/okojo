@@ -93,6 +93,28 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void ParseScript_StoresArrowDefaultParameterMetadata()
+    {
+        using var ast = FlatJavaScriptParser.ParseScript("let arrow = (amount = 7) => amount;");
+        ref readonly var root = ref ast[ast.Root];
+        var declaration = ast[ast.ChildRange(root.Arg0, root.Arg1)[0]];
+        var declarator = ast[ast.ChildRange(declaration.Arg0, declaration.Arg1)[0]];
+        var expression = ast[declarator.Arg2];
+        var function = ast.GetFunction(expression.Arg0);
+        var parameters = ast.GetParameters(function);
+        using var collected = CompilerBindingCollector.Collect(ast);
+
+        Assert.That(expression.Kind, Is.EqualTo(AstKind.ArrowFunctionExpression));
+        Assert.That(function.IsArrow, Is.True);
+        Assert.That(function.FunctionLength, Is.Zero);
+        Assert.That(function.HasSimpleParameterList, Is.False);
+        Assert.That(parameters.Length, Is.EqualTo(1));
+        Assert.That(ast.GetString(parameters[0].NameStringIndex), Is.EqualTo("amount"));
+        Assert.That(parameters[0].InitializerNode, Is.GreaterThanOrEqualTo(0));
+        Assert.That(collected.Bindings.ToArray().Any(binding => binding.Name == "amount"), Is.True);
+    }
+
+    [Test]
     public void ParseScript_StoresNamedFunctionExpressionInFlatTables()
     {
         const string source = "let fn = function self(value = 1) { return value; };";
@@ -1455,6 +1477,39 @@ public class DirectFlatParserTests
     [Test]
     public void ParseScript_RejectsInvalidUntaggedTemplateEscape() =>
         Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript("`bad\\8`;"));
+
+    [Test]
+    public void CompileString_ExecutesArrowsWithLexicalThisAndArguments()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            function outer(value) {
+                let expression = add => this.base + value + add + arguments[0];
+                let block = (left, right) => { return left * right; };
+                let empty = () => 1;
+                let defaulted = (amount = 7) => amount;
+                let nested = left => right => left + right;
+                return expression.call({ base: 100 }, 2)
+                    + block(3, 4) + empty() + defaulted() + nested(5)(6);
+            }
+            let arrow = value => value;
+            let constructRejected = false;
+            try { new arrow(1); }
+            catch (error) { constructRejected = error instanceof TypeError; }
+            outer.call({ base: 10 }, 20) + '|' + arrow.name + '|' + constructRejected;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("83|arrow|true"));
+    }
+
+    [TestCase("let arrow = (value, value) => value;")]
+    [TestCase("let arrow = value\n=> value;")]
+    public void ParseScript_RejectsUnsupportedOrInvalidArrowHeads(string source) =>
+        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
 
     [TestCase("let value = { get item(value) {} };")]
     [TestCase("let value = { set item() {} };")]

@@ -59,7 +59,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Arrays/objects | holes, array/object spread, data properties, ordinary concise methods/getters/setters, computed/shorthand/index keys, stable data shape prefix | generator/async and `super` methods, legacy `__proto__` intentionally excluded |
 | Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings | class, module bindings and remaining early errors |
 | Assignments | identifier/member targets, compound/logical/update, array/object destructuring | private/super targets, optional-chain restrictions |
-| Functions | ordinary declarations/expressions, closures, simple/default/rest/pattern parameters, named self, ordinary anonymous-function name inference, `this`, demand-driven mapped/unmapped `arguments` | arrows, async, generators, class-name inference, lazy bodies |
+| Functions | ordinary declarations/expressions, closures, synchronous arrows with simple/default parameters and lexical `this`/`arguments`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function name inference, demand-driven mapped/unmapped `arguments` | arrow rest/pattern parameters and `new.target`, async, generators, class-name inference, lazy bodies |
 | Classes | none | declaration/expression, constructors, methods, fields, static blocks, private names, super |
 | Modules | none | parse goal, entries, linking metadata, live bindings, top-level await |
 
@@ -196,6 +196,24 @@ locates nested substitution boundaries robustly. The direct parser temporarily
 repositions the same lexer into each substitution, parses directly into the same
 arena, then restores the token end. This preserves lexer-owned identifier IDs and
 avoids substring parsers, nested AST owners, or class-node fallback.
+
+### Ordinary arrow function slice
+
+This iteration starts ordinary synchronous arrows with identifier/parenthesized
+simple or default parameters, expression or block bodies, inferred names, and lexical
+`this`/`arguments` behavior. The reference case is
+`artifacts/okojobytecodetool/cases/flat_ast_arrow.js`; focused tests cover call
+receiver replacement, nested capture, and constructor rejection. Rest/pattern
+parameters and lexical `new.target` follow after the direct parser gains
+their arrow-head early-error path.
+
+V8 gives arrows ordinary closure bytecode but marks their function kind so closure
+creation captures lexical receiver state and name resolution crosses the arrow
+scope for `arguments`. Okojo already has the same runtime `IsArrow` contract. The
+flat path therefore reuses `FlatFunctionInfo`, the function side table, capture
+planning, and the existing function emitter; it adds one arrow flag rather than a
+parallel compiler. The binding collector marks arrow scopes so synthetic
+`arguments` binds at the nearest enclosing non-arrow function.
 
 ### Destructuring
 
@@ -534,7 +552,7 @@ function read(value = function nested(next = outer) { return next; }) {
 - `for-in`/`for-of` and labels
 - `debugger`
 - tagged template literals and cached site identity
-- ordinary arrows with lexical `this`, `arguments`, and `new.target`
+- arrow rest/pattern parameters and lexical `new.target`
 - optional chaining/calls
 
 New side tables should be purpose-specific and dense: handler/catch records and

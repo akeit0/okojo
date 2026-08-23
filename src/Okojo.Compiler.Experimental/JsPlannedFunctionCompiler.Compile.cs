@@ -32,6 +32,7 @@ internal sealed partial class JsPlannedFunctionCompiler
                 parameterPlan.Names.Count,
                 parameterPlan.HasSimpleParameterList,
                 parameterPlan.FunctionLength,
+                false,
                 false
             ),
             collected,
@@ -65,7 +66,8 @@ internal sealed partial class JsPlannedFunctionCompiler
                 function.ParameterCount,
                 function.HasSimpleParameterList,
                 function.FunctionLength,
-                function.IsMethod
+                function.IsMethod,
+                function.IsArrow
             ),
             collected,
             ast,
@@ -121,7 +123,7 @@ internal sealed partial class JsPlannedFunctionCompiler
             isStrict: metadata.StrictDeclared,
             hasNewTarget: false,
             kind: JsBytecodeFunctionKind.Normal,
-            isArrow: false,
+            isArrow: metadata.IsArrow,
             isMethod: metadata.IsMethod,
             formalParameterCount: metadata.ParameterCount,
             hasSimpleParameterList: metadata.HasSimpleParameterList,
@@ -210,6 +212,7 @@ internal sealed partial class JsPlannedFunctionCompiler
         int ParameterCount,
         bool HasSimpleParameterList,
         int FunctionLength,
-        bool IsMethod
+        bool IsMethod,
+        bool IsArrow
     );
 }

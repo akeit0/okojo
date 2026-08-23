@@ -179,6 +179,21 @@ public class JsPlannedScriptCompilerTests
     }
 
     [Test]
+    public void Compile_LowersClassAstArrowBridge()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            JavaScriptParser.ParseScript(
+                "function outer(value) { return (() => this.base + value + arguments[0])(); } outer.call({ base: 2 }, 3);"
+            )
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(8));
+    }
+
+    [Test]
     public void Compile_ExecutesBlockScopedLexicals()
     {
         var runtime = JsRuntime.Create();

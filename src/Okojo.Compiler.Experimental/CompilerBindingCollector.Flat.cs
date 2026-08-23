@@ -35,7 +35,7 @@ internal static partial class CompilerBindingCollector
         bool hasSelfBinding = false
     )
     {
-        var collector = new FlatCollector(CompilerCollectedScopeKind.Function);
+        var collector = new FlatCollector(CompilerCollectedScopeKind.Function, function.IsArrow);
         collector.CollectFlatFunctionRoot(ast, function, bodyRoot, hasSelfBinding);
         collector.AddSyntheticArgumentsBindings();
         return collector.MoveResult();
@@ -54,10 +54,11 @@ internal static partial class CompilerBindingCollector
         private int parameterBodyScopeId = -1;
 
         public FlatCollector(
-            CompilerCollectedScopeKind rootKind = CompilerCollectedScopeKind.Program
+            CompilerCollectedScopeKind rootKind = CompilerCollectedScopeKind.Program,
+            bool rootIsArrow = false
         )
         {
-            scopes.Add(new CompilerCollectedScope(0, -1, rootKind));
+            scopes.Add(new CompilerCollectedScope(0, -1, rootKind, IsArrow: rootIsArrow));
         }
 
         public void CollectFunctionRoot(
@@ -160,7 +161,10 @@ internal static partial class CompilerBindingCollector
                 {
                     if (hasBinding[scopeId])
                         break;
-                    if (scopes[scopeId].Kind == CompilerCollectedScopeKind.Function)
+                    if (
+                        scopes[scopeId].Kind == CompilerCollectedScopeKind.Function
+                        && !scopes[scopeId].IsArrow
+                    )
                     {
                         required[scopeId] = true;
                         break;
@@ -599,6 +603,7 @@ internal static partial class CompilerBindingCollector
                         VisitExpression(ast, templateParts[i], scopeId);
                     return;
                 case AstKind.FunctionExpression:
+                case AstKind.ArrowFunctionExpression:
                     VisitFunctionExpression(ast, node, scopeId);
                     return;
                 case AstKind.NumericLiteral:
@@ -622,7 +627,8 @@ internal static partial class CompilerBindingCollector
             var functionScopeId = AddScope(
                 parentScopeId,
                 CompilerCollectedScopeKind.Function,
-                function.Position
+                function.Position,
+                function.IsArrow
             );
             var name = ast.GetString(function.NameStringIndex);
             if (name.Length != 0)
@@ -753,10 +759,15 @@ internal static partial class CompilerBindingCollector
             }
         }
 
-        private int AddScope(int parentScopeId, CompilerCollectedScopeKind kind, int position)
+        private int AddScope(
+            int parentScopeId,
+            CompilerCollectedScopeKind kind,
+            int position,
+            bool isArrow = false
+        )
         {
             var scopeId = nextScopeId++;
-            scopes.Add(new CompilerCollectedScope(scopeId, parentScopeId, kind, position));
+            scopes.Add(new CompilerCollectedScope(scopeId, parentScopeId, kind, position, isArrow));
             return scopeId;
         }
 

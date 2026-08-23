@@ -145,7 +145,8 @@ internal readonly record struct FlatFunctionInfo(
     bool HasSimpleParameterList,
     bool HasDuplicateParameters,
     int Position,
-    bool IsMethod
+    bool IsMethod,
+    bool IsArrow = false
 );
 
 internal readonly record struct FlatParameter(

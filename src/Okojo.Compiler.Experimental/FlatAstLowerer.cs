@@ -225,9 +225,9 @@ internal static class FlatAstLowerer
 
         private int LowerFunctionExpression(JsFunctionExpression function)
         {
-            if (function.IsGenerator || function.IsAsync || function.IsArrow)
+            if (function.IsGenerator || function.IsAsync)
                 throw new NotSupportedException(
-                    $"{compilerName} only supports ordinary flat function expressions."
+                    $"{compilerName} only supports synchronous flat function expressions."
                 );
 
             var bodyRoot = LowerFunctionBody(function.Body);
@@ -251,11 +251,12 @@ internal static class FlatAstLowerer
                     function.HasSimpleParameterList,
                     function.HasDuplicateParameters,
                     function.Position,
-                    function.HasSuperBindingHint
+                    function.HasSuperBindingHint,
+                    function.IsArrow
                 )
             );
             return Arena.Add(
-                AstKind.FunctionExpression,
+                function.IsArrow ? AstKind.ArrowFunctionExpression : AstKind.FunctionExpression,
                 functionIndex,
                 bodyRoot,
                 position: function.Position
