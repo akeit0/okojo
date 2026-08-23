@@ -6988,6 +6988,17 @@ public sealed partial class JsCompiler : IDisposable
         var argStart = AllocateTemporaryRegisterBlock(arguments.Count);
         for (var i = 0; i < arguments.Count; i++)
         {
+            // R8-call: identifier arguments resolve to known registers; emit
+            // a single Mov instead of the two-instruction Ldar+Star pair.
+            if (
+                arguments[i] is JsIdentifierExpression
+                && TryGetPlainLocalReadRegister(arguments[i], out var srcReg)
+            )
+            {
+                EmitMoveRegister(srcReg, argStart + i);
+                continue;
+            }
+
             VisitExpression(arguments[i]);
             EmitStarRegister(argStart + i);
         }
