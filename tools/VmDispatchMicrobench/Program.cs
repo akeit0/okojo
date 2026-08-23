@@ -42,6 +42,35 @@ Console.WriteLine("ns/op by dispatch style");
 foreach (var line in results)
     Console.WriteLine(line);
 
+// A9 probe: SAME 153-case method, streams differing only in value spread.
+{
+    var spread = VmBench.Extra.RealisticCycle(1 << 20);
+    var compact = new byte[1 << 20];
+    byte[] compactPattern = [0, 1, 2, 3, 4, 5, 6, 7];
+    for (var i = 0; i < compact.Length; i++)
+        compact[i] = compactPattern[i % compactPattern.Length];
+
+    double MeasureBest(byte[] stream)
+    {
+        double best = double.MaxValue;
+        for (var r = 0; r < 5; r++)
+        {
+            BigSwitch.Run(stream, 2);
+            var sw = Stopwatch.StartNew();
+            _ = BigSwitch.Run(stream, 8);
+            sw.Stop();
+            best = Math.Min(best, sw.Elapsed.TotalNanoseconds / (stream.Length * 8.0));
+        }
+        return best;
+    }
+
+    var bSpread = MeasureBest(spread);
+    var bCompact = MeasureBest(compact);
+    Console.WriteLine(
+        $"A9probe  same153case spread={bSpread,8:F2}  compact={bCompact,8:F2}  delta={(bCompact / bSpread - 1),+7:P1}"
+    );
+}
+
 return;
 
 static double Measure(string style, byte[] stream, int rounds)
@@ -160,4 +189,32 @@ static unsafe long HybridRun(byte[] stream, int passes)
         }
     }
     return st.Acc;
+}
+
+namespace VmBench
+{
+    internal static class Extra
+    {
+        public static long RunBig(byte[] stream, int passes) => BigSwitch.Run(stream, passes);
+
+        public static byte[] RealisticCycle(int length)
+        {
+            // 8 distinct values spread across the full 0..152 range,
+            // mimicking emitted-opcode spread in Okojo bytecode.
+            byte[] pattern = [3, 40, 77, 100, 118, 130, 143, 20];
+            var stream = new byte[length];
+            for (var i = 0; i < length; i++)
+                stream[i] = pattern[i % pattern.Length];
+            return stream;
+        }
+
+        public static int[] CompactCycle(int length)
+        {
+            int[] pattern = [0, 4, 8, 12, 16, 20, 24, 28];
+            var stream = new int[length];
+            for (var i = 0; i < length; i++)
+                stream[i] = pattern[i % pattern.Length];
+            return stream;
+        }
+    }
 }

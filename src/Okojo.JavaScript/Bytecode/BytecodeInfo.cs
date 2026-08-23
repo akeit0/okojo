@@ -58,6 +58,7 @@ internal static class BytecodeInfo
             or JsOpCode.StaGlobal
             or JsOpCode.StaGlobalInit
             or JsOpCode.StaGlobalFuncDecl
+            or JsOpCode.CreateClosure
             or JsOpCode.TypeOfGlobal
             or JsOpCode.GetNamedPropertyFromSuper
             or JsOpCode.LdaTypedConst
