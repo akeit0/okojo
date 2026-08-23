@@ -1855,6 +1855,75 @@ public class DirectFlatParserTests
         Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript("`bad\\8`;"));
 
     [Test]
+    public void ParseScript_RejectsTaggedTemplateAfterOptionalChain() =>
+        Assert.Throws<JsParseException>(() =>
+            FlatJavaScriptParser.ParseScript("({ tag() {} })?.tag`x`;")
+        );
+
+    [Test]
+    public void CompileString_ExecutesTaggedTemplatesWithCachedSiteIdentityAndV8Order()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let order = '';
+            function value(text) { order += text; return text; }
+            let holder = {
+                prefix: 'R',
+                get tag() {
+                    order += 'g';
+                    return function(strings, first, second) {
+                        order += 't';
+                        return this.prefix + strings[0] + first + strings[1]
+                            + second + strings[2];
+                    };
+                }
+            };
+            function run() { return holder.tag`a\n${value('x')}b${value('y')}c`; }
+            let first = run();
+            let second = run();
+            function capture(strings) { return strings; }
+            function sameSite() { return capture`same`; }
+            let site1 = sameSite();
+            let site2 = sameSite();
+            let site3 = capture`same`;
+            let invalid = capture`bad\8`;
+            let escaped = capture`line\n`;
+            let optionalHolder = { prefix: 'P', tag(strings) { return this.prefix + strings[0]; } };
+            let optionalTagged = (optionalHolder?.tag)`z`;
+            (first === 'Ra\nxbyc') + '|' + order + '|' + (first === second)
+                + '|' + (site1 === site2) + '|' + Object.isFrozen(site1)
+                + '|' + Object.isFrozen(site1.raw) + '|' + (site1 === site3)
+                + '|' + (invalid[0] === undefined) + '|' + invalid.raw[0]
+                + '|' + (escaped[0] === 'line\n') + '|' + (escaped.raw[0] === 'line\\n')
+                + '|' + optionalTagged;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(
+            realm.Accumulator.AsString(),
+            Is.EqualTo("true|gxytgxyt|true|true|true|true|false|true|bad\\8|true|true|Pz")
+        );
+    }
+
+    [Test]
+    public void CompileAst_ExecutesTaggedTemplateBridge()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            JavaScriptParser.ParseScript(
+                "function tag(strings, value) { return strings[0] + value + strings.raw[1]; } tag`a${1}b`;"
+            )
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("a1b"));
+    }
+
+    [Test]
     public void CompileString_ExecutesArrowsWithLexicalThisAndArguments()
     {
         var realm = JsRuntime.Create().DefaultRealm;

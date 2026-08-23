@@ -693,6 +693,12 @@ internal static partial class CompilerBindingCollector
                     for (var i = 1; i < templateParts.Length; i += 2)
                         VisitExpression(ast, templateParts[i], scopeId);
                     return;
+                case AstKind.TaggedTemplateExpression:
+                    VisitExpression(ast, node.Arg0, scopeId);
+                    var taggedParts = ast.ChildRange(node.Arg1, node.Arg2);
+                    for (var i = 2; i < taggedParts.Length; i += 3)
+                        VisitExpression(ast, taggedParts[i], scopeId);
+                    return;
                 case AstKind.FunctionExpression:
                 case AstKind.ArrowFunctionExpression:
                     VisitFunctionExpression(ast, node, scopeId);

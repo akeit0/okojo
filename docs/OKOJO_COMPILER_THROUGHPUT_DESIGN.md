@@ -244,6 +244,8 @@ The direct flat work has already established several reusable rules:
 - wrap an optional chain once and mark only its `?.` links; all nullish branches
   share one end target, calls retain prepared receivers, and computed keys or
   arguments stay after the branch so short-circuiting skips their effects
+- prepare a tagged-template callee/receiver before its cached site object and
+  substitutions; keep cooked/raw quasi pairs dense and reuse `GetTemplateObject`
 - lower `switch` as a saved tag, source-ordered strict comparisons, one shared
   case-block scope, and consecutively bound clause bodies; retain the existing
   zero-based `SwitchOnSmi` specialization until corpus data justifies its guard and
@@ -319,7 +321,6 @@ hoisting without compiler-specific rewrites.
 
 - explicit effect/value/test expression emission modes
 - richer source and handler metadata for the landed abrupt-command stack
-- tagged template literals and cached site identity
 
 Foundation status: effect/value/test intent now propagates through logical-not,
 logical, conditional, and sequence expressions, and existing break, continue,
@@ -348,11 +349,13 @@ changing the flat node or control contract. Chained labels and labeled
 break/continue now share that control stack, retain destinations across finally,
 and close crossed iterators. Optional property/call chains now copy V8's single
 chain-end target, distinguish actual optional links from ordinary links, preserve
-member receivers, and return true for short-circuited delete. Full early errors,
-tagged-template site metadata, and diagnostic handler metadata remain part of P1.
+member receivers, and return true for short-circuited delete. Full early errors
+and diagnostic handler metadata remain part of P1.
 Iteration assignment heads now accept named/computed members and preserve the
 current value while evaluating the reference, including iterator close when that
 evaluation throws. Debugger statements now reuse the production opcode/hook ABI.
+Tagged templates now reuse the realm-cached production site descriptor while
+correcting callee-before-argument order to match V8.
 
 Exit gate: the direct path compiles the synchronous non-class application corpus
 and has differential execution coverage for every new control-flow form.

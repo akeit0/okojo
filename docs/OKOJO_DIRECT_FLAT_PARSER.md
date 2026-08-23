@@ -52,7 +52,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Parse goal | scripts | modules, standalone function goal |
 | Declarations | `var`/`let`/`const`, ordinary function declarations, function/block declaration prologues, function-scoped `var`, persistent script globals/lexicals, initial global conflict validation | classes, imports/exports, complete declaration early errors, Annex B |
 | Blocks/control | block, `if`, `while`, `do`, ordinary `for`, `for-in`, synchronous `for-of`, `switch`, chained labels, labeled/unlabeled `break`/`continue`, `return`, `throw`, `try`/`catch`/`finally`, `debugger`, empty/expression statement | `for-await-of` |
-| Primitive expressions | number, BigInt, string, boolean, null, regexp, untagged template, identifier, `this`, `new.target`, grouping | tagged templates, `super`, `import.meta` |
+| Primitive expressions | number, BigInt, string, boolean, null, regexp, tagged/untagged template, identifier, `this`, `new.target`, grouping | `super`, `import.meta` |
 | Operators | precedence table, assignment, arithmetic/logical/bitwise/comparison, conditionals, sequence, updates, optional chains, property/identifier/value/optional-chain `delete` | remaining edge-specific early errors |
 | References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed properties | imports, private and super references |
 | Calls/construction | direct/member/optional calls, spread calls, ordinary/spread `new`, wide operands | dynamic import, super call |
@@ -334,6 +334,22 @@ are not materialized.
 V8 and production Okojo both lower it to that single operation; the VM's existing
 checkpoint policy decides whether it pauses, so the planned compiler adds no hook
 or runtime abstraction. Focused coverage verifies the opcode and no-hook execution.
+
+### Tagged-template slice
+
+This iteration covers direct/member tags, cached template-object identity, cooked
+and raw strings, substitutions, invalid cooked escapes, and receiver/evaluation
+order. The reference case is
+`artifacts/okojobytecodetool/cases/flat_ast_tagged_template.js`.
+
+V8 lowers a tagged template to an ordinary call whose first argument is a
+per-site `GetTemplateObject` constant, then evaluates substitutions left-to-right.
+The tag callee/receiver is prepared before those arguments. Okojo copies that
+order and reuses its existing `JsTemplateSiteDescriptor` plus `GetTemplateObject`
+runtime, which already caches one frozen template array per realm. The flat node
+stores dense cooked/raw quasi pairs interleaved with substitution node IDs; `-1`
+represents an undefined cooked quasi after an invalid tagged escape. No generic
+template object or parser-owned runtime cache is added.
 
 ### Destructuring
 
@@ -669,7 +685,6 @@ function read(value = function nested(next = outer) { return next; }) {
 ### Stage F1 - Synchronous application grammar
 
 - extend effect/value/test modes to the remaining expressions
-- tagged template literals and cached site identity
 
 New side tables should be purpose-specific and dense: handler/catch records and
 tagged-template site descriptors. Untagged templates and switch clauses use fixed

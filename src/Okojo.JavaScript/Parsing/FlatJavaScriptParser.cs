@@ -1373,6 +1373,18 @@ internal sealed class FlatJavaScriptParser
                 continue;
             }
 
+            if (current.Kind == JsTokenKind.Template)
+            {
+                if (optionalChain)
+                    throw Error(
+                        "Tagged template cannot follow an optional chain",
+                        current.Position
+                    );
+                var template = current;
+                expression = ParseTemplateLiteral(template, expression);
+                continue;
+            }
+
             return optionalChain
                 ? Arena.Add(
                     AstKind.OptionalChainExpression,
@@ -1774,39 +1786,55 @@ internal sealed class FlatJavaScriptParser
         }
     }
 
-    private int ParseTemplateLiteral(in JsToken token)
+    private int ParseTemplateLiteral(in JsToken token, int tag = -1)
     {
         var contentStart = token.Position + 1;
         var contentEnd = token.Position + token.SourceLength - 1;
         Span<int> initial = stackalloc int[8];
         var parts = new NodeList(initial);
         var cooked = new PooledCharBuilder(stackalloc char[64]);
+        var raw = new PooledCharBuilder(stackalloc char[64]);
         try
         {
+            var cookedIsUndefined = false;
             var index = contentStart;
             while (index < contentEnd)
             {
                 var value = source[index];
                 if (value == '\\' && index + 1 < contentEnd)
                 {
-                    if (
-                        !TemplateLiteralScanner.TryDecodeEscape(
-                            source,
-                            index,
-                            out var decoded,
-                            out var consumed,
-                            out _
-                        )
-                    )
-                        throw Error("Invalid escape sequence in template literal", index);
-                    cooked.Append(decoded.AsSpan());
+                    var valid = TemplateLiteralScanner.TryDecodeEscape(
+                        source,
+                        index,
+                        out var decoded,
+                        out var consumed,
+                        out var normalizeRawLineContinuation
+                    );
+                    if (tag >= 0)
+                    {
+                        if (normalizeRawLineContinuation)
+                            raw.Append("\\\n".AsSpan());
+                        else
+                            raw.Append(source.AsSpan(index, consumed));
+                    }
+                    if (!valid)
+                    {
+                        if (tag < 0)
+                            throw Error("Invalid escape sequence in template literal", index);
+                        cookedIsUndefined = true;
+                    }
+                    else if (!cookedIsUndefined)
+                        cooked.Append(decoded.AsSpan());
                     index += consumed;
                     continue;
                 }
 
                 if (value == '\r')
                 {
-                    cooked.Append('\n');
+                    if (!cookedIsUndefined)
+                        cooked.Append('\n');
+                    if (tag >= 0)
+                        raw.Append('\n');
                     if (index + 1 < contentEnd && source[index + 1] == '\n')
                         index++;
                     index++;
@@ -1815,14 +1843,11 @@ internal sealed class FlatJavaScriptParser
 
                 if (value == '$' && index + 1 < contentEnd && source[index + 1] == '{')
                 {
-                    parts.Add(
-                        Arena.Add(
-                            AstKind.StringLiteral,
-                            Arena.AddString(cooked.ToString()),
-                            position: index
-                        )
-                    );
+                    AddTemplateQuasi(ref parts, cooked, raw, cookedIsUndefined, index, tag >= 0);
                     cooked.Clear();
+                    if (tag >= 0)
+                        raw.Clear();
+                    cookedIsUndefined = false;
                     var expressionStart = index + 2;
                     var expressionEnd = TemplateLiteralScanner.FindExpressionEnd(
                         source,
@@ -1840,19 +1865,27 @@ internal sealed class FlatJavaScriptParser
                     continue;
                 }
 
-                cooked.Append(value);
+                if (!cookedIsUndefined)
+                    cooked.Append(value);
+                if (tag >= 0)
+                    raw.Append(value);
                 index++;
             }
 
-            parts.Add(
-                Arena.Add(
-                    AstKind.StringLiteral,
-                    Arena.AddString(cooked.ToString()),
-                    position: contentEnd
-                )
-            );
+            AddTemplateQuasi(ref parts, cooked, raw, cookedIsUndefined, contentEnd, tag >= 0);
             lexer.SetIndex(token.Position + token.SourceLength);
             current = lexer.NextToken();
+            if (tag >= 0)
+            {
+                var taggedChildren = Arena.AddChildren(parts.AsSpan());
+                return Arena.Add(
+                    AstKind.TaggedTemplateExpression,
+                    tag,
+                    taggedChildren.Offset,
+                    taggedChildren.Count,
+                    token.Position
+                );
+            }
             if (parts.Count == 1)
                 return parts.AsSpan()[0];
             var children = Arena.AddChildren(parts.AsSpan());
@@ -1865,9 +1898,45 @@ internal sealed class FlatJavaScriptParser
         }
         finally
         {
+            raw.Dispose();
             cooked.Dispose();
             parts.Dispose();
         }
+    }
+
+    private void AddTemplateQuasi(
+        ref NodeList parts,
+        in PooledCharBuilder cooked,
+        in PooledCharBuilder raw,
+        bool cookedIsUndefined,
+        int position,
+        bool tagged
+    )
+    {
+        if (tagged)
+        {
+            parts.Add(
+                cookedIsUndefined
+                    ? -1
+                    : Arena.Add(
+                        AstKind.StringLiteral,
+                        Arena.AddString(cooked.ToString()),
+                        position: position
+                    )
+            );
+            parts.Add(
+                Arena.Add(
+                    AstKind.StringLiteral,
+                    Arena.AddString(raw.ToString()),
+                    position: position
+                )
+            );
+            return;
+        }
+
+        parts.Add(
+            Arena.Add(AstKind.StringLiteral, Arena.AddString(cooked.ToString()), position: position)
+        );
     }
 
     private int ParseRegExpLiteral()

@@ -67,6 +67,7 @@ Both planned compilers currently support:
 - null, boolean, number, and string literals
 - BigInt and RegExp literals
 - untagged template literals, including nested substitutions and escape cooking
+- tagged templates with cooked/raw frozen site objects and per-realm identity
 - `debugger` statements through the existing VM checkpoint opcode
 - synchronous arrow functions with simple/default/rest/pattern parameters,
   expression/block bodies, inferred names, and lexical `this`/`arguments`/`new.target`
@@ -105,7 +106,6 @@ Still intentionally unsupported in the experimental pipeline:
 
 - private/super member access
 - generator/async and `super` object methods
-- tagged template literals
 - module binding emission
 - `for-await-of`
 - direct production replacement of `JsCompiler`

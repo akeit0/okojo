@@ -60,6 +60,7 @@ internal enum AstKind : byte
     ArrayExpression,
     ObjectExpression,
     TemplateExpression,
+    TaggedTemplateExpression,
     YieldExpression,
     AwaitExpression,
     SpreadElement,

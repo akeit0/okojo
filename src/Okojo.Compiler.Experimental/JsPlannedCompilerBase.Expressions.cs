@@ -151,6 +151,9 @@ internal abstract partial class JsPlannedCompilerBase
             case AstKind.TemplateExpression:
                 EmitTemplateExpression(ast, node);
                 return;
+            case AstKind.TaggedTemplateExpression:
+                EmitTaggedTemplateExpression(ast, node);
+                return;
             case AstKind.FunctionExpression:
             case AstKind.ArrowFunctionExpression:
                 EmitFunctionExpression(ast, node.Arg0, node.Arg1);
@@ -354,6 +357,103 @@ internal abstract partial class JsPlannedCompilerBase
                 EmitStringLiteral(quasi);
                 EmitRegisterWithSlotOp(JsOpCode.Add, accumulatorRegister);
             }
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+        }
+    }
+
+    private void EmitTaggedTemplateExpression(FlatAst ast, in AstNode node)
+    {
+        var parts = ast.ChildRange(node.Arg1, node.Arg2);
+        if (parts.Length < 2 || (parts.Length - 2) % 3 != 0)
+            throw new InvalidOperationException("Invalid flat tagged-template layout.");
+
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            ref readonly var tag = ref ast[node.Arg0];
+            var receiverRegister = -1;
+            int functionRegister;
+            if (tag.Kind == AstKind.MemberExpression)
+            {
+                EmitExpression(ast, tag.Arg0);
+                receiverRegister = builder.AllocateTemporaryRegister();
+                EmitStar(receiverRegister);
+                EmitMemberLoad(ast, tag, receiverRegister);
+                functionRegister = builder.AllocateTemporaryRegister();
+                EmitStar(functionRegister);
+            }
+            else if (
+                tag.Kind == AstKind.OptionalChainExpression
+                && ast[tag.Arg0].Kind == AstKind.MemberExpression
+            )
+            {
+                ref readonly var member = ref ast[tag.Arg0];
+                var previous = optionalChainNullTarget;
+                var nullTarget = builder.CreateLabel();
+                var done = builder.CreateLabel();
+                optionalChainNullTarget = nullTarget;
+                try
+                {
+                    EmitExpression(ast, member.Arg0);
+                    receiverRegister = builder.AllocateTemporaryRegister();
+                    EmitStar(receiverRegister);
+                    EmitMemberLoad(ast, member, receiverRegister);
+                    EmitJump(done);
+                    builder.BindLabel(nullTarget);
+                    builder.EmitLda(JsOpCode.LdaUndefined);
+                    builder.BindLabel(done);
+                }
+                finally
+                {
+                    optionalChainNullTarget = previous;
+                }
+                functionRegister = builder.AllocateTemporaryRegister();
+                EmitStar(functionRegister);
+            }
+            else
+            {
+                EmitExpression(ast, node.Arg0);
+                functionRegister = builder.AllocateTemporaryRegister();
+                EmitStar(functionRegister);
+            }
+
+            var substitutionCount = (parts.Length - 2) / 3;
+            var argumentStart = builder.AllocateTemporaryRegisterBlock(substitutionCount + 1);
+            var cooked = new string?[substitutionCount + 1];
+            var raw = new string[substitutionCount + 1];
+            for (var i = 0; i <= substitutionCount; i++)
+            {
+                var cookedNode = parts[i * 3];
+                cooked[i] = cookedNode < 0 ? null : ast.GetString(ast[cookedNode].Arg0);
+                raw[i] = ast.GetString(ast[parts[i * 3 + 1]].Arg0);
+            }
+
+            EmitSmi(builder.AddObjectConstant(new JsTemplateSiteDescriptor(cooked, raw)));
+            EmitStar(argumentStart);
+            builder.EmitCallRuntime((int)RuntimeId.GetTemplateObject, argumentStart, 1);
+            EmitStar(argumentStart);
+            for (var i = 0; i < substitutionCount; i++)
+            {
+                EmitExpression(ast, parts[i * 3 + 2]);
+                EmitStar(argumentStart + i + 1);
+            }
+
+            if (receiverRegister >= 0)
+                builder.EmitCallProperty(
+                    functionRegister,
+                    receiverRegister,
+                    argumentStart,
+                    substitutionCount + 1
+                );
+            else
+                builder.EmitCallUndefinedReceiver(
+                    functionRegister,
+                    argumentStart,
+                    substitutionCount + 1
+                );
         }
         finally
         {

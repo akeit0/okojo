@@ -663,6 +663,7 @@ internal static class FlatAstLowerer
                 JsArrayExpression array => LowerArray(array),
                 JsObjectExpression obj => LowerObject(obj),
                 JsTemplateExpression template => LowerTemplate(template),
+                JsTaggedTemplateExpression tagged => LowerTaggedTemplate(tagged),
                 _ => throw new NotSupportedException(
                     $"{compilerName} does not support expression '{expression.GetType().Name}'."
                 ),
@@ -1019,6 +1020,58 @@ internal static class FlatAstLowerer
                     children.Offset,
                     children.Count,
                     position: template.Position
+                );
+            }
+            finally
+            {
+                ArrayPool<int>.Shared.Return(parts);
+            }
+        }
+
+        private int LowerTaggedTemplate(JsTaggedTemplateExpression tagged)
+        {
+            var template = tagged.Template;
+            var count = template.Expressions.Count * 3 + 2;
+            var parts = ArrayPool<int>.Shared.Rent(count);
+            try
+            {
+                for (var i = 0; i < template.Expressions.Count; i++)
+                {
+                    parts[i * 3] = template.Quasis[i] is { } cookedQuasi
+                        ? Arena.Add(
+                            AstKind.StringLiteral,
+                            Arena.AddString(cookedQuasi),
+                            position: template.Position
+                        )
+                        : -1;
+                    parts[i * 3 + 1] = Arena.Add(
+                        AstKind.StringLiteral,
+                        Arena.AddString(template.RawQuasis[i]),
+                        position: template.Position
+                    );
+                    parts[i * 3 + 2] = LowerExpression(template.Expressions[i]);
+                }
+
+                var last = template.Expressions.Count * 3;
+                parts[last] = template.Quasis[^1] is { } finalCookedQuasi
+                    ? Arena.Add(
+                        AstKind.StringLiteral,
+                        Arena.AddString(finalCookedQuasi),
+                        position: template.Position
+                    )
+                    : -1;
+                parts[last + 1] = Arena.Add(
+                    AstKind.StringLiteral,
+                    Arena.AddString(template.RawQuasis[^1]),
+                    position: template.Position
+                );
+                var children = Arena.AddChildren(parts.AsSpan(0, count));
+                return Arena.Add(
+                    AstKind.TaggedTemplateExpression,
+                    LowerExpression(tagged.Tag),
+                    children.Offset,
+                    children.Count,
+                    tagged.Position
                 );
             }
             finally
