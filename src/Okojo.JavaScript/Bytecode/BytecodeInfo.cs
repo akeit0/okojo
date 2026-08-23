@@ -2,7 +2,17 @@ namespace Okojo.JavaScript.Bytecode;
 
 internal static class BytecodeInfo
 {
-    public static int GetOperandCount(JsOpCode op)
+    /// <summary>
+    ///     Byte length of the operand region at Single scale. For the nine
+    ///     prefix-scalable ops (see <see cref="SupportsOperandScalePrefix"/>) this
+    ///     equals the uniform operand COUNT (each operand widens under Wide /
+    ///     ExtraWide prefixes). For every other opcode it is simply the fixed
+    ///     total operand BYTE size - Wide-suffixed opcodes encode their wide
+    ///     layout directly and never take scale prefixes. R6 audit note: these
+    ///     two unit families previously shared one misleadingly named function;
+    ///     keep new opcodes in the correct family.
+    /// </summary>
+    public static int GetSingleScaleByteLength(JsOpCode op)
     {
         return op switch
         {
@@ -18,11 +28,13 @@ internal static class BytecodeInfo
             or JsOpCode.TypeOf
             or JsOpCode.ToName
             or JsOpCode.ToNumber
+            or JsOpCode.ToNumeric
             or JsOpCode.ToString
             or JsOpCode.LdaCurrentFunction
             or JsOpCode.LdaThis
             or JsOpCode.LdaNewTarget
             or JsOpCode.CreateEmptyObjectLiteral
+            or JsOpCode.CreateEmptyArrayLiteral
             or JsOpCode.Inc
             or JsOpCode.Dec
             or JsOpCode.CreateMappedArguments
@@ -31,7 +43,9 @@ internal static class BytecodeInfo
             or JsOpCode.Debugger
             or JsOpCode.PopTry
             or JsOpCode.Wide
-            or JsOpCode.ExtraWide => 0,
+            or JsOpCode.ExtraWide
+            or JsOpCode.BitwiseNot
+            or JsOpCode.Negate => 0,
 
             JsOpCode.LdaSmi
             or JsOpCode.LdaNumericConstant
@@ -51,7 +65,9 @@ internal static class BytecodeInfo
             or JsOpCode.CreateRestParameter
             or JsOpCode.LdaKeyedProperty
             or JsOpCode.CreateFunctionContext
-            or JsOpCode.CreateFunctionContextWithCells => 1,
+            or JsOpCode.CreateFunctionContextWithCells
+            or JsOpCode.BitwiseNot
+            or JsOpCode.Negate => 1,
 
             JsOpCode.Mov
             or JsOpCode.LdaGlobal
@@ -76,20 +92,8 @@ internal static class BytecodeInfo
             or JsOpCode.PushTry
             or JsOpCode.SwitchOnSmi
             or JsOpCode.LdaNumericConstantWide
-            or JsOpCode.LdaSmiWide => 2,
-
-            JsOpCode.LdaSmiExtraWide => 4,
-
-            JsOpCode.LdaTypedConstWide
-            or JsOpCode.LdaGlobalWide
-            or JsOpCode.StaGlobalWide
-            or JsOpCode.StaGlobalInitWide
-            or JsOpCode.StaGlobalFuncDeclWide
-            or JsOpCode.TypeOfGlobalWide
-            or JsOpCode.GetNamedPropertyFromSuperWide
-            or JsOpCode.MovWide => 4,
-
-            JsOpCode.LdarWide
+            or JsOpCode.LdaSmiWide
+            or JsOpCode.LdarWide
             or JsOpCode.LdaLexicalLocalWide
             or JsOpCode.StarWide
             or JsOpCode.StaLexicalLocalWide
@@ -97,28 +101,13 @@ internal static class BytecodeInfo
             or JsOpCode.StaCurrentContextSlotWide
             or JsOpCode.LdaCurrentContextSlotNoTdzWide
             or JsOpCode.CreateFunctionContextWithCellsWide
-            or JsOpCode.CreateObjectLiteralWide => 2,
-
-            JsOpCode.JumpLoop
-            or JsOpCode.LdaNamedProperty
-            or JsOpCode.StaNamedProperty
-            or JsOpCode.CallRuntime
-            or JsOpCode.InvokeIntrinsic
-            or JsOpCode.CreateClosureWide => 3,
-
-            JsOpCode.LdaContextSlot or JsOpCode.StaContextSlot or JsOpCode.LdaContextSlotNoTdz => 2,
-
-            JsOpCode.InitializeNamedProperty => 4,
-
-            JsOpCode.LdaContextSlotWide
-            or JsOpCode.StaContextSlotWide
-            or JsOpCode.LdaContextSlotNoTdzWide => 3,
-
-            JsOpCode.CreateArrayLiteral => 2,
-
-            JsOpCode.LdaNamedPropertyWide or JsOpCode.StaNamedPropertyWide => 6,
-
-            JsOpCode.Add
+            or JsOpCode.CreateObjectLiteral
+            or JsOpCode.LdaContextSlot
+            or JsOpCode.StaContextSlot
+            or JsOpCode.LdaContextSlotNoTdz
+            or JsOpCode.StaKeyedProperty
+            or JsOpCode.DefineOwnKeyedProperty
+            or JsOpCode.Add
             or JsOpCode.Sub
             or JsOpCode.Mul
             or JsOpCode.Div
@@ -147,18 +136,49 @@ internal static class BytecodeInfo
             or JsOpCode.TestLessThanOrEqual
             or JsOpCode.TestGreaterThanOrEqual
             or JsOpCode.TestInstanceOf
-            or JsOpCode.TestIn => 2,
+            or JsOpCode.TestIn
+            or JsOpCode.CreateArrayLiteral => 2,
 
-            JsOpCode.CallAny or JsOpCode.CallUndefinedReceiver or JsOpCode.Construct => 3,
-            JsOpCode.CallProperty or JsOpCode.SuspendGenerator => 4,
+            JsOpCode.CreateObjectLiteralWide
+            or JsOpCode.ResumeGenerator
+            or JsOpCode.SwitchOnGeneratorState
+            or JsOpCode.LdaContextSlotWide
+            or JsOpCode.StaContextSlotWide
+            or JsOpCode.LdaContextSlotNoTdzWide
+            or JsOpCode.LdaTypedConstWide
+            or JsOpCode.JumpLoop
+            or JsOpCode.LdaNamedProperty
+            or JsOpCode.StaNamedProperty
+            or JsOpCode.CallRuntime
+            or JsOpCode.InvokeIntrinsic
+            or JsOpCode.CreateClosureWide => 3,
+
+            JsOpCode.CallAny
+            or JsOpCode.CallUndefinedReceiver
+            or JsOpCode.Construct => 3,
+
+            JsOpCode.InitializeNamedProperty
+            or JsOpCode.InitializeArrayElement
+            or JsOpCode.LdaGlobalWide
+            or JsOpCode.StaGlobalWide
+            or JsOpCode.StaGlobalInitWide
+            or JsOpCode.StaGlobalFuncDeclWide
+            or JsOpCode.TypeOfGlobalWide
+            or JsOpCode.GetNamedPropertyFromSuperWide
+            or JsOpCode.MovWide
+            or JsOpCode.LdaSmiExtraWide
+            or JsOpCode.SuspendGenerator
+            or JsOpCode.CallProperty => 4,
+
             JsOpCode.GetPrivateField => 5,
-            JsOpCode.ResumeGenerator or JsOpCode.SwitchOnGeneratorState => 3,
+
+            JsOpCode.InitPrivateField
+            or JsOpCode.InitPrivateMethod
+            or JsOpCode.SetPrivateField
+            or JsOpCode.LdaNamedPropertyWide
+            or JsOpCode.StaNamedPropertyWide => 6,
 
             JsOpCode.InitPrivateAccessor => 7,
-            JsOpCode.InitPrivateField or JsOpCode.InitPrivateMethod or JsOpCode.SetPrivateField =>
-                6,
-            JsOpCode.StaKeyedProperty or JsOpCode.DefineOwnKeyedProperty => 2,
-            JsOpCode.InitializeArrayElement => 4,
 
             _ => 0,
         };
@@ -166,7 +186,7 @@ internal static class BytecodeInfo
 
     public static int GetInstructionLength(JsOpCode op)
     {
-        return 1 + GetOperandCount(op);
+        return 1 + GetSingleScaleByteLength(op);
     }
 
     public static int GetInstructionLength(ReadOnlySpan<byte> code, int pc)
@@ -264,7 +284,7 @@ internal static class BytecodeInfo
 
     public static int GetOperandByteCount(JsOpCode op, OperandScale scale)
     {
-        var operandCount = GetOperandCount(op);
+        var operandCount = GetSingleScaleByteLength(op);
         if (scale == OperandScale.Single || !SupportsOperandScalePrefix(op))
             return operandCount;
 
@@ -327,3 +347,5 @@ internal static class BytecodeInfo
         ExtraWide = 4,
     }
 }
+
+

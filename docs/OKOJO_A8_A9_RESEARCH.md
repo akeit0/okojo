@@ -98,9 +98,44 @@ The 1.1 fix appeared ineffective twice until rebuilt --no-incremental
 (known AGENTS file-lock/copy race). Standing rule: when behavior does not
 change after an edit, suspect the binary before the edit.
 
+### 1.4 DONE (R6): operand-length contract audit - two more metadata bugs found
+
+Full engine-audited byte-length table now pinned by
+`tests/Okojo.Tests/BytecodeOperandContractTests.cs` (152 opcodes):
+
+- `GetOperandCount` renamed to `GetSingleScaleByteLength` and documented:
+  the table mixes two unit families - the nine prefix-scalable ops encode
+  OPERAND COUNT (bytes = count x prefix width), everything else encodes
+  FIXED BYTE LENGTH (Wide-suffixed forms encode their wide layout directly).
+  The old name was actively misleading during A2 debugging.
+- Metadata bugs fixed: narrow `CreateObjectLiteral` had NO entry (default 0;
+  truth 2) so every object literal decoded its operands as phantom
+  instructions; `CreateObjectLiteralWide` said 2 (truth 3);
+  `LdaTypedConstWide` said 4 (truth 3). All dead/cold paths that hid the
+  bugs until now.
+- Corpus contamination quantified: regenerating the 32-script corpus after
+  the fix removes 105 phantom instructions across 14 files (~4.3%).
+  Fixed-corpus snapshot: artifacts/okojobytecodetool/snapshots/r6-fixed-corpus.
+  Section 2/3 tables predate the fix - treat as directional; re-run the
+  frequency pass on the fixed corpus before finalizing fusion priorities
+  (folded into R7).
+- Noted inconsistency (dead op): JumpLoop layout is [offset16][depth] = 3
+  bytes and metadata says 3, but the disassembler prints it as if 2 bytes.
+  Harmless while JumpLoop stays unimplemented/unemitted.
+
+
 ## 2. Corpus opcode profile
 
-2457 instructions across 32 scripts. Full frequency table (top 30):
+2457 instructions across 32 scripts (pre-R6-fix snapshot; see 1.4 contamination note). Full frequency table (top 30):
+### 1.5 R3/R4/R5 (fusion superinstructions) - CLOSED per policy decision
+
+Owner decision: no opcode-set expansion. Each fused form costs an ISA opcode
+(switch arm growth, metadata, debugger surface) and post-A8-L1 measurements
+show dispatch edges are no longer the dominant cost. Revisit trigger: a
+future profile showing a specific adjacent pair dominating real workload
+time AND explicit owner approval for a minimal opcode addition.
+
+
 
 | rank | op                        | count | share |
 | ---- | ------------------------- | ----- | ----- |
@@ -292,9 +327,11 @@ for-loop-sum and lexical-block should follow).
 | -- | -------- | ----- | ---- |
 | R1 | Disassembler context-op formatting + header derivation + root-cause of let-loop context allocation | tooling/compiler | DONE (this branch) |
 | R2 | A8-L1 register per-iteration let bindings: gate EnsureLoopAliasContextSlots on IsCapturedByChildBinding | compiler | DONE - **-29..-44% across all bench cases**; post-change test262 non-staging sweep clean (language 19731/0 fail, built-ins 10223/0, intl402 791/0; staging excluded per policy) |
-| R3 | Fusion: LdaZeroStar / LdaTheHoleStar / LdaUndefinedStar | compiler+VM contract | bench-ab + test262 |
-| R4 | Fusion: StaCurrentContextSlotFromReg | compiler+VM contract | R1, bench-ab |
-| R5 | Fusion: LdaGlobalToReg, GetNamedPropertyTo, AddToReg | compiler+VM contract | after R3/R4 experience |
-| R6 | Engine-vs-metadata operand-length audit (single source of truth) | tooling | none |
+| R3 | Fusion: LdaZeroStar / LdaTheHoleStar / LdaUndefinedStar | CLOSED per owner policy (no ISA growth) |
+| R4 | Fusion: StaCurrentContextSlotFromReg | CLOSED per owner policy |
+| R5 | Fusion: LdaGlobalToReg, GetNamedPropertyTo, AddToReg | CLOSED per owner policy; revisit trigger documented in 1.5 |
+| R6 | Engine-vs-metadata operand-length contract audit + test + rename | DONE (see 1.4) |
 | R7 | test262-wide opcode histogram before any pruning | tooling | none |
 | R8 | Investigate plain-Jump vs JumpLoop back-edge semantics vs V8 | design note | after R7 |
+
+
