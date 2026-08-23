@@ -41,11 +41,20 @@ internal abstract partial class JsPlannedCompilerBase
             case AstKind.ForInOfStatement:
                 EmitForInOfStatement(ast, nodeIndex, node);
                 return;
+            case AstKind.LabeledStatement:
+                EmitLabeledStatement(ast, node);
+                return;
             case AstKind.BreakStatement:
-                EmitAbruptCommand(AbruptCommand.Break);
+                EmitAbruptCommand(
+                    AbruptCommand.Break,
+                    node.Arg0 < 0 ? null : ast.GetString(node.Arg0)
+                );
                 return;
             case AstKind.ContinueStatement:
-                EmitAbruptCommand(AbruptCommand.Continue);
+                EmitAbruptCommand(
+                    AbruptCommand.Continue,
+                    node.Arg0 < 0 ? null : ast.GetString(node.Arg0)
+                );
                 return;
             case AstKind.ExpressionStatement:
                 EmitExpression(ast, node.Arg0);
@@ -77,13 +86,13 @@ internal abstract partial class JsPlannedCompilerBase
         }
     }
 
-    private void EmitWhileStatement(FlatAst ast, int test, int body)
+    private void EmitWhileStatement(FlatAst ast, int test, int body, string[]? labels = null)
     {
         var continueTarget = builder.CreateLabel();
         var breakTarget = builder.CreateLabel();
         builder.BindLabel(continueTarget);
         EmitExpressionForTest(ast, test, breakTarget, jumpIfTrue: false);
-        PushIterationControlScope(breakTarget, continueTarget);
+        PushIterationControlScope(breakTarget, continueTarget, labels);
         try
         {
             EmitStatement(ast, body);
@@ -96,13 +105,13 @@ internal abstract partial class JsPlannedCompilerBase
         builder.BindLabel(breakTarget);
     }
 
-    private void EmitDoWhileStatement(FlatAst ast, int body, int test)
+    private void EmitDoWhileStatement(FlatAst ast, int body, int test, string[]? labels = null)
     {
         var loopStart = builder.CreateLabel();
         var continueTarget = builder.CreateLabel();
         var breakTarget = builder.CreateLabel();
         builder.BindLabel(loopStart);
-        PushIterationControlScope(breakTarget, continueTarget);
+        PushIterationControlScope(breakTarget, continueTarget, labels);
         try
         {
             EmitStatement(ast, body);
@@ -117,7 +126,7 @@ internal abstract partial class JsPlannedCompilerBase
         builder.BindLabel(breakTarget);
     }
 
-    private void EmitForStatement(FlatAst ast, int nodeIndex, AstNode node)
+    private void EmitForStatement(FlatAst ast, int nodeIndex, AstNode node, string[]? labels = null)
     {
         var parts = ast.ChildRange(node.Arg0, node.Arg1);
         var init = parts[0];
@@ -162,7 +171,7 @@ internal abstract partial class JsPlannedCompilerBase
                 EmitExpressionForTest(ast, parts[1], breakTarget, jumpIfTrue: false);
             }
 
-            PushIterationControlScope(breakTarget, continueTarget);
+            PushIterationControlScope(breakTarget, continueTarget, labels);
             try
             {
                 EmitStatement(ast, parts[3]);
@@ -187,11 +196,16 @@ internal abstract partial class JsPlannedCompilerBase
         }
     }
 
-    private void EmitForInOfStatement(FlatAst ast, int nodeIndex, AstNode node)
+    private void EmitForInOfStatement(
+        FlatAst ast,
+        int nodeIndex,
+        AstNode node,
+        string[]? labels = null
+    )
     {
         if (node.Arg2 != 0)
         {
-            EmitForOfStatement(ast, nodeIndex, node);
+            EmitForOfStatement(ast, nodeIndex, node, labels);
             return;
         }
 
@@ -236,7 +250,7 @@ internal abstract partial class JsPlannedCompilerBase
             builder.EmitJump(JsOpCode.JumpIfUndefined, breakTarget);
             EmitForIterationAssignment(ast, left);
 
-            PushIterationControlScope(breakTarget, continueTarget);
+            PushIterationControlScope(breakTarget, continueTarget, labels);
             try
             {
                 EmitStatement(ast, parts[2]);
@@ -261,7 +275,7 @@ internal abstract partial class JsPlannedCompilerBase
         }
     }
 
-    private void EmitForOfStatement(FlatAst ast, int nodeIndex, AstNode node)
+    private void EmitForOfStatement(FlatAst ast, int nodeIndex, AstNode node, string[]? labels)
     {
         var parts = ast.ChildRange(node.Arg0, node.Arg1);
         var left = parts[0];
@@ -315,7 +329,7 @@ internal abstract partial class JsPlannedCompilerBase
             EmitJumpIfToBooleanTrue(breakTarget);
 
             builder.EmitJump(JsOpCode.PushTry, catchTarget);
-            PushForOfControlScope(breakTarget, continueTarget, iteratorRegister);
+            PushForOfControlScope(breakTarget, continueTarget, iteratorRegister, labels);
             PushTryControlScope();
             try
             {
@@ -408,6 +422,57 @@ internal abstract partial class JsPlannedCompilerBase
             builder.EmitCallRuntime((int)runtime, register, 1);
     }
 
+    private void EmitLabeledStatement(FlatAst ast, AstNode statement)
+    {
+        var labels = new List<string>(2);
+        var body = statement.Arg1;
+        labels.Add(ast.GetString(statement.Arg0));
+        while (ast[body].Kind == AstKind.LabeledStatement)
+        {
+            labels.Add(ast.GetString(ast[body].Arg0));
+            body = ast[body].Arg1;
+        }
+
+        var names = labels.ToArray();
+        ref readonly var target = ref ast[body];
+        switch (target.Kind)
+        {
+            case AstKind.WhileStatement:
+                EmitWhileStatement(ast, target.Arg0, target.Arg1, names);
+                return;
+            case AstKind.DoWhileStatement:
+                EmitDoWhileStatement(ast, target.Arg0, target.Arg1, names);
+                return;
+            case AstKind.ForStatement:
+                EmitForStatement(ast, body, target, names);
+                return;
+            case AstKind.ForInOfStatement:
+                EmitForInOfStatement(ast, body, target, names);
+                return;
+        }
+
+        var breakTarget = builder.CreateLabel();
+        controlScopes.Push(
+            new ControlScope(
+                ControlScopeKind.Label,
+                breakTarget,
+                default,
+                default,
+                CurrentContextDepth,
+                Labels: names
+            )
+        );
+        try
+        {
+            EmitStatement(ast, body);
+        }
+        finally
+        {
+            controlScopes.Pop();
+        }
+        builder.BindLabel(breakTarget);
+    }
+
     private static bool ShouldReplaceLoopHeadContextPerIteration(in ActiveScope scope)
     {
         for (var i = 0; i < scope.Bindings.Count; i++)
@@ -452,7 +517,8 @@ internal abstract partial class JsPlannedCompilerBase
 
     private void PushIterationControlScope(
         BytecodeBuilder.Label breakTarget,
-        BytecodeBuilder.Label continueTarget
+        BytecodeBuilder.Label continueTarget,
+        string[]? labels = null
     )
     {
         controlScopes.Push(
@@ -461,7 +527,8 @@ internal abstract partial class JsPlannedCompilerBase
                 breakTarget,
                 continueTarget,
                 default,
-                CurrentContextDepth
+                CurrentContextDepth,
+                Labels: labels
             )
         );
     }
@@ -469,7 +536,8 @@ internal abstract partial class JsPlannedCompilerBase
     private void PushForOfControlScope(
         BytecodeBuilder.Label breakTarget,
         BytecodeBuilder.Label continueTarget,
-        int iteratorRegister
+        int iteratorRegister,
+        string[]? labels
     )
     {
         controlScopes.Push(
@@ -479,7 +547,8 @@ internal abstract partial class JsPlannedCompilerBase
                 continueTarget,
                 default,
                 CurrentContextDepth,
-                IteratorRegister: iteratorRegister
+                IteratorRegister: iteratorRegister,
+                Labels: labels
             )
         );
     }
@@ -497,7 +566,7 @@ internal abstract partial class JsPlannedCompilerBase
         );
     }
 
-    private void EmitAbruptCommand(AbruptCommand command)
+    private void EmitAbruptCommand(AbruptCommand command, string? label = null)
     {
         var contextDepth = CurrentContextDepth;
         foreach (var scope in controlScopes)
@@ -512,7 +581,8 @@ internal abstract partial class JsPlannedCompilerBase
             }
             if (scope.Kind == ControlScopeKind.ForOf)
             {
-                if (command == AbruptCommand.Continue)
+                var isTarget = label is null || ScopeHasLabel(scope, label);
+                if (command == AbruptCommand.Continue && isTarget)
                 {
                     EmitJump(scope.Continue);
                     return;
@@ -526,33 +596,46 @@ internal abstract partial class JsPlannedCompilerBase
                     scope.IteratorRegister,
                     1
                 );
-                if (command == AbruptCommand.Break)
+                if (command == AbruptCommand.Break && isTarget)
                 {
                     EmitJump(scope.Break);
                     return;
                 }
-                EmitLdar(returnValueRegister);
-                builder.ReleaseTemporaryRegister(returnValueRegister);
+                if (returnValueRegister >= 0)
+                {
+                    EmitLdar(returnValueRegister);
+                    builder.ReleaseTemporaryRegister(returnValueRegister);
+                }
                 continue;
             }
             if (scope.Kind == ControlScopeKind.Finally)
             {
                 if (command == AbruptCommand.Return)
                     EmitStar(scope.CompletionValueRegister);
-                EmitSmi(
-                    command switch
-                    {
-                        AbruptCommand.Return => 1,
-                        AbruptCommand.Break => 3,
-                        AbruptCommand.Continue => 4,
-                        _ => throw new ArgumentOutOfRangeException(nameof(command)),
-                    }
-                );
+                var completionKind =
+                    command == AbruptCommand.Return
+                        ? 1
+                        : GetOrAddFinallyAbruptRoute(scope.FinallyRoutes!, command, label);
+                EmitSmi(completionKind);
                 EmitStar(scope.CompletionKindRegister);
                 EmitJump(scope.Finally);
                 return;
             }
-            if (scope.Kind == ControlScopeKind.Switch && command == AbruptCommand.Break)
+            if (
+                scope.Kind == ControlScopeKind.Label
+                && command == AbruptCommand.Break
+                && label is not null
+                && ScopeHasLabel(scope, label)
+            )
+            {
+                EmitJump(scope.Break);
+                return;
+            }
+            if (
+                scope.Kind == ControlScopeKind.Switch
+                && command == AbruptCommand.Break
+                && label is null
+            )
             {
                 EmitJump(scope.Break);
                 return;
@@ -560,6 +643,7 @@ internal abstract partial class JsPlannedCompilerBase
             if (
                 scope.Kind == ControlScopeKind.Iteration
                 && command is AbruptCommand.Break or AbruptCommand.Continue
+                && (label is null || ScopeHasLabel(scope, label))
             )
             {
                 EmitJump(command == AbruptCommand.Continue ? scope.Continue : scope.Break);
@@ -577,6 +661,24 @@ internal abstract partial class JsPlannedCompilerBase
                     $"Abrupt command '{command}' has no active control scope."
                 );
         }
+    }
+
+    private static bool ScopeHasLabel(in ControlScope scope, string label) =>
+        scope.Labels is not null && Array.IndexOf(scope.Labels, label) >= 0;
+
+    private static int GetOrAddFinallyAbruptRoute(
+        List<FinallyAbruptRoute> routes,
+        AbruptCommand command,
+        string? label
+    )
+    {
+        for (var i = 0; i < routes.Count; i++)
+            if (routes[i].Command == command && routes[i].Label == label)
+                return routes[i].CompletionKind;
+
+        var completionKind = routes.Count + 3;
+        routes.Add(new(completionKind, command, label));
+        return completionKind;
     }
 
     private void EmitSwitchStatement(FlatAst ast, int nodeIndex, AstNode statement)
@@ -698,9 +800,7 @@ internal abstract partial class JsPlannedCompilerBase
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
         {
-            var canCrossIteration = controlScopes.Any(static scope =>
-                scope.Kind is ControlScopeKind.Iteration or ControlScopeKind.ForOf
-            );
+            var abruptRoutes = new List<FinallyAbruptRoute>();
             var completionKind = builder.AllocateTemporaryRegister();
             var completionValue = builder.AllocateTemporaryRegister();
             var compare = builder.AllocateTemporaryRegister();
@@ -714,7 +814,7 @@ internal abstract partial class JsPlannedCompilerBase
             EmitStar(completionValue);
 
             builder.EmitJump(JsOpCode.PushTry, catchLabel);
-            PushFinallyControlScope(finallyFromTry, completionKind, completionValue);
+            PushFinallyControlScope(finallyFromTry, completionKind, completionValue, abruptRoutes);
             try
             {
                 builder.EmitLda(JsOpCode.LdaUndefined);
@@ -738,7 +838,12 @@ internal abstract partial class JsPlannedCompilerBase
                 var catchThrow = builder.CreateLabel();
                 var finallyFromCatch = builder.CreateLabel();
                 builder.EmitJump(JsOpCode.PushTry, catchThrow);
-                PushFinallyControlScope(finallyFromCatch, completionKind, completionValue);
+                PushFinallyControlScope(
+                    finallyFromCatch,
+                    completionKind,
+                    completionValue,
+                    abruptRoutes
+                );
                 try
                 {
                     EmitCatchClause(ast, handler);
@@ -773,15 +878,17 @@ internal abstract partial class JsPlannedCompilerBase
             builder.Emit(JsOpCode.Throw);
             builder.BindLabel(notThrow);
 
-            if (canCrossIteration)
+            for (var i = 0; i < abruptRoutes.Count; i++)
             {
-                EmitFinallyCompletionJump(completionKind, compare, 3, out var notBreak);
-                EmitAbruptCommand(AbruptCommand.Break);
-                builder.BindLabel(notBreak);
-
-                EmitFinallyCompletionJump(completionKind, compare, 4, out var normal);
-                EmitAbruptCommand(AbruptCommand.Continue);
-                builder.BindLabel(normal);
+                var route = abruptRoutes[i];
+                EmitFinallyCompletionJump(
+                    completionKind,
+                    compare,
+                    route.CompletionKind,
+                    out var next
+                );
+                EmitAbruptCommand(route.Command, route.Label);
+                builder.BindLabel(next);
             }
             EmitLdar(completionValue);
         }
@@ -794,7 +901,8 @@ internal abstract partial class JsPlannedCompilerBase
     private void PushFinallyControlScope(
         BytecodeBuilder.Label target,
         int completionKind,
-        int completionValue
+        int completionValue,
+        List<FinallyAbruptRoute> abruptRoutes
     )
     {
         controlScopes.Push(
@@ -805,7 +913,8 @@ internal abstract partial class JsPlannedCompilerBase
                 target,
                 CurrentContextDepth,
                 completionKind,
-                completionValue
+                completionValue,
+                FinallyRoutes: abruptRoutes
             )
         );
     }

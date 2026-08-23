@@ -13,6 +13,7 @@ internal sealed class FlatJavaScriptParser
     private int loopDepth;
     private int switchDepth;
     private bool strictMode;
+    private List<ActiveLabel>? activeLabels;
 
     private FlatJavaScriptParser(string source, string? sourcePath)
     {
@@ -71,6 +72,8 @@ internal sealed class FlatJavaScriptParser
     private int ParseStatement()
     {
         var position = current.Position;
+        if (current.Kind == JsTokenKind.Identifier && PeekToken().Kind == JsTokenKind.Colon)
+            return ParseLabeledStatement();
         return current.Kind switch
         {
             JsTokenKind.Semicolon => ParseEmptyStatement(position),
@@ -853,16 +856,88 @@ internal sealed class FlatJavaScriptParser
     private int ParseLoopControl(AstKind kind)
     {
         var position = current.Position;
-        if (kind == AstKind.ContinueStatement ? loopDepth == 0 : loopDepth == 0 && switchDepth == 0)
-            throw Error($"Illegal {kind}", position);
         Next();
-        if (
-            !current.HasLineTerminatorBefore
-            && current.Kind is JsTokenKind.Identifier or JsTokenKind.ReservedWord
+        var labelStringIndex = -1;
+        if (!current.HasLineTerminatorBefore && current.Kind == JsTokenKind.Identifier)
+        {
+            var label = GetIdentifierText(current);
+            var target = FindActiveLabel(label);
+            if (target is null)
+                throw Error($"Unknown label '{label}'", current.Position);
+            if (kind == AstKind.ContinueStatement && !target.Value.IsIteration)
+                throw Error($"Continue target '{label}' is not an iteration statement", position);
+            labelStringIndex = Arena.AddString(label);
+            Next();
+        }
+        else if (
+            kind == AstKind.ContinueStatement ? loopDepth == 0 : loopDepth == 0 && switchDepth == 0
         )
-            throw Error("Labeled loop control is not supported by FlatJavaScriptParser", position);
+            throw Error($"Illegal {kind}", position);
         ConsumeSemicolon();
-        return Arena.Add(kind, position: position);
+        return Arena.Add(kind, labelStringIndex, position: position);
+    }
+
+    private int ParseLabeledStatement()
+    {
+        var labelToken = current;
+        var label = GetIdentifierText(labelToken);
+        if (FindActiveLabel(label) is not null)
+            throw Error($"Duplicate label '{label}'", labelToken.Position);
+        Next();
+        Expect(JsTokenKind.Colon);
+        var active = new ActiveLabel(label, IsIterationLabelTarget(), functionDepth);
+        (activeLabels ??= []).Add(active);
+        try
+        {
+            return Arena.Add(
+                AstKind.LabeledStatement,
+                Arena.AddString(label),
+                ParseStatement(),
+                position: labelToken.Position
+            );
+        }
+        finally
+        {
+            activeLabels.RemoveAt(activeLabels.Count - 1);
+        }
+    }
+
+    private ActiveLabel? FindActiveLabel(string label)
+    {
+        if (activeLabels is null)
+            return null;
+        for (var i = activeLabels.Count - 1; i >= 0; i--)
+            if (
+                activeLabels[i].FunctionDepth == functionDepth
+                && string.Equals(activeLabels[i].Name, label, StringComparison.Ordinal)
+            )
+                return activeLabels[i];
+        return null;
+    }
+
+    private bool IsIterationLabelTarget()
+    {
+        if (current.Kind is JsTokenKind.For or JsTokenKind.While or JsTokenKind.Do)
+            return true;
+        if (current.Kind != JsTokenKind.Identifier)
+            return false;
+
+        var index = lexer.GetIndex();
+        try
+        {
+            var token = current;
+            while (token.Kind == JsTokenKind.Identifier)
+            {
+                if (lexer.NextToken().Kind != JsTokenKind.Colon)
+                    return false;
+                token = lexer.NextToken();
+            }
+            return token.Kind is JsTokenKind.For or JsTokenKind.While or JsTokenKind.Do;
+        }
+        finally
+        {
+            lexer.SetIndex(index);
+        }
     }
 
     private int ParseSwitchStatement()
@@ -2094,6 +2169,21 @@ internal sealed class FlatJavaScriptParser
     {
         current = lexer.NextToken();
     }
+
+    private JsToken PeekToken()
+    {
+        var index = lexer.GetIndex();
+        try
+        {
+            return lexer.NextToken();
+        }
+        finally
+        {
+            lexer.SetIndex(index);
+        }
+    }
+
+    private readonly record struct ActiveLabel(string Name, bool IsIteration, int FunctionDepth);
 
     private JsParseException UnsupportedStatement(JsTokenKind kind)
     {

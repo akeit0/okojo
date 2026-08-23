@@ -165,6 +165,76 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_ExecutesLabeledControlAcrossFinallyAndForOf()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let innerCloses = 0;
+            let outerCloses = 0;
+            function iterable(values, outer) {
+                return {
+                    [Symbol.iterator]() {
+                        let index = 0;
+                        return {
+                            next() { return index < values.length
+                                ? { value: values[index++], done: false }
+                                : { done: true }; },
+                            return() { outer ? outerCloses++ : innerCloses++; return {}; }
+                        };
+                    }
+                };
+            }
+            let result = '';
+            outer: for (const value of iterable([1, 2, 3, 4], true)) {
+                inner: for (const nested of iterable([value], false)) {
+                    try {
+                        if (value === 2) continue outer;
+                        if (value === 3) break outer;
+                        break inner;
+                    } finally {
+                        result += 'f';
+                    }
+                }
+                result += value;
+            }
+            block: { result += 'b'; break block; result += 'x'; }
+            first: second: for (let index = 0; index < 2; index++) {
+                result += 'c';
+                continue first;
+            }
+            result + '|' + innerCloses + '|' + outerCloses;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("f1ffbcc|3|1"));
+    }
+
+    [Test]
+    public void CompileAst_ExecutesLabeledControl()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            JavaScriptParser.ParseScript(
+                "let result = ''; outer: for (const value of [1, 2, 3]) { if (value === 2) continue outer; result += value; } result;"
+            )
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("13"));
+    }
+
+    [TestCase("break missing;")]
+    [TestCase("label: { continue label; }")]
+    [TestCase("label: label: ;")]
+    [TestCase("outer: while (true) { function nested() { break outer; } }")]
+    public void ParseScript_RejectsInvalidLabeledControl(string source) =>
+        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+
+    [Test]
     public void ParseScript_EmitsPostOrderFlatNodesDirectly()
     {
         using var ast = FlatJavaScriptParser.ParseScript(

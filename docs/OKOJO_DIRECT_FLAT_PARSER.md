@@ -51,7 +51,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 |---|---|---|
 | Parse goal | scripts | modules, standalone function goal |
 | Declarations | `var`/`let`/`const`, ordinary function declarations, function/block declaration prologues, function-scoped `var`, persistent script globals/lexicals, initial global conflict validation | classes, imports/exports, complete declaration early errors, Annex B |
-| Blocks/control | block, `if`, `while`, `do`, ordinary `for`, `for-in`, synchronous `for-of`, `switch`, unlabeled `break`/`continue`, `return`, `throw`, `try`/`catch`/`finally`, empty/expression statement | labels, `debugger`, `for-await-of` |
+| Blocks/control | block, `if`, `while`, `do`, ordinary `for`, `for-in`, synchronous `for-of`, `switch`, chained labels, labeled/unlabeled `break`/`continue`, `return`, `throw`, `try`/`catch`/`finally`, empty/expression statement | `debugger`, `for-await-of` |
 | Primitive expressions | number, BigInt, string, boolean, null, regexp, untagged template, identifier, `this`, `new.target`, grouping | tagged templates, `super`, `import.meta` |
 | Operators | precedence table, assignment, arithmetic/logical/bitwise/comparison, conditionals, sequence, updates, property/identifier/value `delete` | optional-chain operators and delete-chain behavior, remaining edge-specific early errors |
 | References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed properties | imports, private and super references |
@@ -283,6 +283,22 @@ handler performs best-effort close before rethrowing the original exception. Thi
 keeps iterator machinery off the common non-iterator control path and avoids a
 second runtime implementation.
 
+### Labeled control-flow slice
+
+This iteration adds chained labels plus labeled `break`/`continue`. The reference
+case is `artifacts/okojobytecodetool/cases/flat_ast_labels.js`; focused tests cover
+nested labels, unknown/duplicate labels, continue-to-non-iteration early errors,
+and labeled exits across nested `for-of` loops.
+
+V8 resolves labels to breakable/iteration targets during parsing, then routes the
+resolved command through its execution-control stack. The flat parser keeps only
+the compact label string on statement/jump nodes and validates active targets with
+a lazily allocated label stack. The compiler attaches chained labels to the
+existing control scope. Unmatched labeled exits continue unwinding, so leaving an
+inner `for-of` still performs IteratorClose before reaching an outer label. When
+an exit crosses `finally`, the completion kind retains its label route and replays
+through the same control stack after finalization; no feature-specific jump path
+bypasses context or iterator cleanup.
 
 ### Destructuring
 
@@ -557,9 +573,11 @@ before allocating; and `BytecodeGenerator` carries explicit effect/value/test,
 register, context, and abrupt-control scopes. Okojo should represent the same
 facts with dense IDs and pooled tables.
 
-V8's `ControlScopeForTryFinally` reference shape is now landed for unlabeled
-return, break, and continue. Okojo intentionally leaves runtime throw routing to
-its VM handler stack; labeled destination tokens are added when labels land.
+V8's `ControlScopeForTryFinally` reference shape is now landed for return and
+labeled/unlabeled break and continue. Okojo intentionally leaves runtime throw
+routing to its VM handler stack. Labeled destinations use compact per-finally
+completion kinds rather than V8's exact token encoding, while retaining the same
+intercept-finalize-replay contract.
 
 ### Oxc
 
@@ -616,9 +634,6 @@ function read(value = function nested(next = outer) { return next; }) {
 ### Stage F1 - Synchronous application grammar
 
 - extend effect/value/test modes to the remaining expressions
-- extend abrupt-completion routing to labels and iterator cleanup; switch breaks
-  are landed
-- labels
 - `debugger`
 - tagged template literals and cached site identity
 - optional chaining/calls
@@ -640,6 +655,8 @@ First foundation slice landed:
   patterns parse directly into the arena
 - finally continuation kinds replay return/break/continue after cleanup and
   compose through nested finalizers
+- chained labels and labeled break/continue reuse the same control dispatcher;
+  destination identity survives finally and exits close crossed `for-of` iterators
 - exception handlers restore saved lexical context as well as stack and PC,
   including after generator suspension
 
@@ -679,12 +696,12 @@ Try/finally slice note:
 - V8 observation: deferred commands save a token/result before entering finally;
   Okojo copies that control shape
 - intentional difference: Okojo runtime throws remain accumulator values routed
-  by `PushTry`; no new rethrow opcode or general labeled route map was added
+  by `PushTry`; labeled exits use per-finally completion kinds rather than V8's
+  exact continuation-token encoding
 - allocation risk: fixed flat nodes and compiler value records only; no handler,
   result-scope, or continuation objects are allocated during emission
 - deferred: catch/body lexical-conflict early errors join the general direct
-  parser declaration early-error pass; labeled completion destinations join
-  labels rather than introducing unused route scaffolding now
+  parser declaration early-error pass
 
 ### Stage F2 - Resumable functions
 

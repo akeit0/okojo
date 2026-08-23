@@ -225,6 +225,9 @@ internal static partial class CompilerBindingCollector
                 case AstKind.ForInOfStatement:
                     VisitForInOfStatement(ast, nodeIndex, scopeId);
                     return;
+                case AstKind.LabeledStatement:
+                    VisitStatement(ast, node.Arg1, scopeId);
+                    return;
                 case AstKind.BreakStatement:
                 case AstKind.ContinueStatement:
                     return;

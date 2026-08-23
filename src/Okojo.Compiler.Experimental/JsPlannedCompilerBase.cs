@@ -68,6 +68,7 @@ internal abstract partial class JsPlannedCompilerBase
     {
         Iteration,
         ForOf,
+        Label,
         Switch,
         Try,
         Finally,
@@ -81,7 +82,15 @@ internal abstract partial class JsPlannedCompilerBase
         int ContextDepth,
         int CompletionKindRegister = -1,
         int CompletionValueRegister = -1,
-        int IteratorRegister = -1
+        int IteratorRegister = -1,
+        string[]? Labels = null,
+        List<FinallyAbruptRoute>? FinallyRoutes = null
+    );
+
+    private readonly record struct FinallyAbruptRoute(
+        int CompletionKind,
+        AbruptCommand Command,
+        string? Label
     );
 
     private enum ExpressionResultMode : byte

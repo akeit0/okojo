@@ -234,6 +234,9 @@ The direct flat work has already established several reusable rules:
   names are preserved, and no class AST is reconstructed
 - represent `finally` exits as a completion kind plus optional value, then replay
   return/break/continue after the finalizer through the same control-scope stack
+- attach chained labels to existing breakable/iteration scopes; unmatched exits
+  keep unwinding so crossed `for-of` iterators close, and per-finally completion
+  kinds retain labeled destinations without adding a parallel jump subsystem
 - lower `switch` as a saved tag, source-ordered strict comparisons, one shared
   case-block scope, and consecutively bound clause bodies; retain the existing
   zero-based `SwitchOnSmi` specialization until corpus data justifies its guard and
@@ -308,9 +311,7 @@ hoisting without compiler-specific rewrites.
 ### P1 - Common synchronous grammar
 
 - explicit effect/value/test expression emission modes
-- extend the landed abrupt-command stack to labeled targets and richer handler
-  metadata
-- labeled statements and labeled `break`/`continue`
+- richer source and handler metadata for the landed abrupt-command stack
 - tagged template literals and cached site identity
 - optional calls/chains and delete-chain behavior
 
@@ -337,8 +338,10 @@ now emits the existing enumerate/next/step ABI directly, including captured
 per-iteration lexical contexts. Synchronous `for-of` reuses the generic iterator
 create/step/close runtime and routes continue, break, return, and throw through a
 dedicated control scope. A measured fast-array specialization can follow without
-changing the flat node or control contract. Labeled targets, full early errors,
-tagged-template site metadata, and diagnostic handler metadata remain part of P1.
+changing the flat node or control contract. Chained labels and labeled
+break/continue now share that control stack, retain destinations across finally,
+and close crossed iterators. Full early errors, tagged-template site metadata, and
+diagnostic handler metadata remain part of P1.
 
 Exit gate: the direct path compiles the synchronous non-class application corpus
 and has differential execution coverage for every new control-flow form.

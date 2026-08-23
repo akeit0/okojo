@@ -89,16 +89,21 @@ internal static class FlatAstLowerer
                 ),
                 JsForStatement forStatement => LowerForStatement(forStatement),
                 JsForInOfStatement forInOfStatement => LowerForInOfStatement(forInOfStatement),
-                JsBreakStatement { Label: null } => Arena.Add(
+                JsBreakStatement breakStatement => Arena.Add(
                     AstKind.BreakStatement,
+                    breakStatement.Label is null ? -1 : Arena.AddString(breakStatement.Label),
                     position: statement.Position
                 ),
-                JsContinueStatement { Label: null } => Arena.Add(
+                JsContinueStatement continueStatement => Arena.Add(
                     AstKind.ContinueStatement,
+                    continueStatement.Label is null ? -1 : Arena.AddString(continueStatement.Label),
                     position: statement.Position
                 ),
-                JsBreakStatement or JsContinueStatement => throw new NotSupportedException(
-                    $"Labeled loop control is not supported by {compilerName}."
+                JsLabeledStatement labeledStatement => Arena.Add(
+                    AstKind.LabeledStatement,
+                    Arena.AddString(labeledStatement.Label),
+                    LowerStatement(labeledStatement.Statement),
+                    position: statement.Position
                 ),
                 JsExpressionStatement expression => Arena.Add(
                     AstKind.ExpressionStatement,
