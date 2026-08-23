@@ -3154,74 +3154,12 @@ internal sealed partial class JsParser
     private JsExpression ParseRegExpLiteral()
     {
         var start = current.Position;
-        var i = start + 1;
-        var inClass = false;
-        var escaped = false;
-        while (i < source.Length)
-        {
-            var ch = source[i];
-            if (ch is '\n' or '\r' or '\u2028' or '\u2029')
-                throw Error("Unterminated regular expression literal", start);
-
-            if (!escaped)
-            {
-                if (ch == '[')
-                    inClass = true;
-                else if (ch == ']' && inClass)
-                    inClass = false;
-                else if (ch == '/' && !inClass)
-                    break;
-            }
-
-            escaped = !escaped && ch == '\\';
-            i++;
-        }
-
-        if (i >= source.Length || source[i] != '/')
-            throw Error("Unterminated regular expression literal", start);
-
-        var pattern = source.Substring(start + 1, i - start - 1);
-        i++;
-        var flagsBuilder = new StringBuilder();
-        while (i < source.Length)
-        {
-            var ch = source[i];
-            if (IsIdentifierPartForRegExpFlag(ch))
-            {
-                flagsBuilder.Append(ch);
-                i++;
-                continue;
-            }
-
-            if (
-                ch == '\\'
-                && i + 5 < source.Length
-                && source[i + 1] == 'u'
-                && IsHexDigit(source[i + 2])
-                && IsHexDigit(source[i + 3])
-                && IsHexDigit(source[i + 4])
-                && IsHexDigit(source[i + 5])
-            )
-            {
-                var codeUnit =
-                    (HexToInt(source[i + 2]) << 12)
-                    | (HexToInt(source[i + 3]) << 8)
-                    | (HexToInt(source[i + 4]) << 4)
-                    | HexToInt(source[i + 5]);
-                flagsBuilder.Append((char)codeUnit);
-                i += 6;
-                continue;
-            }
-
-            break;
-        }
-
-        var flags = flagsBuilder.ToString();
-        lexer.SetIndex(i);
+        var literal = RegExpLiteralScanner.Scan(source, start);
+        lexer.SetIndex(literal.End);
         hasPeek = false;
         peek = default;
         current = lexer.NextToken();
-        return At(new JsRegExpLiteralExpression(pattern, flags), start);
+        return At(new JsRegExpLiteralExpression(literal.Pattern, literal.Flags), start);
     }
 
     private JsArrayExpression ParseArrayPatternExpression(bool isPattern = true)

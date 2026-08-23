@@ -1,7 +1,10 @@
+using System.Globalization;
+using System.Numerics;
 using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Execution;
 using Okojo.JavaScript.Objects;
 using Okojo.JavaScript.Parsing;
+using Okojo.JavaScript.Values;
 
 namespace Okojo.JavaScript.Compiler.Experimental;
 
@@ -35,6 +38,7 @@ internal abstract partial class JsPlannedCompilerBase
                 is AstKind.NullLiteral
                     or AstKind.BooleanLiteral
                     or AstKind.NumericLiteral
+                    or AstKind.BigIntLiteral
                     or AstKind.StringLiteral
         )
             return;
@@ -50,8 +54,25 @@ internal abstract partial class JsPlannedCompilerBase
             case AstKind.NumericLiteral:
                 EmitNumericLiteral(ast.GetNumber(node.Arg0));
                 return;
+            case AstKind.BigIntLiteral:
+                EmitTypedConstant(
+                    Tag.JsTagBigInt,
+                    builder.AddObjectConstant(
+                        new JsBigInt(
+                            BigInteger.Parse(
+                                ast.GetString(node.Arg0),
+                                NumberStyles.Integer,
+                                CultureInfo.InvariantCulture
+                            )
+                        )
+                    )
+                );
+                return;
             case AstKind.StringLiteral:
                 EmitStringLiteral(ast.GetString(node.Arg0));
+                return;
+            case AstKind.RegExpLiteral:
+                EmitRegExpLiteral(ast.GetString(node.Arg0), ast.GetString(node.Arg1));
                 return;
             case AstKind.Identifier:
                 EmitIdentifierLoad(ast.GetString(node.Arg0));
@@ -262,6 +283,24 @@ internal abstract partial class JsPlannedCompilerBase
             inferredName
         );
         EmitCreateClosureByIndex(builder.AddObjectConstant(functionObject));
+    }
+
+    private void EmitRegExpLiteral(string pattern, string flags)
+    {
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            var arguments = builder.AllocateTemporaryRegisterBlock(2);
+            EmitStringLiteral(pattern);
+            EmitStar(arguments);
+            EmitStringLiteral(flags);
+            EmitStar(arguments + 1);
+            builder.EmitCallRuntime((int)RuntimeId.CreateRegExpLiteral, arguments, 2);
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+        }
     }
 
     private void EmitObjectExpression(FlatAst ast, AstNode node)

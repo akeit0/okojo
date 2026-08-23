@@ -1173,6 +1173,13 @@ internal sealed class FlatJavaScriptParser
                     Arena.AddNumber(token.NumberLiteral),
                     position: token.Position
                 );
+            case JsTokenKind.BigInt:
+                Next();
+                return Arena.Add(
+                    AstKind.BigIntLiteral,
+                    Arena.AddString(lexer.GetBigIntLiteral(token).Value.ToString()),
+                    position: token.Position
+                );
             case JsTokenKind.String:
                 Next();
                 return Arena.Add(
@@ -1205,12 +1212,29 @@ internal sealed class FlatJavaScriptParser
                 return ParseObjectLiteral();
             case JsTokenKind.Function:
                 return ParseFunctionExpression();
+            case JsTokenKind.Slash:
+            case JsTokenKind.SlashAssign:
+                return ParseRegExpLiteral();
             default:
                 throw Error(
                     $"Expression token '{token.Kind}' is not supported by FlatJavaScriptParser",
                     token.Position
                 );
         }
+    }
+
+    private int ParseRegExpLiteral()
+    {
+        var start = current.Position;
+        var literal = RegExpLiteralScanner.Scan(source, start);
+        lexer.SetIndex(literal.End);
+        current = lexer.NextToken();
+        return Arena.Add(
+            AstKind.RegExpLiteral,
+            Arena.AddString(literal.Pattern),
+            Arena.AddString(literal.Flags),
+            position: start
+        );
     }
 
     private int ParseArrayLiteral()

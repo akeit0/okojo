@@ -149,6 +149,21 @@ public class JsPlannedScriptCompilerTests
     }
 
     [Test]
+    public void Compile_LowersClassAstRegExpBigIntBridge()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            JavaScriptParser.ParseScript(
+                "let expression = /ok/i; let amount = 40n + 2n; expression.test('OK') && amount === 42n;"
+            )
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.IsTrue, Is.True);
+    }
+
+    [Test]
     public void Compile_ExecutesBlockScopedLexicals()
     {
         var runtime = JsRuntime.Create();

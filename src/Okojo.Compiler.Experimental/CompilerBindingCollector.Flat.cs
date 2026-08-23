@@ -597,9 +597,11 @@ internal static partial class CompilerBindingCollector
                     VisitFunctionExpression(ast, node, scopeId);
                     return;
                 case AstKind.NumericLiteral:
+                case AstKind.BigIntLiteral:
                 case AstKind.StringLiteral:
                 case AstKind.BooleanLiteral:
                 case AstKind.NullLiteral:
+                case AstKind.RegExpLiteral:
                 case AstKind.ThisExpression:
                     return;
                 default:

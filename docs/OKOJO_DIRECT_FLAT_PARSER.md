@@ -52,7 +52,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Parse goal | scripts | modules, standalone function goal |
 | Declarations | `var`/`let`/`const`, ordinary function declarations, function/block declaration prologues, function-scoped `var`, persistent script globals/lexicals, initial global conflict validation | classes, imports/exports, complete declaration early errors, Annex B |
 | Blocks/control | block, `if`, `while`, `do`, ordinary `for`, `switch`, unlabeled `break`/`continue`, `return`, `throw`, `try`/`catch`/`finally`, empty/expression statement | `for-in/of`, labels, `debugger` |
-| Primitive expressions | number, string, boolean, null, identifier, `this`, grouping | regexp, BigInt, templates, `super`, `new.target`, `import.meta` |
+| Primitive expressions | number, BigInt, string, boolean, null, regexp, identifier, `this`, grouping | templates, `super`, `new.target`, `import.meta` |
 | Operators | precedence table, assignment, arithmetic/logical/bitwise/comparison, conditionals, sequence, updates, property/identifier/value `delete` | optional-chain operators and delete-chain behavior, remaining edge-specific early errors |
 | References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed properties | imports, private and super references |
 | Calls/construction | direct/member calls, spread calls, ordinary/spread `new`, wide operands | optional calls, dynamic import, super call |
@@ -156,6 +156,24 @@ shape prefix and use the keyed runtime path, preserving duplicate and computed-k
 order without adding an accessor-plan object. If profiling shows accessor-heavy
 literals matter, the later optimization is a dense pair table matching V8's
 batched static accessor pass.
+
+### RegExp and BigInt literal slice
+
+This iteration covers RegExp literals and BigInt literals in both the direct
+parser and class-AST bridge. The reference case is
+`artifacts/okojobytecodetool/cases/flat_ast_regexp_bigint.js`; focused tests cover
+character classes/escaped delimiters and flags, fresh RegExp allocation per
+evaluation, values beyond Number precision, and BigInt arithmetic.
+
+V8 emits `CreateRegExpLiteral` with constant pattern/flags metadata and loads
+BigInt values from the constant pool. Production Okojo intentionally differs at
+the ABI boundary: it invokes the existing `CreateRegExpLiteral` runtime with two
+contiguous string arguments, while BigInt already uses `LdaTypedConst`. The flat
+path copies those production shapes. Both parsers use one delimiter/flag scanner.
+RegExp nodes store two arena string IDs and BigInt nodes store one canonical
+decimal string ID; neither needs a new side table or per-node object. Regex
+construction remains runtime work because each literal evaluation must return a
+fresh mutable RegExp object.
 
 ### Destructuring
 
@@ -493,7 +511,7 @@ function read(value = function nested(next = outer) { return next; }) {
   are landed
 - `for-in`/`for-of` and labels
 - `debugger`
-- regexp, BigInt, and template literals
+- template literals
 - ordinary arrows with lexical `this`, `arguments`, and `new.target`
 - optional chaining/calls
 

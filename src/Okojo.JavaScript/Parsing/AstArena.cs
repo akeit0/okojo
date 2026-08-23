@@ -35,6 +35,7 @@ internal enum AstKind : byte
     // Expressions
     Identifier,
     NumericLiteral,
+    BigIntLiteral,
     StringLiteral,
     BooleanLiteral,
     NullLiteral,

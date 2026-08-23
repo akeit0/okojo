@@ -1404,6 +1404,28 @@ public class DirectFlatParserTests
         Assert.That(realm.Accumulator.AsString(), Is.EqualTo("11|get item|set item|kksg"));
     }
 
+    [Test]
+    public void CompileString_ExecutesRegExpAndBigIntLiterals()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            function make() { return /x/g; }
+            let first = make();
+            first.lastIndex = 1;
+            let second = make();
+            let expression = /a[b\/]+c/gi;
+            let amount = 9007199254740993n + 7n;
+            expression.test('xxaB/cyy') + '|' + (first !== second) + '|'
+                + second.lastIndex + '|' + amount.toString();
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("true|true|0|9007199254741000"));
+    }
+
     [TestCase("let value = { get item(value) {} };")]
     [TestCase("let value = { set item() {} };")]
     [TestCase("let value = { set item(...value) {} };")]

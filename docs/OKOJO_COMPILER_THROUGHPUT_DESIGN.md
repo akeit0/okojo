@@ -214,6 +214,9 @@ The direct flat work has already established several reusable rules:
 - represent ordinary concise methods with one flat-function metadata bit; keep
   data methods in the shape prefix and lower accessors through the existing keyed
   accessor runtime until measurements justify a V8-style paired accessor table
+- keep RegExp pattern/flags and canonical BigInt digits as arena string IDs;
+  construct fresh RegExp objects through the existing runtime and load parsed
+  BigInt constants through the typed constant-pool opcode
 - step, default, and store destructuring elements in observable source order and
   close unfinished iterators on normal or abrupt completion
 - reserve incoming argument registers as an ABI prefix, materialize rest before
@@ -309,7 +312,7 @@ hoisting without compiler-specific rewrites.
   metadata
 - `for-in` and `for-of`
 - labeled statements and labeled `break`/`continue`
-- template, regexp, and BigInt literals
+- template literals
 - ordinary arrow functions
 - optional calls/chains and delete-chain behavior
 
@@ -320,9 +323,9 @@ and return emission shares one control-scope dispatcher. Direct `throw` and
 preserve the return value when required, run the finalizer, and replay the saved
 command; runtime throws continue through the VM handler path. The VM handler ABI
 now preserves lexical context across exceptions and generator suspension.
-Switch control, literal spread, and ordinary object methods/accessors are landed.
-Labeled targets, iterator control, full early errors, and diagnostic handler
-metadata remain part of P1.
+Switch control, literal spread, ordinary object methods/accessors, RegExp, and
+BigInt literals are landed. Labeled targets, iterator control, full early errors,
+and diagnostic handler metadata remain part of P1.
 
 Exit gate: the direct path compiles the synchronous non-class application corpus
 and has differential execution coverage for every new control-flow form.

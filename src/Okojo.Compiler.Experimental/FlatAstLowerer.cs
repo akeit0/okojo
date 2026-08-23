@@ -1,5 +1,6 @@
 using System.Buffers;
 using Okojo.JavaScript.Parsing;
+using Okojo.JavaScript.Values;
 
 namespace Okojo.JavaScript.Compiler.Experimental;
 
@@ -546,6 +547,12 @@ internal static class FlatAstLowerer
             return expression switch
             {
                 JsLiteralExpression literal => LowerLiteral(literal),
+                JsRegExpLiteralExpression regexp => Arena.Add(
+                    AstKind.RegExpLiteral,
+                    Arena.AddString(regexp.Pattern),
+                    Arena.AddString(regexp.Flags),
+                    position: regexp.Position
+                ),
                 JsThisExpression => Arena.Add(
                     AstKind.ThisExpression,
                     position: expression.Position
@@ -911,6 +918,11 @@ internal static class FlatAstLowerer
                 int value => LowerNumber(value, literal.Position),
                 long value => LowerNumber(value, literal.Position),
                 double value => LowerNumber(value, literal.Position),
+                JsBigInt value => Arena.Add(
+                    AstKind.BigIntLiteral,
+                    Arena.AddString(value.Value.ToString()),
+                    position: literal.Position
+                ),
                 string value => Arena.Add(
                     AstKind.StringLiteral,
                     Arena.AddString(value),

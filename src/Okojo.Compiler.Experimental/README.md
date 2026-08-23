@@ -65,6 +65,7 @@ Both planned compilers currently support:
 - blocks, `if`, `while`, `do/while`, ordinary `for`, `switch`, `break`, and `continue`
 - function declarations, expression statements, and function `return`
 - null, boolean, number, and string literals
+- BigInt and RegExp literals
 - unshadowed `undefined` intrinsic reads with lexical shadowing
 - unary, arithmetic, bitwise, comparison, logical, conditional, sequence, and
   identifier update expressions
@@ -91,6 +92,7 @@ Still intentionally unsupported in the experimental pipeline:
 - optional calls, `new.target`, and private/super member access
 - destructuring assignments and pattern parameters
 - generator/async and `super` object methods
+- template literals
 - module/global binding emission
 - `for-in` / `for-of` per-iteration behavior
 - labeled loop control
@@ -115,6 +117,7 @@ Current milestone status:
 - spread calls and construction with source-ordered iterator materialization: done
 - array/object literal spread with source-ordered effects: done
 - ordinary concise object methods/getters/setters: done
+- BigInt and fresh-object RegExp literals: done
 - array binding declarations with iterator-safe step/store lowering: done
 - object binding declarations with normalized-key rest exclusion: done
 - data-property object literals with stable-prefix shapes: done
