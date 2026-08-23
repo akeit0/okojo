@@ -1,321 +1,356 @@
-# Direct Flat Parser - Experimental Slice
+# Direct Flat Parser - Coverage and Replacement Plan
 
-## Scope
+## Purpose
 
-Add a direct lexer-to-`FlatAst` path for the syntax already executable by the
-experimental planned compiler. Keep the existing class-AST parser unchanged for
-production consumers during this iteration.
+`FlatJavaScriptParser` is the intended production parser for executable
+ECMAScript. It consumes `JsLexer` tokens and constructs `FlatAst` directly,
+without allocating the public/class syntax objects used by `JavaScriptParser`.
 
-`FlatAst`, `FlatFunctionInfo`, `FlatParameter`, and `FlatJavaScriptParser` live in
-the parsing layer. The compiler consumes node IDs and parameter spans; a direct
-parse result does not retain compiler planning objects. Operator token mapping is
-shared with the production parser so precedence changes have one source of truth.
+The target production flow is:
 
-The direct path supports simple declarations/functions, blocks, branches,
-ordinary loops, loop control, returns, and the current flat expression families.
-Unsupported syntax fails explicitly; it does not silently restart through the
-class parser.
+```text
+JsLexer -> FlatJavaScriptParser -> FlatAst
+        -> binding collector -> storage planner -> bytecode emitter
+```
 
-This slice adds ordinary and spread calls plus named/computed member loads. It
-excludes optional chaining, `super`, and private names.
-The following slice adds array literals with elisions and dynamic elements;
-array spread remains explicit unsupported syntax.
-The object-literal slice uses a parsing-owned dense property table. This iteration
-covers named, string, numeric, computed, and shorthand data properties. Methods,
-accessors, spread, and legacy `__proto__` prototype mutation are excluded.
-Member writes now share a prepared-reference lowering that evaluates the base and
-computed key once. Simple, arithmetic/bitwise compound, prefix, and postfix forms
-are covered. Logical member assignment shares the same prepared reference and
-short-circuit branch lowering as identifier assignment.
-Captured lexical heads in ordinary `for` loops now receive a fresh context per
-iteration. Context replacement is capture-gated, so non-capturing loops retain
-the register-only path.
-Ordinary construction now uses flat callee/argument child spans and the existing
-scaled `Construct` ABI. Spread construction uses the existing spread runtime ABI,
-while `new.target` remains deferred.
-The array-binding slice represents binding targets directly in the flat arena:
-`VariableDeclaratorPattern` owns an initializer and an `ArrayBindingPattern` node
-whose dense child span contains identifiers, elisions, defaults, nested arrays,
-and a final rest element. It covers `var`/`let`/`const` declarations; assignment
-patterns and formal-parameter patterns remain separate follow-up work.
-An unshadowed `undefined` identifier now emits `LdaUndefined` directly after local
-binding lookup, so lexical shadowing retains normal binding semantics.
-The object-binding slice adds a distinct `ObjectBindingPattern` node backed by the
-existing pooled `FlatObjectProperty` table. Properties retain static or computed
-source keys plus binding targets; rest is an explicit property flag. It covers
-empty, shorthand, aliased, computed, defaulted, nested, numeric, and rest bindings
-for `var`/`let`/`const` declarations.
-The destructuring-assignment slice reuses the dense array/object expression shape
-as an assignment-only cover grammar. It covers identifier and named/computed
-member targets, defaults, nesting, elisions, final rest targets, original-RHS
-completion values, and abrupt iterator close without creating class-AST nodes.
-The formal-parameter slice stores plain, defaulted, rest, array-pattern, and
-object-pattern entries in the existing pooled `FlatParameter` table. Incoming
-argument registers remain an ABI prefix; an ordered prologue establishes TDZ,
-applies each outer default, and initializes that parameter's pattern before the
-next parameter so later defaults can observe earlier bindings. Parameter
-initializer references also skip bindings declared only in the function body.
-The function-expression slice covers ordinary anonymous and named function
-expressions, reusing the same pooled function/parameter records and function-body
-compiler as declarations. Async, generator, and arrow forms remain separate work.
-The receiver-expression follow-up stores `this` as a zero-child flat node and emits
-the existing frame receiver load directly.
+The class parser and `FlatAstLowerer` remain a temporary compatibility and
+differential-testing bridge. The end state removes them from normal execution,
+not merely adds another permanent compiler choice.
 
-## Minimal Repros
+The broader architecture, reference research, and throughput gates are in
+[`OKOJO_COMPILER_THROUGHPUT_DESIGN.md`](OKOJO_COMPILER_THROUGHPUT_DESIGN.md).
+
+V8 is the primary behavioral and compiler reference. Okojo's VM is already an
+Ignition-like accumulator/register machine, so new scope, frame, call, control-flow,
+and bytecode decisions should copy V8 by default. Oxc is a secondary reference for
+how to build the frontend cheaply; it does not override V8 semantics or bytecode
+shape.
+
+## Ownership and Representation
+
+The direct path follows these contracts:
+
+- `FlatAst` owns all nodes and side tables for one script or module compile
+- the script and nested function bodies share that owner
+- `AstNode` remains 16 bytes and is referenced by integer ID
+- `-1` means absent child; no nullable node objects are allocated
+- nodes are normally appended post-order
+- variable-length children live in dense pooled spans
+- object properties and formal parameters use typed pooled side tables
+- source locations are integer offsets into the retained source text
+- the parser records syntax and early-error facts, not register allocation
+- semantic passes resolve names, captures, storage, and runtime environments
+- disposal returns pooled arrays in one operation
+
+`FlatAst` is an internal execution artifact. It is not intended to become a
+full-fidelity public syntax API with parents, trivia objects, and mutation helpers.
+
+## Current Coverage
+
+| area | implemented direct path | remaining |
+|---|---|---|
+| Parse goal | scripts | modules, standalone function goal |
+| Declarations | `var`/`let`/`const`, ordinary function declarations | classes, imports/exports, full declaration instantiation/hoisting |
+| Blocks/control | block, `if`, `while`, `do`, ordinary `for`, unlabeled `break`/`continue`, `return`, empty/expression statement | `throw`, `try`/`catch`/`finally`, `switch`, `for-in/of`, labels, `debugger` |
+| Primitive expressions | number, string, boolean, null, identifier, `this`, grouping | regexp, BigInt, templates, `super`, `new.target`, `import.meta` |
+| Operators | precedence table, assignment, arithmetic/logical/bitwise/comparison, conditionals, sequence, updates | delete completion, optional-chain operators, remaining edge-specific early errors |
+| References | locals, lexical contexts, named/computed properties | globals/unresolvable names, imports, private and super references |
+| Calls/construction | direct/member calls, spread calls, ordinary/spread `new`, wide operands | optional calls, dynamic import, super call |
+| Arrays/objects | holes, data properties, computed/shorthand/index keys, stable shape prefix | array/object spread emission, methods, getters/setters, legacy `__proto__` intentionally excluded |
+| Bindings | identifier and nested array/object declarations, defaults, rest, computed keys | catch, class, module bindings and remaining early errors |
+| Assignments | identifier/member targets, compound/logical/update, array/object destructuring | private/super targets, optional-chain restrictions |
+| Functions | ordinary declarations/expressions, closures, simple/default/rest/pattern parameters, named self, `this` | arrows, async, generators, `arguments`, name inference, lazy bodies |
+| Classes | none | declaration/expression, constructors, methods, fields, static blocks, private names, super |
+| Modules | none | parse goal, entries, linking metadata, live bindings, top-level await |
+
+The direct parser rejects unsupported grammar. It does not catch an error and
+restart through `JavaScriptParser`; that would allocate both representations,
+change diagnostics, and conceal coverage gaps.
+
+## Current Semantic Gaps
+
+Syntax coverage alone is not enough to replace production compilation. The
+planned compiler still needs:
+
+- global binding and unresolvable-reference operations
+- script/function declaration instantiation and source-independent hoisting
+- a general parameter/body environment model; the current exclusion marker fixes
+  ordinary cases but is not the final nested-environment representation
+- correct `arguments` creation and mapped/unmapped behavior
+- anonymous function/class name inference
+- immutable binding and strict/sloppy assignment enforcement
+- complete source-position, handler, local-name, and debugger scope metadata
+
+These are P0 because real programs depend on them even when their syntax is
+otherwise already supported.
+
+## Implemented Compiler Insights
+
+### Calls and construction
+
+Evaluate the callee or receiver first, retain it in a register, evaluate arguments
+left-to-right into a contiguous range, and select the receiver-aware call opcode.
+Construction uses the same dense argument/register machinery and scaled operand
+encoding.
+
+Spread iterables are materialized when their argument is evaluated. This matches
+V8 ordering and intentionally corrects the production Okojo path that can defer
+user iteration until the spread runtime helper.
+
+### Properties and assignments
+
+Object literals prebuild a transition shape only for the stable canonical named
+prefix. Computed keys, numeric indices, and duplicate names enter the keyed tail;
+numeric indices never become shape transitions.
+
+Member assignment prepares the base and normalized computed key once. Compound,
+logical, prefix, postfix, and destructuring stores reuse that prepared reference,
+so observable base/key expressions are never duplicated.
+
+### Destructuring
+
+Array bindings and assignments step the iterator, apply defaults, and store each
+target before requesting the next value. An unfinished iterator closes on normal
+or abrupt completion. Object patterns check coercibility before computed-key
+effects, normalize computed keys once, and retain only keys needed by a later rest
+copy.
+
+The flat emitter uses existing iterator/property runtime operations but avoids the
+class compiler's target-thunk packaging.
+
+### Parameters
+
+Incoming formal arguments occupy the frame prefix. Advanced-parameter prologues:
+
+1. materialize rest before local writes can overlap extra actual arguments
+2. snapshot incoming formal registers
+3. establish TDZ for every parameter binding
+4. process each outer default and pattern in source order
+5. release the snapshot immediately
+
+This follows V8's observable ordering and fixes a production Okojo discrepancy in
+which all outer defaults run before all patterns.
+
+### Closures and loops
+
+Binding discovery and storage planning decide whether a local stays in a register
+or moves into a context. Captured lexical `for` heads receive a new sibling context
+per iteration; non-captured heads remain register-only.
+
+Function expressions create their closure at expression evaluation. Named
+expressions initialize a function-local self binding before parameter defaults.
+`this` is a zero-payload node that emits Okojo's existing `LdaThis` frame load.
+
+## Reference Lessons Applied
+
+### V8
+
+- parser AST and scope records feed a separate Ignition bytecode visitor
+- compile-time scopes resolve declarations/references and choose local versus
+  context allocation
+- register-allocation scopes release temporary ranges structurally
+- expression result modes distinguish effect, value, and branch contexts
+- lazy parsing works at function boundaries through preparser metadata
+
+Okojo copies the pass boundaries and bytecode evaluation shapes. It intentionally
+uses pooled node IDs rather than V8's Zone-allocated pointer tree.
+
+For each remaining feature, the implementation note must identify the relevant V8
+scope and Ignition bytecode shape first, then state whether Okojo copies it or keeps
+an intentional ABI-level difference.
+
+### Oxc
+
+- one arena owns parser products and arena-aware collections
+- core statement/expression enums are held to 16-byte size tests
+- parsing and semantic analysis are separate phases
+- nodes retain compact spans and semantic IDs are attached/resolved later
+- allocation and conformance checks are normal parser development tools
+
+Oxc itself uses a typed arena tree, not a flat integer-index AST. Okojo copies its
+lifetime discipline, compactness, and phase separation while keeping a more
+bytecode-specific flat representation.
+
+### Roslyn and JavaScriptCore
+
+Roslyn shows that a rich public syntax facade can be separated from the compact
+compiler representation. JavaScriptCore shows that one grammar can drive distinct
+builders, such as syntax checking and AST construction. Together they argue for a
+future shared Okojo grammar core, not two permanently divergent parsers.
+
+## Remaining Coverage Plan
+
+### Stage F0 - Binding and declaration correctness
+
+Implement before adding large syntax families:
+
+- global/unresolvable load, store, `typeof`, and delete
+- declaration instantiation and function/`var` hoisting
+- function, block, catch, class, module, and parameter environment records
+- `arguments`, function-name inference, immutable binding enforcement
+- source/handler/local-name metadata
+
+Focused corpus:
 
 ```js
-let total = 0;
-for (let i = 0; i < 10; i++) total += i;
-total;
+read();
+function read() { return hostGlobal + value; }
+var value = 1;
 ```
 
 ```js
-function outer(x) {
-  function inner() { return x + 1; }
-  return inner;
+let outer = 42;
+function read(value = function nested(next = outer) { return next; }) {
+  var outer = 1;
+  return value();
 }
 ```
 
-```js
-function invoke(target, key) {
-  target.method(1);
-  return target[key];
-}
-```
+### Stage F1 - Synchronous application grammar
 
-```js
-let values = [1, 2 + 3, , 4];
-values.length + values[1];
-```
+- `throw`, `try`/`catch`/`finally`, and abrupt-completion routing
+- `switch`
+- `for-in`/`for-of` and labels
+- `debugger`
+- regexp, BigInt, and template literals
+- array/object spread
+- object methods and accessors
+- ordinary arrows with lexical `this`, `arguments`, and `new.target`
+- optional chaining/calls
 
-```js
-function make(value, key) {
-  return { first: 1, [key]: value, second: value + 1, first: 4 };
-}
-```
+New side tables should be purpose-specific and dense: handler/catch records,
+switch clauses, and template spans. Avoid generic object payloads.
 
-```js
-let first, second;
-for (let i = 0; i < 2; i++) {
-  function read() { return i; }
-  if (i === 0) first = read;
-  else second = read;
-}
-first() * 10 + second(); // 1
-```
+### Stage F2 - Resumable functions
 
-```js
-function Box(value) { return { value }; }
-new Box(42).value;
-```
+- generators, `yield`, and `yield*`
+- async functions and `await`
+- async generators and `for-await-of`
+- suspension/resume tables and preserved register/context ranges
 
-```js
-function collect(a, b, c) { return a * 100 + b * 10 + c; }
-let values = [1, 2];
-collect(...values, 3); // 123
-```
+The parser should record suspension points and function flags; the emitter and VM
+remain responsible for resume-state layout.
 
-```js
-let [first, , third = 3, ...rest] = [1, 2, undefined, 4, 5];
-first * 100 + third * 10 + rest.length; // 132
-```
+### Stage F3 - Classes
 
-```js
-let { a: first, [key()]: second = 7, c, ...rest } = source;
-first * 100 + second * 10 + c + rest.d;
-```
+- compact class record and dense class-element table
+- class declaration/expression scopes and inner name binding
+- base/derived constructors and `new.target`
+- methods/accessors, fields, computed keys, static blocks
+- `super` call/property and private names/brands
 
-```js
-let first, tail, rest;
-let arrayResult = ([first = 1, target[key], ...tail] = arraySource);
-let objectResult = ({ a: target.value, ...rest } = objectSource);
-arrayResult === arraySource && objectResult === objectSource;
-```
+Computed keys, static initialization, and instance fields must not be collapsed
+into parser-time execution order. Store source order explicitly and let the class
+emitter schedule spec phases.
 
-```js
-function read({ a = 1, ...rest } = {}, [first, ...tail], value = a, ...extra) {
-  return a + rest.b + first + tail.length + value + extra.length;
-}
-```
+### Stage F4 - Modules
 
-```js
-let outer = 40;
-let anonymous = function (value = 2) { return outer + value; };
-let named = function self(value) { return value ? self(value - 1) + 1 : 0; };
-anonymous() + named(3);
-```
+- module parse goal and module early errors
+- compact import/export entry tables
+- module scopes, live binding references, and storage
+- linker-facing metadata without class-AST wrappers
+- dynamic import, `import.meta`, top-level await, and async dependency order
 
-```js
-let object = { value: 42, read: function () { return this.value; } };
-object.read();
-```
+Module records outlive a single bytecode function, so their ownership boundary
+must be explicit rather than hidden in temporary parser tables.
 
-## Planned Tests
+### Stage F5 - Replacement
 
-- `tests/Okojo.Compiler.Tests/DirectFlatParserTests.cs`
-  - direct arena layout
-  - direct compile and execution
-  - nested function capture
-  - allocated-byte comparison against class parse plus lowering
-  - direct/member calls and named/computed property loads
-  - array length, holes, and dynamic element initialization
-  - object property order, computed keys, shorthand, duplicates, and indices
-  - named/computed member assignment, compound assignment, and update
-  - logical member assignment short-circuiting and computed-key evaluation count
-  - capture-gated per-iteration loop-head contexts across `continue` and `break`
-  - construction evaluation order, no-parenthesis/nested precedence, and wide operands
-  - direct/property spread calls, spread construction, and iterator evaluation order
-  - array binding elisions, defaults, rest, nesting, iterator close, wide registers,
-    and class bridging
-  - unshadowed and lexically shadowed `undefined` reads
-  - object binding key order, defaults, nesting, numeric keys, rest exclusions,
-    nullish rejection, wide operands, and class bridging
-  - destructuring assignment target order, defaults, nesting, rest, completion
-    values, abrupt iterator close, computed member evaluation, and class bridging
-  - formal parameter defaults, array/object patterns, rest/rest-pattern forms,
-    function length, TDZ/order, duplicate/strict errors, capture, and class bridging
-  - anonymous/named function expressions, self recursion, outer capture, advanced
-    parameters, and expression position
-  - direct `this` parsing, member access, and receiver-preserving method calls
+1. complete normalized parser differential coverage
+2. run applicable Test262 through the planned compiler
+3. run Okojo.Node and browser-host application workloads
+4. make direct flat compilation the default
+5. keep the old path only behind an explicit diagnostic switch for a bounded
+   stabilization period
+6. remove `FlatAstLowerer` and execution-only class parser/compiler code
 
-## Reference Observations
+## Parser Implementation Strategy
 
-V8 builds parser nodes in zone-owned memory and carries scope/function metadata
-alongside the parse result. Okojo copies the single-owner lifetime and dense node
-IDs using pooled managed arrays. It intentionally keeps the production class AST
-available until flat syntax coverage is sufficient for migration.
+- migrate productions in semantic slices, not token-by-token feature stubs
+- add the feature's node/side-table representation, early errors, binding visit,
+  emitter, bytecode reference, and focused execution test together
+- keep parser state explicit for strict mode, function kind, loop/label targets,
+  class context, module goal, and await/yield permissions
+- avoid dictionaries and `List<T>` in ordinary productions; use stack buffers,
+  pooled growth, and typed side tables
+- do not intern every source substring; reuse lexer identifiers and decode/copy
+  only values that must survive the token
+- preserve exact evaluation order in the emitter, not by relying on node creation
+  order
+- keep slow semantic operations behind runtime IDs and keep common register paths
+  branch-light
 
-For calls and property loads, V8 and production Okojo agree on the useful
-register shape: evaluate the callee/receiver first, keep it in a register, place
-arguments in a contiguous register range, and distinguish undefined-receiver
-calls from property calls. Named loads carry a constant-pool key and feedback
-slot; computed loads keep the key in the accumulator. The flat emitter copies
-that shape while using Okojo's existing opcode ABI.
+## Validation Plan
 
-V8 uses an array boilerplate and patches dynamic elements. Okojo intentionally
-creates a length-sized array and initializes only present elements in source
-order; skipped indices remain holes without emitting hole stores.
+### Parser
 
-For object literals, V8 and production Okojo create a boilerplate/shape for the
-stable named prefix and emit keyed definitions after the first dynamic key. The
-flat emitter copies that structure. Computed keys are normalized before their
-values execute, preserving observable evaluation order. Numeric keys bypass shape
-transitions, and duplicate named keys fall into the keyed tail.
+- normalized direct/class AST comparison for supported grammar
+- exact early-error and source-position regressions
+- malformed-source fuzzing for termination and stable diagnostics
+- allocation snapshots for representative syntax families
 
-V8 and production Okojo load the member once, branch on the loaded value, and
-store only when the logical operator selects the right-hand side. The flat emitter
-copies that branch shape while retaining its prepared base/key registers, so a
-computed key is normalized once before the load and is reused by the conditional
-store.
+### Compiler and VM
 
-V8 and production Okojo evaluate the constructor before its arguments, place the
-arguments in a contiguous register window, and issue `Construct`. The flat emitter
-copies this bytecode shape and uses the shared scaled operand encoder. For nested
-`new`, the flat parser intentionally follows V8 precedence: recursive constructor
-operands consume member suffixes but leave call parentheses to the owning outer
-`new`. This fixes the call-then-construct shape currently produced by the class
-parser for `new new Factory()(42)`.
+- inspect production Okojo bytecode before each feature
+- inspect V8 Ignition for language/compiler behavior
+- compare execution order and abrupt completion with observable repros
+- test narrow/wide operand boundaries, register pressure, context depth, and
+  handler ranges
+- run the connected compiler suite focused-first, then once in full
 
-V8 materializes each spread iterable when that argument is evaluated, before any
-later argument expression. Production Okojo currently defers iteration until the
-spread-call runtime helper, which incorrectly orders `target(...iterable, later())`.
-The flat emitter intentionally corrects this: it materializes each spread argument
-immediately into a private array, marks it with a distinct runtime flag, and lets
-the existing call/construct spread helpers copy that dense materialization without
-invoking the user iterator again. Existing production spread flags and runtime IDs
-remain ABI-compatible.
+### Migration
 
-V8 initializes each array binding immediately after its iterator step, evaluates
-defaults before requesting the next value, and closes a still-open iterator on
-normal or abrupt completion. Production Okojo emits the same step/store ordering
-through its destructuring iterator runtimes. The flat emitter reuses those runtime
-operations but adds a declaration-local `PushTry` region instead of importing the
-production compiler's general finally-routing machinery; declarations cannot
-branch out of the pattern, so this smaller control-flow shape is complete for the
-slice.
-
-V8 emits the undefined constant directly for an unshadowed `undefined` read. The
-flat emitter copies that shape only after planned local lookup, preserving code
-such as `let undefined = 42` without allocating a synthetic global binding.
-
-V8 and production Okojo require an object-coercible source before computed-key
-effects, normalize each computed key once, load and initialize its target before
-the next property, then copy rest properties with every prior static or normalized
-key excluded. The flat emitter copies that order and reuses Okojo's
-`RequireObjectCoercible`, keyed/named load, `NormalizePropertyKey`, and
-`CopyDataPropertiesExcluding` ABI. Numeric static keys use keyed loads so they stay
-off atom/shape-oriented paths.
-
-V8 preserves the assignment RHS in a register, prepares an array element's member
-reference before advancing its iterator, stores each value before the next step,
-and closes an unfinished iterator on normal or abrupt completion. For objects it
-checks coercibility before computed-key effects, retains normalized source keys
-for rest exclusion, and returns the original RHS. The flat emitter copies this
-ordering while reusing the binding iterator/property runtimes and prepared member
-reference operations. Production Okojo's array-assignment fallback packages
-targets into runtime thunks; the direct flat path intentionally emits the normal
-step/load/store opcode sequence instead.
-
-V8 keeps incoming arguments in the frame prefix, materializes rest, then processes
-outer defaults and each parameter pattern in source order. In particular, a later
-default can read names initialized by an earlier pattern. The flat compiler copies
-that observable order, snapshots the raw argument prefix before reusing parameter
-registers, and reuses the declaration binding emitter for nested pattern work.
-Production Okojo currently runs every outer initializer before every pattern,
-which incorrectly leaves earlier pattern names in TDZ for later defaults; the flat
-path intentionally corrects that ordering.
-
-V8 creates ordinary function-expression closures at the expression evaluation
-point, loads a named expression's self reference from the current closure, and
-keeps captured outer lexical bindings in context slots. Production Okojo follows
-the same observable behavior. The flat path reuses its existing closure opcode,
-child-capture map, and function-self binding rather than introduce another runtime
-representation.
-
-V8 can fuse `this.value` into its named-property load from the receiver operand;
-production Okojo emits `LdaThis` followed by its normal named-property sequence.
-The flat compiler intentionally copies Okojo's explicit `LdaThis` opcode contract,
-which keeps receiver loading orthogonal to property inline-cache work.
-
-For captured `for (let ...)` heads, V8 creates a new block context for each
-iteration and moves the value through the update path. Production Okojo clones a
-function context because its loop aliases share function-level cells. The flat
-compiler instead replaces its dedicated loop-head context with a sibling context:
-copy slots, pop the old context, create the new context, then update. This keeps
-outer capture depths unchanged and retains old contexts only through closures.
+- planned-compiler Test262 mode, with failures separated into parser, binding,
+  emitter, VM contract, and unsupported categories
+- real minified libraries, many-small-function bundles, class-heavy applications,
+  and module graphs
+- debugger/disassembly/stack-trace verification, not only returned values
 
 ## Performance Plan
 
-- reuse `JsLexer` and its identifier/string tables
-- emit post-order 16-byte nodes directly; never construct `JsExpression` or
-  `JsStatement` objects on the direct path
-- store nested functions and formal parameters in pooled dense side tables
-- use pooled temporary child buffers and dispose the full parse result at once
-- compare allocated bytes for direct parse versus class parse plus flat lowering
-- allocate/copy loop contexts only when a nested function captures a loop-head binding
-- reuse the call argument span/register allocator for construction
-- materialize spread iterables once at their source-order evaluation point
-- store array bindings between iterator steps and share the existing iterator-close runtimes
-- retain normalized computed object-binding keys only until a following rest copy
-- reuse binding-pattern iterator/property operations for assignments while
-  retaining only the RHS and currently prepared member reference
-- reserve the incoming argument prefix and release its snapshot immediately after
-  the ordered advanced-parameter prologue
-- add function-expression bodies directly to pooled flat function/node tables and
-  compile them only when emitting the closure constant
-- represent `this` without payload or side-table allocation and emit `LdaThis`
+Keep the current allocation comparison, then measure the complete pipeline:
 
-Initial Release measurement for 80 declaration/update pairs after warm-up:
+- lexer, parser, discovery, resolve/allocate, emit, and total time
+- cold and warmed runs
+- allocated bytes and Gen0 collections
+- peak and retained pooled-array capacity
+- nodes/side-table bytes per source byte
+- bytecode bytes, constants, registers, and context slots
+- direct path versus class parse + lower + planned emit
+- direct path versus the production compiler
 
-- direct lexer-to-flat parse: approximately 10.5 KB allocated
-- class parse plus flat lowering: approximately 81.1 KB allocated
-- direct path reduction: approximately 87%
+Do not use automatic fallback in performance measurements. Unsupported inputs
+must be excluded or reported as coverage failures, not reparsed invisibly.
 
-## Deferred
+## Production Replacement Gates
 
-- templates, classes, and modules
-- object methods, accessors, and spread
-- array spread
-- optional chaining, `new.target`, and private/super members
-- converging the remaining production grammar on flat node handles
-- direct production `JsCompiler` migration
+- [ ] F0 binding/declaration semantics complete
+- [ ] common synchronous application corpus compiles directly
+- [ ] classes compile directly
+- [ ] modules link/evaluate from flat metadata
+- [ ] planned-compiler Test262 gate established and green for supported coverage
+- [ ] source diagnostics, disassembly, stack traces, and debugger scopes verified
+- [ ] end-to-end Release benchmarks beat or match production across representative
+      workloads without material bytecode/register/context regressions
+- [ ] default embedding and host entry points use direct flat compilation
+- [ ] no automatic class-parser fallback remains
+- [ ] old execution parser/lowerer/compiler path removed
+
+## Intentionally Unsupported Legacy Semantics
+
+Replacement does not require restoring deprecated behavior already excluded by
+project policy: direct-eval-specific semantics, `with`, legacy `__proto__`
+mutation, legacy accessor APIs, `Function.prototype.arguments/caller`, or
+`arguments.callee`.
+
+## Primary References
+
+- [V8 parsing and AST](https://chromium.googlesource.com/v8/v8/+/main/docs/parsing/parser-and-ast.md)
+- [V8 scopes and ScopeInfo](https://chromium.googlesource.com/v8/v8/+/main/docs/runtime/scopes-and-scope-infos.md)
+- [V8 Ignition](https://chromium.googlesource.com/v8/v8/+/refs/heads/main/docs/interpreter/interpreter-ignition.md)
+- [V8 lazy parsing](https://v8.dev/blog/preparser)
+- [Oxc parser architecture](https://oxc.rs/docs/learn/architecture/parser.html)
+- [Oxc AST design](https://oxc.rs/docs/contribute/parser/ast)
+- [Oxc allocator](https://docs.rs/oxc_allocator/latest/oxc_allocator/struct.Allocator.html)
+- [Roslyn red/green tree design](https://github.com/dotnet/roslyn/blob/main/docs/compilers/Design/Red-Green%20Trees.md)
+- [JavaScriptCore parser](https://github.com/WebKit/WebKit/blob/main/Source/JavaScriptCore/parser/Parser.cpp)

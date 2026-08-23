@@ -1,291 +1,359 @@
-# Compiler Throughput Design - Research and Proposals
+# Compiler Throughput Design - Direct Flat Replacement Plan
 
-Research into V8, Roslyn, Rust-based parsers (Oxc), and flat AST designs,
-mapped to concrete Okojo improvement proposals.
+## Objective
 
-## Current Baseline (linq-js 34KB minified)
+Replace the production class-AST parse and compiler path with a compact,
+single-owner frontend and a planned register-bytecode backend:
 
-| phase | time | share |
-|---|---|---|
-| Parse | ~2.85ms | 17% |
-| Compile (AST -> bytecode) | ~5.66ms | 83% |
-| Total | ~8.5ms | |
-
-Post-lock-removal trace hotspots: PollGC 30%, MarkCapturedNames 7%,
-CastHelpers.IsInstanceOfClass 4.5%, residual Monitor.Enter 2.4%.
-
-## 1. V8 Parser Pipeline
-
-Zone allocation (bump allocator) for all AST/scopes/parser state.
-Lazy parsing + preparser: function bodies skipped until called.
-PreparseData serialization avoids re-preparsing nested functions.
-CRTP shared ParserBase eliminates parser/preparser code divergence.
-
-## 2. Roslyn Green/Red Trees
-
-Green tree: immutable, persistent, no positions, built bottom-up.
-Red tree: lazy facade providing positions/parents on demand.
-Green node caching: <=3 children interned in 65K-entry table (55% hit).
-Trivia pooling: common whitespace patterns are singleton instances.
-List optimizations: empty=null, singleton=direct pointer, small=specialized.
-
-Impact: tokens+trivia+lists (75% of tree) incur zero red allocations.
-
-## 3. Oxc (Rust) - Fastest JS Parser
-
-Memory arena (bumpalo): O(1) alloc, O(1) dealloc, cache-friendly linear layout.
-CompactString: strings <=24 bytes inlined, no heap allocation.
-Minimal heap: ONLY arena + CompactString, nothing else heap-allocated.
-Separation of concerns: scope binding in semantic analyzer, not parser.
-SIMD whitespace skipping in lexer.
-Result: 3x faster than swc, 5x faster than Biome, 100% test262.
-
-## 4. Super-Flat AST Pattern
-
-Progressive optimization from jhwlr.io/super-flat-ast:
-1. Traditional tree: Box<Expr> + Vec<Stmt> = many small allocations
-2. Flat AST: nodes in contiguous array, referenced by integer index
-3. + Bump allocation: arena-backed, amortizes allocation cost
-4. Super-flat: + pointer compression + string interning
-Result: 3x less memory than tree, faster at every scale.
-
-## 5. Mapping to Okojo
-
-Our pipeline: Lexer -> Parser (AST records on GC heap) -> JsCompiler (bytecode).
-
-Key differences from fast implementations:
-- AST nodes are individually GC-allocated records (~230KB per compile)
-- No arena; GC collects them normally causing Gen0 pressure (PollGC 30%)
-- Capture analysis is a separate walk AFTER parsing (V8 does it in preparser)
-- No string interning for identifiers beyond the lexer table
-- Visitor methods use type-testing chains (`is JsXExpression`)
-
-## 6. Proposals (C-series)
-
-### C1: Arena Allocator - DEFERRED
-True arena impractical in safe C#. See prior assessment.
-
-### C3c: Seal AST Classes - DONE
-All classes already sealed.
-
-### C4: Pool Warm-Up - DONE
-Pre-warmed common collection types at realm creation.
-
-### C6: AST Node Count Reduction
-Reduce total node count emitted by parser:
-- Skip single-statement Block wrappers when no lexical declarations exist
-- Flatten single-element Sequence expressions to their inner expression
-- Eliminate redundant ExpressionStatement wrappers around expression-only
-  return bodies
-
-Each eliminated node = one fewer heap allocation = one fewer GC object.
-
-### C7: Identifier Interning
-DONE. CreateIdentifierExpression now interns by (Name, NameId) pair.
-Minified files reference same short identifiers hundreds of times;
-sharing one immutable instance eliminates redundant allocations.
-Measured: Gen0 collections 23 -> 22 per 100 compiles (~4%).
-
-### C8: Capture Analysis Merge into Parser
-Currently PrecomputeDirectChildCaptures walks the entire AST BEFORE
-compilation starts, then MarkCapturedNamesReferencedByNestedFunction
-runs DURING compilation. Two full traversals.
-
-V8/Oxc approach: track captures during PARSING. When the parser enters
-a function scope, it pushes scope info. When it sees an identifier
-reference, it checks if the binding lives in an outer function scope
-and marks it captured immediately.
-
-Moving this into the parser eliminates one full AST traversal AND
-removes the need for the separate PrecomputeDirectChildCaptures pass.
-
-Effort: large (requires parser to track scope stack + binding table).
-Impact: eliminates ~7% of compile time plus reduces temp collections.
-
-### C9: NodeType Enum Dispatch
-Add `public abstract JsNodeType Type { get; }` to JsNode base class.
-Implementations return enum constants. VisitExpression/VisitStatement
-switch on enum instead of type-testing chains.
-
-Enum comparisons are direct integer compares; `is` checks call
-CastHelpers.IsInstanceOfClass (~4.5% of compile time).
-
-Effort: medium (touch every node class + visitor switch).
-Impact: eliminates CastHelpers overhead from hot paths.
-
-## 7. Priority
-
-| ID | what | impact | effort |
-|---|---|---|---|
-| C7 | Identifier interning | ~4% GC reduction | DONE |
-| C6 | Node count reduction | proportional to nodes saved | medium |
-| C9 | Enum dispatch | ~4.5% compile time | medium |
-| C8 | Capture merge into parser | ~7% + reduced collections | large |
-
-## 8. 2026 State of the Art - Flat Array ASTs
-
-### Key finding from production parsers (Yuku/Zig, Oxc/Rust)
-
-The industry has converged on replacing pointer-based AST trees with
-flat arrays of struct nodes referenced by integer index. This eliminates
-ALL of the following simultaneously:
-- Per-node heap allocation (one bulk array instead of N objects)
-- Cache misses from pointer chasing (linear memory layout)
-- GC pressure (no individual objects to track)
-- Serialization cost (flat arrays are already wire format)
-
-Yuku (Zig): ~1 node per 2 source bytes; 50KB file = ~25K nodes in a
-handful of contiguous arrays. 3-10x faster than alternatives.
-
-### Data-oriented design principles
-
-1. Indices not pointers: NodeIndex = u32, half the size of a pointer,
-   position-independent, reserved value encodes "no child".
-2. Structure-of-arrays layout: separate arrays for each field type
-   improve cache utilization during traversals that access one field.
-3. Scratch buffers: reusable per-parser buffers for building child lists;
-   flushed to side tables when block is complete; reset for next use.
-4. Arena owns everything: single teardown when compilation finishes.
-5. Compile-time layout validation: size asserts fail the build if any
-   node type exceeds its budget.
-
-### C# adaptation path
-
-True arena allocation is impractical for managed classes. But a
-struct-based AST stored in pooled arrays IS feasible:
-
-// Instead of: class JsBinaryExpression : JsExpression { ... }
-// Use:
-struct AstNode {
-    AstKind Kind;        // enum byte
-    int Child0;          // index or -1
-    int Child1;
-    int ExtraOffset;     // into side table for lists/strings
-    // ... packed fields
-}
-
-// All nodes in one contiguous array:
-AstNode[] _nodes = new AstNode[estimatedCount];
-int _nodeCount = 0;
-
-// Children referenced by index:
-int MakeBinary(int op, int left, int right) {
-    var idx = _nodeCount++;
-    _nodes[idx] = new AstNode(AstKind.Binary, left, right, op);
-    return idx;
-}
-
-Consumers walk via indices instead of references. No GC tracking,
-no per-node allocation, linear memory = cache-friendly traversal.
-
-This requires rewriting the parser output format and every compiler
-consumer. It is the single largest remaining optimization but also
-the one with the highest ceiling: it addresses PollGC (30%), improves
-cache locality for ALL subsequent passes, and reduces memory footprint
-proportionally.
-
-## 9. C1 Phases 2-4 - Flat Planned Compiler
-
-Implemented scope:
-- lower the supported class-AST bridge into pooled 16-byte `AstNode` arrays
-- keep script and all nested function bodies in one shared `FlatAst`
-- collect bindings/references and emit bytecode directly from integer node IDs
-- share one planned compiler base between script and function compilation
-- replace dictionary/list-based capture planning with dense scope-ID arrays
-- use typed flat function metadata instead of retaining declaration AST objects
-- cover declarations, blocks, functions, branches, ordinary loops, loop control,
-  literals, unary/binary/conditional/sequence expressions, updates, and
-  identifier assignments
-
-Minimal repro:
-
-```js
-let x = 40;
-x += 2;
-x;
+```text
+source
+  -> JsLexer
+  -> FlatJavaScriptParser
+  -> FlatAst
+  -> binding discovery and reference collection
+  -> scope/capture resolution
+  -> register/context allocation
+  -> bytecode emission
+  -> JsScript / JsBytecodeFunction
 ```
 
-Checks:
-- arena layout and post-order child indices in `Okojo.Compiler.Tests`
-- end-to-end execution through the planned function and script compilers
-- capture/context behavior for root, function, and block bindings
-- loop execution with `break`, `continue`, and lexical loop heads
+The replacement target is not a one-pass parser that emits bytecode while it is
+still recognizing grammar. ECMAScript declaration instantiation, hoisting,
+parameter environments, captures, classes, modules, and abrupt completion all
+need information that is not reliably available at the first token visit. The
+long-term shape remains multi-pass, but every pass operates on dense IDs and
+pooled tables rather than GC-allocated syntax objects.
 
-Reference observation:
-- V8 Ignition evaluates the left side, keeps intermediate values in a
-  register/accumulator pair, then emits the arithmetic operation
-- V8 emits compact local-register loops with conditional exit and back-edge
-  `JumpLoop`; Okojo currently copies the evaluation/control-flow shape while
-  retaining its existing bytecode ABI and generic `Jump` back edge
-- non-commutative Okojo operations require left-in-register/right-in-accumulator,
-  as confirmed from the VM implementation
+Priority remains:
 
-Performance plan:
-- current bridge: measure class parse + flat lowering + plan + emit together
-- next architecture step: make the parser produce `FlatAst` directly; the bridge
-  cannot remove the already-incurred class-node allocations
-- add remaining application syntax before using application-sized compile
-  throughput as a migration gate
-- use capture-gated sibling-context replacement for closure-correct lexical loops
+1. correctness
+2. observability and tooling
+3. measured optimization
 
-## 10. C1 Phase 5 - Direct Flat Parser Slice
+Reference priority is intentionally asymmetric:
 
-The experimental compiler now has a direct `Compile(string)` path using the
-existing lexer and emitting `FlatAst` nodes without constructing class AST
-statements or expressions. The initial slice covers the syntax already executable
-by the flat planned compiler and rejects unsupported syntax without fallback.
+1. V8 for ECMAScript semantics, scope analysis, frame/register shape, bytecode
+   generation, feedback operands, and lazy compilation
+2. Oxc for parser allocation, compact AST layout, phase separation, and frontend
+   benchmarking discipline
+3. Roslyn and JavaScriptCore for optional tooling facades and shared-grammar
+   builder patterns
 
-The parsing assembly now owns the flat arena and pooled function/parameter tables.
-The compiler reads dense spans and no longer embeds `FunctionParameterPlan` objects
-in parse output. Production and flat parsing also share operator token mapping;
-nullish-coalescing mixing remains a grammar-level special case.
+Okojo's accumulator/register VM and many opcode shapes are already Ignition-like.
+The lowest-risk long-term design is therefore to follow V8 unless Okojo's existing
+ABI or a measured managed-runtime constraint gives a concrete reason to differ.
 
-Measured allocated bytes for 80 declaration/update pairs after warm-up:
+## Current Measurements
+
+Historical `linq-js` baseline, 34 KB minified:
+
+| phase | time | share |
+|---|---:|---:|
+| Parse | ~2.85 ms | ~34% |
+| Compile | ~5.66 ms | ~66% |
+| Total | ~8.5 ms | 100% |
+
+The earlier class pipeline allocated approximately 230 KB of syntax objects per
+compile and showed substantial `PollGC` and type-test cost. The current direct
+flat parsing microbenchmark, using 80 declaration/update pairs after warm-up,
+measures:
 
 | path | allocated bytes |
 |---|---:|
-| direct lexer -> flat AST | ~10.5 KB |
+| direct lexer -> `FlatAst` | ~10.5 KB |
 | class AST parse -> flat lowering | ~81.1 KB |
 
-This is an approximately 87% allocation reduction for parsing/lowering the
-supported slice. The bridge remains necessary for the full production grammar;
-ordinary calls and named/computed member loads now use the same register shape and
-centralized bytecode operand encoder as the production compiler. Array literals
-now preserve holes while initializing present elements in source order. Object
-literals now follow the same stable-prefix shape strategy. Member writes use a
-prepared reference so base/key evaluation is not duplicated across load and store;
-logical member assignments branch around the RHS/store using that same reference.
-Ordinary `new` expressions now share the dense argument spans, contiguous register
-allocation, and scaled bytecode operand encoding used by calls.
-Spread calls and construction retain those dense spans and use the existing runtime
-ABI. Unlike the production compiler's deferred iteration, the flat emitter
-materializes each spread iterable immediately before evaluating the next argument,
-matching V8 ordering and preventing a second user-iterator invocation.
-Array binding declarations now stay flat through discovery and emission. Pattern
-children reuse dense arena spans, while bytecode performs iterator step, default,
-and binding store in source order. A declaration-local try region handles iterator
-close without adding the production compiler's general finally-routing state.
-Object binding declarations reuse the parsing-owned dense property table with a
-distinct pattern node and rest flag. The emitter retains separate normalized
-computed-key registers only when rest requires them; patterns without rest reuse
-one key scratch register. Static numeric keys stay on keyed property loads.
-Destructuring assignments reuse the same dense array/object property spans and
-iterator/property runtime operations. The emitter preserves the original RHS,
-prepares member references at their specified evaluation point, releases their
-temporary registers after each store, and emits direct step/load/store bytecode
-instead of the production compiler's array-target thunk package.
-Advanced formal parameters now remain in the pooled parameter/pattern tables.
-The function compiler reserves the raw argument-register prefix, materializes a
-rest value before local registers can overlap extra actual arguments, snapshots
-formal arguments, establishes parameter TDZ, then applies each outer default and
-pattern in source order. Bound pattern names reuse the existing declaration
-destructuring emitter and are allocated after the incoming ABI prefix.
-Captured ordinary `for` heads now use per-iteration sibling-context replacement.
-The loop-head context is copied and replaced before the first test and before each
-update, so closures retain the prior iteration without inserting an extra context
-depth. Loops without captured head bindings remain register-only.
+This is approximately an 87% parse/lowering allocation reduction for the covered
+grammar. It is evidence for the representation, not yet a production migration
+result: application syntax coverage and end-to-end compile time are still the
+gates.
 
-Data-property object literals now use parsing-owned dense property spans. The
-flat emitter prebuilds the stable named prefix as an Okojo transition shape, then
-uses normalized keyed definitions for computed, indexed, and duplicate tails.
-This copies the production/V8 split without retaining class property objects.
+## Current Flat Architecture
+
+The implemented path has these properties:
+
+- 16-byte `AstNode` values in pooled contiguous arrays
+- integer node handles with `-1` for an absent child
+- post-order construction, so most children precede their parent
+- dense side tables for child lists, object properties, nested functions, and
+  formal parameters
+- one disposable `FlatAst` owning the script and every nested function body
+- separate binding collection, capture resolution, storage planning, and emit
+  passes
+- one register/accumulator emitter shared by scripts and functions
+- class-AST lowering retained only as a temporary compatibility bridge
+- unsupported direct grammar fails explicitly instead of silently parsing twice
+
+Implemented execution coverage includes ordinary declarations and functions,
+branches and ordinary loops, calls and construction, named/computed properties,
+array/object data literals, binding and assignment destructuring, advanced
+parameters, ordinary function expressions, closures, and `this`.
+
+## Reference Architecture Insights
+
+### V8: copy the compiler shape, not the C++ object layout
+
+V8 parses to an AST, resolves variables through explicit compile-time scopes, and
+then lets Ignition's `BytecodeGenerator` visit the AST. Its scope analysis decides
+whether a name stays local or requires a heap context. Ignition uses an
+accumulator, virtual registers, scoped temporary-register allocation, explicit
+expression result modes, and feedback slots on property/global operations.
+
+V8 also has a preparser that validates and records the information needed by an
+outer compilation while skipping full AST construction for eligible function
+bodies. Lazy functions are fully parsed and compiled when needed.
+
+Okojo decisions:
+
+- treat V8 as the default answer for new language/compiler/VM shape decisions
+- record each deviation as an existing-ABI constraint, a simpler equivalent, or a
+  measured Okojo-specific optimization
+- copy the explicit discover -> resolve -> allocate -> emit structure
+- keep function compilation as the natural ownership and laziness boundary
+- keep accumulator/register result shape and scoped temporary release
+- preserve feedback/cache operands in bytecode contracts where Okojo has them
+- retain enough scope metadata for debugger-visible locals and context chains
+- defer lazy function parsing until the eager flat compiler is complete and
+  measured; laziness multiplies parser-state and source-lifetime complexity
+- do not copy V8's pointer-heavy Zone AST; pooled index arrays are the managed
+  equivalent that better fits Okojo
+
+### Oxc: copy lifetime discipline and phase separation
+
+Oxc uses a bump allocator and arena-aware collections for AST ownership. Its AST
+is a strongly typed arena tree, not a flat integer-index array. Oxc enforces small
+core enum sizes, including 16-byte statement and expression enums, and keeps
+source spans on nodes. Parsing is followed by a distinct semantic phase for scope,
+symbol, reference, and additional syntax analysis.
+
+Okojo decisions:
+
+- copy single-owner bulk lifetime and allocation accounting
+- keep the 16-byte node-size contract under a regression test
+- keep parsing and semantic/storage planning separate
+- retain source offsets as compact values rather than allocating location objects
+- distinguish binding identifiers, references, and property names semantically,
+  even when they share a compact syntactic payload
+- add allocation snapshots and application corpus benchmarks as routine frontend
+  checks
+- do not reproduce Rust lifetimes, arena pointers, or Oxc's general-purpose
+  transform AST; Okojo's flat form is compiler-internal and bytecode-oriented
+
+### Roslyn: useful boundary, wrong default representation
+
+Roslyn's immutable green tree and lazy red facade are optimized for full-fidelity,
+incremental IDE use. Sharing and on-demand parent/position wrappers are valuable
+when a syntax tree must survive edits and serve many tools.
+
+Okojo does not need that cost on the execution path. The reusable lesson is to
+keep the hot compiler representation internal and expose richer diagnostic views
+only on demand. If Okojo later needs an IDE-grade public syntax API, it should be a
+separate product surface rather than changing `FlatAst` into a full-fidelity tree.
+
+### JavaScriptCore: share grammar, vary the builder
+
+JavaScriptCore's parser can drive different builders, including syntax-checking
+and AST-building modes. This supports the same conclusion as V8's parser/preparser
+split: grammar behavior should have one source of truth even if the produced
+artifact differs.
+
+Okojo should eventually share parser productions between eager flat building and
+any future syntax-only/lazy mode. It should not maintain a production class parser
+and an unrelated flat parser indefinitely.
+
+## Landed Bytecode-Shape Lessons
+
+The direct flat work has already established several reusable rules:
+
+- evaluate a call receiver/callee first and place arguments in one contiguous
+  register window
+- prepare assignment member references once; never reevaluate a base or computed
+  key during load/branch/store lowering
+- create stable object-shape prefixes only for canonical non-index named keys;
+  computed, indexed, and duplicate tails use keyed definitions
+- materialize spread iterables at their source-order evaluation point rather than
+  deferring user iteration until a later runtime helper
+- step, default, and store destructuring elements in observable source order and
+  close unfinished iterators on normal or abrupt completion
+- reserve incoming argument registers as an ABI prefix, materialize rest before
+  overlapping writes, establish parameter TDZ, and initialize each parameter in
+  source order
+- allocate per-iteration loop contexts only when a nested function captures the
+  lexical head
+- create function-expression closures at expression evaluation and initialize a
+  named expression's self binding before parameter defaults
+
+These are compiler contracts, not parser conveniences. New syntax should lower to
+the same small set of prepared-reference, iterator, context, call, and abrupt-flow
+operations.
+
+## Target Pass Contracts
+
+| pass | owns | must not do |
+|---|---|---|
+| Scan | token kind, raw span, literal decoding state | allocate AST objects |
+| Parse | grammar, early errors, compact nodes and side-table entries | choose registers or context slots |
+| Discover | scopes, declarations, references, function/class/module boundaries | emit bytecode |
+| Resolve | bind references, mark captures, model parameter/body and class scopes | depend on source-order emitter accidents |
+| Allocate | frame prefix, locals, temporaries, contexts, module/import storage | execute semantic slow paths |
+| Emit | evaluation order, branches, handlers, opcodes, source positions | rediscover declarations |
+| Runtime | dynamic coercion, iteration, property, call, module, async slow paths | repair compiler ordering |
+
+Frame layout and opcode operands remain ABI contracts. Wide operand selection,
+constant-pool indexing, context depth, handler ranges, and source positions must
+go through centralized builders.
+
+## Remaining Coverage Plan
+
+### P0 - Semantic foundation for real programs
+
+Complete these before broad grammar because nearly every application depends on
+them:
+
+- global and unresolvable name load/store/`typeof`/delete behavior
+- script and function declaration instantiation, including `var` and function
+  hoisting
+- correct function, block, catch, class, module, and parameter environment
+  boundaries
+- replace the current parameter/body exclusion marker with a general environment
+  model that remains correct through nested parameter functions
+- `arguments` creation/mapping rules and arrow lexical capture
+- anonymous function/class name inference
+- immutable binding enforcement and strict/sloppy assignment behavior
+- complete source-position, source-map, local-name, and handler metadata needed by
+  disassembly, stack traces, and the debugger
+
+Exit gate: ordinary real-world scripts can use host globals and declaration
+hoisting without compiler-specific rewrites.
+
+### P1 - Common synchronous grammar
+
+- `throw`, `try`/`catch`/`finally`, and completion routing
+- `switch`
+- `for-in` and `for-of`
+- labeled statements and labeled `break`/`continue`
+- template, regexp, and BigInt literals
+- array/object spread
+- object methods, getters, and setters
+- ordinary arrow functions
+- optional calls/chains and delete-chain behavior
+
+Exit gate: the direct path compiles the synchronous non-class application corpus
+and has differential execution coverage for every new control-flow form.
+
+### P2 - Resumable functions
+
+- generators and `yield`/`yield*`
+- async functions and `await`
+- async generators and `for-await-of`
+- suspension metadata, register/context preservation, and abrupt resume paths
+
+Exit gate: planned-compiler tests cover every resume mode and Test262 can target
+the new compiler for the supported function families.
+
+### P3 - Classes and advanced references
+
+- class declarations and expressions
+- base/derived constructors and `new.target`
+- methods, accessors, fields, and static blocks
+- `super` calls and named/computed super properties
+- private names, brands, accessors, and `#x in object`
+- computed-key and field-initializer ordering
+
+Exit gate: class initialization order, derived-constructor rules, private-brand
+checks, and observable function names match the production engine and V8.
+
+### P4 - Modules
+
+- module parse goal and early errors
+- import/export entries in compact side tables
+- module scope and live binding storage
+- linking/evaluation integration
+- dynamic import, `import.meta`, top-level await, and async dependency ordering
+
+Exit gate: the production module linker consumes flat compiler metadata directly;
+no class-AST module objects remain on the execution path.
+
+### P5 - Production replacement and deletion
+
+- run parser differential tests over the production corpus
+- run planned-compiler execution against applicable Test262 coverage
+- validate Okojo.Node and browser-host workloads
+- switch the default compile entry points to the direct flat path
+- retain the old path only behind an explicit diagnostic switch during a bounded
+  stabilization window
+- remove class-AST lowering and then remove the execution-only class parser once
+  no supported consumer depends on it
+
+There should be no automatic "try flat, catch, parse again" fallback. Double
+parsing hides missing coverage, changes diagnostics, and destroys the allocation
+win. Selection must be explicit until the direct path becomes the default.
+
+## Validation Gates
+
+### Correctness
+
+- focused regression for each syntax/semantic slice
+- full connected compiler suite after focused coverage
+- normalized parser differential checks for structure, early errors, spans, and
+  function metadata
+- Okojo production-bytecode and V8 Ignition comparison for every new language or
+  compiler feature
+- differential execution against production Okojo where production behavior is
+  correct; document intentional corrections where it is not
+- planned-compiler Test262 mode before default replacement
+- fuzzing for parser termination, malformed-input diagnostics, and direct/class
+  behavioral disagreement
+
+### Observability
+
+- disassembly has function names, source ranges, context slots, handlers, and wide
+  operands
+- VM traces can map bytecode PCs back to source and visible locals
+- stack traces and debugger scopes remain correct through contexts, catch blocks,
+  classes, and suspension
+- unsupported syntax reports one stable parse diagnostic, never an internal
+  compiler exception
+
+### Performance
+
+Measure Release builds after warm-up and keep raw samples:
+
+- scan, parse, discover, resolve/allocate, and emit time separately
+- total cold and warm compile latency
+- allocated bytes, Gen0 collections, peak pooled capacity, and retained capacity
+- nodes and side-table bytes per source byte
+- bytecode size, register count, context slots, and constant-pool size
+- small scripts, minified libraries, many-small-functions, class-heavy code,
+  module graphs, and application workloads
+
+Do not optimize opcode count or reintroduce specialized fast paths from a single
+microbenchmark. A migration requires a stable or improved correctness profile and
+an end-to-end win across representative workloads.
+
+## Post-Replacement Optimization
+
+After eager production replacement:
+
+1. lazy/preparse function bodies, using function source ranges and serialized
+   scope summaries
+2. reduce scanning cost on measured ASCII/minified hot paths
+3. specialize side-table packing only where size profiles justify it
+4. consider direct parser-to-discovery event fusion, while retaining `FlatAst` for
+   bytecode emission and diagnostics
+5. consider a separate optional syntax facade for tooling; do not burden runtime
+   compilation with Roslyn-style full fidelity by default
+
+## Primary References
+
+- [V8 parsing and AST](https://chromium.googlesource.com/v8/v8/+/main/docs/parsing/parser-and-ast.md)
+- [V8 scopes and ScopeInfo](https://chromium.googlesource.com/v8/v8/+/main/docs/runtime/scopes-and-scope-infos.md)
+- [V8 Ignition bytecode generation](https://chromium.googlesource.com/v8/v8/+/refs/heads/main/docs/interpreter/interpreter-ignition.md)
+- [V8 scanner optimization](https://v8.dev/blog/scanner)
+- [V8 lazy parsing and preparser](https://v8.dev/blog/preparser)
+- [Oxc parser architecture](https://oxc.rs/docs/learn/architecture/parser.html)
+- [Oxc AST design](https://oxc.rs/docs/contribute/parser/ast)
+- [Oxc allocator](https://docs.rs/oxc_allocator/latest/oxc_allocator/struct.Allocator.html)
+- [Oxc semantic analyzer source](https://github.com/oxc-project/oxc/blob/main/crates/oxc_semantic/src/lib.rs)
+- [Roslyn red/green tree design](https://github.com/dotnet/roslyn/blob/main/docs/compilers/Design/Red-Green%20Trees.md)
+- [JavaScriptCore parser builders](https://github.com/WebKit/WebKit/blob/main/Source/JavaScriptCore/parser/Parser.cpp)
