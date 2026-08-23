@@ -598,6 +598,7 @@ internal static class FlatAstLowerer
                 JsMemberExpression member => LowerMember(member),
                 JsArrayExpression array => LowerArray(array),
                 JsObjectExpression obj => LowerObject(obj),
+                JsTemplateExpression template => LowerTemplate(template),
                 _ => throw new NotSupportedException(
                     $"{compilerName} does not support expression '{expression.GetType().Name}'."
                 ),
@@ -902,6 +903,63 @@ internal static class FlatAstLowerer
             finally
             {
                 ArrayPool<int>.Shared.Return(expressions);
+            }
+        }
+
+        private int LowerTemplate(JsTemplateExpression template)
+        {
+            if (template.Expressions.Count == 0)
+                return Arena.Add(
+                    AstKind.StringLiteral,
+                    Arena.AddString(
+                        template.Quasis[0]
+                            ?? throw new NotSupportedException(
+                                "Invalid cooked template quasi requires tagged-template lowering."
+                            )
+                    ),
+                    position: template.Position
+                );
+
+            var count = template.Expressions.Count * 2 + 1;
+            var parts = ArrayPool<int>.Shared.Rent(count);
+            try
+            {
+                for (var i = 0; i < template.Expressions.Count; i++)
+                {
+                    parts[i * 2] = Arena.Add(
+                        AstKind.StringLiteral,
+                        Arena.AddString(
+                            template.Quasis[i]
+                                ?? throw new NotSupportedException(
+                                    "Invalid cooked template quasi requires tagged-template lowering."
+                                )
+                        ),
+                        position: template.Position
+                    );
+                    parts[i * 2 + 1] = LowerExpression(template.Expressions[i]);
+                }
+
+                parts[count - 1] = Arena.Add(
+                    AstKind.StringLiteral,
+                    Arena.AddString(
+                        template.Quasis[^1]
+                            ?? throw new NotSupportedException(
+                                "Invalid cooked template quasi requires tagged-template lowering."
+                            )
+                    ),
+                    position: template.Position
+                );
+                var children = Arena.AddChildren(parts.AsSpan(0, count));
+                return Arena.Add(
+                    AstKind.TemplateExpression,
+                    children.Offset,
+                    children.Count,
+                    position: template.Position
+                );
+            }
+            finally
+            {
+                ArrayPool<int>.Shared.Return(parts);
             }
         }
 

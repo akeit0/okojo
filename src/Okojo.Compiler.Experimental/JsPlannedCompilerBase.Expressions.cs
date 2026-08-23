@@ -136,6 +136,9 @@ internal abstract partial class JsPlannedCompilerBase
             case AstKind.ObjectExpression:
                 EmitObjectExpression(ast, node);
                 return;
+            case AstKind.TemplateExpression:
+                EmitTemplateExpression(ast, node);
+                return;
             case AstKind.FunctionExpression:
                 EmitFunctionExpression(ast, node.Arg0, node.Arg1);
                 return;
@@ -296,6 +299,48 @@ internal abstract partial class JsPlannedCompilerBase
             EmitStringLiteral(flags);
             EmitStar(arguments + 1);
             builder.EmitCallRuntime((int)RuntimeId.CreateRegExpLiteral, arguments, 2);
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+        }
+    }
+
+    private void EmitTemplateExpression(FlatAst ast, in AstNode node)
+    {
+        var parts = ast.ChildRange(node.Arg0, node.Arg1);
+        if (parts.Length < 3 || (parts.Length & 1) == 0)
+            throw new InvalidOperationException("Invalid flat template literal layout.");
+
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            var accumulatorRegister = builder.AllocateTemporaryRegister();
+            var hasAccumulator = false;
+            var first = ast.GetString(ast[parts[0]].Arg0);
+            if (first.Length != 0)
+            {
+                EmitStringLiteral(first);
+                hasAccumulator = true;
+            }
+
+            for (var i = 1; i < parts.Length; i += 2)
+            {
+                if (hasAccumulator)
+                    EmitStar(accumulatorRegister);
+                EmitExpression(ast, parts[i]);
+                builder.Emit(JsOpCode.ToString);
+                if (hasAccumulator)
+                    EmitRegisterWithSlotOp(JsOpCode.Add, accumulatorRegister);
+                hasAccumulator = true;
+
+                var quasi = ast.GetString(ast[parts[i + 1]].Arg0);
+                if (quasi.Length == 0)
+                    continue;
+                EmitStar(accumulatorRegister);
+                EmitStringLiteral(quasi);
+                EmitRegisterWithSlotOp(JsOpCode.Add, accumulatorRegister);
+            }
         }
         finally
         {

@@ -164,6 +164,21 @@ public class JsPlannedScriptCompilerTests
     }
 
     [Test]
+    public void Compile_LowersClassAstTemplateBridge()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            JavaScriptParser.ParseScript(
+                "let value = 40; let prefix = `answer`; let text = `${prefix}:${` ${value + 2}`}`; text;"
+            )
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("answer: 42"));
+    }
+
+    [Test]
     public void Compile_ExecutesBlockScopedLexicals()
     {
         var runtime = JsRuntime.Create();

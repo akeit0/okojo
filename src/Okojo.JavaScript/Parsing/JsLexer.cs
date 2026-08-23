@@ -524,7 +524,6 @@ internal sealed partial class JsLexer(string source)
     {
         var sb = this.sb;
         sb.Clear();
-        var expressionDepth = 0;
         while (index < source.Length)
         {
             var c = source[index++];
@@ -539,38 +538,24 @@ internal sealed partial class JsLexer(string source)
                 continue;
             }
 
-            if (expressionDepth == 0)
+            if (c == '`')
+                return new(
+                    JsTokenKind.Template,
+                    start,
+                    index - start,
+                    dataIndex: AddStringLiteral(sb.ToString()),
+                    hasLineTerminatorBefore: hasLineTerminatorBefore
+                );
+
+            if (c == '$' && index < source.Length && source[index] == '{')
             {
-                if (c == '`')
-                    return new(
-                        JsTokenKind.Template,
-                        start,
-                        index - start,
-                        dataIndex: AddStringLiteral(sb.ToString()),
-                        hasLineTerminatorBefore: hasLineTerminatorBefore
-                    );
-
-                if (c == '$' && index < source.Length && source[index] == '{')
-                {
-                    expressionDepth = 1;
-                    sb.Append(c);
-                    sb.Append(source[index++]);
-                    continue;
-                }
-
-                sb.Append(c);
+                var expressionEnd = TemplateLiteralScanner.FindExpressionEnd(source, index + 1);
+                if (expressionEnd < 0)
+                    throw Error("Unterminated template expression", start);
+                sb.Append(source.AsSpan(index - 1, expressionEnd - index + 2));
+                index = expressionEnd + 1;
                 continue;
             }
-
-            if (c == '{')
-            {
-                expressionDepth++;
-                sb.Append(c);
-                continue;
-            }
-
-            if (c == '}')
-                expressionDepth--;
 
             sb.Append(c);
         }

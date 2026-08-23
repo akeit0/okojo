@@ -1187,6 +1187,8 @@ internal sealed class FlatJavaScriptParser
                     Arena.AddString(lexer.GetStringLiteral(token)),
                     position: token.Position
                 );
+            case JsTokenKind.Template:
+                return ParseTemplateLiteral(token);
             case JsTokenKind.True:
             case JsTokenKind.False:
                 Next();
@@ -1220,6 +1222,102 @@ internal sealed class FlatJavaScriptParser
                     $"Expression token '{token.Kind}' is not supported by FlatJavaScriptParser",
                     token.Position
                 );
+        }
+    }
+
+    private int ParseTemplateLiteral(in JsToken token)
+    {
+        var contentStart = token.Position + 1;
+        var contentEnd = token.Position + token.SourceLength - 1;
+        Span<int> initial = stackalloc int[8];
+        var parts = new NodeList(initial);
+        var cooked = new PooledCharBuilder(stackalloc char[64]);
+        try
+        {
+            var index = contentStart;
+            while (index < contentEnd)
+            {
+                var value = source[index];
+                if (value == '\\' && index + 1 < contentEnd)
+                {
+                    if (
+                        !TemplateLiteralScanner.TryDecodeEscape(
+                            source,
+                            index,
+                            out var decoded,
+                            out var consumed,
+                            out _
+                        )
+                    )
+                        throw Error("Invalid escape sequence in template literal", index);
+                    cooked.Append(decoded.AsSpan());
+                    index += consumed;
+                    continue;
+                }
+
+                if (value == '\r')
+                {
+                    cooked.Append('\n');
+                    if (index + 1 < contentEnd && source[index + 1] == '\n')
+                        index++;
+                    index++;
+                    continue;
+                }
+
+                if (value == '$' && index + 1 < contentEnd && source[index + 1] == '{')
+                {
+                    parts.Add(
+                        Arena.Add(
+                            AstKind.StringLiteral,
+                            Arena.AddString(cooked.ToString()),
+                            position: index
+                        )
+                    );
+                    cooked.Clear();
+                    var expressionStart = index + 2;
+                    var expressionEnd = TemplateLiteralScanner.FindExpressionEnd(
+                        source,
+                        expressionStart
+                    );
+                    if (expressionEnd < 0 || expressionEnd >= contentEnd)
+                        throw Error("Unterminated template expression", index);
+
+                    lexer.SetIndex(expressionStart);
+                    current = lexer.NextToken();
+                    parts.Add(ParseExpression());
+                    if (current.Kind != JsTokenKind.RightBrace || current.Position != expressionEnd)
+                        throw Error("Invalid template expression", current.Position);
+                    index = expressionEnd + 1;
+                    continue;
+                }
+
+                cooked.Append(value);
+                index++;
+            }
+
+            parts.Add(
+                Arena.Add(
+                    AstKind.StringLiteral,
+                    Arena.AddString(cooked.ToString()),
+                    position: contentEnd
+                )
+            );
+            lexer.SetIndex(token.Position + token.SourceLength);
+            current = lexer.NextToken();
+            if (parts.Count == 1)
+                return parts.AsSpan()[0];
+            var children = Arena.AddChildren(parts.AsSpan());
+            return Arena.Add(
+                AstKind.TemplateExpression,
+                children.Offset,
+                children.Count,
+                position: token.Position
+            );
+        }
+        finally
+        {
+            cooked.Dispose();
+            parts.Dispose();
         }
     }
 

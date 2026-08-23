@@ -52,7 +52,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Parse goal | scripts | modules, standalone function goal |
 | Declarations | `var`/`let`/`const`, ordinary function declarations, function/block declaration prologues, function-scoped `var`, persistent script globals/lexicals, initial global conflict validation | classes, imports/exports, complete declaration early errors, Annex B |
 | Blocks/control | block, `if`, `while`, `do`, ordinary `for`, `switch`, unlabeled `break`/`continue`, `return`, `throw`, `try`/`catch`/`finally`, empty/expression statement | `for-in/of`, labels, `debugger` |
-| Primitive expressions | number, BigInt, string, boolean, null, regexp, identifier, `this`, grouping | templates, `super`, `new.target`, `import.meta` |
+| Primitive expressions | number, BigInt, string, boolean, null, regexp, untagged template, identifier, `this`, grouping | tagged templates, `super`, `new.target`, `import.meta` |
 | Operators | precedence table, assignment, arithmetic/logical/bitwise/comparison, conditionals, sequence, updates, property/identifier/value `delete` | optional-chain operators and delete-chain behavior, remaining edge-specific early errors |
 | References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed properties | imports, private and super references |
 | Calls/construction | direct/member calls, spread calls, ordinary/spread `new`, wide operands | optional calls, dynamic import, super call |
@@ -174,6 +174,28 @@ RegExp nodes store two arena string IDs and BigInt nodes store one canonical
 decimal string ID; neither needs a new side table or per-node object. Regex
 construction remains runtime work because each literal evaluation must return a
 fresh mutable RegExp object.
+
+### Untagged template literal slice
+
+This iteration covers untagged template literals, including nested templates,
+escape cooking, sequence/object/regexp substitutions, and left-to-right
+substitution/`ToString` effects. The reference case is
+`artifacts/okojobytecodetool/cases/flat_ast_template.js`; focused tests also cover
+braces inside strings and comments plus invalid untagged escapes. Tagged template
+site identity/raw arrays remain a separate slice because they require cached site
+metadata rather than ordinary string concatenation.
+
+V8 stores alternating string parts and substitutions, skips empty parts, converts
+each non-string substitution at its source position, and accumulates with ordinary
+`Add`. Production Okojo uses the same observable `ToString`/`Add` order. The flat
+path stores alternating quasi/expression node IDs in the existing child pool
+and emit the V8 shape without a template object or new side table.
+
+The lexer continues to return one template token, but a shared template scanner
+locates nested substitution boundaries robustly. The direct parser temporarily
+repositions the same lexer into each substitution, parses directly into the same
+arena, then restores the token end. This preserves lexer-owned identifier IDs and
+avoids substring parsers, nested AST owners, or class-node fallback.
 
 ### Destructuring
 
@@ -511,13 +533,13 @@ function read(value = function nested(next = outer) { return next; }) {
   are landed
 - `for-in`/`for-of` and labels
 - `debugger`
-- template literals
+- tagged template literals and cached site identity
 - ordinary arrows with lexical `this`, `arguments`, and `new.target`
 - optional chaining/calls
 
 New side tables should be purpose-specific and dense: handler/catch records and
-template spans. Switch clauses already use fixed nodes and the dense child table.
-Avoid generic object payloads.
+tagged-template site descriptors. Untagged templates and switch clauses use fixed
+nodes plus the dense child table. Avoid generic object payloads.
 
 First foundation slice landed:
 

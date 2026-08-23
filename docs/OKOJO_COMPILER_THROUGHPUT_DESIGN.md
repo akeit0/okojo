@@ -312,7 +312,7 @@ hoisting without compiler-specific rewrites.
   metadata
 - `for-in` and `for-of`
 - labeled statements and labeled `break`/`continue`
-- template literals
+- tagged template literals and cached site identity
 - ordinary arrow functions
 - optional calls/chains and delete-chain behavior
 
@@ -323,9 +323,14 @@ and return emission shares one control-scope dispatcher. Direct `throw` and
 preserve the return value when required, run the finalizer, and replay the saved
 command; runtime throws continue through the VM handler path. The VM handler ABI
 now preserves lexical context across exceptions and generator suspension.
-Switch control, literal spread, ordinary object methods/accessors, RegExp, and
-BigInt literals are landed. Labeled targets, iterator control, full early errors,
-and diagnostic handler metadata remain part of P1.
+Switch control, literal spread, ordinary object methods/accessors, RegExp, BigInt,
+and untagged template literals are landed. Untagged templates follow Ignition's
+alternating quasi/substitution order: substitutions are converted with `ToString`
+at their source position, empty quasis are skipped, and `Add` accumulates the
+result. The flat parser reuses one lexer and the dense child pool, so this adds no
+nested parser owner or template side table. Labeled targets, iterator control,
+full early errors, tagged-template site metadata, and diagnostic handler metadata
+remain part of P1.
 
 Exit gate: the direct path compiles the synchronous non-class application corpus
 and has differential execution coverage for every new control-flow form.

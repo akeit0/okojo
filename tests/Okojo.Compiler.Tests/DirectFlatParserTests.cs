@@ -1426,6 +1426,36 @@ public class DirectFlatParserTests
         Assert.That(realm.Accumulator.AsString(), Is.EqualTo("true|true|0|9007199254741000"));
     }
 
+    [Test]
+    public void CompileString_ExecutesNestedTemplateLiteralsInSourceOrder()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let order = '';
+            function value(text) {
+                order += text;
+                return { toString() { order += 't'; return text; } };
+            }
+            let result = `a${value('x')}b${value('y')}c`;
+            let nested = `n${{ value: `i${2}` }.value}`;
+            let tricky = `${"}"}|${/}/.test('}')}|${({ a: 1 }).a}|${(1, 2)}`;
+            let comment = `${1 /* } */ + 1}`;
+            let cooked = `line\n\u{1F600}`;
+            result + '|' + nested + '|' + order + '|' + tricky + '|'
+                + comment + '|' + (cooked === 'line\n😀');
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("axbyc|ni2|xtyt|}|true|1|2|2|true"));
+    }
+
+    [Test]
+    public void ParseScript_RejectsInvalidUntaggedTemplateEscape() =>
+        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript("`bad\\8`;"));
+
     [TestCase("let value = { get item(value) {} };")]
     [TestCase("let value = { set item() {} };")]
     [TestCase("let value = { set item(...value) {} };")]

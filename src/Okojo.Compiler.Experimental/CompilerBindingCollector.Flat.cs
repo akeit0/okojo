@@ -593,6 +593,11 @@ internal static partial class CompilerBindingCollector
                         VisitExpression(ast, property.ValueNode, scopeId);
                     }
                     return;
+                case AstKind.TemplateExpression:
+                    var templateParts = ast.ChildRange(node.Arg0, node.Arg1);
+                    for (var i = 1; i < templateParts.Length; i += 2)
+                        VisitExpression(ast, templateParts[i], scopeId);
+                    return;
                 case AstKind.FunctionExpression:
                     VisitFunctionExpression(ast, node, scopeId);
                     return;

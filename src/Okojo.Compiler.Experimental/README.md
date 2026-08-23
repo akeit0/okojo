@@ -66,6 +66,7 @@ Both planned compilers currently support:
 - function declarations, expression statements, and function `return`
 - null, boolean, number, and string literals
 - BigInt and RegExp literals
+- untagged template literals, including nested substitutions and escape cooking
 - unshadowed `undefined` intrinsic reads with lexical shadowing
 - unary, arithmetic, bitwise, comparison, logical, conditional, sequence, and
   identifier update expressions
@@ -92,7 +93,7 @@ Still intentionally unsupported in the experimental pipeline:
 - optional calls, `new.target`, and private/super member access
 - destructuring assignments and pattern parameters
 - generator/async and `super` object methods
-- template literals
+- tagged template literals
 - module/global binding emission
 - `for-in` / `for-of` per-iteration behavior
 - labeled loop control
