@@ -284,6 +284,57 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_ConstructsAfterEvaluatingCalleeBeforeArguments()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile(
+            """
+            function Box(value) {
+                return { value };
+            }
+            let order = 0;
+            function factory() {
+                order = order * 10 + 1;
+                return Box;
+            }
+            function argument() {
+                order = order * 10 + 2;
+                return 42;
+            }
+            function ConstructorFactory() {
+                return Box;
+            }
+            let result = new (factory())(argument());
+            let empty = new Box;
+            let nested = new new ConstructorFactory()(8);
+            order * 100 + result.value + nested.value + (empty.value === void 0 ? 0 : 10000);
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(1250));
+    }
+
+    [Test]
+    public void CompileString_EmitsWideConstructOperands()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var arguments = string.Join(", ", Enumerable.Range(0, 260));
+        var script = compiler.Compile(
+            $"function First(value) {{ return {{ value }}; }} let result = new First({arguments}); result.value;"
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.Zero);
+        Assert.That(script.Bytecode, Does.Contain((byte)JsOpCode.Wide));
+        Assert.That(script.Bytecode, Does.Contain((byte)JsOpCode.Construct));
+    }
+
+    [Test]
     public void ParseScript_AllocatesLessThanClassParseAndLowerBridge()
     {
         var source = string.Join(
@@ -311,10 +362,10 @@ public class DirectFlatParserTests
     public void ParseScript_RejectsUnsupportedSyntaxWithoutClassParserFallback()
     {
         var exception = Assert.Throws<JsParseException>(() =>
-            FlatJavaScriptParser.ParseScript("new Answer();")
+            FlatJavaScriptParser.ParseScript("new Answer(...values);")
         );
 
-        Assert.That(exception!.Message, Does.Contain("FlatJavaScriptParser"));
+        Assert.That(exception!.Message, Does.Contain("Spread calls"));
     }
 
     [Test]

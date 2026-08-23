@@ -255,6 +255,8 @@ now preserve holes while initializing present elements in source order. Object
 literals now follow the same stable-prefix shape strategy. Member writes use a
 prepared reference so base/key evaluation is not duplicated across load and store;
 logical member assignments branch around the RHS/store using that same reference.
+Ordinary `new` expressions now share the dense argument spans, contiguous register
+allocation, and scaled bytecode operand encoding used by calls.
 Captured ordinary `for` heads now use per-iteration sibling-context replacement.
 The loop-head context is copied and replaced before the first test and before each
 update, so closures retain the prior iteration without inserting an extra context

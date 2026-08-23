@@ -306,6 +306,7 @@ internal static class FlatAstLowerer
                 ),
                 JsSequenceExpression sequence => LowerSequence(sequence),
                 JsCallExpression call => LowerCall(call),
+                JsNewExpression @new => LowerNew(@new),
                 JsMemberExpression member => LowerMember(member),
                 JsArrayExpression array => LowerArray(array),
                 JsObjectExpression obj => LowerObject(obj),
@@ -412,6 +413,34 @@ internal static class FlatAstLowerer
                     children.Offset,
                     children.Count,
                     call.Position
+                );
+            }
+            finally
+            {
+                ArrayPool<int>.Shared.Return(arguments);
+            }
+        }
+
+        private int LowerNew(JsNewExpression @new)
+        {
+            var arguments = ArrayPool<int>.Shared.Rent(@new.Arguments.Count);
+            try
+            {
+                for (var i = 0; i < @new.Arguments.Count; i++)
+                {
+                    if (@new.Arguments[i] is JsSpreadExpression)
+                        throw new NotSupportedException(
+                            $"Spread construction is not supported by {compilerName}."
+                        );
+                    arguments[i] = LowerExpression(@new.Arguments[i]);
+                }
+                var children = Arena.AddChildren(arguments.AsSpan(0, @new.Arguments.Count));
+                return Arena.Add(
+                    AstKind.NewExpression,
+                    LowerExpression(@new.Callee),
+                    children.Offset,
+                    children.Count,
+                    @new.Position
                 );
             }
             finally

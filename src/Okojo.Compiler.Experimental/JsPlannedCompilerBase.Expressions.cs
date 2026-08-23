@@ -65,6 +65,9 @@ internal abstract partial class JsPlannedCompilerBase
             case AstKind.CallExpression:
                 EmitCallExpression(ast, node);
                 return;
+            case AstKind.NewExpression:
+                EmitNewExpression(ast, node);
+                return;
             case AstKind.MemberExpression:
                 EmitMemberExpression(ast, node);
                 return;
@@ -205,6 +208,23 @@ internal abstract partial class JsPlannedCompilerBase
                 directArgumentStart,
                 node.Arg2
             );
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+        }
+    }
+
+    private void EmitNewExpression(FlatAst ast, AstNode node)
+    {
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            EmitExpression(ast, node.Arg0);
+            var functionRegister = builder.AllocateTemporaryRegister();
+            EmitStar(functionRegister);
+            var argumentStart = EmitCallArguments(ast, node.Arg1, node.Arg2);
+            builder.EmitConstruct(functionRegister, argumentStart, node.Arg2);
         }
         finally
         {

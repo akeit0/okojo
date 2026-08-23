@@ -460,6 +460,9 @@ internal sealed class FlatJavaScriptParser
     private int ParseUnary()
     {
         var position = current.Position;
+        if (current.Kind == JsTokenKind.New)
+            return ParseNewExpression();
+
         if (TryGetUnaryOperator(current.Kind, out var unary))
         {
             Next();
@@ -491,7 +494,31 @@ internal sealed class FlatJavaScriptParser
 
     private int ParsePostfix()
     {
-        var expression = ParsePrimary();
+        return ParseMemberAndCallSuffix(ParsePrimary(), allowCalls: true);
+    }
+
+    private int ParseNewExpression(bool allowCallSuffix = true)
+    {
+        var position = Expect(JsTokenKind.New).Position;
+        var callee =
+            current.Kind == JsTokenKind.New
+                ? ParseNewExpression(allowCallSuffix: false)
+                : ParseMemberAndCallSuffix(ParsePrimary(), allowCalls: false);
+        var arguments = Match(JsTokenKind.LeftParen)
+            ? ParseArgumentListAfterOpenParen()
+            : (Offset: 0, Count: 0);
+        var expression = Arena.Add(
+            AstKind.NewExpression,
+            callee,
+            arguments.Offset,
+            arguments.Count,
+            position
+        );
+        return ParseMemberAndCallSuffix(expression, allowCallSuffix);
+    }
+
+    private int ParseMemberAndCallSuffix(int expression, bool allowCalls)
+    {
         while (true)
         {
             var position = Arena.GetPosition(expression);
@@ -525,7 +552,7 @@ internal sealed class FlatJavaScriptParser
                 continue;
             }
 
-            if (Match(JsTokenKind.LeftParen))
+            if (allowCalls && Match(JsTokenKind.LeftParen))
             {
                 expression = ParseCallArguments(expression, position);
                 continue;
@@ -536,6 +563,12 @@ internal sealed class FlatJavaScriptParser
     }
 
     private int ParseCallArguments(int callee, int position)
+    {
+        var children = ParseArgumentListAfterOpenParen();
+        return Arena.Add(AstKind.CallExpression, callee, children.Offset, children.Count, position);
+    }
+
+    private (int Offset, int Count) ParseArgumentListAfterOpenParen()
     {
         Span<int> initial = stackalloc int[4];
         var arguments = new NodeList(initial);
@@ -553,14 +586,7 @@ internal sealed class FlatJavaScriptParser
                     break;
             }
             Expect(JsTokenKind.RightParen);
-            var children = Arena.AddChildren(arguments.AsSpan());
-            return Arena.Add(
-                AstKind.CallExpression,
-                callee,
-                children.Offset,
-                children.Count,
-                position
-            );
+            return Arena.AddChildren(arguments.AsSpan());
         }
         finally
         {

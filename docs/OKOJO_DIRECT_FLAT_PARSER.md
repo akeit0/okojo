@@ -30,6 +30,8 @@ short-circuit branch lowering as identifier assignment.
 Captured lexical heads in ordinary `for` loops now receive a fresh context per
 iteration. Context replacement is capture-gated, so non-capturing loops retain
 the register-only path.
+Ordinary construction now uses flat callee/argument child spans and the existing
+scaled `Construct` ABI. Constructor spread and `new.target` remain deferred.
 
 ## Minimal Repros
 
@@ -74,6 +76,11 @@ for (let i = 0; i < 2; i++) {
 first() * 10 + second(); // 1
 ```
 
+```js
+function Box(value) { return { value }; }
+new Box(42).value;
+```
+
 ## Planned Tests
 
 - `tests/Okojo.Compiler.Tests/DirectFlatParserTests.cs`
@@ -87,6 +94,7 @@ first() * 10 + second(); // 1
   - named/computed member assignment, compound assignment, and update
   - logical member assignment short-circuiting and computed-key evaluation count
   - capture-gated per-iteration loop-head contexts across `continue` and `break`
+  - construction evaluation order, no-parenthesis/nested precedence, and wide operands
 
 ## Reference Observations
 
@@ -118,6 +126,14 @@ copies that branch shape while retaining its prepared base/key registers, so a
 computed key is normalized once before the load and is reused by the conditional
 store.
 
+V8 and production Okojo evaluate the constructor before its arguments, place the
+arguments in a contiguous register window, and issue `Construct`. The flat emitter
+copies this bytecode shape and uses the shared scaled operand encoder. For nested
+`new`, the flat parser intentionally follows V8 precedence: recursive constructor
+operands consume member suffixes but leave call parentheses to the owning outer
+`new`. This fixes the call-then-construct shape currently produced by the class
+parser for `new new Factory()(42)`.
+
 For captured `for (let ...)` heads, V8 creates a new block context for each
 iteration and moves the value through the update path. Production Okojo clones a
 function context because its loop aliases share function-level cells. The flat
@@ -134,6 +150,7 @@ outer capture depths unchanged and retains old contexts only through closures.
 - use pooled temporary child buffers and dispose the full parse result at once
 - compare allocated bytes for direct parse versus class parse plus flat lowering
 - allocate/copy loop contexts only when a nested function captures a loop-head binding
+- reuse the call argument span/register allocator for construction
 
 Initial Release measurement for 80 declaration/update pairs after warm-up:
 
@@ -147,6 +164,6 @@ Initial Release measurement for 80 declaration/update pairs after warm-up:
   parameter forms
 - object methods, accessors, and spread
 - array spread
-- spread calls, optional chaining, construction, and private/super members
+- spread calls/construction, optional chaining, `new.target`, and private/super members
 - converging the remaining production grammar on flat node handles
 - direct production `JsCompiler` migration
