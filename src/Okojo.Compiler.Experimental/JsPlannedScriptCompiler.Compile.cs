@@ -14,7 +14,7 @@ internal sealed partial class JsPlannedScriptCompiler
 
     public JsScript Compile(string source, string? sourcePath = null)
     {
-        using var ast = DirectFlatParser.ParseScript(source, sourcePath);
+        using var ast = FlatJavaScriptParser.ParseScript(source, sourcePath);
         return Compile(ast, sourcePath);
     }
 

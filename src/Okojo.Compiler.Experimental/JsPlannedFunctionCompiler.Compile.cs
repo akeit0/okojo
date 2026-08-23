@@ -16,35 +16,66 @@ internal sealed partial class JsPlannedFunctionCompiler
     )
     {
         using var ast = FlatAstLowerer.Lower(body);
-        return CompileFunction(
-            name,
-            parameterPlan,
-            body.StrictDeclared,
-            ast,
-            ast.Root,
-            hasSelfBinding
-        );
-    }
-
-    internal JsBytecodeFunction CompileFunction(
-        string? name,
-        FunctionParameterPlan parameterPlan,
-        bool strictDeclared,
-        FlatAst ast,
-        int bodyRoot,
-        bool hasSelfBinding = false
-    )
-    {
-        builder.SetStrictDeclared(strictDeclared);
         InitializeParameterRegisterMap(parameterPlan);
         using var collected = CompilerBindingCollector.CollectFunction(
             name,
             -1,
             parameterPlan,
             ast,
+            ast.Root,
+            hasSelfBinding
+        );
+        return CompileFunctionCore(
+            new FunctionCompileMetadata(
+                name ?? string.Empty,
+                body.StrictDeclared,
+                parameterPlan.Names.Count,
+                parameterPlan.HasSimpleParameterList,
+                parameterPlan.FunctionLength
+            ),
+            collected,
+            ast,
+            ast.Root
+        );
+    }
+
+    internal JsBytecodeFunction CompileFunction(
+        FlatAst ast,
+        in FlatFunctionInfo function,
+        int bodyRoot,
+        bool hasSelfBinding = false
+    )
+    {
+        var name = ast.GetString(function.NameStringIndex);
+        InitializeParameterRegisterMap(ast, function);
+        using var collected = CompilerBindingCollector.CollectFunction(
+            ast,
+            function,
             bodyRoot,
             hasSelfBinding
         );
+        return CompileFunctionCore(
+            new FunctionCompileMetadata(
+                name,
+                function.StrictDeclared,
+                function.ParameterCount,
+                function.HasSimpleParameterList,
+                function.FunctionLength
+            ),
+            collected,
+            ast,
+            bodyRoot
+        );
+    }
+
+    private JsBytecodeFunction CompileFunctionCore(
+        in FunctionCompileMetadata metadata,
+        CompilerBindingCollectionResult collected,
+        FlatAst ast,
+        int bodyRoot
+    )
+    {
+        builder.SetStrictDeclared(metadata.StrictDeclared);
         using var plan = CompilerStoragePlanner.Plan(collected);
         InitializePlanIndexes(collected, plan);
         InitializeRootBindings();
@@ -57,24 +88,28 @@ internal sealed partial class JsPlannedFunctionCompiler
 
         builder.EmitLda(JsOpCode.LdaUndefined);
         builder.Emit(JsOpCode.Return);
-        var script = builder.ToScript() with { SourceCode = null, StrictDeclared = strictDeclared };
+        var script = builder.ToScript() with
+        {
+            SourceCode = null,
+            StrictDeclared = metadata.StrictDeclared,
+        };
         script.BindAgent(Vm.Agent);
         return new JsBytecodeFunction(
             Vm,
             script,
-            name ?? string.Empty,
+            metadata.Name,
             requiresClosureBinding: false,
-            isStrict: strictDeclared,
+            isStrict: metadata.StrictDeclared,
             hasNewTarget: false,
             kind: JsBytecodeFunctionKind.Normal,
             isArrow: false,
             isMethod: false,
-            formalParameterCount: parameterPlan.Names.Count,
-            hasSimpleParameterList: parameterPlan.HasSimpleParameterList,
+            formalParameterCount: metadata.ParameterCount,
+            hasSimpleParameterList: metadata.HasSimpleParameterList,
             isClassConstructor: false,
             isDerivedConstructor: false,
             hasEagerGeneratorParameterBinding: false,
-            expectedArgumentCount: parameterPlan.FunctionLength
+            expectedArgumentCount: metadata.FunctionLength
         );
     }
 
@@ -89,4 +124,20 @@ internal sealed partial class JsPlannedFunctionCompiler
                 parameterRegisterByName.TryAdd(binding.BoundIdentifiers[j].Name, i);
         }
     }
+
+    private void InitializeParameterRegisterMap(FlatAst ast, in FlatFunctionInfo function)
+    {
+        parameterRegisterByName.Clear();
+        var parameters = ast.GetParameters(function);
+        for (var i = 0; i < parameters.Length; i++)
+            parameterRegisterByName.TryAdd(ast.GetString(parameters[i].NameStringIndex), i);
+    }
+
+    private readonly record struct FunctionCompileMetadata(
+        string Name,
+        bool StrictDeclared,
+        int ParameterCount,
+        bool HasSimpleParameterList,
+        int FunctionLength
+    );
 }

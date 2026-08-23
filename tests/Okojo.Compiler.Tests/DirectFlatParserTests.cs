@@ -28,7 +28,7 @@ public class DirectFlatParserTests
     [Test]
     public void ParseScript_EmitsPostOrderFlatNodesDirectly()
     {
-        using var ast = DirectFlatParser.ParseScript(
+        using var ast = FlatJavaScriptParser.ParseScript(
             """
             let x = 40;
             x += 2;
@@ -47,6 +47,25 @@ public class DirectFlatParserTests
         Assert.That(assignment.Arg0, Is.LessThan(assignmentStatement.Arg0));
         Assert.That(assignment.Arg1, Is.LessThan(assignmentStatement.Arg0));
         Assert.That(statements[2], Is.LessThan(ast.Root));
+    }
+
+    [Test]
+    public void ParseScript_StoresFunctionParametersInDenseParsingTables()
+    {
+        using var ast = FlatJavaScriptParser.ParseScript(
+            "function add(left, right) { return left + right; }"
+        );
+
+        ref readonly var root = ref ast[ast.Root];
+        var declaration = ast[ast.ChildRange(root.Arg0, root.Arg1)[0]];
+        var function = ast.GetFunction(declaration.Arg0);
+        var parameters = ast.GetParameters(function);
+
+        Assert.That(ast.GetString(function.NameStringIndex), Is.EqualTo("add"));
+        Assert.That(parameters.Length, Is.EqualTo(2));
+        Assert.That(ast.GetString(parameters[0].NameStringIndex), Is.EqualTo("left"));
+        Assert.That(ast.GetString(parameters[1].NameStringIndex), Is.EqualTo("right"));
+        Assert.That(function.HasSimpleParameterList, Is.True);
     }
 
     [Test]
@@ -105,12 +124,12 @@ public class DirectFlatParserTests
             Enumerable.Range(0, 80).Select(static i => $"let value{i} = {i}; value{i} += 1;")
         );
 
-        using (DirectFlatParser.ParseScript(source)) { }
+        using (FlatJavaScriptParser.ParseScript(source)) { }
         using (FlatAstLowerer.Lower(JavaScriptParser.ParseScript(source))) { }
 
         var directBytes = MeasureAllocatedBytes(() =>
         {
-            using var ast = DirectFlatParser.ParseScript(source);
+            using var ast = FlatJavaScriptParser.ParseScript(source);
         });
         var bridgeBytes = MeasureAllocatedBytes(() =>
         {
@@ -125,10 +144,10 @@ public class DirectFlatParserTests
     public void ParseScript_RejectsUnsupportedSyntaxWithoutClassParserFallback()
     {
         var exception = Assert.Throws<JsParseException>(() =>
-            DirectFlatParser.ParseScript("answer();")
+            FlatJavaScriptParser.ParseScript("answer();")
         );
 
-        Assert.That(exception!.Message, Does.Contain("DirectFlatParser"));
+        Assert.That(exception!.Message, Does.Contain("FlatJavaScriptParser"));
     }
 
     [TestCase("return 1;")]
@@ -137,7 +156,7 @@ public class DirectFlatParserTests
     [TestCase("while (true) { function nested() { break; } }")]
     public void ParseScript_RejectsIllegalAbruptControl(string source)
     {
-        Assert.Throws<JsParseException>(() => DirectFlatParser.ParseScript(source));
+        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
     }
 
     private static long MeasureAllocatedBytes(Action action)

@@ -37,11 +37,11 @@ The goal is to replace the current mixed compiler model with a clearer pipeline:
 
 Current project contents:
 
-- `FlatAst` / `FlatAstLowerer`
-  - pooled 16-byte nodes and side tables
+- parsing-owned `FlatAst` / compiler bridge `FlatAstLowerer`
+  - pooled 16-byte nodes plus dense function and parameter side tables
   - one arena shared by scripts and nested functions
-  - typed nested-function metadata
-- `DirectFlatParser`
+  - no compiler-owned objects retained by direct parse results
+- `FlatJavaScriptParser`
   - direct `JsLexer` to flat-node generation for the supported subset
   - no class statement/expression nodes and no silent class-parser fallback
 - `CompilerBindingCollector`
@@ -98,6 +98,8 @@ Current milestone status:
 - flat script/function emitter: active
 - direct lexer-to-flat parser: active for the supported subset
 - shared flat nested-function arena: done for the supported subset
+- parser-owned flat function/parameter metadata: done
+- shared production/flat operator grammar table: done
 - dense scope/capture planning: done
 - ordinary loop lowering: done, excluding per-iteration closure cloning
 - compare/branch lowering: done for current subset

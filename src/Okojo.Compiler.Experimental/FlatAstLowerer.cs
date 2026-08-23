@@ -9,10 +9,12 @@ internal static class FlatAstLowerer
     {
         var lowerer = new Lowerer(
             program.SourceText ?? string.Empty,
+            program.SourcePath,
             nameof(JsPlannedScriptCompiler)
         );
         try
         {
+            lowerer.Ast.StrictDeclared = program.StrictDeclared;
             lowerer.Ast.Root = lowerer.LowerProgram(program);
             return lowerer.Ast;
         }
@@ -25,9 +27,10 @@ internal static class FlatAstLowerer
 
     public static FlatAst Lower(JsBlockStatement body)
     {
-        var lowerer = new Lowerer(string.Empty, nameof(JsPlannedFunctionCompiler));
+        var lowerer = new Lowerer(string.Empty, null, nameof(JsPlannedFunctionCompiler));
         try
         {
+            lowerer.Ast.StrictDeclared = body.StrictDeclared;
             lowerer.Ast.Root = lowerer.LowerFunctionBody(body);
             return lowerer.Ast;
         }
@@ -38,9 +41,9 @@ internal static class FlatAstLowerer
         }
     }
 
-    private sealed class Lowerer(string source, string compilerName)
+    private sealed class Lowerer(string source, string? sourcePath, string compilerName)
     {
-        public FlatAst Ast { get; } = new(source);
+        public FlatAst Ast { get; } = new(source, sourcePath);
         private AstArena Arena => Ast.Arena;
 
         public int LowerProgram(JsProgram program)
@@ -115,12 +118,42 @@ internal static class FlatAstLowerer
         private int LowerFunctionDeclaration(JsFunctionDeclaration function)
         {
             var bodyRoot = LowerFunctionBody(function.Body);
+            var flatParameters = ArrayPool<FlatParameter>.Shared.Rent(function.Parameters.Count);
+            (int Offset, int Count) parameters;
+            try
+            {
+                for (var i = 0; i < function.Parameters.Count; i++)
+                {
+                    flatParameters[i] = new FlatParameter(
+                        Arena.AddString(function.Parameters[i]),
+                        function.ParameterIds[i],
+                        function.ParameterInitializers[i] is null
+                            ? -1
+                            : LowerExpression(function.ParameterInitializers[i]!),
+                        function.ParameterPatterns[i] is null
+                            ? -1
+                            : LowerExpression(function.ParameterPatterns[i]!),
+                        function.ParameterPositions[i],
+                        function.ParameterBindingKinds[i]
+                    );
+                }
+                parameters = Ast.AddParameters(flatParameters.AsSpan(0, function.Parameters.Count));
+            }
+            finally
+            {
+                ArrayPool<FlatParameter>.Shared.Return(flatParameters);
+            }
             var functionIndex = Ast.AddFunction(
                 new FlatFunctionInfo(
-                    function.Name,
+                    Arena.AddString(function.Name),
                     function.NameId,
-                    FunctionParameterPlan.FromFunction(function),
+                    parameters.Offset,
+                    parameters.Count,
+                    function.FunctionLength,
+                    function.RestParameterIndex,
                     function.Body.StrictDeclared,
+                    function.HasSimpleParameterList,
+                    function.HasDuplicateParameters,
                     function.Position
                 )
             );

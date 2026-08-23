@@ -26,6 +26,18 @@ internal static partial class CompilerBindingCollector
         return collector.MoveResult();
     }
 
+    public static CompilerBindingCollectionResult CollectFunction(
+        FlatAst ast,
+        in FlatFunctionInfo function,
+        int bodyRoot,
+        bool hasSelfBinding = false
+    )
+    {
+        var collector = new FlatCollector(CompilerCollectedScopeKind.Function);
+        collector.CollectFlatFunctionRoot(ast, function, bodyRoot, hasSelfBinding);
+        return collector.MoveResult();
+    }
+
     private sealed class FlatCollector
     {
         private readonly PooledArrayBuilder<CompilerCollectedScope> scopes = new(16);
@@ -60,6 +72,27 @@ internal static partial class CompilerBindingCollector
 
             CollectParameters(parameterPlan, 0);
             CollectParameterInitializers(parameterPlan, 0);
+            CollectBody(ast, bodyRoot, 0);
+        }
+
+        public void CollectFlatFunctionRoot(
+            FlatAst ast,
+            in FlatFunctionInfo function,
+            int bodyRoot,
+            bool hasSelfBinding
+        )
+        {
+            var name = ast.GetString(function.NameStringIndex);
+            if (hasSelfBinding)
+                AddBinding(
+                    0,
+                    CompilerCollectedBindingKind.FunctionNameSelf,
+                    name,
+                    function.NameId,
+                    position: function.Position
+                );
+
+            CollectFlatParameters(ast, function, 0);
             CollectBody(ast, bodyRoot, 0);
         }
 
@@ -224,10 +257,11 @@ internal static partial class CompilerBindingCollector
         private void VisitFunctionDeclaration(FlatAst ast, AstNode node, int parentScopeId)
         {
             var function = ast.GetFunction(node.Arg0);
+            var name = ast.GetString(function.NameStringIndex);
             AddBinding(
                 parentScopeId,
                 CompilerCollectedBindingKind.FunctionDeclaration,
-                function.Name,
+                name,
                 function.NameId,
                 position: function.Position
             );
@@ -236,8 +270,7 @@ internal static partial class CompilerBindingCollector
                 CompilerCollectedScopeKind.Function,
                 function.Position
             );
-            CollectParameters(function.ParameterPlan, functionScopeId);
-            CollectParameterInitializers(function.ParameterPlan, functionScopeId);
+            CollectFlatParameters(ast, function, functionScopeId);
             CollectBody(ast, node.Arg1, functionScopeId);
         }
 
@@ -309,6 +342,28 @@ internal static partial class CompilerBindingCollector
                         position: binding.Position
                     );
                 }
+            }
+        }
+
+        private void CollectFlatParameters(FlatAst ast, in FlatFunctionInfo function, int scopeId)
+        {
+            var parameters = ast.GetParameters(function);
+            for (var i = 0; i < parameters.Length; i++)
+            {
+                ref readonly var parameter = ref parameters[i];
+                if (!parameter.IsSimple)
+                    throw new NotSupportedException(
+                        "Flat planned compilation does not support advanced parameters yet."
+                    );
+                AddBinding(
+                    scopeId,
+                    CompilerCollectedBindingKind.Parameter,
+                    ast.GetString(parameter.NameStringIndex),
+                    parameter.NameId,
+                    position: parameter.Position
+                );
+                if (parameter.InitializerNode >= 0)
+                    VisitExpression(ast, parameter.InitializerNode, scopeId);
             }
         }
 

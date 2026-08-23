@@ -1,10 +1,8 @@
 using System.Buffers;
-using Okojo.JavaScript.Compiler;
-using Okojo.JavaScript.Parsing;
 
-namespace Okojo.JavaScript.Compiler.Experimental;
+namespace Okojo.JavaScript.Parsing;
 
-internal sealed class DirectFlatParser
+internal sealed class FlatJavaScriptParser
 {
     private readonly FlatAst ast;
     private readonly JsLexer lexer;
@@ -14,7 +12,7 @@ internal sealed class DirectFlatParser
     private int loopDepth;
     private bool strictMode;
 
-    private DirectFlatParser(string source, string? sourcePath)
+    private FlatJavaScriptParser(string source, string? sourcePath)
     {
         this.source = source ?? throw new ArgumentNullException(nameof(source));
         ast = new FlatAst(source, sourcePath);
@@ -24,7 +22,7 @@ internal sealed class DirectFlatParser
 
     public static FlatAst ParseScript(string source, string? sourcePath = null)
     {
-        var parser = new DirectFlatParser(source, sourcePath);
+        var parser = new FlatJavaScriptParser(source, sourcePath);
         try
         {
             parser.ast.Root = parser.ParseProgram();
@@ -195,60 +193,75 @@ internal sealed class DirectFlatParser
     {
         var position = Expect(JsTokenKind.Function).Position;
         if (Match(JsTokenKind.Star))
-            throw Error("Generator functions are not supported by DirectFlatParser", position);
+            throw Error("Generator functions are not supported by FlatJavaScriptParser", position);
         var nameToken = ExpectIdentifier();
         var name = GetIdentifierText(nameToken);
         Expect(JsTokenKind.LeftParen);
-        var names = new List<string>();
-        var nameIds = new List<int>();
-        if (current.Kind != JsTokenKind.RightParen)
-        {
-            do
-            {
-                var parameter = ExpectIdentifier();
-                names.Add(GetIdentifierText(parameter));
-                nameIds.Add(parameter.IdentifierId);
-                if (current.Kind is JsTokenKind.Assign or JsTokenKind.Ellipsis)
-                    throw Error(
-                        "Advanced parameters are not supported by DirectFlatParser",
-                        current.Position
-                    );
-            } while (Match(JsTokenKind.Comma));
-        }
-        Expect(JsTokenKind.RightParen);
-        var strictBeforeFunction = strictMode;
-        var loopDepthBeforeFunction = loopDepth;
-        loopDepth = 0;
-        functionDepth++;
-        int body;
-        bool strictDeclared;
+        Span<FlatParameter> initialParameters = stackalloc FlatParameter[8];
+        var parameterList = new ParameterList(initialParameters);
         try
         {
-            body = ParseBlock(out strictDeclared, AstKind.Program, allowDirectives: true);
+            if (current.Kind != JsTokenKind.RightParen)
+            {
+                do
+                {
+                    var parameter = ExpectIdentifier();
+                    parameterList.Add(
+                        new FlatParameter(
+                            Arena.AddString(GetIdentifierText(parameter)),
+                            parameter.IdentifierId,
+                            -1,
+                            -1,
+                            parameter.Position,
+                            JsFormalParameterBindingKind.Plain
+                        )
+                    );
+                    if (current.Kind is JsTokenKind.Assign or JsTokenKind.Ellipsis)
+                        throw Error(
+                            "Advanced parameters are not supported by FlatJavaScriptParser",
+                            current.Position
+                        );
+                } while (Match(JsTokenKind.Comma));
+            }
+            Expect(JsTokenKind.RightParen);
+            var parameterRange = ast.AddParameters(parameterList.AsSpan());
+            var strictBeforeFunction = strictMode;
+            var loopDepthBeforeFunction = loopDepth;
+            loopDepth = 0;
+            functionDepth++;
+            int body;
+            bool strictDeclared;
+            try
+            {
+                body = ParseBlock(out strictDeclared, AstKind.Program, allowDirectives: true);
+            }
+            finally
+            {
+                functionDepth--;
+                loopDepth = loopDepthBeforeFunction;
+            }
+            var effectiveStrict = strictBeforeFunction || strictDeclared;
+            strictMode = strictBeforeFunction;
+            var functionIndex = ast.AddFunction(
+                new FlatFunctionInfo(
+                    Arena.AddString(name),
+                    nameToken.IdentifierId,
+                    parameterRange.Offset,
+                    parameterRange.Count,
+                    parameterRange.Count,
+                    -1,
+                    effectiveStrict,
+                    true,
+                    false,
+                    position
+                )
+            );
+            return Arena.Add(AstKind.FunctionDeclaration, functionIndex, body, position: position);
         }
         finally
         {
-            functionDepth--;
-            loopDepth = loopDepthBeforeFunction;
+            parameterList.Dispose();
         }
-        var effectiveStrict = strictBeforeFunction || strictDeclared;
-        strictMode = strictBeforeFunction;
-        var parameterPlan = FunctionParameterPlan.FromCompilerInputs(
-            names,
-            nameIds,
-            new JsExpression?[names.Count],
-            -1
-        );
-        var functionIndex = ast.AddFunction(
-            new FlatFunctionInfo(
-                name,
-                nameToken.IdentifierId,
-                parameterPlan,
-                effectiveStrict,
-                position
-            )
-        );
-        return Arena.Add(AstKind.FunctionDeclaration, functionIndex, body, position: position);
     }
 
     private int ParseIfStatement()
@@ -295,7 +308,7 @@ internal sealed class DirectFlatParser
                 : ParseExpression(allowIn: false);
         }
         if (current.Kind is JsTokenKind.In or JsTokenKind.Of)
-            throw Error("for-in/of is not supported by DirectFlatParser", current.Position);
+            throw Error("for-in/of is not supported by FlatJavaScriptParser", current.Position);
         Expect(JsTokenKind.Semicolon);
         var test = current.Kind == JsTokenKind.Semicolon ? -1 : ParseExpression();
         Expect(JsTokenKind.Semicolon);
@@ -316,7 +329,7 @@ internal sealed class DirectFlatParser
             !current.HasLineTerminatorBefore
             && current.Kind is JsTokenKind.Identifier or JsTokenKind.ReservedWord
         )
-            throw Error("Labeled loop control is not supported by DirectFlatParser", position);
+            throw Error("Labeled loop control is not supported by FlatJavaScriptParser", position);
         ConsumeSemicolon();
         return Arena.Add(kind, position: position);
     }
@@ -394,7 +407,10 @@ internal sealed class DirectFlatParser
         if (!TryGetAssignmentOperator(current.Kind, out var op))
             return left;
         if (Arena[left].Kind != AstKind.Identifier)
-            throw Error("DirectFlatParser supports only identifier assignment targets", position);
+            throw Error(
+                "FlatJavaScriptParser supports only identifier assignment targets",
+                position
+            );
         Next();
         return Arena.Add(
             AstKind.AssignmentExpression,
@@ -455,10 +471,7 @@ internal sealed class DirectFlatParser
 
         if (current.Kind is JsTokenKind.PlusPlus or JsTokenKind.MinusMinus)
         {
-            var op =
-                current.Kind == JsTokenKind.PlusPlus
-                    ? JsUpdateOperator.Increment
-                    : JsUpdateOperator.Decrement;
+            JsOperatorTable.TryGetUpdate(current.Kind, out var op);
             Next();
             var argument = ParseUnary();
             EnsureIdentifierUpdateTarget(argument, position);
@@ -471,17 +484,14 @@ internal sealed class DirectFlatParser
             && current.Kind is JsTokenKind.PlusPlus or JsTokenKind.MinusMinus
         )
         {
-            var op =
-                current.Kind == JsTokenKind.PlusPlus
-                    ? JsUpdateOperator.Increment
-                    : JsUpdateOperator.Decrement;
+            JsOperatorTable.TryGetUpdate(current.Kind, out var op);
             Next();
             EnsureIdentifierUpdateTarget(expression, position);
             expression = Arena.Add(AstKind.UpdateExpression, expression, (int)op, 0, position);
         }
         if (current.Kind is JsTokenKind.LeftParen or JsTokenKind.Dot or JsTokenKind.LeftBracket)
             throw Error(
-                "Call and member expressions are not supported by DirectFlatParser",
+                "Call and member expressions are not supported by FlatJavaScriptParser",
                 current.Position
             );
         return expression;
@@ -532,7 +542,7 @@ internal sealed class DirectFlatParser
                 return expression;
             default:
                 throw Error(
-                    $"Expression token '{token.Kind}' is not supported by DirectFlatParser",
+                    $"Expression token '{token.Kind}' is not supported by FlatJavaScriptParser",
                     token.Position
                 );
         }
@@ -555,7 +565,7 @@ internal sealed class DirectFlatParser
     private void EnsureIdentifierUpdateTarget(int node, int position)
     {
         if (Arena[node].Kind != AstKind.Identifier)
-            throw Error("DirectFlatParser supports only identifier update targets", position);
+            throw Error("FlatJavaScriptParser supports only identifier update targets", position);
     }
 
     private string GetIdentifierText(in JsToken token)
@@ -610,7 +620,10 @@ internal sealed class DirectFlatParser
 
     private JsParseException UnsupportedStatement(JsTokenKind kind)
     {
-        return Error($"Statement '{kind}' is not supported by DirectFlatParser", current.Position);
+        return Error(
+            $"Statement '{kind}' is not supported by FlatJavaScriptParser",
+            current.Position
+        );
     }
 
     private JsParseException Error(string message, int position)
@@ -620,66 +633,12 @@ internal sealed class DirectFlatParser
 
     private static bool TryGetAssignmentOperator(JsTokenKind kind, out JsAssignmentOperator op)
     {
-        op = kind switch
-        {
-            JsTokenKind.Assign => JsAssignmentOperator.Assign,
-            JsTokenKind.PlusAssign => JsAssignmentOperator.AddAssign,
-            JsTokenKind.MinusAssign => JsAssignmentOperator.SubtractAssign,
-            JsTokenKind.StarAssign => JsAssignmentOperator.MultiplyAssign,
-            JsTokenKind.PowAssign => JsAssignmentOperator.ExponentiateAssign,
-            JsTokenKind.SlashAssign => JsAssignmentOperator.DivideAssign,
-            JsTokenKind.PercentAssign => JsAssignmentOperator.ModuloAssign,
-            JsTokenKind.ShlAssign => JsAssignmentOperator.ShiftLeftAssign,
-            JsTokenKind.SarAssign => JsAssignmentOperator.ShiftRightAssign,
-            JsTokenKind.ShrAssign => JsAssignmentOperator.ShiftRightLogicalAssign,
-            JsTokenKind.AmpersandAssign => JsAssignmentOperator.BitwiseAndAssign,
-            JsTokenKind.PipeAssign => JsAssignmentOperator.BitwiseOrAssign,
-            JsTokenKind.CaretAssign => JsAssignmentOperator.BitwiseXorAssign,
-            JsTokenKind.AndAndAssign => JsAssignmentOperator.LogicalAndAssign,
-            JsTokenKind.OrOrAssign => JsAssignmentOperator.LogicalOrAssign,
-            JsTokenKind.NullishCoalescingAssign => JsAssignmentOperator.NullishCoalescingAssign,
-            _ => default,
-        };
-        return kind
-            is JsTokenKind.Assign
-                or JsTokenKind.PlusAssign
-                or JsTokenKind.MinusAssign
-                or JsTokenKind.StarAssign
-                or JsTokenKind.PowAssign
-                or JsTokenKind.SlashAssign
-                or JsTokenKind.PercentAssign
-                or JsTokenKind.ShlAssign
-                or JsTokenKind.SarAssign
-                or JsTokenKind.ShrAssign
-                or JsTokenKind.AmpersandAssign
-                or JsTokenKind.PipeAssign
-                or JsTokenKind.CaretAssign
-                or JsTokenKind.AndAndAssign
-                or JsTokenKind.OrOrAssign
-                or JsTokenKind.NullishCoalescingAssign;
+        return JsOperatorTable.TryGetAssignment(kind, out op);
     }
 
     private static bool TryGetUnaryOperator(JsTokenKind kind, out JsUnaryOperator op)
     {
-        op = kind switch
-        {
-            JsTokenKind.Plus => JsUnaryOperator.Plus,
-            JsTokenKind.Minus => JsUnaryOperator.Minus,
-            JsTokenKind.Bang => JsUnaryOperator.LogicalNot,
-            JsTokenKind.Tilde => JsUnaryOperator.BitwiseNot,
-            JsTokenKind.Typeof => JsUnaryOperator.Typeof,
-            JsTokenKind.Void => JsUnaryOperator.Void,
-            JsTokenKind.Delete => JsUnaryOperator.Delete,
-            _ => default,
-        };
-        return kind
-            is JsTokenKind.Plus
-                or JsTokenKind.Minus
-                or JsTokenKind.Bang
-                or JsTokenKind.Tilde
-                or JsTokenKind.Typeof
-                or JsTokenKind.Void
-                or JsTokenKind.Delete;
+        return JsOperatorTable.TryGetUnary(kind, out op);
     }
 
     private static bool TryGetBinaryOperator(
@@ -690,36 +649,26 @@ internal sealed class DirectFlatParser
         out bool rightAssociative
     )
     {
-        (op, precedence, rightAssociative) = kind switch
+        if (kind == JsTokenKind.NullishCoalescing)
         {
-            JsTokenKind.OrOr => (JsBinaryOperator.LogicalOr, 1, false),
-            JsTokenKind.NullishCoalescing => (JsBinaryOperator.NullishCoalescing, 1, false),
-            JsTokenKind.AndAnd => (JsBinaryOperator.LogicalAnd, 2, false),
-            JsTokenKind.Pipe => (JsBinaryOperator.BitwiseOr, 3, false),
-            JsTokenKind.Caret => (JsBinaryOperator.BitwiseXor, 4, false),
-            JsTokenKind.Ampersand => (JsBinaryOperator.BitwiseAnd, 5, false),
-            JsTokenKind.Eq => (JsBinaryOperator.Equal, 6, false),
-            JsTokenKind.Neq => (JsBinaryOperator.NotEqual, 6, false),
-            JsTokenKind.StrictEq => (JsBinaryOperator.StrictEqual, 6, false),
-            JsTokenKind.StrictNeq => (JsBinaryOperator.StrictNotEqual, 6, false),
-            JsTokenKind.Lt => (JsBinaryOperator.LessThan, 7, false),
-            JsTokenKind.Lte => (JsBinaryOperator.LessThanOrEqual, 7, false),
-            JsTokenKind.Gt => (JsBinaryOperator.GreaterThan, 7, false),
-            JsTokenKind.Gte => (JsBinaryOperator.GreaterThanOrEqual, 7, false),
-            JsTokenKind.In when allowIn => (JsBinaryOperator.In, 7, false),
-            JsTokenKind.Instanceof => (JsBinaryOperator.Instanceof, 7, false),
-            JsTokenKind.Shl => (JsBinaryOperator.ShiftLeft, 8, false),
-            JsTokenKind.Sar => (JsBinaryOperator.ShiftRight, 8, false),
-            JsTokenKind.Shr => (JsBinaryOperator.ShiftRightLogical, 8, false),
-            JsTokenKind.Plus => (JsBinaryOperator.Add, 9, false),
-            JsTokenKind.Minus => (JsBinaryOperator.Subtract, 9, false),
-            JsTokenKind.Star => (JsBinaryOperator.Multiply, 10, false),
-            JsTokenKind.Slash => (JsBinaryOperator.Divide, 10, false),
-            JsTokenKind.Percent => (JsBinaryOperator.Modulo, 10, false),
-            JsTokenKind.Pow => (JsBinaryOperator.Exponentiate, 11, true),
-            _ => (default, 0, false),
-        };
-        return precedence != 0;
+            op = JsBinaryOperator.NullishCoalescing;
+            precedence = 1;
+            rightAssociative = false;
+            return true;
+        }
+
+        if (!JsOperatorTable.TryGetBinary(kind, allowIn, out var info))
+        {
+            op = default;
+            precedence = 0;
+            rightAssociative = false;
+            return false;
+        }
+
+        op = info.Operator;
+        precedence = info.Precedence;
+        rightAssociative = info.IsRightAssociative;
+        return true;
     }
 
     private ref struct NodeList
@@ -758,6 +707,47 @@ internal sealed class DirectFlatParser
             buffer.CopyTo(next);
             if (rented is not null)
                 ArrayPool<int>.Shared.Return(rented);
+            rented = next;
+            buffer = next;
+        }
+    }
+
+    private ref struct ParameterList
+    {
+        private Span<FlatParameter> buffer;
+        private FlatParameter[]? rented;
+
+        public ParameterList(Span<FlatParameter> initialBuffer)
+        {
+            buffer = initialBuffer;
+        }
+
+        public int Count { get; private set; }
+
+        public void Add(FlatParameter parameter)
+        {
+            if (Count == buffer.Length)
+                Grow();
+            buffer[Count++] = parameter;
+        }
+
+        public ReadOnlySpan<FlatParameter> AsSpan() => buffer[..Count];
+
+        public void Dispose()
+        {
+            if (rented is not null)
+                ArrayPool<FlatParameter>.Shared.Return(rented);
+            rented = null;
+            buffer = [];
+            Count = 0;
+        }
+
+        private void Grow()
+        {
+            var next = ArrayPool<FlatParameter>.Shared.Rent(Math.Max(8, buffer.Length * 2));
+            buffer.CopyTo(next);
+            if (rented is not null)
+                ArrayPool<FlatParameter>.Shared.Return(rented);
             rented = next;
             buffer = next;
         }

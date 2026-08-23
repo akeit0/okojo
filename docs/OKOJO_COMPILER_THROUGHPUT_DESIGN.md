@@ -235,6 +235,11 @@ existing lexer and emitting `FlatAst` nodes without constructing class AST
 statements or expressions. The initial slice covers the syntax already executable
 by the flat planned compiler and rejects unsupported syntax without fallback.
 
+The parsing assembly now owns the flat arena and pooled function/parameter tables.
+The compiler reads dense spans and no longer embeds `FunctionParameterPlan` objects
+in parse output. Production and flat parsing also share operator token mapping;
+nullish-coalescing mixing remains a grammar-level special case.
+
 Measured allocated bytes for 80 declaration/update pairs after warm-up:
 
 | path | allocated bytes |

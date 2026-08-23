@@ -244,19 +244,12 @@ internal abstract partial class JsPlannedCompilerBase
     private void EmitFunctionDeclaration(FlatAst ast, int functionIndex, int bodyRoot)
     {
         var function = ast.GetFunction(functionIndex);
-        if (!TryResolveBinding(function.Name, out var binding))
-            throw new InvalidOperationException(
-                $"No planned binding found for function '{function.Name}'."
-            );
+        var name = ast.GetString(function.NameStringIndex);
+        if (!TryResolveBinding(name, out var binding))
+            throw new InvalidOperationException($"No planned binding found for function '{name}'.");
 
         var functionCompiler = new JsPlannedFunctionCompiler(Vm, BuildChildCaptureBindings());
-        var functionObject = functionCompiler.CompileFunction(
-            function.Name,
-            function.ParameterPlan,
-            function.StrictDeclared,
-            ast,
-            bodyRoot
-        );
+        var functionObject = functionCompiler.CompileFunction(ast, function, bodyRoot);
         var idx = builder.AddObjectConstant(functionObject);
         EmitCreateClosureByIndex(idx);
         EmitStore(binding);

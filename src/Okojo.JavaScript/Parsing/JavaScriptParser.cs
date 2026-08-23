@@ -2532,36 +2532,19 @@ internal sealed partial class JsParser
         out BinaryParseOperatorInfo operatorInfo
     )
     {
-        operatorInfo = token.Kind switch
+        if (!JsOperatorTable.TryGetBinary(token.Kind, allowIn, out var shared))
         {
-            JsTokenKind.OrOr => new(JsBinaryOperator.LogicalOr, 1, true),
-            JsTokenKind.AndAnd => new(JsBinaryOperator.LogicalAnd, 2, true),
-            JsTokenKind.Pipe => new(JsBinaryOperator.BitwiseOr, 3),
-            JsTokenKind.Caret => new(JsBinaryOperator.BitwiseXor, 4),
-            JsTokenKind.Ampersand => new(JsBinaryOperator.BitwiseAnd, 5),
-            JsTokenKind.Eq => new(JsBinaryOperator.Equal, 6),
-            JsTokenKind.Neq => new(JsBinaryOperator.NotEqual, 6),
-            JsTokenKind.StrictEq => new(JsBinaryOperator.StrictEqual, 6),
-            JsTokenKind.StrictNeq => new(JsBinaryOperator.StrictNotEqual, 6),
-            JsTokenKind.Lt => new(JsBinaryOperator.LessThan, 7),
-            JsTokenKind.Lte => new(JsBinaryOperator.LessThanOrEqual, 7),
-            JsTokenKind.Gt => new(JsBinaryOperator.GreaterThan, 7),
-            JsTokenKind.Gte => new(JsBinaryOperator.GreaterThanOrEqual, 7),
-            JsTokenKind.In when allowIn => new(JsBinaryOperator.In, 7),
-            JsTokenKind.Instanceof => new(JsBinaryOperator.Instanceof, 7),
-            JsTokenKind.Shl => new(JsBinaryOperator.ShiftLeft, 8),
-            JsTokenKind.Sar => new(JsBinaryOperator.ShiftRight, 8),
-            JsTokenKind.Shr => new(JsBinaryOperator.ShiftRightLogical, 8),
-            JsTokenKind.Plus => new(JsBinaryOperator.Add, 9),
-            JsTokenKind.Minus => new(JsBinaryOperator.Subtract, 9),
-            JsTokenKind.Star => new(JsBinaryOperator.Multiply, 10),
-            JsTokenKind.Slash => new(JsBinaryOperator.Divide, 10),
-            JsTokenKind.Percent => new(JsBinaryOperator.Modulo, 10),
-            JsTokenKind.Pow => new(JsBinaryOperator.Exponentiate, 11, false, true),
-            _ => default,
-        };
+            operatorInfo = default;
+            return false;
+        }
 
-        return operatorInfo.Precedence != 0;
+        operatorInfo = new(
+            shared.Operator,
+            shared.Precedence,
+            shared.IsLogicalAndOr,
+            shared.IsRightAssociative
+        );
+        return true;
     }
 
     private static bool ShouldReduceBinaryOperator(
@@ -2759,57 +2742,27 @@ internal sealed partial class JsParser
 
     private static JsUnaryOperator GetUnaryOperator(in JsToken token)
     {
-        return token.Kind switch
-        {
-            JsTokenKind.Plus => JsUnaryOperator.Plus,
-            JsTokenKind.Minus => JsUnaryOperator.Minus,
-            JsTokenKind.Bang => JsUnaryOperator.LogicalNot,
-            JsTokenKind.Tilde => JsUnaryOperator.BitwiseNot,
-            JsTokenKind.Typeof => JsUnaryOperator.Typeof,
-            JsTokenKind.Void => JsUnaryOperator.Void,
-            JsTokenKind.Delete => JsUnaryOperator.Delete,
-            _ => throw new InvalidOperationException(
-                $"Unexpected unary operator token {token.Kind}."
-            ),
-        };
+        return JsOperatorTable.TryGetUnary(token.Kind, out var result)
+            ? result
+            : throw new InvalidOperationException($"Unexpected unary operator token {token.Kind}.");
     }
 
     private static JsUpdateOperator GetUpdateOperator(in JsToken token)
     {
-        return token.Kind switch
-        {
-            JsTokenKind.PlusPlus => JsUpdateOperator.Increment,
-            JsTokenKind.MinusMinus => JsUpdateOperator.Decrement,
-            _ => throw new InvalidOperationException(
+        return JsOperatorTable.TryGetUpdate(token.Kind, out var result)
+            ? result
+            : throw new InvalidOperationException(
                 $"Unexpected update operator token {token.Kind}."
-            ),
-        };
+            );
     }
 
     private static JsAssignmentOperator GetAssignmentOperator(in JsToken token)
     {
-        return token.Kind switch
-        {
-            JsTokenKind.Assign => JsAssignmentOperator.Assign,
-            JsTokenKind.PlusAssign => JsAssignmentOperator.AddAssign,
-            JsTokenKind.MinusAssign => JsAssignmentOperator.SubtractAssign,
-            JsTokenKind.StarAssign => JsAssignmentOperator.MultiplyAssign,
-            JsTokenKind.PowAssign => JsAssignmentOperator.ExponentiateAssign,
-            JsTokenKind.SlashAssign => JsAssignmentOperator.DivideAssign,
-            JsTokenKind.PercentAssign => JsAssignmentOperator.ModuloAssign,
-            JsTokenKind.ShlAssign => JsAssignmentOperator.ShiftLeftAssign,
-            JsTokenKind.SarAssign => JsAssignmentOperator.ShiftRightAssign,
-            JsTokenKind.ShrAssign => JsAssignmentOperator.ShiftRightLogicalAssign,
-            JsTokenKind.AmpersandAssign => JsAssignmentOperator.BitwiseAndAssign,
-            JsTokenKind.PipeAssign => JsAssignmentOperator.BitwiseOrAssign,
-            JsTokenKind.CaretAssign => JsAssignmentOperator.BitwiseXorAssign,
-            JsTokenKind.AndAndAssign => JsAssignmentOperator.LogicalAndAssign,
-            JsTokenKind.OrOrAssign => JsAssignmentOperator.LogicalOrAssign,
-            JsTokenKind.NullishCoalescingAssign => JsAssignmentOperator.NullishCoalescingAssign,
-            _ => throw new InvalidOperationException(
+        return JsOperatorTable.TryGetAssignment(token.Kind, out var result)
+            ? result
+            : throw new InvalidOperationException(
                 $"Unexpected assignment operator token {token.Kind}."
-            ),
-        };
+            );
     }
 
     private JsExpression ParseNewExpression()

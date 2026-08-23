@@ -6,6 +6,11 @@ Add a direct lexer-to-`FlatAst` path for the syntax already executable by the
 experimental planned compiler. Keep the existing class-AST parser unchanged for
 production consumers during this iteration.
 
+`FlatAst`, `FlatFunctionInfo`, `FlatParameter`, and `FlatJavaScriptParser` live in
+the parsing layer. The compiler consumes node IDs and parameter spans; a direct
+parse result does not retain compiler planning objects. Operator token mapping is
+shared with the production parser so precedence changes have one source of truth.
+
 The direct path supports simple declarations/functions, blocks, branches,
 ordinary loops, loop control, returns, and the current flat expression families.
 Unsupported syntax fails explicitly; it does not silently restart through the
@@ -46,6 +51,7 @@ available until flat syntax coverage is sufficient for migration.
 - reuse `JsLexer` and its identifier/string tables
 - emit post-order 16-byte nodes directly; never construct `JsExpression` or
   `JsStatement` objects on the direct path
+- store nested functions and formal parameters in pooled dense side tables
 - use pooled temporary child buffers and dispose the full parse result at once
 - compare allocated bytes for direct parse versus class parse plus flat lowering
 
@@ -60,5 +66,5 @@ Initial Release measurement for 80 declaration/update pairs after warm-up:
 - calls and member access
 - arrays, objects, templates, classes, modules, destructuring, and advanced
   parameter forms
-- unifying the complete production grammar on flat node handles
+- converging the remaining production grammar on flat node handles
 - direct production `JsCompiler` migration
