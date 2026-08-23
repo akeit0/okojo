@@ -51,7 +51,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 |---|---|---|
 | Parse goal | scripts | modules, standalone function goal |
 | Declarations | `var`/`let`/`const`, ordinary function declarations, function/block declaration prologues, function-scoped `var`, persistent script globals/lexicals, initial global conflict validation | classes, imports/exports, complete declaration early errors, Annex B |
-| Blocks/control | block, `if`, `while`, `do`, ordinary `for`, `for-in`, synchronous `for-of`, `switch`, chained labels, labeled/unlabeled `break`/`continue`, `return`, `throw`, `try`/`catch`/`finally`, `debugger`, empty/expression statement | `for-await-of` |
+| Blocks/control | block, `if`, `while`, `do`, ordinary `for`, `for-in`, synchronous `for-of`, `for-await-of`, `switch`, chained labels, labeled/unlabeled `break`/`continue`, `return`, `throw`, `try`/`catch`/`finally`, `debugger`, empty/expression statement | remaining declaration/control early errors |
 | Primitive expressions | number, BigInt, string, boolean, null, regexp, tagged/untagged template, identifier, `this`, `new.target`, grouping | `super`, `import.meta` |
 | Operators | precedence table, assignment, arithmetic/logical/bitwise/comparison, conditionals, sequence, updates, optional chains, property/identifier/value/optional-chain `delete` | remaining edge-specific early errors |
 | References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed properties | imports, private and super references |
@@ -393,7 +393,7 @@ its reference case is
 `async(...)` input is parsed once as a cover head: await diagnostics are deferred
 until `=>` confirms an async arrow, while an ordinary call discards them. This
 handles regexp, division, nested function, and parenthesized defaults without a
-second lexer or AST pass. `for-await-of` remains a separate loop slice.
+second lexer or AST pass.
 
 V8 uses the generator state switch and suspend/resume machinery underneath async
 functions, wrapping body completion in promise resolve/reject handling. Okojo
@@ -428,9 +428,32 @@ to `Symbol.iterator` through the existing sync-to-async wrapper, awaits each
 `next()` result, validates it as an object, and yields its `value`. The runtime's
 active delegate still forwards external next/return/throw requests. This matches
 V8's observable ordering while retaining Okojo's smaller VM/runtime split.
-`for-await-of` remains the next resumable-control coverage gap; it should reuse
-this iterator-selection and await machinery rather than introduce another async
-iteration subsystem.
+The landed `for-await-of` slice reuses this iterator-selection and await machinery
+rather than introducing another async-iteration subsystem.
+
+### `for-await-of` slice
+
+This iteration accepts `for await (... of ...)` in async functions and async
+generators. The reference case is
+`artifacts/okojobytecodetool/cases/flat_ast_for_await_of.js`; focused tests cover
+native async iterators, promised values through the wrapped-sync fallback,
+declaration and member targets, per-iteration captures, labeled continue, break,
+return, throw, async-generator external return, and class-AST lowering.
+
+V8 obtains `Symbol.asyncIterator` first, wraps `Symbol.iterator` when needed,
+awaits every `next()` result, validates the iterator result object, and models
+abrupt close as an implicit `finally` that awaits `return()`. Okojo copies that
+ordering with the same helper used by async `yield*`. One extra flag on the
+existing flat for-in/of node distinguishes async-of; the binding collector,
+iteration assignment path, and per-iteration context rotation remain shared.
+
+The emitter routes break/return/outer-continue and caught throws to one compact
+completion dispatcher. That dispatcher selects normal or best-effort async close,
+uses one shared await suspend target, validates normal close results, then replays
+the saved command through the existing outer control stack. This matches V8's
+single implicit-finally shape and avoids multiplying suspend tables and close
+bytecode at every abrupt statement. Rejected best-effort close preserves the
+original throw through the existing runtime suppression promise.
 
 ### Destructuring
 
@@ -840,7 +863,7 @@ Try/finally slice note:
   landed
 - async generator declarations/expressions/object methods, awaited returns, and
   sync/async `yield*` delegation are landed
-- `for-await-of`
+- `for-await-of` with awaited step/close and abrupt-command replay is landed
 - narrow the landed conservative register snapshot only with measured liveness data
 
 The parser records generator/async kind bits plus fixed yield/await nodes; one

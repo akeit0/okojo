@@ -2397,12 +2397,227 @@ public class DirectFlatParserTests
         Assert.That(realm.Evaluate("__flatAsyncGeneratorBridge").Int32Value, Is.EqualTo(7));
     }
 
+    [Test]
+    public void CompileString_ExecutesForAwaitOfFromSyncAndAsyncIterables()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            globalThis.__flatForAwaitSync = 0;
+            globalThis.__flatForAwaitAsync = 0;
+            async function collectSync() {
+                let total = 0;
+                for await (const value of [Promise.resolve(1), 2]) total += value;
+                return total;
+            }
+            let asyncSource = {
+                index: 0,
+                [Symbol.asyncIterator]() { return this; },
+                next() {
+                    this.index += 1;
+                    return Promise.resolve(this.index < 3
+                        ? { value: this.index + 2, done: false }
+                        : { value: undefined, done: true });
+                }
+            };
+            async function collectAsync() {
+                let total = 0;
+                for await (const value of asyncSource) total += value;
+                return total;
+            }
+            collectSync().then(function (value) { __flatForAwaitSync = value; });
+            collectAsync().then(function (value) { __flatForAwaitAsync = value; });
+            """
+        );
+
+        realm.Execute(script);
+        realm.Agent.RunPromiseJobs();
+
+        Assert.That(realm.Evaluate("__flatForAwaitSync").Int32Value, Is.EqualTo(3));
+        Assert.That(realm.Evaluate("__flatForAwaitAsync").Int32Value, Is.EqualTo(7));
+        var collectSync = script
+            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .Single(static function => function.Name == "collectSync");
+        Assert.That(collectSync.Script.GeneratorSwitchTargets, Has.Length.EqualTo(2));
+    }
+
+    [Test]
+    public void CompileString_AwaitsForAwaitOfAbruptClose()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            globalThis.__flatForAwaitBreak = '';
+            globalThis.__flatForAwaitThrow = '';
+            globalThis.__flatForAwaitReturn = '';
+            globalThis.__flatForAwaitGenerator = '';
+            globalThis.__flatForAwaitBadClose = false;
+            let breakSource = {
+                index: 0,
+                [Symbol.asyncIterator]() { return this; },
+                next() { return Promise.resolve({ value: ++this.index, done: false }); },
+                return() {
+                    __flatForAwaitBreak += 'c';
+                    return Promise.resolve({ value: undefined, done: true });
+                }
+            };
+            async function stop() {
+                for await (const value of breakSource) {
+                    __flatForAwaitBreak += value;
+                    if (value == 1) continue;
+                    break;
+                }
+                __flatForAwaitBreak += 'd';
+            }
+
+            let throwSource = {
+                [Symbol.asyncIterator]() { return this; },
+                next() { return Promise.resolve({ value: 1, done: false }); },
+                return() {
+                    __flatForAwaitThrow += 'c';
+                    return Promise.reject(99);
+                }
+            };
+            async function fail() {
+                try {
+                    for await (const value of throwSource) {
+                        __flatForAwaitThrow += value;
+                        throw 7;
+                    }
+                } catch (error) { __flatForAwaitThrow += 'e' + error; }
+            }
+
+            let returnSource = {
+                [Symbol.asyncIterator]() { return this; },
+                next() { return Promise.resolve({ value: 1, done: false }); },
+                return() {
+                    __flatForAwaitReturn += 'c';
+                    return Promise.resolve({ value: undefined, done: true });
+                }
+            };
+            async function exit() {
+                for await (const value of returnSource) {
+                    __flatForAwaitReturn += value;
+                    return 9;
+                }
+            }
+
+            let generatorSource = {
+                [Symbol.asyncIterator]() { return this; },
+                next() { return Promise.resolve({ value: 4, done: false }); },
+                return() {
+                    __flatForAwaitGenerator += 'c';
+                    return Promise.resolve({ value: undefined, done: true });
+                }
+            };
+            async function* values() {
+                for await (const value of generatorSource) yield value;
+            }
+            let iterator = values();
+            iterator.next().then(function (first) {
+                __flatForAwaitGenerator += first.value;
+                iterator.return(Promise.resolve(8)).then(function (last) {
+                    __flatForAwaitGenerator += last.value + '' + last.done;
+                });
+            });
+
+            let badCloseSource = {
+                [Symbol.asyncIterator]() { return this; },
+                next() { return Promise.resolve({ value: 1, done: false }); },
+                return() { return Promise.resolve(1); }
+            };
+            async function badClose() {
+                for await (const value of badCloseSource) break;
+            }
+
+            stop();
+            fail();
+            exit().then(function (value) { __flatForAwaitReturn += 'r' + value; });
+            badClose().catch(function (error) {
+                __flatForAwaitBadClose = error instanceof TypeError;
+            });
+            """
+        );
+
+        realm.Execute(script);
+        realm.Agent.RunPromiseJobs();
+
+        Assert.That(realm.Evaluate("__flatForAwaitBreak").AsString(), Is.EqualTo("12cd"));
+        Assert.That(realm.Evaluate("__flatForAwaitThrow").AsString(), Is.EqualTo("1ce7"));
+        Assert.That(realm.Evaluate("__flatForAwaitReturn").AsString(), Is.EqualTo("1cr9"));
+        Assert.That(realm.Evaluate("__flatForAwaitGenerator").AsString(), Is.EqualTo("4c8true"));
+        Assert.That(realm.Evaluate("__flatForAwaitBadClose").IsTrue, Is.True);
+    }
+
+    [Test]
+    public void CompileString_ExecutesForAwaitOfBindingsAndLabeledControl()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            globalThis.__flatForAwaitControl = '';
+            let source = {
+                [Symbol.asyncIterator]() {
+                    let done = false;
+                    return {
+                        next() {
+                            if (done) return Promise.resolve({ done: true });
+                            done = true;
+                            return Promise.resolve({ value: 1, done: false });
+                        },
+                        return() {
+                            __flatForAwaitControl += 'c';
+                            return Promise.resolve({ done: true });
+                        }
+                    };
+                }
+            };
+            async function run() {
+                outer: for (let index = 0; index < 2; index++) {
+                    for await (const value of source) continue outer;
+                }
+                let reads = [];
+                for await (let value of [1, 2]) reads.push(() => value);
+                let target = {};
+                let key = 0;
+                for await (target[key++] of [Promise.resolve(5)]) {}
+                __flatForAwaitControl += '|' + reads[0]() + ',' + reads[1]()
+                    + '|' + target[0] + key;
+            }
+            run();
+            """
+        );
+
+        realm.Execute(script);
+        realm.Agent.RunPromiseJobs();
+
+        Assert.That(realm.Evaluate("__flatForAwaitControl").AsString(), Is.EqualTo("cc|1,2|51"));
+    }
+
+    [Test]
+    public void CompileAst_ExecutesForAwaitOfBridge()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            JavaScriptParser.ParseScript(
+                "globalThis.__flatForAwaitBridge = 0; async function read() { for await (const value of [Promise.resolve(3), 4]) __flatForAwaitBridge += value; } read();"
+            )
+        );
+
+        realm.Execute(script);
+        realm.Agent.RunPromiseJobs();
+
+        Assert.That(realm.Evaluate("__flatForAwaitBridge").Int32Value, Is.EqualTo(7));
+    }
+
     [TestCase("async function invalid(await) {}")]
     [TestCase("async function* invalid(await) {}")]
     [TestCase("async function invalid(value = await) {}")]
     [TestCase("let invalid = async function await() {}")]
     [TestCase("async function invalid() { let await; }")]
     [TestCase("async function invalid() { try {} catch (await) {} }")]
+    [TestCase("async function invalid() { for await (const value in []) {} }")]
+    [TestCase("async function invalid() { for await (;;) {} }")]
     [TestCase("({ async get invalid() {} });")]
     [TestCase("async await => 1;")]
     [TestCase("async (await) => 1;")]

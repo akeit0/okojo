@@ -90,7 +90,8 @@ properties,
 array/object data literals, binding and assignment destructuring, advanced
 parameters, ordinary function expressions, closures, `this`, `throw`, and
 `try`/`catch`/`finally` with optional or destructured catch bindings, synchronous
-generators, ordinary async functions with `await`, and async generators.
+generators, ordinary async functions with `await`, async generators, and
+`for-await-of`.
 
 ## Reference Architecture Insights
 
@@ -254,6 +255,9 @@ The direct flat work has already established several reusable rules:
   function kind; retain `0xFF` for yield and `0xFE` for await/explicit return,
   select async iterators before wrapped sync iterators for `yield*`, and keep the
   request queue plus resolve/reject work in the runtime
+- represent `for-await-of` as the existing iteration node plus an async bit; share
+  async/sync iterator selection with `yield*`, await step and close results, and
+  route all abrupt exits through one implicit-finally completion dispatcher
 - lower `switch` as a saved tag, source-ordered strict comparisons, one shared
   case-block scope, and consecutively bound clause bodies; retain the existing
   zero-based `SwitchOnSmi` specialization until corpus data justifies its guard and
@@ -370,7 +374,6 @@ and has differential execution coverage for every new control-flow form.
 
 ### P2 - Resumable functions
 
-- `for-await-of`
 - measured live-range narrowing for the landed conservative register snapshot
 
 Foundation status: synchronous `function*` declarations/expressions/object
@@ -393,8 +396,13 @@ existing `AsyncGenerator` runtime kind, await explicit return values with the
 iterator before the existing wrapped-sync fallback for delegation. This follows
 V8's combined function-kind and suspend-table structure; Okojo intentionally
 keeps async request queues and resolve/reject intrinsics in its runtime instead of
-encoding them as extra bytecode. `for-await-of` is the remaining async-iteration
-grammar/control slice.
+encoding them as extra bytecode. `for-await-of` is also landed using the same
+async-first/wrapped-sync iterator selection as delegation. Each `next()` result
+is awaited and checked;
+abrupt exits converge on one completion dispatcher that awaits normal or
+best-effort close before replaying return, throw, break, or outer continue. This
+copies V8's implicit-finally shape while reusing Okojo's runtime close helpers and
+keeps one close suspend site regardless of the number of abrupt statements.
 
 Exit gate: planned-compiler tests cover every resume mode and Test262 can target
 the new compiler for the supported function families.

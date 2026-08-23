@@ -81,6 +81,7 @@ Both planned compilers currently support:
   `this`/`arguments`/`new.target`
 - async generator declarations/expressions/object methods with `await`, `yield`,
   awaited return values, and sync/async `yield*` delegation
+- `for-await-of` over async or wrapped sync iterators with awaited abrupt close
 - `new.target` in ordinary functions with function-scope early errors
 - unshadowed `undefined` intrinsic reads with lexical shadowing
 - unary, arithmetic, bitwise, comparison, logical, conditional, sequence, and
@@ -117,7 +118,6 @@ Still intentionally unsupported in the experimental pipeline:
 - private/super member access
 - `super` object methods
 - module binding emission
-- `for-await-of`
 - direct production replacement of `JsCompiler`
 
 Unsupported paths should fail explicitly, not silently degrade.
@@ -174,8 +174,8 @@ dotnet test tests/Okojo.Compiler.Tests/Okojo.Compiler.Tests.csproj --no-build
 
 Recommended next slices:
 
-1. `for-await-of`
-2. classes, `super`, and private names
-3. module parse/binding/link metadata
-4. complete declaration early errors and debugger/source metadata
-5. planned-compiler Test262 mode, corpus benchmarks, then explicit production cutover
+1. classes, `super`, and private names
+2. module parse/binding/link metadata
+3. complete declaration early errors and debugger/source metadata
+4. planned-compiler Test262 mode and parser differential campaigns
+5. corpus benchmarks, explicit production cutover, and bounded old-path removal

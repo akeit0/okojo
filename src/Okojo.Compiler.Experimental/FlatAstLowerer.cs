@@ -349,7 +349,9 @@ internal static class FlatAstLowerer
                 AstKind.ForInOfStatement,
                 children.Offset,
                 children.Count,
-                statement.IsOf ? 1 : 0,
+                statement.IsAwait ? 2
+                    : statement.IsOf ? 1
+                    : 0,
                 statement.Position
             );
         }

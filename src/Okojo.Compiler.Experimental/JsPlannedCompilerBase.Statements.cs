@@ -210,7 +210,12 @@ internal abstract partial class JsPlannedCompilerBase
         string[]? labels = null
     )
     {
-        if (node.Arg2 != 0)
+        if (node.Arg2 == 2)
+        {
+            EmitForAwaitOfStatement(ast, nodeIndex, node, labels);
+            return;
+        }
+        if (node.Arg2 == 1)
         {
             EmitForOfStatement(ast, nodeIndex, node, labels);
             return;
@@ -365,6 +370,178 @@ internal abstract partial class JsPlannedCompilerBase
             );
             EmitLdar(exceptionRegister);
             builder.Emit(JsOpCode.Throw);
+            builder.BindLabel(breakTarget);
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+            if (hasLexicalScope)
+                LeaveScope();
+        }
+    }
+
+    private void EmitForAwaitOfStatement(FlatAst ast, int nodeIndex, AstNode node, string[]? labels)
+    {
+        if (!isAsync)
+            throw new InvalidOperationException("for await...of requires an async function.");
+
+        var parts = ast.ChildRange(node.Arg0, node.Arg1);
+        var left = parts[0];
+        var hasLexicalScope =
+            ast[left].Kind == AstKind.VariableDeclaration
+            && (JsVariableDeclarationKind)ast[left].Arg2
+                is JsVariableDeclarationKind.Let
+                    or JsVariableDeclarationKind.Const;
+        if (hasLexicalScope)
+        {
+            var scope = FindChildScope(
+                activeScopes.Peek().ScopeId,
+                CompilerCollectedScopeKind.Block,
+                ast.GetPosition(nodeIndex)
+            );
+            EnterScope(scope.ScopeId);
+        }
+
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            EmitExpression(ast, parts[1]);
+            var sourceRegister = builder.AllocateTemporaryRegister();
+            EmitStar(sourceRegister);
+            var methodRegister = builder.AllocateTemporaryRegister();
+            var iteratorRegister = builder.AllocateTemporaryRegister();
+            EmitCreateAsyncOrSyncIterator(sourceRegister, methodRegister, iteratorRegister);
+            var resultRegister = builder.AllocateTemporaryRegister();
+            var valueRegister = builder.AllocateTemporaryRegister();
+            var nextFunctionRegister = builder.AllocateTemporaryRegister();
+            var completionKindRegister = builder.AllocateTemporaryRegister();
+            var completionValueRegister = builder.AllocateTemporaryRegister();
+            var completionCompareRegister = builder.AllocateTemporaryRegister();
+            var abruptRoutes = new List<FinallyAbruptRoute>();
+            var nextName = builder.AddAtomizedStringConstant("next");
+            var doneName = builder.AddAtomizedStringConstant("done");
+            var valueName = builder.AddAtomizedStringConstant("value");
+            var loopStart = builder.CreateLabel();
+            var continueTarget = builder.CreateLabel();
+            var iterationDone = builder.CreateLabel();
+            var breakTarget = builder.CreateLabel();
+            var catchTarget = builder.CreateLabel();
+            var closeTarget = builder.CreateLabel();
+            var resultIsObject = builder.CreateLabel();
+            var needsPerIterationContext =
+                hasLexicalScope && ShouldReplaceLoopHeadContextPerIteration(activeScopes.Peek());
+
+            PushForAwaitOfControlScope(
+                breakTarget,
+                continueTarget,
+                iteratorRegister,
+                labels,
+                closeTarget,
+                completionKindRegister,
+                completionValueRegister,
+                abruptRoutes
+            );
+            PushTryControlScope();
+            try
+            {
+                builder.BindLabel(loopStart);
+                builder.EmitJump(JsOpCode.PushTry, catchTarget);
+                builder.EmitLdaNamedProperty(
+                    iteratorRegister,
+                    nextName,
+                    builder.AllocateFeedbackSlot()
+                );
+                EmitStar(nextFunctionRegister);
+                builder.EmitCallProperty(nextFunctionRegister, iteratorRegister, 0, 0);
+                EmitAwaitSuspension();
+                EmitStar(resultRegister);
+                EmitLdar(resultRegister);
+                builder.EmitJump(JsOpCode.JumpIfJsReceiver, resultIsObject);
+                builder.EmitCallRuntime((int)RuntimeId.ThrowIteratorResultNotObject, 0, 0);
+                builder.BindLabel(resultIsObject);
+                builder.EmitLdaNamedProperty(
+                    resultRegister,
+                    doneName,
+                    builder.AllocateFeedbackSlot()
+                );
+                EmitJumpIfToBooleanTrue(iterationDone);
+                builder.EmitLdaNamedProperty(
+                    resultRegister,
+                    valueName,
+                    builder.AllocateFeedbackSlot()
+                );
+                EmitStar(valueRegister);
+                EmitLdar(valueRegister);
+                EmitForIterationAssignment(ast, left);
+                EmitStatement(ast, parts[2]);
+                builder.Emit(JsOpCode.PopTry);
+
+                builder.BindLabel(continueTarget);
+                if (needsPerIterationContext)
+                    EmitReplaceCurrentContext(activeScopes.Peek().ContextSlotCount);
+                EmitJump(loopStart);
+
+                builder.BindLabel(iterationDone);
+                builder.Emit(JsOpCode.PopTry);
+                EmitJump(breakTarget);
+            }
+            finally
+            {
+                controlScopes.Pop();
+                controlScopes.Pop();
+            }
+
+            builder.BindLabel(catchTarget);
+            EmitStar(completionValueRegister);
+            EmitSmi(2);
+            EmitStar(completionKindRegister);
+            EmitJump(closeTarget);
+
+            builder.BindLabel(closeTarget);
+            EmitForAwaitIteratorClose(
+                iteratorRegister,
+                completionKindRegister,
+                completionCompareRegister
+            );
+            EmitFinallyCompletionJump(
+                completionKindRegister,
+                completionCompareRegister,
+                1,
+                out var notReturn
+            );
+            EmitLdar(completionValueRegister);
+            EmitAbruptCommand(AbruptCommand.Return);
+            builder.BindLabel(notReturn);
+            EmitFinallyCompletionJump(
+                completionKindRegister,
+                completionCompareRegister,
+                2,
+                out var notThrow
+            );
+            EmitLdar(completionValueRegister);
+            builder.Emit(JsOpCode.Throw);
+            builder.BindLabel(notThrow);
+            for (var i = 0; i < abruptRoutes.Count; i++)
+            {
+                var route = abruptRoutes[i];
+                EmitFinallyCompletionJump(
+                    completionKindRegister,
+                    completionCompareRegister,
+                    route.CompletionKind,
+                    out var nextRoute
+                );
+                if (
+                    route.Command == AbruptCommand.Break
+                    && (
+                        route.Label is null
+                        || labels is not null && Array.IndexOf(labels, route.Label) >= 0
+                    )
+                )
+                    EmitJump(breakTarget);
+                else
+                    EmitAbruptCommand(route.Command, route.Label);
+                builder.BindLabel(nextRoute);
+            }
             builder.BindLabel(breakTarget);
         }
         finally
@@ -578,6 +755,34 @@ internal abstract partial class JsPlannedCompilerBase
         );
     }
 
+    private void PushForAwaitOfControlScope(
+        BytecodeBuilder.Label breakTarget,
+        BytecodeBuilder.Label continueTarget,
+        int iteratorRegister,
+        string[]? labels,
+        BytecodeBuilder.Label closeTarget,
+        int completionKindRegister,
+        int completionValueRegister,
+        List<FinallyAbruptRoute> abruptRoutes
+    )
+    {
+        controlScopes.Push(
+            new ControlScope(
+                ControlScopeKind.ForOf,
+                breakTarget,
+                continueTarget,
+                closeTarget,
+                CurrentContextDepth,
+                completionKindRegister,
+                completionValueRegister,
+                iteratorRegister,
+                IsAsyncIterator: true,
+                Labels: labels,
+                FinallyRoutes: abruptRoutes
+            )
+        );
+    }
+
     private void PushSwitchControlScope(BytecodeBuilder.Label breakTarget)
     {
         controlScopes.Push(
@@ -610,6 +815,19 @@ internal abstract partial class JsPlannedCompilerBase
                 if (command == AbruptCommand.Continue && isTarget)
                 {
                     EmitJump(scope.Continue);
+                    return;
+                }
+                if (scope.IsAsyncIterator)
+                {
+                    if (command == AbruptCommand.Return)
+                        EmitStar(scope.CompletionValueRegister);
+                    var completionKind =
+                        command == AbruptCommand.Return
+                            ? 1
+                            : GetOrAddFinallyAbruptRoute(scope.FinallyRoutes!, command, label);
+                    EmitSmi(completionKind);
+                    EmitStar(scope.CompletionKindRegister);
+                    EmitJump(scope.Finally);
                     return;
                 }
                 var returnValueRegister =
@@ -704,6 +922,59 @@ internal abstract partial class JsPlannedCompilerBase
         var completionKind = routes.Count + 3;
         routes.Add(new(completionKind, command, label));
         return completionKind;
+    }
+
+    private void EmitForAwaitIteratorClose(
+        int iteratorRegister,
+        int completionKindRegister,
+        int compareRegister
+    )
+    {
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            var bestEffort = builder.AllocateTemporaryRegister();
+            var resultRegister = builder.AllocateTemporaryRegister();
+            var normalClose = builder.CreateLabel();
+            var resultReady = builder.CreateLabel();
+            EmitSmi(2);
+            EmitStar(compareRegister);
+            EmitLdar(completionKindRegister);
+            EmitRegisterWithSlotOp(JsOpCode.TestEqualStrict, compareRegister);
+            EmitJumpIfToBooleanFalse(normalClose);
+            builder.EmitLda(JsOpCode.LdaTrue);
+            EmitStar(bestEffort);
+            builder.EmitCallRuntime(
+                (int)RuntimeId.AsyncIteratorCloseBestEffort,
+                iteratorRegister,
+                1
+            );
+            EmitJump(resultReady);
+            builder.BindLabel(normalClose);
+            builder.EmitLda(JsOpCode.LdaFalse);
+            EmitStar(bestEffort);
+            builder.EmitCallRuntime((int)RuntimeId.AsyncIteratorClose, iteratorRegister, 1);
+            builder.BindLabel(resultReady);
+            EmitStar(resultRegister);
+            var done = builder.CreateLabel();
+            builder.EmitLda(JsOpCode.LdaTheHole);
+            EmitRegisterWithSlotOp(JsOpCode.TestEqualStrict, resultRegister);
+            EmitJumpIfToBooleanTrue(done);
+            EmitLdar(resultRegister);
+            EmitAwaitSuspension(returnAsNext: true);
+            EmitLdar(bestEffort);
+            EmitJumpIfToBooleanTrue(done);
+            EmitLdar(generatorResumeValueRegister);
+            var resultIsObject = builder.CreateLabel();
+            builder.EmitJump(JsOpCode.JumpIfJsReceiver, resultIsObject);
+            builder.EmitCallRuntime((int)RuntimeId.ThrowIteratorResultNotObject, 0, 0);
+            builder.BindLabel(resultIsObject);
+            builder.BindLabel(done);
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+        }
     }
 
     private void EmitSwitchStatement(FlatAst ast, int nodeIndex, AstNode statement)

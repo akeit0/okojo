@@ -62,9 +62,9 @@ internal abstract partial class JsPlannedCompilerBase
         EmitAwaitSuspension();
     }
 
-    private void EmitAwaitSuspension()
+    private void EmitAwaitSuspension(bool returnAsNext = false)
     {
-        EmitGeneratorSuspendResume(0xFE, guaranteedNextOnly: false);
+        EmitGeneratorSuspendResume(0xFE, guaranteedNextOnly: false, returnAsNext: returnAsNext);
     }
 
     private void EmitYieldDelegateExpression(FlatAst ast, int argument)
@@ -78,7 +78,7 @@ internal abstract partial class JsPlannedCompilerBase
             var methodRegister = builder.AllocateTemporaryRegister();
             var iteratorRegister = builder.AllocateTemporaryRegister();
             if (isAsync)
-                EmitCreateAsyncDelegateIterator(iterableRegister, methodRegister, iteratorRegister);
+                EmitCreateAsyncOrSyncIterator(iterableRegister, methodRegister, iteratorRegister);
             else
             {
                 builder.EmitCallRuntime((int)RuntimeId.GetIteratorMethod, iterableRegister, 1);
@@ -94,7 +94,7 @@ internal abstract partial class JsPlannedCompilerBase
         }
     }
 
-    private void EmitCreateAsyncDelegateIterator(
+    private void EmitCreateAsyncOrSyncIterator(
         int iterableRegister,
         int methodRegister,
         int iteratorRegister
@@ -185,7 +185,8 @@ internal abstract partial class JsPlannedCompilerBase
         byte generatorOperand,
         bool guaranteedNextOnly,
         bool inspectActiveDelegateOnNext = false,
-        BytecodeBuilder.Label delegateCompletedAsNext = default
+        BytecodeBuilder.Label delegateCompletedAsNext = default,
+        bool returnAsNext = false
     )
     {
         var registerCount = builder.RegisterCount;
@@ -254,7 +255,10 @@ internal abstract partial class JsPlannedCompilerBase
         builder.BindLabel(@return);
         builder.EmitCallRuntime((int)RuntimeId.GeneratorClearResumeState, 0, 0);
         EmitLdar(generatorResumeValueRegister);
-        EmitAbruptCommand(AbruptCommand.Return);
+        if (returnAsNext)
+            EmitJump(done);
+        else
+            EmitAbruptCommand(AbruptCommand.Return);
 
         builder.BindLabel(@throw);
         builder.EmitCallRuntime((int)RuntimeId.GeneratorClearResumeState, 0, 0);

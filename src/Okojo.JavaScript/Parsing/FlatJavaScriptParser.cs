@@ -830,6 +830,16 @@ internal sealed class FlatJavaScriptParser
     private int ParseForStatement()
     {
         var position = Expect(JsTokenKind.For).Position;
+        var isAwait = false;
+        if (
+            asyncFunctionDepth > 0
+            && current.Kind is JsTokenKind.Identifier or JsTokenKind.ReservedWord
+            && source.AsSpan(current.Position, current.SourceLength).SequenceEqual("await".AsSpan())
+        )
+        {
+            isAwait = true;
+            Next();
+        }
         Expect(JsTokenKind.LeftParen);
         var init = -1;
         if (current.Kind != JsTokenKind.Semicolon)
@@ -845,6 +855,8 @@ internal sealed class FlatJavaScriptParser
         if (current.Kind is JsTokenKind.In or JsTokenKind.Of)
         {
             var isOf = current.Kind == JsTokenKind.Of;
+            if (isAwait && !isOf)
+                throw Error("for await loops must use 'of'", current.Position);
             ValidateForInOfLeft(init, position);
             Next();
             var right = ParseExpression();
@@ -855,10 +867,14 @@ internal sealed class FlatJavaScriptParser
                 AstKind.ForInOfStatement,
                 iterationChildren.Offset,
                 iterationChildren.Count,
-                isOf ? 1 : 0,
+                isAwait ? 2
+                    : isOf ? 1
+                    : 0,
                 position
             );
         }
+        if (isAwait)
+            throw Error("for await loops must use 'of'", current.Position);
         ValidateOrdinaryForInitializer(init);
         Expect(JsTokenKind.Semicolon);
         var test = current.Kind == JsTokenKind.Semicolon ? -1 : ParseExpression();

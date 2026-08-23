@@ -91,6 +91,7 @@ internal abstract partial class JsPlannedCompilerBase
         int CompletionKindRegister = -1,
         int CompletionValueRegister = -1,
         int IteratorRegister = -1,
+        bool IsAsyncIterator = false,
         string[]? Labels = null,
         List<FinallyAbruptRoute>? FinallyRoutes = null
     );
