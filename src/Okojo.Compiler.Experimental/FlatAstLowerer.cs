@@ -120,31 +120,14 @@ internal static class FlatAstLowerer
         private int LowerFunctionDeclaration(JsFunctionDeclaration function)
         {
             var bodyRoot = LowerFunctionBody(function.Body);
-            var flatParameters = ArrayPool<FlatParameter>.Shared.Rent(function.Parameters.Count);
-            (int Offset, int Count) parameters;
-            try
-            {
-                for (var i = 0; i < function.Parameters.Count; i++)
-                {
-                    flatParameters[i] = new FlatParameter(
-                        Arena.AddString(function.Parameters[i]),
-                        function.ParameterIds[i],
-                        function.ParameterInitializers[i] is null
-                            ? -1
-                            : LowerExpression(function.ParameterInitializers[i]!),
-                        function.ParameterPatterns[i] is null
-                            ? -1
-                            : LowerBindingPattern(function.ParameterPatterns[i]!),
-                        function.ParameterPositions[i],
-                        function.ParameterBindingKinds[i]
-                    );
-                }
-                parameters = Ast.AddParameters(flatParameters.AsSpan(0, function.Parameters.Count));
-            }
-            finally
-            {
-                ArrayPool<FlatParameter>.Shared.Return(flatParameters);
-            }
+            var parameters = LowerParameters(
+                function.Parameters,
+                function.ParameterIds,
+                function.ParameterInitializers,
+                function.ParameterPatterns,
+                function.ParameterPositions,
+                function.ParameterBindingKinds
+            );
             var functionIndex = Ast.AddFunction(
                 new FlatFunctionInfo(
                     Arena.AddString(function.Name),
@@ -165,6 +148,78 @@ internal static class FlatAstLowerer
                 bodyRoot,
                 position: function.Position
             );
+        }
+
+        private int LowerFunctionExpression(JsFunctionExpression function)
+        {
+            if (
+                function.IsGenerator
+                || function.IsAsync
+                || function.IsArrow
+                || function.HasSuperBindingHint
+            )
+                throw new NotSupportedException(
+                    $"{compilerName} only supports ordinary flat function expressions."
+                );
+
+            var bodyRoot = LowerFunctionBody(function.Body);
+            var parameters = LowerParameters(
+                function.Parameters,
+                function.ParameterIds,
+                function.ParameterInitializers,
+                function.ParameterPatterns,
+                function.ParameterPositions,
+                function.ParameterBindingKinds
+            );
+            var functionIndex = Ast.AddFunction(
+                new FlatFunctionInfo(
+                    Arena.AddString(function.Name ?? string.Empty),
+                    function.NameId,
+                    parameters.Offset,
+                    parameters.Count,
+                    function.FunctionLength,
+                    function.RestParameterIndex,
+                    function.Body.StrictDeclared,
+                    function.HasSimpleParameterList,
+                    function.HasDuplicateParameters,
+                    function.Position
+                )
+            );
+            return Arena.Add(
+                AstKind.FunctionExpression,
+                functionIndex,
+                bodyRoot,
+                position: function.Position
+            );
+        }
+
+        private (int Offset, int Count) LowerParameters(
+            IReadOnlyList<string> names,
+            IReadOnlyList<int> nameIds,
+            IReadOnlyList<JsExpression?> initializers,
+            IReadOnlyList<JsExpression?> patterns,
+            IReadOnlyList<int> positions,
+            IReadOnlyList<JsFormalParameterBindingKind> kinds
+        )
+        {
+            var flatParameters = ArrayPool<FlatParameter>.Shared.Rent(names.Count);
+            try
+            {
+                for (var i = 0; i < names.Count; i++)
+                    flatParameters[i] = new FlatParameter(
+                        Arena.AddString(names[i]),
+                        nameIds[i],
+                        initializers[i] is null ? -1 : LowerExpression(initializers[i]!),
+                        patterns[i] is null ? -1 : LowerBindingPattern(patterns[i]!),
+                        positions[i],
+                        kinds[i]
+                    );
+                return Ast.AddParameters(flatParameters.AsSpan(0, names.Count));
+            }
+            finally
+            {
+                ArrayPool<FlatParameter>.Shared.Return(flatParameters);
+            }
         }
 
         private int LowerForStatement(JsForStatement statement)
@@ -458,6 +513,7 @@ internal static class FlatAstLowerer
                     conditional.Position
                 ),
                 JsSequenceExpression sequence => LowerSequence(sequence),
+                JsFunctionExpression function => LowerFunctionExpression(function),
                 JsCallExpression call => LowerCall(call),
                 JsNewExpression @new => LowerNew(@new),
                 JsMemberExpression member => LowerMember(member),
@@ -623,7 +679,7 @@ internal static class FlatAstLowerer
                         throw new NotSupportedException(
                             $"Object property kind '{property.Kind}' is not supported by {compilerName}."
                         );
-                    if (property.Value is JsFunctionExpression)
+                    if (property.Value is JsFunctionExpression { HasSuperBindingHint: true })
                         throw new NotSupportedException(
                             $"Object methods are not supported by {compilerName}."
                         );

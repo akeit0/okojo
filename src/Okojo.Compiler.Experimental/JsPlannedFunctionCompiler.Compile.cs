@@ -88,6 +88,7 @@ internal sealed partial class JsPlannedFunctionCompiler
         InitializeRootBindings(parameterRegisterByName);
         initializeParametersInPrologue = !metadata.HasSimpleParameterList;
         EmitFunctionContextSetup();
+        EmitFunctionSelfBinding();
         if (flatFunction is { } function)
             EmitParameterPrologue(ast, function);
 

@@ -385,13 +385,25 @@ internal sealed class FlatJavaScriptParser
         }
     }
 
-    private int ParseFunctionDeclaration()
+    private int ParseFunctionDeclaration() => ParseFunction(isDeclaration: true);
+
+    private int ParseFunctionExpression() => ParseFunction(isDeclaration: false);
+
+    private int ParseFunction(bool isDeclaration)
     {
         var position = Expect(JsTokenKind.Function).Position;
         if (Match(JsTokenKind.Star))
             throw Error("Generator functions are not supported by FlatJavaScriptParser", position);
-        var nameToken = ExpectIdentifier();
-        var name = GetIdentifierText(nameToken);
+        var nameId = -1;
+        string name;
+        if (isDeclaration || current.Kind == JsTokenKind.Identifier)
+        {
+            var nameToken = ExpectIdentifier();
+            name = GetIdentifierText(nameToken);
+            nameId = nameToken.IdentifierId;
+        }
+        else
+            name = string.Empty;
         Expect(JsTokenKind.LeftParen);
         Span<FlatParameter> initialParameters = stackalloc FlatParameter[8];
         var parameterList = new ParameterList(initialParameters);
@@ -563,7 +575,7 @@ internal sealed class FlatJavaScriptParser
             var functionIndex = ast.AddFunction(
                 new FlatFunctionInfo(
                     Arena.AddString(name),
-                    nameToken.IdentifierId,
+                    nameId,
                     parameterRange.Offset,
                     parameterRange.Count,
                     functionLength,
@@ -574,7 +586,12 @@ internal sealed class FlatJavaScriptParser
                     position
                 )
             );
-            return Arena.Add(AstKind.FunctionDeclaration, functionIndex, body, position: position);
+            return Arena.Add(
+                isDeclaration ? AstKind.FunctionDeclaration : AstKind.FunctionExpression,
+                functionIndex,
+                body,
+                position: position
+            );
         }
         finally
         {
@@ -1036,6 +1053,8 @@ internal sealed class FlatJavaScriptParser
                 return ParseArrayLiteral();
             case JsTokenKind.LeftBrace:
                 return ParseObjectLiteral();
+            case JsTokenKind.Function:
+                return ParseFunctionExpression();
             default:
                 throw Error(
                     $"Expression token '{token.Kind}' is not supported by FlatJavaScriptParser",

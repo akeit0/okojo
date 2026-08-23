@@ -404,6 +404,9 @@ internal static partial class CompilerBindingCollector
                         VisitExpression(ast, property.ValueNode, scopeId);
                     }
                     return;
+                case AstKind.FunctionExpression:
+                    VisitFunctionExpression(ast, node, scopeId);
+                    return;
                 case AstKind.NumericLiteral:
                 case AstKind.StringLiteral:
                 case AstKind.BooleanLiteral:
@@ -414,6 +417,27 @@ internal static partial class CompilerBindingCollector
                         $"Flat binding collection does not support expression '{node.Kind}'."
                     );
             }
+        }
+
+        private void VisitFunctionExpression(FlatAst ast, AstNode node, int parentScopeId)
+        {
+            var function = ast.GetFunction(node.Arg0);
+            var functionScopeId = AddScope(
+                parentScopeId,
+                CompilerCollectedScopeKind.Function,
+                function.Position
+            );
+            var name = ast.GetString(function.NameStringIndex);
+            if (name.Length != 0)
+                AddBinding(
+                    functionScopeId,
+                    CompilerCollectedBindingKind.FunctionNameSelf,
+                    name,
+                    function.NameId,
+                    position: function.Position
+                );
+            CollectFlatParameters(ast, function, functionScopeId);
+            CollectBody(ast, node.Arg1, functionScopeId);
         }
 
         private void CollectParameters(FunctionParameterPlan parameterPlan, int scopeId)

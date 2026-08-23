@@ -55,6 +55,9 @@ argument registers remain an ABI prefix; an ordered prologue establishes TDZ,
 applies each outer default, and initializes that parameter's pattern before the
 next parameter so later defaults can observe earlier bindings. Parameter
 initializer references also skip bindings declared only in the function body.
+The function-expression slice covers ordinary anonymous and named function
+expressions, reusing the same pooled function/parameter records and function-body
+compiler as declarations. Async, generator, and arrow forms remain separate work.
 
 ## Minimal Repros
 
@@ -133,6 +136,13 @@ function read({ a = 1, ...rest } = {}, [first, ...tail], value = a, ...extra) {
 }
 ```
 
+```js
+let outer = 40;
+let anonymous = function (value = 2) { return outer + value; };
+let named = function self(value) { return value ? self(value - 1) + 1 : 0; };
+anonymous() + named(3);
+```
+
 ## Planned Tests
 
 - `tests/Okojo.Compiler.Tests/DirectFlatParserTests.cs`
@@ -157,6 +167,8 @@ function read({ a = 1, ...rest } = {}, [first, ...tail], value = a, ...extra) {
     values, abrupt iterator close, computed member evaluation, and class bridging
   - formal parameter defaults, array/object patterns, rest/rest-pattern forms,
     function length, TDZ/order, duplicate/strict errors, capture, and class bridging
+  - anonymous/named function expressions, self recursion, outer capture, advanced
+    parameters, and expression position
 
 ## Reference Observations
 
@@ -245,6 +257,13 @@ Production Okojo currently runs every outer initializer before every pattern,
 which incorrectly leaves earlier pattern names in TDZ for later defaults; the flat
 path intentionally corrects that ordering.
 
+V8 creates ordinary function-expression closures at the expression evaluation
+point, loads a named expression's self reference from the current closure, and
+keeps captured outer lexical bindings in context slots. Production Okojo follows
+the same observable behavior. The flat path reuses its existing closure opcode,
+child-capture map, and function-self binding rather than introduce another runtime
+representation.
+
 For captured `for (let ...)` heads, V8 creates a new block context for each
 iteration and moves the value through the update path. Production Okojo clones a
 function context because its loop aliases share function-level cells. The flat
@@ -269,6 +288,8 @@ outer capture depths unchanged and retains old contexts only through closures.
   retaining only the RHS and currently prepared member reference
 - reserve the incoming argument prefix and release its snapshot immediately after
   the ordered advanced-parameter prologue
+- add function-expression bodies directly to pooled flat function/node tables and
+  compile them only when emitting the closure constant
 
 Initial Release measurement for 80 declaration/update pairs after warm-up:
 

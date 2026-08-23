@@ -82,11 +82,27 @@ internal abstract partial class JsPlannedCompilerBase
             case AstKind.ObjectExpression:
                 EmitObjectExpression(ast, node);
                 return;
+            case AstKind.FunctionExpression:
+                EmitFunctionExpression(ast, node.Arg0, node.Arg1);
+                return;
             default:
                 throw new NotSupportedException(
                     $"{CompilerName} does not support flat expression '{node.Kind}'."
                 );
         }
+    }
+
+    private void EmitFunctionExpression(FlatAst ast, int functionIndex, int bodyRoot)
+    {
+        var function = ast.GetFunction(functionIndex);
+        var functionCompiler = new JsPlannedFunctionCompiler(Vm, BuildChildCaptureBindings());
+        var functionObject = functionCompiler.CompileFunction(
+            ast,
+            function,
+            bodyRoot,
+            hasSelfBinding: ast.GetString(function.NameStringIndex).Length != 0
+        );
+        EmitCreateClosureByIndex(builder.AddObjectConstant(functionObject));
     }
 
     private void EmitObjectExpression(FlatAst ast, AstNode node)

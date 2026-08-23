@@ -92,6 +92,57 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void ParseScript_StoresNamedFunctionExpressionInFlatTables()
+    {
+        const string source = "let fn = function self(value = 1) { return value; };";
+        using var ast = FlatJavaScriptParser.ParseScript(source);
+
+        ref readonly var root = ref ast[ast.Root];
+        var declaration = ast[ast.ChildRange(root.Arg0, root.Arg1)[0]];
+        var declarator = ast[ast.ChildRange(declaration.Arg0, declaration.Arg1)[0]];
+        var expression = ast[declarator.Arg2];
+        var function = ast.GetFunction(expression.Arg0);
+
+        Assert.That(expression.Kind, Is.EqualTo(AstKind.FunctionExpression));
+        Assert.That(ast.GetString(function.NameStringIndex), Is.EqualTo("self"));
+        Assert.That(function.HasSimpleParameterList, Is.False);
+        Assert.That(ast.GetPosition(declarator.Arg2), Is.EqualTo(source.IndexOf("function")));
+    }
+
+    [Test]
+    public void CompileString_ExecutesAnonymousAndNamedFunctionExpressions()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile(
+            """
+            let outer = 40;
+            let anonymous = function (value = 2) { return outer + value; };
+            let named = function self(value) { return value ? self(value - 1) + 1 : 0; };
+            anonymous() + named(3);
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(45));
+    }
+
+    [Test]
+    public void CompileString_InitializesNamedFunctionSelfBeforeParameterDefaults()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile(
+            "let fn = function self(value = self) { return value; }; fn() === fn;"
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator, Is.EqualTo(JsValue.True));
+    }
+
+    [Test]
     public void CompileString_ExecutesOrderedPatternDefaultAndRestParameters()
     {
         var realm = JsRuntime.Create().DefaultRealm;

@@ -161,6 +161,19 @@ internal abstract partial class JsPlannedCompilerBase
         EmitRootContextBindings();
     }
 
+    protected void EmitFunctionSelfBinding()
+    {
+        var rootScope = activeScopes.Peek();
+        for (var i = 0; i < rootScope.Bindings.Count; i++)
+        {
+            var binding = rootScope.Bindings[i];
+            if (binding.Planned.Kind != CompilerCollectedBindingKind.FunctionNameSelf)
+                continue;
+            builder.EmitLda(JsOpCode.LdaCurrentFunction);
+            EmitStore(binding);
+        }
+    }
+
     private void EmitCreateFunctionContextWithCells(int slotCount)
     {
         if ((uint)slotCount <= byte.MaxValue)
