@@ -128,13 +128,19 @@ internal abstract partial class JsPlannedCompilerBase
                 EmitSequenceExpression(ast, node, result);
                 return;
             case AstKind.CallExpression:
-                EmitCallExpression(ast, node);
+                EmitCallExpression(ast, node, optional: false);
+                return;
+            case AstKind.OptionalCallExpression:
+                EmitCallExpression(ast, node, optional: true);
                 return;
             case AstKind.NewExpression:
                 EmitNewExpression(ast, node);
                 return;
             case AstKind.MemberExpression:
                 EmitMemberExpression(ast, node);
+                return;
+            case AstKind.OptionalChainExpression:
+                EmitOptionalChainExpression(ast, node.Arg0);
                 return;
             case AstKind.ArrayExpression:
                 EmitArrayExpression(ast, node);
@@ -690,7 +696,7 @@ internal abstract partial class JsPlannedCompilerBase
         }
     }
 
-    private void EmitCallExpression(FlatAst ast, AstNode node)
+    private void EmitCallExpression(FlatAst ast, AstNode node, bool optional)
     {
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
@@ -704,6 +710,8 @@ internal abstract partial class JsPlannedCompilerBase
                 EmitMemberLoad(ast, callee, objectRegister);
                 var functionRegister = builder.AllocateTemporaryRegister();
                 EmitStar(functionRegister);
+                if (optional)
+                    EmitOptionalChainNullCheck(functionRegister);
                 if (HasSpreadArgument(ast, node.Arg1, node.Arg2))
                 {
                     EmitSpreadCall(ast, functionRegister, objectRegister, node.Arg1, node.Arg2);
@@ -722,6 +730,8 @@ internal abstract partial class JsPlannedCompilerBase
             EmitExpression(ast, node.Arg0);
             var directFunctionRegister = builder.AllocateTemporaryRegister();
             EmitStar(directFunctionRegister);
+            if (optional)
+                EmitOptionalChainNullCheck(directFunctionRegister);
             if (HasSpreadArgument(ast, node.Arg1, node.Arg2))
             {
                 EmitSpreadCall(ast, directFunctionRegister, -1, node.Arg1, node.Arg2);
@@ -872,6 +882,8 @@ internal abstract partial class JsPlannedCompilerBase
 
     private void EmitMemberLoad(FlatAst ast, AstNode member, int objectRegister)
     {
+        if (((AstMemberFlags)member.Arg2 & AstMemberFlags.OptionalChainLink) != 0)
+            EmitOptionalChainNullCheck(objectRegister);
         if (((AstMemberFlags)member.Arg2 & AstMemberFlags.Computed) != 0)
         {
             EmitExpression(ast, member.Arg1);
@@ -882,6 +894,36 @@ internal abstract partial class JsPlannedCompilerBase
         var nameIndex = builder.AddAtomizedStringConstant(ast.GetString(member.Arg1));
         var feedbackSlot = builder.AllocateFeedbackSlot();
         builder.EmitLdaNamedProperty(objectRegister, nameIndex, feedbackSlot);
+    }
+
+    private void EmitOptionalChainExpression(FlatAst ast, int expression)
+    {
+        var previous = optionalChainNullTarget;
+        var nullTarget = builder.CreateLabel();
+        var done = builder.CreateLabel();
+        optionalChainNullTarget = nullTarget;
+        try
+        {
+            EmitExpression(ast, expression);
+            EmitJump(done);
+            builder.BindLabel(nullTarget);
+            builder.EmitLda(JsOpCode.LdaUndefined);
+            builder.BindLabel(done);
+        }
+        finally
+        {
+            optionalChainNullTarget = previous;
+        }
+    }
+
+    private void EmitOptionalChainNullCheck(int register)
+    {
+        if (!optionalChainNullTarget.IsInitialized)
+            throw new InvalidOperationException("Optional chain link has no active chain target.");
+        EmitLdar(register);
+        EmitJumpIfNull(optionalChainNullTarget);
+        EmitLdar(register);
+        EmitJumpIfUndefined(optionalChainNullTarget);
     }
 
     private void EmitBinaryExpression(FlatAst ast, AstNode node, ExpressionResult result)
@@ -1004,6 +1046,11 @@ internal abstract partial class JsPlannedCompilerBase
     private void EmitDeleteExpression(FlatAst ast, int argumentIndex)
     {
         ref readonly var argument = ref ast[argumentIndex];
+        if (argument.Kind == AstKind.OptionalChainExpression)
+        {
+            EmitDeleteOptionalChain(ast, argument.Arg0);
+            return;
+        }
         if (argument.Kind == AstKind.MemberExpression)
         {
             var marker = builder.GetTemporaryRegisterScopeMarker();
@@ -1075,6 +1122,54 @@ internal abstract partial class JsPlannedCompilerBase
 
         EmitExpression(ast, argumentIndex);
         builder.EmitLda(JsOpCode.LdaTrue);
+    }
+
+    private void EmitDeleteOptionalChain(FlatAst ast, int expressionIndex)
+    {
+        ref readonly var expression = ref ast[expressionIndex];
+        if (expression.Kind != AstKind.MemberExpression)
+        {
+            EmitOptionalChainExpression(ast, expressionIndex);
+            builder.EmitLda(JsOpCode.LdaTrue);
+            return;
+        }
+
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        var previous = optionalChainNullTarget;
+        var nullTarget = builder.CreateLabel();
+        var done = builder.CreateLabel();
+        optionalChainNullTarget = nullTarget;
+        try
+        {
+            EmitExpression(ast, expression.Arg0);
+            var registers = builder.AllocateTemporaryRegisterBlock(2);
+            EmitStar(registers);
+            if (((AstMemberFlags)expression.Arg2 & AstMemberFlags.OptionalChainLink) != 0)
+                EmitOptionalChainNullCheck(registers);
+            if (((AstMemberFlags)expression.Arg2 & AstMemberFlags.Computed) != 0)
+                EmitExpression(ast, expression.Arg1);
+            else
+                EmitStringLiteral(ast.GetString(expression.Arg1));
+            EmitStar(registers + 1);
+            builder.EmitCallRuntime(
+                (int)(
+                    strictDeclared
+                        ? RuntimeId.DeleteKeyedPropertyStrict
+                        : RuntimeId.DeleteKeyedProperty
+                ),
+                registers,
+                2
+            );
+            EmitJump(done);
+            builder.BindLabel(nullTarget);
+            builder.EmitLda(JsOpCode.LdaTrue);
+            builder.BindLabel(done);
+        }
+        finally
+        {
+            optionalChainNullTarget = previous;
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+        }
     }
 
     private void EmitConditionalExpression(FlatAst ast, AstNode node, ExpressionResult result)

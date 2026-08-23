@@ -75,6 +75,8 @@ Both planned compilers currently support:
   identifier update expressions
 - identifier assignment and compound/logical assignment
 - ordinary/spread calls and named/computed member loads with property-call receivers
+- optional named/computed member access and direct/member calls, including spread
+  and delete short-circuit behavior
 - ordinary and spread construction
 - array literals with holes, dynamic elements, and spread
 - array binding declarations with elisions, defaults, nesting, and rest
@@ -88,6 +90,8 @@ Both planned compilers currently support:
   loop control, and captured per-iteration lexicals
 - synchronous `for-of` iteration with declaration/pattern heads, per-iteration
   capture, and IteratorClose for abrupt completion
+- chained labels and labeled break/continue, including finally replay and crossed
+  iterator cleanup
 
 `JsPlannedScriptCompiler.Compile(string)` uses the direct flat parser. The
 `Compile(JsProgram)` overload remains as the compatibility bridge for parser and
@@ -97,13 +101,11 @@ lowerer comparison.
 
 Still intentionally unsupported in the experimental pipeline:
 
-- optional calls and private/super member access
-- destructuring assignments and pattern parameters
+- private/super member access
 - generator/async and `super` object methods
 - tagged template literals
-- module/global binding emission
+- module binding emission
 - member assignment heads for iteration and `for-await-of`
-- labeled loop control
 - direct production replacement of `JsCompiler`
 
 Unsupported paths should fail explicitly, not silently degrade.

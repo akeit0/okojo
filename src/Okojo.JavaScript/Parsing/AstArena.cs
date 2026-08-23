@@ -48,7 +48,9 @@ internal enum AstKind : byte
     UpdateExpression,
     AssignmentExpression,
     CallExpression,
+    OptionalCallExpression,
     MemberExpression,
+    OptionalChainExpression,
     ConditionalExpression,
     SequenceExpression,
     FunctionExpression,
@@ -79,6 +81,14 @@ internal enum AstMemberFlags : byte
 {
     None = 0,
     Computed = 1,
+    OptionalChainLink = 2,
+}
+
+[Flags]
+internal enum AstOptionalChainFlags : byte
+{
+    None = 0,
+    Parenthesized = 1,
 }
 
 /// <summary>

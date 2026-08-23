@@ -1265,6 +1265,12 @@ internal sealed class FlatJavaScriptParser
             current.Kind == JsTokenKind.New
                 ? ParseNewExpression(allowCallSuffix: false)
                 : ParseMemberAndCallSuffix(ParsePrimary(), allowCalls: false);
+        if (
+            Arena[callee].Kind == AstKind.OptionalChainExpression
+            && ((AstOptionalChainFlags)Arena[callee].Arg1 & AstOptionalChainFlags.Parenthesized)
+                == 0
+        )
+            throw Error("Optional chain cannot be used directly as a constructor", position);
         var arguments = Match(JsTokenKind.LeftParen)
             ? ParseArgumentListAfterOpenParen()
             : (Offset: 0, Count: 0);
@@ -1280,9 +1286,49 @@ internal sealed class FlatJavaScriptParser
 
     private int ParseMemberAndCallSuffix(int expression, bool allowCalls)
     {
+        var optionalChain = false;
         while (true)
         {
             var position = Arena.GetPosition(expression);
+            if (IsOptionalChainPunctuator())
+            {
+                Next();
+                Expect(JsTokenKind.Dot);
+                optionalChain = true;
+                if (Match(JsTokenKind.LeftBracket))
+                {
+                    var property = ParseExpression();
+                    Expect(JsTokenKind.RightBracket);
+                    expression = Arena.Add(
+                        AstKind.MemberExpression,
+                        expression,
+                        property,
+                        (int)(AstMemberFlags.Computed | AstMemberFlags.OptionalChainLink),
+                        position
+                    );
+                    continue;
+                }
+
+                if (allowCalls && Match(JsTokenKind.LeftParen))
+                {
+                    expression = ParseCallArguments(expression, position, optional: true);
+                    continue;
+                }
+
+                if (!JsTokenFacts.IsIdentifierName(current.Kind))
+                    throw Error($"Expected Identifier but found {current.Kind}", current.Position);
+                var optionalProperty = current;
+                Next();
+                expression = Arena.Add(
+                    AstKind.MemberExpression,
+                    expression,
+                    Arena.AddString(GetIdentifierText(optionalProperty)),
+                    (int)AstMemberFlags.OptionalChainLink,
+                    position
+                );
+                continue;
+            }
+
             if (Match(JsTokenKind.Dot))
             {
                 if (!JsTokenFacts.IsIdentifierName(current.Kind))
@@ -1315,18 +1361,31 @@ internal sealed class FlatJavaScriptParser
 
             if (allowCalls && Match(JsTokenKind.LeftParen))
             {
-                expression = ParseCallArguments(expression, position);
+                expression = ParseCallArguments(expression, position, optional: false);
                 continue;
             }
 
-            return expression;
+            return optionalChain
+                ? Arena.Add(
+                    AstKind.OptionalChainExpression,
+                    expression,
+                    (int)AstOptionalChainFlags.None,
+                    position: Arena.GetPosition(expression)
+                )
+                : expression;
         }
     }
 
-    private int ParseCallArguments(int callee, int position)
+    private int ParseCallArguments(int callee, int position, bool optional)
     {
         var children = ParseArgumentListAfterOpenParen();
-        return Arena.Add(AstKind.CallExpression, callee, children.Offset, children.Count, position);
+        return Arena.Add(
+            optional ? AstKind.OptionalCallExpression : AstKind.CallExpression,
+            callee,
+            children.Offset,
+            children.Count,
+            position
+        );
     }
 
     private (int Offset, int Count) ParseArgumentListAfterOpenParen()
@@ -1486,7 +1545,10 @@ internal sealed class FlatJavaScriptParser
                 throw Error("Expected expression", position);
             if (hasSpread || trailingComma)
                 throw Error("Invalid parenthesized expression", position);
-            return CreateSequence(expressions.AsSpan(), position);
+            var expression = CreateSequence(expressions.AsSpan(), position);
+            if (Arena[expression].Kind == AstKind.OptionalChainExpression)
+                Arena[expression].Arg1 |= (int)AstOptionalChainFlags.Parenthesized;
+            return expression;
         }
         finally
         {
@@ -2181,6 +2243,14 @@ internal sealed class FlatJavaScriptParser
         {
             lexer.SetIndex(index);
         }
+    }
+
+    private bool IsOptionalChainPunctuator()
+    {
+        if (current.Kind != JsTokenKind.Question)
+            return false;
+        var next = PeekToken();
+        return !next.HasLineTerminatorBefore && next.Kind == JsTokenKind.Dot;
     }
 
     private readonly record struct ActiveLabel(string Name, bool IsIteration, int FunctionDepth);

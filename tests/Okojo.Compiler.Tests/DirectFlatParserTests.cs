@@ -235,6 +235,62 @@ public class DirectFlatParserTests
         Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
 
     [Test]
+    public void CompileString_ExecutesOptionalChainsWithV8LinkSemantics()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let effects = '';
+            function key() { effects += 'k'; return 'value'; }
+            function argument() { effects += 'a'; return 2; }
+            let object = {
+                value: 3,
+                method(value) { return this.value + value; },
+                missing: undefined
+            };
+            let nullish = null;
+            nullish?.[key()];
+            nullish?.method(argument());
+            nullish?.(argument());
+            let named = object?.value;
+            let computed = object?.[key()];
+            let memberCall = object?.method(argument());
+            let optionalMemberCall = object.method?.(argument());
+            let spreadCall = object.method?.(...[argument()]);
+            let optionalDirect = ((value) => value)?.(4);
+            object.missing?.(argument());
+            function Box() { this.value = 9; }
+            let constructed = new ({ Box }?.Box)().value;
+            let condition = nullish?.value ? 'bad' : 'ok';
+            let skippedDelete = delete nullish?.[key()];
+            let deleted = delete object?.value;
+            let error = '';
+            try { object?.missing.value; } catch (caught) { error = caught.name; }
+            let boundaryError = '';
+            try { (nullish?.value).missing; } catch (caught) { boundaryError = caught.name; }
+            named + '|' + computed + '|' + memberCall + '|' + optionalMemberCall
+                + '|' + spreadCall + '|' + optionalDirect + '|' + constructed + '|' + condition
+                + '|' + skippedDelete + '|' + deleted + '|' + error
+                + '|' + boundaryError + '|' + effects + '|' + ('value' in object);
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(
+            realm.Accumulator.AsString(),
+            Is.EqualTo("3|3|5|5|5|4|9|ok|true|true|TypeError|TypeError|kaaa|false")
+        );
+    }
+
+    [TestCase("target?.value = 1;")]
+    [TestCase("target?.value++;")]
+    [TestCase("++target?.value;")]
+    [TestCase("new target?.value();")]
+    public void ParseScript_RejectsInvalidOptionalChainForms(string source) =>
+        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+
+    [Test]
     public void ParseScript_EmitsPostOrderFlatNodesDirectly()
     {
         using var ast = FlatJavaScriptParser.ParseScript(

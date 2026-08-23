@@ -656,11 +656,15 @@ internal static partial class CompilerBindingCollector
                         VisitExpression(ast, expressions[i], scopeId);
                     return;
                 case AstKind.CallExpression:
+                case AstKind.OptionalCallExpression:
                 case AstKind.NewExpression:
                     VisitExpression(ast, node.Arg0, scopeId);
                     var arguments = ast.ChildRange(node.Arg1, node.Arg2);
                     for (var i = 0; i < arguments.Length; i++)
                         VisitExpression(ast, arguments[i], scopeId);
+                    return;
+                case AstKind.OptionalChainExpression:
+                    VisitExpression(ast, node.Arg0, scopeId);
                     return;
                 case AstKind.MemberExpression:
                     VisitExpression(ast, node.Arg0, scopeId);

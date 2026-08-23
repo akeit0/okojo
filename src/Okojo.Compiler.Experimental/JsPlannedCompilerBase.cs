@@ -18,6 +18,7 @@ internal abstract partial class JsPlannedCompilerBase
     protected bool emittingParameterInitializers;
     protected bool strictDeclared;
     protected bool hasNewTarget;
+    private BytecodeBuilder.Label optionalChainNullTarget;
 
     protected JsPlannedCompilerBase(JsRealm realm)
     {

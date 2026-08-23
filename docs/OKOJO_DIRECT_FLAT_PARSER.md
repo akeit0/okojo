@@ -53,12 +53,12 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Declarations | `var`/`let`/`const`, ordinary function declarations, function/block declaration prologues, function-scoped `var`, persistent script globals/lexicals, initial global conflict validation | classes, imports/exports, complete declaration early errors, Annex B |
 | Blocks/control | block, `if`, `while`, `do`, ordinary `for`, `for-in`, synchronous `for-of`, `switch`, chained labels, labeled/unlabeled `break`/`continue`, `return`, `throw`, `try`/`catch`/`finally`, empty/expression statement | `debugger`, `for-await-of` |
 | Primitive expressions | number, BigInt, string, boolean, null, regexp, untagged template, identifier, `this`, `new.target`, grouping | tagged templates, `super`, `import.meta` |
-| Operators | precedence table, assignment, arithmetic/logical/bitwise/comparison, conditionals, sequence, updates, property/identifier/value `delete` | optional-chain operators and delete-chain behavior, remaining edge-specific early errors |
+| Operators | precedence table, assignment, arithmetic/logical/bitwise/comparison, conditionals, sequence, updates, optional chains, property/identifier/value/optional-chain `delete` | remaining edge-specific early errors |
 | References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed properties | imports, private and super references |
-| Calls/construction | direct/member calls, spread calls, ordinary/spread `new`, wide operands | optional calls, dynamic import, super call |
+| Calls/construction | direct/member/optional calls, spread calls, ordinary/spread `new`, wide operands | dynamic import, super call |
 | Arrays/objects | holes, array/object spread, data properties, ordinary concise methods/getters/setters, computed/shorthand/index keys, stable data shape prefix | generator/async and `super` methods, legacy `__proto__` intentionally excluded |
 | Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings | class, module bindings and remaining early errors |
-| Assignments | identifier/member targets, compound/logical/update, array/object destructuring | private/super targets, optional-chain restrictions |
+| Assignments | identifier/member targets, compound/logical/update, array/object destructuring, core optional-chain target restrictions | private/super targets, remaining early errors |
 | Functions | ordinary declarations/expressions, closures, synchronous arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`/`new.target`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function name inference, demand-driven mapped/unmapped `arguments` | async, generators, class-name inference, lazy bodies |
 | Classes | none | declaration/expression, constructors, methods, fields, static blocks, private names, super |
 | Modules | none | parse goal, entries, linking metadata, live bindings, top-level await |
@@ -299,6 +299,24 @@ inner `for-of` still performs IteratorClose before reaching an outer label. When
 an exit crosses `finally`, the completion kind retains its label route and replays
 through the same control stack after finalization; no feature-specific jump path
 bypasses context or iterator cleanup.
+
+### Optional-chain slice
+
+This iteration covers optional named/computed property access, direct/member
+optional calls, mixed optional/non-optional chain links, spread calls, and
+`delete` short-circuit behavior. The reference case is
+`artifacts/okojobytecodetool/cases/flat_ast_optional_chain.js`; focused tests
+target receiver preservation, skipped key/argument effects, nullish versus
+ordinary `undefined` links, and assignment/update early errors.
+
+V8 wraps the complete chain once, marks only the links introduced by `?.`, and
+routes those nullish checks to one chain-end label. Okojo copies that shape:
+one fixed flat wrapper node, an optional bit on member links, and a distinct call
+kind for optional call links. This avoids the production class AST's ambiguous
+"inside a chain" flag and prevents `object?.missing.value` from incorrectly
+short-circuiting after a non-optional link. Calls retain their prepared receiver,
+and computed keys/arguments remain after the nullish branch so skipped effects
+are not materialized.
 
 ### Destructuring
 
@@ -636,7 +654,6 @@ function read(value = function nested(next = outer) { return next; }) {
 - extend effect/value/test modes to the remaining expressions
 - `debugger`
 - tagged template literals and cached site identity
-- optional chaining/calls
 
 New side tables should be purpose-specific and dense: handler/catch records and
 tagged-template site descriptors. Untagged templates and switch clauses use fixed
@@ -657,6 +674,8 @@ First foundation slice landed:
   compose through nested finalizers
 - chained labels and labeled break/continue reuse the same control dispatcher;
   destination identity survives finally and exits close crossed `for-of` iterators
+- optional chains use one wrapper/chain-end target and mark only actual `?.`
+  links; optional calls preserve member receivers and `delete` short-circuits to true
 - exception handlers restore saved lexical context as well as stack and PC,
   including after generator suspension
 

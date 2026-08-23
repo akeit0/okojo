@@ -237,6 +237,9 @@ The direct flat work has already established several reusable rules:
 - attach chained labels to existing breakable/iteration scopes; unmatched exits
   keep unwinding so crossed `for-of` iterators close, and per-finally completion
   kinds retain labeled destinations without adding a parallel jump subsystem
+- wrap an optional chain once and mark only its `?.` links; all nullish branches
+  share one end target, calls retain prepared receivers, and computed keys or
+  arguments stay after the branch so short-circuiting skips their effects
 - lower `switch` as a saved tag, source-ordered strict comparisons, one shared
   case-block scope, and consecutively bound clause bodies; retain the existing
   zero-based `SwitchOnSmi` specialization until corpus data justifies its guard and
@@ -313,7 +316,6 @@ hoisting without compiler-specific rewrites.
 - explicit effect/value/test expression emission modes
 - richer source and handler metadata for the landed abrupt-command stack
 - tagged template literals and cached site identity
-- optional calls/chains and delete-chain behavior
 
 Foundation status: effect/value/test intent now propagates through logical-not,
 logical, conditional, and sequence expressions, and existing break, continue,
@@ -340,8 +342,10 @@ create/step/close runtime and routes continue, break, return, and throw through 
 dedicated control scope. A measured fast-array specialization can follow without
 changing the flat node or control contract. Chained labels and labeled
 break/continue now share that control stack, retain destinations across finally,
-and close crossed iterators. Full early errors, tagged-template site metadata, and
-diagnostic handler metadata remain part of P1.
+and close crossed iterators. Optional property/call chains now copy V8's single
+chain-end target, distinguish actual optional links from ordinary links, preserve
+member receivers, and return true for short-circuited delete. Full early errors,
+tagged-template site metadata, and diagnostic handler metadata remain part of P1.
 
 Exit gate: the direct path compiles the synchronous non-class application corpus
 and has differential execution coverage for every new control-flow form.
