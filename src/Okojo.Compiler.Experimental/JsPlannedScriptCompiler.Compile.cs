@@ -22,7 +22,8 @@ internal sealed partial class JsPlannedScriptCompiler
     private JsScript Compile(FlatAst ast, string? sourcePath)
     {
         builder.SetSourceText(ast.SourceText);
-        builder.SetStrictDeclared(ast.StrictDeclared);
+        strictDeclared = ast.StrictDeclared;
+        builder.SetStrictDeclared(strictDeclared);
         using var collected = CompilerBindingCollector.Collect(ast);
         ValidateGlobalDeclarations(collected);
         using var plan = CompilerStoragePlanner.Plan(collected);

@@ -140,7 +140,12 @@ internal abstract partial class JsPlannedCompilerBase
                     continue;
                 captures.TryAdd(
                     binding.Planned.Name,
-                    new CapturedBindingAccess(binding.Planned.StorageIndex, currentDepth)
+                    new CapturedBindingAccess(
+                        binding.Planned.StorageIndex,
+                        currentDepth,
+                        binding.Planned.IsConst,
+                        binding.Planned.Kind == CompilerCollectedBindingKind.FunctionNameSelf
+                    )
                 );
             }
 
@@ -151,7 +156,12 @@ internal abstract partial class JsPlannedCompilerBase
         foreach (var pair in ExternalCaptures)
             captures.TryAdd(
                 pair.Key,
-                new CapturedBindingAccess(pair.Value.Slot, pair.Value.Depth + currentDepth)
+                new CapturedBindingAccess(
+                    pair.Value.Slot,
+                    pair.Value.Depth + currentDepth,
+                    pair.Value.IsConst,
+                    pair.Value.IsImmutableFunctionName
+                )
             );
 
         return captures;

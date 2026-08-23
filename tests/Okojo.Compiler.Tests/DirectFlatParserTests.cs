@@ -1419,6 +1419,43 @@ public class DirectFlatParserTests
         );
     }
 
+    [TestCase("function run() { const value = 1; value = 2; } run();")]
+    [TestCase("function run() { const value = 1; function write() { value++; } write(); } run();")]
+    [TestCase("function run() { const value = 1; [value] = [2]; } run();")]
+    public void CompileString_RejectsAssignmentToLocalAndCapturedConstBindings(string source)
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(source);
+
+        var error = Assert.Throws<JsRuntimeException>(() => realm.Execute(script));
+        Assert.That(error!.Message, Does.Contain("Assignment to constant variable"));
+    }
+
+    [Test]
+    public void CompileString_AppliesNamedFunctionSelfAssignmentRules()
+    {
+        var sloppyRealm = JsRuntime.Create().DefaultRealm;
+        var sloppy = new JsPlannedScriptCompiler(sloppyRealm).Compile(
+            "(function named() { named = 1; return typeof named; })();"
+        );
+        sloppyRealm.Execute(sloppy);
+
+        Assert.That(sloppyRealm.Accumulator.AsString(), Is.EqualTo("function"));
+
+        var strictRealm = JsRuntime.Create().DefaultRealm;
+        var strict = new JsPlannedScriptCompiler(strictRealm).Compile(
+            """
+            (function named() {
+                "use strict";
+                function write() { named = 1; }
+                write();
+            })();
+            """
+        );
+
+        Assert.Throws<JsRuntimeException>(() => strictRealm.Execute(strict));
+    }
+
     [TestCase("throw\n1;")]
     [TestCase("try {}")]
     [TestCase("try {} catch ({ value, value }) {}")]

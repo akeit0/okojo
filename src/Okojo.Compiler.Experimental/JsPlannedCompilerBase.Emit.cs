@@ -181,7 +181,7 @@ internal abstract partial class JsPlannedCompilerBase
             )
                 continue;
             builder.EmitLda(JsOpCode.LdaTheHole);
-            EmitStore(binding);
+            EmitStore(binding, isInitialization: true);
         }
     }
 

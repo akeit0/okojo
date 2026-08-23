@@ -269,7 +269,8 @@ them:
   model that remains correct through nested parameter functions
 - `arguments` creation/mapping rules and arrow lexical capture
 - anonymous function/class name inference
-- immutable binding enforcement and strict/sloppy assignment behavior
+- remaining strict/sloppy assignment edge cases; local/captured `const` and
+  named-function self assignment enforcement are landed
 - complete source-position, source-map, local-name, and handler metadata needed by
   disassembly, stack traces, and the debugger
 

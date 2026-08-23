@@ -82,7 +82,7 @@ planned compiler still needs:
   ordinary cases but is not the final nested-environment representation
 - correct `arguments` creation and mapped/unmapped behavior
 - anonymous function/class name inference
-- immutable binding and strict/sloppy assignment enforcement
+- remaining strict/sloppy assignment edge cases outside ordinary lexical bindings
 - complete source-position, handler, local-name, and debugger scope metadata
 
 These are P0 because real programs depend on them even when their syntax is
@@ -247,6 +247,26 @@ Complete nested early errors, Annex-B block-function rules, class declarations,
 modules, and direct-eval-specific behavior remain outside this slice; direct eval
 is intentionally unsupported by project policy.
 
+### Immutable binding assignment slice
+
+Iteration scope: reject assignment/update/destructuring stores to planned local or
+captured `const` bindings, and apply strict/sloppy named-function self-assignment
+rules. Minimal repros are `const value = 1; value = 2`, a closure assigning an
+outer `const`, and `(function named() { "use strict"; named = 1; })()`.
+
+Regression targets are
+`CompileString_RejectsAssignmentToLocalAndCapturedConstBindings` and
+`CompileString_AppliesNamedFunctionSelfAssignmentRules`. Production Okojo and V8
+Ignition both evaluate the right-hand side and then call
+`ThrowConstAssignError`; no store occurs. Okojo reuses that runtime ID and
+carries immutability in existing planned/capture records. The intentional ABI
+difference remains Okojo's existing runtime-call encoding and debug-name table.
+
+The hot mutable-store path gains one planned-flag branch and no runtime allocation.
+No new opcode or binding hierarchy is needed. Module imports/exports, class-name
+bindings, and `using`/`await using` assignment errors remain with their syntax
+slices.
+
 ## Reference Lessons Applied
 
 ### V8
@@ -320,7 +340,8 @@ Implement before adding large syntax families:
   lexical/var/restricted-property conflicts, ordinary function/block hoisting,
   and function-scoped `var` are landed
 - function, block, catch, class, module, and parameter environment records
-- `arguments`, function-name inference, immutable binding enforcement
+- `arguments` and function-name inference; local/captured `const` and
+  strict/sloppy named-function self assignment are landed
 - source/handler/local-name metadata
 
 Focused corpus:

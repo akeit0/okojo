@@ -1291,6 +1291,21 @@ internal abstract partial class JsPlannedCompilerBase
         bool isFunctionDeclaration = false
     )
     {
+        if (!isInitialization && binding.Planned.IsConst)
+        {
+            EmitThrowConstAssignError(binding.Planned.Name);
+            return;
+        }
+        if (
+            !isInitialization
+            && binding.Planned.Kind == CompilerCollectedBindingKind.FunctionNameSelf
+        )
+        {
+            if (strictDeclared)
+                EmitThrowConstAssignError(binding.Planned.Name);
+            return;
+        }
+
         switch (binding.Planned.StorageKind)
         {
             case CompilerPlannedStorageKind.LocalRegister:
@@ -1344,10 +1359,28 @@ internal abstract partial class JsPlannedCompilerBase
 
         if (hasExternalBinding)
         {
+            if (externalBinding.IsConst)
+            {
+                EmitThrowConstAssignError(name);
+                return;
+            }
+            if (externalBinding.IsImmutableFunctionName)
+            {
+                if (strictDeclared)
+                    EmitThrowConstAssignError(name);
+                return;
+            }
             EmitStaContextSlot(externalBinding.Slot, externalDepth);
             return;
         }
 
         EmitGlobalAccess(name, JsOpCode.StaGlobal, JsOpCode.StaGlobalWide);
+    }
+
+    private void EmitThrowConstAssignError(string name)
+    {
+        var callPc = builder.CodeLength;
+        builder.EmitCallRuntime((int)RuntimeId.ThrowConstAssignError, 0, 0);
+        builder.AddRuntimeCallDebugName(callPc, name);
     }
 }
