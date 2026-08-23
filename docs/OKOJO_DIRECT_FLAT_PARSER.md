@@ -60,8 +60,8 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Arrays/objects | holes, array/object spread, data properties, ordinary/generator/async concise methods, getters/setters, computed/shorthand/index keys, stable data shape prefix | `super` methods, legacy `__proto__` intentionally excluded |
 | Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings, class declaration and inner-name bindings | module bindings and remaining early errors |
 | Assignments | identifier/member targets, compound/logical/update, array/object destructuring, core optional-chain target restrictions | private/super targets, remaining early errors |
-| Functions | ordinary declarations/expressions, closures, synchronous and async generators with `yield`/`yield*`, async declarations/expressions/object methods with `await`, synchronous and async arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`/`new.target`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function name inference, demand-driven mapped/unmapped `arguments` | anonymous class-expression name inference, lazy bodies |
-| Classes | base/derived declarations and expressions, explicit/implicit constructors, heritage/prototype setup, derived `this`/return rules, public named/computed instance/static methods and accessors, strict bodies, declaration TDZ/const storage, inner class-name capture | super properties, fields, static blocks, private names/brands, anonymous class-expression name inference |
+| Functions | ordinary declarations/expressions, closures, synchronous and async generators with `yield`/`yield*`, async declarations/expressions/object methods with `await`, synchronous and async arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`/`new.target`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function/class name inference, demand-driven mapped/unmapped `arguments` | lazy bodies |
+| Classes | base/derived declarations and expressions, explicit/implicit constructors, heritage/prototype setup, derived `this`/return rules, public named/computed instance/static methods and accessors, strict bodies, declaration TDZ/const storage, inner class-name capture, anonymous name inference | super properties, fields, static blocks, private names/brands |
 | Modules | none | parse goal, entries, linking metadata, live bindings, top-level await |
 
 The direct parser rejects unsupported grammar. It does not catch an error and
@@ -81,8 +81,6 @@ planned compiler still needs:
   are landed
 - a general parameter/body environment model; the current exclusion marker fixes
   ordinary cases but is not the final nested-environment representation
-- anonymous class-expression name inference; named class inner bindings and
-  ordinary anonymous-function inference are landed
 - remaining strict/sloppy assignment edge cases outside ordinary lexical bindings
 - complete source-position, handler, local-name, and debugger scope metadata
 
@@ -939,6 +937,25 @@ Heritage and derived-constructor slice landed:
   later source-ordered class phase
 - performance plan: retain the heritage value in one temporary register, use the
   existing contiguous argument ABI, and add no new runtime helper or class object
+
+Anonymous class-name inference slice landed:
+
+- iteration scope: infer anonymous class names in identifier declarations and
+  assignments, parameter/destructuring defaults, and static object-literal data
+  properties; explicit class names remain authoritative
+- minimal repro: `let C = class {}; ({ value: class {} }).value.name`
+- focused regressions cover declaration/assignment/default/property inference, explicit
+  names, computed property names, class-AST bridge execution, and constructor
+  metadata
+- V8 observation: inferred-name contexts pass a name register into class-literal
+  lowering; the constructor receives the name without creating a named-class inner
+  lexical binding
+- Okojo implementation: extend the existing function inferred-name dispatcher to class
+  expressions and pass the pooled name directly into constructor compilation
+- intentional difference: computed object keys continue through Okojo's existing
+  keyed-definition naming slow path instead of a dedicated class opcode
+- performance plan: no AST mutation, runtime operation, string copy, or new side
+  table on static identifier/property paths
 
 ### Stage F4 - Modules
 

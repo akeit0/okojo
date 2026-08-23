@@ -291,6 +291,11 @@ internal abstract partial class JsPlannedCompilerBase
             EmitFunctionExpression(ast, node.Arg0, node.Arg1, inferredName);
             return;
         }
+        if (node.Kind == AstKind.ClassExpression)
+        {
+            EmitClassExpression(ast, node.Arg0, inferredName);
+            return;
+        }
 
         EmitExpression(ast, nodeIndex);
     }

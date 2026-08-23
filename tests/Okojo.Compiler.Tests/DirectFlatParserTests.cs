@@ -3334,6 +3334,33 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_InfersAnonymousClassNames()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let Declaration = class { static self() { return Declaration; } };
+            let Assigned;
+            Assigned = class {};
+            function readDefault(value = class {}) { return value.name; }
+            let { nested = class {} } = {};
+            let holder = { value: class {}, ['computed']: class {} };
+            let Explicit = class Inner {};
+            Declaration.name + '|' + Assigned.name + '|' + readDefault() + '|'
+                + nested.name + '|' + holder.value.name + '|' + holder.computed.name + '|'
+                + Explicit.name + '|' + (Declaration.self() === Declaration);
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(
+            realm.Accumulator.AsString(),
+            Is.EqualTo("Declaration|Assigned|value|nested|value|computed|Inner|true")
+        );
+    }
+
+    [Test]
     public void CompileAst_ExecutesBaselineClassBridge()
     {
         var realm = JsRuntime.Create().DefaultRealm;
@@ -3361,6 +3388,19 @@ public class DirectFlatParserTests
         realm.Execute(script);
 
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(5));
+    }
+
+    [Test]
+    public void CompileAst_InfersAnonymousClassName()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            JavaScriptParser.ParseScript("let Bridge = class {}; Bridge.name;")
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("Bridge"));
     }
 
     [TestCase("class Derived extends Base { read() { return super.value; } }")]

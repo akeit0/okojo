@@ -116,7 +116,7 @@ lowerer comparison.
 Still intentionally unsupported in the experimental pipeline:
 
 - private/super member access
-- `super` object methods
+- class fields, static blocks, and private names
 - module binding emission
 - direct production replacement of `JsCompiler`
 
@@ -139,6 +139,8 @@ Current milestone status:
 - spread calls and construction with source-ordered iterator materialization: done
 - array/object literal spread with source-ordered effects: done
 - ordinary concise object methods/getters/setters: done
+- base/derived classes, public methods/accessors, and `super()` construction: done
+- anonymous class name inference: done
 - BigInt and fresh-object RegExp literals: done
 - array binding declarations with iterator-safe step/store lowering: done
 - object binding declarations with normalized-key rest exclusion: done

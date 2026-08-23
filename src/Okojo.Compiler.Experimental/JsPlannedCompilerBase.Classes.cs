@@ -15,7 +15,7 @@ internal abstract partial class JsPlannedCompilerBase
         EmitStore(binding, isInitialization: true);
     }
 
-    private void EmitClassExpression(FlatAst ast, int classIndex)
+    private void EmitClassExpression(FlatAst ast, int classIndex, string? inferredName = null)
     {
         var info = ast.GetClass(classIndex);
 
@@ -28,7 +28,9 @@ internal abstract partial class JsPlannedCompilerBase
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
         {
-            var name = ast.GetString(info.NameStringIndex);
+            var declaredName = ast.GetString(info.NameStringIndex);
+            var constructorName =
+                declaredName.Length == 0 ? inferredName ?? string.Empty : declaredName;
             var heritageRegister = -1;
             if (info.HasExtends)
             {
@@ -42,7 +44,7 @@ internal abstract partial class JsPlannedCompilerBase
                 ast,
                 constructor.Arg0,
                 constructor.Arg1,
-                name.Length == 0 ? null : name
+                constructorName.Length == 0 ? null : constructorName
             );
             var constructorRegister = builder.AllocateTemporaryRegister();
             EmitStar(constructorRegister);
@@ -74,11 +76,11 @@ internal abstract partial class JsPlannedCompilerBase
                 EmitClassElement(ast, element, constructorRegister, prototypeRegister);
             }
 
-            if (name.Length != 0)
+            if (declaredName.Length != 0)
             {
-                if (!TryResolveBinding(name, out var classAlias))
+                if (!TryResolveBinding(declaredName, out var classAlias))
                     throw new InvalidOperationException(
-                        $"No planned class lexical binding found for '{name}'."
+                        $"No planned class lexical binding found for '{declaredName}'."
                     );
                 EmitLdar(constructorRegister);
                 EmitStore(classAlias, isInitialization: true);

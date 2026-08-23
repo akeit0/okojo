@@ -328,8 +328,8 @@ them:
   model that remains correct through nested parameter functions
 - arrow lexical capture of outer `arguments`; ordinary demand-driven mapped and
   unmapped arguments objects are landed
-- ordinary anonymous-function inference and named-class inner binding are landed;
-  anonymous class-expression name inference remains with class coverage
+- ordinary anonymous function/class inference and named-class inner binding are
+  landed
 - remaining strict/sloppy assignment edge cases; local/captured `const` and
   named-function self assignment enforcement are landed
 - complete source-position, source-map, local-name, and handler metadata needed by
@@ -422,14 +422,13 @@ the new compiler for the supported function families.
   implicit constructors, heritage/prototype setup, declaration and computed-key
   TDZ, inner class-name capture, public named/computed instance/static methods and
   accessors, implicit/explicit/spread `super()`, `new.target`, and derived
-  `this`/return rules
+  `this`/return rules, plus anonymous class name inference for static inference
+  sites
 - add public fields and static blocks using dense initializer records scheduled in
   specification order rather than parser-time execution
 - `super` calls and named/computed super properties
 - private names, brands, accessors, and `#x in object`
 - complete computed-key, field-initializer, static-block, and heritage ordering
-- infer names for anonymous class expressions from declarations, assignments, and
-  property definitions without mutating the flat arena during emission
 
 Exit gate: class initialization order, derived-constructor rules, private-brand
 checks, and observable function names match the production engine and V8.
