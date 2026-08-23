@@ -729,31 +729,27 @@ internal static class FlatAstLowerer
                 for (var i = 0; i < classExpression.Elements.Count; i++)
                 {
                     var element = classExpression.Elements[i];
-                    if (element.IsPrivate || element.Kind == JsClassElementKind.StaticBlock)
+                    if (element.IsPrivate)
                         throw new NotSupportedException(
                             $"{compilerName} does not support class element '{element.Kind}' yet."
                         );
                     var value =
-                        element.Kind == JsClassElementKind.Field
-                            ? element.IsStatic
-                                ? LowerStaticClassFieldInitializer(element)
-                                : element.FieldInitializer is null
-                                    ? -1
-                                    : LowerExpression(element.FieldInitializer)
-                            : element.Value is null
-                                ? throw new InvalidOperationException(
-                                    "Class method value is missing."
-                                )
-                                : LowerFunctionExpression(
-                                    element.Value,
-                                    implicitlyStrict: true,
-                                    isMethod: element.Kind != JsClassElementKind.Constructor,
-                                    isClassConstructor: element.Kind
-                                        == JsClassElementKind.Constructor,
-                                    isDerivedConstructor: element.Kind
-                                        == JsClassElementKind.Constructor
-                                        && classExpression.HasExtends
-                                );
+                        element.Kind == JsClassElementKind.StaticBlock
+                            ? LowerClassStaticBlock(element)
+                        : element.Kind == JsClassElementKind.Field
+                            ? element.IsStatic ? LowerStaticClassFieldInitializer(element)
+                                : element.FieldInitializer is null ? -1
+                                : LowerExpression(element.FieldInitializer)
+                        : element.Value is null
+                            ? throw new InvalidOperationException("Class method value is missing.")
+                        : LowerFunctionExpression(
+                            element.Value,
+                            implicitlyStrict: true,
+                            isMethod: element.Kind != JsClassElementKind.Constructor,
+                            isClassConstructor: element.Kind == JsClassElementKind.Constructor,
+                            isDerivedConstructor: element.Kind == JsClassElementKind.Constructor
+                                && classExpression.HasExtends
+                        );
                     if (element.Kind == JsClassElementKind.Constructor)
                         constructorNode = value;
                     else if (element.Kind == JsClassElementKind.Field && !element.IsStatic)
@@ -817,6 +813,17 @@ internal static class FlatAstLowerer
             {
                 ArrayPool<FlatClassElement>.Shared.Return(elements);
             }
+        }
+
+        private int LowerClassStaticBlock(JsClassElement element)
+        {
+            if (element.StaticBlock is null)
+                throw new InvalidOperationException("Class static block body is missing.");
+            return LowerFunctionExpression(
+                new JsFunctionExpression(null, Array.Empty<string>(), element.StaticBlock),
+                implicitlyStrict: true,
+                isMethod: true
+            );
         }
 
         private int LowerStaticClassFieldInitializer(JsClassElement element)

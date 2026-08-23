@@ -81,6 +81,8 @@ internal abstract partial class JsPlannedCompilerBase
                     ref readonly var element = ref elements[i];
                     if (element.Kind == JsClassElementKind.Constructor)
                         continue;
+                    if (element.Kind == JsClassElementKind.StaticBlock)
+                        continue;
                     if (element.Kind == JsClassElementKind.Field)
                     {
                         if (!element.IsStatic)
@@ -108,7 +110,9 @@ internal abstract partial class JsPlannedCompilerBase
                 }
 
                 for (var i = 0; i < elements.Length; i++)
-                    if (staticFieldKeyRegisters[i] >= 0)
+                    if (elements[i].Kind == JsClassElementKind.StaticBlock)
+                        EmitClassStaticBlock(ast, elements[i], constructorRegister);
+                    else if (staticFieldKeyRegisters[i] >= 0)
                         EmitStaticClassFieldInitializer(
                             ast,
                             elements[i],
@@ -200,6 +204,26 @@ internal abstract partial class JsPlannedCompilerBase
             builder.EmitCallProperty(initializerRegister, constructorRegister, 0, 0);
             EmitStar(arguments + 2);
             builder.EmitCallRuntime((int)RuntimeId.DefineClassField, arguments, 3);
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+        }
+    }
+
+    private void EmitClassStaticBlock(
+        FlatAst ast,
+        in FlatClassElement element,
+        int constructorRegister
+    )
+    {
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            EmitClassElementFunction(ast, element, constructorRegister);
+            var functionRegister = builder.AllocateTemporaryRegister();
+            EmitStar(functionRegister);
+            builder.EmitCallProperty(functionRegister, constructorRegister, 0, 0);
         }
         finally
         {

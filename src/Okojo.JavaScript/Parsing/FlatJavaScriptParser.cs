@@ -21,6 +21,7 @@ internal sealed class FlatJavaScriptParser
     private bool allowSuperProperty;
     private bool superPropertySeen;
     private bool forbidClassFieldArguments;
+    private bool forbidReturnInClassStaticBlock;
     private int deferredAsyncParameterErrorPosition = -1;
     private List<ActiveLabel>? activeLabels;
 
@@ -471,6 +472,7 @@ internal sealed class FlatJavaScriptParser
         var allowSuperPropertyBeforeFunction = allowSuperProperty;
         var superPropertySeenBeforeFunction = superPropertySeen;
         var forbidClassFieldArgumentsBeforeFunction = forbidClassFieldArguments;
+        var forbidReturnInClassStaticBlockBeforeFunction = forbidReturnInClassStaticBlock;
         receiverFunctionDepth++;
         try
         {
@@ -481,6 +483,7 @@ internal sealed class FlatJavaScriptParser
             allowSuperProperty = isMethod || isClassConstructor;
             superPropertySeen = false;
             forbidClassFieldArguments = false;
+            forbidReturnInClassStaticBlock = false;
             return ParseFunctionTailCore(
                 isDeclaration,
                 name,
@@ -504,6 +507,7 @@ internal sealed class FlatJavaScriptParser
             allowSuperProperty = allowSuperPropertyBeforeFunction;
             superPropertySeen = superPropertySeenBeforeFunction;
             forbidClassFieldArguments = forbidClassFieldArgumentsBeforeFunction;
+            forbidReturnInClassStaticBlock = forbidReturnInClassStaticBlockBeforeFunction;
             receiverFunctionDepth--;
         }
     }
@@ -782,23 +786,31 @@ internal sealed class FlatJavaScriptParser
                 {
                     var next = PeekToken();
                     if (
-                        !next.HasLineTerminatorBefore
-                        && next.Kind
-                            is not (
-                                JsTokenKind.LeftParen
-                                or JsTokenKind.Assign
-                                or JsTokenKind.Semicolon
-                                or JsTokenKind.RightBrace
-                            )
+                        next.Kind
+                        is not (
+                            JsTokenKind.LeftParen
+                            or JsTokenKind.Assign
+                            or JsTokenKind.Semicolon
+                            or JsTokenKind.RightBrace
+                        )
                     )
                     {
                         isStatic = true;
                         Next();
                         if (current.Kind == JsTokenKind.LeftBrace)
-                            throw Error(
-                                "Class static blocks are not supported by the flat parser yet",
-                                elementPosition
+                        {
+                            elements.Add(
+                                new FlatClassElement(
+                                    Arena.AddString(string.Empty),
+                                    ParseClassStaticBlock(elementPosition),
+                                    elementPosition,
+                                    JsClassElementKind.StaticBlock,
+                                    FlatClassElementFlags.Static
+                                )
                             );
+                            _ = Match(JsTokenKind.Semicolon);
+                            continue;
+                        }
                     }
                 }
 
@@ -1014,6 +1026,66 @@ internal sealed class FlatJavaScriptParser
         {
             elements.Dispose();
             strictMode = strictBeforeClass;
+        }
+    }
+
+    private int ParseClassStaticBlock(int position)
+    {
+        var allowSuperCallBeforeBlock = allowSuperCall;
+        var allowSuperPropertyBeforeBlock = allowSuperProperty;
+        var superPropertySeenBeforeBlock = superPropertySeen;
+        var forbidClassFieldArgumentsBeforeBlock = forbidClassFieldArguments;
+        var forbidReturnInClassStaticBlockBeforeBlock = forbidReturnInClassStaticBlock;
+        var generatorDepthBeforeBlock = generatorFunctionDepth;
+        var asyncDepthBeforeBlock = asyncFunctionDepth;
+        var loopDepthBeforeBlock = loopDepth;
+        var switchDepthBeforeBlock = switchDepth;
+        allowSuperCall = false;
+        allowSuperProperty = true;
+        superPropertySeen = false;
+        forbidClassFieldArguments = true;
+        forbidReturnInClassStaticBlock = true;
+        generatorFunctionDepth = 0;
+        asyncFunctionDepth = 0;
+        loopDepth = 0;
+        switchDepth = 0;
+        functionDepth++;
+        receiverFunctionDepth++;
+        try
+        {
+            var body = ParseBlock(out _, AstKind.Program);
+            var parameters = ast.AddParameters(ReadOnlySpan<FlatParameter>.Empty);
+            var functionIndex = ast.AddFunction(
+                new FlatFunctionInfo(
+                    Arena.AddString(string.Empty),
+                    -1,
+                    parameters.Offset,
+                    parameters.Count,
+                    0,
+                    -1,
+                    true,
+                    true,
+                    false,
+                    position,
+                    true,
+                    HasSuperPropertyReference: superPropertySeen
+                )
+            );
+            return Arena.Add(AstKind.FunctionExpression, functionIndex, body, position: position);
+        }
+        finally
+        {
+            receiverFunctionDepth--;
+            functionDepth--;
+            switchDepth = switchDepthBeforeBlock;
+            loopDepth = loopDepthBeforeBlock;
+            asyncFunctionDepth = asyncDepthBeforeBlock;
+            generatorFunctionDepth = generatorDepthBeforeBlock;
+            forbidReturnInClassStaticBlock = forbidReturnInClassStaticBlockBeforeBlock;
+            forbidClassFieldArguments = forbidClassFieldArgumentsBeforeBlock;
+            superPropertySeen = superPropertySeenBeforeBlock;
+            allowSuperProperty = allowSuperPropertyBeforeBlock;
+            allowSuperCall = allowSuperCallBeforeBlock;
         }
     }
 
@@ -1503,7 +1575,7 @@ internal sealed class FlatJavaScriptParser
     private int ParseReturnStatement()
     {
         var position = current.Position;
-        if (functionDepth == 0)
+        if (functionDepth == 0 || forbidReturnInClassStaticBlock)
             throw Error("Illegal return statement", position);
         Next();
         var argument =
@@ -2370,8 +2442,10 @@ internal sealed class FlatJavaScriptParser
             var strictBeforeFunction = strictMode;
             var loopDepthBeforeFunction = loopDepth;
             var switchDepthBeforeFunction = switchDepth;
+            var forbidReturnInClassStaticBlockBeforeArrow = forbidReturnInClassStaticBlock;
             loopDepth = 0;
             switchDepth = 0;
+            forbidReturnInClassStaticBlock = false;
             functionDepth++;
             var generatorDepthBeforeArrow = generatorFunctionDepth;
             var asyncDepthBeforeArrow = asyncFunctionDepth;
@@ -2409,6 +2483,7 @@ internal sealed class FlatJavaScriptParser
                 asyncFunctionDepth = asyncDepthBeforeArrow;
                 loopDepth = loopDepthBeforeFunction;
                 switchDepth = switchDepthBeforeFunction;
+                forbidReturnInClassStaticBlock = forbidReturnInClassStaticBlockBeforeArrow;
             }
 
             var effectiveStrict = strictBeforeFunction || strictDeclared;

@@ -98,6 +98,8 @@ also on the direct path, together with named/computed super-property loads, call
 stores, compound assignments, updates, static/instance home objects, and lexical
 use from nested arrows. Named/computed static and instance public fields also
 execute directly with class-definition key capture and constructor-point values.
+Source-ordered static blocks share the static initializer phase and execute with
+the constructor receiver, strict block scope, class-name capture, and `super`.
 
 ## Reference Architecture Insights
 
@@ -446,9 +448,14 @@ the new compiler for the supported function families.
   implicit/explicit/spread derived post-`super()` scheduling, missing defaults,
   outer capture and constructor-parameter isolation, `this`/`super`, nested
   arrows, and class-AST bridge execution
-- add static blocks using dense source-ordered initializer records
+- landed static blocks: strict synthetic initializer functions, constructor
+  receiver, `this`/`super`/inner-name access, block-local declarations and
+  closures, source ordering with public static fields after the shared
+  computed-key phase, and static-block-specific early errors. This deliberately
+  reuses closure/environment and `CallProperty` bytecode instead of adding a
+  static-block runtime representation or opcode.
 - private names, brands, accessors, and `#x in object`
-- complete computed-key, field-initializer, static-block, and heritage ordering
+- complete private-element, computed-key, field-initializer, and heritage ordering
 
 Exit gate: class initialization order, derived-constructor rules, private-brand
 checks, and observable function names match the production engine and V8.

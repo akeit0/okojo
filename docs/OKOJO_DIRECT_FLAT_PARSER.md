@@ -61,7 +61,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings, class declaration and inner-name bindings | module bindings and remaining early errors |
 | Assignments | identifier/ordinary/super-member targets, compound/logical/update, array/object destructuring, core optional-chain target restrictions | private targets and remaining early errors |
 | Functions | ordinary declarations/expressions, closures, synchronous and async generators with `yield`/`yield*`, async declarations/expressions/object methods with `await`, synchronous and async arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`/`new.target`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function/class name inference, demand-driven mapped/unmapped `arguments` | lazy bodies |
-| Classes | base/derived declarations and expressions, explicit/implicit constructors, heritage/prototype setup, derived `this`/return rules, public named/computed instance/static methods and accessors, named/computed public fields, named/computed super loads/calls/stores/updates, strict bodies, declaration TDZ/const storage, inner class-name capture, anonymous name inference | static blocks, private names/brands, field-initializer anonymous naming |
+| Classes | base/derived declarations and expressions, explicit/implicit constructors, heritage/prototype setup, derived `this`/return rules, public named/computed instance/static methods and accessors, named/computed public fields, source-ordered static blocks, named/computed super loads/calls/stores/updates, strict bodies, declaration TDZ/const storage, inner class-name capture, anonymous name inference | private names/brands, field-initializer anonymous naming |
 | Modules | none | parse goal, entries, linking metadata, live bindings, top-level await |
 
 The direct parser rejects unsupported grammar. It does not catch an error and
@@ -902,8 +902,8 @@ Baseline class slice landed:
 - Okojo implementation: reuse `ClassGetPrototypeAndSetConstructor`, `DefineClassMethod`,
   `DefineClassAccessor`, planned closures, and existing lexical storage; add one
   pooled class-element table rather than class-specific node objects
-- intentional first-slice boundary: heritage/derived `super`, fields, static
-  blocks, and private names remain in the existing Stage F3 queue and `TODO.md`
+- first-slice boundary was heritage/derived `super`, fields, static blocks, and
+  private names; only private elements remain from that list
 - performance plan: keep source-order element records dense, compile each method
   once into the shared function table, allocate constructor/prototype registers
   in one temporary scope, and avoid dictionaries until private-name resolution
@@ -1005,11 +1005,9 @@ Static public-field slice landed:
   remain shared. Class definition first evaluates every computed key and defines
   methods/accessors, then initializes the inner class binding, then runs static
   field initializers in source order.
-- intentional boundary: instance fields require constructor-entry/post-`super()`
-  scheduling and computed-key transport; static blocks require their own return/
-  arguments early-error context, so both follow as separate slices. Anonymous
-  field-initializer function/class naming should land once for static and instance
-  fields with the shared initializer-result path.
+- subsequent slices added instance-field constructor scheduling and static-block
+  early-error context. Anonymous field-initializer function/class naming still
+  belongs in the shared initializer-result path.
 - performance plan: retain one constructor register, evaluate each key once into a
   temporary, and attach a method environment only when the initializer uses `super`
 
@@ -1038,6 +1036,24 @@ Instance public-field slice landed:
   equivalent and no per-instance closure is allocated
 - performance plan: one cached key per computed field, no runtime key reevaluation,
   one contiguous three-register define window, and no initializer objects
+
+Class static-block slice landed:
+
+- iteration scope: source-ordered static blocks with `this`, `super`, class-name
+  access, local `var`/lexical declarations, nested functions, and abrupt errors
+- minimal repro: `class D extends B { static { this.x = super.x + 1 } }`
+- reference case:
+  `artifacts/okojobytecodetool/cases/flat_ast_class_static_blocks.js`
+- focused tests cover ordering with computed keys/static fields, constructor
+  receiver, inherited static access, block-local scope, nested closures,
+  undefined `new.target`, and early errors for `return`, `arguments`, `await`,
+  `yield`, and outer-loop control
+- V8 observation: the class static initializer function executes blocks and static
+  fields together after all keys and class-name initialization
+- Okojo implementation: reuse a synthetic strict method body plus `CallProperty`
+  with the constructor receiver; no new AST table, opcode, or runtime helper
+- performance plan: compile each block once, allocate a method environment only for
+  `super`, and retain the existing pooled class-element order
 
 ### Stage F4 - Modules
 

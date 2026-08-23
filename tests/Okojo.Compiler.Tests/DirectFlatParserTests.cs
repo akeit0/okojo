@@ -3544,6 +3544,51 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_ExecutesClassStaticBlocksWithStaticElements()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let order = [];
+            class Base { static inherited = 2; }
+            class Derived extends Base {
+                static [order.push('key-before') && 'before'] = (order.push('field-before'), 1);
+                static
+                {
+                    let local = 3;
+                    var scoped = 4;
+                    order.push('block');
+                    this.value = super.inherited + local;
+                    this.self = Derived;
+                    this.closure = () => { return scoped; };
+                    this.target = new.target;
+                }
+                static after = (order.push('field-after'), this.value + 1);
+            }
+            Derived.before + '|' + Derived.value + '|' + Derived.after + '|'
+                + (Derived.self === Derived) + '|' + Derived.closure() + '|'
+                + (Derived.target === undefined) + '|' + (typeof scoped) + '|'
+                + order.join(',');
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(
+            realm.Accumulator.AsString(),
+            Is.EqualTo("1|5|6|true|4|true|undefined|key-before,field-before,block,field-after")
+        );
+    }
+
+    [TestCase("class Invalid { static { return; } }")]
+    [TestCase("class Invalid { static { arguments; } }")]
+    [TestCase("async function outer() { class Invalid { static { await 1; } } }")]
+    [TestCase("function* outer() { class Invalid { static { yield 1; } } }")]
+    [TestCase("while (true) { class Invalid { static { break; } } }")]
+    public void ParseScript_RejectsInvalidClassStaticBlockControl(string source) =>
+        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+
+    [Test]
     public void CompileAst_ExecutesBaselineClassBridge()
     {
         var realm = JsRuntime.Create().DefaultRealm;
@@ -3631,10 +3676,24 @@ public class DirectFlatParserTests
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(5));
     }
 
+    [Test]
+    public void CompileAst_ExecutesClassStaticBlockBridge()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            JavaScriptParser.ParseScript(
+                "class Base { static value = 2; } class Derived extends Base { static { this.result = super.value + 1; } } Derived.result;"
+            )
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(3));
+    }
+
     [TestCase("class Base { constructor() { super(); } }")]
     [TestCase("class Derived extends Base { method() { super(); } }")]
     [TestCase("class Private { #value; }")]
-    [TestCase("class StaticBlock { static {} }")]
     public void ParseScript_RejectsInvalidOrDeferredClassSyntax(string source) =>
         Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
 
