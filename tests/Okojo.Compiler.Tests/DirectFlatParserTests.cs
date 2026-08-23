@@ -197,6 +197,7 @@ public class DirectFlatParserTests
         );
 
         Assert.That(ast.IsModule, Is.True);
+        Assert.That(ast.ModuleVarBindings, Is.EquivalentTo(new[] { "value" }));
     }
 
     [Test]

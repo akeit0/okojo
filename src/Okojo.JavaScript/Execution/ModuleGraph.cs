@@ -18,8 +18,14 @@ internal sealed class ModuleGraph(JsAgent agent)
         if (nodes.TryGetValue(resolvedId, out var existing))
             return existing;
 
-        var parsed = JavaScriptParser.ParseModule(source, resolvedId);
-        var node = new ModuleRecordNode(resolvedId, parsed, exportsObject);
+        ModuleRecordNode node = agent.Options.ModuleExecutionCompiler is null
+            ? new(resolvedId, JavaScriptParser.ParseModule(source, resolvedId), null, exportsObject)
+            : new(
+                resolvedId,
+                null,
+                FlatJavaScriptParser.ParseModule(source, resolvedId),
+                exportsObject
+            );
         nodes.Add(resolvedId, node);
         return node;
     }
@@ -31,19 +37,38 @@ internal sealed class ModuleGraph(JsAgent agent)
 
     public void Clear()
     {
+        foreach (var node in nodes.Values)
+            node.Dispose();
         nodes.Clear();
     }
 
     public bool Remove(string resolvedId)
     {
-        return nodes.Remove(resolvedId);
+        if (!nodes.Remove(resolvedId, out var node))
+            return false;
+        node.Dispose();
+        return true;
     }
 
     public IReadOnlyList<ModuleRecordNode> GetDependencies(ModuleRecordNode node)
     {
         var deps = new List<ModuleRecordNode>();
-        for (var i = 0; i < node.Program.Statements.Count; i++)
-            if (node.Program.Statements[i] is JsImportDeclaration importDecl)
+        if (node.LinkPlan is { } plan)
+        {
+            for (var i = 0; i < plan.RequestedDependencies.Count; i++)
+            {
+                var dependency = plan.RequestedDependencies[i];
+                if (string.Equals(dependency.ImportType, "text", StringComparison.Ordinal))
+                    continue;
+                if (nodes.TryGetValue(dependency.ResolvedId, out var dependencyNode))
+                    deps.Add(dependencyNode);
+            }
+            return deps;
+        }
+
+        var program = node.Program!;
+        for (var i = 0; i < program.Statements.Count; i++)
+            if (program.Statements[i] is JsImportDeclaration importDecl)
             {
                 if (HasTextImportType(importDecl.Attributes))
                     continue;
@@ -55,7 +80,7 @@ internal sealed class ModuleGraph(JsAgent agent)
                     deps.Add(depNode);
             }
             else if (
-                node.Program.Statements[i] is JsExportNamedDeclaration named
+                program.Statements[i] is JsExportNamedDeclaration named
                 && !string.IsNullOrEmpty(named.Source)
             )
             {
@@ -68,7 +93,7 @@ internal sealed class ModuleGraph(JsAgent agent)
                 if (nodes.TryGetValue(depResolved, out var depNode))
                     deps.Add(depNode);
             }
-            else if (node.Program.Statements[i] is JsExportAllDeclaration star)
+            else if (program.Statements[i] is JsExportAllDeclaration star)
             {
                 if (HasTextImportType(star.Attributes))
                     continue;
@@ -169,12 +194,17 @@ internal enum ModuleEvalState
 
 internal sealed class ModuleRecordNode(
     string resolvedId,
-    JsProgram program,
+    JsProgram? program,
+    FlatAst? flatProgram,
     JsModuleNamespaceObject exportsObject
-)
+) : IDisposable
 {
     public string ResolvedId { get; } = resolvedId;
-    public JsProgram Program { get; } = program;
+    public JsProgram? Program { get; } = program;
+    public FlatAst? FlatProgram { get; private set; } = flatProgram;
+    public string SourceText { get; } =
+        flatProgram?.SourceText ?? program?.SourceText ?? string.Empty;
+    public JsIdentifierTable? IdentifierTable => Program?.IdentifierTable;
     public JsModuleNamespaceObject ExportsObject { get; } = exportsObject;
     public ModuleLinkPlan? LinkPlan { get; set; }
     public ModuleEvalState State { get; set; }
@@ -188,4 +218,15 @@ internal sealed class ModuleRecordNode(
     public bool RequiresTopLevelAwait { get; set; }
     public ModuleRecordNode? AsyncCycleRoot { get; set; }
     public Exception? LastError { get; set; }
+
+    public void Dispose()
+    {
+        ReleaseFlatProgram();
+    }
+
+    public void ReleaseFlatProgram()
+    {
+        FlatProgram?.Dispose();
+        FlatProgram = null;
+    }
 }

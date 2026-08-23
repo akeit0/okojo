@@ -45,6 +45,7 @@ internal sealed class FlatAst : IDisposable
     public string? SourcePath { get; }
     public bool StrictDeclared { get; set; }
     public bool IsModule { get; set; }
+    public HashSet<string>? ModuleVarBindings { get; set; }
     public int Count => Arena.Count;
     public int Root
     {

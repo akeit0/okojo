@@ -165,10 +165,15 @@ public class JsPlannedScriptCompilerTests
                 source += 2;
                 export const other = 1;
                 """,
+                ["bridge"] = """
+                export { source as value } from "./dependency";
+                export * as dependency from "./dependency";
+                export * from "./dependency";
+                """,
                 ["entry"] = """
-                import { source as z, other as a } from "./dependency";
-                import * as dependency from "./dependency";
-                export const answer = z + a + dependency.other - 2;
+                import { value as z, other as a, dependency as forwarded } from "./bridge";
+                import * as bridge from "./bridge";
+                export const answer = z + a + forwarded.other + bridge.other - 3;
                 export default answer;
                 """,
             }
@@ -181,6 +186,58 @@ public class JsPlannedScriptCompilerTests
 
         Assert.That(module.GetExport("answer").Int32Value, Is.EqualTo(42));
         Assert.That(module.GetExport("default").Int32Value, Is.EqualTo(42));
+        Assert.That(runtime.MainAgent.ModuleGraph.TryGet("entry", out var entry), Is.True);
+        Assert.That(entry.Program, Is.Null);
+        Assert.That(entry.FlatProgram, Is.Null, "pooled FlatAst should be released after compile");
+    }
+
+    [Test]
+    public void CompileModule_RejectsLinkedHoistedExportsUntilFlatInstantiationOwnsThem()
+    {
+        var options = new JsRuntimeOptions().UseModuleSourceLoader(
+            new TestModuleSourceLoader(
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["entry"] = "export function answer() { return 42; }",
+                }
+            )
+        );
+        options.Agent.UsePlannedModuleCompiler();
+        using var runtime = JsRuntime.Create(options);
+
+        var error = Assert.Throws<JsRuntimeException>(() => runtime.MainRealm.LoadModule("entry"));
+
+        Assert.That(error!.DetailCode, Is.EqualTo("MODULE_EXEC_FAILED"));
+        Assert.That(error.InnerException, Is.TypeOf<NotSupportedException>());
+        Assert.That(runtime.MainAgent.ModuleGraph.TryGet("entry", out var entry), Is.True);
+        Assert.That(entry.FlatProgram, Is.Null);
+    }
+
+    [Test]
+    public void CompileModule_PreinitializesExportedVarAcrossCycle()
+    {
+        var options = new JsRuntimeOptions().UseModuleSourceLoader(
+            new TestModuleSourceLoader(
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["a"] = """
+                    import { seen } from "./b";
+                    export var value = 42;
+                    export const result = seen === undefined && value;
+                    """,
+                    ["b"] = """
+                    import { value } from "./a";
+                    export const seen = value;
+                    """,
+                }
+            )
+        );
+        options.Agent.UsePlannedModuleCompiler();
+        using var runtime = JsRuntime.Create(options);
+
+        var module = runtime.MainRealm.LoadModule("a");
+
+        Assert.That(module.GetExport("result").Int32Value, Is.EqualTo(42));
     }
 
     [Test]

@@ -49,7 +49,7 @@ public sealed partial class JsAgent
 
         var node = LinkModule(realm, specifier, referrer);
         var resolvedId = node.ResolvedId;
-        var linkPlan = node.LinkPlan ?? ModuleLinker.BuildPlan(resolvedId, node.Program);
+        var linkPlan = node.LinkPlan ?? BuildModuleLinkPlan(node);
 
         if (node.State == ModuleEvalState.Evaluated)
             return node.ExportsObject;
@@ -95,6 +95,7 @@ public sealed partial class JsAgent
             node.State = ModuleEvalState.Failed;
             node.PendingTopLevelAwaitPromise = null;
             node.LastError = ex;
+            node.ReleaseFlatProgram();
             throw;
         }
 
@@ -159,8 +160,8 @@ public sealed partial class JsAgent
                 InstantiateHoistedLocalExportFunctions(
                     targetRealm,
                     targetNode.ResolvedId,
-                    targetNode.Program.SourceText,
-                    targetNode.Program.IdentifierTable,
+                    targetNode.SourceText,
+                    targetNode.IdentifierTable,
                     targetPlan.ExecutionPlan,
                     compileModuleBindings,
                     moduleExecutionBindings
@@ -253,7 +254,7 @@ public sealed partial class JsAgent
                             ModuleLinker.CreateDiagnostic(
                                 "MODULE_IMPORT_NAME_NOT_FOUND",
                                 targetNode.ResolvedId,
-                                targetNode.Program,
+                                targetNode.SourceText,
                                 binding.Position,
                                 $"Module '{targetNode.ResolvedId}' imports '{binding.ImportedName}' from '{binding.ResolvedDependencyId}', but it is not exported."
                             )
@@ -275,7 +276,7 @@ public sealed partial class JsAgent
                             ModuleLinker.CreateDiagnostic(
                                 "MODULE_EXPORT_NAME_NOT_FOUND",
                                 targetNode.ResolvedId,
-                                targetNode.Program,
+                                targetNode.SourceText,
                                 from.Position,
                                 $"Module '{targetNode.ResolvedId}' re-exports '{from.ImportedName}' from '{from.ResolvedDependencyId}', but it is not exported."
                             )
@@ -495,9 +496,10 @@ public sealed partial class JsAgent
                 {
                     executionResult = ModuleExecutor.ExecuteProgram(
                         targetRealm,
+                        targetNode.FlatProgram,
                         targetResolvedId,
-                        targetNode.Program.SourceText,
-                        targetNode.Program.IdentifierTable,
+                        targetNode.SourceText,
+                        targetNode.IdentifierTable,
                         targetPlan.ExecutionPlan,
                         targetNode.CompileModuleBindings,
                         false
@@ -556,6 +558,7 @@ public sealed partial class JsAgent
             finally
             {
                 PopModuleRuntimeBindings();
+                targetNode.ReleaseFlatProgram();
             }
         }
 
@@ -776,9 +779,7 @@ public sealed partial class JsAgent
                     (Action)(
                         () =>
                         {
-                            var ancestorPlan =
-                                ancestor.LinkPlan
-                                ?? ModuleLinker.BuildPlan(ancestor.ResolvedId, ancestor.Program);
+                            var ancestorPlan = ancestor.LinkPlan ?? BuildModuleLinkPlan(ancestor);
                             StartModuleExecution(
                                 ancestor,
                                 targetRealm,
@@ -1123,7 +1124,9 @@ public sealed partial class JsAgent
 
                 if (plan is null)
                 {
-                    var linkResult = ModuleLinker.BuildPlanResult(resolvedId, node.Program);
+                    var linkResult = node.FlatProgram is not null
+                        ? ModuleLinker.BuildPlanResult(resolvedId, node.FlatProgram)
+                        : ModuleLinker.BuildPlanResult(resolvedId, node.Program!);
                     if (linkResult.Diagnostics.Count != 0)
                         throw WrapModuleLinkException(
                             resolvedId,
@@ -1155,6 +1158,11 @@ public sealed partial class JsAgent
             throw WrapModuleLinkException(rootResolvedId, ex);
         }
     }
+
+    private ModuleLinkPlan BuildModuleLinkPlan(ModuleRecordNode node) =>
+        node.FlatProgram is not null
+            ? ModuleLinker.BuildPlanResult(node.ResolvedId, node.FlatProgram).Plan
+            : ModuleLinker.BuildPlan(node.ResolvedId, node.Program!);
 
     private static IEnumerable<ResolvedModuleDependency> EnumerateLinkDependencies(
         ModuleLinkPlan plan
@@ -1409,7 +1417,7 @@ public sealed partial class JsAgent
 
         if (!ModuleGraph.TryGet(moduleResolvedId, out var node))
             return false;
-        var plan = node.LinkPlan ?? ModuleLinker.BuildPlan(moduleResolvedId, node.Program);
+        var plan = node.LinkPlan ?? BuildModuleLinkPlan(node);
 
         if (plan.ExecutionPlan.ExportLocalByName.TryGetValue(exportName, out var localName))
         {

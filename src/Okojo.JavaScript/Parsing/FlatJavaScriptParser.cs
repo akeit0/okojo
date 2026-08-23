@@ -135,6 +135,10 @@ internal sealed class FlatJavaScriptParser
                     throw Error($"Exported binding '{name}' is not declared", entry.Position);
             }
         }
+
+        foreach (var binding in bindings)
+            if (binding.Value.IsVar)
+                (ast.ModuleVarBindings ??= new(StringComparer.Ordinal)).Add(binding.Key);
     }
 
     private void CollectModuleBindings(

@@ -1,4 +1,5 @@
 using Okojo.JavaScript.Bytecode;
+using Okojo.JavaScript.Parsing;
 
 namespace Okojo.JavaScript.Execution;
 
@@ -23,8 +24,7 @@ public sealed class JsAgentOptions
     public IDebuggerSession? DebuggerSession { get; set; }
     internal Func<
         JsRealm,
-        string,
-        string?,
+        FlatAst,
         ModuleExecutionPlan,
         JsScript
     >? ModuleExecutionCompiler { get; set; }

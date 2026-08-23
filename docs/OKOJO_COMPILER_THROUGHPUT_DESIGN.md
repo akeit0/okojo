@@ -510,9 +510,12 @@ checks, and observable function names match the production engine and V8.
   assembly dependency. Runtime slot allocation uses the same deterministic signed
   cell order as the flat descriptor, including linked named, namespace, aliased,
   and anonymous-default exports. There is no fallback to `JsCompiler` in this mode.
-- replace the remaining class-AST linker parse/`ModuleExecutionPlan` with persistent
-  metadata transferred from the flat module descriptor; the current opt-in proves
-  linked execution but still parses once for linking and once for flat compilation
+- the opt-in module graph now parses once to a pooled `FlatAst`; the linker copies its
+  compact request/import/export descriptors into the persistent `ModuleLinkPlan`, the
+  compiler consumes that same AST, and the module record releases it after compilation.
+  Class-AST module parsing is absent from this path.
+- move hoisted export instantiation ownership from production compiler objects into
+  flat module instantiation, then cover async module ordering
 - dynamic import, `import.meta`, top-level await, and async dependency ordering
 
 Exit gate: the production module linker consumes flat compiler metadata directly;

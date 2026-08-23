@@ -9,6 +9,14 @@ internal sealed class JsPlannedModuleCompiler(JsRealm realm) : JsPlannedCompiler
     public JsScript Compile(string source, string? sourcePath = null)
     {
         using var ast = FlatJavaScriptParser.ParseModule(source, sourcePath);
+        return Compile(ast);
+    }
+
+    public JsScript Compile(FlatAst ast)
+    {
+        ArgumentNullException.ThrowIfNull(ast);
+        if (!ast.IsModule)
+            throw new ArgumentException("A module FlatAst is required.", nameof(ast));
         builder.SetSourceText(ast.SourceText);
         strictDeclared = true;
         builder.SetStrictDeclared(true);
@@ -30,7 +38,7 @@ internal sealed class JsPlannedModuleCompiler(JsRealm realm) : JsPlannedCompiler
         builder.Emit(JsOpCode.Return);
         var script = builder.ToScript() with
         {
-            SourceCode = new SourceCode(ast.SourceText, sourcePath),
+            SourceCode = new SourceCode(ast.SourceText, ast.SourcePath),
             StrictDeclared = true,
         };
         script.BindAgent(Vm.Agent);

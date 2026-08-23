@@ -9,15 +9,15 @@ internal sealed class ModuleLinker(Func<IModuleSourceLoader> loaderProvider)
     public static ModuleDiagnostic CreateDiagnostic(
         string code,
         string resolvedId,
-        JsProgram program,
+        string sourceText,
         int position,
         string message
     )
     {
         var line = 0;
         var column = 0;
-        if (program.SourceText is not null)
-            (line, column) = SourceLocation.GetLineColumn(program.SourceText, position);
+        if (sourceText.Length != 0)
+            (line, column) = SourceLocation.GetLineColumn(sourceText, position);
 
         return new(code, message, resolvedId, position, line, column);
     }
@@ -47,6 +47,157 @@ internal sealed class ModuleLinker(Func<IModuleSourceLoader> loaderProvider)
             exportStarFromSpecifiers
         ) = BuildExecutionPlan(moduleProgram);
 
+        return ResolvePlan(
+            moduleResolvedId,
+            executionPlan,
+            requestedDependencies,
+            imports,
+            exportFromBindings,
+            exportNamespaceFromBindings,
+            exportStarFromSpecifiers
+        );
+    }
+
+    public ModuleLinkResult BuildPlanResult(string moduleResolvedId, FlatAst moduleProgram)
+    {
+        var loader = loaderProvider();
+        var resolvedRequests = new ResolvedModuleDependency[moduleProgram.ModuleRequests.Length];
+        var requestedDependencies = new List<ResolvedModuleDependency>(resolvedRequests.Length);
+        var requestedDepsSeen = new HashSet<string>(
+            resolvedRequests.Length,
+            StringComparer.Ordinal
+        );
+        for (var i = 0; i < resolvedRequests.Length; i++)
+        {
+            ref readonly var request = ref moduleProgram.ModuleRequests[i];
+            var importType = GetImportType(moduleProgram, request);
+            var resolved = new ResolvedModuleDependency(
+                loader.ResolveSpecifier(
+                    moduleProgram.GetString(request.SpecifierStringIndex),
+                    moduleResolvedId
+                ),
+                importType
+            );
+            resolvedRequests[i] = resolved;
+            if (requestedDepsSeen.Add(GetRequestedDependencyKey(resolved.ResolvedId, importType)))
+                requestedDependencies.Add(resolved);
+        }
+
+        var resolvedImports = new List<JsResolvedImportBinding>(moduleProgram.ImportEntries.Length);
+        var importDependencyResolvedIds = new List<string>(resolvedRequests.Length);
+        var importDepsSeen = new HashSet<string>(resolvedRequests.Length, StringComparer.Ordinal);
+        foreach (ref readonly var import in moduleProgram.ImportEntries)
+        {
+            var request = resolvedRequests[import.ModuleRequestIndex];
+            if (importDepsSeen.Add(request.ResolvedId))
+                importDependencyResolvedIds.Add(request.ResolvedId);
+            resolvedImports.Add(
+                new(
+                    moduleProgram.GetString(import.LocalNameStringIndex),
+                    import.Kind == FlatImportKind.Namespace
+                        ? ModuleImportBindingKind.Namespace
+                        : ModuleImportBindingKind.Named,
+                    request.ResolvedId,
+                    import.Kind == FlatImportKind.Namespace
+                        ? string.Empty
+                        : moduleProgram.GetString(import.ImportedNameStringIndex),
+                    import.Position,
+                    request.ImportType
+                )
+            );
+        }
+
+        var exportLocalByName = new Dictionary<string, string>(
+            moduleProgram.ExportEntries.Length,
+            StringComparer.Ordinal
+        );
+        var resolvedExportFromBindings = new List<ExportFromBindingResolved>(
+            moduleProgram.ExportEntries.Length
+        );
+        var resolvedExportNamespaceFromBindings = new List<ExportNamespaceFromBindingResolved>(
+            moduleProgram.ExportEntries.Length
+        );
+        var exportStars = new List<string>(moduleProgram.ExportEntries.Length);
+        foreach (ref readonly var export in moduleProgram.ExportEntries)
+        {
+            switch (export.Kind)
+            {
+                case FlatExportKind.Local:
+                case FlatExportKind.DefaultExpression:
+                case FlatExportKind.DefaultDeclaration:
+                    exportLocalByName[moduleProgram.GetString(export.ExportNameStringIndex)] =
+                        moduleProgram.GetString(export.LocalNameStringIndex);
+                    break;
+                case FlatExportKind.Indirect:
+                {
+                    var request = resolvedRequests[export.ModuleRequestIndex];
+                    resolvedExportFromBindings.Add(
+                        new(
+                            request.ResolvedId,
+                            moduleProgram.GetString(export.ImportNameStringIndex),
+                            moduleProgram.GetString(export.ExportNameStringIndex),
+                            export.Position,
+                            request.ImportType
+                        )
+                    );
+                    break;
+                }
+                case FlatExportKind.Namespace:
+                {
+                    var request = resolvedRequests[export.ModuleRequestIndex];
+                    resolvedExportNamespaceFromBindings.Add(
+                        new(
+                            request.ResolvedId,
+                            moduleProgram.GetString(export.ExportNameStringIndex),
+                            request.ImportType
+                        )
+                    );
+                    break;
+                }
+                case FlatExportKind.Star:
+                    exportStars.Add(resolvedRequests[export.ModuleRequestIndex].ResolvedId);
+                    break;
+            }
+        }
+
+        var preinitializedLocalExportNames = new HashSet<string>(StringComparer.Ordinal);
+        if (moduleProgram.ModuleVarBindings is not null)
+            foreach (var localName in exportLocalByName.Values)
+                if (moduleProgram.ModuleVarBindings.Contains(localName))
+                    preinitializedLocalExportNames.Add(localName);
+
+        var executionPlan = new ModuleExecutionPlan(
+            [],
+            exportLocalByName,
+            preinitializedLocalExportNames,
+            false,
+            false,
+            false
+        );
+        return new(
+            new(
+                executionPlan,
+                requestedDependencies,
+                importDependencyResolvedIds,
+                resolvedImports,
+                resolvedExportFromBindings,
+                resolvedExportNamespaceFromBindings,
+                exportStars
+            ),
+            Array.Empty<ModuleDiagnostic>()
+        );
+    }
+
+    private ModuleLinkResult ResolvePlan(
+        string moduleResolvedId,
+        ModuleExecutionPlan executionPlan,
+        List<DependencyRequest> requestedDependencies,
+        List<ImportDeclaration> imports,
+        List<ExportFromBinding> exportFromBindings,
+        List<ExportNamespaceFromBinding> exportNamespaceFromBindings,
+        List<string> exportStarFromSpecifiers
+    )
+    {
         var loader = loaderProvider();
 
         var requestedDependencyResolvedIds = new List<ResolvedModuleDependency>(
@@ -401,6 +552,21 @@ internal sealed class ModuleLinker(Func<IModuleSourceLoader> loaderProvider)
                 return attribute.Value;
         }
 
+        return null;
+    }
+
+    private static string? GetImportType(FlatAst ast, in FlatModuleRequest request)
+    {
+        var attributes = ast.GetImportAttributes(request);
+        for (var i = 0; i < attributes.Length; i++)
+            if (
+                string.Equals(
+                    ast.GetString(attributes[i].KeyStringIndex),
+                    "type",
+                    StringComparison.Ordinal
+                )
+            )
+                return ast.GetString(attributes[i].ValueStringIndex);
         return null;
     }
 
