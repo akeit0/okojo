@@ -1389,11 +1389,20 @@ internal abstract partial class JsPlannedCompilerBase
         if (entries.Length == 0 || entries[0].Kind != FlatExportKind.DefaultDeclaration)
             return;
         var localName = ast.GetString(entries[0].LocalNameStringIndex);
-        EmitExpressionWithInferredName(ast, export.Arg0, "default");
         if (!TryResolveBinding(localName, out var binding))
             throw new InvalidOperationException(
                 $"No planned binding found for default export '{localName}'."
             );
+        if (
+            EmitFunctionExpression(
+                ast,
+                value.Arg0,
+                value.Arg1,
+                inferredName: "default",
+                deferredBinding: binding
+            )
+        )
+            return;
         EmitStore(binding, isInitialization: true, isFunctionDeclaration: true);
     }
 

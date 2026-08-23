@@ -200,6 +200,7 @@ public class JsPlannedScriptCompilerTests
                 {
                     ["a"] = """
                     import { observed } from "./b";
+                    if (false) { function mustStayBlockLocal() {} }
                     export function answer() { return 42; }
                     export { observed };
                     export const same = observed === answer;
@@ -222,6 +223,58 @@ public class JsPlannedScriptCompilerTests
             Is.SameAs(module.GetExport("answer").AsObject())
         );
         Assert.That(module.CallExport("answer").Int32Value, Is.EqualTo(42));
+    }
+
+    [Test]
+    public void CompileModule_InstantiatesAnonymousDefaultFunctionAcrossCycle()
+    {
+        var options = new JsRuntimeOptions().UseModuleSourceLoader(
+            new TestModuleSourceLoader(
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["a"] = """
+                    export { observed } from "./b";
+                    export default function() { return 42; }
+                    """,
+                    ["b"] = """
+                    import answer from "./a";
+                    export const observed = answer;
+                    """,
+                }
+            )
+        );
+        options.Agent.UsePlannedModuleCompiler();
+        using var runtime = JsRuntime.Create(options);
+
+        var module = runtime.MainRealm.LoadModule("a");
+        var answer = module.GetExport("default");
+
+        Assert.That(module.GetExport("observed").AsObject(), Is.SameAs(answer.AsObject()));
+        Assert.That(answer.AsObject().TryGetProperty("name", out var name), Is.True);
+        Assert.That(name.AsString(), Is.EqualTo("default"));
+        Assert.That(module.CallExport("default").Int32Value, Is.EqualTo(42));
+    }
+
+    [Test]
+    public void CompileModule_InstantiatesNamedDefaultFunctionWithLocalBinding()
+    {
+        var options = new JsRuntimeOptions().UseModuleSourceLoader(
+            new TestModuleSourceLoader(
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["entry"] = "export default function answer() { return answer; }",
+                }
+            )
+        );
+        options.Agent.UsePlannedModuleCompiler();
+        using var runtime = JsRuntime.Create(options);
+
+        var module = runtime.MainRealm.LoadModule("entry");
+        var answer = module.GetExport("default");
+
+        Assert.That(answer.AsObject().TryGetProperty("name", out var name), Is.True);
+        Assert.That(name.AsString(), Is.EqualTo("answer"));
+        Assert.That(module.CallExport("default").AsObject(), Is.SameAs(answer.AsObject()));
     }
 
     [Test]

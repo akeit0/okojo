@@ -74,7 +74,7 @@ internal sealed class JsPlannedModuleCompiler(JsRealm realm) : JsPlannedCompiler
         JsBytecodeFunction function
     )
     {
-        if (!deferHoistedFunctions)
+        if (!deferHoistedFunctions || activeScopes.Peek().ScopeId != 0)
             return false;
         var storageKind = binding.Planned.StorageKind switch
         {

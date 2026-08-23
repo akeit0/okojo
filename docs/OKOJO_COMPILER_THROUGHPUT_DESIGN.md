@@ -516,10 +516,9 @@ checks, and observable function names match the production engine and V8.
   Class-AST module parsing is absent from this path.
 - flat module instantiation now compiles once into an execution artifact containing
   the script, initial context slots, and hoisted function templates. It installs named
-  function declarations into signed module cells or the shared top-level context before
-  dependency evaluation; the script omits those stores, so evaluation preserves cyclic
-  function identity instead of allocating a second closure.
-- route default-exported function declarations through the same instantiation artifact
+  and default-exported function declarations into signed module cells or the shared
+  top-level context before dependency evaluation; the script omits those stores, so
+  evaluation preserves cyclic function identity instead of allocating a second closure.
 - dynamic import, `import.meta`, top-level await, and async dependency ordering
 
 Exit gate: the production module linker consumes flat compiler metadata directly;

@@ -343,12 +343,13 @@ internal abstract partial class JsPlannedCompilerBase
         }
     }
 
-    private void EmitFunctionExpression(
+    private bool EmitFunctionExpression(
         FlatAst ast,
         int functionIndex,
         int bodyRoot,
         string? inferredName = null,
-        int instanceFieldClassIndex = -1
+        int instanceFieldClassIndex = -1,
+        BindingStorage? deferredBinding = null
     )
     {
         var function = ast.GetFunction(functionIndex);
@@ -366,8 +367,11 @@ internal abstract partial class JsPlannedCompilerBase
             inferredName,
             instanceFieldClassIndex
         );
+        if (deferredBinding is { } binding && DeferHoistedFunction(binding, functionObject))
+            return true;
         EmitCreateClosureByIndex(builder.AddObjectConstant(functionObject));
         EmitPrivateBrandMappingsForClosure();
+        return false;
     }
 
     private void EmitRegExpLiteral(string pattern, string flags)

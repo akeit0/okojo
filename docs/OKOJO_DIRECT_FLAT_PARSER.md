@@ -62,7 +62,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Assignments | identifier/ordinary/super/private-field member targets, compound/logical/update, array/object destructuring, core optional-chain target restrictions | remaining early errors |
 | Functions | ordinary declarations/expressions, closures, synchronous and async generators with `yield`/`yield*`, async declarations/expressions/object methods with `await`, synchronous and async arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`/`new.target`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function/class name inference, demand-driven mapped/unmapped `arguments` | lazy bodies |
 | Classes | base/derived declarations and expressions, explicit/implicit constructors, heritage/prototype setup, derived `this`/return rules, public/private instance/static methods and accessors, named/computed public fields, instance/static private fields and brands, source-ordered static blocks, named/computed super loads/calls/stores/updates, strict bodies, declaration TDZ/const storage, inner class-name capture, anonymous name inference including named/computed fields, private methods, and private accessors | full ordering differential and Test262 gate |
-| Modules | strict parse goal, side-effect/default/named/namespace imports, string import names, import attributes, local/declaration/default/indirect/namespace/star exports, compact request/import/export tables, module binding validation, imported-export canonicalization, signed live-cell assignment, single-parse opt-in linked synchronous evaluation and re-export linking, named-function instantiation before dependency evaluation | default-function instantiation, dynamic import, `import.meta`, top-level await, default-path adoption |
+| Modules | strict parse goal, side-effect/default/named/namespace imports, string import names, import attributes, local/declaration/default/indirect/namespace/star exports, compact request/import/export tables, module binding validation, imported-export canonicalization, signed live-cell assignment, single-parse opt-in linked synchronous evaluation and re-export linking, named/default-function instantiation before dependency evaluation | dynamic import, `import.meta`, top-level await, default-path adoption |
 
 The direct parser rejects unsupported grammar. It does not catch an error and
 restart through `JavaScriptParser`; that would allocate both representations,
@@ -1283,10 +1283,11 @@ Production module execution opt-in slice landed:
   bindings are already callable through a cycle. Okojo copies that lifecycle while
   retaining its existing signed-cell opcode ABI; no new opcode or class-AST object is
   required.
-- intentional interim difference: default named/anonymous function exports still use
-  the flat expression wrapper and are rejected until that wrapper feeds the same artifact
-- next slice: finish default-function instantiation, then add `import.meta`, dynamic
-  import, and top-level-await dependency scheduling
+- default named and anonymous function wrappers now feed the same template artifact;
+  focused coverage preserves the named local self-binding, infers anonymous name
+  `"default"`, and observes the anonymous closure through an import cycle. Deferral is
+  restricted to root scope so block functions retain normal runtime initialization.
+- next slice: add `import.meta`, dynamic import, and top-level-await dependency scheduling
 - performance plan: benchmark parse/link/plan/emit separately and compare this true
   single-parse path against class parse plus production compilation. Instantiation emits
   once and evaluation only executes the retained script; it does not recompile or replace
@@ -1298,7 +1299,7 @@ Production module execution opt-in slice landed:
 - compact import/export entry tables are landed
 - module scopes, live binding references, storage, and opt-in linked execution are landed
 - linker-facing persistent metadata without class-AST wrappers is landed in opt-in mode
-- named function declarations are instantiated from the flat execution artifact
+- named and default function declarations are instantiated from the flat execution artifact
 - dynamic import, `import.meta`, top-level await, and async dependency order
 
 Module records outlive a single bytecode function, so their ownership boundary
