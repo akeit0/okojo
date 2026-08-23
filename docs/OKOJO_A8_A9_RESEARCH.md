@@ -55,35 +55,42 @@ two-operand arm. Verified: `function f(){}; f;` now prints
 CreateClosure idx:0 flags:0 at 0000 and StaGlobalFuncDecl at 0003, matching
 the raw byte dump [123,0,0,29,...] captured during A2 debugging.
 
-### 1.2 OPEN: context-slot operand formatting looks wrong
+### 1.2 RESOLVED (R1): context-slot mystery - formatter innocent, allocation unconditional
 
-smi-sum-loop's function unit prints:
+Instrumentation outcome (temporary [diag] probes in
+MarkCapturedByChildBinding / EnsureCurrentContextSlotForLocal / both capture
+fallbacks, all removed after):
 
-```
-0000  CreateFunctionContextWithCells slots:1
-0002  LdaTheHole
-0003  StaCurrentContextSlot slot:0      <- TDZ init of s?
-0005  LdaZero
-0006  Star r0                           <- s = 0 into register r0?
-...
-0011  LdaZero
-0012  StaCurrentContextSlot slot:0      <- i = 0 into THE SAME slot?
-```
+1. Disassembler operand formatting for the CurrentContextSlot family is
+   CORRECT - it prints exactly the byte the engine decodes. The confusing
+   smi-sum-loop listing is faithful bytecode:
+   - slot0 = the loop variable i (TDZ hole write, then init 0, read x2 and
+     writeback x1 per iteration),
+   - while s lives entirely in register r0,
+   - plus a dead `LdaTheHole / Star r1` prologue pair (r1 never read).
+   The earlier reading ("two variables sharing slot 0") was wrong.
+2. The `context-slots: 0` header was the tool passing a hardcoded default:
+   DisassemblerOptions.ContextSlots was never populated and JsScript carries
+   no such field. FIXED in Disassembler.Dump via ResolveContextSlots: when
+   the caller does not supply a value, derive it from
+   CreateFunctionContextWithCells / CreateFunctionContext operands by
+   pre-scanning the bytecode. Script units without contexts still print 0;
+   functions now print their true cell count.
+3. THE REAL FINDING (refines A8-L1): `EnsureLoopAliasContextSlots`
+   (JsCompiler.cs) unconditionally allocates context slots for EVERY
+   for-head lexical binding and every for-in/of head lexical via
+   `EnsureAliasBindingContextSlots` - with NO capture check. The per-iteration
+   ROTATION stays gated on captures (ShouldUsePerIterationContextForForLoop
+   requires IsCapturedByChildBinding, verified no marker fires for
+   smiSumLoop), but slot ALLOCATION does not. Net effect: any function
+   containing `for (let ...)` gets a function context with cells, and the
+   head variable round-trips the cell even when rotation never activates and
+   nothing captures it.
 
-Both writes print `slot:0`, which cannot be semantically right if both live
-in the same function context (i would overwrite s), yet execution produces
-correct sums. Also inconsistent: the unit header says `context-slots: 0`
-while CreateFunctionContextWithCells is emitted.
-
-Suspect: Disassembler.FormatOperands misprints (slot, depth) pairs or reads
-the wrong operand index for the CurrentContextSlot family; possibly the
-header field counts something else. MUST be fixed before A8-L1 verification:
-we need trustworthy per-slot attribution to prove register-based loop
-variables eliminate context traffic.
-
-Repro:
-dotnet tools\OkojoBytecodeTool\bin\Release\net10.0\OkojoBytecodeTool.dll
-"function v(){ let s=0; for(let i=0;i<3;i++){ s+=i; } return s; } v;"
+A8-L1 refined implementation shape: gate alias-slot allocation on
+IsCapturedByChildBinding(symbolId) (matching the rotation gate), keeping the
+context path whenever captures exist. Verification unchanged: fixed-format
+disasm must show zero context ops in non-capturing loops; bench-ab after.
 
 ### 1.3 Reinforced: stale binaries mask edits
 
@@ -283,8 +290,8 @@ for-loop-sum and lexical-block should follow).
 
 | id | proposal | owner | gate |
 | -- | -------- | ----- | ---- |
-| R1 | Fix Disassembler context-op operand formatting + unit header fields | tooling | none - blocks A8-L1 verification |
-| R2 | A8-L1 register per-iteration let bindings | compiler | R1 |
+| R1 | Disassembler context-op formatting + header derivation + root-cause of let-loop context allocation | tooling/compiler | DONE (this branch) |
+| R2 | A8-L1 register per-iteration let bindings: gate EnsureLoopAliasContextSlots on IsCapturedByChildBinding | compiler | bench-ab + test262 |
 | R3 | Fusion: LdaZeroStar / LdaTheHoleStar / LdaUndefinedStar | compiler+VM contract | bench-ab + test262 |
 | R4 | Fusion: StaCurrentContextSlotFromReg | compiler+VM contract | R1, bench-ab |
 | R5 | Fusion: LdaGlobalToReg, GetNamedPropertyTo, AddToReg | compiler+VM contract | after R3/R4 experience |

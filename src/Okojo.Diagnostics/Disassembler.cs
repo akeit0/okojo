@@ -34,7 +34,7 @@ public static class Disassembler
         sb.AppendLine(
             $"; constants: {script.NumericConstants.Length + script.ObjectConstants.Length}"
         );
-        sb.AppendLine($"; context-slots: {options.ContextSlots}");
+        sb.AppendLine($"; context-slots: {ResolveContextSlots(script.Bytecode, options)}");
 
         if (options.IncludeConstants)
         {
@@ -103,6 +103,50 @@ public static class Disassembler
         }
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    ///     Derives the effective function-context slot count from context
+    ///     creation instructions when the caller did not supply one. R1:
+    ///     the tool used to print a hardcoded 0 while
+    ///     CreateFunctionContextWithCells was present in the stream.
+    /// </summary>
+    private static int ResolveContextSlots(byte[] code, DisassemblerOptions options)
+    {
+        if (options.ContextSlots > 0)
+            return options.ContextSlots;
+
+        var max = 0;
+        var pc = 0;
+        while (pc < code.Length)
+        {
+            if (
+                !BytecodeInfo.TryDecodeInstructionHeader(
+                    code,
+                    pc,
+                    out var op,
+                    out _,
+                    out var operandStart,
+                    out var operandByteCount,
+                    out var instructionLength
+                )
+            )
+                break;
+
+            if (
+                op is JsOpCode.CreateFunctionContextWithCells or JsOpCode.CreateFunctionContext
+                && operandByteCount > 0
+            )
+            {
+                var slots = code[operandStart];
+                if (slots > max)
+                    max = slots;
+            }
+
+            pc += instructionLength;
+        }
+
+        return max;
     }
 
     private static string FormatConstant(object value)
