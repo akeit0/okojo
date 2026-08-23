@@ -2051,7 +2051,7 @@ internal sealed class FlatJavaScriptParser
             var isOf = current.Kind == JsTokenKind.Of;
             if (isAwait && !isOf)
                 throw Error("for await loops must use 'of'", current.Position);
-            ValidateForInOfLeft(init, position);
+            ValidateForInOfLeft(init, position, isOf);
             Next();
             var right = ParseExpression();
             Expect(JsTokenKind.RightParen);
@@ -2080,7 +2080,7 @@ internal sealed class FlatJavaScriptParser
         return Arena.Add(AstKind.ForStatement, children.Offset, children.Count, position: position);
     }
 
-    private void ValidateForInOfLeft(int left, int position)
+    private void ValidateForInOfLeft(int left, int position, bool isOf)
     {
         if (left < 0)
             throw Error("Missing for-in/of binding", position);
@@ -2100,8 +2100,19 @@ internal sealed class FlatJavaScriptParser
             return;
         }
 
-        if (node.Kind is not (AstKind.Identifier or AstKind.MemberExpression))
-            throw Error("Invalid for-in/of assignment target", position);
+        switch (node.Kind)
+        {
+            case AstKind.Identifier:
+            case AstKind.MemberExpression:
+                return;
+            case AstKind.ArrayExpression:
+            case AstKind.ObjectExpression:
+                if (isOf && IsDestructuringAssignmentTarget(left))
+                    return;
+                throw Error("Invalid for-in/of assignment target", position);
+            default:
+                throw Error("Invalid for-in/of assignment target", position);
+        }
     }
 
     private void ValidateOrdinaryForInitializer(int init)
@@ -3771,7 +3782,12 @@ internal sealed class FlatJavaScriptParser
                 return (JsAssignmentOperator)node.Arg2 == JsAssignmentOperator.Assign
                     && IsDestructuringAssignmentTarget(node.Arg0);
             case AstKind.SpreadElement:
-                return Arena[node.Arg0].Kind is AstKind.Identifier or AstKind.MemberExpression;
+                var restKind = Arena[node.Arg0].Kind;
+                return restKind is AstKind.Identifier or AstKind.MemberExpression
+                    || (
+                        restKind is AstKind.ArrayExpression or AstKind.ObjectExpression
+                        && IsDestructuringAssignmentTarget(node.Arg0)
+                    );
             case AstKind.ArrayExpression:
                 var elements = Arena.ChildRange(node.Arg0, node.Arg1);
                 for (var i = 0; i < elements.Length; i++)

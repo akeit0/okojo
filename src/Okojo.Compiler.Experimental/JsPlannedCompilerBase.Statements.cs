@@ -624,6 +624,25 @@ internal abstract partial class JsPlannedCompilerBase
             return;
         }
 
+        if (node.Kind is AstKind.ArrayExpression or AstKind.ObjectExpression)
+        {
+            var marker = builder.GetTemporaryRegisterScopeMarker();
+            try
+            {
+                var sourceRegister = builder.AllocateTemporaryRegister();
+                EmitStar(sourceRegister);
+                if (node.Kind == AstKind.ArrayExpression)
+                    EmitArrayBindingPattern(ast, node, sourceRegister, assignment: true);
+                else
+                    EmitObjectBindingPattern(ast, node, sourceRegister, assignment: true);
+            }
+            finally
+            {
+                builder.ReleaseTemporaryRegistersToMarker(marker);
+            }
+            return;
+        }
+
         if (node.Kind == AstKind.MemberExpression)
         {
             var marker = builder.GetTemporaryRegisterScopeMarker();

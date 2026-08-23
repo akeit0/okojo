@@ -471,6 +471,85 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_ExecutesForOfWithDestructuringAssignmentHeads()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let result = '';
+            let first = 0;
+            let second = 0;
+            for ([first, second] of [[1, 2], [3, 4]]) result += first + second;
+            for ({ x } of [{ x: 5 }]) result += x;
+            for ({ key: mapped } of [{ key: 6 }]) result += mapped;
+            for ({ ['computed' + '']: computed } of [{ computed: 7 }]) result += computed;
+            let head = 0;
+            let tail;
+            for ([head, ...tail] of [[8, 9, 10]]) result += head + tail.length;
+            let defaulted = 0;
+            for ([d = 11] of [[]]) defaulted = d;
+            for ([[nested]] of [[[12]]]) result += nested;
+            let receiver = { seen: 0 };
+            for ([receiver.seen] of [[13]]) result += receiver.seen;
+            let restObjects;
+            for ([...restObjects] of [[14, 15]]) result += restObjects[1];
+            result + '|' + defaulted + '|' + (first === 4) + '|' + tail.join(',');
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("3756710121315|11|false|9,10"));
+    }
+
+    [Test]
+    public void CompileString_ExecutesForAwaitOfWithDestructuringAssignmentHead()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            globalThis.__flatPatternAsyncResult = '';
+            async function run() {
+                async function* source() { yield [1, 2]; yield [3, 4]; }
+                let total = 0;
+                for await ([a, b] of source()) total += a * b;
+                __flatPatternAsyncResult = total;
+            }
+            run();
+            """
+        );
+
+        realm.Execute(script);
+        realm.Agent.RunPromiseJobs();
+
+        Assert.That(realm.Evaluate("__flatPatternAsyncResult").Int32Value, Is.EqualTo(14));
+    }
+
+    [Test]
+    public void CompileString_ExecutesForOfWithNestedRestPatternHead()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let count = 0;
+            for ([...[x]] of [[7], [8]]) count += x;
+            for ([...[p, q]] of [[9, 2], [4, 5]]) count += p * q;
+            count + '|' + x;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("53|8"));
+    }
+
+    [TestCase("for ([value] in { a: 1 }) {}")]
+    [TestCase("for ({ value } in { a: 1 }) {}")]
+    [TestCase("for ([...rest, tail] of [[1]]) {}")]
+    public void ParseScript_RejectsInvalidDestructuringIterationHeads(string source) =>
+        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+
+    [Test]
     public void CompileString_AssignsIterationValuesToMemberTargets()
     {
         var realm = JsRuntime.Create().DefaultRealm;

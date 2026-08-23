@@ -293,6 +293,24 @@ value register; no loop-specific reference representation is added. Focused test
 cover named/computed targets, per-iteration base/key effects, and abrupt computed
 key errors closing a `for-of` iterator.
 
+#### Iteration pattern-target slice
+
+Bare destructuring assignment heads such as `for ([a, b] of pairs)`,
+`for ({ x } of items)`, and `for await ([v] of sources)` are accepted as cover
+grammar. The flat parser validates the array/object expression head with the same
+one-pass `IsDestructuringAssignmentTarget` walk used for destructuring assignments
+and still rejects patterns after `in`, since `for-in` accepts only identifier or
+member references. The binding collector visits the head through the ordinary
+expression path, so every target is a reference, never a new binding. Emission
+stores the current iteration value once into a temporary and replays the shared
+assignment-mode pattern walkers, so defaults, nested patterns, rest elements,
+member targets, and per-iteration effects reuse exactly the landed destructuring
+machinery. The class-AST bridge needs no change because the production parser also
+keeps these heads as expressions. Regression targets are
+`CompileString_ExecutesForOfWithDestructuringAssignmentHeads`,
+`CompileString_ExecutesForAwaitOfWithDestructuringAssignmentHead`, and
+`ParseScript_RejectsInvalidDestructuringIterationHeads`.
+
 ### Labeled control-flow slice
 
 This iteration adds chained labels plus labeled `break`/`continue`. The reference
