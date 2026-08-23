@@ -59,7 +59,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Arrays/objects | holes, array/object spread, data properties, ordinary/generator/async concise methods, getters/setters, computed/shorthand/index keys, stable data shape prefix | `super` methods, legacy `__proto__` intentionally excluded |
 | Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings | class, module bindings and remaining early errors |
 | Assignments | identifier/member targets, compound/logical/update, array/object destructuring, core optional-chain target restrictions | private/super targets, remaining early errors |
-| Functions | ordinary declarations/expressions, closures, synchronous generators with `yield`/`yield*`, ordinary async declarations/expressions and object methods with `await`, synchronous arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`/`new.target`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function name inference, demand-driven mapped/unmapped `arguments` | async arrows/generators, class-name inference, lazy bodies |
+| Functions | ordinary declarations/expressions, closures, synchronous generators with `yield`/`yield*`, async declarations/expressions/object methods with `await`, synchronous and async arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`/`new.target`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function name inference, demand-driven mapped/unmapped `arguments` | async generators, class-name inference, lazy bodies |
 | Classes | none | declaration/expression, constructors, methods, fields, static blocks, private names, super |
 | Modules | none | parse goal, entries, linking metadata, live bindings, top-level await |
 
@@ -387,8 +387,15 @@ throws becoming rejections, captured locals, and nested non-async function
 boundaries. The follow-up object-method slice accepts named/computed
 `async method()` forms through the same function metadata and definition path;
 its reference case is
-`artifacts/okojobytecodetool/cases/flat_ast_async_method.js`. Async arrows, async
-generators, and `for-await-of` remain separate slices.
+`artifacts/okojobytecodetool/cases/flat_ast_async_method.js`. The async-arrow
+follow-up reuses the synchronous arrow head conversion and lexical capture path;
+its reference case is
+`artifacts/okojobytecodetool/cases/flat_ast_async_arrow.js`. Ambiguous
+`async(...)` input is parsed once as a cover head: await diagnostics are deferred
+until `=>` confirms an async arrow, while an ordinary call discards them. This
+handles regexp, division, nested function, and parenthesized defaults without a
+second lexer or AST pass. Async generators and `for-await-of` remain separate
+slices.
 
 V8 uses the generator state switch and suspend/resume machinery underneath async
 functions, wrapping body completion in promise resolve/reject handling. Okojo
@@ -801,8 +808,8 @@ Try/finally slice note:
 
 ### Stage F2 - Resumable functions
 
-- ordinary async declarations/expressions/object methods and `await` are landed;
-  add direct async arrows without changing the resumable-function ABI
+- ordinary async declarations/expressions/object methods/arrows and `await` are
+  landed
 - async generators and `for-await-of`
 - narrow the landed conservative register snapshot only with measured liveness data
 

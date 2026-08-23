@@ -1658,7 +1658,11 @@ public class DirectFlatParserTests
     {
         var source = string.Join(
             '\n',
-            Enumerable.Range(0, 80).Select(static i => $"let value{i} = {i}; value{i} += 1;")
+            Enumerable
+                .Range(0, 80)
+                .Select(static i =>
+                    $"let value{i} = {i}; value{i} += 1; let read{i} = async (input = value{i}) => await input;"
+                )
         );
 
         using (FlatJavaScriptParser.ParseScript(source)) { }
@@ -2155,6 +2159,77 @@ public class DirectFlatParserTests
         Assert.That(read.IsMethod, Is.True);
     }
 
+    [Test]
+    public void CompileString_ExecutesAsyncArrowsAndDisambiguatesCalls()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            globalThis.__flatAsyncArrowSimple = 0;
+            globalThis.__flatAsyncArrowAdvanced = 0;
+            globalThis.__flatAsyncArrowRegex = false;
+            let holder = {
+                base: 3,
+                make(offset) {
+                    return async value => this.base + arguments[0] + await value;
+                }
+            };
+            let simple = holder.make(4);
+            let advanced = async (value = Promise.resolve(4), ...rest) => {
+                let captured = rest[0];
+                return await value + captured;
+            };
+            let regexArrow = async (pattern = /[)]/) => pattern.test(')');
+            let divisionArrow = async (value = 8 / (2)) => value;
+            function async(value) { return value + 1; }
+            let await = 2;
+            let ordinaryCall = async(await) + 1;
+            let nonConstructible = false;
+            try { new advanced(); }
+            catch (error) { nonConstructible = error instanceof TypeError; }
+            simple(Promise.resolve(2)).then(function (value) {
+                __flatAsyncArrowSimple = value;
+            });
+            advanced(undefined, 5).then(function (value) {
+                __flatAsyncArrowAdvanced = value;
+            });
+            regexArrow().then(function (value) { __flatAsyncArrowRegex = value; });
+            ordinaryCall + '|' + nonConstructible;
+            """
+        );
+
+        realm.Execute(script);
+        Assert.That(realm.Evaluate("ordinaryCall").Int32Value, Is.EqualTo(4));
+        Assert.That(realm.Evaluate("nonConstructible").IsTrue, Is.True);
+        realm.Agent.RunPromiseJobs();
+
+        Assert.That(realm.Evaluate("__flatAsyncArrowSimple").Int32Value, Is.EqualTo(9));
+        Assert.That(realm.Evaluate("__flatAsyncArrowAdvanced").Int32Value, Is.EqualTo(9));
+        Assert.That(realm.Evaluate("__flatAsyncArrowRegex").IsTrue, Is.True);
+        Assert.That(realm.Evaluate("typeof divisionArrow").AsString(), Is.EqualTo("function"));
+        var advanced = script
+            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .Single(static function => function.Name == "advanced");
+        Assert.That(advanced.Kind, Is.EqualTo(JsBytecodeFunctionKind.Async));
+        Assert.That(advanced.IsArrow, Is.True);
+    }
+
+    [Test]
+    public void CompileAst_ExecutesAsyncArrowBridge()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            JavaScriptParser.ParseScript(
+                "globalThis.__flatAsyncArrowBridge = 0; let read = async value => await value + 1; read(3).then(function (value) { __flatAsyncArrowBridge = value; });"
+            )
+        );
+
+        realm.Execute(script);
+        realm.Agent.RunPromiseJobs();
+
+        Assert.That(realm.Evaluate("__flatAsyncArrowBridge").Int32Value, Is.EqualTo(4));
+    }
+
     [TestCase("async function invalid(await) {}")]
     [TestCase("async function invalid(value = await) {}")]
     [TestCase("let invalid = async function await() {}")]
@@ -2163,6 +2238,10 @@ public class DirectFlatParserTests
     [TestCase("async function* invalid() {}")]
     [TestCase("({ async *invalid() {} });")]
     [TestCase("({ async get invalid() {} });")]
+    [TestCase("async await => 1;")]
+    [TestCase("async (await) => 1;")]
+    [TestCase("async (value = await 1) => value;")]
+    [TestCase("async\n(value) => value;")]
     public void ParseScript_RejectsInvalidOrDeferredAsyncFunctions(string source) =>
         Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
 
@@ -2170,7 +2249,7 @@ public class DirectFlatParserTests
     public void ParseScript_ResetsAwaitContextForNestedNormalFunctions()
     {
         using var ast = FlatJavaScriptParser.ParseScript(
-            "let await = 3; async function outer() { function inner() { return await; } return inner(); }"
+            "let await = 3; async function outer(value = () => await) { function inner() { return await; } return value() + inner(); }"
         );
 
         Assert.That(ast.Count, Is.GreaterThan(0));

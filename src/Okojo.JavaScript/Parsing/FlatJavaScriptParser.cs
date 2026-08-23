@@ -16,6 +16,8 @@ internal sealed class FlatJavaScriptParser
     private int switchDepth;
     private bool strictMode;
     private bool parsingAsyncParameters;
+    private bool deferringAsyncParameterErrors;
+    private int deferredAsyncParameterErrorPosition = -1;
     private List<ActiveLabel>? activeLabels;
 
     private FlatJavaScriptParser(string source, string? sourcePath)
@@ -788,7 +790,7 @@ internal sealed class FlatJavaScriptParser
     )
     {
         if (parsingAsyncParameters && name == "await")
-            throw Error("Unexpected await in async function parameters", current.Position);
+            ReportAsyncParameterError(current.Position);
         if (!names.Add(name))
             hasDuplicate = true;
         if (name is "eval" or "arguments")
@@ -1196,13 +1198,28 @@ internal sealed class FlatJavaScriptParser
     private int ParseAssignment(bool allowIn)
     {
         var position = current.Position;
-        if (
-            generatorFunctionDepth > 0
-            && current.Kind is JsTokenKind.Identifier or JsTokenKind.ReservedWord
-            && source.AsSpan(current.Position, current.SourceLength).SequenceEqual("yield".AsSpan())
-        )
-            return ParseYieldExpression(allowIn);
-        var left = ParseConditional(allowIn);
+        int left;
+        if (IsAsyncArrowPrefix())
+        {
+            left = ParseAsyncArrowFunction(position);
+            if (Arena[left].Kind == AstKind.ArrowFunctionExpression)
+                return left;
+            left = ParsePostfixUpdateRemainder(left, position);
+            left = ParseBinaryRemainder(left, allowIn, 1);
+            left = ParseConditionalRemainder(left, allowIn, position);
+        }
+        else
+        {
+            if (
+                generatorFunctionDepth > 0
+                && current.Kind is JsTokenKind.Identifier or JsTokenKind.ReservedWord
+                && source
+                    .AsSpan(current.Position, current.SourceLength)
+                    .SequenceEqual("yield".AsSpan())
+            )
+                return ParseYieldExpression(allowIn);
+            left = ParseConditional(allowIn);
+        }
         if (current.Kind == JsTokenKind.Arrow)
             return ParseArrowFunction(left, position);
         if (!TryGetAssignmentOperator(current.Kind, out var op))
@@ -1250,7 +1267,11 @@ internal sealed class FlatJavaScriptParser
     private int ParseConditional(bool allowIn)
     {
         var position = current.Position;
-        var test = ParseBinary(allowIn, 1);
+        return ParseConditionalRemainder(ParseBinary(allowIn, 1), allowIn, position);
+    }
+
+    private int ParseConditionalRemainder(int test, bool allowIn, int position)
+    {
         if (!Match(JsTokenKind.Question))
             return test;
         var consequent = ParseAssignment(allowIn: true);
@@ -1266,7 +1287,11 @@ internal sealed class FlatJavaScriptParser
 
     private int ParseBinary(bool allowIn, int minimumPrecedence)
     {
-        var left = ParseUnary();
+        return ParseBinaryRemainder(ParseUnary(), allowIn, minimumPrecedence);
+    }
+
+    private int ParseBinaryRemainder(int left, bool allowIn, int minimumPrecedence)
+    {
         while (
             TryGetBinaryOperator(
                 current.Kind,
@@ -1295,7 +1320,7 @@ internal sealed class FlatJavaScriptParser
         )
         {
             if (parsingAsyncParameters)
-                throw Error("Unexpected await in async function parameters", position);
+                ReportAsyncParameterError(position);
             if (asyncFunctionDepth > 0)
             {
                 Next();
@@ -1327,7 +1352,11 @@ internal sealed class FlatJavaScriptParser
             return Arena.Add(AstKind.UpdateExpression, argument, (int)op, 1, position);
         }
 
-        var expression = ParsePostfix();
+        return ParsePostfixUpdateRemainder(ParsePostfix(), position);
+    }
+
+    private int ParsePostfixUpdateRemainder(int expression, int position)
+    {
         if (
             !current.HasLineTerminatorBefore
             && current.Kind is JsTokenKind.PlusPlus or JsTokenKind.MinusMinus
@@ -1611,7 +1640,11 @@ internal sealed class FlatJavaScriptParser
         }
     }
 
-    private int ParseParenthesizedExpressionOrArrow(int position)
+    private int ParseParenthesizedExpressionOrArrow(
+        int position,
+        bool isAsync = false,
+        int asyncCallee = -1
+    )
     {
         Expect(JsTokenKind.LeftParen);
         Span<int> initial = stackalloc int[8];
@@ -1658,7 +1691,32 @@ internal sealed class FlatJavaScriptParser
                     && Arena[expressions.AsSpan()[^1]].Kind == AstKind.SpreadElement
                 )
                     throw Error("Rest parameter must be last", position);
-                return ParseArrowFunction(CreateSequence(expressions.AsSpan(), position), position);
+                if (deferredAsyncParameterErrorPosition >= 0)
+                    throw Error(
+                        "Unexpected await in async function parameters",
+                        deferredAsyncParameterErrorPosition
+                    );
+                deferringAsyncParameterErrors = false;
+                return ParseArrowFunction(
+                    CreateSequence(expressions.AsSpan(), position),
+                    position,
+                    isAsync
+                );
+            }
+
+            if (isAsync)
+            {
+                parsingAsyncParameters = false;
+                deferringAsyncParameterErrors = false;
+                var arguments = Arena.AddChildren(expressions.AsSpan());
+                var call = Arena.Add(
+                    AstKind.CallExpression,
+                    asyncCallee,
+                    arguments.Offset,
+                    arguments.Count,
+                    position
+                );
+                return ParseMemberAndCallSuffix(call, allowCalls: true);
             }
 
             if (expressions.Count == 0)
@@ -1691,7 +1749,52 @@ internal sealed class FlatJavaScriptParser
         );
     }
 
-    private int ParseArrowFunction(int head, int position)
+    private int ParseAsyncArrowFunction(int position)
+    {
+        var asyncToken = current;
+        Next();
+        var parsingAsyncParametersBeforeArrow = parsingAsyncParameters;
+        var deferringAsyncParameterErrorsBeforeArrow = deferringAsyncParameterErrors;
+        var deferredAsyncParameterErrorPositionBeforeArrow = deferredAsyncParameterErrorPosition;
+        parsingAsyncParameters = true;
+        deferringAsyncParameterErrors = current.Kind == JsTokenKind.LeftParen;
+        deferredAsyncParameterErrorPosition = -1;
+        try
+        {
+            if (current.Kind == JsTokenKind.LeftParen)
+            {
+                var callee = Arena.Add(
+                    AstKind.Identifier,
+                    Arena.AddString(GetIdentifierText(asyncToken)),
+                    asyncToken.IdentifierId,
+                    position: asyncToken.Position
+                );
+                return ParseParenthesizedExpressionOrArrow(
+                    position,
+                    isAsync: true,
+                    asyncCallee: callee
+                );
+            }
+
+            deferringAsyncParameterErrors = false;
+            var parameter = ExpectIdentifier();
+            var head = Arena.Add(
+                AstKind.Identifier,
+                Arena.AddString(GetIdentifierText(parameter)),
+                parameter.IdentifierId,
+                position: parameter.Position
+            );
+            return ParseArrowFunction(head, position, isAsync: true);
+        }
+        finally
+        {
+            parsingAsyncParameters = parsingAsyncParametersBeforeArrow;
+            deferringAsyncParameterErrors = deferringAsyncParameterErrorsBeforeArrow;
+            deferredAsyncParameterErrorPosition = deferredAsyncParameterErrorPositionBeforeArrow;
+        }
+    }
+
+    private int ParseArrowFunction(int head, int position, bool isAsync = false)
     {
         if (current.HasLineTerminatorBefore)
             throw Error("Line terminator is not allowed before '=>'", current.Position);
@@ -1707,6 +1810,7 @@ internal sealed class FlatJavaScriptParser
         var seenDefault = false;
         var functionLength = 0;
         var restParameterIndex = -1;
+        var parsingAsyncParametersBeforeArrow = parsingAsyncParameters;
         try
         {
             if (head >= 0)
@@ -1807,6 +1911,7 @@ internal sealed class FlatJavaScriptParser
             if (hasDuplicate)
                 throw Error("Duplicate parameter name", position);
             Expect(JsTokenKind.Arrow);
+            parsingAsyncParameters = false;
 
             var parameterRange = ast.AddParameters(parameters.AsSpan());
             var strictBeforeFunction = strictMode;
@@ -1818,7 +1923,7 @@ internal sealed class FlatJavaScriptParser
             var generatorDepthBeforeArrow = generatorFunctionDepth;
             var asyncDepthBeforeArrow = asyncFunctionDepth;
             generatorFunctionDepth = 0;
-            asyncFunctionDepth = 0;
+            asyncFunctionDepth = isAsync ? asyncDepthBeforeArrow + 1 : 0;
             int body;
             bool strictDeclared;
             try
@@ -1875,7 +1980,8 @@ internal sealed class FlatJavaScriptParser
                     false,
                     position,
                     false,
-                    true
+                    true,
+                    IsAsync: isAsync
                 )
             );
             return Arena.Add(
@@ -1887,6 +1993,7 @@ internal sealed class FlatJavaScriptParser
         }
         finally
         {
+            parsingAsyncParameters = parsingAsyncParametersBeforeArrow;
             parameters.Dispose();
             nodes.Dispose();
         }
@@ -2416,7 +2523,18 @@ internal sealed class FlatJavaScriptParser
             (asyncFunctionDepth > 0 || parsingAsyncParameters)
             && source.AsSpan(token.Position, token.SourceLength).SequenceEqual("await".AsSpan())
         )
-            throw Error("Unexpected await binding", token.Position);
+            ReportAsyncParameterError(token.Position);
+    }
+
+    private void ReportAsyncParameterError(int position)
+    {
+        if (deferringAsyncParameterErrors)
+        {
+            if (deferredAsyncParameterErrorPosition < 0)
+                deferredAsyncParameterErrorPosition = position;
+            return;
+        }
+        throw Error("Unexpected await in async function parameters", position);
     }
 
     private JsToken ExpectIdentifier()
@@ -2486,6 +2604,37 @@ internal sealed class FlatJavaScriptParser
             return false;
         var next = PeekToken();
         return !next.HasLineTerminatorBefore && next.Kind == JsTokenKind.Function;
+    }
+
+    private bool IsAsyncArrowPrefix()
+    {
+        if (
+            current.Kind != JsTokenKind.Identifier
+            || !source
+                .AsSpan(current.Position, current.SourceLength)
+                .SequenceEqual("async".AsSpan())
+        )
+            return false;
+
+        var index = lexer.GetIndex();
+        try
+        {
+            var token = lexer.NextToken();
+            if (token.HasLineTerminatorBefore)
+                return false;
+            if (token.Kind == JsTokenKind.LeftParen)
+                return true;
+            if (token.Kind == JsTokenKind.Identifier)
+            {
+                var arrow = lexer.NextToken();
+                return !arrow.HasLineTerminatorBefore && arrow.Kind == JsTokenKind.Arrow;
+            }
+            return false;
+        }
+        finally
+        {
+            lexer.SetIndex(index);
+        }
     }
 
     private bool IsOptionalChainPunctuator()
