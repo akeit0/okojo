@@ -116,11 +116,46 @@ internal static class FlatAstLowerer
                     position: throwStatement.Position
                 ),
                 JsTryStatement tryStatement => LowerTryStatement(tryStatement),
+                JsSwitchStatement switchStatement => LowerSwitchStatement(switchStatement),
                 JsEmptyStatement => Arena.Add(AstKind.EmptyStatement, position: statement.Position),
                 _ => throw new NotSupportedException(
                     $"{compilerName} does not support statement '{statement.GetType().Name}'."
                 ),
             };
+        }
+
+        private int LowerSwitchStatement(JsSwitchStatement statement)
+        {
+            var cases = ArrayPool<int>.Shared.Rent(statement.Cases.Count);
+            try
+            {
+                for (var i = 0; i < statement.Cases.Count; i++)
+                {
+                    var switchCase = statement.Cases[i];
+                    var test = switchCase.Test is null ? -1 : LowerExpression(switchCase.Test);
+                    var consequent = LowerStatements(switchCase.Consequent);
+                    cases[i] = Arena.Add(
+                        AstKind.SwitchCase,
+                        test,
+                        consequent.Offset,
+                        consequent.Count,
+                        switchCase.Position
+                    );
+                }
+
+                var range = Arena.AddChildren(cases.AsSpan(0, statement.Cases.Count));
+                return Arena.Add(
+                    AstKind.SwitchStatement,
+                    LowerExpression(statement.Discriminant),
+                    range.Offset,
+                    range.Count,
+                    statement.Position
+                );
+            }
+            finally
+            {
+                ArrayPool<int>.Shared.Return(cases);
+            }
         }
 
         private int LowerTryStatement(JsTryStatement statement)

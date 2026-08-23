@@ -62,7 +62,7 @@ The shared emitter is split into partial files to keep growth readable.
 Both planned compilers currently support:
 
 - parameters and `var` / `let` / `const` declarations without patterns
-- blocks, `if`, `while`, `do/while`, ordinary `for`, `break`, and `continue`
+- blocks, `if`, `while`, `do/while`, ordinary `for`, `switch`, `break`, and `continue`
 - function declarations, expression statements, and function `return`
 - null, boolean, number, and string literals
 - unshadowed `undefined` intrinsic reads with lexical shadowing
@@ -119,6 +119,7 @@ Current milestone status:
 - prepared-reference member writes and updates: done
 - dense scope/capture planning: done
 - ordinary loop lowering with captured lexical per-iteration contexts: done
+- switch selection, fallthrough, lexical scope, and abrupt break routing: done
 - compare/branch lowering: done for current subset
 - root/function current-context capture: done
 - block-context push/pop capture: done for current subset

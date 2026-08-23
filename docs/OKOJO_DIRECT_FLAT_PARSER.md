@@ -51,7 +51,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 |---|---|---|
 | Parse goal | scripts | modules, standalone function goal |
 | Declarations | `var`/`let`/`const`, ordinary function declarations, function/block declaration prologues, function-scoped `var`, persistent script globals/lexicals, initial global conflict validation | classes, imports/exports, complete declaration early errors, Annex B |
-| Blocks/control | block, `if`, `while`, `do`, ordinary `for`, unlabeled `break`/`continue`, `return`, `throw`, `try`/`catch`/`finally`, empty/expression statement | `switch`, `for-in/of`, labels, `debugger` |
+| Blocks/control | block, `if`, `while`, `do`, ordinary `for`, `switch`, unlabeled `break`/`continue`, `return`, `throw`, `try`/`catch`/`finally`, empty/expression statement | `for-in/of`, labels, `debugger` |
 | Primitive expressions | number, string, boolean, null, identifier, `this`, grouping | regexp, BigInt, templates, `super`, `new.target`, `import.meta` |
 | Operators | precedence table, assignment, arithmetic/logical/bitwise/comparison, conditionals, sequence, updates, property/identifier/value `delete` | optional-chain operators and delete-chain behavior, remaining edge-specific early errors |
 | References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed properties | imports, private and super references |
@@ -189,6 +189,27 @@ Handler entries now also save the current `JsContext`. The VM restores context,
 stack, and PC together at a handler target, and suspended generators retain the
 same saved handler contexts. This fixes exceptions that bypass bytecode
 `PopContext` from captured lexical blocks.
+
+### Switch slice
+
+This iteration adds direct parsing, binding discovery, and planned emission for
+ordinary `switch`, including a default clause in any position, fallthrough,
+unlabeled `break`, returns through `finally`, and one lexical environment shared by
+all clauses. Minimal repros and the production-bytecode input live in
+`artifacts/okojobytecodetool/cases/flat_ast_switch.js`; focused regressions target
+selection/fallthrough plus cross-clause TDZ and capture behavior.
+
+V8's `BytecodeGenerator::VisitSwitchStatement` evaluates and saves the tag before
+entering the case-block scope, emits comparisons in source order (with the default
+as the no-match destination), and binds clause bodies consecutively for natural
+fallthrough. It may replace a profitable dense Smi range with
+`SwitchOnSmiNoFeedback`. Okojo copies the semantic/control shape first using its
+existing strict-compare and jump ABI. Okojo already has a zero-based `SwitchOnSmi`
+opcode, but profitable general integer switches need type/integer/range guards and
+a case-value-base normalization sequence. Enabling that specialization is deferred
+until corpus measurements justify the added bytecode. No case objects are
+allocated: `SwitchStatement` and `SwitchCase` use fixed flat nodes plus the existing
+dense child table.
 
 ### Global references
 
@@ -421,8 +442,8 @@ function read(value = function nested(next = outer) { return next; }) {
 ### Stage F1 - Synchronous application grammar
 
 - extend effect/value/test modes to the remaining expressions
-- extend abrupt-completion routing to labels, switch, and iterator cleanup
-- `switch`
+- extend abrupt-completion routing to labels and iterator cleanup; switch breaks
+  are landed
 - `for-in`/`for-of` and labels
 - `debugger`
 - regexp, BigInt, and template literals
@@ -431,8 +452,9 @@ function read(value = function nested(next = outer) { return next; }) {
 - ordinary arrows with lexical `this`, `arguments`, and `new.target`
 - optional chaining/calls
 
-New side tables should be purpose-specific and dense: handler/catch records,
-switch clauses, and template spans. Avoid generic object payloads.
+New side tables should be purpose-specific and dense: handler/catch records and
+template spans. Switch clauses already use fixed nodes and the dense child table.
+Avoid generic object payloads.
 
 First foundation slice landed:
 

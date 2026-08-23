@@ -61,6 +61,9 @@ internal abstract partial class JsPlannedCompilerBase
             case AstKind.TryStatement:
                 EmitTryStatement(ast, node);
                 return;
+            case AstKind.SwitchStatement:
+                EmitSwitchStatement(ast, nodeIndex, node);
+                return;
             case AstKind.EmptyStatement:
                 builder.EmitLda(JsOpCode.LdaUndefined);
                 return;
@@ -239,6 +242,19 @@ internal abstract partial class JsPlannedCompilerBase
         );
     }
 
+    private void PushSwitchControlScope(BytecodeBuilder.Label breakTarget)
+    {
+        controlScopes.Push(
+            new ControlScope(
+                ControlScopeKind.Switch,
+                breakTarget,
+                default,
+                default,
+                CurrentContextDepth
+            )
+        );
+    }
+
     private void EmitAbruptCommand(AbruptCommand command)
     {
         var contextDepth = CurrentContextDepth;
@@ -269,14 +285,19 @@ internal abstract partial class JsPlannedCompilerBase
                 EmitJump(scope.Finally);
                 return;
             }
+            if (scope.Kind == ControlScopeKind.Switch && command == AbruptCommand.Break)
+            {
+                EmitJump(scope.Break);
+                return;
+            }
             if (
-                scope.Kind != ControlScopeKind.Iteration
-                || command is not (AbruptCommand.Break or AbruptCommand.Continue)
+                scope.Kind == ControlScopeKind.Iteration
+                && command is AbruptCommand.Break or AbruptCommand.Continue
             )
-                continue;
-
-            EmitJump(command == AbruptCommand.Continue ? scope.Continue : scope.Break);
-            return;
+            {
+                EmitJump(command == AbruptCommand.Continue ? scope.Continue : scope.Break);
+                return;
+            }
         }
 
         switch (command)
@@ -288,6 +309,81 @@ internal abstract partial class JsPlannedCompilerBase
                 throw new InvalidOperationException(
                     $"Abrupt command '{command}' has no active control scope."
                 );
+        }
+    }
+
+    private void EmitSwitchStatement(FlatAst ast, int nodeIndex, AstNode statement)
+    {
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        BytecodeBuilder.Label[]? rentedLabels = null;
+        try
+        {
+            EmitExpression(ast, statement.Arg0);
+            var tagRegister = builder.AllocateTemporaryRegister();
+            EmitStar(tagRegister);
+            var cases = ast.ChildRange(statement.Arg1, statement.Arg2);
+            rentedLabels = ArrayPool<BytecodeBuilder.Label>.Shared.Rent(cases.Length);
+            var breakTarget = builder.CreateLabel();
+            var defaultTarget = breakTarget;
+            for (var i = 0; i < cases.Length; i++)
+            {
+                rentedLabels[i] = builder.CreateLabel();
+                if (ast[cases[i]].Arg0 < 0)
+                    defaultTarget = rentedLabels[i];
+            }
+
+            var scope = FindChildScope(
+                activeScopes.Peek().ScopeId,
+                CompilerCollectedScopeKind.Block,
+                ast.GetPosition(nodeIndex)
+            );
+            EnterScope(scope.ScopeId);
+            try
+            {
+                for (var i = 0; i < cases.Length; i++)
+                {
+                    ref readonly var switchCase = ref ast[cases[i]];
+                    EmitDeclarationPrologue(ast, switchCase.Arg1, switchCase.Arg2);
+                }
+                for (var i = 0; i < cases.Length; i++)
+                {
+                    ref readonly var switchCase = ref ast[cases[i]];
+                    if (switchCase.Arg0 < 0)
+                        continue;
+                    EmitExpression(ast, switchCase.Arg0);
+                    EmitRegisterWithSlotOp(JsOpCode.TestEqualStrict, tagRegister);
+                    EmitJumpIfToBooleanTrue(rentedLabels[i]);
+                }
+                EmitJump(defaultTarget);
+
+                PushSwitchControlScope(breakTarget);
+                try
+                {
+                    for (var i = 0; i < cases.Length; i++)
+                    {
+                        builder.BindLabel(rentedLabels[i]);
+                        ref readonly var switchCase = ref ast[cases[i]];
+                        var statements = ast.ChildRange(switchCase.Arg1, switchCase.Arg2);
+                        for (var j = 0; j < statements.Length; j++)
+                            EmitStatement(ast, statements[j]);
+                    }
+                }
+                finally
+                {
+                    controlScopes.Pop();
+                }
+                builder.BindLabel(breakTarget);
+            }
+            finally
+            {
+                LeaveScope();
+            }
+        }
+        finally
+        {
+            if (rentedLabels is not null)
+                ArrayPool<BytecodeBuilder.Label>.Shared.Return(rentedLabels);
+            builder.ReleaseTemporaryRegistersToMarker(marker);
         }
     }
 

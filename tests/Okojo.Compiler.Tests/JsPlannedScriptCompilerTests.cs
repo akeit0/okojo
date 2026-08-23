@@ -94,7 +94,7 @@ public class JsPlannedScriptCompilerTests
             compiler.Compile(
                 JavaScriptParser.ParseScript(
                     """
-                    switch (1) { case 1: break; }
+                    debugger;
                     """
                 )
             )
@@ -102,6 +102,21 @@ public class JsPlannedScriptCompilerTests
 
         Assert.That(ex, Is.Not.Null);
         Assert.That(ex!.Message, Does.Contain("does not support statement"));
+    }
+
+    [Test]
+    public void Compile_LowersClassAstSwitchBridge()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            JavaScriptParser.ParseScript(
+                "let result = 0; switch (2) { case 1: result = 1; break; case 2: result = 42; } result;"
+            )
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(42));
     }
 
     [Test]

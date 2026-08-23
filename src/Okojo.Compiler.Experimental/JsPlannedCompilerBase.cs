@@ -66,6 +66,7 @@ internal abstract partial class JsPlannedCompilerBase
     private enum ControlScopeKind : byte
     {
         Iteration,
+        Switch,
         Try,
         Finally,
     }

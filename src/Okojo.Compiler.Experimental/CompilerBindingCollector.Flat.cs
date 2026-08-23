@@ -234,12 +234,36 @@ internal static partial class CompilerBindingCollector
                     if (node.Arg2 >= 0)
                         VisitBlock(ast, node.Arg2, scopeId);
                     return;
+                case AstKind.SwitchStatement:
+                    VisitSwitchStatement(ast, nodeIndex, scopeId);
+                    return;
                 case AstKind.EmptyStatement:
                     return;
                 default:
                     throw new NotSupportedException(
                         $"Flat binding collection does not support statement '{node.Kind}'."
                     );
+            }
+        }
+
+        private void VisitSwitchStatement(FlatAst ast, int nodeIndex, int parentScopeId)
+        {
+            ref readonly var statement = ref ast[nodeIndex];
+            VisitExpression(ast, statement.Arg0, parentScopeId);
+            var scopeId = AddScope(
+                parentScopeId,
+                CompilerCollectedScopeKind.Block,
+                ast.GetPosition(nodeIndex)
+            );
+            var cases = ast.ChildRange(statement.Arg1, statement.Arg2);
+            for (var i = 0; i < cases.Length; i++)
+            {
+                ref readonly var switchCase = ref ast[cases[i]];
+                if (switchCase.Arg0 >= 0)
+                    VisitExpression(ast, switchCase.Arg0, scopeId);
+                var statements = ast.ChildRange(switchCase.Arg1, switchCase.Arg2);
+                for (var j = 0; j < statements.Length; j++)
+                    VisitStatement(ast, statements[j], scopeId);
             }
         }
 

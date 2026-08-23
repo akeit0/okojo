@@ -85,7 +85,8 @@ The implemented path has these properties:
 - unsupported direct grammar fails explicitly instead of silently parsing twice
 
 Implemented execution coverage includes ordinary declarations and functions,
-branches and ordinary loops, calls and construction, named/computed properties,
+branches, ordinary loops, and `switch`, calls and construction, named/computed
+properties,
 array/object data literals, binding and assignment destructuring, advanced
 parameters, ordinary function expressions, closures, `this`, `throw`, and
 `try`/`catch`/`finally` with optional or destructured catch bindings.
@@ -221,6 +222,10 @@ The direct flat work has already established several reusable rules:
   names are preserved, and no class AST is reconstructed
 - represent `finally` exits as a completion kind plus optional value, then replay
   return/break/continue after the finalizer through the same control-scope stack
+- lower `switch` as a saved tag, source-ordered strict comparisons, one shared
+  case-block scope, and consecutively bound clause bodies; retain the existing
+  zero-based `SwitchOnSmi` specialization until corpus data justifies its guard and
+  normalization sequence
 - save lexical context in the VM exception-handler entry as part of the handler
   ABI; restoring only stack and PC is insufficient when an exception skips a
   captured block's `PopContext`
@@ -293,7 +298,6 @@ hoisting without compiler-specific rewrites.
 - explicit effect/value/test expression emission modes
 - extend the landed abrupt-command stack to labeled targets and richer handler
   metadata
-- `switch`
 - `for-in` and `for-of`
 - labeled statements and labeled `break`/`continue`
 - template, regexp, and BigInt literals
@@ -309,8 +313,8 @@ and return emission shares one control-scope dispatcher. Direct `throw` and
 preserve the return value when required, run the finalizer, and replay the saved
 command; runtime throws continue through the VM handler path. The VM handler ABI
 now preserves lexical context across exceptions and generator suspension.
-Labeled targets, switch/iterator control, full early errors, and diagnostic
-handler metadata remain part of P1.
+Switch control is landed. Labeled targets, iterator control, full early errors,
+and diagnostic handler metadata remain part of P1.
 
 Exit gate: the direct path compiles the synchronous non-class application corpus
 and has differential execution coverage for every new control-flow form.

@@ -358,6 +358,111 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void ParseScript_StoresSwitchCasesInDenseFlatRanges()
+    {
+        using var ast = FlatJavaScriptParser.ParseScript(
+            "switch (value) { case 1: value = 2; break; default: value = 3; }"
+        );
+
+        ref readonly var root = ref ast[ast.Root];
+        var statement = ast[ast.ChildRange(root.Arg0, root.Arg1)[0]];
+        var cases = ast.ChildRange(statement.Arg1, statement.Arg2);
+
+        Assert.That(statement.Kind, Is.EqualTo(AstKind.SwitchStatement));
+        Assert.That(cases.Length, Is.EqualTo(2));
+        Assert.That(ast[cases[0]].Kind, Is.EqualTo(AstKind.SwitchCase));
+        Assert.That(ast[cases[0]].Arg0, Is.GreaterThanOrEqualTo(0));
+        Assert.That(ast[cases[1]].Arg0, Is.EqualTo(-1));
+        Assert.That(ast.ChildRange(ast[cases[0]].Arg1, ast[cases[0]].Arg2).Length, Is.EqualTo(2));
+    }
+
+    [Test]
+    public void CompileString_ExecutesSwitchSelectionFallthroughAndBreak()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            function choose(value) {
+                let result = 0;
+                switch (value) {
+                    case 1:
+                        return 10;
+                    default:
+                        result = 20;
+                    case 2:
+                        result += 2;
+                        break;
+                    case 3:
+                        result = 30;
+                }
+                return result;
+            }
+            choose(1) * 1000 + choose(2) * 100 + choose(3) * 10 + choose(9);
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(10522));
+    }
+
+    [Test]
+    public void CompileString_SharesSwitchLexicalScopeAndRoutesBreakThroughFinally()
+    {
+        const string makeSource = """
+            function make(value) {
+                let read;
+                switch (value) {
+                    case 0:
+                        let shared = 42;
+                    case 1:
+                        read = function () { return shared; };
+                        break;
+                }
+                return read;
+            }
+            """;
+        var realm = JsRuntime.Create().DefaultRealm;
+        realm.Execute(new JsPlannedScriptCompiler(realm).Compile(makeSource + "make(0)();"));
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(42));
+
+        var tdzRealm = JsRuntime.Create().DefaultRealm;
+        Assert.Throws<JsRuntimeException>(() =>
+            tdzRealm.Execute(
+                new JsPlannedScriptCompiler(tdzRealm).Compile(makeSource + "make(1)();")
+            )
+        );
+
+        var finallyRealm = JsRuntime.Create().DefaultRealm;
+        var finallyScript = new JsPlannedScriptCompiler(finallyRealm).Compile(
+            """
+            let iterations = 0;
+            let effects = 0;
+            while (iterations < 2) {
+                switch (iterations) {
+                    case 0:
+                        break;
+                    default:
+                        try { break; } finally { effects += 40; }
+                }
+                iterations++;
+            }
+            iterations + effects;
+            """
+        );
+        finallyRealm.Execute(finallyScript);
+        Assert.That(finallyRealm.Accumulator.Int32Value, Is.EqualTo(42));
+    }
+
+    [TestCase("switch (0) { default: break; default: break; }")]
+    [TestCase("switch (0) { case 0:")]
+    [TestCase("switch (0) { case 0: continue; }")]
+    public void ParseScript_RejectsMalformedSwitch(string source)
+    {
+        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+    }
+
+    [Test]
     public void CompileString_EmitsLogicalConditionsInTestMode()
     {
         var realm = JsRuntime.Create().DefaultRealm;

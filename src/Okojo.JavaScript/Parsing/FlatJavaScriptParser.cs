@@ -10,6 +10,7 @@ internal sealed class FlatJavaScriptParser
     private JsToken current;
     private int functionDepth;
     private int loopDepth;
+    private int switchDepth;
     private bool strictMode;
 
     private FlatJavaScriptParser(string source, string? sourcePath)
@@ -86,8 +87,8 @@ internal sealed class FlatJavaScriptParser
             JsTokenKind.Return => ParseReturnStatement(),
             JsTokenKind.Throw => ParseThrowStatement(),
             JsTokenKind.Try => ParseTryStatement(),
-            JsTokenKind.Switch or JsTokenKind.With or JsTokenKind.Debugger =>
-                throw UnsupportedStatement(current.Kind),
+            JsTokenKind.Switch => ParseSwitchStatement(),
+            JsTokenKind.With or JsTokenKind.Debugger => throw UnsupportedStatement(current.Kind),
             _ => ParseExpressionStatement(),
         };
     }
@@ -547,7 +548,9 @@ internal sealed class FlatJavaScriptParser
             var parameterRange = ast.AddParameters(parameterList.AsSpan());
             var strictBeforeFunction = strictMode;
             var loopDepthBeforeFunction = loopDepth;
+            var switchDepthBeforeFunction = switchDepth;
             loopDepth = 0;
+            switchDepth = 0;
             functionDepth++;
             int body;
             bool strictDeclared;
@@ -559,6 +562,7 @@ internal sealed class FlatJavaScriptParser
             {
                 functionDepth--;
                 loopDepth = loopDepthBeforeFunction;
+                switchDepth = switchDepthBeforeFunction;
             }
             var effectiveStrict = strictBeforeFunction || strictDeclared;
             strictMode = strictBeforeFunction;
@@ -722,7 +726,7 @@ internal sealed class FlatJavaScriptParser
     private int ParseLoopControl(AstKind kind)
     {
         var position = current.Position;
-        if (loopDepth == 0)
+        if (kind == AstKind.ContinueStatement ? loopDepth == 0 : loopDepth == 0 && switchDepth == 0)
             throw Error($"Illegal {kind}", position);
         Next();
         if (
@@ -732,6 +736,88 @@ internal sealed class FlatJavaScriptParser
             throw Error("Labeled loop control is not supported by FlatJavaScriptParser", position);
         ConsumeSemicolon();
         return Arena.Add(kind, position: position);
+    }
+
+    private int ParseSwitchStatement()
+    {
+        var position = Expect(JsTokenKind.Switch).Position;
+        Expect(JsTokenKind.LeftParen);
+        var discriminant = ParseExpression();
+        Expect(JsTokenKind.RightParen);
+        Expect(JsTokenKind.LeftBrace);
+        Span<int> initialCases = stackalloc int[8];
+        var cases = new NodeList(initialCases);
+        var hasDefault = false;
+        switchDepth++;
+        try
+        {
+            Span<int> initialStatements = stackalloc int[4];
+            while (current.Kind != JsTokenKind.RightBrace)
+            {
+                if (current.Kind == JsTokenKind.Eof)
+                    throw Error("Unterminated switch statement", position);
+                var casePosition = current.Position;
+                int test;
+                if (Match(JsTokenKind.Case))
+                    test = ParseExpression();
+                else if (Match(JsTokenKind.Default))
+                {
+                    if (hasDefault)
+                        throw Error(
+                            "More than one default clause in switch statement",
+                            casePosition
+                        );
+                    hasDefault = true;
+                    test = -1;
+                }
+                else
+                    throw Error("Expected case or default clause", current.Position);
+                Expect(JsTokenKind.Colon);
+
+                var statements = new NodeList(initialStatements);
+                try
+                {
+                    while (
+                        current.Kind
+                            is not (
+                                JsTokenKind.Case
+                                or JsTokenKind.Default
+                                or JsTokenKind.RightBrace
+                                or JsTokenKind.Eof
+                            )
+                    )
+                        statements.Add(ParseStatement());
+                    var consequent = Arena.AddChildren(statements.AsSpan());
+                    cases.Add(
+                        Arena.Add(
+                            AstKind.SwitchCase,
+                            test,
+                            consequent.Offset,
+                            consequent.Count,
+                            casePosition
+                        )
+                    );
+                }
+                finally
+                {
+                    statements.Dispose();
+                }
+            }
+            Next();
+            var range = Arena.AddChildren(cases.AsSpan());
+            return Arena.Add(
+                AstKind.SwitchStatement,
+                discriminant,
+                range.Offset,
+                range.Count,
+                position
+            );
+        }
+        finally
+        {
+            switchDepth--;
+            cases.Dispose();
+        }
     }
 
     private int ParseReturnStatement()
