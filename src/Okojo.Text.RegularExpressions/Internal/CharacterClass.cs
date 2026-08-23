@@ -172,6 +172,15 @@ internal sealed class CharSet
     internal static CharSet AllUnicode => s_allUnicode;
     internal ReadOnlySpan<CodePointRange> Ranges => _ranges;
     internal bool IsSingle => Ranges.Length == 1 && Ranges[0].Start == Ranges[0].End;
+
+    /// <summary>R8-irregexp: sole code point when exactly one BMP character.</summary>
+    internal char? TryGetSingleBmp()
+    {
+        if (!IsSingle || Ranges[0].Start > char.MaxValue)
+            return null;
+        return (char)Ranges[0].Start;
+    }
+
     internal int Single =>
         IsSingle ? Ranges[0].Start : throw new InvalidOperationException("Set is not a singleton.");
 

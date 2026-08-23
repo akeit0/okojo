@@ -199,11 +199,29 @@ internal static class BacktrackingVm
             else
             {
                 int candidate = startIndex;
+
+                // R8-irregexp: when the leading set contains exactly one BMP
+                // code unit, scan directly with IndexOf instead of stepping
+                // through every position. This mirrors V8 irregexp's
+                // one-byte/rare-character pre-filter.
+                var leadChar = plan.LeadingSet is { } ls ? ls.TryGetSingleBmp() : null;
                 while (candidate <= lastCandidate)
                 {
+                    if (leadChar.HasValue)
+                    {
+                        int skip = input[candidate..].IndexOf(leadChar.Value);
+                        if (skip < 0 || candidate + skip > lastCandidate)
+                            break;
+                        candidate += skip;
+                    }
+                    else if (!LeadingSetMatches(plan, input, candidate, unicode))
+                    {
+                        candidate = Utf16.AdvanceStringIndex(input, candidate, unicode);
+                        continue;
+                    }
+
                     if (
-                        LeadingSetMatches(plan, input, candidate, unicode)
-                        && TryCandidate(
+                        TryCandidate(
                             program,
                             input,
                             candidate,
