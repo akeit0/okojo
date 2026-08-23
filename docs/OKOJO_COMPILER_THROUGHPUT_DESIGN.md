@@ -366,7 +366,7 @@ and has differential execution coverage for every new control-flow form.
 
 ### P2 - Resumable functions
 
-- direct async arrows and object methods
+- direct async arrows
 - async generators and `for-await-of`
 - measured live-range narrowing for the landed conservative register snapshot
 
@@ -376,9 +376,9 @@ values, and next/return/throw resume modes are landed. Return resumes reuse the
 abrupt-command stack so `finally` and iterator cleanup stay on the same path;
 throw resumes reuse the VM's restored exception-handler continuation. Delegation
 retains the active iterator in the existing continuation and forwards abrupt
-resumes in the VM. Ordinary async declarations/expressions and unary `await` are
-also landed. They share the same switch/suspend/resume emitter, use the existing
-`0xFE` await operand, and leave promise resolve/reject driving in
+resumes in the VM. Ordinary async declarations/expressions/object methods and
+unary `await` are also landed. They share the same switch/suspend/resume emitter,
+use the existing `0xFE` await operand, and leave promise resolve/reject driving in
 `StartAsyncBytecodeFunction`, matching V8's resumable shape without duplicating
 runtime promise state in flat nodes.
 

@@ -76,6 +76,7 @@ Both planned compilers currently support:
 - named/computed generator object methods through the same function metadata
 - ordinary async function declarations/expressions with `await`, fulfilled and
   rejected resume paths, and the existing async promise driver
+- named/computed async object methods through the same function metadata
 - `new.target` in ordinary functions with function-scope early errors
 - unshadowed `undefined` intrinsic reads with lexical shadowing
 - unary, arithmetic, bitwise, comparison, logical, conditional, sequence, and
@@ -110,7 +111,7 @@ lowerer comparison.
 Still intentionally unsupported in the experimental pipeline:
 
 - private/super member access
-- direct async arrows/methods, async generators, and async/`super` object methods
+- direct async arrows, async generators, and `super` object methods
 - module binding emission
 - `for-await-of`
 - direct production replacement of `JsCompiler`

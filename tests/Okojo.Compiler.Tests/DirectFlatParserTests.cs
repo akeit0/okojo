@@ -2123,12 +2123,46 @@ public class DirectFlatParserTests
         Assert.That(realm.Evaluate("__flatAsyncBridge").Int32Value, Is.EqualTo(4));
     }
 
+    [Test]
+    public void CompileString_ExecutesAsyncObjectMethods()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            globalThis.__flatAsyncMethod = '';
+            let key = 'read';
+            let holder = {
+                base: 2,
+                async [key](value = 3) { return this.base + await value; },
+                async() { return 1; }
+            };
+            let nonConstructible = false;
+            try { new holder.read(); }
+            catch (error) { nonConstructible = error instanceof TypeError; }
+            holder.read(Promise.resolve(3)).then(function (value) {
+                __flatAsyncMethod = value + '|' + nonConstructible + '|' + holder.read.name;
+            });
+            """
+        );
+
+        realm.Execute(script);
+        realm.Agent.RunPromiseJobs();
+
+        Assert.That(realm.Evaluate("__flatAsyncMethod").AsString(), Is.EqualTo("5|true|read"));
+        var read = script
+            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .Single(static function => function.Kind == JsBytecodeFunctionKind.Async);
+        Assert.That(read.IsMethod, Is.True);
+    }
+
     [TestCase("async function invalid(await) {}")]
     [TestCase("async function invalid(value = await) {}")]
     [TestCase("let invalid = async function await() {}")]
     [TestCase("async function invalid() { let await; }")]
     [TestCase("async function invalid() { try {} catch (await) {} }")]
     [TestCase("async function* invalid() {}")]
+    [TestCase("({ async *invalid() {} });")]
+    [TestCase("({ async get invalid() {} });")]
     public void ParseScript_RejectsInvalidOrDeferredAsyncFunctions(string source) =>
         Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
 

@@ -2130,7 +2130,35 @@ internal sealed class FlatJavaScriptParser
                     continue;
                 }
 
+                var isAsyncMethod = false;
+                if (
+                    current.Kind == JsTokenKind.Identifier
+                    && source
+                        .AsSpan(current.Position, current.SourceLength)
+                        .SequenceEqual("async".AsSpan())
+                )
+                {
+                    var next = PeekToken();
+                    if (
+                        !next.HasLineTerminatorBefore
+                        && next.Kind
+                            is not (
+                                JsTokenKind.LeftParen
+                                or JsTokenKind.Colon
+                                or JsTokenKind.Comma
+                                or JsTokenKind.RightBrace
+                                or JsTokenKind.Assign
+                            )
+                    )
+                    {
+                        isAsyncMethod = true;
+                        Next();
+                    }
+                }
+
                 var isGeneratorMethod = Match(JsTokenKind.Star);
+                if (isAsyncMethod && isGeneratorMethod)
+                    throw Error("Async generator methods are not supported", propertyPosition);
                 var computed = Match(JsTokenKind.LeftBracket);
                 int key;
                 JsToken shorthandToken = default;
@@ -2159,6 +2187,8 @@ internal sealed class FlatJavaScriptParser
                         )
                 )
                 {
+                    if (isAsyncMethod)
+                        throw Error("Async accessors are not valid", propertyPosition);
                     var isGetter = staticName == "get";
                     computed = Match(JsTokenKind.LeftBracket);
                     if (computed)
@@ -2213,7 +2243,8 @@ internal sealed class FlatJavaScriptParser
                         -1,
                         propertyPosition,
                         isMethod: true,
-                        isGenerator: isGeneratorMethod
+                        isGenerator: isGeneratorMethod,
+                        isAsync: isAsyncMethod
                     );
                     properties.Add(
                         new FlatObjectProperty(
@@ -2232,6 +2263,8 @@ internal sealed class FlatJavaScriptParser
 
                 if (isGeneratorMethod)
                     throw Error("Expected '(' after generator method name", current.Position);
+                if (isAsyncMethod)
+                    throw Error("Expected '(' after async method name", current.Position);
 
                 int value;
                 var flags = computed
