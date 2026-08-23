@@ -38,6 +38,7 @@ internal sealed partial class JsPlannedFunctionCompiler
                 false,
                 false,
                 false,
+                false,
                 false
             ),
             collected,
@@ -77,7 +78,8 @@ internal sealed partial class JsPlannedFunctionCompiler
                 function.IsAsync,
                 function.IsClassConstructor,
                 function.IsDerivedConstructor,
-                function.EmitImplicitSuperForwardAll
+                function.EmitImplicitSuperForwardAll,
+                function.HasSuperPropertyReference
             ),
             collected,
             ast,
@@ -107,9 +109,14 @@ internal sealed partial class JsPlannedFunctionCompiler
         for (var i = 0; i < metadata.ParameterCount; i++)
             builder.AllocatePinnedRegister();
         InitializeRootBindings(parameterRegisterByName);
+        var superBaseContextSlot = FindSuperBaseContextSlot();
         initializeParametersInPrologue = !metadata.HasSimpleParameterList;
+        externalCaptureContextDepthOffset =
+            metadata.HasSuperPropertyReference && !metadata.IsArrow ? 1 : 0;
         EmitFunctionContextSetup();
         EmitScopeLexicalHoleInitialization();
+        if (superBaseContextSlot >= 0)
+            EmitSuperBaseContextInitialization(metadata, superBaseContextSlot);
         EmitFunctionSelfBinding();
         EmitArgumentsBinding();
         if (flatFunction is { } function)
@@ -155,7 +162,42 @@ internal sealed partial class JsPlannedFunctionCompiler
             expectedArgumentCount: metadata.FunctionLength
         );
         result.ArgumentsMappedSlots = BuildArgumentsMappedSlots(metadata);
+        result.SuperBaseContextSlot = superBaseContextSlot;
         return result;
+    }
+
+    private int FindSuperBaseContextSlot()
+    {
+        var bindings = activeScopes.Peek().Bindings;
+        for (var i = 0; i < bindings.Count; i++)
+            if (bindings[i].Planned.Kind == CompilerCollectedBindingKind.SuperBase)
+                return bindings[i].Planned.StorageIndex;
+        return -1;
+    }
+
+    private void EmitSuperBaseContextInitialization(
+        in FunctionCompileMetadata metadata,
+        int superBaseContextSlot
+    )
+    {
+        if (metadata.IsArrow)
+        {
+            if (
+                !TryResolveExternalBinding(
+                    CompilerBindingCollector.SuperBaseBindingName,
+                    out var capture,
+                    out var depth
+                )
+            )
+                throw new InvalidOperationException("Arrow super property has no home object.");
+            EmitLdaContextSlot(capture.Slot, depth);
+        }
+        else
+        {
+            EmitLdaContextSlot(0, 1);
+            builder.EmitCallRuntime((int)RuntimeId.GetObjectPrototypeForSuper, 0, 0);
+        }
+        EmitStaCurrentContextSlot(superBaseContextSlot);
     }
 
     private void InitializeParameterRegisterMap(FunctionParameterPlan parameterPlan)
@@ -240,6 +282,7 @@ internal sealed partial class JsPlannedFunctionCompiler
         bool IsAsync,
         bool IsClassConstructor,
         bool IsDerivedConstructor,
-        bool EmitImplicitSuperForwardAll
+        bool EmitImplicitSuperForwardAll,
+        bool HasSuperPropertyReference
     );
 }

@@ -247,6 +247,7 @@ internal static class CompilerStoragePlanner
             CompilerCollectedBindingKind.Var or CompilerCollectedBindingKind.FunctionDeclaration =>
                 CompilerPlannedStorageKind.LocalRegister,
             CompilerCollectedBindingKind.Arguments => CompilerPlannedStorageKind.LocalRegister,
+            CompilerCollectedBindingKind.SuperBase => CompilerPlannedStorageKind.ContextSlot,
             CompilerCollectedBindingKind.Import => CompilerPlannedStorageKind.ImportBinding,
             CompilerCollectedBindingKind.Parameter
             or CompilerCollectedBindingKind.Lexical

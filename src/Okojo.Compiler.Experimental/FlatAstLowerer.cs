@@ -277,7 +277,8 @@ internal static class FlatAstLowerer
                     function.IsAsync,
                     IsClassConstructor: isClassConstructor,
                     IsDerivedConstructor: isDerivedConstructor,
-                    EmitImplicitSuperForwardAll: emitImplicitSuperForwardAll
+                    EmitImplicitSuperForwardAll: emitImplicitSuperForwardAll,
+                    HasSuperPropertyReference: isMethod || function.HasSuperBindingHint
                 )
             );
             return Arena.Add(

@@ -14,4 +14,5 @@ internal enum CompilerCollectedBindingKind : byte
     CatchAlias = 9,
     ClassLexicalAlias = 10,
     Arguments = 11,
+    SuperBase = 12,
 }

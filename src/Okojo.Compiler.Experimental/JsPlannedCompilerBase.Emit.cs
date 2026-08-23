@@ -254,7 +254,7 @@ internal abstract partial class JsPlannedCompilerBase
         );
     }
 
-    private void EmitLdaContextSlot(int slot, int depth)
+    protected void EmitLdaContextSlot(int slot, int depth)
     {
         if ((uint)depth > byte.MaxValue)
             throw new InvalidOperationException(

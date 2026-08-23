@@ -41,6 +41,8 @@ internal abstract partial class JsPlannedCompilerBase
     protected virtual IEnumerable<KeyValuePair<string, CapturedBindingAccess>> ExternalCaptures =>
         [];
 
+    protected virtual int ExternalCaptureContextDepthOffset => 0;
+
     protected virtual bool TryResolveExternalBinding(
         string name,
         out CapturedBindingAccess access,

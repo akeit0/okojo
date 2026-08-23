@@ -159,7 +159,7 @@ internal abstract partial class JsPlannedCompilerBase
                 pair.Key,
                 new CapturedBindingAccess(
                     pair.Value.Slot,
-                    pair.Value.Depth + currentDepth,
+                    pair.Value.Depth + currentDepth + ExternalCaptureContextDepthOffset,
                     pair.Value.IsConst,
                     pair.Value.IsImmutableFunctionName
                 )

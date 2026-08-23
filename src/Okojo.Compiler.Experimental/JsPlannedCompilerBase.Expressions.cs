@@ -515,6 +515,7 @@ internal abstract partial class JsPlannedCompilerBase
                 {
                     var name = ast.GetString(property.Key);
                     EmitExpressionWithInferredName(ast, property.ValueNode, name);
+                    EmitAttachMethodEnvironmentIfNeeded(ast, property.ValueNode, objectRegister);
                     var atom = Vm.Atoms.InternNoCheck(name);
                     if (!shape.TryGetSlotInfo(atom, out var slotInfo))
                         throw new InvalidOperationException(
@@ -553,6 +554,7 @@ internal abstract partial class JsPlannedCompilerBase
                         property.ValueNode,
                         ast.GetString(property.Key)
                     );
+                EmitAttachMethodEnvironmentIfNeeded(ast, property.ValueNode, objectRegister);
                 builder.EmitDefineOwnKeyedProperty(objectRegister, keyRegister);
             }
             EmitLdar(objectRegister);
@@ -579,12 +581,18 @@ internal abstract partial class JsPlannedCompilerBase
             EmitLdar(keyRegister);
             EmitStar(arguments + 1);
             if (property.IsGetter)
+            {
                 EmitExpression(ast, property.ValueNode);
+                EmitAttachMethodEnvironmentIfNeeded(ast, property.ValueNode, objectRegister);
+            }
             else
                 builder.EmitLda(JsOpCode.LdaUndefined);
             EmitStar(arguments + 2);
             if (property.IsSetter)
+            {
                 EmitExpression(ast, property.ValueNode);
+                EmitAttachMethodEnvironmentIfNeeded(ast, property.ValueNode, objectRegister);
+            }
             else
                 builder.EmitLda(JsOpCode.LdaUndefined);
             EmitStar(arguments + 3);
@@ -594,6 +602,27 @@ internal abstract partial class JsPlannedCompilerBase
         {
             builder.ReleaseTemporaryRegistersToMarker(marker);
         }
+    }
+
+    private void EmitAttachMethodEnvironmentIfNeeded(
+        FlatAst ast,
+        int functionNode,
+        int homeObjectRegister
+    )
+    {
+        ref readonly var node = ref ast[functionNode];
+        if (
+            node.Kind is not (AstKind.FunctionExpression or AstKind.ArrowFunctionExpression)
+            || !ast.GetFunction(node.Arg0).HasSuperPropertyReference
+        )
+            return;
+        var arguments = builder.AllocateTemporaryRegisterBlock(3);
+        EmitStar(arguments);
+        EmitLdar(homeObjectRegister);
+        EmitStar(arguments + 1);
+        builder.EmitLda(JsOpCode.LdaUndefined);
+        EmitStar(arguments + 2);
+        builder.EmitCallRuntime((int)RuntimeId.SetFunctionMethodEnvironment, arguments, 3);
     }
 
     private void EmitObjectLiteralSpread(FlatAst ast, int objectRegister, int sourceNode)
@@ -825,6 +854,35 @@ internal abstract partial class JsPlannedCompilerBase
                 EmitSuperCall(ast, node.Arg1, node.Arg2);
                 return;
             }
+            if (
+                callee.Kind == AstKind.MemberExpression
+                && ast[callee.Arg0].Kind == AstKind.SuperExpression
+            )
+            {
+                var reference = PrepareMemberReference(ast, callee, normalizeComputedKey: true);
+                EmitPreparedMemberLoad(reference);
+                var functionRegister = builder.AllocateTemporaryRegister();
+                EmitStar(functionRegister);
+                if (HasSpreadArgument(ast, node.Arg1, node.Arg2))
+                {
+                    EmitSpreadCall(
+                        ast,
+                        functionRegister,
+                        reference.ObjectRegister,
+                        node.Arg1,
+                        node.Arg2
+                    );
+                    return;
+                }
+                var argumentStart = EmitCallArguments(ast, node.Arg1, node.Arg2);
+                builder.EmitCallProperty(
+                    functionRegister,
+                    reference.ObjectRegister,
+                    argumentStart,
+                    node.Arg2
+                );
+                return;
+            }
             if (callee.Kind == AstKind.MemberExpression)
             {
                 EmitExpression(ast, callee.Arg0);
@@ -1017,6 +1075,12 @@ internal abstract partial class JsPlannedCompilerBase
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
         {
+            if (ast[node.Arg0].Kind == AstKind.SuperExpression)
+            {
+                var reference = PrepareMemberReference(ast, node, normalizeComputedKey: true);
+                EmitPreparedMemberLoad(reference);
+                return;
+            }
             EmitExpression(ast, node.Arg0);
             var objectRegister = builder.AllocateTemporaryRegister();
             EmitStar(objectRegister);
@@ -1201,6 +1265,11 @@ internal abstract partial class JsPlannedCompilerBase
         }
         if (argument.Kind == AstKind.MemberExpression)
         {
+            if (ast[argument.Arg0].Kind == AstKind.SuperExpression)
+            {
+                builder.EmitCallRuntime((int)RuntimeId.ThrowDeleteSuperPropertyReference, 0, 0);
+                return;
+            }
             var marker = builder.GetTemporaryRegisterScopeMarker();
             try
             {
@@ -1462,6 +1531,24 @@ internal abstract partial class JsPlannedCompilerBase
         bool normalizeComputedKey
     )
     {
+        if (ast[member.Arg0].Kind == AstKind.SuperExpression)
+        {
+            builder.EmitLda(JsOpCode.LdaThis);
+            var receiverRegister = builder.AllocateTemporaryRegister();
+            EmitStar(receiverRegister);
+            if (((AstMemberFlags)member.Arg2 & AstMemberFlags.Computed) != 0)
+                EmitExpression(ast, member.Arg1);
+            else
+                EmitStringLiteral(ast.GetString(member.Arg1));
+            var superKeyRegister = builder.AllocateTemporaryRegister();
+            EmitStar(superKeyRegister);
+            if (normalizeComputedKey)
+            {
+                builder.EmitCallRuntime((int)RuntimeId.NormalizePropertyKey, superKeyRegister, 1);
+                EmitStar(superKeyRegister);
+            }
+            return new(receiverRegister, superKeyRegister, -1, -1, true, true);
+        }
         EmitExpression(ast, member.Arg0);
         var objectRegister = builder.AllocateTemporaryRegister();
         EmitStar(objectRegister);
@@ -1475,15 +1562,25 @@ internal abstract partial class JsPlannedCompilerBase
                 builder.EmitCallRuntime((byte)RuntimeId.NormalizePropertyKey, keyRegister, 1);
                 EmitStar(keyRegister);
             }
-            return new(objectRegister, keyRegister, -1, -1, true);
+            return new(objectRegister, keyRegister, -1, -1, true, false);
         }
 
         var nameIndex = builder.AddAtomizedStringConstant(ast.GetString(member.Arg1));
-        return new(objectRegister, -1, nameIndex, builder.AllocateFeedbackSlot(), false);
+        return new(objectRegister, -1, nameIndex, builder.AllocateFeedbackSlot(), false, false);
     }
 
     private void EmitPreparedMemberLoad(in PreparedMemberReference reference)
     {
+        if (reference.IsSuper)
+        {
+            var arguments = builder.AllocateTemporaryRegisterBlock(2);
+            EmitLdar(reference.ObjectRegister);
+            EmitStar(arguments);
+            EmitLdar(reference.KeyRegister);
+            EmitStar(arguments + 1);
+            builder.EmitCallRuntime((int)RuntimeId.LoadKeyedFromSuper, arguments, 2);
+            return;
+        }
         if (reference.IsComputed)
         {
             EmitLdar(reference.KeyRegister);
@@ -1499,6 +1596,17 @@ internal abstract partial class JsPlannedCompilerBase
 
     private void EmitPreparedMemberStore(in PreparedMemberReference reference)
     {
+        if (reference.IsSuper)
+        {
+            var arguments = builder.AllocateTemporaryRegisterBlock(3);
+            EmitStar(arguments + 2);
+            EmitLdar(reference.ObjectRegister);
+            EmitStar(arguments);
+            EmitLdar(reference.KeyRegister);
+            EmitStar(arguments + 1);
+            builder.EmitCallRuntime((int)RuntimeId.SuperSet, arguments, 3);
+            return;
+        }
         if (reference.IsComputed)
             builder.EmitStaKeyedProperty(reference.ObjectRegister, reference.KeyRegister);
         else
@@ -1514,7 +1622,8 @@ internal abstract partial class JsPlannedCompilerBase
         int KeyRegister,
         int NameIndex,
         int FeedbackSlot,
-        bool IsComputed
+        bool IsComputed,
+        bool IsSuper
     );
 
     private void EmitSequenceExpression(FlatAst ast, AstNode node, ExpressionResult result)

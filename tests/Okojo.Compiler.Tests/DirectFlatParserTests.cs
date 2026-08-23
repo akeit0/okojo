@@ -3361,6 +3361,76 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_ExecutesClassSuperPropertiesCallsAndUpdates()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let effects = 0;
+            class Base {
+                get value() { return this._value; }
+                set value(next) { this._value = next; }
+                read() { return this._value; }
+                static identify() { return this.name; }
+            }
+            Object.defineProperty(Base.prototype, 'locked', { value: 1, writable: false });
+            class Derived extends Base {
+                run(next) {
+                    super[(effects++, 'value')] = next;
+                    let before = super.value++;
+                    super.value += 2;
+                    return before + '|' + super.read() + '|' + this._value;
+                }
+                arrow() { return (() => super.read())(); }
+                static identifySuper() { return super.identify(); }
+                failSet() { super.locked = 2; }
+            }
+            let instance = new Derived();
+            let setRejected = false;
+            try { instance.failSet(); }
+            catch (error) { setRejected = error instanceof TypeError; }
+            instance.run(3) + '|' + instance.arrow() + '|'
+                + Derived.identifySuper() + '|' + effects + '|' + setRejected;
+            """
+        );
+
+        var runFunction = script
+            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .Single(static function => function.Name == "run");
+        Assert.That(runFunction.SuperBaseContextSlot, Is.GreaterThanOrEqualTo(0));
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("3|6|6|6|Derived|1|true"));
+    }
+
+    [Test]
+    public void CompileString_ExecutesObjectMethodSuperAndRejectsDelete()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let parent = { read() { return this.value; } };
+            let holder = {
+                value: 7,
+                read() { return super.read(); },
+                get inherited() { return super.read(); }
+            };
+            Object.setPrototypeOf(holder, parent);
+            let bad = { remove() { delete super.read; } };
+            Object.setPrototypeOf(bad, parent);
+            let deleteRejected = false;
+            try { bad.remove(); }
+            catch (error) { deleteRejected = error instanceof ReferenceError; }
+            holder.read() + '|' + holder.inherited + '|' + deleteRejected;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("7|7|true"));
+    }
+
+    [Test]
     public void CompileAst_ExecutesBaselineClassBridge()
     {
         var realm = JsRuntime.Create().DefaultRealm;
@@ -3403,7 +3473,21 @@ public class DirectFlatParserTests
         Assert.That(realm.Accumulator.AsString(), Is.EqualTo("Bridge"));
     }
 
-    [TestCase("class Derived extends Base { read() { return super.value; } }")]
+    [Test]
+    public void CompileAst_ExecutesSuperPropertyBridge()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            JavaScriptParser.ParseScript(
+                "class Base { read() { return this.value; } } class Derived extends Base { read() { return super.read() + 1; } } let value = new Derived(); value.value = 4; value.read();"
+            )
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(5));
+    }
+
     [TestCase("class Base { constructor() { super(); } }")]
     [TestCase("class Derived extends Base { method() { super(); } }")]
     [TestCase("class Fields { value = 1; }")]

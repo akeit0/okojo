@@ -18,6 +18,8 @@ internal sealed class FlatJavaScriptParser
     private bool parsingAsyncParameters;
     private bool deferringAsyncParameterErrors;
     private bool allowSuperCall;
+    private bool allowSuperProperty;
+    private bool superPropertySeen;
     private int deferredAsyncParameterErrorPosition = -1;
     private List<ActiveLabel>? activeLabels;
 
@@ -465,6 +467,8 @@ internal sealed class FlatJavaScriptParser
         var asyncDepthBeforeFunction = asyncFunctionDepth;
         var parsingAsyncParametersBeforeFunction = parsingAsyncParameters;
         var allowSuperCallBeforeFunction = allowSuperCall;
+        var allowSuperPropertyBeforeFunction = allowSuperProperty;
+        var superPropertySeenBeforeFunction = superPropertySeen;
         receiverFunctionDepth++;
         try
         {
@@ -472,6 +476,8 @@ internal sealed class FlatJavaScriptParser
             asyncFunctionDepth = 0;
             parsingAsyncParameters = isAsync;
             allowSuperCall = isDerivedConstructor;
+            allowSuperProperty = isMethod || isClassConstructor;
+            superPropertySeen = false;
             return ParseFunctionTailCore(
                 isDeclaration,
                 name,
@@ -492,6 +498,8 @@ internal sealed class FlatJavaScriptParser
             asyncFunctionDepth = asyncDepthBeforeFunction;
             parsingAsyncParameters = parsingAsyncParametersBeforeFunction;
             allowSuperCall = allowSuperCallBeforeFunction;
+            allowSuperProperty = allowSuperPropertyBeforeFunction;
+            superPropertySeen = superPropertySeenBeforeFunction;
             receiverFunctionDepth--;
         }
     }
@@ -700,7 +708,8 @@ internal sealed class FlatJavaScriptParser
                     IsGenerator: isGenerator,
                     IsAsync: isAsync,
                     IsClassConstructor: isClassConstructor,
-                    IsDerivedConstructor: isDerivedConstructor
+                    IsDerivedConstructor: isDerivedConstructor,
+                    HasSuperPropertyReference: superPropertySeen
                 )
             );
             return Arena.Add(
@@ -1760,10 +1769,11 @@ internal sealed class FlatJavaScriptParser
             if (Match(JsTokenKind.Dot))
             {
                 if (Arena[expression].Kind == AstKind.SuperExpression)
-                    throw Error(
-                        "Super properties are not supported by the flat parser yet",
-                        position
-                    );
+                {
+                    if (!allowSuperProperty)
+                        throw Error("super property is only valid in a method", position);
+                    superPropertySeen = true;
+                }
                 if (!JsTokenFacts.IsIdentifierName(current.Kind))
                     throw Error($"Expected Identifier but found {current.Kind}", current.Position);
                 var property = current;
@@ -1781,10 +1791,11 @@ internal sealed class FlatJavaScriptParser
             if (Match(JsTokenKind.LeftBracket))
             {
                 if (Arena[expression].Kind == AstKind.SuperExpression)
-                    throw Error(
-                        "Super properties are not supported by the flat parser yet",
-                        position
-                    );
+                {
+                    if (!allowSuperProperty)
+                        throw Error("super property is only valid in a method", position);
+                    superPropertySeen = true;
+                }
                 var property = ParseExpression();
                 Expect(JsTokenKind.RightBracket);
                 expression = Arena.Add(
@@ -2297,7 +2308,8 @@ internal sealed class FlatJavaScriptParser
                     position,
                     false,
                     true,
-                    IsAsync: isAsync
+                    IsAsync: isAsync,
+                    HasSuperPropertyReference: superPropertySeen
                 )
             );
             return Arena.Add(

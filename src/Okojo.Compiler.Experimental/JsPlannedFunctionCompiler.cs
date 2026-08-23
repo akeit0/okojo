@@ -8,6 +8,7 @@ internal sealed partial class JsPlannedFunctionCompiler : JsPlannedCompilerBase
     private readonly IReadOnlyDictionary<string, CapturedBindingAccess> inheritedCaptures;
     private readonly Dictionary<string, int> parameterRegisterByName;
     private readonly List<string?> parameterNames;
+    private int externalCaptureContextDepthOffset;
     private bool initializeParametersInPrologue;
 
     public JsPlannedFunctionCompiler(
@@ -26,6 +27,8 @@ internal sealed partial class JsPlannedFunctionCompiler : JsPlannedCompilerBase
     protected override IEnumerable<KeyValuePair<string, CapturedBindingAccess>> ExternalCaptures =>
         inheritedCaptures;
 
+    protected override int ExternalCaptureContextDepthOffset => externalCaptureContextDepthOffset;
+
     protected override bool TryResolveExternalBinding(
         string name,
         out CapturedBindingAccess access,
@@ -34,7 +37,7 @@ internal sealed partial class JsPlannedFunctionCompiler : JsPlannedCompilerBase
     {
         if (inheritedCaptures.TryGetValue(name, out access))
         {
-            contextDepth = access.Depth + CurrentContextDepth;
+            contextDepth = access.Depth + CurrentContextDepth + ExternalCaptureContextDepthOffset;
             return true;
         }
 

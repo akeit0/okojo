@@ -53,15 +53,15 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Parse goal | scripts | modules, standalone function goal |
 | Declarations | `var`/`let`/`const`, ordinary function and base-class declarations, function/block declaration prologues, function-scoped `var`, persistent script globals/lexicals, initial global conflict validation | imports/exports, complete declaration early errors, Annex B |
 | Blocks/control | block, `if`, `while`, `do`, ordinary `for`, `for-in`, synchronous `for-of`, `for-await-of`, `switch`, chained labels, labeled/unlabeled `break`/`continue`, `return`, `throw`, `try`/`catch`/`finally`, `debugger`, empty/expression statement | remaining declaration/control early errors |
-| Primitive expressions | number, BigInt, string, boolean, null, regexp, tagged/untagged template, identifier, `this`, `new.target`, grouping | `super`, `import.meta` |
+| Primitive expressions | number, BigInt, string, boolean, null, regexp, tagged/untagged template, identifier, `this`, `new.target`, contextual `super` roots, grouping | `import.meta` |
 | Operators | precedence table, assignment, arithmetic/logical/bitwise/comparison, conditionals, sequence, updates, optional chains, property/identifier/value/optional-chain `delete` | remaining edge-specific early errors |
-| References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed properties | imports, private and super references |
-| Calls/construction | direct/member/optional calls, spread calls, ordinary/spread `new`, implicit/explicit/spread `super()`, wide operands | dynamic import, super-property calls |
-| Arrays/objects | holes, array/object spread, data properties, ordinary/generator/async concise methods, getters/setters, computed/shorthand/index keys, stable data shape prefix | `super` methods, legacy `__proto__` intentionally excluded |
+| References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed ordinary and `super` properties | imports and private references |
+| Calls/construction | direct/member/optional calls, spread calls, ordinary/spread `new`, implicit/explicit/spread `super()`, super-property calls, wide operands | dynamic import |
+| Arrays/objects | holes, array/object spread, data properties, ordinary/generator/async concise methods, getters/setters, computed/shorthand/index keys, stable data shape prefix, demand-driven super home objects | legacy `__proto__` intentionally excluded |
 | Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings, class declaration and inner-name bindings | module bindings and remaining early errors |
-| Assignments | identifier/member targets, compound/logical/update, array/object destructuring, core optional-chain target restrictions | private/super targets, remaining early errors |
+| Assignments | identifier/ordinary/super-member targets, compound/logical/update, array/object destructuring, core optional-chain target restrictions | private targets and remaining early errors |
 | Functions | ordinary declarations/expressions, closures, synchronous and async generators with `yield`/`yield*`, async declarations/expressions/object methods with `await`, synchronous and async arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`/`new.target`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function/class name inference, demand-driven mapped/unmapped `arguments` | lazy bodies |
-| Classes | base/derived declarations and expressions, explicit/implicit constructors, heritage/prototype setup, derived `this`/return rules, public named/computed instance/static methods and accessors, strict bodies, declaration TDZ/const storage, inner class-name capture, anonymous name inference | super properties, fields, static blocks, private names/brands |
+| Classes | base/derived declarations and expressions, explicit/implicit constructors, heritage/prototype setup, derived `this`/return rules, public named/computed instance/static methods and accessors, named/computed super loads/calls/stores/updates, strict bodies, declaration TDZ/const storage, inner class-name capture, anonymous name inference | fields, static blocks, private names/brands |
 | Modules | none | parse goal, entries, linking metadata, live bindings, top-level await |
 
 The direct parser rejects unsupported grammar. It does not catch an error and
@@ -136,7 +136,7 @@ property lists or class expressions are built.
 
 Scope for this iteration is ordinary concise methods plus ordinary getters and
 setters with named, indexed, or computed keys. Generator/async methods and
-`super` remain with their corresponding function/class coverage. The reference
+`super` subsequently landed through their corresponding function/class slices. The reference
 case is `artifacts/okojobytecodetool/cases/flat_ast_object_methods.js`; focused
 tests target receiver `this`, computed-key evaluation order, accessor merging and
 names, closure capture, and method non-constructibility.
@@ -148,10 +148,10 @@ runtime accessor definition. Production Okojo follows the same observable shape
 with `InitializeNamedProperty`, `DefineOwnKeyedProperty`, method-environment
 closures, and `DefineObjectAccessor`.
 
-The flat path will copy the split and reuse Okojo's existing accessor runtime. A
+The flat path copies the split and reuses Okojo's existing accessor runtime. A
 single method bit in dense function metadata is sufficient for ordinary methods;
-no method AST subclass is needed. Until flat `super` references land, method
-closures do not allocate a home-object context. Accessors end the precomputed data
+no method AST subclass is needed. Methods that reference `super` now add a
+demand-driven home-object context; ordinary methods still avoid it. Accessors end the precomputed data
 shape prefix and use the keyed runtime path, preserving duplicate and computed-key
 order without adding an accessor-plan object. If profiling shows accessor-heavy
 literals matter, the later optimization is a dense pair table matching V8's
@@ -956,6 +956,35 @@ Anonymous class-name inference slice landed:
   keyed-definition naming slow path instead of a dedicated class opcode
 - performance plan: no AST mutation, runtime operation, string copy, or new side
   table on static identifier/property paths
+
+Super-property and home-object slice landed:
+
+- iteration scope: named/computed `super` loads, method calls with derived receiver,
+  assignment/compound/update, delete early/runtime errors, class constructors,
+  instance/static methods and accessors, plus lexical use from nested arrows
+- minimal repro:
+  `class D extends B { read(k) { return super[k]() } }`
+- reference case:
+  `artifacts/okojobytecodetool/cases/flat_ast_class_super_property.js`
+- focused regressions cover getter/setter receiver identity, computed-key ordering,
+  call receiver preservation, static versus instance home objects, nested-arrow
+  capture, assignment/update results, strict set failure, and class-AST bridge
+- V8 observation: `parser.cc` creates a `SuperPropertyReference` to the instance or
+  static home-object variable; scope analysis forces that variable into a context
+  only when needed. Ignition loads `homeObject.[[Prototype]]`, uses the current
+  `this` as receiver, emits `GetNamedPropertyFromSuper`/`StoreToSuper`, and preserves
+  that receiver for the following call.
+- Okojo implementation: reuse `SetFunctionMethodEnvironment`,
+  `LoadKeyedFromSuper`, and `SuperSet`; allocate one synthetic super-base context
+  slot only in direct-flat functions whose body references a super property.
+  Nested arrows copy that slot lexically. The inserted method-environment context
+  is included in external-capture depth so ordinary captures remain correct.
+- intentional difference: retain Okojo's keyed runtime helpers rather than adding
+  Ignition's named/keyed super bytecodes until profiling justifies dedicated ops
+- performance shape: no environment for methods without super, static keys stay in
+  the constant pool, computed keys evaluate once, and load/store/update reuse one
+  prepared reference. The class-AST bridge conservatively marks legacy class
+  methods because that parser does not retain per-method super-use metadata.
 
 ### Stage F4 - Modules
 

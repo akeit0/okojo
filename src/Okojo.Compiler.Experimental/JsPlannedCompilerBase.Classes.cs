@@ -66,6 +66,8 @@ internal abstract partial class JsPlannedCompilerBase
             );
             var prototypeRegister = builder.AllocateTemporaryRegister();
             EmitStar(prototypeRegister);
+            EmitLdar(constructorRegister);
+            EmitAttachMethodEnvironmentIfNeeded(ast, info.ConstructorNode, prototypeRegister);
 
             var elements = ast.GetClassElements(info);
             for (var i = 0; i < elements.Length; i++)
@@ -113,12 +115,12 @@ internal abstract partial class JsPlannedCompilerBase
                 EmitStar(arguments);
                 EmitClassElementKey(ast, element, arguments + 1);
                 if (element.Kind == JsClassElementKind.Getter)
-                    EmitClassElementFunction(ast, element);
+                    EmitClassElementFunction(ast, element, targetRegister);
                 else
                     builder.EmitLda(JsOpCode.LdaUndefined);
                 EmitStar(arguments + 2);
                 if (element.Kind == JsClassElementKind.Setter)
-                    EmitClassElementFunction(ast, element);
+                    EmitClassElementFunction(ast, element, targetRegister);
                 else
                     builder.EmitLda(JsOpCode.LdaUndefined);
                 EmitStar(arguments + 3);
@@ -134,7 +136,7 @@ internal abstract partial class JsPlannedCompilerBase
             EmitLdar(targetRegister);
             EmitStar(methodArguments);
             EmitClassElementKey(ast, element, methodArguments + 1);
-            EmitClassElementFunction(ast, element);
+            EmitClassElementFunction(ast, element, targetRegister);
             EmitStar(methodArguments + 2);
             builder.EmitCallRuntime((int)RuntimeId.DefineClassMethod, methodArguments, 3);
         }
@@ -157,7 +159,11 @@ internal abstract partial class JsPlannedCompilerBase
         EmitStar(keyRegister);
     }
 
-    private void EmitClassElementFunction(FlatAst ast, in FlatClassElement element)
+    private void EmitClassElementFunction(
+        FlatAst ast,
+        in FlatClassElement element,
+        int homeObjectRegister
+    )
     {
         ref readonly var function = ref ast[element.ValueNode];
         EmitFunctionExpression(
@@ -166,5 +172,6 @@ internal abstract partial class JsPlannedCompilerBase
             function.Arg1,
             element.IsComputed ? null : ast.GetString(element.Key)
         );
+        EmitAttachMethodEnvironmentIfNeeded(ast, element.ValueNode, homeObjectRegister);
     }
 }

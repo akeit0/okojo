@@ -208,7 +208,8 @@ internal readonly record struct FlatFunctionInfo(
     bool IsAsync = false,
     bool IsClassConstructor = false,
     bool IsDerivedConstructor = false,
-    bool EmitImplicitSuperForwardAll = false
+    bool EmitImplicitSuperForwardAll = false,
+    bool HasSuperPropertyReference = false
 );
 
 internal readonly record struct FlatParameter(

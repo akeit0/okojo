@@ -94,7 +94,9 @@ generators, ordinary async functions with `await`, async generators, and
 `for-await-of`, plus base class declarations/expressions with explicit or implicit
 constructors and public named/computed instance/static methods and accessors.
 Class heritage, derived constructors, and implicit/explicit/spread `super()` are
-also on the direct path.
+also on the direct path, together with named/computed super-property loads, calls,
+stores, compound assignments, updates, static/instance home objects, and lexical
+use from nested arrows.
 
 ## Reference Architecture Insights
 
@@ -137,6 +139,7 @@ against V8 revision `08dadaff028` (2026-03-27).
 | Cover grammar and early errors | `src/parsing/expression-scope.h` | Model expression/pattern/arrow ambiguity with scoped parser state and delayed diagnostics rather than reparsing or constructing temporary class nodes. |
 | Function parse ownership | `src/parsing/parse-info.*`, `preparse-data.*` | Keep function source ranges, flags, and outer-scope requirements as the eventual lazy-compilation boundary. |
 | Name resolution and storage | `src/ast/scopes.h`, `scopes.cc` | Resolve references recursively before allocating registers/context slots. Emit a compact runtime scope record only for scopes that need a context or observability metadata. |
+| Home object and `super` | `src/parsing/parser.cc`, `src/ast/scopes.cc`, `src/interpreter/bytecode-generator.cc`, `interpreter-generator.cc` | Mark home-object use during parsing/resolution, force only used home objects into contexts, preserve current `this` as receiver, and keep context-depth changes explicit when a method environment is inserted. |
 | AST-to-bytecode lowering | `src/interpreter/bytecode-generator.h`, `bytecode-generator.cc` | Use explicit effect/value/test result modes plus scoped register, context, and control state. Avoid forcing every expression through an accumulator value when a branch or effect form is sufficient. |
 | Bytecode assembly | `src/interpreter/bytecode-array-builder.*`, `bytecode-array-writer.*` | Centralize operand scaling, labels, source positions, constant operands, and final bytecode serialization. Feature emitters should express operations, not encode widths themselves. |
 | Temporary registers | `src/interpreter/bytecode-register-allocator.h` | Preserve Okojo's current monotonic high-water allocator and marker-based bulk release; allocate contiguous ranges for calls and runtime operations. |
@@ -225,6 +228,12 @@ The direct flat work has already established several reusable rules:
 - evaluate heritage before constructor/public elements, retain the inner class
   binding as a hole through computed-key evaluation, and encode implicit derived
   forwarding as one function metadata bit using the existing super runtime ABI
+- represent super-property use as demand-driven function metadata plus one
+  synthetic context slot; attach instance/static home objects only to affected
+  methods and copy the resolved super base through nested arrows
+- treat an inserted method-environment context as part of the capture-depth ABI;
+  every inherited binding propagated through that function must skip it, not just
+  the synthetic super binding
 - keep RegExp pattern/flags and canonical BigInt digits as arena string IDs;
   construct fresh RegExp objects through the existing runtime and load parsed
   BigInt constants through the typed constant-pool opcode
@@ -424,9 +433,11 @@ the new compiler for the supported function families.
   accessors, implicit/explicit/spread `super()`, `new.target`, and derived
   `this`/return rules, plus anonymous class name inference for static inference
   sites
+- landed super properties: named/computed loads and calls, assignment/compound/
+  update targets, delete rejection, instance/static home objects, accessors, and
+  lexical nested-arrow use
 - add public fields and static blocks using dense initializer records scheduled in
   specification order rather than parser-time execution
-- `super` calls and named/computed super properties
 - private names, brands, accessors, and `#x in object`
 - complete computed-key, field-initializer, static-block, and heritage ordering
 

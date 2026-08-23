@@ -5,6 +5,8 @@ namespace Okojo.JavaScript.Compiler.Experimental;
 
 internal static partial class CompilerBindingCollector
 {
+    internal const string SuperBaseBindingName = "\0super-base";
+
     public static CompilerBindingCollectionResult Collect(FlatAst ast)
     {
         var collector = new FlatCollector();
@@ -98,6 +100,15 @@ internal static partial class CompilerBindingCollector
                     CompilerCollectedBindingKind.FunctionNameSelf,
                     name,
                     function.NameId,
+                    position: function.Position
+                );
+            if (function.HasSuperPropertyReference)
+                AddBinding(
+                    0,
+                    CompilerCollectedBindingKind.SuperBase,
+                    SuperBaseBindingName,
+                    -1,
+                    isConst: true,
                     position: function.Position
                 );
 
@@ -747,6 +758,15 @@ internal static partial class CompilerBindingCollector
                     CompilerCollectedBindingKind.FunctionNameSelf,
                     name,
                     function.NameId,
+                    position: function.Position
+                );
+            if (function.HasSuperPropertyReference)
+                AddBinding(
+                    functionScopeId,
+                    CompilerCollectedBindingKind.SuperBase,
+                    SuperBaseBindingName,
+                    -1,
+                    isConst: true,
                     position: function.Position
                 );
             CollectFlatParameters(ast, function, functionScopeId);
