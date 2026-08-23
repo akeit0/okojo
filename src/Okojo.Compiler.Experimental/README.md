@@ -79,6 +79,8 @@ Both planned compilers currently support:
 - named/computed async object methods through the same function metadata
 - async arrows with simple/default/rest/pattern parameters and lexical
   `this`/`arguments`/`new.target`
+- async generator declarations/expressions/object methods with `await`, `yield`,
+  awaited return values, and sync/async `yield*` delegation
 - `new.target` in ordinary functions with function-scope early errors
 - unshadowed `undefined` intrinsic reads with lexical shadowing
 - unary, arithmetic, bitwise, comparison, logical, conditional, sequence, and
@@ -113,7 +115,7 @@ lowerer comparison.
 Still intentionally unsupported in the experimental pipeline:
 
 - private/super member access
-- async generators and `super` object methods
+- `super` object methods
 - module binding emission
 - `for-await-of`
 - direct production replacement of `JsCompiler`
@@ -172,8 +174,8 @@ dotnet test tests/Okojo.Compiler.Tests/Okojo.Compiler.Tests.csproj --no-build
 
 Recommended next slices:
 
-1. destructuring assignments
-2. binding patterns in formal parameters
-3. object methods and accessors
-4. `for-in` / `for-of`
-5. converge the complete production grammar on flat node handles
+1. `for-await-of`
+2. classes, `super`, and private names
+3. module parse/binding/link metadata
+4. complete declaration early errors and debugger/source metadata
+5. planned-compiler Test262 mode, corpus benchmarks, then explicit production cutover

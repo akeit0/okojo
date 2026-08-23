@@ -90,7 +90,7 @@ properties,
 array/object data literals, binding and assignment destructuring, advanced
 parameters, ordinary function expressions, closures, `this`, `throw`, and
 `try`/`catch`/`finally` with optional or destructured catch bindings, synchronous
-generators, and ordinary async functions with `await`.
+generators, ordinary async functions with `await`, and async generators.
 
 ## Reference Architecture Insights
 
@@ -250,6 +250,10 @@ The direct flat work has already established several reusable rules:
 - keep generator suspend IDs and resume tables in emission state, not AST nodes;
   route return resumes through the existing abrupt-command stack and throw
   resumes through restored VM handlers
+- compose generator and async function flags into the existing async-generator
+  function kind; retain `0xFF` for yield and `0xFE` for await/explicit return,
+  select async iterators before wrapped sync iterators for `yield*`, and keep the
+  request queue plus resolve/reject work in the runtime
 - lower `switch` as a saved tag, source-ordered strict comparisons, one shared
   case-block scope, and consecutively bound clause bodies; retain the existing
   zero-based `SwitchOnSmi` specialization until corpus data justifies its guard and
@@ -366,7 +370,7 @@ and has differential execution coverage for every new control-flow form.
 
 ### P2 - Resumable functions
 
-- async generators and `for-await-of`
+- `for-await-of`
 - measured live-range narrowing for the landed conservative register snapshot
 
 Foundation status: synchronous `function*` declarations/expressions/object
@@ -382,6 +386,15 @@ the existing `0xFE` await operand, and leave promise resolve/reject driving in
 runtime promise state in flat nodes. Async-arrow cover heads defer contextual
 await errors until `=>` disambiguates them from ordinary calls, so regexp and
 division defaults parse once without speculative class nodes or a second lexer.
+Async generator declarations/expressions/object methods are now the composition
+of those two landed paths rather than a third compiler subsystem. They use the
+existing `AsyncGenerator` runtime kind, await explicit return values with the
+`0xFE` suspend marker, retain `0xFF` for ordinary yield, and select an async
+iterator before the existing wrapped-sync fallback for delegation. This follows
+V8's combined function-kind and suspend-table structure; Okojo intentionally
+keeps async request queues and resolve/reject intrinsics in its runtime instead of
+encoding them as extra bytecode. `for-await-of` is the remaining async-iteration
+grammar/control slice.
 
 Exit gate: planned-compiler tests cover every resume mode and Test262 can target
 the new compiler for the supported function families.

@@ -201,10 +201,6 @@ internal static class FlatAstLowerer
 
         private int LowerFunctionDeclaration(JsFunctionDeclaration function)
         {
-            if (function.IsAsync && function.IsGenerator)
-                throw new NotSupportedException(
-                    $"{compilerName} does not support async generator declarations."
-                );
             var bodyRoot = LowerFunctionBody(function.Body);
             var parameters = LowerParameters(
                 function.Parameters,
@@ -241,11 +237,6 @@ internal static class FlatAstLowerer
 
         private int LowerFunctionExpression(JsFunctionExpression function)
         {
-            if (function.IsAsync && function.IsGenerator)
-                throw new NotSupportedException(
-                    $"{compilerName} does not support async generator expressions."
-                );
-
             var bodyRoot = LowerFunctionBody(function.Body);
             var parameters = LowerParameters(
                 function.Parameters,

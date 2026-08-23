@@ -423,8 +423,6 @@ internal sealed class FlatJavaScriptParser
             Next();
         Expect(JsTokenKind.Function);
         var isGenerator = Match(JsTokenKind.Star);
-        if (isAsync && isGenerator)
-            throw Error("Async generators are not supported by FlatJavaScriptParser", position);
         var nameId = -1;
         string name;
         if (isDeclaration || current.Kind == JsTokenKind.Identifier)
@@ -2264,8 +2262,6 @@ internal sealed class FlatJavaScriptParser
                 }
 
                 var isGeneratorMethod = Match(JsTokenKind.Star);
-                if (isAsyncMethod && isGeneratorMethod)
-                    throw Error("Async generator methods are not supported", propertyPosition);
                 var computed = Match(JsTokenKind.LeftBracket);
                 int key;
                 JsToken shorthandToken = default;

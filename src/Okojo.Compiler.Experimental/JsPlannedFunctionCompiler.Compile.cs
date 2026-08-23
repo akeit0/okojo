@@ -133,7 +133,8 @@ internal sealed partial class JsPlannedFunctionCompiler
             requiresClosureBinding: false,
             isStrict: metadata.StrictDeclared,
             hasNewTarget: hasNewTarget,
-            kind: isGenerator ? JsBytecodeFunctionKind.Generator
+            kind: isGenerator && isAsync ? JsBytecodeFunctionKind.AsyncGenerator
+                : isGenerator ? JsBytecodeFunctionKind.Generator
                 : isAsync ? JsBytecodeFunctionKind.Async
                 : JsBytecodeFunctionKind.Normal,
             isArrow: metadata.IsArrow,

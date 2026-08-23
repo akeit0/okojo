@@ -59,7 +59,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Arrays/objects | holes, array/object spread, data properties, ordinary/generator/async concise methods, getters/setters, computed/shorthand/index keys, stable data shape prefix | `super` methods, legacy `__proto__` intentionally excluded |
 | Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings | class, module bindings and remaining early errors |
 | Assignments | identifier/member targets, compound/logical/update, array/object destructuring, core optional-chain target restrictions | private/super targets, remaining early errors |
-| Functions | ordinary declarations/expressions, closures, synchronous generators with `yield`/`yield*`, async declarations/expressions/object methods with `await`, synchronous and async arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`/`new.target`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function name inference, demand-driven mapped/unmapped `arguments` | async generators, class-name inference, lazy bodies |
+| Functions | ordinary declarations/expressions, closures, synchronous and async generators with `yield`/`yield*`, async declarations/expressions/object methods with `await`, synchronous and async arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`/`new.target`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function name inference, demand-driven mapped/unmapped `arguments` | class-name inference, lazy bodies |
 | Classes | none | declaration/expression, constructors, methods, fields, static blocks, private names, super |
 | Modules | none | parse goal, entries, linking metadata, live bindings, top-level await |
 
@@ -358,8 +358,7 @@ next/return/throw resume modes. The minimal reference cases are
 `artifacts/okojobytecodetool/cases/flat_ast_generator.js` and
 `artifacts/okojobytecodetool/cases/flat_ast_yield_delegate.js`; focused execution
 coverage also places suspension under `try`/`finally` and iterator cleanup so
-abrupt resumes reuse the landed completion dispatcher. Async generators remain a
-separate slice.
+abrupt resumes reuse the landed completion dispatcher.
 
 The follow-up object-method slice accepts named/computed `*method()` forms and
 feeds them through the same flat function metadata and closure emitter. Its
@@ -394,8 +393,7 @@ its reference case is
 `async(...)` input is parsed once as a cover head: await diagnostics are deferred
 until `=>` confirms an async arrow, while an ordinary call discards them. This
 handles regexp, division, nested function, and parenthesized defaults without a
-second lexer or AST pass. Async generators and `for-await-of` remain separate
-slices.
+second lexer or AST pass. `for-await-of` remains a separate loop slice.
 
 V8 uses the generator state switch and suspend/resume machinery underneath async
 functions, wrapping body completion in promise resolve/reject handling. Okojo
@@ -403,6 +401,36 @@ already centralizes that promise driver in `StartAsyncBytecodeFunction`, so the
 flat emitter reuses the same switch table and marks await suspension with the
 existing `0xFE` ABI operand. Function metadata gains the async kind bit and await
 remains a fixed one-child node. No promise or continuation nodes enter the AST.
+
+### Async-generator slice
+
+This iteration composes the landed generator and async paths for `async
+function*` declarations/expressions, named/computed `async *method()` object
+methods, `await`, `yield`, and `yield*`. The minimal reference case is
+`artifacts/okojobytecodetool/cases/flat_ast_async_generator.js`; focused coverage
+executes direct-flat parsing and class-AST lowering, advanced parameters,
+fulfilled awaits, yielded promises, awaited explicit returns, `try`/`finally`,
+next/return/throw resume modes, sync-iterator delegation, and native
+async-iterator delegation.
+
+V8 represents async generators as one function kind but lowers their requests
+through async-generator-specific await/yield/resolve/reject intrinsics. Okojo
+copies the combined-kind and resumable-control shape while intentionally keeping
+its existing ABI: the runtime owns the async-generator request queue and
+resolve/reject machinery, the compiler emits `0xFE` suspend markers for `await`
+and explicit return values, and ordinary `yield` keeps the `0xFF` marker. The
+entry switch and resume-mode dispatcher remain shared with generators and async
+functions, so no async-generator AST node, continuation type, or promise state is
+added.
+
+For async `yield*`, the emitter first requests `Symbol.asyncIterator`, falls back
+to `Symbol.iterator` through the existing sync-to-async wrapper, awaits each
+`next()` result, validates it as an object, and yields its `value`. The runtime's
+active delegate still forwards external next/return/throw requests. This matches
+V8's observable ordering while retaining Okojo's smaller VM/runtime split.
+`for-await-of` remains the next resumable-control coverage gap; it should reuse
+this iterator-selection and await machinery rather than introduce another async
+iteration subsystem.
 
 ### Destructuring
 
@@ -810,7 +838,9 @@ Try/finally slice note:
 
 - ordinary async declarations/expressions/object methods/arrows and `await` are
   landed
-- async generators and `for-await-of`
+- async generator declarations/expressions/object methods, awaited returns, and
+  sync/async `yield*` delegation are landed
+- `for-await-of`
 - narrow the landed conservative register snapshot only with measured liveness data
 
 The parser records generator/async kind bits plus fixed yield/await nodes; one

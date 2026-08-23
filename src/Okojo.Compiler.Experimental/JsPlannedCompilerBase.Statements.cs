@@ -61,7 +61,11 @@ internal abstract partial class JsPlannedCompilerBase
                 return;
             case AstKind.ReturnStatement:
                 if (node.Arg0 >= 0)
+                {
                     EmitExpression(ast, node.Arg0);
+                    if (isGenerator && isAsync)
+                        EmitAwaitSuspension();
+                }
                 else
                     builder.EmitLda(JsOpCode.LdaUndefined);
                 EmitAbruptCommand(AbruptCommand.Return);

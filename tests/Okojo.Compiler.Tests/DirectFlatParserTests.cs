@@ -2230,13 +2230,179 @@ public class DirectFlatParserTests
         Assert.That(realm.Evaluate("__flatAsyncArrowBridge").Int32Value, Is.EqualTo(4));
     }
 
+    [Test]
+    public void CompileString_ExecutesAsyncGeneratorsAndAwaitedReturn()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            globalThis.__flatAsyncGenerator = '';
+            async function* sequence(value = Promise.resolve(2)) {
+                let current = await value;
+                try {
+                    current += yield Promise.resolve(current);
+                    yield current;
+                    return Promise.resolve(current + 1);
+                } finally {
+                    __flatAsyncGenerator += 'f';
+                }
+            }
+            let expression = async function* named() { yield 10; };
+            let holder = { async *values() { yield 11; } };
+            let iterator = sequence();
+            iterator.next().then(function (first) {
+                __flatAsyncGenerator += 'a' + first.value + first.done;
+                iterator.next(3).then(function (second) {
+                    __flatAsyncGenerator += 'b' + second.value + second.done;
+                    iterator.next().then(function (third) {
+                        __flatAsyncGenerator += 'c' + third.value + third.done;
+                    });
+                });
+            });
+            """
+        );
+
+        realm.Execute(script);
+        realm.Agent.RunPromiseJobs();
+
+        Assert.That(
+            realm.Evaluate("__flatAsyncGenerator").AsString(),
+            Is.EqualTo("a2falseb5falsefc6true")
+        );
+        var sequence = script
+            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .Single(static function => function.Name == "sequence");
+        Assert.That(sequence.Kind, Is.EqualTo(JsBytecodeFunctionKind.AsyncGenerator));
+        Assert.That(sequence.HasEagerGeneratorParameterBinding, Is.True);
+        Assert.That(sequence.Script.Bytecode, Does.Contain((byte)JsOpCode.SwitchOnGeneratorState));
+        Assert.That(sequence.Script.Bytecode, Does.Contain((byte)JsOpCode.SuspendGenerator));
+        Assert.That(sequence.Script.Bytecode, Does.Contain((byte)JsOpCode.ResumeGenerator));
+        Assert.That(sequence.Script.GeneratorSwitchTargets, Has.Length.EqualTo(5));
+        Assert.That(
+            script
+                .ObjectConstants.OfType<JsBytecodeFunction>()
+                .Count(static function => function.Kind == JsBytecodeFunctionKind.AsyncGenerator),
+            Is.EqualTo(3)
+        );
+        Assert.That(
+            script
+                .ObjectConstants.OfType<JsBytecodeFunction>()
+                .Single(static function => function.Name == "values")
+                .IsMethod,
+            Is.True
+        );
+    }
+
+    [Test]
+    public void CompileString_ExecutesAsyncGeneratorDelegation()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            globalThis.__flatAsyncDelegate = '';
+            async function* fromSync() { return yield* [Promise.resolve(1), 2]; }
+            let asyncSource = {
+                index: 0,
+                [Symbol.asyncIterator]() { return this; },
+                next() {
+                    this.index += 1;
+                    return Promise.resolve(this.index == 1
+                        ? { value: 7, done: false }
+                        : { value: 8, done: true });
+                }
+            };
+            async function* fromAsync() { return yield* asyncSource; }
+            let syncIterator = fromSync();
+            syncIterator.next().then(function (first) {
+                __flatAsyncDelegate += 'a' + first.value + first.done;
+                syncIterator.next().then(function (second) {
+                    __flatAsyncDelegate += 'b' + second.value + second.done;
+                    syncIterator.next().then(function (third) {
+                        __flatAsyncDelegate += 'c' + third.value + third.done;
+                    });
+                });
+            });
+            let asyncIterator = fromAsync();
+            asyncIterator.next().then(function (first) {
+                __flatAsyncDelegate += 'x' + first.value + first.done;
+                asyncIterator.next().then(function (second) {
+                    __flatAsyncDelegate += 'y' + second.value + second.done;
+                });
+            });
+            """
+        );
+
+        realm.Execute(script);
+        realm.Agent.RunPromiseJobs();
+
+        Assert.That(
+            realm.Evaluate("__flatAsyncDelegate").AsString(),
+            Is.EqualTo("x7falsea1falsey8trueb2falsecundefinedtrue")
+        );
+    }
+
+    [Test]
+    public void CompileString_ExecutesAsyncGeneratorReturnAndThrowResumeModes()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            globalThis.__flatAsyncGeneratorReturn = '';
+            globalThis.__flatAsyncGeneratorThrow = '';
+            async function* close() {
+                try { yield 1; }
+                finally { __flatAsyncGeneratorReturn += 'f'; }
+            }
+            let closing = close();
+            closing.next().then(function () {
+                closing.return(Promise.resolve(9)).then(function (result) {
+                    __flatAsyncGeneratorReturn += result.value + '' + result.done;
+                });
+            });
+
+            async function* caught() {
+                try { yield 1; }
+                catch (error) { return Promise.resolve(error + 1); }
+                finally { __flatAsyncGeneratorThrow += 't'; }
+            }
+            let throwing = caught();
+            throwing.next().then(function () {
+                throwing.throw(7).then(function (result) {
+                    __flatAsyncGeneratorThrow += result.value + '' + result.done;
+                });
+            });
+            """
+        );
+
+        realm.Execute(script);
+        realm.Agent.RunPromiseJobs();
+
+        Assert.That(realm.Evaluate("__flatAsyncGeneratorReturn").AsString(), Is.EqualTo("f9true"));
+        Assert.That(realm.Evaluate("__flatAsyncGeneratorThrow").AsString(), Is.EqualTo("t8true"));
+    }
+
+    [Test]
+    public void CompileAst_ExecutesAsyncGeneratorBridge()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            JavaScriptParser.ParseScript(
+                "globalThis.__flatAsyncGeneratorBridge = 0; async function* read() { yield await 3; return 4; } let iterator = read(); iterator.next().then(function (first) { iterator.next().then(function (second) { __flatAsyncGeneratorBridge = first.value + second.value; }); });"
+            )
+        );
+
+        realm.Execute(script);
+        realm.Agent.RunPromiseJobs();
+
+        Assert.That(realm.Evaluate("__flatAsyncGeneratorBridge").Int32Value, Is.EqualTo(7));
+    }
+
     [TestCase("async function invalid(await) {}")]
+    [TestCase("async function* invalid(await) {}")]
     [TestCase("async function invalid(value = await) {}")]
     [TestCase("let invalid = async function await() {}")]
     [TestCase("async function invalid() { let await; }")]
     [TestCase("async function invalid() { try {} catch (await) {} }")]
-    [TestCase("async function* invalid() {}")]
-    [TestCase("({ async *invalid() {} });")]
     [TestCase("({ async get invalid() {} });")]
     [TestCase("async await => 1;")]
     [TestCase("async (await) => 1;")]

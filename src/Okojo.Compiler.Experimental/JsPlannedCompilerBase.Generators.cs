@@ -59,6 +59,11 @@ internal abstract partial class JsPlannedCompilerBase
         if (!isAsync)
             throw new InvalidOperationException("await requires an async function.");
         EmitExpression(ast, node.Arg0);
+        EmitAwaitSuspension();
+    }
+
+    private void EmitAwaitSuspension()
+    {
         EmitGeneratorSuspendResume(0xFE, guaranteedNextOnly: false);
     }
 
@@ -71,17 +76,53 @@ internal abstract partial class JsPlannedCompilerBase
             var iterableRegister = builder.AllocateTemporaryRegister();
             EmitStar(iterableRegister);
             var methodRegister = builder.AllocateTemporaryRegister();
-            builder.EmitCallRuntime((int)RuntimeId.GetIteratorMethod, iterableRegister, 1);
-            EmitStar(methodRegister);
-            builder.EmitCallProperty(methodRegister, iterableRegister, 0, 0);
             var iteratorRegister = builder.AllocateTemporaryRegister();
-            EmitStar(iteratorRegister);
+            if (isAsync)
+                EmitCreateAsyncDelegateIterator(iterableRegister, methodRegister, iteratorRegister);
+            else
+            {
+                builder.EmitCallRuntime((int)RuntimeId.GetIteratorMethod, iterableRegister, 1);
+                EmitStar(methodRegister);
+                builder.EmitCallProperty(methodRegister, iterableRegister, 0, 0);
+                EmitStar(iteratorRegister);
+            }
             EmitYieldDelegateLoop(iteratorRegister);
         }
         finally
         {
             builder.ReleaseTemporaryRegistersToMarker(marker);
         }
+    }
+
+    private void EmitCreateAsyncDelegateIterator(
+        int iterableRegister,
+        int methodRegister,
+        int iteratorRegister
+    )
+    {
+        var useSyncIterator = builder.CreateLabel();
+        var ready = builder.CreateLabel();
+        builder.EmitCallRuntime((int)RuntimeId.GetAsyncIteratorMethod, iterableRegister, 1);
+        EmitStar(methodRegister);
+        EmitLdar(methodRegister);
+        EmitJumpIfNull(useSyncIterator);
+        EmitJumpIfUndefined(useSyncIterator);
+        builder.EmitCallProperty(methodRegister, iterableRegister, 0, 0);
+        EmitStar(iteratorRegister);
+        EmitJump(ready);
+
+        builder.BindLabel(useSyncIterator);
+        builder.EmitCallRuntime((int)RuntimeId.GetIteratorMethod, iterableRegister, 1);
+        EmitStar(methodRegister);
+        builder.EmitCallProperty(methodRegister, iterableRegister, 0, 0);
+        EmitStar(iteratorRegister);
+        builder.EmitCallRuntime(
+            (int)RuntimeId.WrapSyncIteratorForAsyncDelegate,
+            iteratorRegister,
+            1
+        );
+        EmitStar(iteratorRegister);
+        builder.BindLabel(ready);
     }
 
     private void EmitYieldDelegateLoop(int iteratorRegister)
@@ -109,6 +150,8 @@ internal abstract partial class JsPlannedCompilerBase
         EmitLdar(sentRegister);
         EmitStar(argumentRegister);
         builder.EmitCallProperty(nextFunctionRegister, iteratorRegister, argumentRegister, 1);
+        if (isAsync)
+            EmitAwaitSuspension();
         EmitStar(resultRegister);
         var resultIsObject = builder.CreateLabel();
         EmitLdar(resultRegister);
@@ -122,7 +165,10 @@ internal abstract partial class JsPlannedCompilerBase
         EmitJump(done);
 
         builder.BindLabel(yield);
-        EmitLdar(resultRegister);
+        if (isAsync)
+            builder.EmitLdaNamedProperty(resultRegister, valueName, builder.AllocateFeedbackSlot());
+        else
+            EmitLdar(resultRegister);
         EmitGeneratorSuspendResume(
             (byte)iteratorRegister,
             guaranteedNextOnly: false,
