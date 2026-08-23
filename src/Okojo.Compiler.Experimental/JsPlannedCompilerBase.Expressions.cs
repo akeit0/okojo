@@ -95,6 +95,9 @@ internal abstract partial class JsPlannedCompilerBase
             case AstKind.ImportMetaExpression:
                 builder.EmitCallRuntime((int)RuntimeId.GetCurrentModuleImportMeta, 0, 0);
                 return;
+            case AstKind.ImportCallExpression:
+                EmitImportCallExpression(ast, node);
+                return;
             case AstKind.SuperExpression:
                 throw new InvalidOperationException("Bare super cannot be emitted as a value.");
             case AstKind.AssignmentExpression
@@ -375,6 +378,28 @@ internal abstract partial class JsPlannedCompilerBase
         EmitCreateClosureByIndex(builder.AddObjectConstant(functionObject));
         EmitPrivateBrandMappingsForClosure();
         return false;
+    }
+
+    private void EmitImportCallExpression(FlatAst ast, in AstNode node)
+    {
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            var count = node.Arg1 < 0 ? 1 : 2;
+            var arguments = builder.AllocateTemporaryRegisterBlock(count);
+            EmitExpression(ast, node.Arg0);
+            EmitStar(arguments);
+            if (node.Arg1 >= 0)
+            {
+                EmitExpression(ast, node.Arg1);
+                EmitStar(arguments + 1);
+            }
+            builder.EmitCallRuntime((int)RuntimeId.DynamicImport, arguments, count);
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+        }
     }
 
     private void EmitRegExpLiteral(string pattern, string flags)

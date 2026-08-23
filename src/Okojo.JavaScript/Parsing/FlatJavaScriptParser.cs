@@ -2852,7 +2852,7 @@ internal sealed class FlatJavaScriptParser
             return Arena.Add(AstKind.SuperExpression, position: token.Position);
         }
         if (IsCurrentIdentifierName("import"))
-            return ParseImportMetaExpression(token.Position);
+            return ParseImportExpression(token.Position);
         if (IsAsyncFunctionPrefix())
             return ParseFunctionExpression(isAsync: true);
         switch (token.Kind)
@@ -2942,17 +2942,29 @@ internal sealed class FlatJavaScriptParser
         }
     }
 
-    private int ParseImportMetaExpression(int position)
+    private int ParseImportExpression(int position)
     {
         Next();
-        if (!Match(JsTokenKind.Dot))
-            throw Error("Dynamic import is not supported by FlatJavaScriptParser", position);
-        if (!IsCurrentIdentifierName("meta"))
-            throw Error("Expected 'meta' after 'import.'", current.Position);
-        Next();
-        if (!isModule)
-            throw Error("Cannot use import.meta outside a module", position);
-        return Arena.Add(AstKind.ImportMetaExpression, position: position);
+        if (Match(JsTokenKind.Dot))
+        {
+            if (!IsCurrentIdentifierName("meta"))
+                throw Error("Expected 'meta' after 'import.'", current.Position);
+            Next();
+            if (!isModule)
+                throw Error("Cannot use import.meta outside a module", position);
+            return Arena.Add(AstKind.ImportMetaExpression, position: position);
+        }
+
+        Expect(JsTokenKind.LeftParen);
+        var specifier = ParseAssignment(allowIn: true);
+        var options = -1;
+        if (Match(JsTokenKind.Comma) && current.Kind != JsTokenKind.RightParen)
+        {
+            options = ParseAssignment(allowIn: true);
+            _ = Match(JsTokenKind.Comma);
+        }
+        Expect(JsTokenKind.RightParen);
+        return Arena.Add(AstKind.ImportCallExpression, specifier, options, position: position);
     }
 
     private int ParseParenthesizedExpressionOrArrow(

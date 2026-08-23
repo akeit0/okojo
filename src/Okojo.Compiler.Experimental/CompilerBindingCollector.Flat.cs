@@ -767,6 +767,11 @@ internal static partial class CompilerBindingCollector
                     if (node.Arg0 >= 0)
                         VisitExpression(ast, node.Arg0, scopeId);
                     return;
+                case AstKind.ImportCallExpression:
+                    VisitExpression(ast, node.Arg0, scopeId);
+                    if (node.Arg1 >= 0)
+                        VisitExpression(ast, node.Arg1, scopeId);
+                    return;
                 case AstKind.ConditionalExpression:
                     VisitExpression(ast, node.Arg0, scopeId);
                     VisitExpression(ast, node.Arg1, scopeId);

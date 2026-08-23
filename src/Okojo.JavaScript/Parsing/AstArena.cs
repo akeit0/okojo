@@ -43,6 +43,7 @@ internal enum AstKind : byte
     ThisExpression,
     NewTargetExpression,
     ImportMetaExpression,
+    ImportCallExpression,
     SuperExpression,
     BinaryExpression,
     UnaryExpression,

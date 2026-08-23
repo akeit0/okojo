@@ -219,6 +219,31 @@ public class JsPlannedScriptCompilerTests
     }
 
     [Test]
+    public void CompileModule_ExecutesDynamicImportThroughExistingPromiseRuntime()
+    {
+        var options = new JsRuntimeOptions().UseModuleSourceLoader(
+            new TestModuleSourceLoader(
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["entry"] = """
+                    export let result = 0;
+                    import("./dependency").then(namespace => result = namespace.answer);
+                    """,
+                    ["dependency"] = "export const answer = 42;",
+                }
+            )
+        );
+        options.Agent.UsePlannedModuleCompiler();
+        using var runtime = JsRuntime.Create(options);
+
+        var module = runtime.MainRealm.LoadModule("entry");
+        for (var i = 0; i < 20 && module.GetExport("result").Int32Value == 0; i++)
+            runtime.MainAgent.PumpJobs();
+
+        Assert.That(module.GetExport("result").Int32Value, Is.EqualTo(42));
+    }
+
+    [Test]
     public void CompileModule_InstantiatesHoistedExportOnceAcrossCycle()
     {
         var options = new JsRuntimeOptions().UseModuleSourceLoader(

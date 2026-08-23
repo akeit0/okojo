@@ -522,7 +522,11 @@ checks, and observable function names match the production engine and V8.
 - `import.meta` now uses one leaf arena tag and the existing zero-argument module-meta
   runtime helper in module bodies and captured functions, matching V8's inline
   `GetImportMetaObject` lowering without adding an opcode or persistent metadata.
-- dynamic import, top-level await, and async dependency ordering
+- dynamic import now stores the evaluated specifier and optional attributes object in
+  one contiguous temporary register block and calls the existing promise runtime. V8
+  also uses a runtime boundary; Okojo derives the referrer from the active script instead
+  of passing the closure and phase as extra operands.
+- top-level await and async dependency ordering
 
 Exit gate: the production module linker consumes flat compiler metadata directly;
 no class-AST module objects remain on the execution path.

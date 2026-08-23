@@ -112,6 +112,18 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void ParseScript_ParsesDynamicImportArguments()
+    {
+        using var ast = FlatJavaScriptParser.ParseScript("import('dependency', { with: {} },);");
+        var statement = ast.ChildRange(ast[ast.Root].Arg0, ast[ast.Root].Arg1)[0];
+        ref readonly var importCall = ref ast[ast[statement].Arg0];
+
+        Assert.That(importCall.Kind, Is.EqualTo(AstKind.ImportCallExpression));
+        Assert.That(ast[importCall.Arg0].Kind, Is.EqualTo(AstKind.StringLiteral));
+        Assert.That(ast[importCall.Arg1].Kind, Is.EqualTo(AstKind.ObjectExpression));
+    }
+
+    [Test]
     public void ParseModule_CollectsCompactExportDescriptorsAndBindings()
     {
         using var ast = FlatJavaScriptParser.ParseModule(
