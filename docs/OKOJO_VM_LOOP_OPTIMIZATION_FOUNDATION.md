@@ -1,5 +1,14 @@
 # Okojo VM Loop Optimization Foundation
 
+Related documents:
+
+- `OKOJO_VM_OPTIMIZATION_INSIGHTS.md` - cumulative technical knowledge base
+  (JIT/codegen, CPU, C# pitfalls, measurement methodology).
+- `OKOJO_A7_DISPATCH_DESIGN.md` - dispatch-structure analysis and E1
+  microbench evidence.
+- `OKOJO_A8_A9_RESEARCH.md` - bytecode/compiler research: corpus profile,
+  fusion candidates, let-loop context lowering.
+
 Scope: establish a repeatable methodology for optimizing the interpreter
 dispatch loop (`JsRealm.Run`, `src/Okojo.JavaScript/Execution/JsRealm.VmLoop.cs`)
 beyond wall-clock benchmarking: IL/JIT-assembly comparison, Dynamic PGO A/B,
