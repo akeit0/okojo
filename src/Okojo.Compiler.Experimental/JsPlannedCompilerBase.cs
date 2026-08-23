@@ -17,6 +17,7 @@ internal abstract partial class JsPlannedCompilerBase
     protected int rootContextSlotCount;
     protected bool emittingParameterInitializers;
     protected bool strictDeclared;
+    protected bool hasNewTarget;
 
     protected JsPlannedCompilerBase(JsRealm realm)
     {

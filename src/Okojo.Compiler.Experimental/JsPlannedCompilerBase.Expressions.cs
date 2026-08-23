@@ -26,6 +26,8 @@ internal abstract partial class JsPlannedCompilerBase
     private void EmitExpression(FlatAst ast, int nodeIndex, ExpressionResult result)
     {
         ref readonly var node = ref ast[nodeIndex];
+        if (node.Kind == AstKind.NewTargetExpression)
+            hasNewTarget = true;
         if (result.Mode == ExpressionResultMode.Test)
         {
             EmitTestExpression(ast, nodeIndex, node, result.Target, result.JumpIfTrue);
@@ -40,6 +42,7 @@ internal abstract partial class JsPlannedCompilerBase
                     or AstKind.NumericLiteral
                     or AstKind.BigIntLiteral
                     or AstKind.StringLiteral
+                    or AstKind.NewTargetExpression
         )
             return;
 
@@ -79,6 +82,9 @@ internal abstract partial class JsPlannedCompilerBase
                 return;
             case AstKind.ThisExpression:
                 builder.EmitLda(JsOpCode.LdaThis);
+                return;
+            case AstKind.NewTargetExpression:
+                builder.EmitLda(JsOpCode.LdaNewTarget);
                 return;
             case AstKind.AssignmentExpression
                 when (JsAssignmentOperator)node.Arg2 == JsAssignmentOperator.Assign

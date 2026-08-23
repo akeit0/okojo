@@ -1362,15 +1362,69 @@ public class DirectFlatParserTests
         Assert.That(directBytes, Is.LessThan(bridgeBytes));
     }
 
-    [Test]
-    public void ParseScript_RejectsNewTargetWithoutClassParserFallback()
+    [TestCase("new.target;")]
+    [TestCase("let read = () => new.target;")]
+    public void ParseScript_RejectsNewTargetWithoutReceiverFunction(string source)
     {
         var exception = Assert.Throws<JsParseException>(() =>
-            FlatJavaScriptParser.ParseScript("new.target;")
+            FlatJavaScriptParser.ParseScript(source)
         );
 
-        Assert.That(exception!.Message, Does.Contain("FlatJavaScriptParser"));
+        Assert.That(exception!.Message, Does.Contain("new.target"));
     }
+
+    [Test]
+    public void CompileString_ExecutesLexicalNewTarget()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            function make(value = new.target) {
+                return [value, () => new.target, () => new.target.name];
+            }
+            let direct = make();
+            let constructed = new make();
+            (direct[0] === undefined) + '|' + (direct[1]() === undefined)
+                + '|' + (constructed[0] === make) + '|' + (constructed[1]().name === 'make')
+                + '|' + (constructed[2]() === 'make');
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("true|true|true|true|true"));
+        var make = script
+            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .Single(static function => function.Name == "make");
+        var arrows = make
+            .Script.ObjectConstants.OfType<JsBytecodeFunction>()
+            .Where(static function => function.IsArrow)
+            .ToArray();
+        Assert.That(make.HasNewTarget, Is.True);
+        Assert.That(arrows, Has.Length.EqualTo(2));
+        Assert.That(arrows.All(static function => function.HasNewTarget), Is.True);
+    }
+
+    [Test]
+    public void CompileAst_ExecutesNewTarget()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            JavaScriptParser.ParseScript(
+                "function read() { return new.target; } new read() === read;"
+            )
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.IsTrue, Is.True);
+    }
+
+    [Test]
+    public void ParseScript_RejectsEscapedNewTargetMetaProperty() =>
+        Assert.Throws<JsParseException>(() =>
+            FlatJavaScriptParser.ParseScript("function read() { return new.\\u0074arget; }")
+        );
 
     [Test]
     public void CompileString_ExecutesObjectMethodsAndAccessors()

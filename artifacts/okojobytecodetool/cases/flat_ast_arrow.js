@@ -7,3 +7,11 @@ function outer(value) {
         + patterns({ item: [3, 4, 5] }, 6, 7);
 }
 outer.call({ base: 10 }, 20);
+
+function captureNewTarget() {
+    const read = () => new.target;
+    return read();
+}
+
+captureNewTarget();
+new captureNewTarget();

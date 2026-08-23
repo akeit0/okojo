@@ -68,7 +68,8 @@ Both planned compilers currently support:
 - BigInt and RegExp literals
 - untagged template literals, including nested substitutions and escape cooking
 - synchronous arrow functions with simple/default/rest/pattern parameters,
-  expression/block bodies, inferred names, and lexical `this`/`arguments`
+  expression/block bodies, inferred names, and lexical `this`/`arguments`/`new.target`
+- `new.target` in ordinary functions with function-scope early errors
 - unshadowed `undefined` intrinsic reads with lexical shadowing
 - unary, arithmetic, bitwise, comparison, logical, conditional, sequence, and
   identifier update expressions
@@ -92,7 +93,7 @@ lowerer comparison.
 
 Still intentionally unsupported in the experimental pipeline:
 
-- optional calls, `new.target`, and private/super member access
+- optional calls and private/super member access
 - destructuring assignments and pattern parameters
 - generator/async and `super` object methods
 - tagged template literals

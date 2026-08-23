@@ -558,6 +558,10 @@ internal static class FlatAstLowerer
                     AstKind.ThisExpression,
                     position: expression.Position
                 ),
+                JsNewTargetExpression => Arena.Add(
+                    AstKind.NewTargetExpression,
+                    position: expression.Position
+                ),
                 JsIdentifierExpression identifier => Arena.Add(
                     AstKind.Identifier,
                     Arena.AddString(identifier.Name),

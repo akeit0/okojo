@@ -9,6 +9,7 @@ internal sealed class FlatJavaScriptParser
     private readonly string source;
     private JsToken current;
     private int functionDepth;
+    private int receiverFunctionDepth;
     private int loopDepth;
     private int switchDepth;
     private bool strictMode;
@@ -408,6 +409,25 @@ internal sealed class FlatJavaScriptParser
     }
 
     private int ParseFunctionTail(
+        bool isDeclaration,
+        string name,
+        int nameId,
+        int position,
+        bool isMethod
+    )
+    {
+        receiverFunctionDepth++;
+        try
+        {
+            return ParseFunctionTailCore(isDeclaration, name, nameId, position, isMethod);
+        }
+        finally
+        {
+            receiverFunctionDepth--;
+        }
+    }
+
+    private int ParseFunctionTailCore(
         bool isDeclaration,
         string name,
         int nameId,
@@ -1078,6 +1098,24 @@ internal sealed class FlatJavaScriptParser
     private int ParseNewExpression(bool allowCallSuffix = true)
     {
         var position = Expect(JsTokenKind.New).Position;
+        if (Match(JsTokenKind.Dot))
+        {
+            if (
+                current.Kind != JsTokenKind.Identifier
+                || !source
+                    .AsSpan(current.Position, current.SourceLength)
+                    .SequenceEqual("target".AsSpan())
+            )
+                throw Error($"Expected target but found {current.Kind}", current.Position);
+            if (receiverFunctionDepth == 0)
+                throw Error("new.target is only valid inside a function", position);
+            Next();
+            return ParseMemberAndCallSuffix(
+                Arena.Add(AstKind.NewTargetExpression, position: position),
+                allowCallSuffix
+            );
+        }
+
         var callee =
             current.Kind == JsTokenKind.New
                 ? ParseNewExpression(allowCallSuffix: false)

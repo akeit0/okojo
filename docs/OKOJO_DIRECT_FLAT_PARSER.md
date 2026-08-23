@@ -52,14 +52,14 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Parse goal | scripts | modules, standalone function goal |
 | Declarations | `var`/`let`/`const`, ordinary function declarations, function/block declaration prologues, function-scoped `var`, persistent script globals/lexicals, initial global conflict validation | classes, imports/exports, complete declaration early errors, Annex B |
 | Blocks/control | block, `if`, `while`, `do`, ordinary `for`, `switch`, unlabeled `break`/`continue`, `return`, `throw`, `try`/`catch`/`finally`, empty/expression statement | `for-in/of`, labels, `debugger` |
-| Primitive expressions | number, BigInt, string, boolean, null, regexp, untagged template, identifier, `this`, grouping | tagged templates, `super`, `new.target`, `import.meta` |
+| Primitive expressions | number, BigInt, string, boolean, null, regexp, untagged template, identifier, `this`, `new.target`, grouping | tagged templates, `super`, `import.meta` |
 | Operators | precedence table, assignment, arithmetic/logical/bitwise/comparison, conditionals, sequence, updates, property/identifier/value `delete` | optional-chain operators and delete-chain behavior, remaining edge-specific early errors |
 | References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed properties | imports, private and super references |
 | Calls/construction | direct/member calls, spread calls, ordinary/spread `new`, wide operands | optional calls, dynamic import, super call |
 | Arrays/objects | holes, array/object spread, data properties, ordinary concise methods/getters/setters, computed/shorthand/index keys, stable data shape prefix | generator/async and `super` methods, legacy `__proto__` intentionally excluded |
 | Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings | class, module bindings and remaining early errors |
 | Assignments | identifier/member targets, compound/logical/update, array/object destructuring | private/super targets, optional-chain restrictions |
-| Functions | ordinary declarations/expressions, closures, synchronous arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function name inference, demand-driven mapped/unmapped `arguments` | lexical `new.target`, async, generators, class-name inference, lazy bodies |
+| Functions | ordinary declarations/expressions, closures, synchronous arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`/`new.target`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function name inference, demand-driven mapped/unmapped `arguments` | async, generators, class-name inference, lazy bodies |
 | Classes | none | declaration/expression, constructors, methods, fields, static blocks, private names, super |
 | Modules | none | parse goal, entries, linking metadata, live bindings, top-level await |
 
@@ -205,7 +205,7 @@ names, and lexical `this`/`arguments` behavior. The reference case is
 `artifacts/okojobytecodetool/cases/flat_ast_arrow.js`; focused tests cover call
 receiver replacement, nested capture, constructor rejection, nested pattern
 initialization, function length, and rest-placement early errors. Lexical
-`new.target` remains.
+`new.target` is described below.
 
 V8 gives arrows ordinary closure bytecode but marks their function kind so closure
 creation captures lexical receiver state and name resolution crosses the arrow
@@ -233,6 +233,22 @@ rest, and a top-level rest parameter. Focused tests cover evaluation order,
 function length, duplicate names, rest placement, and invalid parenthesized
 targets. Okojo copies V8's cover-grammar validation and intentionally keeps its
 existing flat parameter ABI.
+
+#### Lexical `new.target` slice
+
+The direct path supports `new.target` in ordinary functions and arrows while keeping it
+a syntax error at script scope. The reference case is
+`artifacts/okojobytecodetool/cases/flat_ast_arrow.js`; focused tests cover direct
+call versus construction, an escaping arrow, member continuation, and script-level
+early errors.
+
+V8 accepts the meta-property only when the receiver scope is a function. An
+ordinary function reads its incoming new-target register; an arrow captures that
+value through the nearest enclosing ordinary function scope. Okojo already has
+the equivalent `LdaNewTarget` frame opcode and arrow `BoundNewTargetValue` runtime
+contract. The flat path therefore needs one leaf node and direct opcode emission,
+not a synthetic binding or capture-table entry. Function metadata records actual
+use for observability, while the hot execution path stays a single frame load.
 
 ### Destructuring
 
@@ -571,7 +587,6 @@ function read(value = function nested(next = outer) { return next; }) {
 - `for-in`/`for-of` and labels
 - `debugger`
 - tagged template literals and cached site identity
-- lexical `new.target` in arrows
 - optional chaining/calls
 
 New side tables should be purpose-specific and dense: handler/catch records and

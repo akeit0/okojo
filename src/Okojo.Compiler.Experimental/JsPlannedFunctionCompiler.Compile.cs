@@ -84,6 +84,7 @@ internal sealed partial class JsPlannedFunctionCompiler
         FlatFunctionInfo? flatFunction
     )
     {
+        hasNewTarget = false;
         if (!metadata.HasSimpleParameterList && flatFunction is null)
             throw new NotSupportedException("Advanced parameters require flat function metadata.");
         strictDeclared = metadata.StrictDeclared;
@@ -121,7 +122,7 @@ internal sealed partial class JsPlannedFunctionCompiler
             metadata.Name,
             requiresClosureBinding: false,
             isStrict: metadata.StrictDeclared,
-            hasNewTarget: false,
+            hasNewTarget: hasNewTarget,
             kind: JsBytecodeFunctionKind.Normal,
             isArrow: metadata.IsArrow,
             isMethod: metadata.IsMethod,

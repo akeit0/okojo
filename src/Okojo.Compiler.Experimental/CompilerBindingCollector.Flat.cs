@@ -615,6 +615,7 @@ internal static partial class CompilerBindingCollector
                 case AstKind.NullLiteral:
                 case AstKind.RegExpLiteral:
                 case AstKind.ThisExpression:
+                case AstKind.NewTargetExpression:
                     return;
                 default:
                     throw new NotSupportedException(
