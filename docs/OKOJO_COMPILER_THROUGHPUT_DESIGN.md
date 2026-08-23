@@ -369,9 +369,9 @@ and has differential execution coverage for every new control-flow form.
 - async generators and `for-await-of`
 - measured live-range narrowing for the landed conservative register snapshot
 
-Foundation status: synchronous `function*` declarations/expressions,
-`yield`/`yield*`, eager advanced-parameter binding, suspend tables, sent values,
-and next/return/throw resume modes are landed. Return resumes reuse the
+Foundation status: synchronous `function*` declarations/expressions/object
+methods, `yield`/`yield*`, eager advanced-parameter binding, suspend tables, sent
+values, and next/return/throw resume modes are landed. Return resumes reuse the
 abrupt-command stack so `finally` and iterator cleanup stay on the same path;
 throw resumes reuse the VM's restored exception-handler continuation. Delegation
 retains the active iterator in the existing continuation and forwards abrupt

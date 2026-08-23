@@ -1777,6 +1777,53 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_ExecutesGeneratorObjectMethods()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let object = {
+                base: 2,
+                *values(start) { yield this.base + start; return this.base + start + 1; },
+                *['computed']() { yield 5; }
+            };
+            let iterator = object.values(1);
+            let first = iterator.next();
+            let second = iterator.next();
+            let computed = object.computed().next();
+            let constructible = 1;
+            try { new object.values(); } catch (error) { constructible = 0; }
+            first.value + '|' + first.done + '|' + second.value + '|' + second.done
+                + '|' + computed.value + '|' + object.values.name + '|'
+                + object.computed.name + '|' + (typeof object.values.prototype) + '|'
+                + constructible;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(
+            realm.Accumulator.AsString(),
+            Is.EqualTo("3|false|4|true|5|values|computed|object|0")
+        );
+    }
+
+    [Test]
+    public void CompileAst_ExecutesGeneratorObjectMethodBridge()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            JavaScriptParser.ParseScript(
+                "let object = { *value() { yield 6; } }; object.value().next().value;"
+            )
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(6));
+    }
+
+    [Test]
     public void CompileString_ExecutesComputedAndIndexedObjectAccessorsInOrder()
     {
         var realm = JsRuntime.Create().DefaultRealm;

@@ -73,6 +73,7 @@ Both planned compilers currently support:
   expression/block bodies, inferred names, and lexical `this`/`arguments`/`new.target`
 - synchronous generator declarations/expressions with `yield`/`yield*`, advanced
   parameters, delegation, and next/return/throw resume modes
+- named/computed generator object methods through the same function metadata
 - `new.target` in ordinary functions with function-scope early errors
 - unshadowed `undefined` intrinsic reads with lexical shadowing
 - unary, arithmetic, bitwise, comparison, logical, conditional, sequence, and
@@ -107,7 +108,7 @@ lowerer comparison.
 Still intentionally unsupported in the experimental pipeline:
 
 - private/super member access
-- async functions/generators and generator/async/`super` object methods
+- async functions/generators and async/`super` object methods
 - module binding emission
 - `for-await-of`
 - direct production replacement of `JsCompiler`

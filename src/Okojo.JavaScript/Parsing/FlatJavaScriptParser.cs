@@ -2081,6 +2081,7 @@ internal sealed class FlatJavaScriptParser
                     continue;
                 }
 
+                var isGeneratorMethod = Match(JsTokenKind.Star);
                 var computed = Match(JsTokenKind.LeftBracket);
                 int key;
                 JsToken shorthandToken = default;
@@ -2162,7 +2163,8 @@ internal sealed class FlatJavaScriptParser
                         string.Empty,
                         -1,
                         propertyPosition,
-                        isMethod: true
+                        isMethod: true,
+                        isGenerator: isGeneratorMethod
                     );
                     properties.Add(
                         new FlatObjectProperty(
@@ -2178,6 +2180,9 @@ internal sealed class FlatJavaScriptParser
                         throw Error("Expected ',' or '}'", current.Position);
                     continue;
                 }
+
+                if (isGeneratorMethod)
+                    throw Error("Expected '(' after generator method name", current.Position);
 
                 int value;
                 var flags = computed

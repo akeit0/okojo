@@ -56,7 +56,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Operators | precedence table, assignment, arithmetic/logical/bitwise/comparison, conditionals, sequence, updates, optional chains, property/identifier/value/optional-chain `delete` | remaining edge-specific early errors |
 | References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed properties | imports, private and super references |
 | Calls/construction | direct/member/optional calls, spread calls, ordinary/spread `new`, wide operands | dynamic import, super call |
-| Arrays/objects | holes, array/object spread, data properties, ordinary concise methods/getters/setters, computed/shorthand/index keys, stable data shape prefix | generator/async and `super` methods, legacy `__proto__` intentionally excluded |
+| Arrays/objects | holes, array/object spread, data properties, ordinary/generator concise methods, getters/setters, computed/shorthand/index keys, stable data shape prefix | async and `super` methods, legacy `__proto__` intentionally excluded |
 | Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings | class, module bindings and remaining early errors |
 | Assignments | identifier/member targets, compound/logical/update, array/object destructuring, core optional-chain target restrictions | private/super targets, remaining early errors |
 | Functions | ordinary declarations/expressions, closures, synchronous generators with `yield`/`yield*`, synchronous arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`/`new.target`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function name inference, demand-driven mapped/unmapped `arguments` | async, class-name inference, lazy bodies |
@@ -360,6 +360,12 @@ next/return/throw resume modes. The minimal reference cases are
 coverage also places suspension under `try`/`finally` and iterator cleanup so
 abrupt resumes reuse the landed completion dispatcher. Async functions and async
 generators remain separate slices.
+
+The follow-up object-method slice accepts named/computed `*method()` forms and
+feeds them through the same flat function metadata and closure emitter. Its
+reference case is
+`artifacts/okojobytecodetool/cases/flat_ast_generator_method.js`; no object
+property flag or generator-specific definition opcode is needed.
 
 V8 emits one entry `SwitchOnGeneratorState`, saves the live register range at
 each `SuspendGenerator`, resumes at the suspend ID, then dispatches the resume
