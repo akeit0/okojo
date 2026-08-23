@@ -314,6 +314,15 @@ internal abstract partial class JsPlannedCompilerBase
         builder.Emit(op, unchecked((byte)(sbyte)value), 0);
     }
 
+    private void EmitModuleVariableAccess(JsOpCode op, int cellIndex, int depth)
+    {
+        if (cellIndex is < sbyte.MinValue or > sbyte.MaxValue || (uint)depth > byte.MaxValue)
+            throw new InvalidOperationException(
+                "Module variable operands exceed byte operand capacity."
+            );
+        builder.Emit(op, unchecked((byte)(sbyte)cellIndex), (byte)depth);
+    }
+
     private void EmitGlobalAccess(string name, JsOpCode narrow, JsOpCode wide)
     {
         var nameIndex = builder.AddAtomizedStringConstant(name);

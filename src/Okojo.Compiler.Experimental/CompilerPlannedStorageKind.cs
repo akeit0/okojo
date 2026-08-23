@@ -7,4 +7,5 @@ internal enum CompilerPlannedStorageKind : byte
     ImportBinding = 2,
     ContextSlot = 3,
     GlobalBinding = 4,
+    ModuleBinding = 5,
 }

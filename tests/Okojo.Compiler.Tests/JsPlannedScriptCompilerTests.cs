@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using Okojo.Diagnostics;
 using Okojo.JavaScript;
 using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Compiler.Experimental;
@@ -81,6 +82,36 @@ public class JsPlannedScriptCompilerTests
         Assert.That(script.TopLevelLexicalAtoms, Has.Length.EqualTo(1));
         Assert.That(script.Bytecode, Does.Contain((byte)JsOpCode.StaGlobalInit));
         Assert.That(script.Bytecode.Contains((byte)JsOpCode.Return), Is.True);
+    }
+
+    [Test]
+    public void CompileModule_EmitsFinalizedModuleCellsThroughExportWrappers()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedModuleCompiler(realm).Compile(
+            """
+            import { source as imported } from "dependency";
+            export let value = imported;
+            export function read() { return value; }
+            value++;
+            export default value;
+            """
+        );
+
+        var disassembly = Disassembler.Dump(script);
+        Assert.Multiple(() =>
+        {
+            Assert.That(disassembly, Does.Contain("LdaModuleVariable cell_index:-1, depth:0"));
+            Assert.That(disassembly, Does.Contain("StaModuleVariable cell_index:1, depth:0"));
+            Assert.That(disassembly, Does.Contain("StaModuleVariable cell_index:2, depth:0"));
+            Assert.That(disassembly, Does.Contain("StaModuleVariable cell_index:3, depth:0"));
+        });
+
+        var read = script.ObjectConstants.OfType<JsBytecodeFunction>().Single();
+        Assert.That(
+            Disassembler.Dump(read.Script),
+            Does.Contain("LdaModuleVariable cell_index:3, depth:0")
+        );
     }
 
     [Test]

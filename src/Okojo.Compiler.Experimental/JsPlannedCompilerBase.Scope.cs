@@ -99,6 +99,7 @@ internal abstract partial class JsPlannedCompilerBase
             var register = binding.StorageKind switch
             {
                 CompilerPlannedStorageKind.ImportBinding => -1,
+                CompilerPlannedStorageKind.ModuleBinding => -1,
                 CompilerPlannedStorageKind.ContextSlot => -1,
                 CompilerPlannedStorageKind.GlobalBinding => -1,
                 _ => builder.AllocateTemporaryRegister(),
@@ -145,7 +146,13 @@ internal abstract partial class JsPlannedCompilerBase
                     && binding.Planned.Kind != CompilerCollectedBindingKind.SuperBase
                 )
                     continue;
-                if (binding.Planned.StorageKind != CompilerPlannedStorageKind.ContextSlot)
+                if (
+                    binding.Planned.StorageKind
+                    is not (
+                        CompilerPlannedStorageKind.ContextSlot
+                        or CompilerPlannedStorageKind.ModuleBinding
+                    )
+                )
                     continue;
                 captures.TryAdd(
                     binding.Planned.Name,
@@ -153,7 +160,8 @@ internal abstract partial class JsPlannedCompilerBase
                         binding.Planned.StorageIndex,
                         currentDepth,
                         binding.Planned.IsConst,
-                        binding.Planned.Kind == CompilerCollectedBindingKind.FunctionNameSelf
+                        binding.Planned.Kind == CompilerCollectedBindingKind.FunctionNameSelf,
+                        binding.Planned.StorageKind == CompilerPlannedStorageKind.ModuleBinding
                     )
                 );
             }
@@ -169,7 +177,8 @@ internal abstract partial class JsPlannedCompilerBase
                     pair.Value.Slot,
                     pair.Value.Depth + currentDepth + ExternalCaptureContextDepthOffset,
                     pair.Value.IsConst,
-                    pair.Value.IsImmutableFunctionName
+                    pair.Value.IsImmutableFunctionName,
+                    pair.Value.IsModuleVariable
                 )
             );
 

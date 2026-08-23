@@ -13,6 +13,11 @@ internal abstract partial class JsPlannedCompilerBase
         ref readonly var node = ref ast[nodeIndex];
         switch (node.Kind)
         {
+            case AstKind.ImportDeclaration:
+                return;
+            case AstKind.ExportDeclaration:
+                EmitExportDeclaration(ast, node);
+                return;
             case AstKind.VariableDeclaration:
                 EmitVariableDeclaration(
                     ast,
@@ -103,6 +108,36 @@ internal abstract partial class JsPlannedCompilerBase
                     $"{CompilerName} does not support flat statement '{node.Kind}'."
                 );
         }
+    }
+
+    private void EmitExportDeclaration(FlatAst ast, AstNode node)
+    {
+        if (node.Arg0 < 0)
+            return;
+
+        var entries = ast.GetExportEntries(node);
+        if (entries.Length == 0)
+            return;
+        if (entries[0].Kind == FlatExportKind.Local)
+        {
+            EmitStatement(ast, node.Arg0);
+            return;
+        }
+
+        ref readonly var value = ref ast[node.Arg0];
+        if (
+            entries[0].Kind == FlatExportKind.DefaultDeclaration
+            && value.Kind == AstKind.FunctionExpression
+        )
+            return;
+
+        var localName = ast.GetString(entries[0].LocalNameStringIndex);
+        EmitExpressionWithInferredName(ast, node.Arg0, "default");
+        if (!TryResolveBinding(localName, out var binding))
+            throw new InvalidOperationException(
+                $"No planned binding found for default export '{localName}'."
+            );
+        EmitStore(binding, isInitialization: true);
     }
 
     private void EmitWhileStatement(FlatAst ast, int test, int body, string[]? labels = null)
@@ -1333,7 +1368,32 @@ internal abstract partial class JsPlannedCompilerBase
             ref readonly var statement = ref ast[statements[i]];
             if (statement.Kind == AstKind.FunctionDeclaration)
                 EmitFunctionDeclaration(ast, statement.Arg0, statement.Arg1);
+            else if (statement.Kind == AstKind.ExportDeclaration && statement.Arg0 >= 0)
+                EmitExportDeclarationPrologue(ast, statement);
         }
+    }
+
+    private void EmitExportDeclarationPrologue(FlatAst ast, AstNode export)
+    {
+        ref readonly var value = ref ast[export.Arg0];
+        if (value.Kind == AstKind.FunctionDeclaration)
+        {
+            EmitFunctionDeclaration(ast, value.Arg0, value.Arg1);
+            return;
+        }
+        if (value.Kind != AstKind.FunctionExpression)
+            return;
+
+        var entries = ast.GetExportEntries(export);
+        if (entries.Length == 0 || entries[0].Kind != FlatExportKind.DefaultDeclaration)
+            return;
+        var localName = ast.GetString(entries[0].LocalNameStringIndex);
+        EmitExpressionWithInferredName(ast, export.Arg0, "default");
+        if (!TryResolveBinding(localName, out var binding))
+            throw new InvalidOperationException(
+                $"No planned binding found for default export '{localName}'."
+            );
+        EmitStore(binding, isInitialization: true, isFunctionDeclaration: true);
     }
 
     private void EmitVariableDeclaration(

@@ -135,6 +135,8 @@ internal sealed class FlatAst : IDisposable
     public ReadOnlySpan<FlatImportEntry> GetImportEntries(in AstNode declaration) =>
         importEntries.AsSpan(declaration.Arg1, declaration.Arg2);
 
+    public ReadOnlySpan<FlatImportEntry> ImportEntries => importEntries.AsSpan(0, importEntryCount);
+
     public ReadOnlySpan<FlatImportAttribute> GetImportAttributes(in FlatModuleRequest request) =>
         importAttributes.AsSpan(request.AttributeOffset, request.AttributeCount);
 
@@ -149,6 +151,8 @@ internal sealed class FlatAst : IDisposable
 
     public ReadOnlySpan<FlatExportEntry> GetExportEntries(in AstNode declaration) =>
         exportEntries.AsSpan(declaration.Arg1, declaration.Arg2);
+
+    public ReadOnlySpan<FlatExportEntry> ExportEntries => exportEntries.AsSpan(0, exportEntryCount);
 
     public void FinalizeModuleDescriptor()
     {

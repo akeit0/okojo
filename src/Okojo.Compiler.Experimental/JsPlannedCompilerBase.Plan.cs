@@ -60,6 +60,7 @@ internal abstract partial class JsPlannedCompilerBase
             var register = binding.StorageKind switch
             {
                 CompilerPlannedStorageKind.ImportBinding => -1,
+                CompilerPlannedStorageKind.ModuleBinding => -1,
                 CompilerPlannedStorageKind.ContextSlot => -1,
                 CompilerPlannedStorageKind.GlobalBinding => -1,
                 _ when binding.Kind == CompilerCollectedBindingKind.Parameter

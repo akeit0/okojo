@@ -1,10 +1,14 @@
 using System.Buffers;
+using Okojo.JavaScript.Parsing;
 
 namespace Okojo.JavaScript.Compiler.Experimental;
 
 internal static class CompilerStoragePlanner
 {
-    public static CompilerBindingPlan Plan(CompilerBindingCollectionResult collected)
+    public static CompilerBindingPlan Plan(
+        CompilerBindingCollectionResult collected,
+        FlatAst? moduleAst = null
+    )
     {
         var scopes = collected.Scopes;
         var bindings = collected.Bindings;
@@ -22,6 +26,7 @@ internal static class CompilerStoragePlanner
         Array.Clear(nextContextSlotByScope, 0, scopeCount);
         Array.Clear(captured, 0, bindingCount);
         Array.Clear(hasArgumentsBinding, 0, scopeCount);
+        var moduleCells = BuildModuleCells(moduleAst);
 
         try
         {
@@ -44,24 +49,32 @@ internal static class CompilerStoragePlanner
             for (var bindingIndex = 0; bindingIndex < bindingCount; bindingIndex++)
             {
                 var binding = bindings[bindingIndex];
+                var moduleCellIndex = 0;
+                var hasModuleCell =
+                    binding.ScopeId == 0
+                    && moduleCells is not null
+                    && moduleCells.TryGetValue(binding.Name, out moduleCellIndex);
                 var storageKind =
-                    binding.Kind == CompilerCollectedBindingKind.Parameter
+                    hasModuleCell ? CompilerPlannedStorageKind.ModuleBinding
+                    : binding.Kind == CompilerCollectedBindingKind.Parameter
                     && hasArgumentsBinding[binding.ScopeId]
                         ? CompilerPlannedStorageKind.ContextSlot
-                        : ClassifyStorage(binding, scopes[binding.ScopeId].Kind);
+                    : ClassifyStorage(binding, scopes[binding.ScopeId].Kind);
                 if (
                     captured[bindingIndex]
                     && storageKind
                         is not (
                             CompilerPlannedStorageKind.ImportBinding
+                            or CompilerPlannedStorageKind.ModuleBinding
                             or CompilerPlannedStorageKind.GlobalBinding
                         )
                 )
                     storageKind = CompilerPlannedStorageKind.ContextSlot;
                 var storageIndex =
-                    storageKind == CompilerPlannedStorageKind.ContextSlot
+                    storageKind == CompilerPlannedStorageKind.ModuleBinding ? moduleCellIndex
+                    : storageKind == CompilerPlannedStorageKind.ContextSlot
                         ? nextContextSlotByScope[binding.ScopeId]++
-                        : -1;
+                    : -1;
                 planned.Add(
                     new CompilerPlannedBinding(
                         binding.ScopeId,
@@ -87,6 +100,21 @@ internal static class CompilerStoragePlanner
             ArrayPool<bool>.Shared.Return(captured);
             ArrayPool<bool>.Shared.Return(hasArgumentsBinding);
         }
+    }
+
+    private static Dictionary<string, int>? BuildModuleCells(FlatAst? ast)
+    {
+        if (ast is null || !ast.IsModule)
+            return null;
+
+        var cells = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (ref readonly var import in ast.ImportEntries)
+            if (import.CellIndex != 0)
+                cells.Add(ast.GetString(import.LocalNameStringIndex), import.CellIndex);
+        foreach (ref readonly var export in ast.ExportEntries)
+            if (export.CellIndex != 0)
+                cells.TryAdd(ast.GetString(export.LocalNameStringIndex), export.CellIndex);
+        return cells;
     }
 
     private static void ValidateDenseScopeIds(ReadOnlySpan<CompilerCollectedScope> scopes)

@@ -55,7 +55,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Blocks/control | block, `if`, `while`, `do`, ordinary `for`, `for-in`, synchronous `for-of`, `for-await-of`, `switch`, chained labels, labeled/unlabeled `break`/`continue`, `return`, `throw`, `try`/`catch`/`finally`, `debugger`, empty/expression statement | remaining declaration/control early errors |
 | Primitive expressions | number, BigInt, string, boolean, null, regexp, tagged/untagged template, identifier, `this`, `new.target`, contextual `super` roots, grouping | `import.meta` |
 | Operators | precedence table, assignment, arithmetic/logical/bitwise/comparison, conditionals, sequence, updates, optional chains, property/identifier/value/optional-chain `delete` | remaining edge-specific early errors |
-| References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed ordinary and `super` properties, private field/method/accessor loads, calls, stores, updates, and `#x in value` | import live-cell emission |
+| References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed ordinary and `super` properties, private field/method/accessor loads, calls, stores, updates, `#x in value`, and planned regular import/local-export module-cell loads/stores through nested functions | namespace-import initialization and production linker consumption |
 | Calls/construction | direct/member/optional calls, spread calls, ordinary/spread `new`, implicit/explicit/spread `super()`, super-property calls, wide operands | dynamic import |
 | Arrays/objects | holes, array/object spread, data properties, ordinary/generator/async concise methods, getters/setters, computed/shorthand/index keys, stable data shape prefix, demand-driven super home objects | legacy `__proto__` intentionally excluded |
 | Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings, class declaration and inner-name bindings, read-only import bindings in a module root scope, module-wide import/`var`/lexical/function/class conflict and local-export validation, deterministic signed module cells | linker consumption and remaining early errors |
@@ -1201,6 +1201,29 @@ Module descriptor-finalization slice landed:
   V8's signed-index invariant for the future linker/compiler seam
 - performance plan: module-only temporary dictionaries/sorted name lists; no AST
   objects, no script-path work, and no persistent map after indices are written
+
+Planned module-cell bytecode slice landed:
+
+- iteration scope: feed finalized regular import/export cells into planned storage,
+  unwrap flat import/export statements during emission, and preserve module-cell
+  access in nested compiled functions
+- minimal repro:
+  `import { x } from 'pkg'; export let y = x; export function read() { return y; }`
+- reference case:
+  `artifacts/okojobytecodetool/cases/flat_ast_module_cells.js`
+- focused tests cover direct `LdaModuleVariable`/`StaModuleVariable` operands,
+  deterministic local-export cells, export wrapper execution, hoisted exported
+  functions, and module-cell capture instead of accidental global lookup
+- V8 observation: regular imports/exports use signed module cells in Ignition;
+  namespace imports remain descriptor-special and are initialized explicitly by
+  the module prologue through `GetModuleNamespace`
+- Okojo implementation: one module-only name-to-cell planning map classifies root
+  bindings as `ModuleBinding`; the existing signed-cell VM opcodes are emitted
+  directly and the capture descriptor carries module identity/depth into child
+  functions. Namespace bindings deliberately remain on the pending special path.
+- performance plan: no class-AST lowering and no mirrored export stores; flat
+  wrapper nodes disappear during emission and each live binding uses one VM cell
+  access
 
 ### Stage F4 - Modules
 

@@ -2041,7 +2041,14 @@ internal abstract partial class JsPlannedCompilerBase
 
             if (TryResolveExternalBinding(name, out var externalBinding, out var externalDepth))
             {
-                EmitLdaContextSlot(externalBinding.Slot, externalDepth);
+                if (externalBinding.IsModuleVariable)
+                    EmitModuleVariableAccess(
+                        JsOpCode.LdaModuleVariable,
+                        externalBinding.Slot,
+                        externalDepth
+                    );
+                else
+                    EmitLdaContextSlot(externalBinding.Slot, externalDepth);
                 return;
             }
 
@@ -2065,6 +2072,13 @@ internal abstract partial class JsPlannedCompilerBase
                 return;
             case CompilerPlannedStorageKind.GlobalBinding:
                 EmitGlobalAccess(name, JsOpCode.LdaGlobal, JsOpCode.LdaGlobalWide);
+                return;
+            case CompilerPlannedStorageKind.ModuleBinding:
+                EmitModuleVariableAccess(
+                    JsOpCode.LdaModuleVariable,
+                    binding.Planned.StorageIndex,
+                    contextDepth
+                );
                 return;
             default:
                 throw new NotSupportedException(
@@ -2132,6 +2146,13 @@ internal abstract partial class JsPlannedCompilerBase
                         : JsOpCode.StaGlobalWide
                 );
                 return;
+            case CompilerPlannedStorageKind.ModuleBinding:
+                EmitModuleVariableAccess(
+                    JsOpCode.StaModuleVariable,
+                    binding.Planned.StorageIndex,
+                    contextDepth
+                );
+                return;
             default:
                 throw new NotSupportedException(
                     $"{CompilerName} does not support storing '{binding.Planned.Name}' in {binding.Planned.StorageKind}."
@@ -2168,7 +2189,14 @@ internal abstract partial class JsPlannedCompilerBase
                     EmitThrowConstAssignError(name);
                 return;
             }
-            EmitStaContextSlot(externalBinding.Slot, externalDepth);
+            if (externalBinding.IsModuleVariable)
+                EmitModuleVariableAccess(
+                    JsOpCode.StaModuleVariable,
+                    externalBinding.Slot,
+                    externalDepth
+                );
+            else
+                EmitStaContextSlot(externalBinding.Slot, externalDepth);
             return;
         }
 

@@ -98,4 +98,42 @@ public class CompilerStoragePlannerTests
         Assert.That(ordinary.IsCaptured, Is.False);
         Assert.That(ordinary.StorageKind, Is.EqualTo(CompilerPlannedStorageKind.LexicalRegister));
     }
+
+    [Test]
+    public void Plan_UsesFinalizedFlatModuleCells()
+    {
+        using var ast = FlatJavaScriptParser.ParseModule(
+            """
+            import { source as imported } from "dependency";
+            import * as namespaceValue from "namespace";
+            export const value = imported;
+            const hidden = 1;
+            """
+        );
+        using var collected = CompilerBindingCollector.Collect(ast);
+        using var plan = CompilerStoragePlanner.Plan(collected, ast);
+
+        var bindings = plan.Bindings.ToArray().ToDictionary(binding => binding.Name);
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                bindings["imported"].StorageKind,
+                Is.EqualTo(CompilerPlannedStorageKind.ModuleBinding)
+            );
+            Assert.That(bindings["imported"].StorageIndex, Is.EqualTo(-1));
+            Assert.That(
+                bindings["value"].StorageKind,
+                Is.EqualTo(CompilerPlannedStorageKind.ModuleBinding)
+            );
+            Assert.That(bindings["value"].StorageIndex, Is.EqualTo(1));
+            Assert.That(
+                bindings["namespaceValue"].StorageKind,
+                Is.EqualTo(CompilerPlannedStorageKind.ImportBinding)
+            );
+            Assert.That(
+                bindings["hidden"].StorageKind,
+                Is.EqualTo(CompilerPlannedStorageKind.LexicalRegister)
+            );
+        });
+    }
 }
