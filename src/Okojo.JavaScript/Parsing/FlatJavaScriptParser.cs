@@ -2851,6 +2851,8 @@ internal sealed class FlatJavaScriptParser
             Next();
             return Arena.Add(AstKind.SuperExpression, position: token.Position);
         }
+        if (IsCurrentIdentifierName("import"))
+            return ParseImportMetaExpression(token.Position);
         if (IsAsyncFunctionPrefix())
             return ParseFunctionExpression(isAsync: true);
         switch (token.Kind)
@@ -2938,6 +2940,19 @@ internal sealed class FlatJavaScriptParser
                     token.Position
                 );
         }
+    }
+
+    private int ParseImportMetaExpression(int position)
+    {
+        Next();
+        if (!Match(JsTokenKind.Dot))
+            throw Error("Dynamic import is not supported by FlatJavaScriptParser", position);
+        if (!IsCurrentIdentifierName("meta"))
+            throw Error("Expected 'meta' after 'import.'", current.Position);
+        Next();
+        if (!isModule)
+            throw Error("Cannot use import.meta outside a module", position);
+        return Arena.Add(AstKind.ImportMetaExpression, position: position);
     }
 
     private int ParseParenthesizedExpressionOrArrow(

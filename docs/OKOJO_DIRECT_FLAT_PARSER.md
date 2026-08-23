@@ -53,7 +53,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Parse goal | scripts, strict module goal with import/export descriptors, single-parse experimental linked module execution | default-path adoption, standalone function goal |
 | Declarations | `var`/`let`/`const`, ordinary function and base-class declarations, function/block declaration prologues, function-scoped `var`, persistent script globals/lexicals, initial global conflict validation, side-effect/default/named/namespace imports, local/default/indirect/namespace/star exports | complete declaration early errors, Annex B |
 | Blocks/control | block, `if`, `while`, `do`, ordinary `for`, `for-in`, synchronous `for-of`, `for-await-of`, `switch`, chained labels, labeled/unlabeled `break`/`continue`, `return`, `throw`, `try`/`catch`/`finally`, `debugger`, empty/expression statement | remaining declaration/control early errors |
-| Primitive expressions | number, BigInt, string, boolean, null, regexp, tagged/untagged template, identifier, `this`, `new.target`, contextual `super` roots, grouping | `import.meta` |
+| Primitive expressions | number, BigInt, string, boolean, null, regexp, tagged/untagged template, identifier, `this`, `new.target`, `import.meta`, contextual `super` roots, grouping | — |
 | Operators | precedence table, assignment, arithmetic/logical/bitwise/comparison, conditionals, sequence, updates, optional chains, property/identifier/value/optional-chain `delete` | remaining edge-specific early errors |
 | References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed ordinary and `super` properties, private field/method/accessor loads, calls, stores, updates, `#x in value`, planned regular import/local-export module-cell loads/stores through nested functions, namespace-import prologue initialization, and opt-in production module-graph execution from flat linker metadata | default-path adoption |
 | Calls/construction | direct/member/optional calls, spread calls, ordinary/spread `new`, implicit/explicit/spread `super()`, super-property calls, wide operands | dynamic import |
@@ -62,7 +62,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Assignments | identifier/ordinary/super/private-field member targets, compound/logical/update, array/object destructuring, core optional-chain target restrictions | remaining early errors |
 | Functions | ordinary declarations/expressions, closures, synchronous and async generators with `yield`/`yield*`, async declarations/expressions/object methods with `await`, synchronous and async arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`/`new.target`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function/class name inference, demand-driven mapped/unmapped `arguments` | lazy bodies |
 | Classes | base/derived declarations and expressions, explicit/implicit constructors, heritage/prototype setup, derived `this`/return rules, public/private instance/static methods and accessors, named/computed public fields, instance/static private fields and brands, source-ordered static blocks, named/computed super loads/calls/stores/updates, strict bodies, declaration TDZ/const storage, inner class-name capture, anonymous name inference including named/computed fields, private methods, and private accessors | full ordering differential and Test262 gate |
-| Modules | strict parse goal, side-effect/default/named/namespace imports, string import names, import attributes, local/declaration/default/indirect/namespace/star exports, compact request/import/export tables, module binding validation, imported-export canonicalization, signed live-cell assignment, single-parse opt-in linked synchronous evaluation and re-export linking, named/default-function instantiation before dependency evaluation | dynamic import, `import.meta`, top-level await, default-path adoption |
+| Modules | strict parse goal, side-effect/default/named/namespace imports, string import names, import attributes, local/declaration/default/indirect/namespace/star exports, compact request/import/export tables, module binding validation, imported-export canonicalization, signed live-cell assignment, single-parse opt-in linked synchronous evaluation and re-export linking, named/default-function instantiation before dependency evaluation, `import.meta` in module and closure contexts | dynamic import, top-level await, default-path adoption |
 
 The direct parser rejects unsupported grammar. It does not catch an error and
 restart through `JavaScriptParser`; that would allocate both representations,
@@ -1287,7 +1287,11 @@ Production module execution opt-in slice landed:
   focused coverage preserves the named local self-binding, infers anonymous name
   `"default"`, and observes the anonymous closure through an import cycle. Deferral is
   restricted to root scope so block functions retain normal runtime initialization.
-- next slice: add `import.meta`, dynamic import, and top-level-await dependency scheduling
+- `import.meta` is a leaf flat node accepted only by the module parse goal and emitted as
+  the existing zero-argument runtime call. The linked regression checks resolved `url`
+  and object identity from a captured function. V8 likewise lowers it to inline
+  `GetImportMetaObject`; Okojo intentionally reuses its host-populated module object.
+- next slice: add dynamic import, then top-level-await dependency scheduling
 - performance plan: benchmark parse/link/plan/emit separately and compare this true
   single-parse path against class parse plus production compilation. Instantiation emits
   once and evaluation only executes the retained script; it does not recompile or replace
@@ -1300,7 +1304,8 @@ Production module execution opt-in slice landed:
 - module scopes, live binding references, storage, and opt-in linked execution are landed
 - linker-facing persistent metadata without class-AST wrappers is landed in opt-in mode
 - named and default function declarations are instantiated from the flat execution artifact
-- dynamic import, `import.meta`, top-level await, and async dependency order
+- `import.meta` is landed through the existing module runtime binding
+- dynamic import, top-level await, and async dependency order
 
 Module records outlive a single bytecode function, so their ownership boundary
 must be explicit rather than hidden in temporary parser tables.

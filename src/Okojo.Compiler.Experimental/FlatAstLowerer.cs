@@ -648,6 +648,10 @@ internal static class FlatAstLowerer
                     AstKind.NewTargetExpression,
                     position: expression.Position
                 ),
+                JsImportMetaExpression => Arena.Add(
+                    AstKind.ImportMetaExpression,
+                    position: expression.Position
+                ),
                 JsIdentifierExpression identifier => Arena.Add(
                     AstKind.Identifier,
                     Arena.AddString(identifier.Name),

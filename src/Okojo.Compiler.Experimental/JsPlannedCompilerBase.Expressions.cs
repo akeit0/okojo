@@ -92,6 +92,9 @@ internal abstract partial class JsPlannedCompilerBase
                     emittingInstanceFieldInitializer ? JsOpCode.LdaUndefined : JsOpCode.LdaNewTarget
                 );
                 return;
+            case AstKind.ImportMetaExpression:
+                builder.EmitCallRuntime((int)RuntimeId.GetCurrentModuleImportMeta, 0, 0);
+                return;
             case AstKind.SuperExpression:
                 throw new InvalidOperationException("Bare super cannot be emitted as a value.");
             case AstKind.AssignmentExpression

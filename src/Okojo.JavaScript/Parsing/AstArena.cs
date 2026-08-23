@@ -42,6 +42,7 @@ internal enum AstKind : byte
     RegExpLiteral,
     ThisExpression,
     NewTargetExpression,
+    ImportMetaExpression,
     SuperExpression,
     BinaryExpression,
     UnaryExpression,

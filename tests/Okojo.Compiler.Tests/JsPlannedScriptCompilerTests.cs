@@ -192,6 +192,33 @@ public class JsPlannedScriptCompilerTests
     }
 
     [Test]
+    public void CompileModule_ExecutesImportMetaInModuleAndClosureContexts()
+    {
+        var options = new JsRuntimeOptions().UseModuleSourceLoader(
+            new TestModuleSourceLoader(
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["/mods/main.js"] = """
+                    export const meta = import.meta;
+                    export const url = import.meta.url;
+                    export function getMeta() { return import.meta; }
+                    """,
+                }
+            )
+        );
+        options.Agent.UsePlannedModuleCompiler();
+        using var runtime = JsRuntime.Create(options);
+
+        var module = runtime.MainRealm.LoadModule("/mods/main.js");
+
+        Assert.That(module.GetExport("url").AsString(), Is.EqualTo("/mods/main.js"));
+        Assert.That(
+            module.CallExport("getMeta").AsObject(),
+            Is.SameAs(module.GetExport("meta").AsObject())
+        );
+    }
+
+    [Test]
     public void CompileModule_InstantiatesHoistedExportOnceAcrossCycle()
     {
         var options = new JsRuntimeOptions().UseModuleSourceLoader(

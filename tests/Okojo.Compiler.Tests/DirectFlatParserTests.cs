@@ -102,6 +102,16 @@ public class DirectFlatParserTests
         Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseModule(source));
 
     [Test]
+    public void ParseModule_ParsesImportMetaOnlyInModuleGoal()
+    {
+        using var ast = FlatJavaScriptParser.ParseModule("export default import.meta;");
+        var statement = ast.ChildRange(ast[ast.Root].Arg0, ast[ast.Root].Arg1)[0];
+
+        Assert.That(ast[ast[statement].Arg0].Kind, Is.EqualTo(AstKind.ImportMetaExpression));
+        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript("import.meta;"));
+    }
+
+    [Test]
     public void ParseModule_CollectsCompactExportDescriptorsAndBindings()
     {
         using var ast = FlatJavaScriptParser.ParseModule(

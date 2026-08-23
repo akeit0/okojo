@@ -519,7 +519,10 @@ checks, and observable function names match the production engine and V8.
   and default-exported function declarations into signed module cells or the shared
   top-level context before dependency evaluation; the script omits those stores, so
   evaluation preserves cyclic function identity instead of allocating a second closure.
-- dynamic import, `import.meta`, top-level await, and async dependency ordering
+- `import.meta` now uses one leaf arena tag and the existing zero-argument module-meta
+  runtime helper in module bodies and captured functions, matching V8's inline
+  `GetImportMetaObject` lowering without adding an opcode or persistent metadata.
+- dynamic import, top-level await, and async dependency ordering
 
 Exit gate: the production module linker consumes flat compiler metadata directly;
 no class-AST module objects remain on the execution path.
