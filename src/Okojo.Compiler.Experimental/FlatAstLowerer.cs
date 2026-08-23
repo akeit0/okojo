@@ -206,9 +206,29 @@ internal static class FlatAstLowerer
         private int LowerVariableDeclaration(JsVariableDeclarationStatement declaration)
         {
             if (declaration.BindingPattern is not null)
-                throw new NotSupportedException(
-                    $"Binding patterns are not supported by {compilerName}."
+            {
+                if (declaration.BindingInitializer is null)
+                    throw new InvalidOperationException(
+                        "Binding declaration is missing its initializer."
+                    );
+                Span<int> patternDeclarator =
+                [
+                    Arena.Add(
+                        AstKind.VariableDeclaratorPattern,
+                        LowerArrayBindingPattern(declaration.BindingPattern),
+                        LowerExpression(declaration.BindingInitializer),
+                        position: declaration.Position
+                    ),
+                ];
+                var patternChildren = Arena.AddChildren(patternDeclarator);
+                return Arena.Add(
+                    AstKind.VariableDeclaration,
+                    patternChildren.Offset,
+                    patternChildren.Count,
+                    (int)declaration.Kind,
+                    declaration.Position
                 );
+            }
 
             var declarators = ArrayPool<int>.Shared.Rent(declaration.Declarators.Count);
             try
@@ -241,6 +261,59 @@ internal static class FlatAstLowerer
             finally
             {
                 ArrayPool<int>.Shared.Return(declarators);
+            }
+        }
+
+        private int LowerArrayBindingPattern(JsExpression pattern)
+        {
+            return pattern switch
+            {
+                JsIdentifierExpression identifier => Arena.Add(
+                    AstKind.Identifier,
+                    Arena.AddString(identifier.Name),
+                    identifier.NameId,
+                    position: identifier.Position
+                ),
+                JsSpreadExpression spread => Arena.Add(
+                    AstKind.SpreadElement,
+                    LowerArrayBindingPattern(spread.Argument),
+                    position: spread.Position
+                ),
+                JsAssignmentExpression { Operator: JsAssignmentOperator.Assign } assignment =>
+                    Arena.Add(
+                        AstKind.AssignmentExpression,
+                        LowerArrayBindingPattern(assignment.Left),
+                        LowerExpression(assignment.Right),
+                        (int)JsAssignmentOperator.Assign,
+                        assignment.Position
+                    ),
+                JsArrayExpression array => LowerArrayBindingArray(array),
+                _ => throw new NotSupportedException(
+                    $"Array binding target '{pattern.GetType().Name}' is not supported by {compilerName}."
+                ),
+            };
+        }
+
+        private int LowerArrayBindingArray(JsArrayExpression array)
+        {
+            var elements = ArrayPool<int>.Shared.Rent(array.Elements.Count);
+            try
+            {
+                for (var i = 0; i < array.Elements.Count; i++)
+                    elements[i] = array.Elements[i] is { } element
+                        ? LowerArrayBindingPattern(element)
+                        : -1;
+                var children = Arena.AddChildren(elements.AsSpan(0, array.Elements.Count));
+                return Arena.Add(
+                    AstKind.ArrayBindingPattern,
+                    children.Offset,
+                    children.Count,
+                    position: array.Position
+                );
+            }
+            finally
+            {
+                ArrayPool<int>.Shared.Return(elements);
             }
         }
 

@@ -155,21 +155,41 @@ internal sealed class FlatJavaScriptParser
         {
             do
             {
-                var identifier = ExpectIdentifier();
-                var initializer = -1;
-                if (Match(JsTokenKind.Assign))
-                    initializer = ParseAssignment(allowIn: true);
-                else if (kind == JsVariableDeclarationKind.Const)
-                    throw Error("Const declaration requires initializer", identifier.Position);
-                declarators.Add(
-                    Arena.Add(
-                        AstKind.VariableDeclarator,
-                        Arena.AddString(GetIdentifierText(identifier)),
-                        identifier.IdentifierId,
-                        initializer,
-                        identifier.Position
-                    )
-                );
+                if (current.Kind == JsTokenKind.LeftBracket)
+                {
+                    var pattern = ParseArrayBindingPattern();
+                    if (!Match(JsTokenKind.Assign))
+                        throw Error(
+                            "Array binding declaration requires initializer",
+                            Arena.GetPosition(pattern)
+                        );
+                    declarators.Add(
+                        Arena.Add(
+                            AstKind.VariableDeclaratorPattern,
+                            pattern,
+                            ParseAssignment(allowIn: true),
+                            position: Arena.GetPosition(pattern)
+                        )
+                    );
+                }
+                else
+                {
+                    var identifier = ExpectIdentifier();
+                    var initializer = -1;
+                    if (Match(JsTokenKind.Assign))
+                        initializer = ParseAssignment(allowIn: true);
+                    else if (kind == JsVariableDeclarationKind.Const)
+                        throw Error("Const declaration requires initializer", identifier.Position);
+                    declarators.Add(
+                        Arena.Add(
+                            AstKind.VariableDeclarator,
+                            Arena.AddString(GetIdentifierText(identifier)),
+                            identifier.IdentifierId,
+                            initializer,
+                            identifier.Position
+                        )
+                    );
+                }
             } while (Match(JsTokenKind.Comma));
 
             if (consumeSemicolon)
@@ -187,6 +207,86 @@ internal sealed class FlatJavaScriptParser
         {
             declarators.Dispose();
         }
+    }
+
+    private int ParseArrayBindingPattern()
+    {
+        var position = Expect(JsTokenKind.LeftBracket).Position;
+        Span<int> initial = stackalloc int[8];
+        var elements = new NodeList(initial);
+        try
+        {
+            while (current.Kind != JsTokenKind.RightBracket)
+            {
+                if (Match(JsTokenKind.Comma))
+                {
+                    elements.Add(-1);
+                    continue;
+                }
+
+                if (current.Kind == JsTokenKind.Ellipsis)
+                {
+                    var restPosition = current.Position;
+                    Next();
+                    elements.Add(
+                        Arena.Add(
+                            AstKind.SpreadElement,
+                            ParseArrayBindingTarget(),
+                            position: restPosition
+                        )
+                    );
+                    if (current.Kind == JsTokenKind.Comma)
+                        throw Error("Rest binding must be the final element", current.Position);
+                    break;
+                }
+
+                var target = ParseArrayBindingTarget();
+                if (Match(JsTokenKind.Assign))
+                    target = Arena.Add(
+                        AstKind.AssignmentExpression,
+                        target,
+                        ParseAssignment(allowIn: true),
+                        (int)JsAssignmentOperator.Assign,
+                        Arena.GetPosition(target)
+                    );
+                elements.Add(target);
+                if (!Match(JsTokenKind.Comma))
+                    break;
+            }
+
+            Expect(JsTokenKind.RightBracket);
+            var children = Arena.AddChildren(elements.AsSpan());
+            return Arena.Add(
+                AstKind.ArrayBindingPattern,
+                children.Offset,
+                children.Count,
+                position: position
+            );
+        }
+        finally
+        {
+            elements.Dispose();
+        }
+    }
+
+    private int ParseArrayBindingTarget()
+    {
+        if (current.Kind == JsTokenKind.LeftBracket)
+            return ParseArrayBindingPattern();
+        if (current.Kind != JsTokenKind.Identifier)
+            throw Error(
+                "Array binding target must be an identifier or nested array pattern",
+                current.Position
+            );
+
+        var identifier = current;
+        Next();
+        return Arena.Add(
+            AstKind.Identifier,
+            Arena.AddString(GetIdentifierText(identifier)),
+            identifier.IdentifierId,
+            position: identifier.Position
+        );
     }
 
     private int ParseFunctionDeclaration()

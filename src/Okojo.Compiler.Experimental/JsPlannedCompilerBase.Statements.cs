@@ -278,6 +278,21 @@ internal abstract partial class JsPlannedCompilerBase
         for (var i = 0; i < declarators.Length; i++)
         {
             ref readonly var declarator = ref ast[declarators[i]];
+            if (declarator.Kind == AstKind.VariableDeclaratorPattern)
+            {
+                var marker = builder.GetTemporaryRegisterScopeMarker();
+                try
+                {
+                    EmitExpression(ast, declarator.Arg1);
+                    EmitStoreBindingTarget(ast, declarator.Arg0);
+                }
+                finally
+                {
+                    builder.ReleaseTemporaryRegistersToMarker(marker);
+                }
+                continue;
+            }
+
             var name = ast.GetString(declarator.Arg0);
             if (!TryResolveBinding(name, out var binding))
                 throw new InvalidOperationException($"No planned binding found for '{name}'.");
@@ -289,6 +304,207 @@ internal abstract partial class JsPlannedCompilerBase
 
             EmitStore(binding);
         }
+    }
+
+    private void EmitStoreBindingTarget(FlatAst ast, int targetIndex)
+    {
+        ref readonly var target = ref ast[targetIndex];
+        if (target.Kind == AstKind.Identifier)
+        {
+            var name = ast.GetString(target.Arg0);
+            if (!TryResolveBinding(name, out var binding))
+                throw new InvalidOperationException($"No planned binding found for '{name}'.");
+            EmitStore(binding);
+            return;
+        }
+
+        if (target.Kind != AstKind.ArrayBindingPattern)
+            throw new NotSupportedException(
+                $"{CompilerName} does not support binding target '{target.Kind}'."
+            );
+
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            var valueRegister = builder.AllocateTemporaryRegister();
+            EmitStar(valueRegister);
+            EmitArrayBindingPattern(ast, target, valueRegister);
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+        }
+    }
+
+    private void EmitArrayBindingPattern(FlatAst ast, AstNode pattern, int valueRegister)
+    {
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            EmitLdar(valueRegister);
+            builder.EmitCallRuntime(
+                (int)RuntimeId.CreateArrayDestructureIterator,
+                valueRegister,
+                1
+            );
+            var iteratorRegister = builder.AllocateTemporaryRegister();
+            EmitStar(iteratorRegister);
+            var doneRegister = builder.AllocateTemporaryRegister();
+            builder.EmitLda(JsOpCode.LdaFalse);
+            EmitStar(doneRegister);
+            var catchLabel = builder.CreateLabel();
+            var endLabel = builder.CreateLabel();
+
+            builder.EmitJump(JsOpCode.PushTry, catchLabel);
+            var elements = ast.ChildRange(pattern.Arg0, pattern.Arg1);
+            for (var i = 0; i < elements.Length; i++)
+            {
+                if (elements[i] < 0)
+                {
+                    EmitArrayBindingElision(iteratorRegister, doneRegister, valueRegister);
+                    continue;
+                }
+
+                ref readonly var element = ref ast[elements[i]];
+                if (element.Kind == AstKind.SpreadElement)
+                {
+                    EmitArrayBindingRest(
+                        ast,
+                        element.Arg0,
+                        iteratorRegister,
+                        doneRegister,
+                        valueRegister
+                    );
+                    continue;
+                }
+
+                var targetIndex = elements[i];
+                var defaultIndex = -1;
+                if (
+                    element.Kind == AstKind.AssignmentExpression
+                    && (JsAssignmentOperator)element.Arg2 == JsAssignmentOperator.Assign
+                )
+                {
+                    targetIndex = element.Arg0;
+                    defaultIndex = element.Arg1;
+                }
+
+                EmitArrayBindingStep(iteratorRegister, doneRegister, valueRegister);
+                if (defaultIndex >= 0)
+                    EmitBindingDefault(ast, defaultIndex, valueRegister);
+                EmitStoreBindingTarget(ast, targetIndex);
+            }
+            builder.Emit(JsOpCode.PopTry);
+            EmitCloseArrayBindingIterator(iteratorRegister, doneRegister);
+            EmitJump(endLabel);
+
+            builder.BindLabel(catchLabel);
+            EmitStar(valueRegister);
+            var rethrowLabel = builder.CreateLabel();
+            EmitLdar(doneRegister);
+            EmitJumpIfToBooleanTrue(rethrowLabel);
+            EmitLdar(iteratorRegister);
+            builder.EmitCallRuntime(
+                (int)RuntimeId.DestructureIteratorCloseBestEffort,
+                iteratorRegister,
+                1
+            );
+            builder.BindLabel(rethrowLabel);
+            EmitLdar(valueRegister);
+            builder.Emit(JsOpCode.Throw);
+            builder.BindLabel(endLabel);
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+        }
+    }
+
+    private void EmitArrayBindingStep(int iteratorRegister, int doneRegister, int valueRegister)
+    {
+        var doneLabel = builder.CreateLabel();
+        var hasValueLabel = builder.CreateLabel();
+        var endLabel = builder.CreateLabel();
+        EmitLdar(doneRegister);
+        EmitJumpIfToBooleanTrue(doneLabel);
+        EmitLdar(iteratorRegister);
+        builder.EmitCallRuntime((int)RuntimeId.DestructureIteratorStepValue, iteratorRegister, 1);
+        EmitStar(valueRegister);
+        builder.EmitLda(JsOpCode.LdaTheHole);
+        EmitRegisterWithSlotOp(JsOpCode.TestEqualStrict, valueRegister);
+        EmitJumpIfToBooleanFalse(hasValueLabel);
+        builder.EmitLda(JsOpCode.LdaTrue);
+        EmitStar(doneRegister);
+        builder.BindLabel(doneLabel);
+        builder.EmitLda(JsOpCode.LdaUndefined);
+        EmitJump(endLabel);
+        builder.BindLabel(hasValueLabel);
+        EmitLdar(valueRegister);
+        builder.BindLabel(endLabel);
+    }
+
+    private void EmitArrayBindingElision(int iteratorRegister, int doneRegister, int valueRegister)
+    {
+        var endLabel = builder.CreateLabel();
+        EmitLdar(doneRegister);
+        EmitJumpIfToBooleanTrue(endLabel);
+        EmitLdar(iteratorRegister);
+        builder.EmitCallRuntime((int)RuntimeId.DestructureIteratorStepValue, iteratorRegister, 1);
+        EmitStar(valueRegister);
+        builder.EmitLda(JsOpCode.LdaTheHole);
+        EmitRegisterWithSlotOp(JsOpCode.TestEqualStrict, valueRegister);
+        EmitJumpIfToBooleanFalse(endLabel);
+        builder.EmitLda(JsOpCode.LdaTrue);
+        EmitStar(doneRegister);
+        builder.BindLabel(endLabel);
+    }
+
+    private void EmitArrayBindingRest(
+        FlatAst ast,
+        int targetIndex,
+        int iteratorRegister,
+        int doneRegister,
+        int valueRegister
+    )
+    {
+        var emptyLabel = builder.CreateLabel();
+        var storeLabel = builder.CreateLabel();
+        EmitLdar(doneRegister);
+        EmitJumpIfToBooleanTrue(emptyLabel);
+        EmitLdar(iteratorRegister);
+        builder.EmitCallRuntime((int)RuntimeId.DestructureIteratorRestArray, iteratorRegister, 1);
+        EmitStar(valueRegister);
+        builder.EmitLda(JsOpCode.LdaTrue);
+        EmitStar(doneRegister);
+        EmitLdar(valueRegister);
+        EmitJump(storeLabel);
+        builder.BindLabel(emptyLabel);
+        builder.EmitCreateArrayLiteral(builder.AddObjectConstant(0));
+        builder.BindLabel(storeLabel);
+        EmitStoreBindingTarget(ast, targetIndex);
+    }
+
+    private void EmitBindingDefault(FlatAst ast, int defaultIndex, int valueRegister)
+    {
+        var useDefaultLabel = builder.CreateLabel();
+        var endLabel = builder.CreateLabel();
+        EmitStar(valueRegister);
+        EmitLdar(valueRegister);
+        EmitJumpIfUndefined(useDefaultLabel);
+        EmitJump(endLabel);
+        builder.BindLabel(useDefaultLabel);
+        EmitExpression(ast, defaultIndex);
+        builder.BindLabel(endLabel);
+    }
+
+    private void EmitCloseArrayBindingIterator(int iteratorRegister, int doneRegister)
+    {
+        var endLabel = builder.CreateLabel();
+        EmitLdar(doneRegister);
+        EmitJumpIfToBooleanTrue(endLabel);
+        EmitLdar(iteratorRegister);
+        builder.EmitCallRuntime((int)RuntimeId.DestructureIteratorClose, iteratorRegister, 1);
+        builder.BindLabel(endLabel);
     }
 
     private void EmitFunctionDeclaration(FlatAst ast, int functionIndex, int bodyRoot)

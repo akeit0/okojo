@@ -148,6 +148,24 @@ public class JsPlannedFunctionCompilerTests
     }
 
     [Test]
+    public void CompileScript_ExecutesClassBridgeArrayBindingDeclaration()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var program = JavaScriptParser.ParseScript(
+            """
+            let [first, , third = 3, ...rest] = [1, 2, void 0, 4, 5];
+            first * 100 + third * 10 + rest.length;
+            """
+        );
+        var script = compiler.Compile(program);
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(132));
+    }
+
+    [Test]
     public void CompileFunction_ProducesBytecodeForParametersAndReturn()
     {
         var realm = JsRuntime.Create().DefaultRealm;

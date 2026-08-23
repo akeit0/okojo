@@ -33,6 +33,11 @@ the register-only path.
 Ordinary construction now uses flat callee/argument child spans and the existing
 scaled `Construct` ABI. Spread construction uses the existing spread runtime ABI,
 while `new.target` remains deferred.
+The array-binding slice represents binding targets directly in the flat arena:
+`VariableDeclaratorPattern` owns an initializer and an `ArrayBindingPattern` node
+whose dense child span contains identifiers, elisions, defaults, nested arrays,
+and a final rest element. It covers `var`/`let`/`const` declarations; assignment
+patterns and formal-parameter patterns remain separate follow-up work.
 
 ## Minimal Repros
 
@@ -88,6 +93,11 @@ let values = [1, 2];
 collect(...values, 3); // 123
 ```
 
+```js
+let [first, , third = 3, ...rest] = [1, 2, void 0, 4, 5];
+first * 100 + third * 10 + rest.length; // 132
+```
+
 ## Planned Tests
 
 - `tests/Okojo.Compiler.Tests/DirectFlatParserTests.cs`
@@ -103,6 +113,8 @@ collect(...values, 3); // 123
   - capture-gated per-iteration loop-head contexts across `continue` and `break`
   - construction evaluation order, no-parenthesis/nested precedence, and wide operands
   - direct/property spread calls, spread construction, and iterator evaluation order
+  - array binding elisions, defaults, rest, nesting, iterator close, wide registers,
+    and class bridging
 
 ## Reference Observations
 
@@ -151,6 +163,15 @@ the existing call/construct spread helpers copy that dense materialization witho
 invoking the user iterator again. Existing production spread flags and runtime IDs
 remain ABI-compatible.
 
+V8 initializes each array binding immediately after its iterator step, evaluates
+defaults before requesting the next value, and closes a still-open iterator on
+normal or abrupt completion. Production Okojo emits the same step/store ordering
+through its destructuring iterator runtimes. The flat emitter reuses those runtime
+operations but adds a declaration-local `PushTry` region instead of importing the
+production compiler's general finally-routing machinery; declarations cannot
+branch out of the pattern, so this smaller control-flow shape is complete for the
+slice.
+
 For captured `for (let ...)` heads, V8 creates a new block context for each
 iteration and moves the value through the update path. Production Okojo clones a
 function context because its loop aliases share function-level cells. The flat
@@ -169,6 +190,7 @@ outer capture depths unchanged and retains old contexts only through closures.
 - allocate/copy loop contexts only when a nested function captures a loop-head binding
 - reuse the call argument span/register allocator for construction
 - materialize spread iterables once at their source-order evaluation point
+- store array bindings between iterator steps and share the existing iterator-close runtimes
 
 Initial Release measurement for 80 declaration/update pairs after warm-up:
 
@@ -178,8 +200,8 @@ Initial Release measurement for 80 declaration/update pairs after warm-up:
 
 ## Deferred
 
-- templates, classes, modules, destructuring, and advanced
-  parameter forms
+- templates, classes, modules, object destructuring, destructuring assignments,
+  and destructuring parameter forms
 - object methods, accessors, and spread
 - array spread
 - optional chaining, `new.target`, and private/super members

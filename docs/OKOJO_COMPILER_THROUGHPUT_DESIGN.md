@@ -261,6 +261,10 @@ Spread calls and construction retain those dense spans and use the existing runt
 ABI. Unlike the production compiler's deferred iteration, the flat emitter
 materializes each spread iterable immediately before evaluating the next argument,
 matching V8 ordering and preventing a second user-iterator invocation.
+Array binding declarations now stay flat through discovery and emission. Pattern
+children reuse dense arena spans, while bytecode performs iterator step, default,
+and binding store in source order. A declaration-local try region handles iterator
+close without adding the production compiler's general finally-routing state.
 Captured ordinary `for` heads now use per-iteration sibling-context replacement.
 The loop-head context is copied and replaced before the first test and before each
 update, so closures retain the prior iteration without inserting an extra context

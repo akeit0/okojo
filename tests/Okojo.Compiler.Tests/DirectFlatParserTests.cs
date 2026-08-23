@@ -2,6 +2,7 @@ using Okojo.JavaScript;
 using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Compiler.Experimental;
 using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
 using Okojo.JavaScript.Objects;
 using Okojo.JavaScript.Parsing;
 
@@ -211,6 +212,143 @@ public class DirectFlatParserTests
 
         realm.Execute(script);
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(9));
+    }
+
+    [Test]
+    public void CompileString_ExecutesNestedArrayBindingsWithDefaultsElisionsAndRest()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile(
+            """
+            let [first, , third = 3, ...rest] = [1, 2, void 0, 4, 5];
+            let [ignored, [nested = 6]] = [0, []];
+            first * 100 + third * 10 + rest.length + nested;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(138));
+    }
+
+    [Test]
+    public void CompileString_StoresArrayBindingBeforeNextIteratorStepAndClosesIterator()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        realm.Evaluate("globalThis.__flatArrayBindingClosed = 0;");
+        var makeIterable = realm.Evaluate(
+            """
+            (function (readFirst) {
+                let step = 0;
+                return {
+                    [Symbol.iterator]() {
+                        return {
+                            next() {
+                                step++;
+                                if (step === 1) return { value: 4, done: false };
+                                if (step === 2) return { value: readFirst(), done: false };
+                                return { value: 9, done: false };
+                            },
+                            return() {
+                                __flatArrayBindingClosed++;
+                                return { done: true };
+                            }
+                        };
+                    }
+                };
+            })
+            """
+        );
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile(
+            """
+            function run(makeIterable) {
+                function readFirst() { return first; }
+                let [first, second] = makeIterable(readFirst);
+                return first * 10 + second;
+            }
+            run;
+            """
+        );
+        realm.Execute(script);
+        var run = (JsFunction)realm.Accumulator.Obj!;
+
+        var result = realm.InvokeFunction(run, JsValue.Undefined, [makeIterable]);
+
+        Assert.That(result.Int32Value, Is.EqualTo(44));
+        Assert.That(realm.Evaluate("__flatArrayBindingClosed").Int32Value, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void CompileString_ClosesArrayBindingIteratorWhenDefaultThrows()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        realm.Evaluate("globalThis.__flatArrayBindingAbruptClose = 0;");
+        var iterable = realm.Evaluate(
+            """
+            ({
+                [Symbol.iterator]() {
+                    return {
+                        next() { return { value: undefined, done: false }; },
+                        return() {
+                            __flatArrayBindingAbruptClose++;
+                            return { done: true };
+                        }
+                    };
+                }
+            })
+            """
+        );
+        var fail = realm.Evaluate("(function () { throw new Error('boom'); })");
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile(
+            "function run(source, fail) { let [value = fail()] = source; return value; } run;"
+        );
+        realm.Execute(script);
+        var run = (JsFunction)realm.Accumulator.Obj!;
+
+        Assert.Throws<JsRuntimeException>(() =>
+            realm.InvokeFunction(run, JsValue.Undefined, [iterable, fail])
+        );
+        Assert.That(realm.Evaluate("__flatArrayBindingAbruptClose").Int32Value, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void CompileString_CreatesFreshCapturedArrayBindingForEachLoopIteration()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile(
+            """
+            let first, second;
+            for (let [i] = [0]; i < 2; i++) {
+                function read() { return i; }
+                if (i === 0) first = read;
+                else second = read;
+            }
+            first() * 10 + second();
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void CompileString_ExecutesWideArrayBindingRegisters()
+    {
+        var names = string.Join(", ", Enumerable.Range(0, 260).Select(static i => $"value{i}"));
+        var values = string.Join(", ", Enumerable.Range(0, 260));
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile($"let [{names}] = [{values}]; value259;");
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(259));
+        Assert.That(script.Bytecode, Does.Contain((byte)JsOpCode.Wide));
     }
 
     [Test]

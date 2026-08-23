@@ -185,19 +185,13 @@ internal static partial class CompilerBindingCollector
                     );
                     var declarators = ast.ChildRange(declaration.Arg0, declaration.Arg1);
                     for (var i = 0; i < declarators.Length; i++)
-                    {
-                        ref readonly var declarator = ref ast[declarators[i]];
-                        AddBinding(
+                        VisitVariableDeclarator(
+                            ast,
+                            declarators[i],
                             scopeId,
                             CompilerCollectedBindingKind.LoopHeadAlias,
-                            ast.GetString(declarator.Arg0),
-                            declarator.Arg1,
-                            declarationKind == JsVariableDeclarationKind.Const,
-                            ast.GetPosition(declarators[i])
+                            declarationKind == JsVariableDeclarationKind.Const
                         );
-                        if (declarator.Arg2 >= 0)
-                            VisitExpression(ast, declarator.Arg2, scopeId);
-                    }
                 }
                 else
                 {
@@ -226,18 +220,78 @@ internal static partial class CompilerBindingCollector
             var isConst = declarationKind == JsVariableDeclarationKind.Const;
             var declarators = ast.ChildRange(declaration.Arg0, declaration.Arg1);
             for (var i = 0; i < declarators.Length; i++)
+                VisitVariableDeclarator(ast, declarators[i], scopeId, bindingKind, isConst);
+        }
+
+        private void VisitVariableDeclarator(
+            FlatAst ast,
+            int declaratorIndex,
+            int scopeId,
+            CompilerCollectedBindingKind bindingKind,
+            bool isConst
+        )
+        {
+            ref readonly var declarator = ref ast[declaratorIndex];
+            if (declarator.Kind == AstKind.VariableDeclaratorPattern)
             {
-                ref readonly var declarator = ref ast[declarators[i]];
-                AddBinding(
-                    scopeId,
-                    bindingKind,
-                    ast.GetString(declarator.Arg0),
-                    declarator.Arg1,
-                    isConst,
-                    ast.GetPosition(declarators[i])
-                );
-                if (declarator.Arg2 >= 0)
-                    VisitExpression(ast, declarator.Arg2, scopeId);
+                VisitBindingPattern(ast, declarator.Arg0, scopeId, bindingKind, isConst);
+                VisitExpression(ast, declarator.Arg1, scopeId);
+                return;
+            }
+
+            AddBinding(
+                scopeId,
+                bindingKind,
+                ast.GetString(declarator.Arg0),
+                declarator.Arg1,
+                isConst,
+                ast.GetPosition(declaratorIndex)
+            );
+            if (declarator.Arg2 >= 0)
+                VisitExpression(ast, declarator.Arg2, scopeId);
+        }
+
+        private void VisitBindingPattern(
+            FlatAst ast,
+            int nodeIndex,
+            int scopeId,
+            CompilerCollectedBindingKind bindingKind,
+            bool isConst
+        )
+        {
+            ref readonly var node = ref ast[nodeIndex];
+            switch (node.Kind)
+            {
+                case AstKind.Identifier:
+                    AddBinding(
+                        scopeId,
+                        bindingKind,
+                        ast.GetString(node.Arg0),
+                        node.Arg1,
+                        isConst,
+                        ast.GetPosition(nodeIndex)
+                    );
+                    return;
+                case AstKind.ArrayBindingPattern:
+                {
+                    var elements = ast.ChildRange(node.Arg0, node.Arg1);
+                    for (var i = 0; i < elements.Length; i++)
+                        if (elements[i] >= 0)
+                            VisitBindingPattern(ast, elements[i], scopeId, bindingKind, isConst);
+                    return;
+                }
+                case AstKind.SpreadElement:
+                    VisitBindingPattern(ast, node.Arg0, scopeId, bindingKind, isConst);
+                    return;
+                case AstKind.AssignmentExpression
+                    when (JsAssignmentOperator)node.Arg2 == JsAssignmentOperator.Assign:
+                    VisitBindingPattern(ast, node.Arg0, scopeId, bindingKind, isConst);
+                    VisitExpression(ast, node.Arg1, scopeId);
+                    return;
+                default:
+                    throw new NotSupportedException(
+                        $"Flat binding collection does not support pattern '{node.Kind}'."
+                    );
             }
         }
 
