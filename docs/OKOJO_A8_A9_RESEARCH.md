@@ -486,3 +486,17 @@ Post-fix trace shows remaining compile-phase costs:
    Already fast; marginal gains only.
 
 All are non-trivial refactors requiring their own investigation cycle.
+
+## 9d. Call-path investigation result
+
+dotnet-trace on linq-js compile phase shows
+EmitArgumentsIntoContiguousTemporaryRegisters at 43.85% inclusive.
+However, this is NOT dispatch overhead - it is where all argument
+expression evaluation happens (VisitExpression calls are nested inside).
+For callback-heavy code like linq-js, most expressions ARE call arguments,
+so naturally the argument-emission path dominates compile time.
+
+The optimization opportunity is in TryGetContiguousPlainLocalArgumentRegisters:
+when it succeeds, arguments already live in contiguous local registers and
+no Star emissions are needed. Improving its success rate via smarter
+register allocation would reduce bytecode size and improve execution speed.
