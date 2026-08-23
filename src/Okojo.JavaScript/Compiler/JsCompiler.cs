@@ -5557,7 +5557,16 @@ public sealed partial class JsCompiler : IDisposable
     private void EnsureAliasBindingContextSlots(IReadOnlyList<BlockLexicalBinding> bindings)
     {
         for (var i = 0; i < bindings.Count; i++)
-            EnsureCurrentContextSlotForLocal(bindings[i].InternalSymbolId);
+        {
+            // A8-L1: per-iteration fresh bindings need a context cell only
+            // when a nested function actually captures them; without
+            // captures the rotation machinery never activates and the binding
+            // can stay in a register (matches V8's lowering).
+            var symbolId = bindings[i].InternalSymbolId;
+            if (!IsCapturedByChildBinding(symbolId))
+                continue;
+            EnsureCurrentContextSlotForLocal(symbolId);
+        }
     }
 
     private void ComputeArgumentsMappedSlots()
