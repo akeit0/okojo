@@ -207,6 +207,7 @@ internal sealed class ModuleRecordNode(
     public JsIdentifierTable? IdentifierTable => Program?.IdentifierTable;
     public JsModuleNamespaceObject ExportsObject { get; } = exportsObject;
     public ModuleLinkPlan? LinkPlan { get; set; }
+    public ModuleExecutionCompilation? Compilation { get; set; }
     public ModuleEvalState State { get; set; }
     public JsPromiseObject? PendingTopLevelAwaitPromise { get; set; }
     public ModuleExecutionBindings? ExecutionBindings { get; set; }

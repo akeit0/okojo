@@ -147,6 +147,38 @@ public sealed partial class JsAgent
                     JsValue.FromObject(setFunctionNameFn)
                 );
 
+                if (
+                    Options.ModuleExecutionCompiler is { } moduleCompiler
+                    && targetNode.FlatProgram is { } flatProgram
+                )
+                {
+                    var compilation = moduleCompiler(
+                        targetRealm,
+                        flatProgram,
+                        targetPlan.ExecutionPlan
+                    );
+                    targetNode.Compilation = compilation;
+                    var context = new JsContext(null, compilation.InitialContextSlots.Length)
+                    {
+                        ModuleBindings = moduleExecutionBindings,
+                    };
+                    compilation.InitialContextSlots.CopyTo(context.Slots, 0);
+                    moduleExecutionBindings.TopLevelContext = context;
+                    for (var i = 0; i < compilation.HoistedFunctions.Count; i++)
+                    {
+                        var hoisted = compilation.HoistedFunctions[i];
+                        var closure = hoisted.Template.CloneForClosure(targetRealm);
+                        closure.BoundParentContext = context;
+                        if (hoisted.StorageKind == ModuleHoistedFunctionStorageKind.ModuleCell)
+                            moduleExecutionBindings
+                                .RegularExports[hoisted.StorageIndex - 1]
+                                .LocalValue = JsValue.FromObject(closure);
+                        else
+                            context.Slots[hoisted.StorageIndex] = JsValue.FromObject(closure);
+                    }
+                    targetNode.ReleaseFlatProgram();
+                }
+
                 InstallLocalSlotBackedLiveExports(
                     targetRealm,
                     targetNode.ResolvedId,
@@ -496,7 +528,7 @@ public sealed partial class JsAgent
                 {
                     executionResult = ModuleExecutor.ExecuteProgram(
                         targetRealm,
-                        targetNode.FlatProgram,
+                        targetNode.Compilation,
                         targetResolvedId,
                         targetNode.SourceText,
                         targetNode.IdentifierTable,

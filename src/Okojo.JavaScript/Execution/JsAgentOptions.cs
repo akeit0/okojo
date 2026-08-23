@@ -1,4 +1,3 @@
-using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Parsing;
 
 namespace Okojo.JavaScript.Execution;
@@ -26,7 +25,7 @@ public sealed class JsAgentOptions
         JsRealm,
         FlatAst,
         ModuleExecutionPlan,
-        JsScript
+        ModuleExecutionCompilation
     >? ModuleExecutionCompiler { get; set; }
     public IReadOnlyList<IExecutionConstraint> Constraints => constraints;
     public JsRealmOptions Realm { get; } = new();

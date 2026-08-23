@@ -514,8 +514,12 @@ checks, and observable function names match the production engine and V8.
   compact request/import/export descriptors into the persistent `ModuleLinkPlan`, the
   compiler consumes that same AST, and the module record releases it after compilation.
   Class-AST module parsing is absent from this path.
-- move hoisted export instantiation ownership from production compiler objects into
-  flat module instantiation, then cover async module ordering
+- flat module instantiation now compiles once into an execution artifact containing
+  the script, initial context slots, and hoisted function templates. It installs named
+  function declarations into signed module cells or the shared top-level context before
+  dependency evaluation; the script omits those stores, so evaluation preserves cyclic
+  function identity instead of allocating a second closure.
+- route default-exported function declarations through the same instantiation artifact
 - dynamic import, `import.meta`, top-level await, and async dependency ordering
 
 Exit gate: the production module linker consumes flat compiler metadata directly;

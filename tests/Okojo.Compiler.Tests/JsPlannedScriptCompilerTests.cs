@@ -192,25 +192,36 @@ public class JsPlannedScriptCompilerTests
     }
 
     [Test]
-    public void CompileModule_RejectsLinkedHoistedExportsUntilFlatInstantiationOwnsThem()
+    public void CompileModule_InstantiatesHoistedExportOnceAcrossCycle()
     {
         var options = new JsRuntimeOptions().UseModuleSourceLoader(
             new TestModuleSourceLoader(
                 new Dictionary<string, string>(StringComparer.Ordinal)
                 {
-                    ["entry"] = "export function answer() { return 42; }",
+                    ["a"] = """
+                    import { observed } from "./b";
+                    export function answer() { return 42; }
+                    export { observed };
+                    export const same = observed === answer;
+                    """,
+                    ["b"] = """
+                    import { answer } from "./a";
+                    export const observed = answer;
+                    """,
                 }
             )
         );
         options.Agent.UsePlannedModuleCompiler();
         using var runtime = JsRuntime.Create(options);
 
-        var error = Assert.Throws<JsRuntimeException>(() => runtime.MainRealm.LoadModule("entry"));
+        var module = runtime.MainRealm.LoadModule("a");
 
-        Assert.That(error!.DetailCode, Is.EqualTo("MODULE_EXEC_FAILED"));
-        Assert.That(error.InnerException, Is.TypeOf<NotSupportedException>());
-        Assert.That(runtime.MainAgent.ModuleGraph.TryGet("entry", out var entry), Is.True);
-        Assert.That(entry.FlatProgram, Is.Null);
+        Assert.That(module.GetExport("same").IsTrue, Is.True);
+        Assert.That(
+            module.GetExport("observed").AsObject(),
+            Is.SameAs(module.GetExport("answer").AsObject())
+        );
+        Assert.That(module.CallExport("answer").Int32Value, Is.EqualTo(42));
     }
 
     [Test]

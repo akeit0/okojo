@@ -1,11 +1,15 @@
 using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
 using Okojo.JavaScript.Parsing;
 
 namespace Okojo.JavaScript.Compiler.Experimental;
 
 internal sealed class JsPlannedModuleCompiler(JsRealm realm) : JsPlannedCompilerBase(realm)
 {
+    private readonly List<ModuleHoistedFunction> hoistedFunctions = [];
+    private bool deferHoistedFunctions;
+
     public JsScript Compile(string source, string? sourcePath = null)
     {
         using var ast = FlatJavaScriptParser.ParseModule(source, sourcePath);
@@ -43,6 +47,45 @@ internal sealed class JsPlannedModuleCompiler(JsRealm realm) : JsPlannedCompiler
         };
         script.BindAgent(Vm.Agent);
         return script;
+    }
+
+    internal ModuleExecutionCompilation CompileForExecution(FlatAst ast)
+    {
+        deferHoistedFunctions = true;
+        var script = Compile(ast);
+        var initialContextSlots = new JsValue[rootContextSlotCount];
+        Array.Fill(initialContextSlots, JsValue.Undefined);
+        var bindings = GetPlannedBindings(0);
+        for (var i = 0; i < bindings.Length; i++)
+            if (
+                bindings[i].StorageKind == CompilerPlannedStorageKind.ContextSlot
+                && bindings[i].Kind
+                    is not (
+                        CompilerCollectedBindingKind.Var
+                        or CompilerCollectedBindingKind.FunctionDeclaration
+                    )
+            )
+                initialContextSlots[bindings[i].StorageIndex] = JsValue.TheHole;
+        return new(script, initialContextSlots, hoistedFunctions.ToArray());
+    }
+
+    protected override bool DeferHoistedFunction(
+        in BindingStorage binding,
+        JsBytecodeFunction function
+    )
+    {
+        if (!deferHoistedFunctions)
+            return false;
+        var storageKind = binding.Planned.StorageKind switch
+        {
+            CompilerPlannedStorageKind.ModuleBinding => ModuleHoistedFunctionStorageKind.ModuleCell,
+            CompilerPlannedStorageKind.ContextSlot => ModuleHoistedFunctionStorageKind.ContextSlot,
+            _ => (ModuleHoistedFunctionStorageKind?)null,
+        };
+        if (storageKind is null)
+            return false;
+        hoistedFunctions.Add(new(function, storageKind.Value, binding.Planned.StorageIndex));
+        return true;
     }
 
     private void EmitNamespaceImports(FlatAst ast)

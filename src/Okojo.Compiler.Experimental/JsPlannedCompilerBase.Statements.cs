@@ -2,6 +2,7 @@ using System.Buffers;
 using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
 using Okojo.JavaScript.Parsing;
 
 namespace Okojo.JavaScript.Compiler.Experimental;
@@ -1882,9 +1883,16 @@ internal abstract partial class JsPlannedCompilerBase
             visiblePrivateBindings
         );
         var functionObject = functionCompiler.CompileFunction(ast, function, bodyRoot);
+        if (DeferHoistedFunction(binding, functionObject))
+            return;
         var idx = builder.AddObjectConstant(functionObject);
         EmitCreateClosureByIndex(idx);
         EmitPrivateBrandMappingsForClosure();
         EmitStore(binding, isInitialization: true, isFunctionDeclaration: true);
     }
+
+    protected virtual bool DeferHoistedFunction(
+        in BindingStorage binding,
+        JsBytecodeFunction function
+    ) => false;
 }

@@ -7,7 +7,7 @@ internal static class ModuleExecutor
 {
     internal static JsValue ExecuteProgram(
         JsRealm realm,
-        FlatAst? flatProgram,
+        ModuleExecutionCompilation? moduleCompilation,
         string? moduleSourcePath,
         string? moduleSourceText,
         JsIdentifierTable? moduleIdentifierTable,
@@ -17,14 +17,13 @@ internal static class ModuleExecutor
     )
     {
         JsValue result;
-        if (realm.Agent.Options.ModuleExecutionCompiler is { } moduleCompiler)
+        if (realm.Agent.Options.ModuleExecutionCompiler is not null)
         {
-            if (flatProgram is null)
+            if (moduleCompilation is null)
                 throw new InvalidOperationException(
-                    "The planned module compiler requires a retained FlatAst."
+                    "The planned module compiler requires an instantiated compilation."
                 );
-            var compiled = moduleCompiler(realm, flatProgram, executionPlan);
-            realm.Execute(compiled);
+            realm.Execute(moduleCompilation.Script);
             result = realm.Accumulator;
         }
         else
