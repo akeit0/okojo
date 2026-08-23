@@ -35,7 +35,18 @@ public class JsObject
     public virtual bool IsExtensible => IsExtensibleFlag;
 
     public JsRealm Realm => NamedPropertyLayout.Owner;
-    internal StaticNamedPropertyLayout Shape => StaticNamedPropertyLayout;
+    internal StaticNamedPropertyLayout Shape
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            // A10: callers are IC probes already guarded by
+            // !UsesDynamicNamedProperties. Both layout classes are sealed and
+            // !IsDynamic implies exactly StaticNamedPropertyLayout, so the
+            // former castclass here was a redundant runtime type test.
+            return Unsafe.As<StaticNamedPropertyLayout>(NamedPropertyLayout);
+        }
+    }
     internal JsValue[] Slots => SlotsArray;
     internal bool UsesDynamicNamedProperties => NamedPropertyLayout.IsDynamic;
 
