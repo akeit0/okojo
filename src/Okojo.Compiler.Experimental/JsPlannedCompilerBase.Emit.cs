@@ -161,6 +161,30 @@ internal abstract partial class JsPlannedCompilerBase
         EmitRootContextBindings();
     }
 
+    protected void EmitScopeLexicalHoleInitialization()
+    {
+        var scope = activeScopes.Peek();
+        for (var i = 0; i < scope.Bindings.Count; i++)
+        {
+            var binding = scope.Bindings[i];
+            if (
+                binding.Planned.Kind
+                    is CompilerCollectedBindingKind.Parameter
+                        or CompilerCollectedBindingKind.Var
+                        or CompilerCollectedBindingKind.FunctionDeclaration
+                        or CompilerCollectedBindingKind.FunctionNameSelf
+                || binding.Planned.StorageKind
+                    is not (
+                        CompilerPlannedStorageKind.LexicalRegister
+                        or CompilerPlannedStorageKind.ContextSlot
+                    )
+            )
+                continue;
+            builder.EmitLda(JsOpCode.LdaTheHole);
+            EmitStore(binding);
+        }
+    }
+
     protected void EmitFunctionSelfBinding()
     {
         var rootScope = activeScopes.Peek();
@@ -170,7 +194,7 @@ internal abstract partial class JsPlannedCompilerBase
             if (binding.Planned.Kind != CompilerCollectedBindingKind.FunctionNameSelf)
                 continue;
             builder.EmitLda(JsOpCode.LdaCurrentFunction);
-            EmitStore(binding);
+            EmitStore(binding, isInitialization: true);
         }
     }
 

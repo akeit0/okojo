@@ -33,11 +33,11 @@ public class CompilerStoragePlannerTests
                 new[]
                 {
                     ("foo", CompilerPlannedStorageKind.ImportBinding),
-                    ("a", CompilerPlannedStorageKind.LocalRegister),
-                    ("b", CompilerPlannedStorageKind.LexicalRegister),
-                    ("c", CompilerPlannedStorageKind.LexicalRegister),
-                    ("f", CompilerPlannedStorageKind.LocalRegister),
-                    ("K", CompilerPlannedStorageKind.LexicalRegister),
+                    ("a", CompilerPlannedStorageKind.GlobalBinding),
+                    ("b", CompilerPlannedStorageKind.ContextSlot),
+                    ("c", CompilerPlannedStorageKind.ContextSlot),
+                    ("f", CompilerPlannedStorageKind.GlobalBinding),
+                    ("K", CompilerPlannedStorageKind.ContextSlot),
                 }
             )
         );

@@ -61,6 +61,7 @@ internal abstract partial class JsPlannedCompilerBase
             {
                 CompilerPlannedStorageKind.ImportBinding => -1,
                 CompilerPlannedStorageKind.ContextSlot => -1,
+                CompilerPlannedStorageKind.GlobalBinding => -1,
                 _ when binding.Kind == CompilerCollectedBindingKind.Parameter
                         && preallocatedParameterRegisters is not null
                         && preallocatedParameterRegisters.TryGetValue(
@@ -78,7 +79,7 @@ internal abstract partial class JsPlannedCompilerBase
         activeScopes.Push(new ActiveScope(0, allocated, rootContextSlotCount));
     }
 
-    private ReadOnlySpan<CompilerPlannedBinding> GetPlannedBindings(int scopeId)
+    protected ReadOnlySpan<CompilerPlannedBinding> GetPlannedBindings(int scopeId)
     {
         if ((uint)scopeId >= (uint)plannedBindingOffsets.Length)
             return [];

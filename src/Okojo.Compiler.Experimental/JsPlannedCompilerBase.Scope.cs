@@ -97,6 +97,7 @@ internal abstract partial class JsPlannedCompilerBase
             {
                 CompilerPlannedStorageKind.ImportBinding => -1,
                 CompilerPlannedStorageKind.ContextSlot => -1,
+                CompilerPlannedStorageKind.GlobalBinding => -1,
                 _ => builder.AllocateTemporaryRegister(),
             };
             if (binding.StorageKind == CompilerPlannedStorageKind.ContextSlot)
@@ -109,6 +110,7 @@ internal abstract partial class JsPlannedCompilerBase
         if (contextSlotCount != 0)
             EmitCreateFunctionContextWithCells(contextSlotCount);
         activeScopes.Push(new ActiveScope(scopeId, allocated, contextSlotCount));
+        EmitScopeLexicalHoleInitialization();
     }
 
     private void LeaveScope()

@@ -1265,6 +1265,9 @@ internal abstract partial class JsPlannedCompilerBase
                 else
                     EmitLdaContextSlot(binding.Planned.StorageIndex, contextDepth);
                 return;
+            case CompilerPlannedStorageKind.GlobalBinding:
+                EmitGlobalAccess(name, JsOpCode.LdaGlobal, JsOpCode.LdaGlobalWide);
+                return;
             default:
                 throw new NotSupportedException(
                     $"{CompilerName} does not support loading '{name}' from {binding.Planned.StorageKind}."
@@ -1272,12 +1275,21 @@ internal abstract partial class JsPlannedCompilerBase
         }
     }
 
-    private void EmitStore(BindingStorage binding)
+    private void EmitStore(
+        BindingStorage binding,
+        bool isInitialization = false,
+        bool isFunctionDeclaration = false
+    )
     {
-        EmitStore(binding, 0);
+        EmitStore(binding, 0, isInitialization, isFunctionDeclaration);
     }
 
-    private void EmitStore(BindingStorage binding, int contextDepth)
+    private void EmitStore(
+        BindingStorage binding,
+        int contextDepth,
+        bool isInitialization = false,
+        bool isFunctionDeclaration = false
+    )
     {
         switch (binding.Planned.StorageKind)
         {
@@ -1285,13 +1297,27 @@ internal abstract partial class JsPlannedCompilerBase
                 EmitStar(binding.Register);
                 return;
             case CompilerPlannedStorageKind.LexicalRegister:
-                EmitStaLexicalLocal(binding.Register);
+                if (isInitialization)
+                    EmitStar(binding.Register);
+                else
+                    EmitStaLexicalLocal(binding.Register);
                 return;
             case CompilerPlannedStorageKind.ContextSlot:
                 if (contextDepth == 0)
                     EmitStaCurrentContextSlot(binding.Planned.StorageIndex);
                 else
                     EmitStaContextSlot(binding.Planned.StorageIndex, contextDepth);
+                return;
+            case CompilerPlannedStorageKind.GlobalBinding:
+                EmitGlobalAccess(
+                    binding.Planned.Name,
+                    isFunctionDeclaration ? JsOpCode.StaGlobalFuncDecl
+                        : isInitialization ? JsOpCode.StaGlobalInit
+                        : JsOpCode.StaGlobal,
+                    isFunctionDeclaration ? JsOpCode.StaGlobalFuncDeclWide
+                        : isInitialization ? JsOpCode.StaGlobalInitWide
+                        : JsOpCode.StaGlobalWide
+                );
                 return;
             default:
                 throw new NotSupportedException(

@@ -77,7 +77,9 @@ public class JsPlannedScriptCompilerTests
         );
 
         Assert.That(script.Bytecode.Length, Is.GreaterThan(0));
-        Assert.That(script.RegisterCount, Is.GreaterThanOrEqualTo(2));
+        Assert.That(script.RegisterCount, Is.GreaterThanOrEqualTo(1));
+        Assert.That(script.TopLevelLexicalAtoms, Has.Length.EqualTo(1));
+        Assert.That(script.Bytecode, Does.Contain((byte)JsOpCode.StaGlobalInit));
         Assert.That(script.Bytecode.Contains((byte)JsOpCode.Return), Is.True);
     }
 

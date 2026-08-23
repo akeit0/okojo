@@ -6,4 +6,5 @@ internal enum CompilerPlannedStorageKind : byte
     LexicalRegister = 1,
     ImportBinding = 2,
     ContextSlot = 3,
+    GlobalBinding = 4,
 }

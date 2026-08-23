@@ -50,7 +50,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | area | implemented direct path | remaining |
 |---|---|---|
 | Parse goal | scripts | modules, standalone function goal |
-| Declarations | `var`/`let`/`const`, ordinary function declarations, function/block declaration prologues, function-scoped `var` | classes, imports/exports, persistent global instantiation, declaration early errors, Annex B |
+| Declarations | `var`/`let`/`const`, ordinary function declarations, function/block declaration prologues, function-scoped `var`, persistent script globals/lexicals, initial global conflict validation | classes, imports/exports, complete declaration early errors, Annex B |
 | Blocks/control | block, `if`, `while`, `do`, ordinary `for`, unlabeled `break`/`continue`, `return`, `throw`, `try`/`catch`/`finally`, empty/expression statement | `switch`, `for-in/of`, labels, `debugger` |
 | Primitive expressions | number, string, boolean, null, identifier, `this`, grouping | regexp, BigInt, templates, `super`, `new.target`, `import.meta` |
 | Operators | precedence table, assignment, arithmetic/logical/bitwise/comparison, conditionals, sequence, updates | delete completion, optional-chain operators, remaining edge-specific early errors |
@@ -72,10 +72,12 @@ change diagnostics, and conceal coverage gaps.
 Syntax coverage alone is not enough to replace production compilation. The
 planned compiler still needs:
 
-- global declaration instantiation and identifier-delete semantics; ordinary
-  unbound load/store/`typeof` already use the VM global-binding ABI
-- persistent global declaration instantiation, declaration early errors, and
-  Annex-B block functions; ordinary local declaration hoisting is landed
+- identifier-delete semantics and the remaining global declaration early-error
+  matrix; unbound references and persistent script declarations already use the
+  VM global-binding ABI
+- Annex-B block functions and conflicts across nested lexical/variable
+  environments; ordinary local declaration hoisting and script-level conflicts
+  are landed
 - a general parameter/body environment model; the current exclusion marker fixes
   ordinary cases but is not the final nested-environment representation
 - correct `arguments` creation and mapped/unmapped behavior
@@ -177,9 +179,9 @@ read, and strict versus sloppy assignment to an unresolvable name. Regression
 targets are
 `DirectFlatParserTests.CompileString_LoadsStoresUpdatesAndTypesGlobalBindings`
 and `CompileString_AppliesSloppyAndStrictUnresolvableStoreRules`. No new runtime
-operation or compiler binding object was added. Global declaration instantiation
-and identifier delete remain separate because they require environment semantics,
-not another identifier-load branch.
+operation or compiler binding object was added. Identifier delete remains separate
+because it requires Reference/Environment Record semantics, not another load
+branch.
 
 ### Declaration instantiation
 
@@ -203,8 +205,47 @@ binding plan and existing closure opcodes. Regression targets are
 `CompileString_HoistsVarWithoutResettingParametersAtDeclarationSite`, and
 `Collect_LiftsAndMergesCompatibleVarBindings`. The pass adds one temporary
 semantic dictionary for declaration merging; bytecode emission allocates no
-hoisting objects. Persistent global declarations, lexical/var conflict early
-errors, and Annex-B behavior remain explicit follow-up work.
+hoisting objects.
+
+Program storage now follows V8's Global Environment split instead of treating a
+script as a function frame. Root `var` and function declarations plan as
+`GlobalBinding` and emit the existing `StaGlobalInit`/`StaGlobalFuncDecl` family.
+Root `let` and `const` bindings occupy script-context slots and publish
+`TopLevelLexicalAtoms`, slots, and const flags through `JsScript`; later scripts
+therefore resolve them through the same global-binding inline cache used by the
+production compiler. Local function declarations still use registers or captured
+context cells.
+
+Scope entry initializes ordinary lexical bindings to the hole. Declaration
+initialization then uses an unchecked register write, while subsequent lexical
+assignment uses `StaLexicalLocal` and preserves its TDZ check. Function-name self
+and parameter bindings keep their separate prologue ordering. This distinction is
+required by Okojo's opcode ABI and mirrors Ignition's separation between creating
+uninitialized bindings and initializing them.
+
+This iteration covers cross-script persistence, global lexical/var conflicts,
+restricted global properties, duplicate root lexicals, const reassignment, and
+top-level/local TDZ. Minimal repros are:
+
+```js
+var count = 1; let step = 2; const limit = 3;
+function add() { return count + step + limit; }
+```
+
+followed by `count += 40; step += 1; add();`, and `typeof value; let value = 1;`.
+Regression targets are
+`CompileString_PersistsGlobalDeclarationsAcrossScripts`,
+`CompileString_RejectsGlobalDeclarationConflicts`, and
+`CompileString_EnforcesLexicalTdzBeforeDeclaration`.
+
+The implementation copies V8's semantic split and production Okojo's exact
+global opcodes; it intentionally reuses Okojo's existing context metadata and VM
+global IC instead of adding a V8-style runtime declaration opcode. Compile-time
+cost is one declaration-name set plus lexical metadata arrays only when root
+lexicals exist. Script `var`/functions no longer consume pinned registers.
+Complete nested early errors, Annex-B block-function rules, class declarations,
+modules, and direct-eval-specific behavior remain outside this slice; direct eval
+is intentionally unsupported by project policy.
 
 ## Reference Lessons Applied
 
@@ -273,11 +314,11 @@ future shared Okojo grammar core, not two permanently divergent parsers.
 
 Implement before adding large syntax families:
 
-- global declaration instantiation and identifier delete; unbound load, store,
-  update, compound/logical assignment, and `typeof` are landed
-- persistent global declaration instantiation, declaration early errors, and
-  Annex-B behavior; ordinary function/block hoisting and function-scoped `var`
-  are landed
+- identifier delete; unbound load/store/update/`typeof` and persistent script
+  `var`/function/lexical declarations are landed
+- complete declaration early errors and Annex-B behavior; initial root
+  lexical/var/restricted-property conflicts, ordinary function/block hoisting,
+  and function-scoped `var` are landed
 - function, block, catch, class, module, and parameter environment records
 - `arguments`, function-name inference, immutable binding enforcement
 - source/handler/local-name metadata

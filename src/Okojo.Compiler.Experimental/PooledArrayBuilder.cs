@@ -15,6 +15,12 @@ internal sealed class PooledArrayBuilder<T> : IDisposable
 
     public int Count { get; private set; }
 
+    public T this[int index]
+    {
+        get => buffer[index];
+        set => buffer[index] = value;
+    }
+
     public void Add(T value)
     {
         ObjectDisposedException.ThrowIf(disposed, this);

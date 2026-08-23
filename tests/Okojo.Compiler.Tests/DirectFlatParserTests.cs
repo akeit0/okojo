@@ -606,7 +606,7 @@ public class DirectFlatParserTests
         var realm = JsRuntime.Create().DefaultRealm;
         var intrinsicScript = new JsPlannedScriptCompiler(realm).Compile("undefined;");
         var shadowedScript = new JsPlannedScriptCompiler(realm).Compile(
-            "let undefined = 42; undefined;"
+            "function read() { let undefined = 42; return undefined; } read();"
         );
 
         realm.Execute(intrinsicScript);
@@ -1340,6 +1340,83 @@ public class DirectFlatParserTests
             .Single(static binding => binding.Name == "value");
 
         Assert.That(binding.ScopeId, Is.Zero);
+        Assert.That(binding.Kind, Is.EqualTo(CompilerCollectedBindingKind.FunctionDeclaration));
+    }
+
+    [Test]
+    public void CompileString_PersistsGlobalDeclarationsAcrossScripts()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var declarations = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            var __plannedPersistentVar = 40;
+            let __plannedPersistentLet = 2;
+            const __plannedPersistentConst = 3;
+            function __plannedPersistentRead() {
+                return __plannedPersistentVar + __plannedPersistentLet + __plannedPersistentConst;
+            }
+            """
+        );
+
+        realm.Execute(declarations);
+        realm.Execute(
+            new JsPlannedScriptCompiler(realm).Compile(
+                "__plannedPersistentVar += 1; __plannedPersistentLet += 1;"
+            )
+        );
+        var read = new JsPlannedScriptCompiler(realm).Compile("__plannedPersistentRead();");
+        realm.Execute(read);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(47));
+        Assert.That(declarations.Bytecode, Does.Contain((byte)JsOpCode.StaGlobalInit));
+        Assert.That(declarations.Bytecode, Does.Contain((byte)JsOpCode.StaGlobalFuncDecl));
+        Assert.That(declarations.TopLevelLexicalAtoms, Has.Length.EqualTo(2));
+        Assert.Throws<JsRuntimeException>(() =>
+            realm.Execute(
+                new JsPlannedScriptCompiler(realm).Compile("__plannedPersistentConst = 4;")
+            )
+        );
+    }
+
+    [Test]
+    public void CompileString_RejectsGlobalDeclarationConflicts()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        realm.Execute(new JsPlannedScriptCompiler(realm).Compile("let __plannedConflict = 1;"));
+
+        Assert.Throws<JsRuntimeException>(() =>
+            new JsPlannedScriptCompiler(realm).Compile("var __plannedConflict;")
+        );
+        Assert.Throws<JsRuntimeException>(() =>
+            new JsPlannedScriptCompiler(realm).Compile("let __plannedConflict = 2;")
+        );
+        Assert.Throws<JsRuntimeException>(() =>
+            new JsPlannedScriptCompiler(realm).Compile("let undefined;")
+        );
+        Assert.Throws<JsRuntimeException>(() =>
+            new JsPlannedScriptCompiler(realm).Compile("let duplicate; const duplicate = 1;")
+        );
+    }
+
+    [Test]
+    public void CompileString_EnforcesLexicalTdzBeforeDeclaration()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+
+        Assert.Throws<JsRuntimeException>(() =>
+            realm.Execute(
+                new JsPlannedScriptCompiler(realm).Compile(
+                    "function read() { return value; let value = 1; } read();"
+                )
+            )
+        );
+        Assert.Throws<JsRuntimeException>(() =>
+            realm.Execute(
+                new JsPlannedScriptCompiler(realm).Compile(
+                    "typeof __plannedLater; let __plannedLater = 1;"
+                )
+            )
+        );
     }
 
     [TestCase("throw\n1;")]

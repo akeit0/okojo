@@ -45,7 +45,7 @@ internal static partial class CompilerBindingCollector
         private readonly PooledArrayBuilder<CompilerCollectedReference> references = new(64);
         private readonly Dictionary<
             (int ScopeId, string Name),
-            CompilerCollectedBindingKind
+            (CompilerCollectedBindingKind Kind, int Index)
         > mergeableBindings = new();
         private int nextScopeId = 1;
         private int parameterBodyScopeId = -1;
@@ -672,12 +672,30 @@ internal static partial class CompilerBindingCollector
         {
             var key = (scopeId, name);
             if (
-                mergeableBindings.TryGetValue(key, out var existingKind)
-                && IsVariableEnvironmentBinding(existingKind)
-                && IsVariableEnvironmentBinding(kind)
+                IsVariableEnvironmentBinding(kind)
+                && mergeableBindings.TryGetValue(key, out var existing)
+                && IsVariableEnvironmentBinding(existing.Kind)
             )
+            {
+                if (
+                    existing.Kind == CompilerCollectedBindingKind.Var
+                    && kind == CompilerCollectedBindingKind.FunctionDeclaration
+                )
+                {
+                    bindings[existing.Index] = new CompilerCollectedBinding(
+                        scopeId,
+                        kind,
+                        name,
+                        nameId,
+                        isConst,
+                        position
+                    );
+                    mergeableBindings[key] = (kind, existing.Index);
+                }
                 return;
-            mergeableBindings.TryAdd(key, kind);
+            }
+            if (IsVariableEnvironmentBinding(kind))
+                mergeableBindings.TryAdd(key, (kind, bindings.Count));
             bindings.Add(
                 new CompilerCollectedBinding(scopeId, kind, name, nameId, isConst, position)
             );

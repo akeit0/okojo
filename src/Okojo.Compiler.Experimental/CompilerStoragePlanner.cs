@@ -39,10 +39,14 @@ internal static class CompilerStoragePlanner
             for (var bindingIndex = 0; bindingIndex < bindingCount; bindingIndex++)
             {
                 var binding = bindings[bindingIndex];
-                var storageKind = ClassifyStorage(binding.Kind);
+                var storageKind = ClassifyStorage(binding, scopes[binding.ScopeId].Kind);
                 if (
                     captured[bindingIndex]
-                    && storageKind != CompilerPlannedStorageKind.ImportBinding
+                    && storageKind
+                        is not (
+                            CompilerPlannedStorageKind.ImportBinding
+                            or CompilerPlannedStorageKind.GlobalBinding
+                        )
                 )
                     storageKind = CompilerPlannedStorageKind.ContextSlot;
                 var storageIndex =
@@ -205,7 +209,28 @@ internal static class CompilerStoragePlanner
         return false;
     }
 
-    private static CompilerPlannedStorageKind ClassifyStorage(CompilerCollectedBindingKind kind)
+    private static CompilerPlannedStorageKind ClassifyStorage(
+        CompilerCollectedBinding binding,
+        CompilerCollectedScopeKind scopeKind
+    )
+    {
+        if (scopeKind == CompilerCollectedScopeKind.Program)
+            return binding.Kind switch
+            {
+                CompilerCollectedBindingKind.Var
+                or CompilerCollectedBindingKind.FunctionDeclaration =>
+                    CompilerPlannedStorageKind.GlobalBinding,
+                CompilerCollectedBindingKind.Lexical
+                or CompilerCollectedBindingKind.ClassDeclaration =>
+                    CompilerPlannedStorageKind.ContextSlot,
+                _ => ClassifyLocalStorage(binding.Kind),
+            };
+        return ClassifyLocalStorage(binding.Kind);
+    }
+
+    private static CompilerPlannedStorageKind ClassifyLocalStorage(
+        CompilerCollectedBindingKind kind
+    )
     {
         return kind switch
         {

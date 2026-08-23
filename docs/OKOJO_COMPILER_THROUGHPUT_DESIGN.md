@@ -224,6 +224,12 @@ The direct flat work has already established several reusable rules:
 - instantiate function declarations at script/function/block scope entry, lift
   `var` bindings to the containing variable environment, and merge compatible
   parameter/var/function declarations into one planned storage location
+- classify program `var`/function bindings as persistent globals and program
+  lexicals as script-context cells; emit the production `StaGlobalInit` and
+  `StaGlobalFuncDecl` ABI instead of pinning script declarations in registers
+- initialize lexical registers and context cells to the hole at scope entry, but
+  use unchecked initialization stores for declaration writes and TDZ-checking
+  stores only for later assignments
 
 These are compiler contracts, not parser conveniences. New syntax should lower to
 the same small set of prepared-reference, iterator, context, call, and abrupt-flow
@@ -252,11 +258,11 @@ go through centralized builders.
 Complete these before broad grammar because nearly every application depends on
 them:
 
-- complete global declaration instantiation and identifier `delete` behavior;
-  unbound load/store/`typeof` now use the production global-binding opcodes
-- finish persistent global declaration instantiation, declaration early errors,
-  and Annex-B block-function behavior; ordinary script/function/block function
-  hoisting and function-scoped `var` are landed
+- complete identifier `delete`; unbound load/store/`typeof` and persistent script
+  declarations now use the production global-binding ABI
+- extend the landed global declaration validation to the complete early-error
+  matrix and Annex-B block-function behavior; cross-script `var`, function,
+  `let`, and `const` persistence and lexical/var conflicts are covered
 - correct function, block, catch, class, module, and parameter environment
   boundaries
 - replace the current parameter/body exclusion marker with a general environment

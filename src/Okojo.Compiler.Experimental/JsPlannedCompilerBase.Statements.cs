@@ -544,7 +544,7 @@ internal abstract partial class JsPlannedCompilerBase
             if (scope.Bindings[i].Planned.Kind == CompilerCollectedBindingKind.Var)
             {
                 builder.EmitLda(JsOpCode.LdaUndefined);
-                EmitStore(scope.Bindings[i]);
+                EmitStore(scope.Bindings[i], isInitialization: true);
             }
 
         var statements = ast.ChildRange(offset, count);
@@ -594,7 +594,7 @@ internal abstract partial class JsPlannedCompilerBase
             else
                 builder.EmitLda(JsOpCode.LdaUndefined);
 
-            EmitStore(binding);
+            EmitStore(binding, isInitialization: true);
         }
     }
 
@@ -612,7 +612,7 @@ internal abstract partial class JsPlannedCompilerBase
             )
                 EmitInitializeParameterStore(binding);
             else
-                EmitStore(binding);
+                EmitStore(binding, isInitialization: true);
             return;
         }
 
@@ -1019,6 +1019,6 @@ internal abstract partial class JsPlannedCompilerBase
         var functionObject = functionCompiler.CompileFunction(ast, function, bodyRoot);
         var idx = builder.AddObjectConstant(functionObject);
         EmitCreateClosureByIndex(idx);
-        EmitStore(binding);
+        EmitStore(binding, isInitialization: true, isFunctionDeclaration: true);
     }
 }
