@@ -478,6 +478,11 @@ internal static class FlatAstLowerer
                     identifier.NameId,
                     position: identifier.Position
                 ),
+                JsPrivateIdentifierExpression privateIdentifier => Arena.Add(
+                    AstKind.PrivateIdentifier,
+                    Arena.AddString(privateIdentifier.Name),
+                    position: privateIdentifier.Position
+                ),
                 JsSpreadExpression spread => Arena.Add(
                     AstKind.SpreadElement,
                     LowerBindingPattern(spread.Argument),
@@ -729,7 +734,7 @@ internal static class FlatAstLowerer
                 for (var i = 0; i < classExpression.Elements.Count; i++)
                 {
                     var element = classExpression.Elements[i];
-                    if (element.IsPrivate)
+                    if (element.IsPrivate && element.Kind != JsClassElementKind.Field)
                         throw new NotSupportedException(
                             $"{compilerName} does not support class element '{element.Kind}' yet."
                         );
@@ -762,9 +767,8 @@ internal static class FlatAstLowerer
                         element.Position,
                         element.Kind,
                         (element.IsStatic ? FlatClassElementFlags.Static : 0)
-                            | (
-                                element.ComputedKey is not null ? FlatClassElementFlags.Computed : 0
-                            ),
+                            | (element.ComputedKey is not null ? FlatClassElementFlags.Computed : 0)
+                            | (element.IsPrivate ? FlatClassElementFlags.Private : 0),
                         !element.IsStatic
                         && element.Kind == JsClassElementKind.Field
                         && element.ComputedKey is not null
@@ -1159,9 +1163,9 @@ internal static class FlatAstLowerer
 
         private int LowerMember(JsMemberExpression member)
         {
-            if (member.IsPrivate || member.IsOptionalChainSegment)
+            if (member.IsOptionalChainSegment)
                 throw new NotSupportedException(
-                    $"Private and optional members are not supported by {compilerName}."
+                    $"Optional members are not supported by {compilerName}."
                 );
 
             var property =
@@ -1175,7 +1179,10 @@ internal static class FlatAstLowerer
                 AstKind.MemberExpression,
                 LowerExpression(member.Object),
                 property,
-                (int)(member.IsComputed ? AstMemberFlags.Computed : AstMemberFlags.None),
+                (int)(
+                    (member.IsComputed ? AstMemberFlags.Computed : AstMemberFlags.None)
+                    | (member.IsPrivate ? AstMemberFlags.Private : AstMemberFlags.None)
+                ),
                 member.Position
             );
         }

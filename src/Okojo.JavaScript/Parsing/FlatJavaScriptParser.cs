@@ -22,6 +22,7 @@ internal sealed class FlatJavaScriptParser
     private bool superPropertySeen;
     private bool forbidClassFieldArguments;
     private bool forbidReturnInClassStaticBlock;
+    private PrivateNameScope? privateNameScope;
     private int deferredAsyncParameterErrorPosition = -1;
     private List<ActiveLabel>? activeLabels;
 
@@ -765,6 +766,9 @@ internal sealed class FlatJavaScriptParser
 
         Expect(JsTokenKind.LeftBrace);
         var strictBeforeClass = strictMode;
+        var privateNameScopeBeforeClass = privateNameScope;
+        var classPrivateNameScope = new PrivateNameScope(privateNameScopeBeforeClass);
+        privateNameScope = classPrivateNameScope;
         strictMode = true;
         Span<FlatClassElement> initial = stackalloc FlatClassElement[8];
         var elements = new ClassElementList(initial);
@@ -836,6 +840,7 @@ internal sealed class FlatJavaScriptParser
 
                 var isGenerator = Match(JsTokenKind.Star);
                 var computed = Match(JsTokenKind.LeftBracket);
+                var isPrivate = false;
                 int key;
                 if (computed)
                 {
@@ -845,11 +850,18 @@ internal sealed class FlatJavaScriptParser
                 else
                 {
                     if (current.Kind == JsTokenKind.PrivateIdentifier)
-                        throw Error(
-                            "Private class elements are not supported by the flat parser yet",
-                            current.Position
-                        );
-                    key = Arena.AddString(GetObjectPropertyName(current));
+                    {
+                        isPrivate = true;
+                        var privateName = GetPrivateIdentifierText(current);
+                        if (!classPrivateNameScope.Declarations.Add(privateName))
+                            throw Error(
+                                $"Duplicate private class member '{privateName}'",
+                                current.Position
+                            );
+                        key = Arena.AddString(privateName);
+                    }
+                    else
+                        key = Arena.AddString(GetObjectPropertyName(current));
                     Next();
                 }
 
@@ -857,6 +869,7 @@ internal sealed class FlatJavaScriptParser
                 if (
                     !isGenerator
                     && !isAsync
+                    && !isPrivate
                     && staticName is "get" or "set"
                     && current.Kind != JsTokenKind.LeftParen
                 )
@@ -946,7 +959,8 @@ internal sealed class FlatJavaScriptParser
                             elementPosition,
                             JsClassElementKind.Field,
                             (isStatic ? FlatClassElementFlags.Static : 0)
-                                | (computed ? FlatClassElementFlags.Computed : 0),
+                                | (computed ? FlatClassElementFlags.Computed : 0)
+                                | (isPrivate ? FlatClassElementFlags.Private : 0),
                             !isStatic && computed ? nextInstanceFieldKeyIndex++ : -1
                         )
                     );
@@ -955,7 +969,15 @@ internal sealed class FlatJavaScriptParser
                 }
 
                 var isConstructor =
-                    !isStatic && !computed && string.Equals(staticName, "constructor");
+                    !isStatic
+                    && !computed
+                    && !isPrivate
+                    && string.Equals(staticName, "constructor");
+                if (isPrivate)
+                    throw Error(
+                        "Private methods and accessors are not supported by the flat parser yet",
+                        elementPosition
+                    );
                 if (isConstructor && (isGenerator || isAsync))
                     throw Error(
                         "Class constructor may not be async or a generator",
@@ -988,6 +1010,11 @@ internal sealed class FlatJavaScriptParser
                 );
             }
             Expect(JsTokenKind.RightBrace);
+            if (!classPrivateNameScope.Resolve(out var unresolvedPrivateName))
+                throw Error(
+                    $"Private name '{unresolvedPrivateName.Name}' is not declared in an enclosing class",
+                    unresolvedPrivateName.Position
+                );
             if (constructorNode < 0)
                 constructorNode = AddImplicitClassConstructor(
                     position,
@@ -1026,6 +1053,7 @@ internal sealed class FlatJavaScriptParser
         {
             elements.Dispose();
             strictMode = strictBeforeClass;
+            privateNameScope = privateNameScopeBeforeClass;
         }
     }
 
@@ -1790,10 +1818,17 @@ internal sealed class FlatJavaScriptParser
         )
         {
             var position = Arena.GetPosition(left);
+            if (Arena[left].Kind == AstKind.PrivateIdentifier && op != JsBinaryOperator.In)
+                throw Error("Private identifier must be the left side of 'in'", position);
             Next();
             var right = ParseBinary(allowIn, rightAssociative ? precedence : precedence + 1);
             left = Arena.Add(AstKind.BinaryExpression, left, right, (int)op, position);
         }
+        if (Arena[left].Kind == AstKind.PrivateIdentifier)
+            throw Error(
+                "Private identifier must be the left side of 'in'",
+                Arena.GetPosition(left)
+            );
         return left;
     }
 
@@ -1826,6 +1861,12 @@ internal sealed class FlatJavaScriptParser
                 && Arena[argument].Kind == AstKind.Identifier
             )
                 throw Error("Delete of an unqualified identifier in strict mode", position);
+            if (
+                unary == JsUnaryOperator.Delete
+                && Arena[argument].Kind == AstKind.MemberExpression
+                && ((AstMemberFlags)Arena[argument].Arg2 & AstMemberFlags.Private) != 0
+            )
+                throw Error("Private fields cannot be deleted", position);
             return Arena.Add(AstKind.UnaryExpression, argument, (int)unary, position: position);
         }
 
@@ -1938,6 +1979,21 @@ internal sealed class FlatJavaScriptParser
                     continue;
                 }
 
+                if (current.Kind == JsTokenKind.PrivateIdentifier)
+                {
+                    var privateName = GetPrivateIdentifierText(current);
+                    ReferencePrivateName(privateName, current.Position);
+                    Next();
+                    expression = Arena.Add(
+                        AstKind.MemberExpression,
+                        expression,
+                        Arena.AddString(privateName),
+                        (int)(AstMemberFlags.Private | AstMemberFlags.OptionalChainLink),
+                        position
+                    );
+                    continue;
+                }
+
                 if (!JsTokenFacts.IsIdentifierName(current.Kind))
                     throw Error($"Expected Identifier but found {current.Kind}", current.Position);
                 var optionalProperty = current;
@@ -1959,6 +2015,22 @@ internal sealed class FlatJavaScriptParser
                     if (!allowSuperProperty)
                         throw Error("super property is only valid in a method", position);
                     superPropertySeen = true;
+                }
+                if (current.Kind == JsTokenKind.PrivateIdentifier)
+                {
+                    if (Arena[expression].Kind == AstKind.SuperExpression)
+                        throw Error("Private fields are not valid on super", current.Position);
+                    var privateName = GetPrivateIdentifierText(current);
+                    ReferencePrivateName(privateName, current.Position);
+                    Next();
+                    expression = Arena.Add(
+                        AstKind.MemberExpression,
+                        expression,
+                        Arena.AddString(privateName),
+                        (int)AstMemberFlags.Private,
+                        position
+                    );
+                    continue;
                 }
                 if (!JsTokenFacts.IsIdentifierName(current.Kind))
                     throw Error($"Expected Identifier but found {current.Kind}", current.Position);
@@ -2107,6 +2179,15 @@ internal sealed class FlatJavaScriptParser
                     AstKind.Identifier,
                     Arena.AddString(GetIdentifierText(token)),
                     token.IdentifierId,
+                    position: token.Position
+                );
+            case JsTokenKind.PrivateIdentifier:
+                var privateName = GetPrivateIdentifierText(token);
+                ReferencePrivateName(privateName, token.Position);
+                Next();
+                return Arena.Add(
+                    AstKind.PrivateIdentifier,
+                    Arena.AddString(privateName),
                     position: token.Position
                 );
             case JsTokenKind.Number:
@@ -3044,9 +3125,46 @@ internal sealed class FlatJavaScriptParser
             : source.Substring(token.Position, token.SourceLength);
     }
 
+    private string GetPrivateIdentifierText(in JsToken token) =>
+        token.DataIndex >= 0
+            ? "#" + lexer.GetIdentifierLiteral(token)
+            : source.Substring(token.Position, token.SourceLength);
+
+    private void ReferencePrivateName(string name, int position)
+    {
+        if (privateNameScope is null)
+            throw Error($"Private name '{name}' is not declared in an enclosing class", position);
+        privateNameScope.References.Add((name, position));
+    }
+
     private bool IsCurrentIdentifierName(string value) =>
         current.Kind is JsTokenKind.Identifier or JsTokenKind.ReservedWord
         && source.AsSpan(current.Position, current.SourceLength).SequenceEqual(value.AsSpan());
+
+    private sealed class PrivateNameScope(PrivateNameScope? parent)
+    {
+        public HashSet<string> Declarations { get; } = new(StringComparer.Ordinal);
+        public List<(string Name, int Position)> References { get; } = [];
+
+        public bool Resolve(out (string Name, int Position) unresolved)
+        {
+            for (var i = 0; i < References.Count; i++)
+            {
+                var reference = References[i];
+                if (Declarations.Contains(reference.Name))
+                    continue;
+                if (parent is not null)
+                {
+                    parent.References.Add(reference);
+                    continue;
+                }
+                unresolved = reference;
+                return false;
+            }
+            unresolved = default;
+            return true;
+        }
+    }
 
     private void ValidateBindingIdentifier(in JsToken token)
     {

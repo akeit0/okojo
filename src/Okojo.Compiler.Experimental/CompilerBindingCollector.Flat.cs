@@ -753,6 +753,7 @@ internal static partial class CompilerBindingCollector
                 case AstKind.ThisExpression:
                 case AstKind.NewTargetExpression:
                 case AstKind.SuperExpression:
+                case AstKind.PrivateIdentifier:
                     return;
                 default:
                     throw new NotSupportedException(

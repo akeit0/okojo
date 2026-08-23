@@ -11,11 +11,12 @@ internal sealed partial class JsPlannedFunctionCompiler : JsPlannedCompilerBase
     private int externalCaptureContextDepthOffset;
     private bool initializeParametersInPrologue;
 
-    public JsPlannedFunctionCompiler(
+    internal JsPlannedFunctionCompiler(
         JsRealm realm,
-        IReadOnlyDictionary<string, CapturedBindingAccess>? inheritedCaptures = null
+        IReadOnlyDictionary<string, CapturedBindingAccess>? inheritedCaptures = null,
+        IReadOnlyDictionary<string, PlannedPrivateBinding>? privateBindings = null
     )
-        : base(realm)
+        : base(realm, privateBindings)
     {
         this.inheritedCaptures =
             inheritedCaptures

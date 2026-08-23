@@ -28,17 +28,29 @@ internal abstract partial class JsPlannedCompilerBase
     private int generatorResumeValueRegister = -1;
     private int generatorResumeModeRegister = -1;
     private readonly List<int> generatorResumeTargets = [];
+    private IReadOnlyDictionary<string, PlannedPrivateBinding> visiblePrivateBindings;
+    private IReadOnlyList<PrivateBrandSource> activeExactPrivateBrandSources = [];
 
-    protected JsPlannedCompilerBase(JsRealm realm)
+    protected JsPlannedCompilerBase(
+        JsRealm realm,
+        IReadOnlyDictionary<string, PlannedPrivateBinding>? privateBindings = null
+    )
     {
         Vm = realm;
         builder = new(realm);
         activeScopes = [];
         controlScopes = [];
+        visiblePrivateBindings =
+            privateBindings
+            ?? new Dictionary<string, PlannedPrivateBinding>(StringComparer.Ordinal);
     }
 
     protected JsRealm Vm { get; }
     protected string CompilerName => GetType().Name;
+
+    internal readonly record struct PlannedPrivateBinding(int BrandId, int SlotIndex);
+
+    private readonly record struct PrivateBrandSource(int BrandId, int Register);
 
     protected virtual IEnumerable<KeyValuePair<string, CapturedBindingAccess>> ExternalCaptures =>
         [];

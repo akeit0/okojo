@@ -278,6 +278,7 @@ internal enum FlatClassElementFlags : byte
     None = 0,
     Static = 1,
     Computed = 2,
+    Private = 4,
 }
 
 internal readonly record struct FlatClassElement(
@@ -291,4 +292,5 @@ internal readonly record struct FlatClassElement(
 {
     public bool IsStatic => (Flags & FlatClassElementFlags.Static) != 0;
     public bool IsComputed => (Flags & FlatClassElementFlags.Computed) != 0;
+    public bool IsPrivate => (Flags & FlatClassElementFlags.Private) != 0;
 }

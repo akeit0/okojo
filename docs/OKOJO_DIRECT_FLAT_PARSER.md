@@ -55,13 +55,13 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Blocks/control | block, `if`, `while`, `do`, ordinary `for`, `for-in`, synchronous `for-of`, `for-await-of`, `switch`, chained labels, labeled/unlabeled `break`/`continue`, `return`, `throw`, `try`/`catch`/`finally`, `debugger`, empty/expression statement | remaining declaration/control early errors |
 | Primitive expressions | number, BigInt, string, boolean, null, regexp, tagged/untagged template, identifier, `this`, `new.target`, contextual `super` roots, grouping | `import.meta` |
 | Operators | precedence table, assignment, arithmetic/logical/bitwise/comparison, conditionals, sequence, updates, optional chains, property/identifier/value/optional-chain `delete` | remaining edge-specific early errors |
-| References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed ordinary and `super` properties | imports and private references |
+| References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed ordinary and `super` properties, private-field loads/calls and `#x in value` | imports and private methods/accessors |
 | Calls/construction | direct/member/optional calls, spread calls, ordinary/spread `new`, implicit/explicit/spread `super()`, super-property calls, wide operands | dynamic import |
 | Arrays/objects | holes, array/object spread, data properties, ordinary/generator/async concise methods, getters/setters, computed/shorthand/index keys, stable data shape prefix, demand-driven super home objects | legacy `__proto__` intentionally excluded |
 | Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings, class declaration and inner-name bindings | module bindings and remaining early errors |
-| Assignments | identifier/ordinary/super-member targets, compound/logical/update, array/object destructuring, core optional-chain target restrictions | private targets and remaining early errors |
+| Assignments | identifier/ordinary/super/private-field member targets, compound/logical/update, array/object destructuring, core optional-chain target restrictions | remaining early errors |
 | Functions | ordinary declarations/expressions, closures, synchronous and async generators with `yield`/`yield*`, async declarations/expressions/object methods with `await`, synchronous and async arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`/`new.target`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function/class name inference, demand-driven mapped/unmapped `arguments` | lazy bodies |
-| Classes | base/derived declarations and expressions, explicit/implicit constructors, heritage/prototype setup, derived `this`/return rules, public named/computed instance/static methods and accessors, named/computed public fields, source-ordered static blocks, named/computed super loads/calls/stores/updates, strict bodies, declaration TDZ/const storage, inner class-name capture, anonymous name inference | private names/brands, field-initializer anonymous naming |
+| Classes | base/derived declarations and expressions, explicit/implicit constructors, heritage/prototype setup, derived `this`/return rules, public named/computed instance/static methods and accessors, named/computed public fields, instance/static private fields and brands, source-ordered static blocks, named/computed super loads/calls/stores/updates, strict bodies, declaration TDZ/const storage, inner class-name capture, anonymous name inference | private methods/accessors, field-initializer anonymous naming |
 | Modules | none | parse goal, entries, linking metadata, live bindings, top-level await |
 
 The direct parser rejects unsupported grammar. It does not catch an error and
@@ -1054,6 +1054,27 @@ Class static-block slice landed:
   with the constructor receiver; no new AST table, opcode, or runtime helper
 - performance plan: compile each block once, allocate a method environment only for
   `super`, and retain the existing pooled class-element order
+
+Private field slice landed:
+
+- iteration scope: instance/static private fields, direct/compound/update access,
+  private calls, `#x in value`, nested lexical use, initialization order, and
+  undeclared/duplicate/delete early errors
+- minimal repro: `class C { #x = 1; read() { return this.#x } }`
+- reference case:
+  `artifacts/okojobytecodetool/cases/flat_ast_class_private_fields.js`
+- focused tests cover instance/static brand separation, wrong-receiver errors,
+  initializer order, nested functions/classes, updates, calls, brand checks, and
+  class-AST bridge execution
+- V8 observation: private names are resolved through a class private environment;
+  instance and static fields use distinct brands and fixed compile-time slots
+- Okojo implementation: add one private bit to flat member/element records and reuse existing
+  `InitPrivateField`/`GetPrivateField`/`SetPrivateField` plus `HasPrivateField`
+- intentional difference: V8 lowers private access through private-name context
+  slots and keyed operations; Okojo embeds its existing fixed brand/slot operands,
+  avoiding a runtime private-name lookup while retaining lexical brand mapping
+- performance plan: preallocate one brand per instance/static class side, embed
+  brand/slot operands in bytecode, and allocate no runtime name lookup table
 
 ### Stage F4 - Modules
 

@@ -64,6 +64,7 @@ internal enum AstKind : byte
     YieldExpression,
     AwaitExpression,
     SpreadElement,
+    PrivateIdentifier,
 
     // Auxiliary
     SwitchCase,
@@ -83,6 +84,7 @@ internal enum AstMemberFlags : byte
     None = 0,
     Computed = 1,
     OptionalChainLink = 2,
+    Private = 4,
 }
 
 [Flags]

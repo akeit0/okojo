@@ -100,6 +100,8 @@ use from nested arrows. Named/computed static and instance public fields also
 execute directly with class-definition key capture and constructor-point values.
 Source-ordered static blocks share the static initializer phase and execute with
 the constructor receiver, strict block scope, class-name capture, and `super`.
+Instance/static private fields now use fixed brand/slot operands, including nested
+lexical access, calls, updates, optional access, and private-brand checks.
 
 ## Reference Architecture Insights
 
@@ -454,7 +456,13 @@ the new compiler for the supported function families.
   computed-key phase, and static-block-specific early errors. This deliberately
   reuses closure/environment and `CallProperty` bytecode instead of adding a
   static-block runtime representation or opcode.
-- private names, brands, accessors, and `#x in object`
+- landed private fields: separate instance/static brands, fixed slots, initializer
+  scheduling, lexical access through nested functions/classes, loads/calls/
+  assignments/updates, optional access, `#x in object`, wrong-receiver errors,
+  undeclared/duplicate/delete early errors, and the class-AST bridge. V8 uses
+  private-name context slots plus keyed operations; Okojo deliberately reuses its
+  direct private-field opcodes and function brand mappings.
+- private methods and accessors
 - complete private-element, computed-key, field-initializer, and heritage ordering
 
 Exit gate: class initialization order, derived-constructor rules, private-brand

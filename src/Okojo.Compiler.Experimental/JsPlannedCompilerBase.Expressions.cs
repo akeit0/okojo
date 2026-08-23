@@ -80,6 +80,10 @@ internal abstract partial class JsPlannedCompilerBase
             case AstKind.Identifier:
                 EmitIdentifierLoad(ast.GetString(node.Arg0));
                 return;
+            case AstKind.PrivateIdentifier:
+                throw new InvalidOperationException(
+                    "A private identifier is only valid as the left side of 'in'."
+                );
             case AstKind.ThisExpression:
                 builder.EmitLda(JsOpCode.LdaThis);
                 return;
@@ -312,7 +316,11 @@ internal abstract partial class JsPlannedCompilerBase
     {
         var function = ast.GetFunction(functionIndex);
         var hasSelfBinding = ast.GetString(function.NameStringIndex).Length != 0;
-        var functionCompiler = new JsPlannedFunctionCompiler(Vm, BuildChildCaptureBindings());
+        var functionCompiler = new JsPlannedFunctionCompiler(
+            Vm,
+            BuildChildCaptureBindings(),
+            visiblePrivateBindings
+        );
         var functionObject = functionCompiler.CompileFunction(
             ast,
             function,
@@ -322,6 +330,7 @@ internal abstract partial class JsPlannedCompilerBase
             instanceFieldClassIndex
         );
         EmitCreateClosureByIndex(builder.AddObjectConstant(functionObject));
+        EmitPrivateBrandMappingsForClosure();
     }
 
     private void EmitRegExpLiteral(string pattern, string flags)
@@ -1104,6 +1113,15 @@ internal abstract partial class JsPlannedCompilerBase
     {
         if (((AstMemberFlags)member.Arg2 & AstMemberFlags.OptionalChainLink) != 0)
             EmitOptionalChainNullCheck(objectRegister);
+        if (((AstMemberFlags)member.Arg2 & AstMemberFlags.Private) != 0)
+        {
+            EmitPrivateFieldOp(
+                JsOpCode.GetPrivateField,
+                objectRegister,
+                ResolvePrivateBinding(ast.GetString(member.Arg1))
+            );
+            return;
+        }
         if (((AstMemberFlags)member.Arg2 & AstMemberFlags.Computed) != 0)
         {
             EmitExpression(ast, member.Arg1);
@@ -1149,6 +1167,27 @@ internal abstract partial class JsPlannedCompilerBase
     private void EmitBinaryExpression(FlatAst ast, AstNode node, ExpressionResult result)
     {
         var op = (JsBinaryOperator)node.Arg2;
+        if (op == JsBinaryOperator.In && ast[node.Arg0].Kind == AstKind.PrivateIdentifier)
+        {
+            var marker = builder.GetTemporaryRegisterScopeMarker();
+            try
+            {
+                EmitExpression(ast, node.Arg1);
+                var arguments = builder.AllocateTemporaryRegisterBlock(3);
+                EmitStar(arguments);
+                var binding = ResolvePrivateBinding(ast.GetString(ast[node.Arg0].Arg0));
+                EmitSmi(binding.BrandId);
+                EmitStar(arguments + 1);
+                EmitSmi(binding.SlotIndex);
+                EmitStar(arguments + 2);
+                builder.EmitCallRuntime((int)RuntimeId.HasPrivateField, arguments, 3);
+            }
+            finally
+            {
+                builder.ReleaseTemporaryRegistersToMarker(marker);
+            }
+            return;
+        }
         if (op is JsBinaryOperator.LogicalAnd or JsBinaryOperator.LogicalOr)
         {
             EmitExpression(ast, node.Arg0);
@@ -1560,6 +1599,20 @@ internal abstract partial class JsPlannedCompilerBase
         EmitExpression(ast, member.Arg0);
         var objectRegister = builder.AllocateTemporaryRegister();
         EmitStar(objectRegister);
+        if (((AstMemberFlags)member.Arg2 & AstMemberFlags.Private) != 0)
+        {
+            var binding = ResolvePrivateBinding(ast.GetString(member.Arg1));
+            return new(
+                objectRegister,
+                -1,
+                -1,
+                -1,
+                false,
+                false,
+                binding.BrandId,
+                binding.SlotIndex
+            );
+        }
         if (((AstMemberFlags)member.Arg2 & AstMemberFlags.Computed) != 0)
         {
             EmitExpression(ast, member.Arg1);
@@ -1579,6 +1632,15 @@ internal abstract partial class JsPlannedCompilerBase
 
     private void EmitPreparedMemberLoad(in PreparedMemberReference reference)
     {
+        if (reference.PrivateBrandId >= 0)
+        {
+            EmitPrivateFieldOp(
+                JsOpCode.GetPrivateField,
+                reference.ObjectRegister,
+                new(reference.PrivateBrandId, reference.PrivateSlotIndex)
+            );
+            return;
+        }
         if (reference.IsSuper)
         {
             var arguments = builder.AllocateTemporaryRegisterBlock(2);
@@ -1604,6 +1666,18 @@ internal abstract partial class JsPlannedCompilerBase
 
     private void EmitPreparedMemberStore(in PreparedMemberReference reference)
     {
+        if (reference.PrivateBrandId >= 0)
+        {
+            var valueRegister = builder.AllocateTemporaryRegister();
+            EmitStar(valueRegister);
+            EmitPrivateFieldOp(
+                JsOpCode.SetPrivateField,
+                reference.ObjectRegister,
+                valueRegister,
+                new(reference.PrivateBrandId, reference.PrivateSlotIndex)
+            );
+            return;
+        }
         if (reference.IsSuper)
         {
             var arguments = builder.AllocateTemporaryRegisterBlock(3);
@@ -1631,7 +1705,9 @@ internal abstract partial class JsPlannedCompilerBase
         int NameIndex,
         int FeedbackSlot,
         bool IsComputed,
-        bool IsSuper
+        bool IsSuper,
+        int PrivateBrandId = -1,
+        int PrivateSlotIndex = -1
     );
 
     private void EmitSequenceExpression(FlatAst ast, AstNode node, ExpressionResult result)

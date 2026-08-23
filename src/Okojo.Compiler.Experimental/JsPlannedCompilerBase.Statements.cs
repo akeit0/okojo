@@ -1807,10 +1807,15 @@ internal abstract partial class JsPlannedCompilerBase
         if (!TryResolveBinding(name, out var binding))
             throw new InvalidOperationException($"No planned binding found for function '{name}'.");
 
-        var functionCompiler = new JsPlannedFunctionCompiler(Vm, BuildChildCaptureBindings());
+        var functionCompiler = new JsPlannedFunctionCompiler(
+            Vm,
+            BuildChildCaptureBindings(),
+            visiblePrivateBindings
+        );
         var functionObject = functionCompiler.CompileFunction(ast, function, bodyRoot);
         var idx = builder.AddObjectConstant(functionObject);
         EmitCreateClosureByIndex(idx);
+        EmitPrivateBrandMappingsForClosure();
         EmitStore(binding, isInitialization: true, isFunctionDeclaration: true);
     }
 }

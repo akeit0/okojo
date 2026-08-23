@@ -3589,6 +3589,64 @@ public class DirectFlatParserTests
         Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
 
     [Test]
+    public void CompileString_ExecutesPrivateClassFieldsAndReferences()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let order = [];
+            class Box {
+                #value = (order.push('instance'), 1);
+                #fn = function () { return this.#value; };
+                static #count = (order.push('static'), 2);
+                read() { return this.#value; }
+                write(v) { return this.#value += v; }
+                bump() { return this.#value++; }
+                call() { return this.#fn(); }
+                nested() { return (() => this.#value)(); }
+                has(o) { return #value in o; }
+                optional(o) { return o?.#value; }
+                makeReader() { return class { read(o) { return o.#value; } }; }
+                static count() { return this.#count; }
+            }
+            let box = new Box();
+            let old = box.bump();
+            let Reader = box.makeReader();
+            Box.count() + '|' + old + '|' + box.write(3) + '|' + box.read() + '|'
+                + box.call() + '|' + box.nested() + '|' + box.has(box) + '|'
+                + box.has({}) + '|' + (box.optional(null) === undefined) + '|'
+                + new Reader().read(box) + '|' + order.join(',');
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(
+            realm.Accumulator.AsString(),
+            Is.EqualTo("2|1|5|5|5|5|true|false|true|5|static,instance")
+        );
+    }
+
+    [TestCase("class Invalid { #x; #x; }")]
+    [TestCase("class Invalid { read(o) { return o.#missing; } }")]
+    [TestCase("class Invalid { #x; remove() { delete this.#x; } }")]
+    [TestCase("class Invalid { #x; read() { return #x; } }")]
+    [TestCase("#missing in {}")]
+    public void ParseScript_RejectsInvalidPrivateFieldSyntax(string source) =>
+        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+
+    [Test]
+    public void CompileString_RejectsPrivateFieldAccessOnWrongReceiver()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            "class Box { #value; read(value) { return value.#value; } } new Box().read({});"
+        );
+
+        Assert.Throws<JsRuntimeException>(() => realm.Execute(script));
+    }
+
+    [Test]
     public void CompileAst_ExecutesBaselineClassBridge()
     {
         var realm = JsRuntime.Create().DefaultRealm;
@@ -3691,9 +3749,23 @@ public class DirectFlatParserTests
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(3));
     }
 
+    [Test]
+    public void CompileAst_ExecutesPrivateClassFieldBridge()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            JavaScriptParser.ParseScript(
+                "class Box { #value = 2; read() { return this.#value; } } new Box().read();"
+            )
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(2));
+    }
+
     [TestCase("class Base { constructor() { super(); } }")]
     [TestCase("class Derived extends Base { method() { super(); } }")]
-    [TestCase("class Private { #value; }")]
     public void ParseScript_RejectsInvalidOrDeferredClassSyntax(string source) =>
         Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
 
