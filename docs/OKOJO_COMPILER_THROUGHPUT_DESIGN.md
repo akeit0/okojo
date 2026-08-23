@@ -224,6 +224,9 @@ The direct flat work has already established several reusable rules:
 - lower unbound identifier read/store/`typeof` through the existing global-binding
   feedback ABI; the VM remains responsible for missing-read and strict/sloppy
   unresolvable-store behavior
+- split `delete` by reference kind: property/global-object references use the
+  existing keyed-delete runtime, locals and persistent lexicals return false,
+  and evaluated non-references return true
 - instantiate function declarations at script/function/block scope entry, lift
   `var` bindings to the containing variable environment, and merge compatible
   parameter/var/function declarations into one planned storage location
@@ -261,8 +264,8 @@ go through centralized builders.
 Complete these before broad grammar because nearly every application depends on
 them:
 
-- complete identifier `delete`; unbound load/store/`typeof` and persistent script
-  declarations now use the production global-binding ABI
+- unbound load/store/`typeof`/`delete` and persistent script declarations use the
+  production global/environment ABI
 - extend the landed global declaration validation to the complete early-error
   matrix and Annex-B block-function behavior; cross-script `var`, function,
   `let`, and `const` persistence and lexical/var conflicts are covered

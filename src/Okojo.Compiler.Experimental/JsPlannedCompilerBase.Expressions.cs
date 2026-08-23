@@ -708,9 +708,10 @@ internal abstract partial class JsPlannedCompilerBase
     {
         var op = (JsUnaryOperator)node.Arg1;
         if (op == JsUnaryOperator.Delete)
-            throw new NotSupportedException(
-                $"{CompilerName} does not support the delete operator yet."
-            );
+        {
+            EmitDeleteExpression(ast, node.Arg0);
+            return;
+        }
 
         if (op == JsUnaryOperator.Typeof && ast[node.Arg0].Kind == AstKind.Identifier)
         {
@@ -754,6 +755,82 @@ internal abstract partial class JsPlannedCompilerBase
                     $"{CompilerName} does not support unary operator '{op}'."
                 );
         }
+    }
+
+    private void EmitDeleteExpression(FlatAst ast, int argumentIndex)
+    {
+        ref readonly var argument = ref ast[argumentIndex];
+        if (argument.Kind == AstKind.MemberExpression)
+        {
+            var marker = builder.GetTemporaryRegisterScopeMarker();
+            try
+            {
+                EmitExpression(ast, argument.Arg0);
+                var registers = builder.AllocateTemporaryRegisterBlock(2);
+                EmitStar(registers);
+                if (((AstMemberFlags)argument.Arg2 & AstMemberFlags.Computed) != 0)
+                    EmitExpression(ast, argument.Arg1);
+                else
+                    EmitStringLiteral(ast.GetString(argument.Arg1));
+                EmitStar(registers + 1);
+                builder.EmitCallRuntime(
+                    (int)(
+                        strictDeclared
+                            ? RuntimeId.DeleteKeyedPropertyStrict
+                            : RuntimeId.DeleteKeyedProperty
+                    ),
+                    registers,
+                    2
+                );
+            }
+            finally
+            {
+                builder.ReleaseTemporaryRegistersToMarker(marker);
+            }
+            return;
+        }
+
+        if (argument.Kind == AstKind.Identifier)
+        {
+            var name = ast.GetString(argument.Arg0);
+            if (TryResolveBinding(name, out var binding))
+            {
+                if (binding.Planned.StorageKind != CompilerPlannedStorageKind.GlobalBinding)
+                {
+                    builder.EmitLda(JsOpCode.LdaFalse);
+                    return;
+                }
+            }
+            else if (TryResolveExternalBinding(name, out _, out _))
+            {
+                builder.EmitLda(JsOpCode.LdaFalse);
+                return;
+            }
+            else if (Vm.HasGlobalLexicalBindingAtom(Vm.Atoms.InternNoCheck(name)))
+            {
+                builder.EmitLda(JsOpCode.LdaFalse);
+                return;
+            }
+
+            var marker = builder.GetTemporaryRegisterScopeMarker();
+            try
+            {
+                var registers = builder.AllocateTemporaryRegisterBlock(2);
+                EmitGlobalAccess("globalThis", JsOpCode.LdaGlobal, JsOpCode.LdaGlobalWide);
+                EmitStar(registers);
+                EmitStringLiteral(name);
+                EmitStar(registers + 1);
+                builder.EmitCallRuntime((int)RuntimeId.DeleteKeyedProperty, registers, 2);
+            }
+            finally
+            {
+                builder.ReleaseTemporaryRegistersToMarker(marker);
+            }
+            return;
+        }
+
+        EmitExpression(ast, argumentIndex);
+        builder.EmitLda(JsOpCode.LdaTrue);
     }
 
     private void EmitConditionalExpression(FlatAst ast, AstNode node, ExpressionResult result)

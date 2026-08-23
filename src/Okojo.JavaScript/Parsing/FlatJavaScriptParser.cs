@@ -912,7 +912,14 @@ internal sealed class FlatJavaScriptParser
         if (TryGetUnaryOperator(current.Kind, out var unary))
         {
             Next();
-            return Arena.Add(AstKind.UnaryExpression, ParseUnary(), (int)unary, position: position);
+            var argument = ParseUnary();
+            if (
+                unary == JsUnaryOperator.Delete
+                && strictMode
+                && Arena[argument].Kind == AstKind.Identifier
+            )
+                throw Error("Delete of an unqualified identifier in strict mode", position);
+            return Arena.Add(AstKind.UnaryExpression, argument, (int)unary, position: position);
         }
 
         if (current.Kind is JsTokenKind.PlusPlus or JsTokenKind.MinusMinus)

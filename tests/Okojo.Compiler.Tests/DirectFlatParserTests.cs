@@ -1510,6 +1510,58 @@ public class DirectFlatParserTests
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(10));
     }
 
+    [Test]
+    public void CompileString_DeletesPropertiesAndEvaluatesNonReferencesOnce()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let object = { value: 1 };
+            let effects = 0;
+            delete object[(effects += 1, 'value')]
+                && delete object.missing
+                && delete (effects += 10)
+                && effects === 11
+                && typeof object.value === 'undefined';
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.IsTrue, Is.True);
+    }
+
+    [Test]
+    public void CompileString_AppliesIdentifierAndStrictDeleteSemantics()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        realm.Execute(
+            new JsPlannedScriptCompiler(realm).Compile(
+                "var __plannedDeleteVar = 1; let __plannedDeleteLexical = 1; globalThis.__plannedDeleteTemp = 1;"
+            )
+        );
+
+        realm.Execute(new JsPlannedScriptCompiler(realm).Compile("delete __plannedDeleteVar;"));
+        Assert.That(realm.Accumulator.IsFalse, Is.True);
+        realm.Execute(new JsPlannedScriptCompiler(realm).Compile("delete __plannedDeleteLexical;"));
+        Assert.That(realm.Accumulator.IsFalse, Is.True);
+        realm.Execute(new JsPlannedScriptCompiler(realm).Compile("delete __plannedDeleteMissing;"));
+        Assert.That(realm.Accumulator.IsTrue, Is.True);
+        realm.Execute(new JsPlannedScriptCompiler(realm).Compile("delete __plannedDeleteTemp;"));
+        Assert.That(realm.Accumulator.IsTrue, Is.True);
+
+        Assert.Throws<JsParseException>(() =>
+            FlatJavaScriptParser.ParseScript("'use strict'; delete identifier;")
+        );
+        Assert.Throws<JsRuntimeException>(() =>
+            realm.Execute(
+                new JsPlannedScriptCompiler(realm).Compile(
+                    "function fail() { 'use strict'; let value = {}; Object.defineProperty(value, 'x', { configurable: false }); return delete value.x; } fail();"
+                )
+            )
+        );
+    }
+
     [TestCase("throw\n1;")]
     [TestCase("try {}")]
     [TestCase("try {} catch ({ value, value }) {}")]

@@ -53,8 +53,8 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Declarations | `var`/`let`/`const`, ordinary function declarations, function/block declaration prologues, function-scoped `var`, persistent script globals/lexicals, initial global conflict validation | classes, imports/exports, complete declaration early errors, Annex B |
 | Blocks/control | block, `if`, `while`, `do`, ordinary `for`, unlabeled `break`/`continue`, `return`, `throw`, `try`/`catch`/`finally`, empty/expression statement | `switch`, `for-in/of`, labels, `debugger` |
 | Primitive expressions | number, string, boolean, null, identifier, `this`, grouping | regexp, BigInt, templates, `super`, `new.target`, `import.meta` |
-| Operators | precedence table, assignment, arithmetic/logical/bitwise/comparison, conditionals, sequence, updates | delete completion, optional-chain operators, remaining edge-specific early errors |
-| References | locals, lexical contexts, globals/unresolvable load/store/`typeof`, named/computed properties | identifier delete, imports, private and super references |
+| Operators | precedence table, assignment, arithmetic/logical/bitwise/comparison, conditionals, sequence, updates, property/identifier/value `delete` | optional-chain operators and delete-chain behavior, remaining edge-specific early errors |
+| References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed properties | imports, private and super references |
 | Calls/construction | direct/member calls, spread calls, ordinary/spread `new`, wide operands | optional calls, dynamic import, super call |
 | Arrays/objects | holes, data properties, computed/shorthand/index keys, stable shape prefix | array/object spread emission, methods, getters/setters, legacy `__proto__` intentionally excluded |
 | Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings | class, module bindings and remaining early errors |
@@ -72,9 +72,9 @@ change diagnostics, and conceal coverage gaps.
 Syntax coverage alone is not enough to replace production compilation. The
 planned compiler still needs:
 
-- identifier-delete semantics and the remaining global declaration early-error
-  matrix; unbound references and persistent script declarations already use the
-  VM global-binding ABI
+- the remaining global declaration early-error matrix; unbound references,
+  persistent script declarations, and identifier delete use the VM/global
+  environment ABI
 - Annex-B block functions and conflicts across nested lexical/variable
   environments; ordinary local declaration hoisting and script-level conflicts
   are landed
@@ -283,6 +283,21 @@ move to context cells only in functions that observe `arguments`. No runtime typ
 or opcode is added. The object allocation occurs only when JavaScript can observe
 it.
 
+### Delete expression slice
+
+Iteration scope: lower property, local identifier, persistent global lexical,
+global object binding, unresolvable identifier, and non-reference `delete`, with
+strict unqualified-identifier early errors. Repros include `delete object[key]`,
+`delete local`, cross-script `delete lexical`, deletable host globals, and
+`delete sideEffect()`.
+
+Regression targets cover result booleans, evaluation order, configurable versus
+non-configurable properties, and strict failures. V8 emits a property delete for
+property references, `false` for resolved lexical/local references, a lookup
+delete for globals/unresolvables, and `true` after evaluating non-references.
+Okojo copies that reference split while reusing `DeleteKeyedProperty` and its
+strict variant. No new opcode or runtime allocation is required.
+
 ## Reference Lessons Applied
 
 ### V8
@@ -350,7 +365,7 @@ future shared Okojo grammar core, not two permanently divergent parsers.
 
 Implement before adding large syntax families:
 
-- identifier delete; unbound load/store/update/`typeof` and persistent script
+- unbound load/store/update/`typeof`/`delete` and persistent script
   `var`/function/lexical declarations are landed
 - complete declaration early errors and Annex-B behavior; initial root
   lexical/var/restricted-property conflicts, ordinary function/block hoisting,
