@@ -120,19 +120,18 @@ public class BytecodeOperandContractTests
         [JsOpCode.StaCurrentContextSlotWide] = 2,
         [JsOpCode.LdaCurrentContextSlotNoTdzWide] = 2,
         [JsOpCode.CreateFunctionContextWithCellsWide] = 2,
-            [JsOpCode.CreateObjectLiteral] = 2,
-            [JsOpCode.LdaNamedProperty] = 3,
-            [JsOpCode.StaNamedProperty] = 3,
-            [JsOpCode.CallRuntime] = 3,
-            [JsOpCode.InvokeIntrinsic] = 3,
-            [JsOpCode.CallAny] = 3,
-            [JsOpCode.CallUndefinedReceiver] = 3,
-            [JsOpCode.Construct] = 3,
-            [JsOpCode.CreateArrayLiteral] = 2,
-            [JsOpCode.CreateClosureWide] = 3,
-            [JsOpCode.JumpLoop] = 3,
-            
-        
+        [JsOpCode.CreateObjectLiteral] = 2,
+        [JsOpCode.LdaNamedProperty] = 3,
+        [JsOpCode.StaNamedProperty] = 3,
+        [JsOpCode.CallRuntime] = 3,
+        [JsOpCode.InvokeIntrinsic] = 3,
+        [JsOpCode.CallAny] = 3,
+        [JsOpCode.CallUndefinedReceiver] = 3,
+        [JsOpCode.Construct] = 3,
+        [JsOpCode.CreateArrayLiteral] = 2,
+        [JsOpCode.CreateClosureWide] = 3,
+        [JsOpCode.JumpLoop] = 3,
+
         [JsOpCode.LdaContextSlot] = 2,
         [JsOpCode.StaContextSlot] = 2,
         [JsOpCode.LdaContextSlotNoTdz] = 2,
@@ -252,4 +251,3 @@ public class BytecodeOperandContractTests
         );
     }
 }
-

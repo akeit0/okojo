@@ -127,9 +127,7 @@ public sealed partial class JsRealm
             if (dictionaries.TryGetValue(key, out var pool) && pool.Count != 0)
             {
                 var dictionary = (Dictionary<TKey, TValue>)pool.Pop();
-                if (
-                    comparer is not null && !ReferenceEquals(dictionary.Comparer, comparer)
-                )
+                if (comparer is not null && !ReferenceEquals(dictionary.Comparer, comparer))
                     return minCapacity > 0
                         ? new(minCapacity, comparer)
                         : new Dictionary<TKey, TValue>(comparer);
@@ -171,9 +169,7 @@ public sealed partial class JsRealm
             {
                 var set = (HashSet<T>)pool.Pop();
                 if (comparer is not null && !ReferenceEquals(set.Comparer, comparer))
-                    return minCapacity > 0
-                        ? new(minCapacity, comparer)
-                        : new HashSet<T>(comparer);
+                    return minCapacity > 0 ? new(minCapacity, comparer) : new HashSet<T>(comparer);
 
                 set.Clear();
                 set.EnsureCapacity(minCapacity);

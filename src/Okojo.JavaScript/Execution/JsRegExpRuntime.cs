@@ -91,66 +91,66 @@ internal static class JsRegExpRuntime
         return sb.ToString();
     }
 
-internal static JsValue Exec(JsRealm realm, JsRegExpObject rx, string input)
-{
-    var match = ExecMatchResult(realm, rx, input);
-    return match is null ? JsValue.Null : BuildExecResult(realm, rx, match, input);
-}
-
-/// <summary>
-///     One intrinsic RegExpExec step (R8-regexp): mirrors
-///     RegExpBuiltinExec exactly - lastIndex read/written through the
-///     receiver's property path so accessors stay observable - but returns
-///     only raw ranges (no result object, no capture substrings).
-///     Returns null when there is no match.
-/// </summary>
-internal static RegExpEngineStep? IntrinsicExecStep(
-    JsRealm realm,
-    JsRegExpObject rx,
-    string input
-)
-{
-    var global = rx.Global;
-    var sticky = rx.Sticky;
-    var useLastIndex = global || sticky;
-    var lastIndex = GetLastIndex(realm, rx);
-    var startIndex = useLastIndex ? (int)Math.Min(lastIndex, int.MaxValue) : 0;
-
-    if (useLastIndex && lastIndex > input.Length)
+    internal static JsValue Exec(JsRealm realm, JsRegExpObject rx, string input)
     {
-        SetLastIndex(realm, rx, 0);
-        return null;
+        var match = ExecMatchResult(realm, rx, input);
+        return match is null ? JsValue.Null : BuildExecResult(realm, rx, match, input);
     }
 
-    if (
-        !RegExpEngine.Default.TryMatchRanges(
-            rx.CompiledPattern,
-            input,
-            startIndex,
-            out var index,
-            out var length,
-            out var ranges,
-            out var rangeCount
-        )
+    /// <summary>
+    ///     One intrinsic RegExpExec step (R8-regexp): mirrors
+    ///     RegExpBuiltinExec exactly - lastIndex read/written through the
+    ///     receiver's property path so accessors stay observable - but returns
+    ///     only raw ranges (no result object, no capture substrings).
+    ///     Returns null when there is no match.
+    /// </summary>
+    internal static RegExpEngineStep? IntrinsicExecStep(
+        JsRealm realm,
+        JsRegExpObject rx,
+        string input
     )
     {
-        if (useLastIndex)
+        var global = rx.Global;
+        var sticky = rx.Sticky;
+        var useLastIndex = global || sticky;
+        var lastIndex = GetLastIndex(realm, rx);
+        var startIndex = useLastIndex ? (int)Math.Min(lastIndex, int.MaxValue) : 0;
+
+        if (useLastIndex && lastIndex > input.Length)
+        {
             SetLastIndex(realm, rx, 0);
-        return null;
+            return null;
+        }
+
+        if (
+            !RegExpEngine.Default.TryMatchRanges(
+                rx.CompiledPattern,
+                input,
+                startIndex,
+                out var index,
+                out var length,
+                out var ranges,
+                out var rangeCount
+            )
+        )
+        {
+            if (useLastIndex)
+                SetLastIndex(realm, rx, 0);
+            return null;
+        }
+
+        if (useLastIndex)
+            SetLastIndex(realm, rx, index + length);
+
+        return new RegExpEngineStep(index, length, ranges, rangeCount);
     }
 
-    if (useLastIndex)
-        SetLastIndex(realm, rx, index + length);
-
-    return new RegExpEngineStep(index, length, ranges, rangeCount);
-}
-
-internal readonly record struct RegExpEngineStep(
-    int Index,
-    int Length,
-    CaptureRange[] Ranges,
-    int RangeCount
-);
+    internal readonly record struct RegExpEngineStep(
+        int Index,
+        int Length,
+        CaptureRange[] Ranges,
+        int RangeCount
+    );
 
     internal static RegExpMatchResult? ExecMatchResult(
         JsRealm realm,

@@ -67,7 +67,7 @@ foreach (var line in results)
     var bSpread = MeasureBest(spread);
     var bCompact = MeasureBest(compact);
     Console.WriteLine(
-        $"A9probe  same153case spread={bSpread,8:F2}  compact={bCompact,8:F2}  delta={(bCompact / bSpread - 1),+7:P1}"
+        $"A9probe  same153case spread={bSpread, 8:F2}  compact={bCompact, 8:F2}  delta={(bCompact / bSpread - 1), +7:P1}"
     );
 }
 
