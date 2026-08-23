@@ -395,29 +395,142 @@ internal sealed class FlatJavaScriptParser
         Expect(JsTokenKind.LeftParen);
         Span<FlatParameter> initialParameters = stackalloc FlatParameter[8];
         var parameterList = new ParameterList(initialParameters);
+        ParameterNameTracker boundParameterNames = default;
+        var functionLength = 0;
+        var seenDefault = false;
+        var hasSimpleParameterList = true;
+        var hasDuplicateParameters = false;
+        var hasRestrictedParameterName = false;
+        var restParameterIndex = -1;
         try
         {
             if (current.Kind != JsTokenKind.RightParen)
             {
-                do
+                while (true)
                 {
-                    var parameter = ExpectIdentifier();
-                    parameterList.Add(
-                        new FlatParameter(
-                            Arena.AddString(GetIdentifierText(parameter)),
-                            parameter.IdentifierId,
-                            -1,
-                            -1,
-                            parameter.Position,
-                            JsFormalParameterBindingKind.Plain
-                        )
-                    );
-                    if (current.Kind is JsTokenKind.Assign or JsTokenKind.Ellipsis)
-                        throw Error(
-                            "Advanced parameters are not supported by FlatJavaScriptParser",
-                            current.Position
+                    if (Match(JsTokenKind.Ellipsis))
+                    {
+                        hasSimpleParameterList = false;
+                        seenDefault = true;
+                        restParameterIndex = parameterList.Count;
+                        var restPosition = current.Position;
+                        if (current.Kind is JsTokenKind.LeftBracket or JsTokenKind.LeftBrace)
+                        {
+                            var pattern = ParseBindingTarget();
+                            TrackParameterPatternNames(
+                                pattern,
+                                ref boundParameterNames,
+                                ref hasDuplicateParameters,
+                                ref hasRestrictedParameterName
+                            );
+                            parameterList.Add(
+                                new FlatParameter(
+                                    Arena.AddString(
+                                        $"$rest_pattern_{functionDepth}_{restPosition}"
+                                    ),
+                                    -1,
+                                    -1,
+                                    pattern,
+                                    restPosition,
+                                    JsFormalParameterBindingKind.RestPattern
+                                )
+                            );
+                        }
+                        else
+                        {
+                            var parameter = ExpectIdentifier();
+                            var parameterName = GetIdentifierText(parameter);
+                            TrackParameterName(
+                                parameterName,
+                                ref boundParameterNames,
+                                ref hasDuplicateParameters,
+                                ref hasRestrictedParameterName
+                            );
+                            parameterList.Add(
+                                new FlatParameter(
+                                    Arena.AddString(parameterName),
+                                    parameter.IdentifierId,
+                                    -1,
+                                    -1,
+                                    parameter.Position,
+                                    JsFormalParameterBindingKind.Rest
+                                )
+                            );
+                        }
+
+                        if (current.Kind == JsTokenKind.Comma)
+                            throw Error("Rest parameter must be last", current.Position);
+                        break;
+                    }
+
+                    var parameterPosition = current.Position;
+                    if (current.Kind is JsTokenKind.LeftBracket or JsTokenKind.LeftBrace)
+                    {
+                        hasSimpleParameterList = false;
+                        var pattern = ParseBindingTarget();
+                        TrackParameterPatternNames(
+                            pattern,
+                            ref boundParameterNames,
+                            ref hasDuplicateParameters,
+                            ref hasRestrictedParameterName
                         );
-                } while (Match(JsTokenKind.Comma));
+                        var initializer = Match(JsTokenKind.Assign)
+                            ? ParseAssignment(allowIn: true)
+                            : -1;
+                        if (initializer >= 0)
+                            seenDefault = true;
+                        if (!seenDefault)
+                            functionLength++;
+                        parameterList.Add(
+                            new FlatParameter(
+                                Arena.AddString(
+                                    $"$param_pattern_{functionDepth}_{parameterPosition}"
+                                ),
+                                -1,
+                                initializer,
+                                pattern,
+                                parameterPosition,
+                                JsFormalParameterBindingKind.Pattern
+                            )
+                        );
+                    }
+                    else
+                    {
+                        var parameter = ExpectIdentifier();
+                        var parameterName = GetIdentifierText(parameter);
+                        TrackParameterName(
+                            parameterName,
+                            ref boundParameterNames,
+                            ref hasDuplicateParameters,
+                            ref hasRestrictedParameterName
+                        );
+                        var initializer = Match(JsTokenKind.Assign)
+                            ? ParseAssignment(allowIn: true)
+                            : -1;
+                        if (initializer >= 0)
+                        {
+                            hasSimpleParameterList = false;
+                            seenDefault = true;
+                        }
+                        if (!seenDefault)
+                            functionLength++;
+                        parameterList.Add(
+                            new FlatParameter(
+                                Arena.AddString(parameterName),
+                                parameter.IdentifierId,
+                                initializer,
+                                -1,
+                                parameter.Position,
+                                JsFormalParameterBindingKind.Plain
+                            )
+                        );
+                    }
+
+                    if (!Match(JsTokenKind.Comma))
+                        break;
+                    if (current.Kind == JsTokenKind.RightParen)
+                        break;
+                }
             }
             Expect(JsTokenKind.RightParen);
             var parameterRange = ast.AddParameters(parameterList.AsSpan());
@@ -438,17 +551,26 @@ internal sealed class FlatJavaScriptParser
             }
             var effectiveStrict = strictBeforeFunction || strictDeclared;
             strictMode = strictBeforeFunction;
+            if (strictDeclared && !hasSimpleParameterList)
+                throw Error(
+                    "Illegal 'use strict' directive in function with non-simple parameters",
+                    position
+                );
+            if (hasDuplicateParameters && (effectiveStrict || !hasSimpleParameterList))
+                throw Error("Duplicate parameter name", position);
+            if (effectiveStrict && hasRestrictedParameterName)
+                throw Error("Unexpected eval or arguments in strict mode", position);
             var functionIndex = ast.AddFunction(
                 new FlatFunctionInfo(
                     Arena.AddString(name),
                     nameToken.IdentifierId,
                     parameterRange.Offset,
                     parameterRange.Count,
-                    parameterRange.Count,
-                    -1,
+                    functionLength,
+                    restParameterIndex,
                     effectiveStrict,
-                    true,
-                    false,
+                    hasSimpleParameterList,
+                    hasDuplicateParameters,
                     position
                 )
             );
@@ -458,6 +580,72 @@ internal sealed class FlatJavaScriptParser
         {
             parameterList.Dispose();
         }
+    }
+
+    private void TrackParameterPatternNames(
+        int nodeIndex,
+        ref ParameterNameTracker names,
+        ref bool hasDuplicate,
+        ref bool hasRestrictedName
+    )
+    {
+        ref readonly var node = ref Arena[nodeIndex];
+        switch (node.Kind)
+        {
+            case AstKind.Identifier:
+                TrackParameterName(
+                    Arena.GetString(node.Arg0),
+                    ref names,
+                    ref hasDuplicate,
+                    ref hasRestrictedName
+                );
+                return;
+            case AstKind.AssignmentExpression:
+            case AstKind.SpreadElement:
+                TrackParameterPatternNames(
+                    node.Arg0,
+                    ref names,
+                    ref hasDuplicate,
+                    ref hasRestrictedName
+                );
+                return;
+            case AstKind.ArrayBindingPattern:
+                var elements = Arena.ChildRange(node.Arg0, node.Arg1);
+                for (var i = 0; i < elements.Length; i++)
+                    if (elements[i] >= 0)
+                        TrackParameterPatternNames(
+                            elements[i],
+                            ref names,
+                            ref hasDuplicate,
+                            ref hasRestrictedName
+                        );
+                return;
+            case AstKind.ObjectBindingPattern:
+                var properties = ast.GetObjectProperties(node.Arg0, node.Arg1);
+                for (var i = 0; i < properties.Length; i++)
+                    TrackParameterPatternNames(
+                        properties[i].ValueNode,
+                        ref names,
+                        ref hasDuplicate,
+                        ref hasRestrictedName
+                    );
+                return;
+            default:
+                throw Error("Invalid parameter binding pattern", Arena.GetPosition(nodeIndex));
+        }
+    }
+
+    private static void TrackParameterName(
+        string name,
+        ref ParameterNameTracker names,
+        ref bool hasDuplicate,
+        ref bool hasRestrictedName
+    )
+    {
+        if (!names.Add(name))
+            hasDuplicate = true;
+        if (name is "eval" or "arguments")
+            hasRestrictedName = true;
     }
 
     private int ParseIfStatement()
@@ -1184,6 +1372,33 @@ internal sealed class FlatJavaScriptParser
         precedence = info.Precedence;
         rightAssociative = info.IsRightAssociative;
         return true;
+    }
+
+    private struct ParameterNameTracker
+    {
+        private string? first;
+        private string? second;
+        private HashSet<string>? names;
+
+        public bool Add(string name)
+        {
+            if (first is null)
+            {
+                first = name;
+                return true;
+            }
+            if (string.Equals(first, name, StringComparison.Ordinal))
+                return false;
+            if (second is null)
+            {
+                second = name;
+                return true;
+            }
+            if (string.Equals(second, name, StringComparison.Ordinal))
+                return false;
+            names ??= new HashSet<string>(StringComparer.Ordinal) { first, second };
+            return names.Add(name);
+        }
     }
 
     private ref struct NodeList

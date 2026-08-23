@@ -35,7 +35,8 @@ internal sealed partial class JsPlannedFunctionCompiler
             ),
             collected,
             ast,
-            ast.Root
+            ast.Root,
+            null
         );
     }
 
@@ -64,7 +65,8 @@ internal sealed partial class JsPlannedFunctionCompiler
             ),
             collected,
             ast,
-            bodyRoot
+            bodyRoot,
+            function
         );
     }
 
@@ -72,14 +74,22 @@ internal sealed partial class JsPlannedFunctionCompiler
         in FunctionCompileMetadata metadata,
         CompilerBindingCollectionResult collected,
         FlatAst ast,
-        int bodyRoot
+        int bodyRoot,
+        FlatFunctionInfo? flatFunction
     )
     {
+        if (!metadata.HasSimpleParameterList && flatFunction is null)
+            throw new NotSupportedException("Advanced parameters require flat function metadata.");
         builder.SetStrictDeclared(metadata.StrictDeclared);
         using var plan = CompilerStoragePlanner.Plan(collected);
         InitializePlanIndexes(collected, plan);
-        InitializeRootBindings();
+        for (var i = 0; i < metadata.ParameterCount; i++)
+            builder.AllocatePinnedRegister();
+        InitializeRootBindings(parameterRegisterByName);
+        initializeParametersInPrologue = !metadata.HasSimpleParameterList;
         EmitFunctionContextSetup();
+        if (flatFunction is { } function)
+            EmitParameterPrologue(ast, function);
 
         ref readonly var root = ref ast[bodyRoot];
         var statements = ast.ChildRange(root.Arg0, root.Arg1);
@@ -119,9 +129,8 @@ internal sealed partial class JsPlannedFunctionCompiler
         for (var i = 0; i < parameterPlan.Bindings.Count; i++)
         {
             var binding = parameterPlan.Bindings[i];
-            parameterRegisterByName.TryAdd(binding.Name, i);
-            for (var j = 0; j < binding.BoundIdentifiers.Count; j++)
-                parameterRegisterByName.TryAdd(binding.BoundIdentifiers[j].Name, i);
+            if (!binding.IsPattern)
+                parameterRegisterByName[binding.Name] = i;
         }
     }
 
@@ -130,7 +139,12 @@ internal sealed partial class JsPlannedFunctionCompiler
         parameterRegisterByName.Clear();
         var parameters = ast.GetParameters(function);
         for (var i = 0; i < parameters.Length; i++)
-            parameterRegisterByName.TryAdd(ast.GetString(parameters[i].NameStringIndex), i);
+            if (
+                parameters[i].Kind
+                is JsFormalParameterBindingKind.Plain
+                    or JsFormalParameterBindingKind.Rest
+            )
+                parameterRegisterByName[ast.GetString(parameters[i].NameStringIndex)] = i;
     }
 
     private readonly record struct FunctionCompileMetadata(

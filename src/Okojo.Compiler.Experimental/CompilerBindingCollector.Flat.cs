@@ -44,6 +44,7 @@ internal static partial class CompilerBindingCollector
         private readonly PooledArrayBuilder<CompilerCollectedBinding> bindings = new(32);
         private readonly PooledArrayBuilder<CompilerCollectedReference> references = new(64);
         private int nextScopeId = 1;
+        private int parameterBodyScopeId = -1;
 
         public FlatCollector(
             CompilerCollectedScopeKind rootKind = CompilerCollectedScopeKind.Program
@@ -350,7 +351,8 @@ internal static partial class CompilerBindingCollector
                         new CompilerCollectedReference(
                             scopeId,
                             ast.GetString(node.Arg0),
-                            ast.GetPosition(nodeIndex)
+                            ast.GetPosition(nodeIndex),
+                            parameterBodyScopeId
                         )
                     );
                     return;
@@ -419,21 +421,27 @@ internal static partial class CompilerBindingCollector
             for (var i = 0; i < parameterPlan.Bindings.Count; i++)
             {
                 var binding = parameterPlan.Bindings[i];
-                AddBinding(
-                    scopeId,
-                    CompilerCollectedBindingKind.Parameter,
-                    binding.Name,
-                    binding.NameId,
-                    position: binding.Position
-                );
-                for (var j = 0; j < binding.BoundIdentifiers.Count; j++)
+                if (binding.IsPattern)
                 {
-                    var bound = binding.BoundIdentifiers[j];
+                    for (var j = 0; j < binding.BoundIdentifiers.Count; j++)
+                    {
+                        var bound = binding.BoundIdentifiers[j];
+                        AddBinding(
+                            scopeId,
+                            CompilerCollectedBindingKind.Parameter,
+                            bound.Name,
+                            bound.NameId,
+                            position: binding.Position
+                        );
+                    }
+                }
+                else
+                {
                     AddBinding(
                         scopeId,
                         CompilerCollectedBindingKind.Parameter,
-                        bound.Name,
-                        bound.NameId,
+                        binding.Name,
+                        binding.NameId,
                         position: binding.Position
                     );
                 }
@@ -443,22 +451,36 @@ internal static partial class CompilerBindingCollector
         private void CollectFlatParameters(FlatAst ast, in FlatFunctionInfo function, int scopeId)
         {
             var parameters = ast.GetParameters(function);
-            for (var i = 0; i < parameters.Length; i++)
+            var previousParameterBodyScopeId = parameterBodyScopeId;
+            parameterBodyScopeId = scopeId;
+            try
             {
-                ref readonly var parameter = ref parameters[i];
-                if (!parameter.IsSimple)
-                    throw new NotSupportedException(
-                        "Flat planned compilation does not support advanced parameters yet."
-                    );
-                AddBinding(
-                    scopeId,
-                    CompilerCollectedBindingKind.Parameter,
-                    ast.GetString(parameter.NameStringIndex),
-                    parameter.NameId,
-                    position: parameter.Position
-                );
-                if (parameter.InitializerNode >= 0)
-                    VisitExpression(ast, parameter.InitializerNode, scopeId);
+                for (var i = 0; i < parameters.Length; i++)
+                {
+                    ref readonly var parameter = ref parameters[i];
+                    if (parameter.PatternNode >= 0)
+                        VisitBindingPattern(
+                            ast,
+                            parameter.PatternNode,
+                            scopeId,
+                            CompilerCollectedBindingKind.Parameter,
+                            isConst: false
+                        );
+                    else
+                        AddBinding(
+                            scopeId,
+                            CompilerCollectedBindingKind.Parameter,
+                            ast.GetString(parameter.NameStringIndex),
+                            parameter.NameId,
+                            position: parameter.Position
+                        );
+                    if (parameter.InitializerNode >= 0)
+                        VisitExpression(ast, parameter.InitializerNode, scopeId);
+                }
+            }
+            finally
+            {
+                parameterBodyScopeId = previousParameterBodyScopeId;
             }
         }
 

@@ -134,7 +134,7 @@ internal static class FlatAstLowerer
                             : LowerExpression(function.ParameterInitializers[i]!),
                         function.ParameterPatterns[i] is null
                             ? -1
-                            : LowerExpression(function.ParameterPatterns[i]!),
+                            : LowerBindingPattern(function.ParameterPatterns[i]!),
                         function.ParameterPositions[i],
                         function.ParameterBindingKinds[i]
                     );

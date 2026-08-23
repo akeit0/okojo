@@ -213,6 +213,26 @@ public class JsPlannedFunctionCompilerTests
     }
 
     [Test]
+    public void CompileScript_ExecutesClassBridgePatternParametersInSourceOrder()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var program = JavaScriptParser.ParseScript(
+            """
+            function read({ a = 1, ...rest } = {}, [first, ...tail], value = a, ...extra) {
+                return a + rest.b + first + tail.length + value + extra.length;
+            }
+            read({ b: 2 }, [3, 4], undefined, 5, 6);
+            """
+        );
+        var script = compiler.Compile(program);
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(10));
+    }
+
+    [Test]
     public void CompileFunction_ProducesBytecodeForParametersAndReturn()
     {
         var realm = JsRuntime.Create().DefaultRealm;

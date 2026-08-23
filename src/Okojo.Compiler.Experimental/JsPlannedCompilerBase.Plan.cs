@@ -47,7 +47,9 @@ internal abstract partial class JsPlannedCompilerBase
                 childScopes[childCursors[scope.ParentScopeId]++] = scope;
     }
 
-    protected void InitializeRootBindings()
+    protected void InitializeRootBindings(
+        IReadOnlyDictionary<string, int>? preallocatedParameterRegisters = null
+    )
     {
         rootContextSlotCount = 0;
         var allocated = new List<BindingStorage>();
@@ -59,6 +61,12 @@ internal abstract partial class JsPlannedCompilerBase
             {
                 CompilerPlannedStorageKind.ImportBinding => -1,
                 CompilerPlannedStorageKind.ContextSlot => -1,
+                _ when binding.Kind == CompilerCollectedBindingKind.Parameter
+                        && preallocatedParameterRegisters is not null
+                        && preallocatedParameterRegisters.TryGetValue(
+                            binding.Name,
+                            out var parameterRegister
+                        ) => parameterRegister,
                 _ => builder.AllocatePinnedRegister(),
             };
             if (binding.StorageKind == CompilerPlannedStorageKind.ContextSlot)

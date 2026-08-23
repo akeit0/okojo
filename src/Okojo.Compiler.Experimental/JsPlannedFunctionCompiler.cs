@@ -6,6 +6,7 @@ internal sealed partial class JsPlannedFunctionCompiler : JsPlannedCompilerBase
 {
     private readonly IReadOnlyDictionary<string, CapturedBindingAccess> inheritedCaptures;
     private readonly Dictionary<string, int> parameterRegisterByName;
+    private bool initializeParametersInPrologue;
 
     public JsPlannedFunctionCompiler(
         JsRealm realm,
@@ -40,6 +41,8 @@ internal sealed partial class JsPlannedFunctionCompiler : JsPlannedCompilerBase
 
     protected override void EmitRootContextBindings()
     {
+        if (initializeParametersInPrologue)
+            return;
         var rootScope = activeScopes.Peek();
         for (var i = 0; i < rootScope.Bindings.Count; i++)
         {

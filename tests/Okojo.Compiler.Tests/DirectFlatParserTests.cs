@@ -71,6 +71,158 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void ParseScript_StoresAdvancedFunctionParameterMetadataAndPatterns()
+    {
+        using var ast = FlatJavaScriptParser.ParseScript(
+            "function read(a, { b }, c = 1, ...rest) { return b; }"
+        );
+
+        ref readonly var root = ref ast[ast.Root];
+        var declaration = ast[ast.ChildRange(root.Arg0, root.Arg1)[0]];
+        var function = ast.GetFunction(declaration.Arg0);
+        var parameters = ast.GetParameters(function);
+
+        Assert.That(function.FunctionLength, Is.EqualTo(2));
+        Assert.That(function.RestParameterIndex, Is.EqualTo(3));
+        Assert.That(function.HasSimpleParameterList, Is.False);
+        Assert.That(parameters[1].Kind, Is.EqualTo(JsFormalParameterBindingKind.Pattern));
+        Assert.That(ast[parameters[1].PatternNode].Kind, Is.EqualTo(AstKind.ObjectBindingPattern));
+        Assert.That(parameters[2].InitializerNode, Is.GreaterThanOrEqualTo(0));
+        Assert.That(parameters[3].Kind, Is.EqualTo(JsFormalParameterBindingKind.Rest));
+    }
+
+    [Test]
+    public void CompileString_ExecutesOrderedPatternDefaultAndRestParameters()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile(
+            """
+            function read({ a = 1, b = 2, ...rest } = {}, [first, ...tail] = [3], value = a + b, ...extra) {
+                return a + b + rest.c + first + tail.length + value + extra.length;
+            }
+            read({ c: 4 }, [5, 6], undefined, 7, 8);
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(18));
+    }
+
+    [Test]
+    public void CompileString_EnforcesParameterTdzAndCapturesPatternBindings()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var captureScript = compiler.Compile(
+            """
+            function make([value] = [42]) {
+                function read() { return value; }
+                return read;
+            }
+            make()();
+            """
+        );
+        var tdzScript = new JsPlannedScriptCompiler(realm).Compile(
+            "function fail(first = second, second = 2) { return first; } fail;"
+        );
+
+        realm.Execute(captureScript);
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(42));
+        realm.Execute(tdzScript);
+        var fail = (JsFunction)realm.Accumulator.Obj!;
+        Assert.Throws<JsRuntimeException>(() =>
+            realm.InvokeFunction(fail, JsValue.Undefined, ReadOnlySpan<JsValue>.Empty)
+        );
+    }
+
+    [Test]
+    public void CompileString_ParameterInitializerSkipsBodyVarBinding()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile(
+            "let value = 42; function read(result = value) { var value = 1; return result; } read();"
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(42));
+    }
+
+    [Test]
+    public void CompileString_ExecutesRestPatternParameter()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile(
+            "function sum(...[first, second, ...tail]) { return first + second + tail.length; } sum;"
+        );
+
+        realm.Execute(script);
+        var sum = (JsFunction)realm.Accumulator.Obj!;
+        var result = realm.InvokeFunction(sum, JsValue.Undefined, [20, 21, 0]);
+
+        Assert.That(result.Int32Value, Is.EqualTo(42));
+    }
+
+    [Test]
+    public void CompileString_UsesLastSloppyDuplicateSimpleParameter()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile("function last(value, value) { return value; } last(1, 42);");
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(42));
+    }
+
+    [Test]
+    public void CompileString_ClosesParameterPatternIteratorWhenDefaultThrows()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        realm.Evaluate("globalThis.__flatParameterIteratorClosed = 0;");
+        var iterable = realm.Evaluate(
+            """
+            ({
+                [Symbol.iterator]() {
+                    return {
+                        next() { return { value: undefined, done: false }; },
+                        return() {
+                            __flatParameterIteratorClosed++;
+                            return { done: true };
+                        }
+                    };
+                }
+            })
+            """
+        );
+        var fail = realm.Evaluate("(function () { throw new Error('boom'); })");
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile(
+            "function run(fail, [value = fail()]) { return value; } run;"
+        );
+        realm.Execute(script);
+        var run = (JsFunction)realm.Accumulator.Obj!;
+
+        Assert.Throws<JsRuntimeException>(() =>
+            realm.InvokeFunction(run, JsValue.Undefined, [fail, iterable])
+        );
+        Assert.That(realm.Evaluate("__flatParameterIteratorClosed").Int32Value, Is.EqualTo(1));
+    }
+
+    [TestCase("function invalid(a, a = 1) {}")]
+    [TestCase("function invalid({ a }, a) {}")]
+    [TestCase("function invalid(a = 1) { 'use strict'; }")]
+    [TestCase("'use strict'; function invalid(a, a) {}")]
+    public void ParseScript_RejectsInvalidNonSimpleParameterLists(string source)
+    {
+        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+    }
+
+    [Test]
     public void CompileString_ExecutesDirectFlatLoop()
     {
         var realm = JsRuntime.Create().DefaultRealm;

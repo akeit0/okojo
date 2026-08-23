@@ -30,6 +30,16 @@ internal abstract partial class JsPlannedCompilerBase
         {
             for (var i = 0; i < scope.Bindings.Count; i++)
             {
+                if (
+                    emittingParameterInitializers
+                    && scope.ScopeId == 0
+                    && scope.Bindings[i].Planned.Kind
+                        is not (
+                            CompilerCollectedBindingKind.Parameter
+                            or CompilerCollectedBindingKind.FunctionNameSelf
+                        )
+                )
+                    continue;
                 if (!string.Equals(scope.Bindings[i].Planned.Name, name, StringComparison.Ordinal))
                     continue;
                 binding = scope.Bindings[i];

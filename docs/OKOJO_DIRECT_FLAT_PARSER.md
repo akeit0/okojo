@@ -49,6 +49,12 @@ The destructuring-assignment slice reuses the dense array/object expression shap
 as an assignment-only cover grammar. It covers identifier and named/computed
 member targets, defaults, nesting, elisions, final rest targets, original-RHS
 completion values, and abrupt iterator close without creating class-AST nodes.
+The formal-parameter slice stores plain, defaulted, rest, array-pattern, and
+object-pattern entries in the existing pooled `FlatParameter` table. Incoming
+argument registers remain an ABI prefix; an ordered prologue establishes TDZ,
+applies each outer default, and initializes that parameter's pattern before the
+next parameter so later defaults can observe earlier bindings. Parameter
+initializer references also skip bindings declared only in the function body.
 
 ## Minimal Repros
 
@@ -121,6 +127,12 @@ let objectResult = ({ a: target.value, ...rest } = objectSource);
 arrayResult === arraySource && objectResult === objectSource;
 ```
 
+```js
+function read({ a = 1, ...rest } = {}, [first, ...tail], value = a, ...extra) {
+  return a + rest.b + first + tail.length + value + extra.length;
+}
+```
+
 ## Planned Tests
 
 - `tests/Okojo.Compiler.Tests/DirectFlatParserTests.cs`
@@ -143,6 +155,8 @@ arrayResult === arraySource && objectResult === objectSource;
     nullish rejection, wide operands, and class bridging
   - destructuring assignment target order, defaults, nesting, rest, completion
     values, abrupt iterator close, computed member evaluation, and class bridging
+  - formal parameter defaults, array/object patterns, rest/rest-pattern forms,
+    function length, TDZ/order, duplicate/strict errors, capture, and class bridging
 
 ## Reference Observations
 
@@ -222,6 +236,15 @@ reference operations. Production Okojo's array-assignment fallback packages
 targets into runtime thunks; the direct flat path intentionally emits the normal
 step/load/store opcode sequence instead.
 
+V8 keeps incoming arguments in the frame prefix, materializes rest, then processes
+outer defaults and each parameter pattern in source order. In particular, a later
+default can read names initialized by an earlier pattern. The flat compiler copies
+that observable order, snapshots the raw argument prefix before reusing parameter
+registers, and reuses the declaration binding emitter for nested pattern work.
+Production Okojo currently runs every outer initializer before every pattern,
+which incorrectly leaves earlier pattern names in TDZ for later defaults; the flat
+path intentionally corrects that ordering.
+
 For captured `for (let ...)` heads, V8 creates a new block context for each
 iteration and moves the value through the update path. Production Okojo clones a
 function context because its loop aliases share function-level cells. The flat
@@ -244,6 +267,8 @@ outer capture depths unchanged and retains old contexts only through closures.
 - retain normalized computed object-binding keys only until a following rest copy
 - reuse binding-pattern iterator/property operations for assignments while
   retaining only the RHS and currently prepared member reference
+- reserve the incoming argument prefix and release its snapshot immediately after
+  the ordered advanced-parameter prologue
 
 Initial Release measurement for 80 declaration/update pairs after warm-up:
 
@@ -253,7 +278,7 @@ Initial Release measurement for 80 declaration/update pairs after warm-up:
 
 ## Deferred
 
-- templates, classes, modules, and destructuring parameter forms
+- templates, classes, and modules
 - object methods, accessors, and spread
 - array spread
 - optional chaining, `new.target`, and private/super members

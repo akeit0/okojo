@@ -274,6 +274,12 @@ iterator/property runtime operations. The emitter preserves the original RHS,
 prepares member references at their specified evaluation point, releases their
 temporary registers after each store, and emits direct step/load/store bytecode
 instead of the production compiler's array-target thunk package.
+Advanced formal parameters now remain in the pooled parameter/pattern tables.
+The function compiler reserves the raw argument-register prefix, materializes a
+rest value before local registers can overlap extra actual arguments, snapshots
+formal arguments, establishes parameter TDZ, then applies each outer default and
+pattern in source order. Bound pattern names reuse the existing declaration
+destructuring emitter and are allocated after the incoming ABI prefix.
 Captured ordinary `for` heads now use per-iteration sibling-context replacement.
 The loop-head context is copied and replaced before the first test and before each
 update, so closures retain the prior iteration without inserting an extra context

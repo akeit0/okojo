@@ -11,7 +11,7 @@
 - [ ] tighten the remaining intended first-class `JsRuntime` / `JsRealm` API surface against the clean API plan
 - [ ] clarify `Okojo.Hosting` presets and keep environment globals separate from embedder control APIs
 - [ ] complete the experimental compiler and make it usable in real execution paths
-- [ ] expand direct flat parsing beyond completed calls/member loads, data literals, bindings, and destructuring assignments through pattern parameters, classes, and modules before replacing the production class parser
+- [ ] expand direct flat parsing beyond completed calls/member loads, data literals, bindings, destructuring assignments, and pattern parameters through classes and modules before replacing the production class parser
 - [ ] improve hot-path runtime allocation and branch behavior
 - [ ] improve `Okojo.Node` compatibility against real Node-facing workloads
 - [ ] attempt a real HTML/CSS renderer integration for DOM-manipulation browser compatibility testing

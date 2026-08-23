@@ -316,7 +316,13 @@ internal abstract partial class JsPlannedCompilerBase
             var name = ast.GetString(target.Arg0);
             if (!TryResolveBinding(name, out var binding))
                 throw new InvalidOperationException($"No planned binding found for '{name}'.");
-            EmitStore(binding);
+            if (
+                emittingParameterInitializers
+                && binding.Planned.Kind == CompilerCollectedBindingKind.Parameter
+            )
+                EmitInitializeParameterStore(binding);
+            else
+                EmitStore(binding);
             return;
         }
 

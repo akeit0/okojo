@@ -15,6 +15,7 @@ internal abstract partial class JsPlannedCompilerBase
     private int[] childScopeOffsets = [];
     private int[] childScopeCounts = [];
     protected int rootContextSlotCount;
+    protected bool emittingParameterInitializers;
 
     protected JsPlannedCompilerBase(JsRealm realm)
     {
