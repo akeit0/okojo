@@ -463,3 +463,26 @@ exercises: property-get IC hit rate, CallProperty arm, frame push/pop,
 callee entry/exit, and arguments window setup.
 
 Benchmark: Okojo 4,246us vs Jint 954us = 4.5x slower.
+
+## 9c. Compile throughput - lock removal landed, further targets identified
+
+Landed: removed `lock(gate)` from CompileCollectionPool. Compilation is
+single-threaded per realm; the pool is an instance field. Result: compile
+time 13.94ms -> 5.66ms (-59%) on linq-js; end-to-end reversed from
+4.5x slower to 4x faster than Jint.
+
+Post-fix trace shows remaining compile-phase costs:
+
+1. PollGC 29.8% - allocation-driven GC. Sources: AST record nodes,
+   hashsets/dictionaries in capture analysis, string allocations.
+   Fix: pooled/struct-based AST nodes (major refactor), or reduced
+   intermediate collection creation.
+2. MarkCapturedNamesReferencedByNestedFunction ~7% inclusive.
+   Walks identifiers per nested function to find captures.
+   Fix: cache results per scope, or combine with PrecomputeDirectChildCaptures.
+3. CastHelpers.IsInstanceOfClass 4.5%. Type dispatch via `is` patterns.
+   Fix: switch to explicit type codes or generic constraints where possible.
+4. Tokenizer ReadIdentifier+TryReadToken+GetCharFlags ~3%.
+   Already fast; marginal gains only.
+
+All are non-trivial refactors requiring their own investigation cycle.
