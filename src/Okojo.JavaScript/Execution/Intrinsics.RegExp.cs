@@ -822,33 +822,84 @@ public partial class Intrinsics
 
                 var result = realm.CreateArrayObject();
                 uint resultIndex = 0;
+
+                // R8-regexp fast path: when exec still resolves to the
+                // intrinsic (re-checked EVERY iteration - the get is part of
+                // RegExpExec and is observable), step RegExpEngine directly.
+                // lastIndex is read/written through the receiver's property
+                // path inside IntrinsicExecStep so accessors stay observable.
+                // Any deviation falls back to RegExpExecGeneric mid-stream.
+                var rx = thisValue.AsObject() as JsRegExpObject;
+                var canStepFast = rx is not null;
+
                 while (true)
                 {
-                    var step = RegExpExecGeneric(realm, thisValue, input);
-                    if (step.IsNull || !step.TryGetObject(out var stepObj))
+                    if (
+                        !obj.TryGetPropertyAtom(realm, IdExec, out var iterExecValue, out _)
+                        || !iterExecValue.TryGetObject(out var iterExecObj)
+                        || !ReferenceEquals(iterExecObj, execFn)
+                    )
+                    {
+                        // Custom or missing exec: use the generic algorithm
+                        // for this and all remaining iterations.
+                        var step = RegExpExecGeneric(realm, thisValue, input);
+                        if (step.IsNull || !step.TryGetObject(out var stepObj))
+                            break;
+
+                        var matchEntry = stepObj.TryGetProperty("0", out var stepValue)
+                            ? stepValue
+                            : JsValue.FromString(string.Empty);
+                        FreshArrayOperations.DefineElement(result, resultIndex++, matchEntry);
+
+                        var matchedStr = realm.ToJsStringSlowPath(matchEntry);
+                        if (matchedStr.Length == 0)
+                        {
+                            var li = obj.TryGetPropertyAtom(
+                                realm,
+                                IdLastIndex,
+                                out var lastIndexValue,
+                                out _
+                            )
+                                ? ToLength(lastIndexValue, realm)
+                                : 0;
+                            SetPropertyAtomOrThrow(
+                                realm,
+                                obj,
+                                IdLastIndex,
+                                FromLengthValue(AdvanceStringIndexLong(input, li, fullUnicode)),
+                                "[Symbol.match]"
+                            );
+                        }
+                        continue;
+                    }
+
+                    // Intrinsic exec: direct engine step.
+                    var engineStep = JsRegExpRuntime.IntrinsicExecStep(realm, rx!, input);
+                    if (engineStep is null)
                         break;
 
-                    var matchEntry = stepObj.TryGetProperty("0", out var stepValue)
-                        ? stepValue
-                        : JsValue.FromString(string.Empty);
-                    FreshArrayOperations.DefineElement(result, resultIndex++, matchEntry);
+                    var m = input.Substring(engineStep.Value.Index, engineStep.Value.Length);
+                    FreshArrayOperations.DefineElement(
+                        result,
+                        resultIndex++,
+                        JsValue.FromString(m)
+                    );
 
-                    var matched = realm.ToJsStringSlowPath(matchEntry);
-                    if (matched.Length == 0)
+                    if (m.Length == 0)
                     {
-                        var lastIndex = obj.TryGetPropertyAtom(
+                        var curLi = obj.TryGetPropertyAtom(
                             realm,
                             IdLastIndex,
-                            out var lastIndexValue,
+                            out var curLiValue,
                             out _
                         )
-                            ? ToLength(lastIndexValue, realm)
+                            ? ToLength(curLiValue, realm)
                             : 0;
                         SetPropertyAtomOrThrow(
                             realm,
                             obj,
                             IdLastIndex,
-                            FromLengthValue(AdvanceStringIndexLong(input, lastIndex, fullUnicode)),
+                            FromLengthValue(AdvanceStringIndexLong(input, curLi, fullUnicode)),
                             "[Symbol.match]"
                         );
                     }
@@ -1209,9 +1260,27 @@ public partial class Intrinsics
 
                         RegExpMatchResult? rawMatch = null;
                         JsObject? matchObj = null;
-                        if (ReferenceEquals(execFunction, execFn) && obj is JsRegExpObject rx)
+                        int intrinsicStart = -1,
+                            intrinsicLength = 0;
+                        bool usedIntrinsicStep = false;
+                        if (
+                            !replacementNeedsSubstitution
+                            && ReferenceEquals(execFunction, execFn)
+                            && obj is JsRegExpObject rxFast
+                        )
                         {
-                            rawMatch = JsRegExpRuntime.ExecMatchResult(realm, rx, input);
+                            // R8-regexp: plain-string template needs only
+                            // group-0 position; skip full match-result build.
+                            var step = JsRegExpRuntime.IntrinsicExecStep(realm, rxFast, input);
+                            if (step is null)
+                                break;
+                            intrinsicStart = step.Value.Index;
+                            intrinsicLength = step.Value.Length;
+                            usedIntrinsicStep = true;
+                        }
+                        else if (ReferenceEquals(execFunction, execFn) && obj is JsRegExpObject rx2)
+                        {
+                            rawMatch = JsRegExpRuntime.ExecMatchResult(realm, rx2, input);
                             if (rawMatch is null)
                                 break;
                         }
@@ -1232,7 +1301,8 @@ public partial class Intrinsics
                         }
 
                         var matchIndex =
-                            rawMatch is not null ? rawMatch.Index
+                            usedIntrinsicStep ? intrinsicStart
+                            : rawMatch is not null ? rawMatch.Index
                             : matchObj!.TryGetPropertyAtom(
                                 realm,
                                 IdIndex,
@@ -1242,7 +1312,8 @@ public partial class Intrinsics
                                 ? (int)ToLength(indexValue, realm)
                             : 0;
                         var matched =
-                            rawMatch is not null ? rawMatch.Groups[0] ?? string.Empty
+                            usedIntrinsicStep ? input.Substring(intrinsicStart, intrinsicLength)
+                            : rawMatch is not null ? rawMatch.Groups[0] ?? string.Empty
                             : matchObj!.TryGetElement(0, out var matchedValue)
                                 ? realm.ToJsStringSlowPath(matchedValue)
                             : "undefined";
@@ -1324,7 +1395,10 @@ public partial class Intrinsics
                         }
                         else
                         {
-                            if (!replacementNeedsSubstitution && rawMatch is not null)
+                            if (
+                                !replacementNeedsSubstitution
+                                && (usedIntrinsicStep || rawMatch is not null)
+                            )
                             {
                                 replacement = replacementTemplate;
                                 result.Append(replacement);

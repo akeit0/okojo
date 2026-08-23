@@ -12,9 +12,66 @@ internal sealed class RegExpEngine
 
     private readonly RegExpOptions _options;
 
+    // R8-regexp: per-thread reusable capture buffer for the fast stepping
+    // helpers below. Valid until the next TryMatchRanges call on the thread.
+    [ThreadStatic]
+    private static CaptureRange[]? t_reuseCaptures;
+
     private RegExpEngine(RegExpOptions? options = null)
     {
         _options = options ?? RegExpOptions.Default;
+    }
+
+    /// <summary>
+    ///     Executes <paramref name="compiled"/> against
+    ///     <paramref name="input"/> from <paramref name="startIndex"/>,
+    ///     reporting the full capture-range set without constructing any
+    ///     match-result objects. The returned ranges reference a per-thread
+    ///     scratch buffer valid only until the next call on that thread.
+    /// </summary>
+    public bool TryMatchRanges(
+        RegExpCompiledPattern compiled,
+        string input,
+        int startIndex,
+        out int index,
+        out int length,
+        out CaptureRange[] ranges,
+        out int rangeCount
+    )
+    {
+        if (
+            compiled.EngineState is not CompiledRegExp regexp
+            || startIndex > input.Length
+            || startIndex < 0
+        )
+        {
+            index = 0;
+            length = 0;
+            ranges = [];
+            rangeCount = 0;
+            return false;
+        }
+
+        var required = regexp.RequiredCaptureCount;
+        var captures = t_reuseCaptures;
+        if (captures is null || captures.Length < required)
+            captures = new CaptureRange[Math.Max(required, 4)];
+        t_reuseCaptures = captures;
+
+        if (!regexp.TryMatch(input, startIndex, captures.AsSpan(0, required), out _))
+        {
+            index = 0;
+            length = 0;
+            ranges = [];
+            rangeCount = 0;
+            return false;
+        }
+
+        index = captures[0].Index;
+        length = captures[0].Length;
+        ranges = captures;
+        rangeCount = required;
+        return true;
     }
 
     public RegExpCompiledPattern Compile(string pattern, string flags)
