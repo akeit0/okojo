@@ -335,6 +335,52 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_ExecutesSpreadCallsMembersAndConstruction()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile(
+            """
+            function collect(a, b, c) {
+                return a * 100 + b * 10 + c;
+            }
+            function Box(a, b) {
+                return { value: a * 10 + b };
+            }
+            let values = [1, 2];
+            let direct = collect(...values, 3);
+            let member = [1].concat(...[[2, 3]]).length;
+            let constructed = new Box(...[4, 2]).value;
+            direct + member + constructed;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(168));
+    }
+
+    [Test]
+    public void CompileString_MaterializesSpreadBeforeEvaluatingFollowingArgument()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        realm.Evaluate("globalThis.__flatSpreadOrder = [];");
+        var iterable = realm.Evaluate("(function* () { __flatSpreadOrder.push(1); yield 0; })()");
+        var target = realm.Evaluate("(function () { return __flatSpreadOrder.join(''); })");
+        var later = realm.Evaluate("(function () { __flatSpreadOrder.push(2); return 0; })");
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile(
+            "function run(target, iterable, later) { return target(...iterable, later()); } run;"
+        );
+        realm.Execute(script);
+        var run = (JsFunction)realm.Accumulator.Obj!;
+
+        var result = realm.InvokeFunction(run, JsValue.Undefined, [target, iterable, later]);
+
+        Assert.That(result.AsString(), Is.EqualTo("12"));
+    }
+
+    [Test]
     public void ParseScript_AllocatesLessThanClassParseAndLowerBridge()
     {
         var source = string.Join(
@@ -359,13 +405,13 @@ public class DirectFlatParserTests
     }
 
     [Test]
-    public void ParseScript_RejectsUnsupportedSyntaxWithoutClassParserFallback()
+    public void ParseScript_RejectsNewTargetWithoutClassParserFallback()
     {
         var exception = Assert.Throws<JsParseException>(() =>
-            FlatJavaScriptParser.ParseScript("new Answer(...values);")
+            FlatJavaScriptParser.ParseScript("new.target;")
         );
 
-        Assert.That(exception!.Message, Does.Contain("Spread calls"));
+        Assert.That(exception!.Message, Does.Contain("FlatJavaScriptParser"));
     }
 
     [Test]

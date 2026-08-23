@@ -94,6 +94,7 @@ public sealed partial class JsRealm
         HandleRuntimeForInEnumerate, // ForInEnumerate = 75
         HandleRuntimeForInNext, // ForInNext = 76
         HandleRuntimeForInStep, // ForInStep = 77
+        HandleRuntimeMaterializeSpreadArgument, // MaterializeSpreadArgument = 78
     ];
 
     private static readonly IntrinsicHandler?[] SIntrinsicHandlers =
@@ -6822,6 +6823,29 @@ public sealed partial class JsRealm
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void HandleRuntimeMaterializeSpreadArgument(
+        JsRealm realm,
+        JsScript script,
+        int opcodePc,
+        ref JsValue registers,
+        int fp,
+        int argRegStart,
+        int argCount,
+        ref JsValue acc
+    )
+    {
+        if (argCount != 1)
+            ThrowTypeError(
+                "MATERIALIZE_SPREAD_ARGC",
+                "MaterializeSpreadArgument requires one argument"
+            );
+
+        var result = realm.CreateArrayObject();
+        realm.AppendArraySpreadValues(result, Unsafe.Add(ref registers, argRegStart), 0);
+        acc = JsValue.FromObject(result);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private int CopySpreadArgumentsToStackTop(
         in JsValue flagsValue,
         ReadOnlySpan<JsValue> args,
@@ -6846,6 +6870,12 @@ public sealed partial class JsRealm
                     continue;
                 }
 
+                if (spreadFlags[i] == 2)
+                {
+                    AppendMaterializedSpreadArgumentValuesToStack(args[i], ref argCount);
+                    continue;
+                }
+
                 AppendSpreadArgumentValuesToStack(args[i], ref argCount);
             }
         }
@@ -6856,6 +6886,21 @@ public sealed partial class JsRealm
         }
 
         return argOffset;
+    }
+
+    private void AppendMaterializedSpreadArgumentValuesToStack(in JsValue value, ref int argCount)
+    {
+        if (value.Obj is not JsArray)
+            ThrowTypeError(
+                "MATERIALIZED_SPREAD_INVALID",
+                "materialized spread argument must be an array"
+            );
+        var array = (JsArray)value.Obj!;
+        for (uint i = 0; i < array.Length; i++)
+            AppendMaterializedArgumentToStack(
+                array.TryGetElement(i, out var element) ? element : JsValue.Undefined,
+                ref argCount
+            );
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]

@@ -83,6 +83,28 @@ internal abstract partial class JsPlannedCompilerBase
         throw new InvalidOperationException("String constant pool exceeds ushort capacity.");
     }
 
+    private void EmitTypedConstant(Tag tag, int index)
+    {
+        if ((uint)index <= byte.MaxValue)
+        {
+            builder.EmitLda(JsOpCode.LdaTypedConst, (byte)tag, (byte)index);
+            return;
+        }
+
+        if ((uint)index <= ushort.MaxValue)
+        {
+            builder.EmitLda(
+                JsOpCode.LdaTypedConstWide,
+                (byte)tag,
+                (byte)(index & 0xFF),
+                (byte)((index >> 8) & 0xFF)
+            );
+            return;
+        }
+
+        throw new InvalidOperationException("Typed constant pool exceeds ushort capacity.");
+    }
+
     protected void EmitLdar(int register)
     {
         if (register <= byte.MaxValue)

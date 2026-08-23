@@ -257,6 +257,10 @@ prepared reference so base/key evaluation is not duplicated across load and stor
 logical member assignments branch around the RHS/store using that same reference.
 Ordinary `new` expressions now share the dense argument spans, contiguous register
 allocation, and scaled bytecode operand encoding used by calls.
+Spread calls and construction retain those dense spans and use the existing runtime
+ABI. Unlike the production compiler's deferred iteration, the flat emitter
+materializes each spread iterable immediately before evaluating the next argument,
+matching V8 ordering and preventing a second user-iterator invocation.
 Captured ordinary `for` heads now use per-iteration sibling-context replacement.
 The loop-head context is copied and replaced before the first test and before each
 update, so closures retain the prior iteration without inserting an extra context

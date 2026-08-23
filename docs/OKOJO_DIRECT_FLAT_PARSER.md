@@ -16,8 +16,8 @@ ordinary loops, loop control, returns, and the current flat expression families.
 Unsupported syntax fails explicitly; it does not silently restart through the
 class parser.
 
-This slice adds ordinary calls plus named/computed member loads. It excludes
-spread, optional chaining, `super`, private names, construction, and member writes.
+This slice adds ordinary and spread calls plus named/computed member loads. It
+excludes optional chaining, `super`, and private names.
 The following slice adds array literals with elisions and dynamic elements;
 array spread remains explicit unsupported syntax.
 The object-literal slice uses a parsing-owned dense property table. This iteration
@@ -31,7 +31,8 @@ Captured lexical heads in ordinary `for` loops now receive a fresh context per
 iteration. Context replacement is capture-gated, so non-capturing loops retain
 the register-only path.
 Ordinary construction now uses flat callee/argument child spans and the existing
-scaled `Construct` ABI. Constructor spread and `new.target` remain deferred.
+scaled `Construct` ABI. Spread construction uses the existing spread runtime ABI,
+while `new.target` remains deferred.
 
 ## Minimal Repros
 
@@ -81,6 +82,12 @@ function Box(value) { return { value }; }
 new Box(42).value;
 ```
 
+```js
+function collect(a, b, c) { return a * 100 + b * 10 + c; }
+let values = [1, 2];
+collect(...values, 3); // 123
+```
+
 ## Planned Tests
 
 - `tests/Okojo.Compiler.Tests/DirectFlatParserTests.cs`
@@ -95,6 +102,7 @@ new Box(42).value;
   - logical member assignment short-circuiting and computed-key evaluation count
   - capture-gated per-iteration loop-head contexts across `continue` and `break`
   - construction evaluation order, no-parenthesis/nested precedence, and wide operands
+  - direct/property spread calls, spread construction, and iterator evaluation order
 
 ## Reference Observations
 
@@ -134,6 +142,15 @@ operands consume member suffixes but leave call parentheses to the owning outer
 `new`. This fixes the call-then-construct shape currently produced by the class
 parser for `new new Factory()(42)`.
 
+V8 materializes each spread iterable when that argument is evaluated, before any
+later argument expression. Production Okojo currently defers iteration until the
+spread-call runtime helper, which incorrectly orders `target(...iterable, later())`.
+The flat emitter intentionally corrects this: it materializes each spread argument
+immediately into a private array, marks it with a distinct runtime flag, and lets
+the existing call/construct spread helpers copy that dense materialization without
+invoking the user iterator again. Existing production spread flags and runtime IDs
+remain ABI-compatible.
+
 For captured `for (let ...)` heads, V8 creates a new block context for each
 iteration and moves the value through the update path. Production Okojo clones a
 function context because its loop aliases share function-level cells. The flat
@@ -151,6 +168,7 @@ outer capture depths unchanged and retains old contexts only through closures.
 - compare allocated bytes for direct parse versus class parse plus flat lowering
 - allocate/copy loop contexts only when a nested function captures a loop-head binding
 - reuse the call argument span/register allocator for construction
+- materialize spread iterables once at their source-order evaluation point
 
 Initial Release measurement for 80 declaration/update pairs after warm-up:
 
@@ -164,6 +182,6 @@ Initial Release measurement for 80 declaration/update pairs after warm-up:
   parameter forms
 - object methods, accessors, and spread
 - array spread
-- spread calls/construction, optional chaining, `new.target`, and private/super members
+- optional chaining, `new.target`, and private/super members
 - converging the remaining production grammar on flat node handles
 - direct production `JsCompiler` migration

@@ -68,8 +68,8 @@ Both planned compilers currently support:
 - unary, arithmetic, bitwise, comparison, logical, conditional, sequence, and
   identifier update expressions
 - identifier assignment and compound/logical assignment
-- ordinary calls and named/computed member loads with property-call receivers
-- ordinary construction without spread
+- ordinary/spread calls and named/computed member loads with property-call receivers
+- ordinary and spread construction
 - array literals with holes and dynamic elements, excluding spread
 - object literals with named, indexed, computed, shorthand, and duplicate data properties
 - named/computed member assignment, compound/logical assignment, and update
@@ -84,7 +84,7 @@ lowerer comparison.
 
 Still intentionally unsupported in the experimental pipeline:
 
-- spread/optional calls, spread construction, `new.target`, and private/super member access
+- optional calls, `new.target`, and private/super member access
 - destructuring
 - object methods/accessors/spread and array spread
 - module/global binding emission
@@ -107,7 +107,8 @@ Current milestone status:
 - shared production/flat operator grammar table: done
 - shared bytecode call/property operand encoding: done
 - ordinary calls and named/computed member loads: done
-- ordinary construction without spread: done
+- ordinary construction: done
+- spread calls and construction with source-ordered iterator materialization: done
 - array literals without spread: done
 - data-property object literals with stable-prefix shapes: done
 - prepared-reference member writes and updates: done
@@ -141,7 +142,6 @@ dotnet test tests/Okojo.Compiler.Tests/Okojo.Compiler.Tests.csproj --no-build
 Recommended next slices:
 
 1. destructuring
-2. spread calls and construction
-3. object methods and accessors
-4. `for-in` / `for-of`
-5. converge the complete production grammar on flat node handles
+2. object methods and accessors
+3. `for-in` / `for-of`
+4. converge the complete production grammar on flat node handles

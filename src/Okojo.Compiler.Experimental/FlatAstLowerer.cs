@@ -400,11 +400,13 @@ internal static class FlatAstLowerer
             {
                 for (var i = 0; i < call.Arguments.Count; i++)
                 {
-                    if (call.Arguments[i] is JsSpreadExpression)
-                        throw new NotSupportedException(
-                            $"Spread calls are not supported by {compilerName}."
-                        );
-                    arguments[i] = LowerExpression(call.Arguments[i]);
+                    arguments[i] = call.Arguments[i] is JsSpreadExpression spread
+                        ? Arena.Add(
+                            AstKind.SpreadElement,
+                            LowerExpression(spread.Argument),
+                            position: spread.Position
+                        )
+                        : LowerExpression(call.Arguments[i]);
                 }
                 var children = Arena.AddChildren(arguments.AsSpan(0, call.Arguments.Count));
                 return Arena.Add(
@@ -428,11 +430,13 @@ internal static class FlatAstLowerer
             {
                 for (var i = 0; i < @new.Arguments.Count; i++)
                 {
-                    if (@new.Arguments[i] is JsSpreadExpression)
-                        throw new NotSupportedException(
-                            $"Spread construction is not supported by {compilerName}."
-                        );
-                    arguments[i] = LowerExpression(@new.Arguments[i]);
+                    arguments[i] = @new.Arguments[i] is JsSpreadExpression spread
+                        ? Arena.Add(
+                            AstKind.SpreadElement,
+                            LowerExpression(spread.Argument),
+                            position: spread.Position
+                        )
+                        : LowerExpression(@new.Arguments[i]);
                 }
                 var children = Arena.AddChildren(arguments.AsSpan(0, @new.Arguments.Count));
                 return Arena.Add(

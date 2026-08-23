@@ -577,11 +577,19 @@ internal sealed class FlatJavaScriptParser
             while (current.Kind != JsTokenKind.RightParen)
             {
                 if (current.Kind == JsTokenKind.Ellipsis)
-                    throw Error(
-                        "Spread calls are not supported by FlatJavaScriptParser",
-                        current.Position
+                {
+                    var position = current.Position;
+                    Next();
+                    arguments.Add(
+                        Arena.Add(
+                            AstKind.SpreadElement,
+                            ParseAssignment(allowIn: true),
+                            position: position
+                        )
                     );
-                arguments.Add(ParseAssignment(allowIn: true));
+                }
+                else
+                    arguments.Add(ParseAssignment(allowIn: true));
                 if (!Match(JsTokenKind.Comma))
                     break;
             }

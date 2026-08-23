@@ -295,6 +295,7 @@ internal static partial class CompilerBindingCollector
                     return;
                 case AstKind.UnaryExpression:
                 case AstKind.UpdateExpression:
+                case AstKind.SpreadElement:
                     VisitExpression(ast, node.Arg0, scopeId);
                     return;
                 case AstKind.ConditionalExpression:

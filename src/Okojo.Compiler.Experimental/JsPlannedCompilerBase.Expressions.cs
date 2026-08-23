@@ -189,6 +189,11 @@ internal abstract partial class JsPlannedCompilerBase
                 EmitMemberLoad(ast, callee, objectRegister);
                 var functionRegister = builder.AllocateTemporaryRegister();
                 EmitStar(functionRegister);
+                if (HasSpreadArgument(ast, node.Arg1, node.Arg2))
+                {
+                    EmitSpreadCall(ast, functionRegister, objectRegister, node.Arg1, node.Arg2);
+                    return;
+                }
                 var argumentStart = EmitCallArguments(ast, node.Arg1, node.Arg2);
                 builder.EmitCallProperty(
                     functionRegister,
@@ -202,6 +207,11 @@ internal abstract partial class JsPlannedCompilerBase
             EmitExpression(ast, node.Arg0);
             var directFunctionRegister = builder.AllocateTemporaryRegister();
             EmitStar(directFunctionRegister);
+            if (HasSpreadArgument(ast, node.Arg1, node.Arg2))
+            {
+                EmitSpreadCall(ast, directFunctionRegister, -1, node.Arg1, node.Arg2);
+                return;
+            }
             var directArgumentStart = EmitCallArguments(ast, node.Arg1, node.Arg2);
             builder.EmitCallUndefinedReceiver(
                 directFunctionRegister,
@@ -223,6 +233,11 @@ internal abstract partial class JsPlannedCompilerBase
             EmitExpression(ast, node.Arg0);
             var functionRegister = builder.AllocateTemporaryRegister();
             EmitStar(functionRegister);
+            if (HasSpreadArgument(ast, node.Arg1, node.Arg2))
+            {
+                EmitSpreadConstruct(ast, functionRegister, node.Arg1, node.Arg2);
+                return;
+            }
             var argumentStart = EmitCallArguments(ast, node.Arg1, node.Arg2);
             builder.EmitConstruct(functionRegister, argumentStart, node.Arg2);
         }
@@ -230,6 +245,84 @@ internal abstract partial class JsPlannedCompilerBase
         {
             builder.ReleaseTemporaryRegistersToMarker(marker);
         }
+    }
+
+    private static bool HasSpreadArgument(FlatAst ast, int offset, int count)
+    {
+        var arguments = ast.ChildRange(offset, count);
+        for (var i = 0; i < arguments.Length; i++)
+            if (ast[arguments[i]].Kind == AstKind.SpreadElement)
+                return true;
+        return false;
+    }
+
+    private int EmitSpreadArguments(FlatAst ast, int offset, int count, out int flagsRegister)
+    {
+        var start = builder.AllocateTemporaryRegisterBlock(count);
+        var flags = new int[count];
+        var arguments = ast.ChildRange(offset, count);
+        for (var i = 0; i < arguments.Length; i++)
+        {
+            ref readonly var argument = ref ast[arguments[i]];
+            if (argument.Kind == AstKind.SpreadElement)
+            {
+                flags[i] = 2;
+                EmitExpression(ast, argument.Arg0);
+                EmitStar(start + i);
+                builder.EmitCallRuntime((int)RuntimeId.MaterializeSpreadArgument, start + i, 1);
+            }
+            else
+                EmitExpression(ast, arguments[i]);
+            EmitStar(start + i);
+        }
+
+        EmitTypedConstant(Tag.JsTagObject, builder.AddObjectConstant(flags));
+        flagsRegister = builder.AllocateTemporaryRegister();
+        EmitStar(flagsRegister);
+        return start;
+    }
+
+    private void EmitSpreadCall(
+        FlatAst ast,
+        int functionRegister,
+        int receiverRegister,
+        int offset,
+        int count
+    )
+    {
+        var argumentStart = EmitSpreadArguments(ast, offset, count, out var flagsRegister);
+        var runtimeStart = builder.AllocateTemporaryRegisterBlock(count + 3);
+        EmitLdar(functionRegister);
+        EmitStar(runtimeStart);
+        if (receiverRegister >= 0)
+            EmitLdar(receiverRegister);
+        else
+            builder.EmitLda(JsOpCode.LdaUndefined);
+        EmitStar(runtimeStart + 1);
+        EmitLdar(flagsRegister);
+        EmitStar(runtimeStart + 2);
+        for (var i = 0; i < count; i++)
+        {
+            EmitLdar(argumentStart + i);
+            EmitStar(runtimeStart + 3 + i);
+        }
+        builder.EmitCallRuntime((int)RuntimeId.CallWithSpread, runtimeStart, count + 3);
+    }
+
+    private void EmitSpreadConstruct(FlatAst ast, int functionRegister, int offset, int count)
+    {
+        var argumentStart = EmitSpreadArguments(ast, offset, count, out var flagsRegister);
+        var runtimeStart = builder.AllocateTemporaryRegisterBlock(count + 2);
+        EmitLdar(functionRegister);
+        EmitStar(runtimeStart);
+        EmitLdar(flagsRegister);
+        EmitStar(runtimeStart + 1);
+        for (var i = 0; i < count; i++)
+        {
+            EmitLdar(argumentStart + i);
+            EmitStar(runtimeStart + 2 + i);
+        }
+        builder.EmitCallRuntime((int)RuntimeId.ConstructWithSpread, runtimeStart, count + 2);
     }
 
     private int EmitCallArguments(FlatAst ast, int offset, int count)

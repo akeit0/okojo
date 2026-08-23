@@ -195,4 +195,8 @@ internal enum RuntimeId : byte
     ForInEnumerate,
     ForInNext,
     ForInStep,
+
+    // Materialize one spread iterable immediately at its argument-list position.
+    // Appended to preserve existing RuntimeId ABI values. Args: [source].
+    MaterializeSpreadArgument,
 }

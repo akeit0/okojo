@@ -123,24 +123,28 @@ public class JsPlannedFunctionCompilerTests
     }
 
     [Test]
-    public void CompileScript_ExecutesClassBridgeConstruction()
+    public void CompileScript_ExecutesClassBridgeSpreadCallsAndConstruction()
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var compiler = new JsPlannedScriptCompiler(realm);
         var program = JavaScriptParser.ParseScript(
             """
-            function Box(value) {
-                return { value };
+            function Box(a, b) {
+                return { value: a * 10 + b };
             }
-            let result = new Box(42);
-            result.value;
+            function collect(a, b, c) {
+                return a * 100 + b * 10 + c;
+            }
+            let values = [4, 2];
+            let result = new Box(...values);
+            result.value + collect(...[1, 2], 3);
             """
         );
         var script = compiler.Compile(program);
 
         realm.Execute(script);
 
-        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(42));
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(165));
     }
 
     [Test]
