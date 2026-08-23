@@ -148,7 +148,10 @@ internal sealed partial class JsPlannedFunctionCompiler
         PatchGeneratorSwitchTable();
         var script = builder.ToScript() with
         {
-            SourceCode = null,
+            SourceCode =
+                string.IsNullOrEmpty(ast.SourceText) && ast.SourcePath is null
+                    ? null
+                    : new SourceCode(ast.SourceText, ast.SourcePath),
             StrictDeclared = metadata.StrictDeclared,
         };
         script.BindAgent(Vm.Agent);

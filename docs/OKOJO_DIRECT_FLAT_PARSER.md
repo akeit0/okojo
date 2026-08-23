@@ -1314,6 +1314,12 @@ Production module execution opt-in slice landed:
   execution resolves a planned dependency and updates a live export from `.then`.
   Like V8, evaluation order is explicit before the runtime call. Okojo intentionally
   derives the referrer from `JsScript.SourcePath`; import phases remain outside this slice.
+- nested-function scripts inherit the compile artifact's source text and path, matching
+  the production compiler, so dynamic `import()` inside arrows/methods resolves relative
+  specifiers against the real referrer and stack traces keep file locations. Planned
+  function scripts previously cleared `SourceCode`, which made every nested-function
+  import resolve against the process working directory. Regression target:
+  `CompileFunction_InheritsSourcePathForDynamicImportReferrer`.
 - top-level `await` sets one parser-owned `HasTopLevelAwait` bit and the linker transfers
   it directly into `ModuleExecutionPlan`. The planned module body emits the existing
   async generator prologue/resume table, while a tiny ordinary script wrapper creates

@@ -405,6 +405,33 @@ public class JsPlannedScriptCompilerTests
         Assert.That(ex!.Message, Does.Contain("does not support statement"));
     }
 
+    [Test]
+    public void CompileFunction_InheritsSourcePathForDynamicImportReferrer()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            globalThis.__flatRan = false;
+            function run() { __flatRan = true; return 1; }
+            const read = () => run();
+            read();
+            """,
+            "/mods/main.js"
+        );
+        realm.Execute(script);
+        Assert.That(realm.Evaluate("__flatRan").IsTrue, Is.True);
+
+        var run = script
+            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .Single(static function => function.Name == "run");
+        Assert.That(run.Script.SourcePath, Is.EqualTo("/mods/main.js"));
+
+        var read = script
+            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .Single(static function => function.Name == "read");
+        Assert.That(read.Script.SourcePath, Is.EqualTo("/mods/main.js"));
+    }
+
     private sealed class TestModuleSourceLoader(IReadOnlyDictionary<string, string>? modules = null)
         : IModuleSourceLoader
     {
