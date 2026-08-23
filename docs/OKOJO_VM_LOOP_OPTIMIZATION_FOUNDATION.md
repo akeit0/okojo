@@ -277,6 +277,32 @@ Everything else classified and recorded in the snapshot notice:
 Result: Tier1 -4B, timings noise, suite green. Value = the classification
 table + removed dead branch pattern.
 
+### a10-ic-devirt - ACCEPTED (branch vmopt-a10-ic-devirt)
+
+Removed hidden runtime type tests from the IC hot path and constant-pool
+consumers. `JsObject.Shape` castclass -> Unsafe.As (invariant proven: both
+layout classes sealed; !IsDynamic => exactly static layout; both Shape
+callers sit behind the UsesDynamicNamedProperties guard). Closure and
+object-literal handler pool casts likewise.
+
+- named-get Tier1 ISINSTANCEOF/CHKCAST helper calls 7 -> 3 (remaining are
+  genuine type tests as control flow).
+- bench-ab pgo-off: named-get -0.9%, pure-function-call -2.8%, rest noise.
+  pgo-on reference pass showed masking (+0.4%), confirming decisions stay
+  pgo-off.
+
+Knowledge:
+
+1. House style for guaranteed heap casts: `Unsafe.As<T>(object)` (since
+   .NET 5) - same codegen as the byref form, simpler call sites.
+   The byref `Unsafe.As<TFrom,TTo>(ref ...)` remains for byref/field
+   reinterpretation (e.g., JsValue <-> double).
+2. Before Unsafe.As anywhere: write down the invariant + audit ALL consumers;
+   an unguarded path turns loud InvalidCastException into silent corruption.
+3. Virtual-dispatch scan of hot arms found none (IC predicates were already
+   AggressiveInlining statics; Get/SetNamedByCachedSlotInfo non-virtual) -
+   A10's win was hidden casts, not devirtualization per se.
+
 ## Attempt Log Status
 
 | ID | Verdict |
@@ -290,7 +316,7 @@ table + removed dead branch pattern.
 | A7 dispatch table | open |
 | A8 per-op implementation | open (per-op) |
 | A9 opcode set | open (needs bytecode evidence) |
-| A10 IC devirt friendliness | open |
+| A10 IC devirt friendliness | ACCEPTED (merged) |
 | A11 tree walk | open (last resort) |
 
 Cumulative vs 0000-baseline: Tier1 code 22373 -> 20562 (-8.1%), IL locals

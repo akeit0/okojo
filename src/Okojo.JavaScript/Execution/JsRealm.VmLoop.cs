@@ -735,7 +735,9 @@ public sealed partial class JsRealm
 
         pcOffset += 1; // flags (unused for now)
 
-        acc = BindClosureIfNeeded((JsBytecodeFunction)objectPool[idx]);
+        // A10: constant pool slot typed by the compiler as function constant -
+        // cast is compiler-guaranteed, skip the runtime type test.
+        acc = BindClosureIfNeeded(Unsafe.As<JsBytecodeFunction>(objectPool[idx]));
         return pcOffset - startOffset;
     }
 
@@ -1018,7 +1020,9 @@ public sealed partial class JsRealm
 
         pcOffset += 1; // flags (unused)
 
-        acc = new JsPlainObject((StaticNamedPropertyLayout)objectPool[boilerplateIdx]);
+        // A10: boilerplate slot typed by the compiler as a static layout -
+        // cast is compiler-guaranteed, skip the runtime type test.
+        acc = new JsPlainObject(Unsafe.As<StaticNamedPropertyLayout>(objectPool[boilerplateIdx]));
         return pcOffset - startOffset;
     }
 
