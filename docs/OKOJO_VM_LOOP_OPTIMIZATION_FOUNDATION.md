@@ -260,13 +260,30 @@ Methodology note: the "ceiling measurement" (disable the feature entirely,
 measure max possible win before designing any clever version) is the cheap
 way to kill speculative micro-optimizations and is now standard here.
 
+### a3-unsafe-checks - ACCEPTED (branch vmopt-a3-unsafe-checks)
+
+Audit of overflow/bounds checks in the execution core. Removed the single
+provably-dead one: `GetPcOffset`'s `checked((int)Unsafe.ByteOffset(...))`
+(same-array offsets always fit int; dead `jo` at ~23 inlined call sites).
+Everything else classified and recorded in the snapshot notice:
+
+- KEEP: all semantic checked math (host conversion contracts, typed-array
+  spec throws).
+- SKIP deliberately: trusted-index array bounds checks in handlers - safe to
+  remove only under full compiler-trust, payoff sub-noise, and raw-pointer
+  access converts diagnosable exceptions into memory corruption on future
+  engine bugs.
+
+Result: Tier1 -4B, timings noise, suite green. Value = the classification
+table + removed dead branch pattern.
+
 ## Attempt Log Status
 
 | ID | Verdict |
 | -- | ------- |
 | A1 locals diet | ACCEPTED (merged) |
 | A2 hot/cold split | ACCEPTED (merged) |
-| A3 Unsafe redundant checks | open |
+| A3 unsafe checks | ACCEPTED (merged; audit table in notice) |
 | A4 inline audit | ACCEPTED (merged) |
 | A5 countdown | REJECTED (ceiling: <=0.4%) |
 | A6 EH scope | REJECTED (IL no-op) |
