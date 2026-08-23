@@ -61,7 +61,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings, class declaration and inner-name bindings | module bindings and remaining early errors |
 | Assignments | identifier/ordinary/super/private-field member targets, compound/logical/update, array/object destructuring, core optional-chain target restrictions | remaining early errors |
 | Functions | ordinary declarations/expressions, closures, synchronous and async generators with `yield`/`yield*`, async declarations/expressions/object methods with `await`, synchronous and async arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`/`new.target`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function/class name inference, demand-driven mapped/unmapped `arguments` | lazy bodies |
-| Classes | base/derived declarations and expressions, explicit/implicit constructors, heritage/prototype setup, derived `this`/return rules, public named/computed instance/static methods and accessors, named/computed public fields, instance/static private fields and brands, source-ordered static blocks, named/computed super loads/calls/stores/updates, strict bodies, declaration TDZ/const storage, inner class-name capture, anonymous name inference | private methods/accessors, field-initializer anonymous naming |
+| Classes | base/derived declarations and expressions, explicit/implicit constructors, heritage/prototype setup, derived `this`/return rules, public named/computed instance/static methods and accessors, named/computed public fields, instance/static private fields and brands, source-ordered static blocks, named/computed super loads/calls/stores/updates, strict bodies, declaration TDZ/const storage, inner class-name capture, anonymous name inference including named fields | private methods/accessors, computed-field initializer anonymous naming |
 | Modules | none | parse goal, entries, linking metadata, live bindings, top-level await |
 
 The direct parser rejects unsupported grammar. It does not catch an error and
@@ -1075,6 +1075,22 @@ Private field slice landed:
   avoiding a runtime private-name lookup while retaining lexical brand mapping
 - performance plan: preallocate one brand per instance/static class side, embed
   brand/slot operands in bytecode, and allocate no runtime name lookup table
+
+Named field-initializer inference slice landed:
+
+- iteration scope: anonymous function/class values in named instance/static,
+  public/private field initializers on both direct and class-AST paths
+- minimal repro: `class C { #f = function () {}; name() { return this.#f.name } }`
+- reference case:
+  `artifacts/okojobytecodetool/cases/flat_ast_class_field_names.js`
+- focused tests cover all eight public/private, instance/static function/class
+  combinations plus the class-AST bridge
+- V8/Node observation: the inferred name is the source field name, including the
+  leading `#` for private fields
+- Okojo implementation: reuse normal inferred-name closure compilation; static
+  synthetic initializer metadata carries one optional pooled name index
+- performance plan: one integer metadata field per flat function, no AST rewrite,
+  runtime naming helper, or additional closure
 
 ### Stage F4 - Modules
 

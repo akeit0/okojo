@@ -944,12 +944,18 @@ internal sealed class FlatJavaScriptParser
                             ? AddStaticClassFieldInitializer(
                                 expression,
                                 elementPosition,
-                                initializerUsesSuper
+                                initializerUsesSuper,
+                                computed ? -1 : key
                             )
                             : expression;
                     }
                     else if (isStatic)
-                        initializer = AddStaticClassFieldInitializer(-1, elementPosition, false);
+                        initializer = AddStaticClassFieldInitializer(
+                            -1,
+                            elementPosition,
+                            false,
+                            -1
+                        );
                     if (!isStatic)
                         instanceFieldsUseSuper |= initializerUsesSuper;
                     elements.Add(
@@ -1144,7 +1150,8 @@ internal sealed class FlatJavaScriptParser
     private int AddStaticClassFieldInitializer(
         int expression,
         int position,
-        bool hasSuperPropertyReference
+        bool hasSuperPropertyReference,
+        int inferredNameStringIndex
     )
     {
         var returnStatement = Arena.Add(AstKind.ReturnStatement, expression, position: position);
@@ -1170,7 +1177,8 @@ internal sealed class FlatJavaScriptParser
                 false,
                 position,
                 true,
-                HasSuperPropertyReference: hasSuperPropertyReference
+                HasSuperPropertyReference: hasSuperPropertyReference,
+                ReturnInferredNameStringIndex: inferredNameStringIndex
             )
         );
         return Arena.Add(AstKind.FunctionExpression, functionIndex, body, position: position);

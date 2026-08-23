@@ -462,6 +462,9 @@ the new compiler for the supported function families.
   undeclared/duplicate/delete early errors, and the class-AST bridge. V8 uses
   private-name context slots plus keyed operations; Okojo deliberately reuses its
   direct private-field opcodes and function brand mappings.
+- landed named field initializer inference: anonymous function/class values receive
+  public or `#private` source names across instance/static initialization by reusing
+  ordinary inferred-name closure compilation; computed field naming remains deferred
 - private methods and accessors
 - complete private-element, computed-key, field-initializer, and heritage ordering
 

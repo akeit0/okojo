@@ -3647,6 +3647,59 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_InfersNamedClassFieldInitializerNames()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            class Names {
+                fn = function () {};
+                Cls = class {};
+                #privateFn = function () {};
+                #PrivateCls = class {};
+                static staticFn = function () {};
+                static StaticCls = class {};
+                static #staticPrivateFn = function () {};
+                static #StaticPrivateCls = class {};
+                instanceNames() {
+                    return this.fn.name + '|' + this.Cls.name + '|'
+                        + this.#privateFn.name + '|' + this.#PrivateCls.name;
+                }
+                static staticNames() {
+                    return this.staticFn.name + '|' + this.StaticCls.name + '|'
+                        + this.#staticPrivateFn.name + '|' + this.#StaticPrivateCls.name;
+                }
+            }
+            new Names().instanceNames() + '|' + Names.staticNames();
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(
+            realm.Accumulator.AsString(),
+            Is.EqualTo(
+                "fn|Cls|#privateFn|#PrivateCls|staticFn|StaticCls|#staticPrivateFn|#StaticPrivateCls"
+            )
+        );
+    }
+
+    [Test]
+    public void CompileAst_InfersNamedClassFieldInitializerNames()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            JavaScriptParser.ParseScript(
+                "class Names { fn = function () {}; static Cls = class {}; } let value = new Names(); value.fn.name + '|' + Names.Cls.name;"
+            )
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("fn|Cls"));
+    }
+
+    [Test]
     public void CompileAst_ExecutesBaselineClassBridge()
     {
         var realm = JsRuntime.Create().DefaultRealm;

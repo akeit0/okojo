@@ -862,7 +862,10 @@ internal static class FlatAstLowerer
                     false,
                     element.Position,
                     true,
-                    HasSuperPropertyReference: true
+                    HasSuperPropertyReference: true,
+                    ReturnInferredNameStringIndex: element.ComputedKey is null
+                        ? Arena.AddString(element.Key ?? string.Empty)
+                        : -1
                 )
             );
             return Arena.Add(

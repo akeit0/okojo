@@ -378,7 +378,14 @@ internal abstract partial class JsPlannedCompilerBase
                         emittingInstanceFieldInitializer = true;
                         try
                         {
-                            EmitExpression(ast, element.ValueNode);
+                            if (!element.IsComputed)
+                                EmitExpressionWithInferredName(
+                                    ast,
+                                    element.ValueNode,
+                                    ast.GetString(element.Key)
+                                );
+                            else
+                                EmitExpression(ast, element.ValueNode);
                         }
                         finally
                         {
@@ -414,7 +421,14 @@ internal abstract partial class JsPlannedCompilerBase
                     emittingInstanceFieldInitializer = true;
                     try
                     {
-                        EmitExpression(ast, element.ValueNode);
+                        if (!element.IsComputed)
+                            EmitExpressionWithInferredName(
+                                ast,
+                                element.ValueNode,
+                                ast.GetString(element.Key)
+                            );
+                        else
+                            EmitExpression(ast, element.ValueNode);
                     }
                     finally
                     {

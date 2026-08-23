@@ -21,6 +21,7 @@ internal abstract partial class JsPlannedCompilerBase
     protected bool hasNewTarget;
     protected bool isGenerator;
     protected bool isAsync;
+    protected int returnInferredNameStringIndex = -1;
     protected int InstanceFieldClassIndex { get; set; } = -1;
     private BytecodeBuilder.Label optionalChainNullTarget;
     private int nextGeneratorSuspendId;

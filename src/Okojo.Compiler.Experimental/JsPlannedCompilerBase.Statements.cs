@@ -65,7 +65,14 @@ internal abstract partial class JsPlannedCompilerBase
             case AstKind.ReturnStatement:
                 if (node.Arg0 >= 0)
                 {
-                    EmitExpression(ast, node.Arg0);
+                    if (returnInferredNameStringIndex >= 0)
+                        EmitExpressionWithInferredName(
+                            ast,
+                            node.Arg0,
+                            ast.GetString(returnInferredNameStringIndex)
+                        );
+                    else
+                        EmitExpression(ast, node.Arg0);
                     if (isGenerator && isAsync)
                         EmitAwaitSuspension();
                 }

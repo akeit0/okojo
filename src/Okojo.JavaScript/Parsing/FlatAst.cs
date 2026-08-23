@@ -216,7 +216,8 @@ internal readonly record struct FlatFunctionInfo(
     bool IsClassConstructor = false,
     bool IsDerivedConstructor = false,
     bool EmitImplicitSuperForwardAll = false,
-    bool HasSuperPropertyReference = false
+    bool HasSuperPropertyReference = false,
+    int ReturnInferredNameStringIndex = -1
 );
 
 internal readonly record struct FlatParameter(
