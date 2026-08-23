@@ -3464,6 +3464,86 @@ public class DirectFlatParserTests
         );
 
     [Test]
+    public void CompileString_ExecutesInstancePublicClassFieldsAtConstructionPoints()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let outer = 10;
+            let keyCalls = 0;
+            let order = [];
+            class Base {
+                [(keyCalls++, 'computed')] = outer;
+                fieldOrder = (order.push('base-field'), 1);
+                missing;
+                constructor(outer) {
+                    order.push('base-body');
+                    this.arg = outer;
+                }
+                read() { return this.arg; }
+            }
+            class Derived extends Base {
+                fromSuper = (order.push('derived-field'), super.read());
+                arrow = () => super.read();
+                target = new.target;
+                constructor(value) {
+                    order.push('before-super');
+                    super(value);
+                    order.push('after-super');
+                }
+            }
+            let first = new Derived(3);
+            let second = new Derived(4);
+            first.computed + '|' + first.fromSuper + '|' + first.arrow() + '|'
+                + (first.missing === undefined) + '|' + second.fromSuper + '|'
+                + (first.target === undefined) + '|' + keyCalls + '|' + order.join(',');
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(
+            realm.Accumulator.AsString(),
+            Is.EqualTo(
+                "10|3|3|true|4|true|1|before-super,base-field,base-body,derived-field,after-super,before-super,base-field,base-body,derived-field,after-super"
+            )
+        );
+    }
+
+    [TestCase("class Invalid { value = arguments; }")]
+    [TestCase("class Invalid { static value = () => arguments; }")]
+    public void ParseScript_RejectsArgumentsInClassFieldInitializer(string source) =>
+        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+
+    [Test]
+    public void CompileString_ExecutesInstanceFieldsAfterImplicitAndSpreadSuper()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let baseFields = 0;
+            class Base {
+                base = (baseFields++, 1);
+                constructor(value) { this.value = value; }
+                read() { return this.value; }
+            }
+            class Implicit extends Base { result = super.read() + 1; }
+            class Spread extends Base {
+                result = super.read() + 2;
+                constructor(...args) { super(...args); }
+            }
+            let implicit = new Implicit(4);
+            let spread = new Spread(...[5]);
+            implicit.result + '|' + spread.result + '|' + baseFields;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("5|7|2"));
+    }
+
+    [Test]
     public void CompileAst_ExecutesBaselineClassBridge()
     {
         var realm = JsRuntime.Create().DefaultRealm;
@@ -3536,9 +3616,23 @@ public class DirectFlatParserTests
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(3));
     }
 
+    [Test]
+    public void CompileAst_ExecutesInstancePublicClassFieldBridge()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            JavaScriptParser.ParseScript(
+                "class Base { constructor(value) { this.value = value; } read() { return this.value; } } class Derived extends Base { result = super.read() + 1; } new Derived(4).result;"
+            )
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(5));
+    }
+
     [TestCase("class Base { constructor() { super(); } }")]
     [TestCase("class Derived extends Base { method() { super(); } }")]
-    [TestCase("class Fields { value = 1; }")]
     [TestCase("class Private { #value; }")]
     [TestCase("class StaticBlock { static {} }")]
     public void ParseScript_RejectsInvalidOrDeferredClassSyntax(string source) =>

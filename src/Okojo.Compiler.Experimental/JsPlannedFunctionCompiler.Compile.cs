@@ -53,17 +53,20 @@ internal sealed partial class JsPlannedFunctionCompiler
         in FlatFunctionInfo function,
         int bodyRoot,
         bool hasSelfBinding = false,
-        string? inferredName = null
+        string? inferredName = null,
+        int instanceFieldClassIndex = -1
     )
     {
         var declaredName = ast.GetString(function.NameStringIndex);
         var name = declaredName.Length == 0 ? inferredName ?? string.Empty : declaredName;
         InitializeParameterRegisterMap(ast, function);
+        InstanceFieldClassIndex = instanceFieldClassIndex;
         using var collected = CompilerBindingCollector.CollectFunction(
             ast,
             function,
             bodyRoot,
-            hasSelfBinding
+            hasSelfBinding,
+            instanceFieldClassIndex
         );
         return CompileFunctionCore(
             new FunctionCompileMetadata(
@@ -124,6 +127,11 @@ internal sealed partial class JsPlannedFunctionCompiler
         EmitDeclarationPrologue(ast, bodyRoot);
         if (metadata.EmitImplicitSuperForwardAll)
             builder.EmitCallRuntime((int)RuntimeId.CallSuperConstructorForwardAll, 0, 0);
+        if (
+            InstanceFieldClassIndex >= 0
+            && (!metadata.IsDerivedConstructor || metadata.EmitImplicitSuperForwardAll)
+        )
+            EmitInstanceFieldInitializers(ast, InstanceFieldClassIndex);
         if (isGenerator && !metadata.HasSimpleParameterList)
             EmitGeneratorPrestartSuspend();
 

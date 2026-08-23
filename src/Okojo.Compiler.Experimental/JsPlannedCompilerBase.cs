@@ -16,10 +16,12 @@ internal abstract partial class JsPlannedCompilerBase
     private int[] childScopeCounts = [];
     protected int rootContextSlotCount;
     protected bool emittingParameterInitializers;
+    protected bool emittingInstanceFieldInitializer;
     protected bool strictDeclared;
     protected bool hasNewTarget;
     protected bool isGenerator;
     protected bool isAsync;
+    protected int InstanceFieldClassIndex { get; set; } = -1;
     private BytecodeBuilder.Label optionalChainNullTarget;
     private int nextGeneratorSuspendId;
     private int generatorSwitchInstructionPc = -1;

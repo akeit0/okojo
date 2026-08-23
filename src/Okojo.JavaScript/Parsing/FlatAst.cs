@@ -123,6 +123,13 @@ internal sealed class FlatAst : IDisposable
         return functions[index];
     }
 
+    public void SetFunction(int index, FlatFunctionInfo function)
+    {
+        if ((uint)index >= (uint)functionCount)
+            throw new ArgumentOutOfRangeException(nameof(index));
+        functions[index] = function;
+    }
+
     private void EnsureParameterCapacity(int additional)
     {
         if (parameterCount + additional <= parameters.Length)
@@ -278,7 +285,8 @@ internal readonly record struct FlatClassElement(
     int ValueNode,
     int Position,
     JsClassElementKind Kind,
-    FlatClassElementFlags Flags
+    FlatClassElementFlags Flags,
+    int InstanceFieldKeyIndex = -1
 )
 {
     public bool IsStatic => (Flags & FlatClassElementFlags.Static) != 0;

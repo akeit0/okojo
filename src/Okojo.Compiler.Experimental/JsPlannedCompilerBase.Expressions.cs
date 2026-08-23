@@ -84,7 +84,9 @@ internal abstract partial class JsPlannedCompilerBase
                 builder.EmitLda(JsOpCode.LdaThis);
                 return;
             case AstKind.NewTargetExpression:
-                builder.EmitLda(JsOpCode.LdaNewTarget);
+                builder.EmitLda(
+                    emittingInstanceFieldInitializer ? JsOpCode.LdaUndefined : JsOpCode.LdaNewTarget
+                );
                 return;
             case AstKind.SuperExpression:
                 throw new InvalidOperationException("Bare super cannot be emitted as a value.");
@@ -304,7 +306,8 @@ internal abstract partial class JsPlannedCompilerBase
         FlatAst ast,
         int functionIndex,
         int bodyRoot,
-        string? inferredName = null
+        string? inferredName = null,
+        int instanceFieldClassIndex = -1
     )
     {
         var function = ast.GetFunction(functionIndex);
@@ -315,7 +318,8 @@ internal abstract partial class JsPlannedCompilerBase
             function,
             bodyRoot,
             hasSelfBinding,
-            inferredName
+            inferredName,
+            instanceFieldClassIndex
         );
         EmitCreateClosureByIndex(builder.AddObjectConstant(functionObject));
     }
@@ -937,6 +941,8 @@ internal abstract partial class JsPlannedCompilerBase
         {
             var argumentStart = EmitCallArguments(ast, offset, count);
             builder.EmitCallRuntime((int)RuntimeId.CallSuperConstructor, argumentStart, count);
+            if (InstanceFieldClassIndex >= 0)
+                EmitInstanceFieldInitializers(ast, InstanceFieldClassIndex);
             return;
         }
 
@@ -954,6 +960,8 @@ internal abstract partial class JsPlannedCompilerBase
             runtimeArguments,
             count + 1
         );
+        if (InstanceFieldClassIndex >= 0)
+            EmitInstanceFieldInitializers(ast, InstanceFieldClassIndex);
     }
 
     private void EmitNewExpression(FlatAst ast, AstNode node)

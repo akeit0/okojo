@@ -61,7 +61,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings, class declaration and inner-name bindings | module bindings and remaining early errors |
 | Assignments | identifier/ordinary/super-member targets, compound/logical/update, array/object destructuring, core optional-chain target restrictions | private targets and remaining early errors |
 | Functions | ordinary declarations/expressions, closures, synchronous and async generators with `yield`/`yield*`, async declarations/expressions/object methods with `await`, synchronous and async arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`/`new.target`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function/class name inference, demand-driven mapped/unmapped `arguments` | lazy bodies |
-| Classes | base/derived declarations and expressions, explicit/implicit constructors, heritage/prototype setup, derived `this`/return rules, public named/computed instance/static methods and accessors, named/computed static public fields, named/computed super loads/calls/stores/updates, strict bodies, declaration TDZ/const storage, inner class-name capture, anonymous name inference | instance fields, static blocks, private names/brands |
+| Classes | base/derived declarations and expressions, explicit/implicit constructors, heritage/prototype setup, derived `this`/return rules, public named/computed instance/static methods and accessors, named/computed public fields, named/computed super loads/calls/stores/updates, strict bodies, declaration TDZ/const storage, inner class-name capture, anonymous name inference | static blocks, private names/brands, field-initializer anonymous naming |
 | Modules | none | parse goal, entries, linking metadata, live bindings, top-level await |
 
 The direct parser rejects unsupported grammar. It does not catch an error and
@@ -1012,6 +1012,32 @@ Static public-field slice landed:
   fields with the shared initializer-result path.
 - performance plan: retain one constructor register, evaluate each key once into a
   temporary, and attach a method environment only when the initializer uses `super`
+
+Instance public-field slice landed:
+
+- iteration scope: named/computed public instance fields, missing initializers,
+  base-constructor entry, derived post-`super()` scheduling, outer captures,
+  `this`/`super`, nested arrows, and constructor-parameter isolation
+- minimal repro:
+  `class D extends B { [key()] = super.read(); constructor() { super() } }`
+- reference case:
+  `artifacts/okojobytecodetool/cases/flat_ast_class_instance_fields.js`
+- focused tests cover computed keys once per class, fields once per instance, base/derived
+  ordering, implicit/explicit/spread `super()`, missing defaults, outer-vs-parameter
+  shadowing, nested-arrow super, undefined `new.target`, forbidden lexical
+  `arguments`, and class-AST bridge
+- V8 observation: computed names are captured during class definition; one instance
+  members initializer runs with the new receiver at base-constructor entry or
+  immediately after derived `super()` returns
+- Okojo implementation: reuse `SetFunctionInstanceFieldKey`,
+  `LoadCurrentFunctionInstanceFieldKey`, and `DefineClassField`; emit initializer
+  expressions inline in constructor bytecode while excluding constructor
+  parameters/body locals from their lexical lookup
+- intentional difference: inline the initializer sequence instead of storing and
+  calling V8's synthetic initializer function; observable scope and ordering stay
+  equivalent and no per-instance closure is allocated
+- performance plan: one cached key per computed field, no runtime key reevaluation,
+  one contiguous three-register define window, and no initializer objects
 
 ### Stage F4 - Modules
 

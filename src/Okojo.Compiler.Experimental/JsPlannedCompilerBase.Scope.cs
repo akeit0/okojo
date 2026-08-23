@@ -30,6 +30,8 @@ internal abstract partial class JsPlannedCompilerBase
         {
             for (var i = 0; i < scope.Bindings.Count; i++)
             {
+                if (emittingInstanceFieldInitializer && scope.ScopeId == 0)
+                    continue;
                 if (
                     emittingParameterInitializers
                     && scope.ScopeId == 0
@@ -137,6 +139,12 @@ internal abstract partial class JsPlannedCompilerBase
             for (var i = 0; i < scope.Bindings.Count; i++)
             {
                 var binding = scope.Bindings[i];
+                if (
+                    emittingInstanceFieldInitializer
+                    && scope.ScopeId == 0
+                    && binding.Planned.Kind != CompilerCollectedBindingKind.SuperBase
+                )
+                    continue;
                 if (binding.Planned.StorageKind != CompilerPlannedStorageKind.ContextSlot)
                     continue;
                 captures.TryAdd(

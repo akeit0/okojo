@@ -20,6 +20,7 @@ internal sealed class FlatJavaScriptParser
     private bool allowSuperCall;
     private bool allowSuperProperty;
     private bool superPropertySeen;
+    private bool forbidClassFieldArguments;
     private int deferredAsyncParameterErrorPosition = -1;
     private List<ActiveLabel>? activeLabels;
 
@@ -469,6 +470,7 @@ internal sealed class FlatJavaScriptParser
         var allowSuperCallBeforeFunction = allowSuperCall;
         var allowSuperPropertyBeforeFunction = allowSuperProperty;
         var superPropertySeenBeforeFunction = superPropertySeen;
+        var forbidClassFieldArgumentsBeforeFunction = forbidClassFieldArguments;
         receiverFunctionDepth++;
         try
         {
@@ -478,6 +480,7 @@ internal sealed class FlatJavaScriptParser
             allowSuperCall = isDerivedConstructor;
             allowSuperProperty = isMethod || isClassConstructor;
             superPropertySeen = false;
+            forbidClassFieldArguments = false;
             return ParseFunctionTailCore(
                 isDeclaration,
                 name,
@@ -500,6 +503,7 @@ internal sealed class FlatJavaScriptParser
             allowSuperCall = allowSuperCallBeforeFunction;
             allowSuperProperty = allowSuperPropertyBeforeFunction;
             superPropertySeen = superPropertySeenBeforeFunction;
+            forbidClassFieldArguments = forbidClassFieldArgumentsBeforeFunction;
             receiverFunctionDepth--;
         }
     }
@@ -761,6 +765,8 @@ internal sealed class FlatJavaScriptParser
         Span<FlatClassElement> initial = stackalloc FlatClassElement[8];
         var elements = new ClassElementList(initial);
         var constructorNode = -1;
+        var nextInstanceFieldKeyIndex = 0;
+        var instanceFieldsUseSuper = false;
         try
         {
             while (current.Kind != JsTokenKind.RightBrace)
@@ -894,29 +900,42 @@ internal sealed class FlatJavaScriptParser
 
                 if (current.Kind != JsTokenKind.LeftParen)
                 {
-                    if (!isStatic)
-                        throw Error(
-                            "Instance class fields are not supported by the flat parser yet",
-                            current.Position
-                        );
                     if (isGenerator || isAsync)
-                        throw Error("Invalid static class field", elementPosition);
-                    if (!computed && string.Equals(staticName, "prototype"))
+                        throw Error("Invalid class field", elementPosition);
+                    if (isStatic && !computed && string.Equals(staticName, "prototype"))
                         throw Error(
                             "Classes may not have a static field named 'prototype'",
                             elementPosition
                         );
-                    var initializer = Match(JsTokenKind.Assign)
-                        ? ParseStaticClassFieldInitializer(elementPosition)
-                        : AddStaticClassFieldInitializer(-1, elementPosition, false);
+                    var initializerUsesSuper = false;
+                    var initializer = -1;
+                    if (Match(JsTokenKind.Assign))
+                    {
+                        var expression = ParseClassFieldInitializer(
+                            elementPosition,
+                            out initializerUsesSuper
+                        );
+                        initializer = isStatic
+                            ? AddStaticClassFieldInitializer(
+                                expression,
+                                elementPosition,
+                                initializerUsesSuper
+                            )
+                            : expression;
+                    }
+                    else if (isStatic)
+                        initializer = AddStaticClassFieldInitializer(-1, elementPosition, false);
+                    if (!isStatic)
+                        instanceFieldsUseSuper |= initializerUsesSuper;
                     elements.Add(
                         new FlatClassElement(
                             key,
                             initializer,
                             elementPosition,
                             JsClassElementKind.Field,
-                            FlatClassElementFlags.Static
-                                | (computed ? FlatClassElementFlags.Computed : 0)
+                            (isStatic ? FlatClassElementFlags.Static : 0)
+                                | (computed ? FlatClassElementFlags.Computed : 0),
+                            !isStatic && computed ? nextInstanceFieldKeyIndex++ : -1
                         )
                     );
                     ConsumeSemicolon();
@@ -962,6 +981,17 @@ internal sealed class FlatJavaScriptParser
                     position,
                     isDerived: extendsNode >= 0
                 );
+            if (instanceFieldsUseSuper)
+            {
+                var constructorFunctionIndex = Arena[constructorNode].Arg0;
+                ast.SetFunction(
+                    constructorFunctionIndex,
+                    ast.GetFunction(constructorFunctionIndex) with
+                    {
+                        HasSuperPropertyReference = true,
+                    }
+                );
+            }
             var elementRange = ast.AddClassElements(elements.AsSpan());
             var classIndex = ast.AddClass(
                 new FlatClassInfo(
@@ -987,23 +1017,27 @@ internal sealed class FlatJavaScriptParser
         }
     }
 
-    private int ParseStaticClassFieldInitializer(int position)
+    private int ParseClassFieldInitializer(int position, out bool hasSuperPropertyReference)
     {
         var allowSuperPropertyBeforeInitializer = allowSuperProperty;
         var superPropertySeenBeforeInitializer = superPropertySeen;
+        var forbidClassFieldArgumentsBeforeInitializer = forbidClassFieldArguments;
         allowSuperProperty = true;
         superPropertySeen = false;
+        forbidClassFieldArguments = true;
         receiverFunctionDepth++;
         try
         {
             var expression = ParseAssignment(allowIn: true);
-            return AddStaticClassFieldInitializer(expression, position, superPropertySeen);
+            hasSuperPropertyReference = superPropertySeen;
+            return expression;
         }
         finally
         {
             receiverFunctionDepth--;
             allowSuperProperty = allowSuperPropertyBeforeInitializer;
             superPropertySeen = superPropertySeenBeforeInitializer;
+            forbidClassFieldArguments = forbidClassFieldArgumentsBeforeInitializer;
         }
     }
 
@@ -1984,6 +2018,18 @@ internal sealed class FlatJavaScriptParser
         switch (token.Kind)
         {
             case JsTokenKind.Identifier:
+                if (
+                    forbidClassFieldArguments
+                    && string.Equals(
+                        GetIdentifierText(token),
+                        "arguments",
+                        StringComparison.Ordinal
+                    )
+                )
+                    throw Error(
+                        "'arguments' is not allowed in a class field initializer",
+                        token.Position
+                    );
                 Next();
                 return Arena.Add(
                     AstKind.Identifier,

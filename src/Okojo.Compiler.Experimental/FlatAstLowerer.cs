@@ -722,34 +722,42 @@ internal static class FlatAstLowerer
                 Math.Max(1, classExpression.Elements.Count)
             );
             var constructorNode = -1;
+            var nextInstanceFieldKeyIndex = 0;
+            var hasInstanceFields = false;
             try
             {
                 for (var i = 0; i < classExpression.Elements.Count; i++)
                 {
                     var element = classExpression.Elements[i];
-                    if (
-                        element.IsPrivate
-                        || element.Kind == JsClassElementKind.StaticBlock
-                        || (element.Kind == JsClassElementKind.Field && !element.IsStatic)
-                    )
+                    if (element.IsPrivate || element.Kind == JsClassElementKind.StaticBlock)
                         throw new NotSupportedException(
                             $"{compilerName} does not support class element '{element.Kind}' yet."
                         );
                     var value =
                         element.Kind == JsClassElementKind.Field
-                            ? LowerStaticClassFieldInitializer(element)
-                        : element.Value is null
-                            ? throw new InvalidOperationException("Class method value is missing.")
-                        : LowerFunctionExpression(
-                            element.Value,
-                            implicitlyStrict: true,
-                            isMethod: element.Kind != JsClassElementKind.Constructor,
-                            isClassConstructor: element.Kind == JsClassElementKind.Constructor,
-                            isDerivedConstructor: element.Kind == JsClassElementKind.Constructor
-                                && classExpression.HasExtends
-                        );
+                            ? element.IsStatic
+                                ? LowerStaticClassFieldInitializer(element)
+                                : element.FieldInitializer is null
+                                    ? -1
+                                    : LowerExpression(element.FieldInitializer)
+                            : element.Value is null
+                                ? throw new InvalidOperationException(
+                                    "Class method value is missing."
+                                )
+                                : LowerFunctionExpression(
+                                    element.Value,
+                                    implicitlyStrict: true,
+                                    isMethod: element.Kind != JsClassElementKind.Constructor,
+                                    isClassConstructor: element.Kind
+                                        == JsClassElementKind.Constructor,
+                                    isDerivedConstructor: element.Kind
+                                        == JsClassElementKind.Constructor
+                                        && classExpression.HasExtends
+                                );
                     if (element.Kind == JsClassElementKind.Constructor)
                         constructorNode = value;
+                    else if (element.Kind == JsClassElementKind.Field && !element.IsStatic)
+                        hasInstanceFields = true;
                     elements[i] = new FlatClassElement(
                         element.ComputedKey is null
                             ? Arena.AddString(element.Key ?? string.Empty)
@@ -758,7 +766,14 @@ internal static class FlatAstLowerer
                         element.Position,
                         element.Kind,
                         (element.IsStatic ? FlatClassElementFlags.Static : 0)
-                            | (element.ComputedKey is not null ? FlatClassElementFlags.Computed : 0)
+                            | (
+                                element.ComputedKey is not null ? FlatClassElementFlags.Computed : 0
+                            ),
+                        !element.IsStatic
+                        && element.Kind == JsClassElementKind.Field
+                        && element.ComputedKey is not null
+                            ? nextInstanceFieldKeyIndex++
+                            : -1
                     );
                 }
 
@@ -767,6 +782,17 @@ internal static class FlatAstLowerer
                         classExpression.Position,
                         isDerived: classExpression.HasExtends
                     );
+                if (hasInstanceFields)
+                {
+                    var constructorFunctionIndex = Arena[constructorNode].Arg0;
+                    Ast.SetFunction(
+                        constructorFunctionIndex,
+                        Ast.GetFunction(constructorFunctionIndex) with
+                        {
+                            HasSuperPropertyReference = true,
+                        }
+                    );
+                }
                 var range = Ast.AddClassElements(
                     elements.AsSpan(0, classExpression.Elements.Count)
                 );

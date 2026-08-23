@@ -96,8 +96,8 @@ constructors and public named/computed instance/static methods and accessors.
 Class heritage, derived constructors, and implicit/explicit/spread `super()` are
 also on the direct path, together with named/computed super-property loads, calls,
 stores, compound assignments, updates, static/instance home objects, and lexical
-use from nested arrows. Named/computed static public fields also execute directly
-in class-definition order through synthetic initializer functions.
+use from nested arrows. Named/computed static and instance public fields also
+execute directly with class-definition key capture and constructor-point values.
 
 ## Reference Architecture Insights
 
@@ -442,8 +442,11 @@ the new compiler for the supported function families.
   captures, inner class-name initialization, static `prototype` early rejection,
   and class-AST bridge execution. All keys are evaluated before the static
   initializer phase, matching V8 rather than interleaving key and value work.
-- add instance public fields and static blocks using dense initializer records
-  scheduled at constructor entry/post-`super()` and class definition respectively
+- landed instance public fields: cached computed keys, base-constructor entry,
+  implicit/explicit/spread derived post-`super()` scheduling, missing defaults,
+  outer capture and constructor-parameter isolation, `this`/`super`, nested
+  arrows, and class-AST bridge execution
+- add static blocks using dense source-ordered initializer records
 - private names, brands, accessors, and `#x in object`
 - complete computed-key, field-initializer, static-block, and heritage ordering
 

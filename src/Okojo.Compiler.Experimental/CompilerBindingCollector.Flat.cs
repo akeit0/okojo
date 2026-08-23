@@ -34,11 +34,18 @@ internal static partial class CompilerBindingCollector
         FlatAst ast,
         in FlatFunctionInfo function,
         int bodyRoot,
-        bool hasSelfBinding = false
+        bool hasSelfBinding = false,
+        int instanceFieldClassIndex = -1
     )
     {
         var collector = new FlatCollector(CompilerCollectedScopeKind.Function, function.IsArrow);
-        collector.CollectFlatFunctionRoot(ast, function, bodyRoot, hasSelfBinding);
+        collector.CollectFlatFunctionRoot(
+            ast,
+            function,
+            bodyRoot,
+            hasSelfBinding,
+            instanceFieldClassIndex
+        );
         collector.AddSyntheticArgumentsBindings();
         return collector.MoveResult();
     }
@@ -90,7 +97,8 @@ internal static partial class CompilerBindingCollector
             FlatAst ast,
             in FlatFunctionInfo function,
             int bodyRoot,
-            bool hasSelfBinding
+            bool hasSelfBinding,
+            int instanceFieldClassIndex
         )
         {
             var name = ast.GetString(function.NameStringIndex);
@@ -114,6 +122,17 @@ internal static partial class CompilerBindingCollector
 
             CollectFlatParameters(ast, function, 0);
             CollectBody(ast, bodyRoot, 0);
+            if (instanceFieldClassIndex >= 0)
+            {
+                var elements = ast.GetClassElements(ast.GetClass(instanceFieldClassIndex));
+                for (var i = 0; i < elements.Length; i++)
+                    if (
+                        elements[i].Kind == JsClassElementKind.Field
+                        && !elements[i].IsStatic
+                        && elements[i].ValueNode >= 0
+                    )
+                        VisitExpression(ast, elements[i].ValueNode, 0);
+            }
         }
 
         public void CollectBody(FlatAst ast, int bodyRoot, int scopeId)
@@ -810,6 +829,12 @@ internal static partial class CompilerBindingCollector
                 ref readonly var element = ref elements[i];
                 if (element.IsComputed)
                     VisitExpression(ast, element.Key, classScopeId);
+                if (element.Kind == JsClassElementKind.Field && !element.IsStatic)
+                {
+                    if (element.ValueNode >= 0)
+                        VisitExpression(ast, element.ValueNode, classScopeId);
+                    continue;
+                }
                 VisitFunctionExpression(ast, ast[element.ValueNode], classScopeId);
                 visitedConstructor |= element.ValueNode == info.ConstructorNode;
             }

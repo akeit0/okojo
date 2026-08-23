@@ -45,7 +45,8 @@ internal abstract partial class JsPlannedCompilerBase
                 ast,
                 constructor.Arg0,
                 constructor.Arg1,
-                constructorName.Length == 0 ? null : constructorName
+                constructorName.Length == 0 ? null : constructorName,
+                classIndex
             );
             var constructorRegister = builder.AllocateTemporaryRegister();
             EmitStar(constructorRegister);
@@ -83,9 +84,11 @@ internal abstract partial class JsPlannedCompilerBase
                     if (element.Kind == JsClassElementKind.Field)
                     {
                         if (!element.IsStatic)
-                            throw new NotSupportedException(
-                                "Flat instance class fields are not implemented yet."
-                            );
+                        {
+                            if (element.IsComputed)
+                                EmitCacheInstanceFieldKey(ast, element, constructorRegister);
+                            continue;
+                        }
                         var keyRegister = builder.AllocateTemporaryRegister();
                         EmitClassElementKey(ast, element, keyRegister);
                         staticFieldKeyRegisters[i] = keyRegister;
@@ -201,6 +204,81 @@ internal abstract partial class JsPlannedCompilerBase
         finally
         {
             builder.ReleaseTemporaryRegistersToMarker(marker);
+        }
+    }
+
+    private void EmitCacheInstanceFieldKey(
+        FlatAst ast,
+        in FlatClassElement element,
+        int constructorRegister
+    )
+    {
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            var arguments = builder.AllocateTemporaryRegisterBlock(3);
+            EmitLdar(constructorRegister);
+            EmitStar(arguments);
+            EmitSmi(element.InstanceFieldKeyIndex);
+            EmitStar(arguments + 1);
+            EmitClassElementKey(ast, element, arguments + 2);
+            builder.EmitCallRuntime((int)RuntimeId.SetFunctionInstanceFieldKey, arguments, 3);
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+        }
+    }
+
+    protected void EmitInstanceFieldInitializers(FlatAst ast, int classIndex)
+    {
+        var elements = ast.GetClassElements(ast.GetClass(classIndex));
+        for (var i = 0; i < elements.Length; i++)
+        {
+            ref readonly var element = ref elements[i];
+            if (element.Kind != JsClassElementKind.Field || element.IsStatic)
+                continue;
+
+            var marker = builder.GetTemporaryRegisterScopeMarker();
+            try
+            {
+                var arguments = builder.AllocateTemporaryRegisterBlock(3);
+                builder.EmitLda(JsOpCode.LdaThis);
+                EmitStar(arguments);
+                if (element.InstanceFieldKeyIndex >= 0)
+                {
+                    EmitSmi(element.InstanceFieldKeyIndex);
+                    EmitStar(arguments + 1);
+                    builder.EmitCallRuntime(
+                        (int)RuntimeId.LoadCurrentFunctionInstanceFieldKey,
+                        arguments + 1,
+                        1
+                    );
+                }
+                else
+                    EmitStringLiteral(ast.GetString(element.Key));
+                EmitStar(arguments + 1);
+                if (element.ValueNode >= 0)
+                {
+                    emittingInstanceFieldInitializer = true;
+                    try
+                    {
+                        EmitExpression(ast, element.ValueNode);
+                    }
+                    finally
+                    {
+                        emittingInstanceFieldInitializer = false;
+                    }
+                }
+                else
+                    builder.EmitLda(JsOpCode.LdaUndefined);
+                EmitStar(arguments + 2);
+                builder.EmitCallRuntime((int)RuntimeId.DefineClassField, arguments, 3);
+            }
+            finally
+            {
+                builder.ReleaseTemporaryRegistersToMarker(marker);
+            }
         }
     }
 
