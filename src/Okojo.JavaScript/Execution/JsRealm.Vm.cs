@@ -95,6 +95,7 @@ public sealed partial class JsRealm
         HandleRuntimeForInNext, // ForInNext = 76
         HandleRuntimeForInStep, // ForInStep = 77
         HandleRuntimeMaterializeSpreadArgument, // MaterializeSpreadArgument = 78
+        HandleRuntimeGetCurrentModuleNamespace, // GetCurrentModuleNamespace = 79
     ];
 
     private static readonly IntrinsicHandler?[] SIntrinsicHandlers =
@@ -6638,6 +6639,38 @@ public sealed partial class JsRealm
                 "GetCurrentModuleImportMeta expects zero arguments"
             );
         acc = realm.Agent.GetCurrentModuleImportMetaBinding(realm, realm.GetCurrentContext());
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void HandleRuntimeGetCurrentModuleNamespace(
+        JsRealm realm,
+        JsScript script,
+        int opcodePc,
+        ref JsValue registers,
+        int fp,
+        int argRegStart,
+        int argCount,
+        ref JsValue acc
+    )
+    {
+        if (argCount != 2)
+            ThrowTypeError(
+                "MODULE_NAMESPACE_ARGC",
+                "GetCurrentModuleNamespace expects two arguments"
+            );
+        var specifier = Unsafe.Add(ref registers, argRegStart);
+        var importType = Unsafe.Add(ref registers, argRegStart + 1);
+        if (!specifier.IsString || !(importType.IsUndefined || importType.IsString))
+            ThrowTypeError(
+                "MODULE_NAMESPACE_ARGUMENT",
+                "GetCurrentModuleNamespace expects a string specifier and optional string type"
+            );
+        acc = realm.Agent.GetCurrentModuleNamespaceBinding(
+            realm,
+            specifier.AsString(),
+            importType.IsString ? importType.AsString() : null,
+            realm.GetCurrentContext()
+        );
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]

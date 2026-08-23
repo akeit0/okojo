@@ -1893,6 +1893,35 @@ public sealed partial class JsAgent
         return JsValue.Undefined;
     }
 
+    internal JsValue GetCurrentModuleNamespaceBinding(
+        JsRealm realm,
+        string specifier,
+        string? importType,
+        JsContext? context = null
+    )
+    {
+        var bindings = context?.ModuleBindings ?? GetCurrentModuleRuntimeBindings();
+        var resolvedId = ModuleSourceLoader.ResolveSpecifier(specifier, bindings.ModuleResolvedId);
+        if (
+            bindings.Imports.TryGetObject(out var importsObject)
+            && importsObject is JsPlainObject imports
+            && TryResolveDependencyNamespace(
+                realm,
+                imports,
+                resolvedId,
+                importType,
+                out var namespaceObject
+            )
+        )
+            return JsValue.FromObject(namespaceObject);
+
+        throw new JsRuntimeException(
+            JsErrorKind.ReferenceError,
+            $"Linked module namespace '{specifier}' is unavailable",
+            "MODULE_NAMESPACE_UNAVAILABLE"
+        );
+    }
+
     internal bool TryGetCurrentModuleRuntimeBindings(out ModuleExecutionBindings bindings)
     {
         lock (moduleRuntimeBindingsGate)

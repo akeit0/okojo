@@ -199,4 +199,7 @@ internal enum RuntimeId : byte
     // Materialize one spread iterable immediately at its argument-list position.
     // Appended to preserve existing RuntimeId ABI values. Args: [source].
     MaterializeSpreadArgument,
+
+    // Resolve a linked namespace import for the current module. Args: [specifier, importType].
+    GetCurrentModuleNamespace,
 }

@@ -115,6 +115,46 @@ public class JsPlannedScriptCompilerTests
     }
 
     [Test]
+    public void CompileModule_InitializesNamespaceImportFromLinkedModuleBindings()
+    {
+        using var runtime = JsRuntime.Create(builder =>
+            builder.UseModuleSourceLoader(new TestModuleSourceLoader())
+        );
+        var realm = runtime.DefaultRealm;
+        var script = new JsPlannedModuleCompiler(realm).Compile(
+            """
+            import * as namespaceValue from "./dependency" with { type: "json" };
+            export default namespaceValue;
+            """
+        );
+        var namespaceObject = new JsPlainObject(realm);
+        var imports = new JsPlainObject(realm);
+        imports.SetProperty("dependency\0json", JsValue.FromObject(namespaceObject));
+        var exports = new[] { new ModuleVariableSlot(ModuleVariableSlotKind.Local) };
+        var bindings = new ModuleExecutionBindings(
+            "entry",
+            JsValue.FromObject(imports),
+            JsValue.Undefined,
+            exports,
+            [],
+            JsValue.Undefined
+        );
+        var context = new JsContext(null, 0) { ModuleBindings = bindings };
+        var root = new JsBytecodeFunction(realm, script, isStrict: true)
+        {
+            BoundParentContext = context,
+        };
+
+        realm.Execute(root);
+
+        Assert.That(exports[0].LocalValue.AsObject(), Is.SameAs(namespaceObject));
+        Assert.That(
+            Disassembler.Dump(script),
+            Does.Contain("CallRuntime runtime:GetCurrentModuleNamespace")
+        );
+    }
+
+    [Test]
     public void Compile_RejectsUnsupportedStatements_WithoutTouchingJsCompiler()
     {
         var runtime = JsRuntime.Create();
@@ -133,6 +173,14 @@ public class JsPlannedScriptCompilerTests
 
         Assert.That(ex, Is.Not.Null);
         Assert.That(ex!.Message, Does.Contain("does not support statement"));
+    }
+
+    private sealed class TestModuleSourceLoader : IModuleSourceLoader
+    {
+        public string ResolveSpecifier(string specifier, string? referrer) =>
+            specifier.StartsWith("./", StringComparison.Ordinal) ? specifier[2..] : specifier;
+
+        public string LoadSource(string resolvedId) => string.Empty;
     }
 
     [Test]

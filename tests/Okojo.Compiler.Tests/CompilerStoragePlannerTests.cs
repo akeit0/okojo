@@ -128,7 +128,7 @@ public class CompilerStoragePlannerTests
             Assert.That(bindings["value"].StorageIndex, Is.EqualTo(1));
             Assert.That(
                 bindings["namespaceValue"].StorageKind,
-                Is.EqualTo(CompilerPlannedStorageKind.ImportBinding)
+                Is.EqualTo(CompilerPlannedStorageKind.LexicalRegister)
             );
             Assert.That(
                 bindings["hidden"].StorageKind,

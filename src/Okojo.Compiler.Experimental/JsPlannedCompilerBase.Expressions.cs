@@ -2003,7 +2003,7 @@ internal abstract partial class JsPlannedCompilerBase
         EmitNumericConstant(number);
     }
 
-    private void EmitStringLiteral(string value)
+    protected void EmitStringLiteral(string value)
     {
         EmitStringConstant(builder.AddObjectConstant(value));
     }

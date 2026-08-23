@@ -54,8 +54,14 @@ internal static class CompilerStoragePlanner
                     binding.ScopeId == 0
                     && moduleCells is not null
                     && moduleCells.TryGetValue(binding.Name, out moduleCellIndex);
+                var isNamespaceImport =
+                    moduleAst is not null
+                    && binding.ScopeId == 0
+                    && binding.Kind == CompilerCollectedBindingKind.Import
+                    && !hasModuleCell;
                 var storageKind =
                     hasModuleCell ? CompilerPlannedStorageKind.ModuleBinding
+                    : isNamespaceImport ? CompilerPlannedStorageKind.LexicalRegister
                     : binding.Kind == CompilerCollectedBindingKind.Parameter
                     && hasArgumentsBinding[binding.ScopeId]
                         ? CompilerPlannedStorageKind.ContextSlot

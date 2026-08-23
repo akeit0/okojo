@@ -14,7 +14,7 @@ internal abstract partial class JsPlannedCompilerBase
         }
     }
 
-    private bool TryResolveBinding(string name, out BindingStorage binding)
+    protected bool TryResolveBinding(string name, out BindingStorage binding)
     {
         return TryResolveBindingAccess(name, out binding, out _);
     }

@@ -502,8 +502,9 @@ checks, and observable function names match the production engine and V8.
   aliases share one cell, matching V8's module-descriptor finalization contract
 - planned module compilation now consumes finalized regular cells directly:
   import/export wrappers emit no class-AST objects, module loads/stores use the
-  existing signed-cell VM opcodes, and child functions retain module-cell access;
-  V8-style namespace-import prologue initialization remains next
+  existing signed-cell VM opcodes, and child functions retain module-cell access.
+  V8-special namespace imports use lexical/context storage and are initialized by
+  one cold module-prologue runtime lookup that preserves import attributes.
 - linking/evaluation integration
 - dynamic import, `import.meta`, top-level await, and async dependency ordering
 

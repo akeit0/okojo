@@ -18,6 +18,7 @@ internal sealed class JsPlannedModuleCompiler(JsRealm realm) : JsPlannedCompiler
         InitializeRootBindings();
         EmitFunctionContextSetup();
         EmitScopeLexicalHoleInitialization();
+        EmitNamespaceImports(ast);
         EmitDeclarationPrologue(ast, ast.Root);
 
         ref readonly var root = ref ast[ast.Root];
@@ -34,5 +35,55 @@ internal sealed class JsPlannedModuleCompiler(JsRealm realm) : JsPlannedCompiler
         };
         script.BindAgent(Vm.Agent);
         return script;
+    }
+
+    private void EmitNamespaceImports(FlatAst ast)
+    {
+        foreach (ref readonly var import in ast.ImportEntries)
+        {
+            if (import.Kind != FlatImportKind.Namespace)
+                continue;
+
+            var marker = builder.GetTemporaryRegisterScopeMarker();
+            try
+            {
+                var arguments = builder.AllocateTemporaryRegisterBlock(2);
+                ref readonly var request = ref ast.ModuleRequests[import.ModuleRequestIndex];
+                EmitStringLiteral(ast.GetString(request.SpecifierStringIndex));
+                EmitStar(arguments);
+                var importType = GetImportType(ast, request);
+                if (importType is null)
+                    builder.EmitLda(JsOpCode.LdaUndefined);
+                else
+                    EmitStringLiteral(importType);
+                EmitStar(arguments + 1);
+                builder.EmitCallRuntime((int)RuntimeId.GetCurrentModuleNamespace, arguments, 2);
+                var localName = ast.GetString(import.LocalNameStringIndex);
+                if (!TryResolveBinding(localName, out var binding))
+                    throw new InvalidOperationException(
+                        $"No planned binding found for namespace import '{localName}'."
+                    );
+                EmitStore(binding, isInitialization: true);
+            }
+            finally
+            {
+                builder.ReleaseTemporaryRegistersToMarker(marker);
+            }
+        }
+    }
+
+    private static string? GetImportType(FlatAst ast, in FlatModuleRequest request)
+    {
+        var attributes = ast.GetImportAttributes(request);
+        for (var i = 0; i < attributes.Length; i++)
+            if (
+                string.Equals(
+                    ast.GetString(attributes[i].KeyStringIndex),
+                    "type",
+                    StringComparison.Ordinal
+                )
+            )
+                return ast.GetString(attributes[i].ValueStringIndex);
+        return null;
     }
 }

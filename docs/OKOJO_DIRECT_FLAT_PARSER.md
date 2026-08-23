@@ -55,7 +55,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Blocks/control | block, `if`, `while`, `do`, ordinary `for`, `for-in`, synchronous `for-of`, `for-await-of`, `switch`, chained labels, labeled/unlabeled `break`/`continue`, `return`, `throw`, `try`/`catch`/`finally`, `debugger`, empty/expression statement | remaining declaration/control early errors |
 | Primitive expressions | number, BigInt, string, boolean, null, regexp, tagged/untagged template, identifier, `this`, `new.target`, contextual `super` roots, grouping | `import.meta` |
 | Operators | precedence table, assignment, arithmetic/logical/bitwise/comparison, conditionals, sequence, updates, optional chains, property/identifier/value/optional-chain `delete` | remaining edge-specific early errors |
-| References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed ordinary and `super` properties, private field/method/accessor loads, calls, stores, updates, `#x in value`, and planned regular import/local-export module-cell loads/stores through nested functions | namespace-import initialization and production linker consumption |
+| References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed ordinary and `super` properties, private field/method/accessor loads, calls, stores, updates, `#x in value`, planned regular import/local-export module-cell loads/stores through nested functions, and namespace-import prologue initialization | production linker/runtime consumption |
 | Calls/construction | direct/member/optional calls, spread calls, ordinary/spread `new`, implicit/explicit/spread `super()`, super-property calls, wide operands | dynamic import |
 | Arrays/objects | holes, array/object spread, data properties, ordinary/generator/async concise methods, getters/setters, computed/shorthand/index keys, stable data shape prefix, demand-driven super home objects | legacy `__proto__` intentionally excluded |
 | Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings, class declaration and inner-name bindings, read-only import bindings in a module root scope, module-wide import/`var`/lexical/function/class conflict and local-export validation, deterministic signed module cells | linker consumption and remaining early errors |
@@ -1220,10 +1220,30 @@ Planned module-cell bytecode slice landed:
 - Okojo implementation: one module-only name-to-cell planning map classifies root
   bindings as `ModuleBinding`; the existing signed-cell VM opcodes are emitted
   directly and the capture descriptor carries module identity/depth into child
-  functions. Namespace bindings deliberately remain on the pending special path.
+  functions. Namespace bindings use lexical/context storage and a module-prologue
+  runtime call that resolves the already-linked namespace with its import type.
 - performance plan: no class-AST lowering and no mirrored export stores; flat
   wrapper nodes disappear during emission and each live binding uses one VM cell
   access
+
+Namespace-import prologue slice landed:
+
+- iteration scope: initialize V8-special namespace imports before module body
+  execution without allocating a negative regular-import cell
+- minimal repro: `import * as ns from './dependency'; export default ns`
+- focused tests execute planned bytecode against linked module bindings, including
+  import-attribute keying, and verify that namespace bindings use lexical storage
+- V8 observation: `VisitModuleNamespaceImports` calls `GetModuleNamespace` with the
+  module request and initializes the module-scope variable before body emission
+- Okojo implementation: append-only runtime ID `GetCurrentModuleNamespace` resolves
+  the specifier relative to the active module record, reads the namespace already
+  installed by linking, and initializes the planned lexical/context binding. Child
+  contexts inherit the module record, so no frame-layout or opcode change is needed.
+- intentional difference: Okojo passes specifier plus import type through the cold
+  prologue helper rather than serializing V8's module-request index; linker adoption
+  can replace this with a resolved request table if measurement warrants it
+- performance plan: one cold runtime call per namespace import; regular named/default
+  imports remain direct signed-cell loads
 
 ### Stage F4 - Modules
 

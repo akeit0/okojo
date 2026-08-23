@@ -129,7 +129,7 @@ internal abstract partial class JsPlannedCompilerBase
             );
     }
 
-    private void EmitStar(int register)
+    protected void EmitStar(int register)
     {
         if (register <= byte.MaxValue)
             builder.Emit(JsOpCode.Star, (byte)register);
