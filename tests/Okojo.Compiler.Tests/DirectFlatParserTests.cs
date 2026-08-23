@@ -3643,7 +3643,8 @@ public class DirectFlatParserTests
             "class Box { #value; read(value) { return value.#value; } } new Box().read({});"
         );
 
-        Assert.Throws<JsRuntimeException>(() => realm.Execute(script));
+        var error = Assert.Throws<JsRuntimeException>(() => realm.Execute(script));
+        Assert.That(error!.Message, Does.Contain("#value"));
     }
 
     [Test]
@@ -3697,6 +3698,146 @@ public class DirectFlatParserTests
         realm.Execute(script);
 
         Assert.That(realm.Accumulator.AsString(), Is.EqualTo("fn|Cls"));
+    }
+
+    [Test]
+    public void CompileString_ExecutesPrivateMethodsAndAccessors()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            class Box {
+                #value = 1;
+                #method() { return this.#value; }
+                get #accessor() { return this.#value; }
+                set #accessor(value) { this.#value = value; }
+                static #staticValue = 2;
+                static #staticMethod() { return this; }
+                static get #staticAccessor() { return this.#staticValue; }
+                static set #staticAccessor(value) { this.#staticValue = value; }
+                getMethod() { return this.#method; }
+                read() { return this.#method() + this.#accessor; }
+                write(value) { this.#accessor = value; }
+                increment() { return this.#accessor++; }
+                nested() { return (() => this.#method())(); }
+                has(value) { return #method in value; }
+                static call() { return this.#staticMethod(); }
+                static read() { return this.#staticAccessor; }
+                static write(value) { this.#staticAccessor = value; }
+                static getMethod() { return this.#staticMethod; }
+            }
+            let first = new Box();
+            let second = new Box();
+            first.write(3);
+            let old = first.increment();
+            let before = Box.read();
+            Box.write(5);
+            first.read() + '|' + first.nested() + '|'
+                + old + '|'
+                + (first.getMethod() === second.getMethod()) + '|'
+                + first.getMethod().name + '|' + first.has(first) + '|'
+                + first.has({}) + '|' + (Box.call() === Box) + '|'
+                + before + '|' + Box.read() + '|' + Box.getMethod().name;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(
+            realm.Accumulator.AsString(),
+            Is.EqualTo("8|4|3|true|#method|true|false|true|2|5|#staticMethod")
+        );
+    }
+
+    [TestCase(
+        "class Box { get #value() { return 1; } write() { this.#value = 1; } } new Box().write();"
+    )]
+    [TestCase(
+        "class Box { set #value(value) {} read() { return this.#value; } } new Box().read();"
+    )]
+    [TestCase(
+        "class Box { #method() {} getMethod() { return this.#method; } } let method = new Box().getMethod(); new method();"
+    )]
+    [TestCase("class Box { #method() {} assign() { this.#method = 1; } } new Box().assign();")]
+    public void CompileString_RejectsInvalidPrivateMethodOrAccessorUse(string source)
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(source);
+
+        Assert.Throws<JsRuntimeException>(() => realm.Execute(script));
+    }
+
+    [TestCase("class Invalid { #method() {} #method() {} }")]
+    [TestCase("class Invalid { get #value() {} get #value() {} }")]
+    [TestCase("class Invalid { get #value() {} static set #value(value) {} }")]
+    [TestCase("class Invalid { #constructor() {} }")]
+    public void ParseScript_RejectsDuplicatePrivateMethodsAndAccessors(string source) =>
+        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+
+    [Test]
+    public void CompileAst_ExecutesPrivateMethodAndAccessorBridge()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            JavaScriptParser.ParseScript(
+                "class Box { #value = 1; #method() { return this.#value; } get #accessor() { return this.#method(); } set #accessor(value) { this.#value = value; } read() { return this.#accessor; } write(value) { this.#accessor = value; } } let box = new Box(); box.write(4); box.read();"
+            )
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(4));
+    }
+
+    [Test]
+    public void CompileString_ExecutesDerivedPrivateMethodHomeObjects()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            class Base {
+                read() { return this.value; }
+                static read() { return this.value; }
+            }
+            class Derived extends Base {
+                #privateValue = 2;
+                #read() { return super.read() + this.#privateValue; }
+                value = 4;
+                static #staticPrivateValue = 3;
+                static #staticRead() { return super.read() + this.#staticPrivateValue; }
+                static value = 5;
+                readPrivate() { return this.#read(); }
+                static readPrivate() { return this.#staticRead(); }
+            }
+            new Derived().readPrivate() + '|' + Derived.readPrivate();
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("6|8"));
+    }
+
+    [Test]
+    public void CompileString_InitializesPrivateMethodsBeforeFields()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            class Order {
+                methodValue = this.#method();
+                accessorValue = this.#accessor;
+                #method() { return 1; }
+                get #accessor() { return 2; }
+            }
+            let value = new Order();
+            value.methodValue + '|' + value.accessorValue;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("1|2"));
     }
 
     [Test]

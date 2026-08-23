@@ -44,12 +44,36 @@ internal abstract partial class JsPlannedCompilerBase
         visiblePrivateBindings =
             privateBindings
             ?? new Dictionary<string, PlannedPrivateBinding>(StringComparer.Ordinal);
+        RegisterPrivateDebugNames(visiblePrivateBindings);
     }
 
     protected JsRealm Vm { get; }
     protected string CompilerName => GetType().Name;
 
-    internal readonly record struct PlannedPrivateBinding(int BrandId, int SlotIndex);
+    private void RegisterPrivateDebugNames(
+        IReadOnlyDictionary<string, PlannedPrivateBinding> bindings
+    )
+    {
+        foreach (var (name, binding) in bindings)
+            builder.AddPrivateFieldDebugName(
+                ((long)binding.BrandId << 32) | (uint)binding.SlotIndex,
+                name
+            );
+    }
+
+    internal readonly record struct PlannedPrivateBinding(
+        int BrandId,
+        int SlotIndex,
+        PlannedPrivateMemberKind Kind = PlannedPrivateMemberKind.Field,
+        bool IsStatic = false
+    );
+
+    internal enum PlannedPrivateMemberKind : byte
+    {
+        Field,
+        Method,
+        Accessor,
+    }
 
     private readonly record struct PrivateBrandSource(int BrandId, int Register);
 

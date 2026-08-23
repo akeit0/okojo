@@ -55,13 +55,13 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Blocks/control | block, `if`, `while`, `do`, ordinary `for`, `for-in`, synchronous `for-of`, `for-await-of`, `switch`, chained labels, labeled/unlabeled `break`/`continue`, `return`, `throw`, `try`/`catch`/`finally`, `debugger`, empty/expression statement | remaining declaration/control early errors |
 | Primitive expressions | number, BigInt, string, boolean, null, regexp, tagged/untagged template, identifier, `this`, `new.target`, contextual `super` roots, grouping | `import.meta` |
 | Operators | precedence table, assignment, arithmetic/logical/bitwise/comparison, conditionals, sequence, updates, optional chains, property/identifier/value/optional-chain `delete` | remaining edge-specific early errors |
-| References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed ordinary and `super` properties, private-field loads/calls and `#x in value` | imports and private methods/accessors |
+| References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed ordinary and `super` properties, private field/method/accessor loads, calls, stores, updates, and `#x in value` | imports |
 | Calls/construction | direct/member/optional calls, spread calls, ordinary/spread `new`, implicit/explicit/spread `super()`, super-property calls, wide operands | dynamic import |
 | Arrays/objects | holes, array/object spread, data properties, ordinary/generator/async concise methods, getters/setters, computed/shorthand/index keys, stable data shape prefix, demand-driven super home objects | legacy `__proto__` intentionally excluded |
 | Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings, class declaration and inner-name bindings | module bindings and remaining early errors |
 | Assignments | identifier/ordinary/super/private-field member targets, compound/logical/update, array/object destructuring, core optional-chain target restrictions | remaining early errors |
 | Functions | ordinary declarations/expressions, closures, synchronous and async generators with `yield`/`yield*`, async declarations/expressions/object methods with `await`, synchronous and async arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`/`new.target`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function/class name inference, demand-driven mapped/unmapped `arguments` | lazy bodies |
-| Classes | base/derived declarations and expressions, explicit/implicit constructors, heritage/prototype setup, derived `this`/return rules, public named/computed instance/static methods and accessors, named/computed public fields, instance/static private fields and brands, source-ordered static blocks, named/computed super loads/calls/stores/updates, strict bodies, declaration TDZ/const storage, inner class-name capture, anonymous name inference including named fields | private methods/accessors, computed-field initializer anonymous naming |
+| Classes | base/derived declarations and expressions, explicit/implicit constructors, heritage/prototype setup, derived `this`/return rules, public/private instance/static methods and accessors, named/computed public fields, instance/static private fields and brands, source-ordered static blocks, named/computed super loads/calls/stores/updates, strict bodies, declaration TDZ/const storage, inner class-name capture, anonymous name inference including named fields/private methods/private accessors | computed-field initializer anonymous naming |
 | Modules | none | parse goal, entries, linking metadata, live bindings, top-level await |
 
 The direct parser rejects unsupported grammar. It does not catch an error and
@@ -1091,6 +1091,33 @@ Named field-initializer inference slice landed:
   synthetic initializer metadata carries one optional pooled name index
 - performance plan: one integer metadata field per flat function, no AST rewrite,
   runtime naming helper, or additional closure
+
+Private method/accessor slice landed:
+
+- iteration scope: instance/static private methods plus paired/single private
+  getters/setters, calls, assignment, updates, brand checks, lexical nesting, and
+  receiver errors
+- minimal repro:
+  `class C { #m() { return this } get #x() { return 1 } call() { return this.#m() } }`
+- reference case:
+  `artifacts/okojobytecodetool/cases/flat_ast_class_private_methods.js`
+- focused tests cover method identity/non-constructibility/names, accessor reads,
+  writes and updates, missing-half errors, instance/static brands, `#x in`, nested
+  access, duplicate and `#constructor` early errors, derived `super` home objects,
+  initialization before fields, and class-AST bridge execution
+- V8 observation: private method/accessor closures are created once during class
+  evaluation; instance initialization installs the brand/descriptors after base
+  entry or derived `super()`, while static descriptors are installed before static
+  fields and blocks
+- Okojo implementation: the private binding records field/method/accessor kind and
+  staticness; emission reuses `InitPrivateMethod`/`InitPrivateAccessor` and
+  transports instance closures through the constructor's existing private-method
+  value storage
+- intentional production-path improvement: accessors are created once per class,
+  and all instance method/accessor descriptors are installed before any field
+  initializer, including fields that reference a later private declaration
+- performance plan: create each private function closure once per class, use fixed
+  brand/slot/value indices, and allocate no per-instance method/accessor closures
 
 ### Stage F4 - Modules
 

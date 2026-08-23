@@ -852,13 +852,7 @@ internal sealed class FlatJavaScriptParser
                     if (current.Kind == JsTokenKind.PrivateIdentifier)
                     {
                         isPrivate = true;
-                        var privateName = GetPrivateIdentifierText(current);
-                        if (!classPrivateNameScope.Declarations.Add(privateName))
-                            throw Error(
-                                $"Duplicate private class member '{privateName}'",
-                                current.Position
-                            );
-                        key = Arena.AddString(privateName);
+                        key = Arena.AddString(GetPrivateIdentifierText(current));
                     }
                     else
                         key = Arena.AddString(GetObjectPropertyName(current));
@@ -884,11 +878,12 @@ internal sealed class FlatJavaScriptParser
                     else
                     {
                         if (current.Kind == JsTokenKind.PrivateIdentifier)
-                            throw Error(
-                                "Private class elements are not supported by the flat parser yet",
-                                current.Position
-                            );
-                        key = Arena.AddString(GetObjectPropertyName(current));
+                        {
+                            isPrivate = true;
+                            key = Arena.AddString(GetPrivateIdentifierText(current));
+                        }
+                        else
+                            key = Arena.AddString(GetObjectPropertyName(current));
                         Next();
                     }
 
@@ -910,6 +905,14 @@ internal sealed class FlatJavaScriptParser
                         )
                     )
                         throw Error("Expected setter parameter", elementPosition);
+                    if (isPrivate)
+                        DeclarePrivateElement(
+                            classPrivateNameScope,
+                            ast.GetString(key),
+                            isGetter ? JsClassElementKind.Getter : JsClassElementKind.Setter,
+                            isStatic,
+                            elementPosition
+                        );
                     elements.Add(
                         new FlatClassElement(
                             key,
@@ -918,6 +921,7 @@ internal sealed class FlatJavaScriptParser
                             isGetter ? JsClassElementKind.Getter : JsClassElementKind.Setter,
                             (isStatic ? FlatClassElementFlags.Static : 0)
                                 | (computed ? FlatClassElementFlags.Computed : 0)
+                                | (isPrivate ? FlatClassElementFlags.Private : 0)
                         )
                     );
                     continue;
@@ -958,6 +962,14 @@ internal sealed class FlatJavaScriptParser
                         );
                     if (!isStatic)
                         instanceFieldsUseSuper |= initializerUsesSuper;
+                    if (isPrivate)
+                        DeclarePrivateElement(
+                            classPrivateNameScope,
+                            ast.GetString(key),
+                            JsClassElementKind.Field,
+                            isStatic,
+                            elementPosition
+                        );
                     elements.Add(
                         new FlatClassElement(
                             key,
@@ -980,8 +992,11 @@ internal sealed class FlatJavaScriptParser
                     && !isPrivate
                     && string.Equals(staticName, "constructor");
                 if (isPrivate)
-                    throw Error(
-                        "Private methods and accessors are not supported by the flat parser yet",
+                    DeclarePrivateElement(
+                        classPrivateNameScope,
+                        ast.GetString(key),
+                        JsClassElementKind.Method,
+                        isStatic,
                         elementPosition
                     );
                 if (isConstructor && (isGenerator || isAsync))
@@ -1012,6 +1027,7 @@ internal sealed class FlatJavaScriptParser
                         isConstructor ? JsClassElementKind.Constructor : JsClassElementKind.Method,
                         (isStatic ? FlatClassElementFlags.Static : 0)
                             | (computed ? FlatClassElementFlags.Computed : 0)
+                            | (isPrivate ? FlatClassElementFlags.Private : 0)
                     )
                 );
             }
@@ -3145,6 +3161,45 @@ internal sealed class FlatJavaScriptParser
         privateNameScope.References.Add((name, position));
     }
 
+    private void DeclarePrivateElement(
+        PrivateNameScope scope,
+        string name,
+        JsClassElementKind kind,
+        bool isStatic,
+        int position
+    )
+    {
+        if (name == "#constructor")
+            throw Error("Class constructor may not be a private element", position);
+
+        var accessorBit = kind switch
+        {
+            JsClassElementKind.Getter => (byte)1,
+            JsClassElementKind.Setter => (byte)2,
+            _ => (byte)0,
+        };
+        if (!scope.ElementDeclarations.TryGetValue(name, out var declaration))
+        {
+            scope.ElementDeclarations.Add(name, (isStatic, accessorBit));
+            scope.Declarations.Add(name);
+            return;
+        }
+        if (
+            accessorBit != 0
+            && declaration.AccessorMask != 0
+            && declaration.IsStatic == isStatic
+            && (declaration.AccessorMask & accessorBit) == 0
+        )
+        {
+            scope.ElementDeclarations[name] = (
+                isStatic,
+                (byte)(declaration.AccessorMask | accessorBit)
+            );
+            return;
+        }
+        throw Error($"Duplicate private class member '{name}'", position);
+    }
+
     private bool IsCurrentIdentifierName(string value) =>
         current.Kind is JsTokenKind.Identifier or JsTokenKind.ReservedWord
         && source.AsSpan(current.Position, current.SourceLength).SequenceEqual(value.AsSpan());
@@ -3152,6 +3207,8 @@ internal sealed class FlatJavaScriptParser
     private sealed class PrivateNameScope(PrivateNameScope? parent)
     {
         public HashSet<string> Declarations { get; } = new(StringComparer.Ordinal);
+        public Dictionary<string, (bool IsStatic, byte AccessorMask)> ElementDeclarations { get; } =
+            new(StringComparer.Ordinal);
         public List<(string Name, int Position)> References { get; } = [];
 
         public bool Resolve(out (string Name, int Position) unresolved)

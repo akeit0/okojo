@@ -734,10 +734,6 @@ internal static class FlatAstLowerer
                 for (var i = 0; i < classExpression.Elements.Count; i++)
                 {
                     var element = classExpression.Elements[i];
-                    if (element.IsPrivate && element.Kind != JsClassElementKind.Field)
-                        throw new NotSupportedException(
-                            $"{compilerName} does not support class element '{element.Kind}' yet."
-                        );
                     var value =
                         element.Kind == JsClassElementKind.StaticBlock
                             ? LowerClassStaticBlock(element)

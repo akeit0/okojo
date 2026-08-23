@@ -465,7 +465,14 @@ the new compiler for the supported function families.
 - landed named field initializer inference: anonymous function/class values receive
   public or `#private` source names across instance/static initialization by reusing
   ordinary inferred-name closure compilation; computed field naming remains deferred
-- private methods and accessors
+- landed private methods/accessors: closures are allocated once at class evaluation,
+  instance descriptors are installed before every field initializer, and static
+  descriptors precede static fields/blocks. Fixed brand/slot/value indices reuse
+  `InitPrivateMethod`/`InitPrivateAccessor`; focused coverage includes identity,
+  names, missing accessor halves, updates, `#x in`, lexical nesting, derived
+  `super` home objects, early errors, and the class-AST bridge. This follows V8's
+  class-evaluation shape and improves on production Okojo's per-instance accessor
+  closure behavior.
 - complete private-element, computed-key, field-initializer, and heritage ordering
 
 Exit gate: class initialization order, derived-constructor rules, private-brand

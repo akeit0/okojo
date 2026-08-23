@@ -98,6 +98,7 @@ internal abstract partial class JsPlannedCompilerBase
 
             var staticFieldKeyRegisters = ArrayPool<int>.Shared.Rent(Math.Max(1, elements.Length));
             Array.Fill(staticFieldKeyRegisters, -1, 0, elements.Length);
+            Dictionary<string, PrivateAccessorRegisters>? staticPrivateAccessors = null;
             try
             {
                 for (var i = 0; i < elements.Length; i++)
@@ -107,10 +108,29 @@ internal abstract partial class JsPlannedCompilerBase
                         continue;
                     if (element.Kind == JsClassElementKind.StaticBlock)
                         continue;
+                    if (element.IsPrivate)
+                    {
+                        if (element.Kind == JsClassElementKind.Field)
+                            continue;
+                        if (element.Kind == JsClassElementKind.Method)
+                            EmitPreparePrivateMethod(
+                                ast,
+                                element,
+                                constructorRegister,
+                                prototypeRegister
+                            );
+                        else
+                            EmitPreparePrivateAccessor(
+                                ast,
+                                element,
+                                constructorRegister,
+                                prototypeRegister,
+                                ref staticPrivateAccessors
+                            );
+                        continue;
+                    }
                     if (element.Kind == JsClassElementKind.Field)
                     {
-                        if (element.IsPrivate)
-                            continue;
                         if (!element.IsStatic)
                         {
                             if (element.IsComputed)
@@ -124,6 +144,14 @@ internal abstract partial class JsPlannedCompilerBase
                     }
                     EmitClassElement(ast, element, constructorRegister, prototypeRegister);
                 }
+                if (staticPrivateAccessors is not null)
+                    foreach (var accessor in staticPrivateAccessors.Values)
+                        EmitPrivateAccessorInitialization(
+                            constructorRegister,
+                            accessor.GetterRegister,
+                            accessor.SetterRegister,
+                            accessor.Binding
+                        );
 
                 if (declaredName.Length != 0)
                 {
@@ -171,6 +199,89 @@ internal abstract partial class JsPlannedCompilerBase
         }
     }
 
+    private void EmitPreparePrivateMethod(
+        FlatAst ast,
+        in FlatClassElement element,
+        int constructorRegister,
+        int prototypeRegister
+    )
+    {
+        var binding = ResolvePrivateBinding(ast.GetString(element.Key));
+        var homeObjectRegister = element.IsStatic ? constructorRegister : prototypeRegister;
+        EmitClassElementFunction(ast, element, homeObjectRegister);
+        if (element.IsStatic)
+        {
+            var methodRegister = builder.AllocateTemporaryRegister();
+            EmitStar(methodRegister);
+            EmitPrivateFieldOp(
+                JsOpCode.InitPrivateMethod,
+                constructorRegister,
+                methodRegister,
+                binding
+            );
+            return;
+        }
+        EmitSetFunctionPrivateMethodValue(constructorRegister, binding.SlotIndex * 2);
+    }
+
+    private void EmitPreparePrivateAccessor(
+        FlatAst ast,
+        in FlatClassElement element,
+        int constructorRegister,
+        int prototypeRegister,
+        ref Dictionary<string, PrivateAccessorRegisters>? staticAccessors
+    )
+    {
+        var name = ast.GetString(element.Key);
+        var binding = ResolvePrivateBinding(name);
+        var homeObjectRegister = element.IsStatic ? constructorRegister : prototypeRegister;
+        EmitClassElementFunction(ast, element, homeObjectRegister);
+        if (!element.IsStatic)
+        {
+            EmitSetFunctionPrivateMethodValue(
+                constructorRegister,
+                binding.SlotIndex * 2 + (element.Kind == JsClassElementKind.Getter ? 0 : 1)
+            );
+            return;
+        }
+
+        var functionRegister = builder.AllocateTemporaryRegister();
+        EmitStar(functionRegister);
+        staticAccessors ??= new(StringComparer.Ordinal);
+        staticAccessors.TryGetValue(name, out var accessor);
+        accessor = accessor.Binding.BrandId == 0 ? new(-1, -1, binding) : accessor;
+        if (element.Kind == JsClassElementKind.Getter)
+            accessor = accessor with { GetterRegister = functionRegister };
+        else
+            accessor = accessor with { SetterRegister = functionRegister };
+        staticAccessors[name] = accessor;
+    }
+
+    private void EmitSetFunctionPrivateMethodValue(int constructorRegister, int valueIndex)
+    {
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            var arguments = builder.AllocateTemporaryRegisterBlock(3);
+            EmitStar(arguments + 2);
+            EmitLdar(constructorRegister);
+            EmitStar(arguments);
+            EmitSmi(valueIndex);
+            EmitStar(arguments + 1);
+            builder.EmitCallRuntime((int)RuntimeId.SetFunctionPrivateMethodValue, arguments, 3);
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+        }
+    }
+
+    private readonly record struct PrivateAccessorRegisters(
+        int GetterRegister,
+        int SetterRegister,
+        PlannedPrivateBinding Binding
+    );
+
     private IReadOnlyDictionary<string, PlannedPrivateBinding> BuildClassPrivateBindings(
         FlatAst ast,
         ReadOnlySpan<FlatClassElement> elements,
@@ -182,7 +293,8 @@ internal abstract partial class JsPlannedCompilerBase
             visiblePrivateBindings,
             StringComparer.Ordinal
         );
-        HashSet<string>? ownNames = null;
+        var ownBindings = new Dictionary<string, PlannedPrivateBinding>(StringComparer.Ordinal);
+        Dictionary<string, byte>? accessorMasks = null;
         instanceBrandId = 0;
         staticBrandId = 0;
         var nextSlot = 0;
@@ -191,19 +303,47 @@ internal abstract partial class JsPlannedCompilerBase
             ref readonly var element = ref elements[i];
             if (!element.IsPrivate)
                 continue;
-            if (element.Kind != JsClassElementKind.Field)
-                throw new NotSupportedException(
-                    $"{CompilerName} does not support private class element '{element.Kind}' yet."
-                );
             var name = ast.GetString(element.Key);
-            ownNames ??= new(StringComparer.Ordinal);
-            if (!ownNames.Add(name))
-                throw new InvalidOperationException($"Duplicate private class member '{name}'.");
+            var kind = element.Kind switch
+            {
+                JsClassElementKind.Field => PlannedPrivateMemberKind.Field,
+                JsClassElementKind.Method => PlannedPrivateMemberKind.Method,
+                JsClassElementKind.Getter or JsClassElementKind.Setter =>
+                    PlannedPrivateMemberKind.Accessor,
+                _ => throw new NotSupportedException(
+                    $"{CompilerName} does not support private class element '{element.Kind}' yet."
+                ),
+            };
+            if (ownBindings.TryGetValue(name, out var existing))
+            {
+                var accessorBit = element.Kind == JsClassElementKind.Getter ? 1 : 2;
+                accessorMasks ??= new(StringComparer.Ordinal);
+                accessorMasks.TryGetValue(name, out var mask);
+                if (
+                    kind != PlannedPrivateMemberKind.Accessor
+                    || existing.Kind != PlannedPrivateMemberKind.Accessor
+                    || existing.IsStatic != element.IsStatic
+                    || (mask & accessorBit) != 0
+                )
+                    throw new InvalidOperationException(
+                        $"Duplicate private class member '{name}'."
+                    );
+                accessorMasks[name] = (byte)(mask | accessorBit);
+                continue;
+            }
             ref var brandId = ref (element.IsStatic ? ref staticBrandId : ref instanceBrandId);
             if (brandId == 0)
                 brandId = Vm.Agent.AllocatePrivateBrandId();
-            bindings[name] = new(brandId, nextSlot++);
+            var binding = new PlannedPrivateBinding(brandId, nextSlot++, kind, element.IsStatic);
+            ownBindings.Add(name, binding);
+            bindings[name] = binding;
+            if (kind == PlannedPrivateMemberKind.Accessor)
+            {
+                accessorMasks ??= new(StringComparer.Ordinal);
+                accessorMasks[name] = element.Kind == JsClassElementKind.Getter ? (byte)1 : (byte)2;
+            }
         }
+        RegisterPrivateDebugNames(bindings);
         return bindings;
     }
 
@@ -359,10 +499,48 @@ internal abstract partial class JsPlannedCompilerBase
     protected void EmitInstanceFieldInitializers(FlatAst ast, int classIndex)
     {
         var elements = ast.GetClassElements(ast.GetClass(classIndex));
+        Dictionary<string, byte>? privateAccessorMasks = null;
+        for (var i = 0; i < elements.Length; i++)
+        {
+            ref readonly var accessor = ref elements[i];
+            if (
+                !accessor.IsPrivate
+                || accessor.IsStatic
+                || accessor.Kind is not (JsClassElementKind.Getter or JsClassElementKind.Setter)
+            )
+                continue;
+            privateAccessorMasks ??= new(StringComparer.Ordinal);
+            var name = ast.GetString(accessor.Key);
+            privateAccessorMasks.TryGetValue(name, out var mask);
+            privateAccessorMasks[name] = (byte)(
+                mask | (accessor.Kind == JsClassElementKind.Getter ? 1 : 2)
+            );
+        }
+        HashSet<string>? initializedAccessors = null;
         for (var i = 0; i < elements.Length; i++)
         {
             ref readonly var element = ref elements[i];
-            if (element.Kind != JsClassElementKind.Field || element.IsStatic)
+            if (!element.IsPrivate || element.IsStatic)
+                continue;
+            if (element.Kind == JsClassElementKind.Method)
+            {
+                EmitInstancePrivateMethod(ast, element);
+                continue;
+            }
+            if (element.Kind is not (JsClassElementKind.Getter or JsClassElementKind.Setter))
+                continue;
+            var name = ast.GetString(element.Key);
+            initializedAccessors ??= new(StringComparer.Ordinal);
+            if (initializedAccessors.Add(name))
+                EmitInstancePrivateAccessor(
+                    ResolvePrivateBinding(name),
+                    privateAccessorMasks![name]
+                );
+        }
+        for (var i = 0; i < elements.Length; i++)
+        {
+            ref readonly var element = ref elements[i];
+            if (element.IsStatic || element.Kind != JsClassElementKind.Field)
                 continue;
 
             var marker = builder.GetTemporaryRegisterScopeMarker();
@@ -444,6 +622,71 @@ internal abstract partial class JsPlannedCompilerBase
             {
                 builder.ReleaseTemporaryRegistersToMarker(marker);
             }
+        }
+    }
+
+    private void EmitInstancePrivateMethod(FlatAst ast, in FlatClassElement element)
+    {
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            var registers = builder.AllocateTemporaryRegisterBlock(2);
+            builder.EmitLda(JsOpCode.LdaThis);
+            EmitStar(registers);
+            var binding = ResolvePrivateBinding(ast.GetString(element.Key));
+            EmitLoadCurrentFunctionPrivateMethodValue(binding.SlotIndex * 2);
+            EmitStar(registers + 1);
+            EmitPrivateFieldOp(JsOpCode.InitPrivateMethod, registers, registers + 1, binding);
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+        }
+    }
+
+    private void EmitInstancePrivateAccessor(in PlannedPrivateBinding binding, byte mask)
+    {
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            var registers = builder.AllocateTemporaryRegisterBlock(3);
+            builder.EmitLda(JsOpCode.LdaThis);
+            EmitStar(registers);
+            if ((mask & 1) != 0)
+                EmitLoadCurrentFunctionPrivateMethodValue(binding.SlotIndex * 2);
+            else
+                builder.EmitLda(JsOpCode.LdaUndefined);
+            EmitStar(registers + 1);
+            if ((mask & 2) != 0)
+                EmitLoadCurrentFunctionPrivateMethodValue(binding.SlotIndex * 2 + 1);
+            else
+                builder.EmitLda(JsOpCode.LdaUndefined);
+            EmitStar(registers + 2);
+            EmitPrivateAccessorOp(registers, registers + 1, registers + 2, binding);
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+        }
+    }
+
+    private void EmitLoadCurrentFunctionPrivateMethodValue(int valueIndex)
+    {
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            var argument = builder.AllocateTemporaryRegister();
+            EmitSmi(valueIndex);
+            EmitStar(argument);
+            builder.EmitCallRuntime(
+                (int)RuntimeId.LoadCurrentFunctionPrivateMethodValue,
+                argument,
+                1
+            );
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
         }
     }
 
@@ -568,6 +811,63 @@ internal abstract partial class JsPlannedCompilerBase
         );
     }
 
+    private void EmitPrivateAccessorInitialization(
+        int objectRegister,
+        int getterRegister,
+        int setterRegister,
+        in PlannedPrivateBinding binding
+    )
+    {
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            if (getterRegister < 0)
+            {
+                getterRegister = builder.AllocateTemporaryRegister();
+                builder.EmitLda(JsOpCode.LdaUndefined);
+                EmitStar(getterRegister);
+            }
+            if (setterRegister < 0)
+            {
+                setterRegister = builder.AllocateTemporaryRegister();
+                builder.EmitLda(JsOpCode.LdaUndefined);
+                EmitStar(setterRegister);
+            }
+            EmitPrivateAccessorOp(objectRegister, getterRegister, setterRegister, binding);
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+        }
+    }
+
+    private void EmitPrivateAccessorOp(
+        int objectRegister,
+        int getterRegister,
+        int setterRegister,
+        in PlannedPrivateBinding binding
+    )
+    {
+        if (
+            (uint)objectRegister > byte.MaxValue
+            || (uint)getterRegister > byte.MaxValue
+            || (uint)setterRegister > byte.MaxValue
+            || (uint)binding.BrandId > ushort.MaxValue
+            || (uint)binding.SlotIndex > ushort.MaxValue
+        )
+            throw new NotSupportedException("Private accessor operands exceed bytecode capacity.");
+        builder.Emit(
+            JsOpCode.InitPrivateAccessor,
+            (byte)objectRegister,
+            (byte)getterRegister,
+            (byte)setterRegister,
+            (byte)binding.BrandId,
+            (byte)(binding.BrandId >> 8),
+            (byte)binding.SlotIndex,
+            (byte)(binding.SlotIndex >> 8)
+        );
+    }
+
     private void EmitPrivateFieldOp(
         JsOpCode op,
         int objectRegister,
@@ -597,12 +897,15 @@ internal abstract partial class JsPlannedCompilerBase
     )
     {
         ref readonly var function = ref ast[element.ValueNode];
-        EmitFunctionExpression(
-            ast,
-            function.Arg0,
-            function.Arg1,
-            element.IsComputed ? null : ast.GetString(element.Key)
-        );
+        var inferredName = element.IsComputed ? null : ast.GetString(element.Key);
+        if (inferredName is not null)
+            inferredName = element.Kind switch
+            {
+                JsClassElementKind.Getter => $"get {inferredName}",
+                JsClassElementKind.Setter => $"set {inferredName}",
+                _ => inferredName,
+            };
+        EmitFunctionExpression(ast, function.Arg0, function.Arg1, inferredName);
         EmitAttachMethodEnvironmentIfNeeded(ast, element.ValueNode, homeObjectRegister);
     }
 }
