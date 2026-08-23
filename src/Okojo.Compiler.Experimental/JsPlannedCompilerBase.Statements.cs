@@ -712,7 +712,15 @@ internal abstract partial class JsPlannedCompilerBase
             return;
         }
 
-        if (target.Kind is not (AstKind.ArrayBindingPattern or AstKind.ObjectBindingPattern))
+        if (
+            target.Kind
+            is not (
+                AstKind.ArrayBindingPattern
+                or AstKind.ArrayExpression
+                or AstKind.ObjectBindingPattern
+                or AstKind.ObjectExpression
+            )
+        )
             throw new NotSupportedException(
                 $"{CompilerName} does not support binding target '{target.Kind}'."
             );
@@ -722,7 +730,7 @@ internal abstract partial class JsPlannedCompilerBase
         {
             var valueRegister = builder.AllocateTemporaryRegister();
             EmitStar(valueRegister);
-            if (target.Kind == AstKind.ArrayBindingPattern)
+            if (target.Kind is AstKind.ArrayBindingPattern or AstKind.ArrayExpression)
                 EmitArrayBindingPattern(ast, target, valueRegister);
             else
                 EmitObjectBindingPattern(ast, target, valueRegister);

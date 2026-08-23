@@ -632,7 +632,8 @@ internal sealed class FlatJavaScriptParser
                     ref hasRestrictedName
                 );
                 return;
-            case AstKind.AssignmentExpression:
+            case AstKind.AssignmentExpression
+                when (JsAssignmentOperator)node.Arg2 == JsAssignmentOperator.Assign:
             case AstKind.SpreadElement:
                 TrackParameterPatternNames(
                     node.Arg0,
@@ -642,25 +643,49 @@ internal sealed class FlatJavaScriptParser
                 );
                 return;
             case AstKind.ArrayBindingPattern:
+            case AstKind.ArrayExpression:
                 var elements = Arena.ChildRange(node.Arg0, node.Arg1);
                 for (var i = 0; i < elements.Length; i++)
                     if (elements[i] >= 0)
+                    {
+                        if (
+                            Arena[elements[i]].Kind == AstKind.SpreadElement
+                            && i != elements.Length - 1
+                        )
+                            throw Error(
+                                "Rest binding must be the final element",
+                                Arena.GetPosition(elements[i])
+                            );
                         TrackParameterPatternNames(
                             elements[i],
                             ref names,
                             ref hasDuplicate,
                             ref hasRestrictedName
                         );
+                    }
                 return;
             case AstKind.ObjectBindingPattern:
+            case AstKind.ObjectExpression:
                 var properties = ast.GetObjectProperties(node.Arg0, node.Arg1);
                 for (var i = 0; i < properties.Length; i++)
+                {
+                    if (properties[i].IsAccessor)
+                        throw Error("Invalid method in binding pattern", properties[i].Position);
+                    if (
+                        properties[i].IsRest
+                        && (
+                            i != properties.Length - 1
+                            || Arena[properties[i].ValueNode].Kind != AstKind.Identifier
+                        )
+                    )
+                        throw Error("Invalid object rest binding", properties[i].Position);
                     TrackParameterPatternNames(
                         properties[i].ValueNode,
                         ref names,
                         ref hasDuplicate,
                         ref hasRestrictedName
                     );
+                }
                 return;
             default:
                 throw Error("Invalid parameter binding pattern", Arena.GetPosition(nodeIndex));
@@ -1206,17 +1231,7 @@ internal sealed class FlatJavaScriptParser
                 Next();
                 return Arena.Add(AstKind.ThisExpression, position: token.Position);
             case JsTokenKind.LeftParen:
-                Next();
-                if (current.Kind == JsTokenKind.RightParen)
-                {
-                    Next();
-                    if (current.Kind != JsTokenKind.Arrow)
-                        throw Error("Expected expression", token.Position);
-                    return ParseArrowFunction(-1, token.Position);
-                }
-                var expression = ParseExpression();
-                Expect(JsTokenKind.RightParen);
-                return expression;
+                return ParseParenthesizedExpressionOrArrow(token.Position);
             case JsTokenKind.LeftBracket:
                 return ParseArrayLiteral();
             case JsTokenKind.LeftBrace:
@@ -1234,6 +1249,83 @@ internal sealed class FlatJavaScriptParser
         }
     }
 
+    private int ParseParenthesizedExpressionOrArrow(int position)
+    {
+        Expect(JsTokenKind.LeftParen);
+        Span<int> initial = stackalloc int[8];
+        var expressions = new NodeList(initial);
+        var hasSpread = false;
+        var hasParenthesizedItem = false;
+        var trailingComma = false;
+        try
+        {
+            while (current.Kind != JsTokenKind.RightParen)
+            {
+                hasParenthesizedItem |= current.Kind == JsTokenKind.LeftParen;
+                if (current.Kind == JsTokenKind.Ellipsis)
+                {
+                    var spreadPosition = current.Position;
+                    Next();
+                    expressions.Add(
+                        Arena.Add(
+                            AstKind.SpreadElement,
+                            ParseAssignment(allowIn: true),
+                            position: spreadPosition
+                        )
+                    );
+                    hasSpread = true;
+                }
+                else
+                    expressions.Add(ParseAssignment(allowIn: true));
+
+                if (!Match(JsTokenKind.Comma))
+                    break;
+                trailingComma = current.Kind == JsTokenKind.RightParen;
+                if (trailingComma)
+                    break;
+            }
+
+            Expect(JsTokenKind.RightParen);
+            if (current.Kind == JsTokenKind.Arrow)
+            {
+                if (hasParenthesizedItem)
+                    throw Error("Invalid parenthesized arrow parameter", position);
+                if (
+                    trailingComma
+                    && expressions.Count != 0
+                    && Arena[expressions.AsSpan()[^1]].Kind == AstKind.SpreadElement
+                )
+                    throw Error("Rest parameter must be last", position);
+                return ParseArrowFunction(CreateSequence(expressions.AsSpan(), position), position);
+            }
+
+            if (expressions.Count == 0)
+                throw Error("Expected expression", position);
+            if (hasSpread || trailingComma)
+                throw Error("Invalid parenthesized expression", position);
+            return CreateSequence(expressions.AsSpan(), position);
+        }
+        finally
+        {
+            expressions.Dispose();
+        }
+    }
+
+    private int CreateSequence(ReadOnlySpan<int> expressions, int position)
+    {
+        if (expressions.Length == 0)
+            return -1;
+        if (expressions.Length == 1)
+            return expressions[0];
+        var children = Arena.AddChildren(expressions);
+        return Arena.Add(
+            AstKind.SequenceExpression,
+            children.Offset,
+            children.Count,
+            position: position
+        );
+    }
+
     private int ParseArrowFunction(int head, int position)
     {
         if (current.HasLineTerminatorBefore)
@@ -1249,6 +1341,7 @@ internal sealed class FlatJavaScriptParser
         var hasSimpleParameterList = true;
         var seenDefault = false;
         var functionLength = 0;
+        var restParameterIndex = -1;
         try
         {
             if (head >= 0)
@@ -1270,36 +1363,80 @@ internal sealed class FlatJavaScriptParser
                 ref readonly var parameterNode = ref Arena[parameterNodes[i]];
                 var bindingNode = parameterNodes[i];
                 var initializer = -1;
+                var isRest = parameterNode.Kind == AstKind.SpreadElement;
+                if (isRest)
+                {
+                    if (i != parameterNodes.Length - 1)
+                        throw Error("Rest parameter must be last", Arena.GetPosition(bindingNode));
+                    bindingNode = parameterNode.Arg0;
+                    restParameterIndex = i;
+                    hasSimpleParameterList = false;
+                    seenDefault = true;
+                }
+
+                ref readonly var parameterValue = ref Arena[bindingNode];
                 if (
-                    parameterNode.Kind == AstKind.AssignmentExpression
-                    && (JsAssignmentOperator)parameterNode.Arg2 == JsAssignmentOperator.Assign
+                    parameterValue.Kind == AstKind.AssignmentExpression
+                    && (JsAssignmentOperator)parameterValue.Arg2 == JsAssignmentOperator.Assign
                 )
                 {
-                    bindingNode = parameterNode.Arg0;
-                    initializer = parameterNode.Arg1;
+                    if (isRest)
+                        throw Error("Rest parameter cannot have an initializer", position);
+                    bindingNode = parameterValue.Arg0;
+                    initializer = parameterValue.Arg1;
                     hasSimpleParameterList = false;
                     seenDefault = true;
                 }
                 ref readonly var binding = ref Arena[bindingNode];
-                if (binding.Kind != AstKind.Identifier)
+                var isPattern = binding.Kind is AstKind.ArrayExpression or AstKind.ObjectExpression;
+                if (binding.Kind != AstKind.Identifier && !isPattern)
                     throw Error(
-                        "Arrow rest and pattern parameters are not supported by FlatJavaScriptParser",
+                        "Invalid arrow parameter binding",
                         Arena.GetPosition(parameterNodes[i])
                     );
                 if (!seenDefault)
                     functionLength++;
-                var name = Arena.GetString(binding.Arg0);
-                TrackParameterName(name, ref names, ref hasDuplicate, ref hasRestrictedName);
-                parameters.Add(
-                    new FlatParameter(
-                        binding.Arg0,
-                        binding.Arg1,
-                        initializer,
-                        -1,
-                        Arena.GetPosition(bindingNode),
-                        JsFormalParameterBindingKind.Plain
-                    )
-                );
+                if (isPattern)
+                {
+                    hasSimpleParameterList = false;
+                    TrackParameterPatternNames(
+                        bindingNode,
+                        ref names,
+                        ref hasDuplicate,
+                        ref hasRestrictedName
+                    );
+                    parameters.Add(
+                        new FlatParameter(
+                            Arena.AddString(
+                                $"$arrow_pattern_{functionDepth}_{Arena.GetPosition(bindingNode)}"
+                            ),
+                            -1,
+                            initializer,
+                            bindingNode,
+                            Arena.GetPosition(bindingNode),
+                            isRest
+                                ? JsFormalParameterBindingKind.RestPattern
+                                : JsFormalParameterBindingKind.Pattern
+                        )
+                    );
+                }
+                else
+                {
+                    var name = Arena.GetString(binding.Arg0);
+                    TrackParameterName(name, ref names, ref hasDuplicate, ref hasRestrictedName);
+                    parameters.Add(
+                        new FlatParameter(
+                            binding.Arg0,
+                            binding.Arg1,
+                            initializer,
+                            -1,
+                            Arena.GetPosition(bindingNode),
+                            isRest
+                                ? JsFormalParameterBindingKind.Rest
+                                : JsFormalParameterBindingKind.Plain
+                        )
+                    );
+                }
             }
 
             if (hasDuplicate)
@@ -1361,7 +1498,7 @@ internal sealed class FlatJavaScriptParser
                     parameterRange.Offset,
                     parameterRange.Count,
                     functionLength,
-                    -1,
+                    restParameterIndex,
                     effectiveStrict,
                     hasSimpleParameterList,
                     false,

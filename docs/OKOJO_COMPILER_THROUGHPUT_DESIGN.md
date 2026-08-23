@@ -313,7 +313,7 @@ hoisting without compiler-specific rewrites.
 - `for-in` and `for-of`
 - labeled statements and labeled `break`/`continue`
 - tagged template literals and cached site identity
-- arrow rest/pattern parameters and lexical `new.target`
+- lexical `new.target` in arrows
 - optional calls/chains and delete-chain behavior
 
 Foundation status: effect/value/test intent now propagates through logical-not,
@@ -324,16 +324,18 @@ preserve the return value when required, run the finalizer, and replay the saved
 command; runtime throws continue through the VM handler path. The VM handler ABI
 now preserves lexical context across exceptions and generator suspension.
 Switch control, literal spread, ordinary object methods/accessors, RegExp, BigInt,
-untagged template literals, and synchronous arrows with simple/default parameters
-are landed. Arrows reuse ordinary closure bytecode plus the runtime `IsArrow`
+untagged template literals, and synchronous arrows with simple/default/rest/pattern
+parameters are landed. Arrow heads reuse flat expression layouts as binding layouts
+after one-pass cover-grammar validation, avoiding reparsing and duplicate pattern
+nodes. Arrows reuse ordinary closure bytecode plus the runtime `IsArrow`
 contract; the collector skips arrow scopes when placing synthetic `arguments`, so
 lexical captures resolve to the nearest enclosing ordinary function. Untagged
 templates follow Ignition's alternating quasi/substitution order: substitutions
 are converted with `ToString` at their source position, empty quasis are skipped,
 and `Add` accumulates the result. The flat parser reuses one lexer and the dense
 child pool, so this adds no nested parser owner or template side table. Labeled
-targets, iterator control, full early errors, tagged-template site metadata, and
-diagnostic handler metadata remain part of P1.
+targets, iterator control, full early errors, lexical `new.target`, tagged-template
+site metadata, and diagnostic handler metadata remain part of P1.
 
 Exit gate: the direct path compiles the synchronous non-class application corpus
 and has differential execution coverage for every new control-flow form.

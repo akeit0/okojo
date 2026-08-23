@@ -59,7 +59,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Arrays/objects | holes, array/object spread, data properties, ordinary concise methods/getters/setters, computed/shorthand/index keys, stable data shape prefix | generator/async and `super` methods, legacy `__proto__` intentionally excluded |
 | Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings | class, module bindings and remaining early errors |
 | Assignments | identifier/member targets, compound/logical/update, array/object destructuring | private/super targets, optional-chain restrictions |
-| Functions | ordinary declarations/expressions, closures, synchronous arrows with simple/default parameters and lexical `this`/`arguments`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function name inference, demand-driven mapped/unmapped `arguments` | arrow rest/pattern parameters and `new.target`, async, generators, class-name inference, lazy bodies |
+| Functions | ordinary declarations/expressions, closures, synchronous arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function name inference, demand-driven mapped/unmapped `arguments` | lexical `new.target`, async, generators, class-name inference, lazy bodies |
 | Classes | none | declaration/expression, constructors, methods, fields, static blocks, private names, super |
 | Modules | none | parse goal, entries, linking metadata, live bindings, top-level await |
 
@@ -199,13 +199,13 @@ avoids substring parsers, nested AST owners, or class-node fallback.
 
 ### Ordinary arrow function slice
 
-This iteration starts ordinary synchronous arrows with identifier/parenthesized
-simple or default parameters, expression or block bodies, inferred names, and lexical
-`this`/`arguments` behavior. The reference case is
+The direct path supports ordinary synchronous arrows with identifier/parenthesized
+simple, default, rest, or pattern parameters, expression or block bodies, inferred
+names, and lexical `this`/`arguments` behavior. The reference case is
 `artifacts/okojobytecodetool/cases/flat_ast_arrow.js`; focused tests cover call
-receiver replacement, nested capture, and constructor rejection. Rest/pattern
-parameters and lexical `new.target` follow after the direct parser gains
-their arrow-head early-error path.
+receiver replacement, nested capture, constructor rejection, nested pattern
+initialization, function length, and rest-placement early errors. Lexical
+`new.target` remains.
 
 V8 gives arrows ordinary closure bytecode but marks their function kind so closure
 creation captures lexical receiver state and name resolution crosses the arrow
@@ -214,6 +214,25 @@ flat path therefore reuses `FlatFunctionInfo`, the function side table, capture
 planning, and the existing function emitter; it adds one arrow flag rather than a
 parallel compiler. The binding collector marks arrow scopes so synthetic
 `arguments` binds at the nearest enclosing non-arrow function.
+
+#### Arrow cover-grammar completion
+
+Parenthesized rest and nested array/object pattern heads are complete. V8 parses
+the parenthesized head once as cover grammar, then walks its
+comma expression left-to-right to declare parameters; only the tail may be a
+spread/rest parameter. The flat parser uses the same one-pass shape: collect
+top-level parenthesized assignments/spread into the existing node pool, validate
+them as bindings only when followed by `=>`, and otherwise return the ordinary
+grouped/sequence expression. Existing array/object expression layouts are already
+compatible with the binding walker and parameter prologue, so no duplicate
+pattern tree or parser rollback is required.
+
+The reference case extends
+`artifacts/okojobytecodetool/cases/flat_ast_arrow.js` with nested defaults, array
+rest, and a top-level rest parameter. Focused tests cover evaluation order,
+function length, duplicate names, rest placement, and invalid parenthesized
+targets. Okojo copies V8's cover-grammar validation and intentionally keeps its
+existing flat parameter ABI.
 
 ### Destructuring
 
@@ -552,7 +571,7 @@ function read(value = function nested(next = outer) { return next; }) {
 - `for-in`/`for-of` and labels
 - `debugger`
 - tagged template literals and cached site identity
-- arrow rest/pattern parameters and lexical `new.target`
+- lexical `new.target` in arrows
 - optional chaining/calls
 
 New side tables should be purpose-specific and dense: handler/catch records and

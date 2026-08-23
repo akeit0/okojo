@@ -100,12 +100,14 @@ internal abstract partial class JsPlannedCompilerBase
                 EmitInitializeParameterPatternHoles(ast, node.Arg0);
                 return;
             case AstKind.ArrayBindingPattern:
+            case AstKind.ArrayExpression:
                 var elements = ast.ChildRange(node.Arg0, node.Arg1);
                 for (var i = 0; i < elements.Length; i++)
                     if (elements[i] >= 0)
                         EmitInitializeParameterPatternHoles(ast, elements[i]);
                 return;
             case AstKind.ObjectBindingPattern:
+            case AstKind.ObjectExpression:
                 var properties = ast.GetObjectProperties(node.Arg0, node.Arg1);
                 for (var i = 0; i < properties.Length; i++)
                     EmitInitializeParameterPatternHoles(ast, properties[i].ValueNode);

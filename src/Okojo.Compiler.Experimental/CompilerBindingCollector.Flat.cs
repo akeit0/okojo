@@ -420,6 +420,7 @@ internal static partial class CompilerBindingCollector
                     );
                     return;
                 case AstKind.ArrayBindingPattern:
+                case AstKind.ArrayExpression:
                 {
                     var elements = ast.ChildRange(node.Arg0, node.Arg1);
                     for (var i = 0; i < elements.Length; i++)
@@ -435,6 +436,7 @@ internal static partial class CompilerBindingCollector
                     return;
                 }
                 case AstKind.ObjectBindingPattern:
+                case AstKind.ObjectExpression:
                 {
                     var properties = ast.GetObjectProperties(node.Arg0, node.Arg1);
                     for (var i = 0; i < properties.Length; i++)

@@ -93,9 +93,11 @@ public class DirectFlatParserTests
     }
 
     [Test]
-    public void ParseScript_StoresArrowDefaultParameterMetadata()
+    public void ParseScript_StoresArrowPatternAndRestParameterMetadata()
     {
-        using var ast = FlatJavaScriptParser.ParseScript("let arrow = (amount = 7) => amount;");
+        using var ast = FlatJavaScriptParser.ParseScript(
+            "let arrow = (first, { item: [value = 1, ...rest] }, ...tail) => value;"
+        );
         ref readonly var root = ref ast[ast.Root];
         var declaration = ast[ast.ChildRange(root.Arg0, root.Arg1)[0]];
         var declarator = ast[ast.ChildRange(declaration.Arg0, declaration.Arg1)[0]];
@@ -106,12 +108,17 @@ public class DirectFlatParserTests
 
         Assert.That(expression.Kind, Is.EqualTo(AstKind.ArrowFunctionExpression));
         Assert.That(function.IsArrow, Is.True);
-        Assert.That(function.FunctionLength, Is.Zero);
+        Assert.That(function.FunctionLength, Is.EqualTo(2));
+        Assert.That(function.RestParameterIndex, Is.EqualTo(2));
         Assert.That(function.HasSimpleParameterList, Is.False);
-        Assert.That(parameters.Length, Is.EqualTo(1));
-        Assert.That(ast.GetString(parameters[0].NameStringIndex), Is.EqualTo("amount"));
-        Assert.That(parameters[0].InitializerNode, Is.GreaterThanOrEqualTo(0));
-        Assert.That(collected.Bindings.ToArray().Any(binding => binding.Name == "amount"), Is.True);
+        Assert.That(parameters.Length, Is.EqualTo(3));
+        Assert.That(parameters[1].Kind, Is.EqualTo(JsFormalParameterBindingKind.Pattern));
+        Assert.That(ast[parameters[1].PatternNode].Kind, Is.EqualTo(AstKind.ObjectExpression));
+        Assert.That(parameters[2].Kind, Is.EqualTo(JsFormalParameterBindingKind.Rest));
+        Assert.That(
+            collected.Bindings.ToArray().Select(binding => binding.Name),
+            Does.Contain("value").And.Contain("rest").And.Contain("tail")
+        );
     }
 
     [Test]
@@ -1490,8 +1497,11 @@ public class DirectFlatParserTests
                 let empty = () => 1;
                 let defaulted = (amount = 7) => amount;
                 let nested = left => right => left + right;
+                let patterns = ({ item: [first = 1, ...rest] }, ...tail) =>
+                    first + rest.length + tail.length;
                 return expression.call({ base: 100 }, 2)
-                    + block(3, 4) + empty() + defaulted() + nested(5)(6);
+                    + block(3, 4) + empty() + defaulted() + nested(5)(6)
+                    + patterns({ item: [3, 4, 5] }, 6, 7);
             }
             let arrow = value => value;
             let constructRejected = false;
@@ -1503,11 +1513,17 @@ public class DirectFlatParserTests
 
         realm.Execute(script);
 
-        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("83|arrow|true"));
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("90|arrow|true"));
     }
 
     [TestCase("let arrow = (value, value) => value;")]
     [TestCase("let arrow = value\n=> value;")]
+    [TestCase("let arrow = (value, ...rest, tail) => value;")]
+    [TestCase("let arrow = (...rest,) => rest;")]
+    [TestCase("let arrow = ((value)) => value;")]
+    [TestCase("let arrow = ([...rest, value]) => value;")]
+    [TestCase("let arrow = ({ ...rest, value }) => value;")]
+    [TestCase("let arrow = (value += 1) => value;")]
     public void ParseScript_RejectsUnsupportedOrInvalidArrowHeads(string source) =>
         Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
 
