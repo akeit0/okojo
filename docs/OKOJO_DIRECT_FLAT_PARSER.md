@@ -253,8 +253,8 @@ use for observability, while the hot execution path stays a single frame load.
 ### `for-in` enumeration slice
 
 The direct path supports synchronous `for-in` with single identifier or nested
-pattern declarations, identifier assignment targets, `break`/`continue`, and
-captured lexical loop heads. Member assignment heads remain a separate slice.
+pattern declarations, identifier/member assignment targets, `break`/`continue`,
+and captured lexical loop heads.
 The reference case is `artifacts/okojobytecodetool/cases/flat_ast_for_in.js`;
 focused tests cover inherited enumerable keys, nullish inputs, assignment targets,
 abrupt loop control, and per-iteration closure capture.
@@ -282,6 +282,16 @@ without closing, `break` and `return` perform normal close, and the VM exception
 handler performs best-effort close before rethrowing the original exception. This
 keeps iterator machinery off the common non-iterator control path and avoids a
 second runtime implementation.
+
+#### Iteration member-target slice
+
+Assignment heads such as `for (target.value of values)` and
+`for (target[key()] in object)` reuse the prepared-member store path. V8 preserves
+the current iteration value, evaluates the assignment base/key at the assignment
+point, then stores that saved value. Okojo copies this ordering with one temporary
+value register; no loop-specific reference representation is added. Focused tests
+cover named/computed targets, per-iteration base/key effects, and abrupt computed
+key errors closing a `for-of` iterator.
 
 ### Labeled control-flow slice
 

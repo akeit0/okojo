@@ -219,6 +219,8 @@ The direct flat work has already established several reusable rules:
   BigInt constants through the typed constant-pool opcode
 - step, default, and store destructuring elements in observable source order and
   close unfinished iterators on normal or abrupt completion
+- preserve each `for-in`/`for-of` value while preparing a member assignment head;
+  evaluate its base/key per iteration and reuse the ordinary prepared-member store
 - reserve incoming argument registers as an ABI prefix, materialize rest before
   overlapping writes, establish parameter TDZ, and initialize each parameter in
   source order
@@ -346,6 +348,9 @@ and close crossed iterators. Optional property/call chains now copy V8's single
 chain-end target, distinguish actual optional links from ordinary links, preserve
 member receivers, and return true for short-circuited delete. Full early errors,
 tagged-template site metadata, and diagnostic handler metadata remain part of P1.
+Iteration assignment heads now accept named/computed members and preserve the
+current value while evaluating the reference, including iterator close when that
+evaluation throws.
 
 Exit gate: the direct path compiles the synchronous non-class application corpus
 and has differential execution coverage for every new control-flow form.

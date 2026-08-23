@@ -828,8 +828,8 @@ internal sealed class FlatJavaScriptParser
             return;
         }
 
-        if (node.Kind != AstKind.Identifier)
-            throw Error("for-in/of assignment target must be an identifier", position);
+        if (node.Kind is not (AstKind.Identifier or AstKind.MemberExpression))
+            throw Error("Invalid for-in/of assignment target", position);
     }
 
     private void ValidateOrdinaryForInitializer(int init)

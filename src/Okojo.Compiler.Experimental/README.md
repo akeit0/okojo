@@ -90,6 +90,7 @@ Both planned compilers currently support:
   loop control, and captured per-iteration lexicals
 - synchronous `for-of` iteration with declaration/pattern heads, per-iteration
   capture, and IteratorClose for abrupt completion
+- identifier and named/computed member assignment heads for `for-in`/`for-of`
 - chained labels and labeled break/continue, including finally replay and crossed
   iterator cleanup
 
@@ -105,7 +106,7 @@ Still intentionally unsupported in the experimental pipeline:
 - generator/async and `super` object methods
 - tagged template literals
 - module binding emission
-- member assignment heads for iteration and `for-await-of`
+- `for-await-of`
 - direct production replacement of `JsCompiler`
 
 Unsupported paths should fail explicitly, not silently degrade.

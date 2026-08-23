@@ -392,6 +392,24 @@ internal abstract partial class JsPlannedCompilerBase
             return;
         }
 
+        if (node.Kind == AstKind.MemberExpression)
+        {
+            var marker = builder.GetTemporaryRegisterScopeMarker();
+            try
+            {
+                var valueRegister = builder.AllocateTemporaryRegister();
+                EmitStar(valueRegister);
+                var reference = PrepareMemberReference(ast, node, normalizeComputedKey: true);
+                EmitLdar(valueRegister);
+                EmitPreparedMemberStore(reference);
+            }
+            finally
+            {
+                builder.ReleaseTemporaryRegistersToMarker(marker);
+            }
+            return;
+        }
+
         var identifier = ast.GetString(node.Arg0);
         var hasLocalBinding = TryResolveBindingAccess(
             identifier,

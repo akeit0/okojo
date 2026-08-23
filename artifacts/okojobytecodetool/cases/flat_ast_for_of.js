@@ -9,3 +9,6 @@ function values(iterable) {
 }
 
 values([[1], [2], [3], [4]]);
+
+let forOfTarget = {};
+for (forOfTarget.value of [1, 2]) {}

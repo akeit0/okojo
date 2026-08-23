@@ -90,7 +90,6 @@ public class DirectFlatParserTests
 
     [TestCase("for (let first, second in {}) {}")]
     [TestCase("for (let value = 1 in {}) {}")]
-    [TestCase("for (target.value in {}) {}")]
     public void ParseScript_RejectsUnsupportedOrInvalidForInHeads(string source) =>
         Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
 
@@ -162,6 +161,46 @@ public class DirectFlatParserTests
         realm.Execute(script);
 
         Assert.That(realm.Accumulator.AsString(), Is.EqualTo("123"));
+    }
+
+    [Test]
+    public void CompileString_AssignsIterationValuesToMemberTargets()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let targets = [{}, {}];
+            let baseCalls = 0;
+            let keyCalls = 0;
+            function base(index) { baseCalls++; return targets[index]; }
+            function key() { keyCalls++; return 'value'; }
+            for (base(0)[key()] in { first: 1, second: 2 }) {}
+            for (base(1)[key()] of [3, 4]) {}
+            let named = {};
+            for (named.last of [1, 2]) {}
+            let closes = 0;
+            let error = '';
+            let iterable = {
+                [Symbol.iterator]() {
+                    return {
+                        next() { return { value: 5, done: false }; },
+                        return() { closes++; return {}; }
+                    };
+                }
+            };
+            try {
+                for (base(1)[(() => { throw 'key'; })()] of iterable) {}
+            } catch (caught) {
+                error = caught;
+            }
+            targets[0].value + '|' + targets[1].value + '|' + named.last
+                + '|' + baseCalls + '|' + keyCalls + '|' + closes + '|' + error;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("second|4|2|5|4|1|key"));
     }
 
     [Test]
