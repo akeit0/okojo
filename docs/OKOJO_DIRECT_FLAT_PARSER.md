@@ -58,11 +58,11 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed ordinary and `super` properties, private field/method/accessor loads, calls, stores, updates, and `#x in value` | import live-cell emission |
 | Calls/construction | direct/member/optional calls, spread calls, ordinary/spread `new`, implicit/explicit/spread `super()`, super-property calls, wide operands | dynamic import |
 | Arrays/objects | holes, array/object spread, data properties, ordinary/generator/async concise methods, getters/setters, computed/shorthand/index keys, stable data shape prefix, demand-driven super home objects | legacy `__proto__` intentionally excluded |
-| Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings, class declaration and inner-name bindings, read-only import bindings in a module root scope, module-wide import/`var`/lexical/function/class conflict and local-export validation | module local/export cells and remaining early errors |
+| Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings, class declaration and inner-name bindings, read-only import bindings in a module root scope, module-wide import/`var`/lexical/function/class conflict and local-export validation, deterministic signed module cells | linker consumption and remaining early errors |
 | Assignments | identifier/ordinary/super/private-field member targets, compound/logical/update, array/object destructuring, core optional-chain target restrictions | remaining early errors |
 | Functions | ordinary declarations/expressions, closures, synchronous and async generators with `yield`/`yield*`, async declarations/expressions/object methods with `await`, synchronous and async arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`/`new.target`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function/class name inference, demand-driven mapped/unmapped `arguments` | lazy bodies |
 | Classes | base/derived declarations and expressions, explicit/implicit constructors, heritage/prototype setup, derived `this`/return rules, public/private instance/static methods and accessors, named/computed public fields, instance/static private fields and brands, source-ordered static blocks, named/computed super loads/calls/stores/updates, strict bodies, declaration TDZ/const storage, inner class-name capture, anonymous name inference including named/computed fields, private methods, and private accessors | full ordering differential and Test262 gate |
-| Modules | strict parse goal, side-effect/default/named/namespace imports, string import names, import attributes, local/declaration/default/indirect/namespace/star exports, compact request/import/export tables, module binding validation | linker metadata consumption, imported-export canonicalization, live cells, dynamic import, `import.meta`, top-level await |
+| Modules | strict parse goal, side-effect/default/named/namespace imports, string import names, import attributes, local/declaration/default/indirect/namespace/star exports, compact request/import/export tables, module binding validation, imported-export canonicalization, signed live-cell assignment | linker metadata consumption, dynamic import, `import.meta`, top-level await |
 
 The direct parser rejects unsupported grammar. It does not catch an error and
 restart through `JavaScriptParser`; that would allocate both representations,
@@ -1156,8 +1156,8 @@ Module import-descriptor slice landed:
 - Okojo implementation: lazily allocated pooled `FlatModuleRequest`,
   `FlatImportEntry`, and `FlatImportAttribute` tables are addressed by thin import
   nodes; the binding pass uses an explicit module root and read-only import kind,
-  while linker execution stays on the production path until export/live-cell
-  metadata lands
+  while linker execution stays on the production path until flat metadata
+  consumption lands
 - performance plan: module-only pooled tables, no class-AST import objects, and no
   impact on the script parser/compiler hot path
 
@@ -1182,6 +1182,25 @@ Module export-descriptor slice landed:
 - performance plan: lazily rent export storage only for modules containing exports;
   source-free exports add no module request and executable payloads reuse existing
   flat nodes
+
+Module descriptor-finalization slice landed:
+
+- iteration scope: canonicalize source-free exports of named/default/namespace
+  imports and assign stable signed live-cell indices to regular imports/exports
+- minimal repro: `import { x as local } from 'pkg'; export { local as value }`
+- reference case:
+  `artifacts/okojobytecodetool/cases/flat_ast_module_cells.js`
+- focused tests cover named/default/namespace canonicalization, request/import-name
+  preservation, zero cells for indirect/star/namespace entries, negative regular
+  import cells, positive local export cells, alias sharing, and deterministic order
+- V8 observation: `MakeIndirectExportsExplicit` rewrites local exports that target
+  imports before `AssignCellIndices`; regular imports receive `-1,-2,...`, local
+  exports receive `+1,+2,...`, and aliases of one local share a cell
+- Okojo implementation: the post-parse finalizer rewrites the owned flat tables
+  after whole-module validation and before binding/storage planning, retaining
+  V8's signed-index invariant for the future linker/compiler seam
+- performance plan: module-only temporary dictionaries/sorted name lists; no AST
+  objects, no script-path work, and no persistent map after indices are written
 
 ### Stage F4 - Modules
 

@@ -150,6 +150,97 @@ internal sealed class FlatAst : IDisposable
     public ReadOnlySpan<FlatExportEntry> GetExportEntries(in AstNode declaration) =>
         exportEntries.AsSpan(declaration.Arg1, declaration.Arg2);
 
+    public void FinalizeModuleDescriptor()
+    {
+        if (importEntryCount == 0 && exportEntryCount == 0)
+            return;
+
+        if (importEntryCount != 0)
+        {
+            var importsByLocalName = new Dictionary<string, int>(
+                importEntryCount,
+                StringComparer.Ordinal
+            );
+            for (var i = 0; i < importEntryCount; i++)
+                importsByLocalName.Add(GetString(importEntries[i].LocalNameStringIndex), i);
+
+            for (var i = 0; i < exportEntryCount; i++)
+            {
+                ref var export = ref exportEntries[i];
+                if (
+                    export.Kind != FlatExportKind.Local
+                    || !importsByLocalName.TryGetValue(
+                        GetString(export.LocalNameStringIndex),
+                        out var importIndex
+                    )
+                )
+                    continue;
+
+                ref readonly var import = ref importEntries[importIndex];
+                export = export with
+                {
+                    ModuleRequestIndex = import.ModuleRequestIndex,
+                    LocalNameStringIndex = -1,
+                    ImportNameStringIndex =
+                        import.Kind == FlatImportKind.Namespace
+                            ? -1
+                            : import.ImportedNameStringIndex,
+                    Kind =
+                        import.Kind == FlatImportKind.Namespace
+                            ? FlatExportKind.Namespace
+                            : FlatExportKind.Indirect,
+                    Position = import.Position,
+                };
+            }
+
+            var importNames = new List<string>(importEntryCount);
+            for (var i = 0; i < importEntryCount; i++)
+            {
+                if (importEntries[i].Kind != FlatImportKind.Namespace)
+                    importNames.Add(GetString(importEntries[i].LocalNameStringIndex));
+            }
+            importNames.Sort(StringComparer.Ordinal);
+            for (var i = 0; i < importEntryCount; i++)
+            {
+                if (importEntries[i].Kind == FlatImportKind.Namespace)
+                    continue;
+                importEntries[i] = importEntries[i] with
+                {
+                    CellIndex = -(
+                        importNames.BinarySearch(
+                            GetString(importEntries[i].LocalNameStringIndex),
+                            StringComparer.Ordinal
+                        ) + 1
+                    ),
+                };
+            }
+        }
+
+        if (exportEntryCount == 0)
+            return;
+        var exportNames = new HashSet<string>(StringComparer.Ordinal);
+        for (var i = 0; i < exportEntryCount; i++)
+        {
+            if (exportEntries[i].LocalNameStringIndex >= 0)
+                exportNames.Add(GetString(exportEntries[i].LocalNameStringIndex));
+        }
+        var sortedExportNames = exportNames.ToList();
+        sortedExportNames.Sort(StringComparer.Ordinal);
+        for (var i = 0; i < exportEntryCount; i++)
+        {
+            if (exportEntries[i].LocalNameStringIndex < 0)
+                continue;
+            exportEntries[i] = exportEntries[i] with
+            {
+                CellIndex =
+                    sortedExportNames.BinarySearch(
+                        GetString(exportEntries[i].LocalNameStringIndex),
+                        StringComparer.Ordinal
+                    ) + 1,
+            };
+        }
+    }
+
     public int AddClass(FlatClassInfo info)
     {
         if (classCount == classes.Length)
@@ -343,7 +434,8 @@ internal readonly record struct FlatImportEntry(
     int LocalNameStringIndex,
     int LocalNameId,
     FlatImportKind Kind,
-    int Position
+    int Position,
+    int CellIndex = 0
 );
 
 internal readonly record struct FlatImportAttribute(
@@ -365,7 +457,8 @@ internal readonly record struct FlatExportEntry(
     int ImportNameStringIndex,
     int ExportNameStringIndex,
     FlatExportKind Kind,
-    int Position
+    int Position,
+    int CellIndex = 0
 );
 
 internal enum FlatExportKind : byte

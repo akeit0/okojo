@@ -161,6 +161,10 @@ public class DirectFlatParserTests
             )
         );
         Assert.That(exports.Count(entry => entry.Kind == FlatExportKind.Star), Is.EqualTo(1));
+        Assert.That(
+            exports.Where(entry => entry.LocalNameStringIndex < 0).Select(entry => entry.CellIndex),
+            Is.All.Zero
+        );
 
         using var collected = CompilerBindingCollector.Collect(ast);
         Assert.That(
@@ -193,6 +197,89 @@ public class DirectFlatParserTests
         );
 
         Assert.That(ast.IsModule, Is.True);
+    }
+
+    [Test]
+    public void ParseModule_FinalizesImportedExportsAndLiveCells()
+    {
+        using var ast = FlatJavaScriptParser.ParseModule(
+            """
+            import zed from 'default-source';
+            import { beta as middle, alpha } from 'named-source';
+            import * as namespaceValue from 'namespace-source';
+            export {
+                zed as forwardedDefault,
+                middle as forwardedMiddle,
+                alpha as forwardedAlpha,
+                namespaceValue as forwardedNamespace
+            };
+            const local = 1;
+            export { local, local as localAlias };
+            export default 2;
+            """
+        );
+
+        var statements = ast.ChildRange(ast[ast.Root].Arg0, ast[ast.Root].Arg1).ToArray();
+        var imports = statements
+            .Where(index => ast[index].Kind == AstKind.ImportDeclaration)
+            .SelectMany(index => ast.GetImportEntries(ast[index]).ToArray())
+            .ToArray();
+        Assert.That(
+            imports
+                .Select(entry => (ast.GetString(entry.LocalNameStringIndex), entry.CellIndex))
+                .ToArray(),
+            Is.EqualTo(new[] { ("zed", -3), ("middle", -2), ("alpha", -1), ("namespaceValue", 0) })
+        );
+
+        var exports = statements
+            .Where(index => ast[index].Kind == AstKind.ExportDeclaration)
+            .SelectMany(index => ast.GetExportEntries(ast[index]).ToArray())
+            .ToArray();
+        Assert.That(
+            exports
+                .Take(4)
+                .Select(entry =>
+                    (
+                        entry.ModuleRequestIndex,
+                        entry.ImportNameStringIndex < 0
+                            ? null
+                            : ast.GetString(entry.ImportNameStringIndex),
+                        ast.GetString(entry.ExportNameStringIndex),
+                        entry.Kind,
+                        entry.CellIndex
+                    )
+                )
+                .ToArray(),
+            Is.EqualTo(
+                new (int, string?, string, FlatExportKind, int)[]
+                {
+                    (0, "default", "forwardedDefault", FlatExportKind.Indirect, 0),
+                    (1, "beta", "forwardedMiddle", FlatExportKind.Indirect, 0),
+                    (1, "alpha", "forwardedAlpha", FlatExportKind.Indirect, 0),
+                    (2, null, "forwardedNamespace", FlatExportKind.Namespace, 0),
+                }
+            )
+        );
+        Assert.That(
+            exports
+                .Skip(4)
+                .Select(entry =>
+                    (
+                        ast.GetString(entry.LocalNameStringIndex),
+                        ast.GetString(entry.ExportNameStringIndex),
+                        entry.CellIndex
+                    )
+                )
+                .ToArray(),
+            Is.EqualTo(
+                new[]
+                {
+                    ("local", "local", 2),
+                    ("local", "localAlias", 2),
+                    ("\0default", "default", 1),
+                }
+            )
+        );
     }
 
     [TestCase("1 + 2 * 3", 7)]

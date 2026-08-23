@@ -496,8 +496,10 @@ checks, and observable function names match the production engine and V8.
   validation catches import/`var`/lexical/function/class conflicts, including
   nested `var`, duplicate explicit exports, missing local exports, and forward
   references after parsing, matching V8's descriptor-validation phase.
-- canonicalize source-free exports of imported bindings into indirect exports and
-  assign stable import/export live-cell indices
+- source-free exports of imported bindings are canonicalized into indirect or
+  namespace exports after validation; regular imports receive deterministic
+  negative live-cell indices, local exports receive positive indices, and local
+  aliases share one cell, matching V8's module-descriptor finalization contract
 - module scope and live binding storage
 - linking/evaluation integration
 - dynamic import, `import.meta`, top-level await, and async dependency ordering

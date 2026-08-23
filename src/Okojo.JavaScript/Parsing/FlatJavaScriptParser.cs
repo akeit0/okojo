@@ -100,7 +100,10 @@ internal sealed class FlatJavaScriptParser
             var children = Arena.AddChildren(statements.AsSpan());
             var program = Arena.Add(AstKind.Program, children.Offset, children.Count);
             if (isModule)
+            {
                 ValidateModuleBindings(program);
+                ast.FinalizeModuleDescriptor();
+            }
             return program;
         }
         finally
