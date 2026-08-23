@@ -37,6 +37,7 @@ internal abstract partial class JsPlannedCompilerBase
                         is not (
                             CompilerCollectedBindingKind.Parameter
                             or CompilerCollectedBindingKind.FunctionNameSelf
+                            or CompilerCollectedBindingKind.Arguments
                         )
                 )
                     continue;

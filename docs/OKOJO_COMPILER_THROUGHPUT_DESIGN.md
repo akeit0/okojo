@@ -209,6 +209,9 @@ The direct flat work has already established several reusable rules:
 - reserve incoming argument registers as an ABI prefix, materialize rest before
   overlapping writes, establish parameter TDZ, and initialize each parameter in
   source order
+- synthesize `arguments` only for an unshadowed ordinary-function reference,
+  create it before parameter defaults, and move parameters to mapped context
+  cells only for functions that observe it
 - allocate per-iteration loop contexts only when a nested function captures the
   lexical head
 - create function-expression closures at expression evaluation and initialize a
@@ -267,7 +270,8 @@ them:
   boundaries
 - replace the current parameter/body exclusion marker with a general environment
   model that remains correct through nested parameter functions
-- `arguments` creation/mapping rules and arrow lexical capture
+- arrow lexical capture of outer `arguments`; ordinary demand-driven mapped and
+  unmapped arguments objects are landed
 - anonymous function/class name inference
 - remaining strict/sloppy assignment edge cases; local/captured `const` and
   named-function self assignment enforcement are landed

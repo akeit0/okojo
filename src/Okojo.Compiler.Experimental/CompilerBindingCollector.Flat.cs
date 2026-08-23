@@ -9,6 +9,7 @@ internal static partial class CompilerBindingCollector
     {
         var collector = new FlatCollector();
         collector.CollectBody(ast, ast.Root, 0);
+        collector.AddSyntheticArgumentsBindings();
         return collector.MoveResult();
     }
 
@@ -23,6 +24,7 @@ internal static partial class CompilerBindingCollector
     {
         var collector = new FlatCollector(CompilerCollectedScopeKind.Function);
         collector.CollectFunctionRoot(name, nameId, parameterPlan, ast, bodyRoot, hasSelfBinding);
+        collector.AddSyntheticArgumentsBindings();
         return collector.MoveResult();
     }
 
@@ -35,6 +37,7 @@ internal static partial class CompilerBindingCollector
     {
         var collector = new FlatCollector(CompilerCollectedScopeKind.Function);
         collector.CollectFlatFunctionRoot(ast, function, bodyRoot, hasSelfBinding);
+        collector.AddSyntheticArgumentsBindings();
         return collector.MoveResult();
     }
 
@@ -117,6 +120,71 @@ internal static partial class CompilerBindingCollector
         public CompilerBindingCollectionResult MoveResult()
         {
             return new(scopes, bindings, references);
+        }
+
+        public void AddSyntheticArgumentsBindings()
+        {
+            var hasArgumentsReference = false;
+            for (var i = 0; i < references.Count; i++)
+                if (string.Equals(references[i].Name, "arguments", StringComparison.Ordinal))
+                {
+                    hasArgumentsReference = true;
+                    break;
+                }
+            if (!hasArgumentsReference)
+                return;
+
+            var hasBinding = new bool[scopes.Count];
+            var required = new bool[scopes.Count];
+            var varBindingIndex = new int[scopes.Count];
+            Array.Fill(varBindingIndex, -1);
+            for (var i = 0; i < bindings.Count; i++)
+                if (string.Equals(bindings[i].Name, "arguments", StringComparison.Ordinal))
+                {
+                    if (bindings[i].Kind == CompilerCollectedBindingKind.Var)
+                        varBindingIndex[bindings[i].ScopeId] = i;
+                    else
+                        hasBinding[bindings[i].ScopeId] = true;
+                }
+
+            for (var i = 0; i < references.Count; i++)
+            {
+                var reference = references[i];
+                if (!string.Equals(reference.Name, "arguments", StringComparison.Ordinal))
+                    continue;
+                for (
+                    var scopeId = reference.ScopeId;
+                    scopeId >= 0;
+                    scopeId = scopes[scopeId].ParentScopeId
+                )
+                {
+                    if (hasBinding[scopeId])
+                        break;
+                    if (scopes[scopeId].Kind == CompilerCollectedScopeKind.Function)
+                    {
+                        required[scopeId] = true;
+                        break;
+                    }
+                }
+            }
+
+            for (var scopeId = 0; scopeId < required.Length; scopeId++)
+                if (required[scopeId])
+                {
+                    var bindingIndex = varBindingIndex[scopeId];
+                    if (bindingIndex >= 0)
+                        bindings[bindingIndex] = bindings[bindingIndex] with
+                        {
+                            Kind = CompilerCollectedBindingKind.Arguments,
+                        };
+                    else
+                        AddBinding(
+                            scopeId,
+                            CompilerCollectedBindingKind.Arguments,
+                            "arguments",
+                            position: scopes[scopeId].Position
+                        );
+                }
         }
 
         private void VisitStatement(FlatAst ast, int nodeIndex, int scopeId)

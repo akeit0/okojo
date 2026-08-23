@@ -1,3 +1,4 @@
+using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Execution;
 
 namespace Okojo.JavaScript.Compiler.Experimental;
@@ -6,6 +7,7 @@ internal sealed partial class JsPlannedFunctionCompiler : JsPlannedCompilerBase
 {
     private readonly IReadOnlyDictionary<string, CapturedBindingAccess> inheritedCaptures;
     private readonly Dictionary<string, int> parameterRegisterByName;
+    private readonly List<string?> parameterNames;
     private bool initializeParametersInPrologue;
 
     public JsPlannedFunctionCompiler(
@@ -18,6 +20,7 @@ internal sealed partial class JsPlannedFunctionCompiler : JsPlannedCompilerBase
             inheritedCaptures
             ?? new Dictionary<string, CapturedBindingAccess>(StringComparer.Ordinal);
         parameterRegisterByName = new(StringComparer.Ordinal);
+        parameterNames = [];
     }
 
     protected override IEnumerable<KeyValuePair<string, CapturedBindingAccess>> ExternalCaptures =>
@@ -60,6 +63,20 @@ internal sealed partial class JsPlannedFunctionCompiler : JsPlannedCompilerBase
                 continue;
             EmitLdar(parameterRegister);
             EmitStaCurrentContextSlot(binding.Planned.StorageIndex);
+        }
+    }
+
+    private void EmitArgumentsBinding()
+    {
+        var rootScope = activeScopes.Peek();
+        for (var i = 0; i < rootScope.Bindings.Count; i++)
+        {
+            var binding = rootScope.Bindings[i];
+            if (binding.Planned.Kind != CompilerCollectedBindingKind.Arguments)
+                continue;
+            builder.EmitLda(JsOpCode.CreateMappedArguments);
+            EmitStore(binding, isInitialization: true);
+            return;
         }
     }
 }

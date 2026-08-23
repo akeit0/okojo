@@ -16,14 +16,19 @@ internal static class CompilerStoragePlanner
         var nextBinding = ArrayPool<int>.Shared.Rent(Math.Max(1, bindingCount));
         var nextContextSlotByScope = ArrayPool<int>.Shared.Rent(scopeCount);
         var captured = ArrayPool<bool>.Shared.Rent(Math.Max(1, bindingCount));
+        var hasArgumentsBinding = ArrayPool<bool>.Shared.Rent(scopeCount);
 
         Array.Fill(firstBindingByScope, -1, 0, scopeCount);
         Array.Clear(nextContextSlotByScope, 0, scopeCount);
         Array.Clear(captured, 0, bindingCount);
+        Array.Clear(hasArgumentsBinding, 0, scopeCount);
 
         try
         {
             IndexBindings(bindings, firstBindingByScope, nextBinding, scopeCount);
+            for (var i = 0; i < bindingCount; i++)
+                if (bindings[i].Kind == CompilerCollectedBindingKind.Arguments)
+                    hasArgumentsBinding[bindings[i].ScopeId] = true;
             MarkCapturedBindings(
                 collected.References,
                 scopes,
@@ -39,7 +44,11 @@ internal static class CompilerStoragePlanner
             for (var bindingIndex = 0; bindingIndex < bindingCount; bindingIndex++)
             {
                 var binding = bindings[bindingIndex];
-                var storageKind = ClassifyStorage(binding, scopes[binding.ScopeId].Kind);
+                var storageKind =
+                    binding.Kind == CompilerCollectedBindingKind.Parameter
+                    && hasArgumentsBinding[binding.ScopeId]
+                        ? CompilerPlannedStorageKind.ContextSlot
+                        : ClassifyStorage(binding, scopes[binding.ScopeId].Kind);
                 if (
                     captured[bindingIndex]
                     && storageKind
@@ -76,6 +85,7 @@ internal static class CompilerStoragePlanner
             ArrayPool<int>.Shared.Return(nextBinding);
             ArrayPool<int>.Shared.Return(nextContextSlotByScope);
             ArrayPool<bool>.Shared.Return(captured);
+            ArrayPool<bool>.Shared.Return(hasArgumentsBinding);
         }
     }
 
@@ -236,6 +246,7 @@ internal static class CompilerStoragePlanner
         {
             CompilerCollectedBindingKind.Var or CompilerCollectedBindingKind.FunctionDeclaration =>
                 CompilerPlannedStorageKind.LocalRegister,
+            CompilerCollectedBindingKind.Arguments => CompilerPlannedStorageKind.LocalRegister,
             CompilerCollectedBindingKind.Import => CompilerPlannedStorageKind.ImportBinding,
             CompilerCollectedBindingKind.Parameter
             or CompilerCollectedBindingKind.Lexical

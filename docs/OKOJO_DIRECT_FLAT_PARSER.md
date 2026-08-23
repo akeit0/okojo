@@ -59,7 +59,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Arrays/objects | holes, data properties, computed/shorthand/index keys, stable shape prefix | array/object spread emission, methods, getters/setters, legacy `__proto__` intentionally excluded |
 | Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings | class, module bindings and remaining early errors |
 | Assignments | identifier/member targets, compound/logical/update, array/object destructuring | private/super targets, optional-chain restrictions |
-| Functions | ordinary declarations/expressions, closures, simple/default/rest/pattern parameters, named self, `this` | arrows, async, generators, `arguments`, name inference, lazy bodies |
+| Functions | ordinary declarations/expressions, closures, simple/default/rest/pattern parameters, named self, `this`, demand-driven mapped/unmapped `arguments` | arrows, async, generators, name inference, lazy bodies |
 | Classes | none | declaration/expression, constructors, methods, fields, static blocks, private names, super |
 | Modules | none | parse goal, entries, linking metadata, live bindings, top-level await |
 
@@ -80,7 +80,6 @@ planned compiler still needs:
   are landed
 - a general parameter/body environment model; the current exclusion marker fixes
   ordinary cases but is not the final nested-environment representation
-- correct `arguments` creation and mapped/unmapped behavior
 - anonymous function/class name inference
 - remaining strict/sloppy assignment edge cases outside ordinary lexical bindings
 - complete source-position, handler, local-name, and debugger scope metadata
@@ -267,6 +266,23 @@ No new opcode or binding hierarchy is needed. Module imports/exports, class-name
 bindings, and `using`/`await using` assignment errors remain with their syntax
 slices.
 
+### Arguments binding slice
+
+Iteration scope: synthesize `arguments` only for an unshadowed ordinary-function
+reference, expose it to parameter defaults, and preserve simple sloppy parameter
+aliasing. Repros cover `arguments.length`, `arguments[0] = value`, a default
+reading `arguments[0]`, and parameter/lexical/`var` shadowing. Regression targets
+are direct reads, mapped/unmapped writes, defaults, and shadowing in
+`DirectFlatParserTests`.
+
+Production Okojo uses `CreateMappedArguments`; its VM selects mapped versus
+unmapped behavior from the function's strict/simple flags. V8 likewise creates
+the object in the function prologue only when the scope records an arguments
+binding. Okojo copies that shape and reuses `ArgumentsMappedSlots`; parameters
+move to context cells only in functions that observe `arguments`. No runtime type
+or opcode is added. The object allocation occurs only when JavaScript can observe
+it.
+
 ## Reference Lessons Applied
 
 ### V8
@@ -340,8 +356,9 @@ Implement before adding large syntax families:
   lexical/var/restricted-property conflicts, ordinary function/block hoisting,
   and function-scoped `var` are landed
 - function, block, catch, class, module, and parameter environment records
-- `arguments` and function-name inference; local/captured `const` and
-  strict/sloppy named-function self assignment are landed
+- function-name inference; demand-driven mapped/unmapped `arguments`,
+  local/captured `const`, and strict/sloppy named-function self assignment are
+  landed
 - source/handler/local-name metadata
 
 Focused corpus:

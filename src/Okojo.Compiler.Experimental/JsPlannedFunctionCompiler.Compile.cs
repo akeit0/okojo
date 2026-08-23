@@ -91,6 +91,7 @@ internal sealed partial class JsPlannedFunctionCompiler
         EmitFunctionContextSetup();
         EmitScopeLexicalHoleInitialization();
         EmitFunctionSelfBinding();
+        EmitArgumentsBinding();
         if (flatFunction is { } function)
             EmitParameterPrologue(ast, function);
         EmitDeclarationPrologue(ast, bodyRoot);
@@ -108,7 +109,7 @@ internal sealed partial class JsPlannedFunctionCompiler
             StrictDeclared = metadata.StrictDeclared,
         };
         script.BindAgent(Vm.Agent);
-        return new JsBytecodeFunction(
+        var result = new JsBytecodeFunction(
             Vm,
             script,
             metadata.Name,
@@ -125,14 +126,18 @@ internal sealed partial class JsPlannedFunctionCompiler
             hasEagerGeneratorParameterBinding: false,
             expectedArgumentCount: metadata.FunctionLength
         );
+        result.ArgumentsMappedSlots = BuildArgumentsMappedSlots(metadata);
+        return result;
     }
 
     private void InitializeParameterRegisterMap(FunctionParameterPlan parameterPlan)
     {
         parameterRegisterByName.Clear();
+        parameterNames.Clear();
         for (var i = 0; i < parameterPlan.Bindings.Count; i++)
         {
             var binding = parameterPlan.Bindings[i];
+            parameterNames.Add(binding.IsPattern ? null : binding.Name);
             if (!binding.IsPattern)
                 parameterRegisterByName[binding.Name] = i;
         }
@@ -141,14 +146,58 @@ internal sealed partial class JsPlannedFunctionCompiler
     private void InitializeParameterRegisterMap(FlatAst ast, in FlatFunctionInfo function)
     {
         parameterRegisterByName.Clear();
+        parameterNames.Clear();
         var parameters = ast.GetParameters(function);
         for (var i = 0; i < parameters.Length; i++)
+        {
+            parameterNames.Add(
+                parameters[i].Kind
+                    is JsFormalParameterBindingKind.Plain
+                        or JsFormalParameterBindingKind.Rest
+                    ? ast.GetString(parameters[i].NameStringIndex)
+                    : null
+            );
             if (
                 parameters[i].Kind
                 is JsFormalParameterBindingKind.Plain
                     or JsFormalParameterBindingKind.Rest
             )
                 parameterRegisterByName[ast.GetString(parameters[i].NameStringIndex)] = i;
+        }
+    }
+
+    private int[]? BuildArgumentsMappedSlots(in FunctionCompileMetadata metadata)
+    {
+        var rootBindings = GetPlannedBindings(0);
+        var hasArguments = false;
+        for (var i = 0; i < rootBindings.Length; i++)
+            if (rootBindings[i].Kind == CompilerCollectedBindingKind.Arguments)
+            {
+                hasArguments = true;
+                break;
+            }
+        if (!hasArguments || !metadata.HasSimpleParameterList || metadata.ParameterCount == 0)
+            return null;
+
+        var slots = new int[metadata.ParameterCount];
+        Array.Fill(slots, -1);
+        for (var i = 0; i < parameterNames.Count; i++)
+        {
+            var name = parameterNames[i];
+            if (name is null || parameterNames.LastIndexOf(name) != i)
+                continue;
+            for (var j = 0; j < rootBindings.Length; j++)
+                if (
+                    rootBindings[j].Kind == CompilerCollectedBindingKind.Parameter
+                    && rootBindings[j].StorageKind == CompilerPlannedStorageKind.ContextSlot
+                    && string.Equals(rootBindings[j].Name, name, StringComparison.Ordinal)
+                )
+                {
+                    slots[i] = rootBindings[j].StorageIndex;
+                    break;
+                }
+        }
+        return slots;
     }
 
     private readonly record struct FunctionCompileMetadata(

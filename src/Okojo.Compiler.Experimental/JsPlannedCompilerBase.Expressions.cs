@@ -1275,7 +1275,7 @@ internal abstract partial class JsPlannedCompilerBase
         }
     }
 
-    private void EmitStore(
+    protected void EmitStore(
         BindingStorage binding,
         bool isInitialization = false,
         bool isFunctionDeclaration = false

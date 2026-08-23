@@ -1456,6 +1456,60 @@ public class DirectFlatParserTests
         Assert.Throws<JsRuntimeException>(() => strictRealm.Execute(strict));
     }
 
+    [Test]
+    public void CompileString_CreatesMappedAndUnmappedArgumentsObjects()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            function read(a, b) { return arguments.length * 100 + arguments[0] * 10 + arguments[1]; }
+            function mapped(a) { arguments[0] = 42; return a; }
+            function unmapped(a) { "use strict"; arguments[0] = 42; return a; }
+            function defaulted(a = arguments[1]) { return a; }
+            function noFormal() { return arguments[0]; }
+            read(3, 4) + mapped(1) + unmapped(1) + defaulted(undefined, 42) + noFormal(10);
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(329));
+        Assert.That(
+            script
+                .ObjectConstants.OfType<JsBytecodeFunction>()
+                .Count(static function =>
+                    function.Script.Bytecode.Contains((byte)JsOpCode.CreateMappedArguments)
+                ),
+            Is.EqualTo(5)
+        );
+    }
+
+    [Test]
+    public void CompileString_RespectsArgumentsShadowingAndNestedFunctionOwnership()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            function parameter(arguments) { return arguments; }
+            function lexical() { let arguments = 20; return arguments; }
+            function variable() { var arguments; return arguments.length; }
+            function outer() { return function inner(value) { return arguments[0]; }; }
+            """
+        );
+
+        realm.Execute(script);
+        realm.Execute(new JsPlannedScriptCompiler(realm).Compile("parameter(10);"));
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(10));
+        realm.Execute(new JsPlannedScriptCompiler(realm).Compile("lexical();"));
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(20));
+        realm.Execute(new JsPlannedScriptCompiler(realm).Compile("variable(1, 2);"));
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(2));
+        realm.Execute(
+            new JsPlannedScriptCompiler(realm).Compile("var inner = outer(); inner(10);")
+        );
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(10));
+    }
+
     [TestCase("throw\n1;")]
     [TestCase("try {}")]
     [TestCase("try {} catch ({ value, value }) {}")]
