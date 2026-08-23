@@ -1044,6 +1044,9 @@ internal sealed class FlatJavaScriptParser
             case JsTokenKind.Null:
                 Next();
                 return Arena.Add(AstKind.NullLiteral, position: token.Position);
+            case JsTokenKind.This:
+                Next();
+                return Arena.Add(AstKind.ThisExpression, position: token.Position);
             case JsTokenKind.LeftParen:
                 Next();
                 var expression = ParseExpression();

@@ -27,6 +27,9 @@ internal abstract partial class JsPlannedCompilerBase
             case AstKind.Identifier:
                 EmitIdentifierLoad(ast.GetString(node.Arg0));
                 return;
+            case AstKind.ThisExpression:
+                builder.EmitLda(JsOpCode.LdaThis);
+                return;
             case AstKind.AssignmentExpression
                 when (JsAssignmentOperator)node.Arg2 == JsAssignmentOperator.Assign
                     && ast[node.Arg0].Kind is AstKind.ArrayExpression or AstKind.ObjectExpression:

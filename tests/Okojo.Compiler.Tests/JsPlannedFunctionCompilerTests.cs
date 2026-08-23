@@ -248,6 +248,21 @@ public class JsPlannedFunctionCompilerTests
     }
 
     [Test]
+    public void CompileScript_ExecutesClassBridgeThisExpression()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var program = JavaScriptParser.ParseScript(
+            "let object = { value: 42, read: function () { return this.value; } }; object.read();"
+        );
+        var script = compiler.Compile(program);
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(42));
+    }
+
+    [Test]
     public void CompileFunction_ProducesBytecodeForParametersAndReturn()
     {
         var realm = JsRuntime.Create().DefaultRealm;

@@ -143,6 +143,20 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_ExecutesThisExpressionFromMethodCall()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile(
+            "let object = { value: 42, read: function () { return this.value; } }; object.read();"
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(42));
+    }
+
+    [Test]
     public void CompileString_ExecutesOrderedPatternDefaultAndRestParameters()
     {
         var realm = JsRuntime.Create().DefaultRealm;

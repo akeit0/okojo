@@ -58,6 +58,8 @@ initializer references also skip bindings declared only in the function body.
 The function-expression slice covers ordinary anonymous and named function
 expressions, reusing the same pooled function/parameter records and function-body
 compiler as declarations. Async, generator, and arrow forms remain separate work.
+The receiver-expression follow-up stores `this` as a zero-child flat node and emits
+the existing frame receiver load directly.
 
 ## Minimal Repros
 
@@ -143,6 +145,11 @@ let named = function self(value) { return value ? self(value - 1) + 1 : 0; };
 anonymous() + named(3);
 ```
 
+```js
+let object = { value: 42, read: function () { return this.value; } };
+object.read();
+```
+
 ## Planned Tests
 
 - `tests/Okojo.Compiler.Tests/DirectFlatParserTests.cs`
@@ -169,6 +176,7 @@ anonymous() + named(3);
     function length, TDZ/order, duplicate/strict errors, capture, and class bridging
   - anonymous/named function expressions, self recursion, outer capture, advanced
     parameters, and expression position
+  - direct `this` parsing, member access, and receiver-preserving method calls
 
 ## Reference Observations
 
@@ -264,6 +272,11 @@ the same observable behavior. The flat path reuses its existing closure opcode,
 child-capture map, and function-self binding rather than introduce another runtime
 representation.
 
+V8 can fuse `this.value` into its named-property load from the receiver operand;
+production Okojo emits `LdaThis` followed by its normal named-property sequence.
+The flat compiler intentionally copies Okojo's explicit `LdaThis` opcode contract,
+which keeps receiver loading orthogonal to property inline-cache work.
+
 For captured `for (let ...)` heads, V8 creates a new block context for each
 iteration and moves the value through the update path. Production Okojo clones a
 function context because its loop aliases share function-level cells. The flat
@@ -290,6 +303,7 @@ outer capture depths unchanged and retains old contexts only through closures.
   the ordered advanced-parameter prologue
 - add function-expression bodies directly to pooled flat function/node tables and
   compile them only when emitting the closure constant
+- represent `this` without payload or side-table allocation and emit `LdaThis`
 
 Initial Release measurement for 80 declaration/update pairs after warm-up:
 

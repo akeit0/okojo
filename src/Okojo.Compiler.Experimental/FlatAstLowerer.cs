@@ -478,6 +478,10 @@ internal static class FlatAstLowerer
             return expression switch
             {
                 JsLiteralExpression literal => LowerLiteral(literal),
+                JsThisExpression => Arena.Add(
+                    AstKind.ThisExpression,
+                    position: expression.Position
+                ),
                 JsIdentifierExpression identifier => Arena.Add(
                     AstKind.Identifier,
                     Arena.AddString(identifier.Name),
