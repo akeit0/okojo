@@ -50,6 +50,13 @@ internal abstract partial class JsPlannedCompilerBase
                     builder.EmitLda(JsOpCode.LdaUndefined);
                 EmitAbruptCommand(AbruptCommand.Return);
                 return;
+            case AstKind.ThrowStatement:
+                EmitExpression(ast, node.Arg0);
+                builder.Emit(JsOpCode.Throw);
+                return;
+            case AstKind.TryStatement:
+                EmitTryStatement(ast, node);
+                return;
             case AstKind.EmptyStatement:
                 builder.EmitLda(JsOpCode.LdaUndefined);
                 return;
@@ -222,6 +229,7 @@ internal abstract partial class JsPlannedCompilerBase
                 ControlScopeKind.Iteration,
                 breakTarget,
                 continueTarget,
+                default,
                 CurrentContextDepth
             )
         );
@@ -229,16 +237,40 @@ internal abstract partial class JsPlannedCompilerBase
 
     private void EmitAbruptCommand(AbruptCommand command)
     {
+        var contextDepth = CurrentContextDepth;
         foreach (var scope in controlScopes)
         {
+            for (var depth = contextDepth; depth > scope.ContextDepth; depth--)
+                EmitPopContext();
+            contextDepth = Math.Min(contextDepth, scope.ContextDepth);
+            if (scope.Kind == ControlScopeKind.Try)
+            {
+                builder.Emit(JsOpCode.PopTry);
+                continue;
+            }
+            if (scope.Kind == ControlScopeKind.Finally)
+            {
+                if (command == AbruptCommand.Return)
+                    EmitStar(scope.CompletionValueRegister);
+                EmitSmi(
+                    command switch
+                    {
+                        AbruptCommand.Return => 1,
+                        AbruptCommand.Break => 3,
+                        AbruptCommand.Continue => 4,
+                        _ => throw new ArgumentOutOfRangeException(nameof(command)),
+                    }
+                );
+                EmitStar(scope.CompletionKindRegister);
+                EmitJump(scope.Finally);
+                return;
+            }
             if (
                 scope.Kind != ControlScopeKind.Iteration
                 || command is not (AbruptCommand.Break or AbruptCommand.Continue)
             )
                 continue;
 
-            for (var depth = CurrentContextDepth; depth > scope.ContextDepth; depth--)
-                EmitPopContext();
             EmitJump(command == AbruptCommand.Continue ? scope.Continue : scope.Break);
             return;
         }
@@ -252,6 +284,205 @@ internal abstract partial class JsPlannedCompilerBase
                 throw new InvalidOperationException(
                     $"Abrupt command '{command}' has no active control scope."
                 );
+        }
+    }
+
+    private void EmitTryStatement(FlatAst ast, AstNode statement)
+    {
+        if (statement.Arg2 < 0)
+        {
+            EmitTryCatch(ast, statement.Arg0, statement.Arg1);
+            return;
+        }
+        EmitTryFinally(ast, statement.Arg0, statement.Arg1, statement.Arg2);
+    }
+
+    private void EmitTryCatch(FlatAst ast, int body, int handler)
+    {
+        var catchLabel = builder.CreateLabel();
+        var endLabel = builder.CreateLabel();
+        builder.EmitLda(JsOpCode.LdaUndefined);
+        builder.EmitJump(JsOpCode.PushTry, catchLabel);
+        PushTryControlScope();
+        try
+        {
+            EmitStatement(ast, body);
+        }
+        finally
+        {
+            controlScopes.Pop();
+        }
+        builder.Emit(JsOpCode.PopTry);
+        EmitJump(endLabel);
+        builder.BindLabel(catchLabel);
+        EmitCatchClause(ast, handler);
+        builder.BindLabel(endLabel);
+    }
+
+    private void PushTryControlScope()
+    {
+        controlScopes.Push(
+            new ControlScope(ControlScopeKind.Try, default, default, default, CurrentContextDepth)
+        );
+    }
+
+    private void EmitTryFinally(FlatAst ast, int body, int handler, int finalizer)
+    {
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            var canCrossIteration = controlScopes.Any(static scope =>
+                scope.Kind == ControlScopeKind.Iteration
+            );
+            var completionKind = builder.AllocateTemporaryRegister();
+            var completionValue = builder.AllocateTemporaryRegister();
+            var compare = builder.AllocateTemporaryRegister();
+            var catchLabel = builder.CreateLabel();
+            var finallyFromTry = builder.CreateLabel();
+            var finallyEntry = builder.CreateLabel();
+
+            EmitSmi(0);
+            EmitStar(completionKind);
+            builder.EmitLda(JsOpCode.LdaUndefined);
+            EmitStar(completionValue);
+
+            builder.EmitJump(JsOpCode.PushTry, catchLabel);
+            PushFinallyControlScope(finallyFromTry, completionKind, completionValue);
+            try
+            {
+                builder.EmitLda(JsOpCode.LdaUndefined);
+                EmitStatement(ast, body);
+                EmitStar(completionValue);
+            }
+            finally
+            {
+                controlScopes.Pop();
+            }
+            builder.Emit(JsOpCode.PopTry);
+            EmitJump(finallyEntry);
+
+            builder.BindLabel(finallyFromTry);
+            builder.Emit(JsOpCode.PopTry);
+            EmitJump(finallyEntry);
+
+            builder.BindLabel(catchLabel);
+            if (handler >= 0)
+            {
+                var catchThrow = builder.CreateLabel();
+                var finallyFromCatch = builder.CreateLabel();
+                builder.EmitJump(JsOpCode.PushTry, catchThrow);
+                PushFinallyControlScope(finallyFromCatch, completionKind, completionValue);
+                try
+                {
+                    EmitCatchClause(ast, handler);
+                    EmitStar(completionValue);
+                }
+                finally
+                {
+                    controlScopes.Pop();
+                }
+                builder.Emit(JsOpCode.PopTry);
+                EmitJump(finallyEntry);
+                builder.BindLabel(finallyFromCatch);
+                builder.Emit(JsOpCode.PopTry);
+                EmitJump(finallyEntry);
+                builder.BindLabel(catchThrow);
+            }
+            EmitStar(completionValue);
+            EmitSmi(2);
+            EmitStar(completionKind);
+            EmitJump(finallyEntry);
+
+            builder.BindLabel(finallyEntry);
+            EmitStatement(ast, finalizer);
+
+            EmitFinallyCompletionJump(completionKind, compare, 1, out var notReturn);
+            EmitLdar(completionValue);
+            EmitAbruptCommand(AbruptCommand.Return);
+            builder.BindLabel(notReturn);
+
+            EmitFinallyCompletionJump(completionKind, compare, 2, out var notThrow);
+            EmitLdar(completionValue);
+            builder.Emit(JsOpCode.Throw);
+            builder.BindLabel(notThrow);
+
+            if (canCrossIteration)
+            {
+                EmitFinallyCompletionJump(completionKind, compare, 3, out var notBreak);
+                EmitAbruptCommand(AbruptCommand.Break);
+                builder.BindLabel(notBreak);
+
+                EmitFinallyCompletionJump(completionKind, compare, 4, out var normal);
+                EmitAbruptCommand(AbruptCommand.Continue);
+                builder.BindLabel(normal);
+            }
+            EmitLdar(completionValue);
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+        }
+    }
+
+    private void PushFinallyControlScope(
+        BytecodeBuilder.Label target,
+        int completionKind,
+        int completionValue
+    )
+    {
+        controlScopes.Push(
+            new ControlScope(
+                ControlScopeKind.Finally,
+                default,
+                default,
+                target,
+                CurrentContextDepth,
+                completionKind,
+                completionValue
+            )
+        );
+    }
+
+    private void EmitFinallyCompletionJump(
+        int completionKind,
+        int compare,
+        int kind,
+        out BytecodeBuilder.Label next
+    )
+    {
+        next = builder.CreateLabel();
+        EmitSmi(kind);
+        EmitStar(compare);
+        EmitLdar(completionKind);
+        EmitRegisterWithSlotOp(JsOpCode.TestEqualStrict, compare);
+        EmitJumpIfToBooleanFalse(next);
+    }
+
+    private void EmitCatchClause(FlatAst ast, int nodeIndex)
+    {
+        ref readonly var clause = ref ast[nodeIndex];
+        var thrown = builder.AllocateTemporaryRegister();
+        EmitStar(thrown);
+        var scope = FindChildScope(
+            activeScopes.Peek().ScopeId,
+            CompilerCollectedScopeKind.Catch,
+            ast.GetPosition(nodeIndex)
+        );
+        EnterScope(scope.ScopeId);
+        try
+        {
+            if (clause.Arg0 >= 0)
+            {
+                EmitLdar(thrown);
+                EmitStoreBindingTarget(ast, clause.Arg0);
+            }
+            builder.EmitLda(JsOpCode.LdaUndefined);
+            EmitStatement(ast, clause.Arg1);
+        }
+        finally
+        {
+            LeaveScope();
+            builder.ReleaseTemporaryRegister(thrown);
         }
     }
 

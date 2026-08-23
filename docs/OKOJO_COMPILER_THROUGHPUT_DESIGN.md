@@ -87,7 +87,8 @@ The implemented path has these properties:
 Implemented execution coverage includes ordinary declarations and functions,
 branches and ordinary loops, calls and construction, named/computed properties,
 array/object data literals, binding and assignment destructuring, advanced
-parameters, ordinary function expressions, closures, and `this`.
+parameters, ordinary function expressions, closures, `this`, `throw`, and
+`try`/`catch`/`finally` with optional or destructured catch bindings.
 
 ## Reference Architecture Insights
 
@@ -212,6 +213,11 @@ The direct flat work has already established several reusable rules:
   lexical head
 - create function-expression closures at expression evaluation and initialize a
   named expression's self binding before parameter defaults
+- represent `finally` exits as a completion kind plus optional value, then replay
+  return/break/continue after the finalizer through the same control-scope stack
+- save lexical context in the VM exception-handler entry as part of the handler
+  ABI; restoring only stack and PC is insufficient when an exception skips a
+  captured block's `PopContext`
 
 These are compiler contracts, not parser conveniences. New syntax should lower to
 the same small set of prepared-reference, iterator, context, call, and abrupt-flow
@@ -259,9 +265,8 @@ hoisting without compiler-specific rewrites.
 ### P1 - Common synchronous grammar
 
 - explicit effect/value/test expression emission modes
-- one abrupt-command stack for return, throw/rethrow, break, and continue,
-  including context unwinding and finally continuation dispatch
-- `throw`, `try`/`catch`/`finally`, and completion routing
+- extend the landed abrupt-command stack to labeled targets and richer handler
+  metadata
 - `switch`
 - `for-in` and `for-of`
 - labeled statements and labeled `break`/`continue`
@@ -273,8 +278,13 @@ hoisting without compiler-specific rewrites.
 
 Foundation status: effect/value/test intent now propagates through logical-not,
 logical, conditional, and sequence expressions, and existing break, continue,
-and return emission shares one control-scope dispatcher. Try/finally interception,
-continuation tokens, labeled targets, and handler metadata remain part of P1.
+and return emission shares one control-scope dispatcher. Direct `throw` and
+`try`/`catch`/`finally` are now implemented. Finally scopes intercept exits,
+preserve the return value when required, run the finalizer, and replay the saved
+command; runtime throws continue through the VM handler path. The VM handler ABI
+now preserves lexical context across exceptions and generator suspension.
+Labeled targets, switch/iterator control, full early errors, and diagnostic
+handler metadata remain part of P1.
 
 Exit gate: the direct path compiles the synchronous non-class application corpus
 and has differential execution coverage for every new control-flow form.

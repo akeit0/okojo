@@ -11,15 +11,26 @@ public sealed partial class JsRealm
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void ClearExceptionHandlers()
     {
+        Array.Clear(exceptionHandlerStack, 0, exceptionHandlerCount);
         exceptionHandlerCount = 0;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void PushExceptionHandler(int frameFp, int catchPc, int savedSp)
+    private void PushExceptionHandler(
+        int frameFp,
+        int catchPc,
+        int savedSp,
+        JsContext? savedContext
+    )
     {
         if ((uint)exceptionHandlerCount >= (uint)exceptionHandlerStack.Length)
             GrowExceptionHandlerStack();
-        exceptionHandlerStack[exceptionHandlerCount++] = new(frameFp, catchPc, savedSp);
+        exceptionHandlerStack[exceptionHandlerCount++] = new(
+            frameFp,
+            catchPc,
+            savedSp,
+            savedContext
+        );
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -45,7 +56,7 @@ public sealed partial class JsRealm
     private void PopExceptionHandler()
     {
         if (exceptionHandlerCount != 0)
-            exceptionHandlerCount--;
+            exceptionHandlerStack[--exceptionHandlerCount] = default;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -56,7 +67,7 @@ public sealed partial class JsRealm
             && exceptionHandlerStack[exceptionHandlerCount - 1].FrameFp == frameFp
         )
         {
-            exceptionHandlerCount--;
+            exceptionHandlerStack[--exceptionHandlerCount] = default;
             return;
         }
 
@@ -80,6 +91,7 @@ public sealed partial class JsRealm
                     i,
                     exceptionHandlerCount - i
                 );
+            exceptionHandlerStack[exceptionHandlerCount] = default;
 
             return;
         }
@@ -92,7 +104,7 @@ public sealed partial class JsRealm
             exceptionHandlerCount != 0
             && exceptionHandlerStack[exceptionHandlerCount - 1].FrameFp == frameFp
         )
-            exceptionHandlerCount--;
+            exceptionHandlerStack[--exceptionHandlerCount] = default;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -123,7 +135,7 @@ public sealed partial class JsRealm
         for (var dest = count - 1; dest >= 0; dest--, source--)
         {
             var entry = exceptionHandlerStack[source];
-            handlers[dest] = new(entry.CatchPc, entry.SavedSp - frameFp);
+            handlers[dest] = new(entry.CatchPc, entry.SavedSp - frameFp, entry.SavedContext);
         }
 
         return handlers;
@@ -141,7 +153,12 @@ public sealed partial class JsRealm
         for (var i = 0; i < handlers.Length; i++)
         {
             var handler = handlers[i];
-            PushExceptionHandler(frameFp, handler.CatchPc, frameFp + handler.SavedSpOffset);
+            PushExceptionHandler(
+                frameFp,
+                handler.CatchPc,
+                frameFp + handler.SavedSpOffset,
+                handler.SavedContext
+            );
         }
     }
 
@@ -181,10 +198,12 @@ public sealed partial class JsRealm
             if (fp != handler.FrameFp)
                 continue;
 
+            Array.Clear(exceptionHandlerStack, i, exceptionHandlerCount - i);
             exceptionHandlerCount = i;
             StackTop = handler.SavedSp;
             if (StackTop < fp + HeaderSize)
                 StackTop = fp + HeaderSize;
+            SetFrameContext(fullStack, fp, handler.SavedContext);
             pc = handler.CatchPc;
             return true;
         }
@@ -193,10 +212,16 @@ public sealed partial class JsRealm
         return false;
     }
 
-    private readonly struct ExceptionHandlerEntry(int frameFp, int catchPc, int savedSp)
+    private readonly struct ExceptionHandlerEntry(
+        int frameFp,
+        int catchPc,
+        int savedSp,
+        JsContext? savedContext
+    )
     {
         public readonly int FrameFp = frameFp;
         public readonly int CatchPc = catchPc;
         public readonly int SavedSp = savedSp;
+        public readonly JsContext? SavedContext = savedContext;
     }
 }

@@ -1127,6 +1127,125 @@ public class DirectFlatParserTests
         Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
     }
 
+    [Test]
+    public void CompileString_ReplaysAbruptCompletionsAfterFinally()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            function run(mode) {
+                let total = 0;
+                for (let i = 0; i < 3; i++) {
+                    try {
+                        if (mode === 0) return total + 1;
+                        if (mode === 1) break;
+                        if (mode === 2) continue;
+                        throw 4;
+                    } catch (error) {
+                        total += error;
+                    } finally {
+                        total += 10;
+                    }
+                    total += 100;
+                }
+                return total;
+            }
+            run(0) * 1000000 + run(1) * 10000 + run(2) * 100 + run(3);
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(1103342));
+    }
+
+    [Test]
+    public void CompileString_RestoresHandlerContextAndAllowsFinallyOverride()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let cleanup = 0;
+            function override() {
+                try { return 1; } finally { return 2; }
+            }
+            function captured() {
+                let read;
+                try {
+                    { let value = 40; read = function () { return value; }; throw 2; }
+                } catch (error) {
+                    let value = 100;
+                    return read() + error;
+                } finally {
+                    cleanup++;
+                }
+            }
+            let nestedCleanup = 0;
+            function nested() {
+                try {
+                    try { return 3; } finally { nestedCleanup += 10; }
+                } finally {
+                    nestedCleanup += 100;
+                }
+            }
+            override() * 1000000 + captured() * 10000 + cleanup * 1000 + nested() * 100 + nestedCleanup;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(2421410));
+    }
+
+    [Test]
+    public void CompileString_ExecutesOptionalAndDestructuredCatchBindings()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let optional = 0;
+            try { throw 1; } catch { optional = 42; }
+            let destructured = 0;
+            try { throw { left: 20, right: 22 }; }
+            catch ({ left, right }) { destructured = left + right; }
+            optional * 100 + destructured;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(4242));
+    }
+
+    [Test]
+    public void CompileString_PopsTryHandlerWhenLoopControlExitsTry()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            function run() {
+                while (true) {
+                    try { break; } catch (error) { return 100; }
+                }
+                try { throw 42; } catch (error) { return error; }
+            }
+            run();
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(42));
+    }
+
+    [TestCase("throw\n1;")]
+    [TestCase("try {}")]
+    [TestCase("try {} catch ({ value, value }) {}")]
+    public void ParseScript_RejectsMalformedTryAndThrow(string source)
+    {
+        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+    }
+
     private static long MeasureAllocatedBytes(Action action)
     {
         var before = GC.GetAllocatedBytesForCurrentThread();

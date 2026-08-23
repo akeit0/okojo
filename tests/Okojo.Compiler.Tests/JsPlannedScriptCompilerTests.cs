@@ -92,7 +92,7 @@ public class JsPlannedScriptCompilerTests
             compiler.Compile(
                 JavaScriptParser.ParseScript(
                     """
-                    throw 1;
+                    switch (1) { case 1: break; }
                     """
                 )
             )
@@ -100,6 +100,20 @@ public class JsPlannedScriptCompilerTests
 
         Assert.That(ex, Is.Not.Null);
         Assert.That(ex!.Message, Does.Contain("does not support statement"));
+    }
+
+    [Test]
+    public void Compile_LowersClassAstTryCatchBridge()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile(
+            JavaScriptParser.ParseScript("try { throw 42; } catch (error) { error; }")
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(42));
     }
 
     [Test]

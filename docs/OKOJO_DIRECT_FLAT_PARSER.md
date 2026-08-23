@@ -51,13 +51,13 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 |---|---|---|
 | Parse goal | scripts | modules, standalone function goal |
 | Declarations | `var`/`let`/`const`, ordinary function declarations | classes, imports/exports, full declaration instantiation/hoisting |
-| Blocks/control | block, `if`, `while`, `do`, ordinary `for`, unlabeled `break`/`continue`, `return`, empty/expression statement | `throw`, `try`/`catch`/`finally`, `switch`, `for-in/of`, labels, `debugger` |
+| Blocks/control | block, `if`, `while`, `do`, ordinary `for`, unlabeled `break`/`continue`, `return`, `throw`, `try`/`catch`/`finally`, empty/expression statement | `switch`, `for-in/of`, labels, `debugger` |
 | Primitive expressions | number, string, boolean, null, identifier, `this`, grouping | regexp, BigInt, templates, `super`, `new.target`, `import.meta` |
 | Operators | precedence table, assignment, arithmetic/logical/bitwise/comparison, conditionals, sequence, updates | delete completion, optional-chain operators, remaining edge-specific early errors |
 | References | locals, lexical contexts, named/computed properties | globals/unresolvable names, imports, private and super references |
 | Calls/construction | direct/member calls, spread calls, ordinary/spread `new`, wide operands | optional calls, dynamic import, super call |
 | Arrays/objects | holes, data properties, computed/shorthand/index keys, stable shape prefix | array/object spread emission, methods, getters/setters, legacy `__proto__` intentionally excluded |
-| Bindings | identifier and nested array/object declarations, defaults, rest, computed keys | catch, class, module bindings and remaining early errors |
+| Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings | class, module bindings and remaining early errors |
 | Assignments | identifier/member targets, compound/logical/update, array/object destructuring | private/super targets, optional-chain restrictions |
 | Functions | ordinary declarations/expressions, closures, simple/default/rest/pattern parameters, named self, `this` | arrows, async, generators, `arguments`, name inference, lazy bodies |
 | Classes | none | declaration/expression, constructors, methods, fields, static blocks, private names, super |
@@ -141,6 +141,26 @@ Function expressions create their closure at expression evaluation. Named
 expressions initialize a function-local self binding before parameter defaults.
 `this` is a zero-payload node that emits Okojo's existing `LdaThis` frame load.
 
+### Exceptions and finally
+
+`ThrowStatement`, `TryStatement`, and `CatchClause` use ordinary fixed flat nodes;
+catch bindings reuse the existing binding-pattern representation and receive an
+explicit catch scope in discovery/storage planning.
+
+The emitter copies the structure of V8
+`BytecodeGenerator::ControlScopeForTryFinally`: an intercepted exit stores a
+small completion kind and, for return, its accumulator value. The finalizer runs
+with that control scope removed, so an abrupt finalizer overrides the pending
+completion. Normal completion or the saved return/break/continue is then replayed
+through the enclosing control stack. Runtime exceptions use Okojo's existing
+`PushTry`/`PopTry`/`Throw` ABI instead of copying V8's handler-table and
+`ReThrow` opcodes literally.
+
+Handler entries now also save the current `JsContext`. The VM restores context,
+stack, and PC together at a handler target, and suspended generators retain the
+same saved handler contexts. This fixes exceptions that bypass bytecode
+`PopContext` from captured lexical blocks.
+
 ## Reference Lessons Applied
 
 ### V8
@@ -179,11 +199,9 @@ before allocating; and `BytecodeGenerator` carries explicit effect/value/test,
 register, context, and abrupt-control scopes. Okojo should represent the same
 facts with dense IDs and pooled tables.
 
-The next control-flow implementation should establish one reusable abrupt-command
-path before adding `try`/`finally`. V8's `ControlScopeForTryFinally` intercepts
-return, break, continue, and rethrow, saves any result and a continuation token,
-runs `finally`, and then dispatches the original command. This is the reference
-shape for F1; isolated jump patching in each statement emitter is not sufficient.
+V8's `ControlScopeForTryFinally` reference shape is now landed for unlabeled
+return, break, and continue. Okojo intentionally leaves runtime throw routing to
+its VM handler stack; labeled destination tokens are added when labels land.
 
 ### Oxc
 
@@ -234,8 +252,8 @@ function read(value = function nested(next = outer) { return next; }) {
 
 ### Stage F1 - Synchronous application grammar
 
-- add effect/value/test expression modes and the shared abrupt-command path
-- `throw`, `try`/`catch`/`finally`, and abrupt-completion routing
+- extend effect/value/test modes to the remaining expressions
+- extend abrupt-completion routing to labels, switch, and iterator cleanup
 - `switch`
 - `for-in`/`for-of` and labels
 - `debugger`
@@ -257,6 +275,12 @@ First foundation slice landed:
 - pure literals in sequence-effect positions emit no accumulator load
 - break, continue, and return route through one control-scope dispatcher; loop
   context unwinding is no longer a separate statement-only path
+- `throw`, `try`/`catch`/`finally`, optional catch bindings, and catch binding
+  patterns parse directly into the arena
+- finally continuation kinds replay return/break/continue after cleanup and
+  compose through nested finalizers
+- exception handlers restore saved lexical context as well as stack and PC,
+  including after generator suspension
 
 Minimal repro:
 
@@ -274,12 +298,32 @@ function choose(a, b, c) {
 Regression target:
 `DirectFlatParserTests.CompileString_EmitsLogicalConditionsInTestMode`.
 
-This copies V8's `ExpressionResultScope` and `ControlScope` responsibilities with
-value records and no per-scope object allocation. It intentionally does not yet
-copy try-finally continuation tokens: handler records, intercepted commands, and
-post-finally dispatch land with the try/finally grammar slice. The immediate
-throughput check is fewer materialized booleans and no redundant literal loads;
-end-to-end impact remains benchmark-gated.
+This copies V8's `ExpressionResultScope` and `ControlScopeForTryFinally`
+responsibilities with value records and no per-scope object allocation. Okojo
+uses compact integer completion kinds and its existing `PushTry` bytecode rather
+than V8's switch opcode and handler-table encoding. The immediate throughput
+checks remain fewer materialized booleans, no redundant literal loads, and no
+class-AST allocation; end-to-end impact remains benchmark-gated.
+
+Try/finally slice note:
+
+- iteration scope: direct throw, try/catch/finally, optional and destructured
+  catch bindings, nested finalizers, and return/break/continue replay
+- repros: `try { throw { value: 4 } } catch ({ value }) { ... } finally { cleanup() }` and
+  `try { return value } finally { cleanup() }`
+- regression targets:
+  `DirectFlatParserTests.CompileString_ReplaysAbruptCompletionsAfterFinally`,
+  `CompileString_RestoresHandlerContextAndAllowsFinallyOverride`, and
+  `CompileString_ExecutesOptionalAndDestructuredCatchBindings`
+- V8 observation: deferred commands save a token/result before entering finally;
+  Okojo copies that control shape
+- intentional difference: Okojo runtime throws remain accumulator values routed
+  by `PushTry`; no new rethrow opcode or general labeled route map was added
+- allocation risk: fixed flat nodes and compiler value records only; no handler,
+  result-scope, or continuation objects are allocated during emission
+- deferred: catch/body lexical-conflict early errors join the general direct
+  parser declaration early-error pass; labeled completion destinations join
+  labels rather than introducing unused route scaffolding now
 
 ### Stage F2 - Resumable functions
 

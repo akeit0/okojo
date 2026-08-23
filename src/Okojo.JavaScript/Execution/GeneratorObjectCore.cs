@@ -128,10 +128,15 @@ internal sealed class GeneratorObjectCore
         HasPendingAsyncYieldDelegateAwait = false;
     }
 
-    internal readonly struct SuspendedExceptionHandler(int catchPc, int savedSpOffset)
+    internal readonly struct SuspendedExceptionHandler(
+        int catchPc,
+        int savedSpOffset,
+        JsContext? savedContext
+    )
     {
         public readonly int CatchPc = catchPc;
         public readonly int SavedSpOffset = savedSpOffset;
+        public readonly JsContext? SavedContext = savedContext;
     }
 
     internal sealed class AsyncGeneratorRequest

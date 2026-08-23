@@ -84,11 +84,10 @@ internal sealed class FlatJavaScriptParser
             JsTokenKind.Break => ParseLoopControl(AstKind.BreakStatement),
             JsTokenKind.Continue => ParseLoopControl(AstKind.ContinueStatement),
             JsTokenKind.Return => ParseReturnStatement(),
-            JsTokenKind.Throw
-            or JsTokenKind.Try
-            or JsTokenKind.Switch
-            or JsTokenKind.With
-            or JsTokenKind.Debugger => throw UnsupportedStatement(current.Kind),
+            JsTokenKind.Throw => ParseThrowStatement(),
+            JsTokenKind.Try => ParseTryStatement(),
+            JsTokenKind.Switch or JsTokenKind.With or JsTokenKind.Debugger =>
+                throw UnsupportedStatement(current.Kind),
             _ => ParseExpressionStatement(),
         };
     }
@@ -748,6 +747,49 @@ internal sealed class FlatJavaScriptParser
                 : ParseExpression();
         ConsumeSemicolon();
         return Arena.Add(AstKind.ReturnStatement, argument, position: position);
+    }
+
+    private int ParseThrowStatement()
+    {
+        var position = Expect(JsTokenKind.Throw).Position;
+        if (current.HasLineTerminatorBefore)
+            throw Error("Illegal newline after throw", position);
+        var argument = ParseExpression();
+        ConsumeSemicolon();
+        return Arena.Add(AstKind.ThrowStatement, argument, position: position);
+    }
+
+    private int ParseTryStatement()
+    {
+        var position = Expect(JsTokenKind.Try).Position;
+        var block = ParseBlock(out _);
+        var handler = -1;
+        if (current.Kind == JsTokenKind.Catch)
+        {
+            var catchPosition = current.Position;
+            Next();
+            var binding = -1;
+            if (Match(JsTokenKind.LeftParen))
+            {
+                binding = ParseBindingTarget();
+                ParameterNameTracker names = default;
+                var duplicate = false;
+                var restricted = false;
+                TrackParameterPatternNames(binding, ref names, ref duplicate, ref restricted);
+                if (duplicate)
+                    throw Error("Duplicate catch binding", catchPosition);
+                Expect(JsTokenKind.RightParen);
+            }
+            var body = ParseBlock(out _);
+            handler = Arena.Add(AstKind.CatchClause, binding, body, position: catchPosition);
+        }
+
+        var finalizer = -1;
+        if (Match(JsTokenKind.Finally))
+            finalizer = ParseBlock(out _);
+        if (handler < 0 && finalizer < 0)
+            throw Error("try statement requires catch or finally", current.Position);
+        return Arena.Add(AstKind.TryStatement, block, handler, finalizer, position);
     }
 
     private int ParseLoopBody()

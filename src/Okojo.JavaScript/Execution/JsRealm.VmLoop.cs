@@ -2365,7 +2365,8 @@ public sealed partial class JsRealm
                                         + Unsafe.ReadUnaligned<short>(
                                             ref Unsafe.Subtract(ref pc, 2)
                                         ),
-                                    StackTop
+                                    StackTop,
+                                    GetCurrentContext(fullStack)
                                 );
                             }
                             break;

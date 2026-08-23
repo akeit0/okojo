@@ -110,11 +110,47 @@ internal static class FlatAstLowerer
                         : LowerExpression(returnStatement.Argument),
                     position: returnStatement.Position
                 ),
+                JsThrowStatement throwStatement => Arena.Add(
+                    AstKind.ThrowStatement,
+                    LowerExpression(throwStatement.Argument),
+                    position: throwStatement.Position
+                ),
+                JsTryStatement tryStatement => LowerTryStatement(tryStatement),
                 JsEmptyStatement => Arena.Add(AstKind.EmptyStatement, position: statement.Position),
                 _ => throw new NotSupportedException(
                     $"{compilerName} does not support statement '{statement.GetType().Name}'."
                 ),
             };
+        }
+
+        private int LowerTryStatement(JsTryStatement statement)
+        {
+            var handler = -1;
+            if (statement.Handler is not null)
+            {
+                var binding =
+                    statement.Handler.BindingPattern is not null
+                        ? LowerBindingPattern(statement.Handler.BindingPattern)
+                    : string.IsNullOrEmpty(statement.Handler.ParamName) ? -1
+                    : Arena.Add(
+                        AstKind.Identifier,
+                        Arena.AddString(statement.Handler.ParamName!),
+                        position: statement.Handler.Position
+                    );
+                handler = Arena.Add(
+                    AstKind.CatchClause,
+                    binding,
+                    LowerBlock(statement.Handler.Body),
+                    position: statement.Handler.Position
+                );
+            }
+            return Arena.Add(
+                AstKind.TryStatement,
+                LowerBlock(statement.Block),
+                handler,
+                statement.Finalizer is null ? -1 : LowerBlock(statement.Finalizer),
+                statement.Position
+            );
         }
 
         private int LowerFunctionDeclaration(JsFunctionDeclaration function)

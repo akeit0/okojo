@@ -151,8 +151,16 @@ internal static partial class CompilerBindingCollector
                     return;
                 case AstKind.ReturnStatement:
                 case AstKind.ExpressionStatement:
+                case AstKind.ThrowStatement:
                     if (node.Arg0 >= 0)
                         VisitExpression(ast, node.Arg0, scopeId);
+                    return;
+                case AstKind.TryStatement:
+                    VisitBlock(ast, node.Arg0, scopeId);
+                    if (node.Arg1 >= 0)
+                        VisitCatchClause(ast, node.Arg1, scopeId);
+                    if (node.Arg2 >= 0)
+                        VisitBlock(ast, node.Arg2, scopeId);
                     return;
                 case AstKind.EmptyStatement:
                     return;
@@ -319,6 +327,25 @@ internal static partial class CompilerBindingCollector
             var statements = ast.ChildRange(block.Arg0, block.Arg1);
             for (var i = 0; i < statements.Length; i++)
                 VisitStatement(ast, statements[i], scopeId);
+        }
+
+        private void VisitCatchClause(FlatAst ast, int nodeIndex, int parentScopeId)
+        {
+            ref readonly var clause = ref ast[nodeIndex];
+            var scopeId = AddScope(
+                parentScopeId,
+                CompilerCollectedScopeKind.Catch,
+                ast.GetPosition(nodeIndex)
+            );
+            if (clause.Arg0 >= 0)
+                VisitBindingPattern(
+                    ast,
+                    clause.Arg0,
+                    scopeId,
+                    CompilerCollectedBindingKind.CatchAlias,
+                    isConst: false
+                );
+            VisitBlock(ast, clause.Arg1, scopeId);
         }
 
         private void VisitFunctionDeclaration(FlatAst ast, AstNode node, int parentScopeId)

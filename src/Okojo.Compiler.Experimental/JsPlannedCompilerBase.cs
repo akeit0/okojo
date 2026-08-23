@@ -65,13 +65,18 @@ internal abstract partial class JsPlannedCompilerBase
     private enum ControlScopeKind : byte
     {
         Iteration,
+        Try,
+        Finally,
     }
 
     private readonly record struct ControlScope(
         ControlScopeKind Kind,
         BytecodeBuilder.Label Break,
         BytecodeBuilder.Label Continue,
-        int ContextDepth
+        BytecodeBuilder.Label Finally,
+        int ContextDepth,
+        int CompletionKindRegister = -1,
+        int CompletionValueRegister = -1
     );
 
     private enum ExpressionResultMode : byte
