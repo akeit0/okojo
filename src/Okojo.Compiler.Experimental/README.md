@@ -71,6 +71,7 @@ Both planned compilers currently support:
 - ordinary calls and named/computed member loads with property-call receivers
 - array literals with holes and dynamic elements, excluding spread
 - object literals with named, indexed, computed, shorthand, and duplicate data properties
+- named/computed member assignment, compound assignment, and update
 - nested capture and assignment for parameter, root, function, and block bindings
 
 `JsPlannedScriptCompiler.Compile(string)` uses the direct flat parser. The
@@ -82,7 +83,7 @@ lowerer comparison.
 Still intentionally unsupported in the experimental pipeline:
 
 - spread/optional calls, construction, and private/super member access
-- member assignment and update
+- logical member assignment
 - destructuring
 - object methods/accessors/spread and array spread
 - module/global binding emission
@@ -107,6 +108,7 @@ Current milestone status:
 - ordinary calls and named/computed member loads: done
 - array literals without spread: done
 - data-property object literals with stable-prefix shapes: done
+- prepared-reference member writes and updates: done
 - dense scope/capture planning: done
 - ordinary loop lowering: done, excluding per-iteration closure cloning
 - compare/branch lowering: done for current subset
@@ -136,9 +138,9 @@ dotnet test tests/Okojo.Compiler.Tests/Okojo.Compiler.Tests.csproj --no-build
 
 Recommended next slices:
 
-1. member assignment and update
-2. per-iteration context cloning
-3. destructuring
-4. construction and spread calls
-5. object methods and accessors
+1. per-iteration context cloning
+2. destructuring
+3. construction and spread calls
+4. object methods and accessors
+5. logical member assignment
 6. converge the complete production grammar on flat node handles

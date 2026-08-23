@@ -300,7 +300,7 @@ public sealed partial class JsCompiler
 
     private void EmitStaKeyedProperty(int targetRegister, int keyRegister)
     {
-        EmitRegisterRegisterOp(JsOpCode.StaKeyedProperty, targetRegister, keyRegister);
+        builder.EmitStaKeyedProperty(targetRegister, keyRegister);
     }
 
     private void EmitStaModuleVariable(int cellIndex, int depth)
@@ -702,13 +702,7 @@ public sealed partial class JsCompiler
 
     private void EmitStaNamedPropertyByIndex(int objReg, int nameIdx, int feedbackSlot)
     {
-        EmitNamedPropertyByIndex(
-            JsOpCode.StaNamedProperty,
-            JsOpCode.StaNamedPropertyWide,
-            objReg,
-            nameIdx,
-            feedbackSlot
-        );
+        builder.EmitStaNamedProperty(objReg, nameIdx, feedbackSlot);
     }
 
     private void EmitGetNamedPropertyFromSuperByIndex(int nameIdx, int feedbackSlot)

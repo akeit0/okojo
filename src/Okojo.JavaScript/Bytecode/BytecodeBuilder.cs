@@ -373,6 +373,47 @@ public sealed class BytecodeBuilder : IDisposable
         );
     }
 
+    internal void EmitStaNamedProperty(int objectRegister, int nameIndex, int feedbackSlot)
+    {
+        if (
+            (uint)objectRegister <= byte.MaxValue
+            && (uint)nameIndex <= byte.MaxValue
+            && (uint)feedbackSlot <= byte.MaxValue
+        )
+        {
+            Emit(
+                JsOpCode.StaNamedProperty,
+                (byte)objectRegister,
+                (byte)nameIndex,
+                (byte)feedbackSlot
+            );
+            return;
+        }
+        if (
+            (uint)objectRegister <= ushort.MaxValue
+            && (uint)nameIndex <= ushort.MaxValue
+            && (uint)feedbackSlot <= ushort.MaxValue
+        )
+        {
+            Emit(
+                JsOpCode.StaNamedPropertyWide,
+                (byte)objectRegister,
+                (byte)(objectRegister >> 8),
+                (byte)nameIndex,
+                (byte)(nameIndex >> 8),
+                (byte)feedbackSlot,
+                (byte)(feedbackSlot >> 8)
+            );
+            return;
+        }
+        throw new InvalidOperationException(
+            "Named property operands exceed ushort operand capacity."
+        );
+    }
+
+    internal void EmitStaKeyedProperty(int objectRegister, int keyRegister) =>
+        EmitScaledOperands(JsOpCode.StaKeyedProperty, [objectRegister, keyRegister]);
+
     internal void EmitCreateArrayLiteral(int constantIndex)
     {
         if ((uint)constantIndex > ushort.MaxValue)

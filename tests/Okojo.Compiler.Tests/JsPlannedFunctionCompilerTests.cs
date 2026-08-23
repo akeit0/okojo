@@ -21,6 +21,7 @@ public class JsPlannedFunctionCompilerTests
     [TestCase("void x === void y ? 42 : 0", 42)]
     [TestCase("[x, , y][0] + [x, y].length", 42)]
     [TestCase("({ value: x, [y]: x + 1 }).value + ({ [y]: x })[y]", 80)]
+    [TestCase("({ value: 1 }).value += x", 41)]
     public void CompileFunction_ExecutesFlatExpressionFamilies(string expression, double expected)
     {
         var (realm, compiled) = CompileFunction(

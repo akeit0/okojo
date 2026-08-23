@@ -224,7 +224,7 @@ Performance plan:
 - current bridge: measure class parse + flat lowering + plan + emit together
 - next architecture step: make the parser produce `FlatAst` directly; the bridge
   cannot remove the already-incurred class-node allocations
-- add literals and member writes before using application-sized compile
+- add remaining application syntax before using application-sized compile
   throughput as a migration gate
 - add per-iteration context cloning before claiming closure-correct lexical loops
 
@@ -252,8 +252,9 @@ supported slice. The bridge remains necessary for the full production grammar;
 ordinary calls and named/computed member loads now use the same register shape and
 centralized bytecode operand encoder as the production compiler. Array literals
 now preserve holes while initializing present elements in source order. Object
-literals now follow the same stable-prefix shape strategy. Member writes are the
-next coverage gate before application-sized throughput comparisons.
+literals now follow the same stable-prefix shape strategy. Member writes use a
+prepared reference so base/key evaluation is not duplicated across load and store.
+Per-iteration loop contexts are the next semantic gate.
 
 Data-property object literals now use parsing-owned dense property spans. The
 flat emitter prebuilds the stable named prefix as an Okojo transition shape, then

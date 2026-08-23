@@ -206,6 +206,34 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_ExecutesMemberAssignmentCompoundAndUpdate()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile(
+            "let target = { value: 0 }; let key = 'value'; target[key] = 1; let old = target[key]++; target.value += 40; old + target.value;"
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(43));
+    }
+
+    [Test]
+    public void CompileString_EvaluatesCompoundMemberKeyOnce()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile(
+            "let count = 0; let target = { value: 1 }; target[(count = count + 1, 'value')] += 41; count * 100 + target.value;"
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(142));
+    }
+
+    [Test]
     public void ParseScript_AllocatesLessThanClassParseAndLowerBridge()
     {
         var source = string.Join(

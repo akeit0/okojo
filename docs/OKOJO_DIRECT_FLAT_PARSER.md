@@ -23,6 +23,9 @@ array spread remains explicit unsupported syntax.
 The object-literal slice uses a parsing-owned dense property table. This iteration
 covers named, string, numeric, computed, and shorthand data properties. Methods,
 accessors, spread, and legacy `__proto__` prototype mutation are excluded.
+Member writes now share a prepared-reference lowering that evaluates the base and
+computed key once. Simple, arithmetic/bitwise compound, prefix, and postfix forms
+are covered; logical assignment remains deferred.
 
 ## Minimal Repros
 
@@ -67,6 +70,7 @@ function make(value, key) {
   - direct/member calls and named/computed property loads
   - array length, holes, and dynamic element initialization
   - object property order, computed keys, shorthand, duplicates, and indices
+  - named/computed member assignment, compound assignment, and update
 
 ## Reference Observations
 
@@ -113,7 +117,7 @@ Initial Release measurement for 80 declaration/update pairs after warm-up:
   parameter forms
 - object methods, accessors, and spread
 - array spread
-- spread calls, optional chaining, construction, private/super members, and
-  member assignment/update
+- spread calls, optional chaining, construction, and private/super members
+- logical member assignment
 - converging the remaining production grammar on flat node handles
 - direct production `JsCompiler` migration

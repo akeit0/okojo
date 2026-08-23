@@ -406,11 +406,8 @@ internal sealed class FlatJavaScriptParser
         var left = ParseConditional(allowIn);
         if (!TryGetAssignmentOperator(current.Kind, out var op))
             return left;
-        if (Arena[left].Kind != AstKind.Identifier)
-            throw Error(
-                "FlatJavaScriptParser supports only identifier assignment targets",
-                position
-            );
+        if (Arena[left].Kind is not (AstKind.Identifier or AstKind.MemberExpression))
+            throw Error("Invalid assignment target", position);
         Next();
         return Arena.Add(
             AstKind.AssignmentExpression,
@@ -474,7 +471,7 @@ internal sealed class FlatJavaScriptParser
             JsOperatorTable.TryGetUpdate(current.Kind, out var op);
             Next();
             var argument = ParseUnary();
-            EnsureIdentifierUpdateTarget(argument, position);
+            EnsureUpdateTarget(argument, position);
             return Arena.Add(AstKind.UpdateExpression, argument, (int)op, 1, position);
         }
 
@@ -486,7 +483,7 @@ internal sealed class FlatJavaScriptParser
         {
             JsOperatorTable.TryGetUpdate(current.Kind, out var op);
             Next();
-            EnsureIdentifierUpdateTarget(expression, position);
+            EnsureUpdateTarget(expression, position);
             expression = Arena.Add(AstKind.UpdateExpression, expression, (int)op, 0, position);
         }
         return expression;
@@ -768,10 +765,10 @@ internal sealed class FlatJavaScriptParser
             );
     }
 
-    private void EnsureIdentifierUpdateTarget(int node, int position)
+    private void EnsureUpdateTarget(int node, int position)
     {
-        if (Arena[node].Kind != AstKind.Identifier)
-            throw Error("FlatJavaScriptParser supports only identifier update targets", position);
+        if (Arena[node].Kind is not (AstKind.Identifier or AstKind.MemberExpression))
+            throw Error("Invalid update target", position);
     }
 
     private string GetIdentifierText(in JsToken token)

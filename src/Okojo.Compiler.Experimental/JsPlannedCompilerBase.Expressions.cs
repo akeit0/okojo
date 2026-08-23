@@ -35,9 +35,17 @@ internal abstract partial class JsPlannedCompilerBase
                     node.Arg1
                 );
                 return;
+            case AstKind.AssignmentExpression when ast[node.Arg0].Kind == AstKind.MemberExpression:
+                EmitMemberAssignment(
+                    ast,
+                    ast[node.Arg0],
+                    (JsAssignmentOperator)node.Arg2,
+                    node.Arg1
+                );
+                return;
             case AstKind.AssignmentExpression:
                 throw new NotSupportedException(
-                    $"{CompilerName} supports only identifier assignment targets."
+                    $"{CompilerName} does not support this assignment target."
                 );
             case AstKind.BinaryExpression:
                 EmitBinaryExpression(ast, node);
@@ -366,6 +374,11 @@ internal abstract partial class JsPlannedCompilerBase
     private void EmitUpdateExpression(FlatAst ast, AstNode node)
     {
         ref readonly var argument = ref ast[node.Arg0];
+        if (argument.Kind == AstKind.MemberExpression)
+        {
+            EmitMemberUpdate(ast, argument, node);
+            return;
+        }
         if (argument.Kind != AstKind.Identifier)
             throw new NotSupportedException(
                 $"{CompilerName} supports only identifier update targets."
@@ -408,6 +421,132 @@ internal abstract partial class JsPlannedCompilerBase
                 builder.ReleaseTemporaryRegister(oldValueRegister);
         }
     }
+
+    private void EmitMemberAssignment(
+        FlatAst ast,
+        AstNode member,
+        JsAssignmentOperator op,
+        int right
+    )
+    {
+        if (
+            op
+            is JsAssignmentOperator.LogicalAndAssign
+                or JsAssignmentOperator.LogicalOrAssign
+                or JsAssignmentOperator.NullishCoalescingAssign
+        )
+            throw new NotSupportedException(
+                $"{CompilerName} does not support logical member assignment yet."
+            );
+
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            var reference = PrepareMemberReference(
+                ast,
+                member,
+                normalizeComputedKey: op != JsAssignmentOperator.Assign
+            );
+            if (op == JsAssignmentOperator.Assign)
+                EmitExpression(ast, right);
+            else
+            {
+                EmitPreparedMemberLoad(reference);
+                EmitCompoundRightExpression(ast, op, right);
+            }
+            EmitPreparedMemberStore(reference);
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+        }
+    }
+
+    private void EmitMemberUpdate(FlatAst ast, AstNode member, AstNode update)
+    {
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            var reference = PrepareMemberReference(ast, member, normalizeComputedKey: true);
+            EmitPreparedMemberLoad(reference);
+            var oldValueRegister = update.Arg2 == 0 ? builder.AllocateTemporaryRegister() : -1;
+            if (oldValueRegister >= 0)
+                EmitStar(oldValueRegister);
+            builder.Emit(
+                (JsUpdateOperator)update.Arg1 == JsUpdateOperator.Increment
+                    ? JsOpCode.Inc
+                    : JsOpCode.Dec
+            );
+            EmitPreparedMemberStore(reference);
+            if (oldValueRegister >= 0)
+                EmitLdar(oldValueRegister);
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+        }
+    }
+
+    private PreparedMemberReference PrepareMemberReference(
+        FlatAst ast,
+        AstNode member,
+        bool normalizeComputedKey
+    )
+    {
+        EmitExpression(ast, member.Arg0);
+        var objectRegister = builder.AllocateTemporaryRegister();
+        EmitStar(objectRegister);
+        if (((AstMemberFlags)member.Arg2 & AstMemberFlags.Computed) != 0)
+        {
+            EmitExpression(ast, member.Arg1);
+            var keyRegister = builder.AllocateTemporaryRegister();
+            EmitStar(keyRegister);
+            if (normalizeComputedKey)
+            {
+                builder.EmitCallRuntime((byte)RuntimeId.NormalizePropertyKey, keyRegister, 1);
+                EmitStar(keyRegister);
+            }
+            return new(objectRegister, keyRegister, -1, -1, true);
+        }
+
+        var nameIndex = builder.AddAtomizedStringConstant(ast.GetString(member.Arg1));
+        return new(objectRegister, -1, nameIndex, builder.AllocateFeedbackSlot(), false);
+    }
+
+    private void EmitPreparedMemberLoad(in PreparedMemberReference reference)
+    {
+        if (reference.IsComputed)
+        {
+            EmitLdar(reference.KeyRegister);
+            builder.EmitLdaKeyedProperty(reference.ObjectRegister);
+        }
+        else
+            builder.EmitLdaNamedProperty(
+                reference.ObjectRegister,
+                reference.NameIndex,
+                reference.FeedbackSlot
+            );
+    }
+
+    private void EmitPreparedMemberStore(in PreparedMemberReference reference)
+    {
+        if (reference.IsComputed)
+            builder.EmitStaKeyedProperty(reference.ObjectRegister, reference.KeyRegister);
+        else
+            builder.EmitStaNamedProperty(
+                reference.ObjectRegister,
+                reference.NameIndex,
+                reference.FeedbackSlot
+            );
+    }
+
+    private readonly record struct PreparedMemberReference(
+        int ObjectRegister,
+        int KeyRegister,
+        int NameIndex,
+        int FeedbackSlot,
+        bool IsComputed
+    );
 
     private void EmitSequenceExpression(FlatAst ast, AstNode node)
     {
