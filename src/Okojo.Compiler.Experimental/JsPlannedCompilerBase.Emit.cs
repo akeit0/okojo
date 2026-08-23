@@ -162,16 +162,19 @@ internal abstract partial class JsPlannedCompilerBase
         );
     }
 
-    private void EmitLdaCurrentContextSlot(int slot)
+    private void EmitLdaCurrentContextSlot(int slot, bool skipTdz = false)
     {
         if ((uint)slot <= byte.MaxValue)
         {
-            builder.EmitLda(JsOpCode.LdaCurrentContextSlot, (byte)slot);
+            builder.EmitLda(
+                skipTdz ? JsOpCode.LdaCurrentContextSlotNoTdz : JsOpCode.LdaCurrentContextSlot,
+                (byte)slot
+            );
             return;
         }
 
         builder.EmitLda(
-            JsOpCode.LdaCurrentContextSlotWide,
+            skipTdz ? JsOpCode.LdaCurrentContextSlotNoTdzWide : JsOpCode.LdaCurrentContextSlotWide,
             (byte)(slot & 0xFF),
             (byte)((slot >> 8) & 0xFF)
         );

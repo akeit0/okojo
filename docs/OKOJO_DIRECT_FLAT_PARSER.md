@@ -26,6 +26,9 @@ accessors, spread, and legacy `__proto__` prototype mutation are excluded.
 Member writes now share a prepared-reference lowering that evaluates the base and
 computed key once. Simple, arithmetic/bitwise compound, prefix, and postfix forms
 are covered; logical assignment remains deferred.
+Captured lexical heads in ordinary `for` loops now receive a fresh context per
+iteration. Context replacement is capture-gated, so non-capturing loops retain
+the register-only path.
 
 ## Minimal Repros
 
@@ -60,6 +63,16 @@ function make(value, key) {
 }
 ```
 
+```js
+let first, second;
+for (let i = 0; i < 2; i++) {
+  function read() { return i; }
+  if (i === 0) first = read;
+  else second = read;
+}
+first() * 10 + second(); // 1
+```
+
 ## Planned Tests
 
 - `tests/Okojo.Compiler.Tests/DirectFlatParserTests.cs`
@@ -71,6 +84,7 @@ function make(value, key) {
   - array length, holes, and dynamic element initialization
   - object property order, computed keys, shorthand, duplicates, and indices
   - named/computed member assignment, compound assignment, and update
+  - capture-gated per-iteration loop-head contexts across `continue` and `break`
 
 ## Reference Observations
 
@@ -96,6 +110,13 @@ flat emitter copies that structure. Computed keys are normalized before their
 values execute, preserving observable evaluation order. Numeric keys bypass shape
 transitions, and duplicate named keys fall into the keyed tail.
 
+For captured `for (let ...)` heads, V8 creates a new block context for each
+iteration and moves the value through the update path. Production Okojo clones a
+function context because its loop aliases share function-level cells. The flat
+compiler instead replaces its dedicated loop-head context with a sibling context:
+copy slots, pop the old context, create the new context, then update. This keeps
+outer capture depths unchanged and retains old contexts only through closures.
+
 ## Performance Plan
 
 - reuse `JsLexer` and its identifier/string tables
@@ -104,6 +125,7 @@ transitions, and duplicate named keys fall into the keyed tail.
 - store nested functions and formal parameters in pooled dense side tables
 - use pooled temporary child buffers and dispose the full parse result at once
 - compare allocated bytes for direct parse versus class parse plus flat lowering
+- allocate/copy loop contexts only when a nested function captures a loop-head binding
 
 Initial Release measurement for 80 declaration/update pairs after warm-up:
 

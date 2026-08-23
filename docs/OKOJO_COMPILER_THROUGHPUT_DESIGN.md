@@ -226,7 +226,7 @@ Performance plan:
   cannot remove the already-incurred class-node allocations
 - add remaining application syntax before using application-sized compile
   throughput as a migration gate
-- add per-iteration context cloning before claiming closure-correct lexical loops
+- use capture-gated sibling-context replacement for closure-correct lexical loops
 
 ## 10. C1 Phase 5 - Direct Flat Parser Slice
 
@@ -254,7 +254,10 @@ centralized bytecode operand encoder as the production compiler. Array literals
 now preserve holes while initializing present elements in source order. Object
 literals now follow the same stable-prefix shape strategy. Member writes use a
 prepared reference so base/key evaluation is not duplicated across load and store.
-Per-iteration loop contexts are the next semantic gate.
+Captured ordinary `for` heads now use per-iteration sibling-context replacement.
+The loop-head context is copied and replaced before the first test and before each
+update, so closures retain the prior iteration without inserting an extra context
+depth. Loops without captured head bindings remain register-only.
 
 Data-property object literals now use parsing-owned dense property spans. The
 flat emitter prebuilds the stable named prefix as an Okojo transition shape, then

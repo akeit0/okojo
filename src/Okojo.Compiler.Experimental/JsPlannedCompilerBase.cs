@@ -48,8 +48,11 @@ internal abstract partial class JsPlannedCompilerBase
     protected readonly record struct ActiveScope(
         int ScopeId,
         IReadOnlyList<BindingStorage> Bindings,
-        bool HasContext
-    );
+        int ContextSlotCount
+    )
+    {
+        public bool HasContext => ContextSlotCount != 0;
+    }
 
     private readonly record struct LoopTargets(
         BytecodeBuilder.Label Break,

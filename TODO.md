@@ -12,7 +12,6 @@
 - [ ] clarify `Okojo.Hosting` presets and keep environment globals separate from embedder control APIs
 - [ ] complete the experimental compiler and make it usable in real execution paths
 - [ ] expand direct flat parsing beyond completed calls/member loads and data literals through destructuring, classes, and modules before replacing the production class parser
-- [ ] add per-iteration context cloning to flat lexical loops before enabling loop-closure workloads
 - [ ] improve hot-path runtime allocation and branch behavior
 - [ ] improve `Okojo.Node` compatibility against real Node-facing workloads
 - [ ] attempt a real HTML/CSS renderer integration for DOM-manipulation browser compatibility testing

@@ -92,6 +92,42 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_CreatesFreshCapturedBindingForEachLoopIteration()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile(
+            """
+            function captureLoop(offset) {
+                let first;
+                let second;
+                let third;
+                for (let i = 0; i < 4; i++) {
+                    function read() {
+                        return offset + i;
+                    }
+                    if (i === 0) {
+                        first = read;
+                        continue;
+                    }
+                    if (i === 1) second = read;
+                    if (i === 2) {
+                        third = read;
+                        break;
+                    }
+                }
+                return first() * 100 + second() * 10 + third();
+            }
+            captureLoop(10);
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(1122));
+    }
+
+    [Test]
     public void CompileString_ExecutesNestedFunctionCaptureFromDirectArena()
     {
         var realm = JsRuntime.Create().DefaultRealm;

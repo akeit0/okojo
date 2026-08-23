@@ -63,4 +63,39 @@ public class CompilerStoragePlannerTests
         Assert.That(outerBinding.IsCaptured, Is.True);
         Assert.That(outerBinding.StorageKind, Is.EqualTo(CompilerPlannedStorageKind.ContextSlot));
     }
+
+    [Test]
+    public void Plan_MarksCapturedLoopHeadAlias_AsContextSlot()
+    {
+        var program = JavaScriptParser.ParseScript(
+            """
+            function captureLoop() {
+                for (let uncaptured = 0, i = 0; i < 3; i++) {
+                    function read() {
+                        return i;
+                    }
+                }
+            }
+            function ordinaryLoop() {
+                for (let j = 0; j < 3; j++) {}
+            }
+            """
+        );
+
+        using var collected = CompilerBindingCollector.Collect(program);
+        using var plan = CompilerStoragePlanner.Plan(collected);
+        var bindings = plan.Bindings.ToArray();
+        var binding = bindings.Single(static binding => binding.Name == "i");
+        var uncaptured = bindings.Single(static binding => binding.Name == "uncaptured");
+        var ordinary = bindings.Single(static binding => binding.Name == "j");
+
+        Assert.That(binding.Kind, Is.EqualTo(CompilerCollectedBindingKind.LoopHeadAlias));
+        Assert.That(binding.IsCaptured, Is.True);
+        Assert.That(binding.StorageKind, Is.EqualTo(CompilerPlannedStorageKind.ContextSlot));
+        Assert.That(binding.StorageIndex, Is.Zero);
+        Assert.That(uncaptured.StorageKind, Is.EqualTo(CompilerPlannedStorageKind.LexicalRegister));
+        Assert.That(uncaptured.StorageIndex, Is.EqualTo(-1));
+        Assert.That(ordinary.IsCaptured, Is.False);
+        Assert.That(ordinary.StorageKind, Is.EqualTo(CompilerPlannedStorageKind.LexicalRegister));
+    }
 }

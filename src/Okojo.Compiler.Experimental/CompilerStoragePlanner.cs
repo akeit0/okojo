@@ -14,11 +14,11 @@ internal static class CompilerStoragePlanner
         var bindingCount = bindings.Length;
         var firstBindingByScope = ArrayPool<int>.Shared.Rent(scopeCount);
         var nextBinding = ArrayPool<int>.Shared.Rent(Math.Max(1, bindingCount));
-        var nextStorageIndexByScope = ArrayPool<int>.Shared.Rent(scopeCount);
+        var nextContextSlotByScope = ArrayPool<int>.Shared.Rent(scopeCount);
         var captured = ArrayPool<bool>.Shared.Rent(Math.Max(1, bindingCount));
 
         Array.Fill(firstBindingByScope, -1, 0, scopeCount);
-        Array.Clear(nextStorageIndexByScope, 0, scopeCount);
+        Array.Clear(nextContextSlotByScope, 0, scopeCount);
         Array.Clear(captured, 0, bindingCount);
 
         try
@@ -46,9 +46,9 @@ internal static class CompilerStoragePlanner
                 )
                     storageKind = CompilerPlannedStorageKind.ContextSlot;
                 var storageIndex =
-                    storageKind == CompilerPlannedStorageKind.ImportBinding
-                        ? -1
-                        : nextStorageIndexByScope[binding.ScopeId]++;
+                    storageKind == CompilerPlannedStorageKind.ContextSlot
+                        ? nextContextSlotByScope[binding.ScopeId]++
+                        : -1;
                 planned.Add(
                     new CompilerPlannedBinding(
                         binding.ScopeId,
@@ -70,7 +70,7 @@ internal static class CompilerStoragePlanner
         {
             ArrayPool<int>.Shared.Return(firstBindingByScope);
             ArrayPool<int>.Shared.Return(nextBinding);
-            ArrayPool<int>.Shared.Return(nextStorageIndexByScope);
+            ArrayPool<int>.Shared.Return(nextContextSlotByScope);
             ArrayPool<bool>.Shared.Return(captured);
         }
     }

@@ -74,11 +74,10 @@ internal abstract partial class JsPlannedCompilerBase
         var bindings = GetPlannedBindings(scopeId);
         if (bindings.Length == 0)
         {
-            activeScopes.Push(new ActiveScope(scopeId, [], false));
+            activeScopes.Push(new ActiveScope(scopeId, [], 0));
             return;
         }
 
-        var hasContext = false;
         var contextSlotCount = 0;
         var allocated = new List<BindingStorage>(bindings.Length);
         for (var i = 0; i < bindings.Length; i++)
@@ -92,15 +91,14 @@ internal abstract partial class JsPlannedCompilerBase
             };
             if (binding.StorageKind == CompilerPlannedStorageKind.ContextSlot)
             {
-                hasContext = true;
                 contextSlotCount = Math.Max(contextSlotCount, binding.StorageIndex + 1);
             }
             allocated.Add(new BindingStorage(binding, register));
         }
 
-        if (hasContext)
+        if (contextSlotCount != 0)
             EmitCreateFunctionContextWithCells(contextSlotCount);
-        activeScopes.Push(new ActiveScope(scopeId, allocated, hasContext));
+        activeScopes.Push(new ActiveScope(scopeId, allocated, contextSlotCount));
     }
 
     private void LeaveScope()

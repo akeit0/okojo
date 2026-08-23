@@ -120,6 +120,9 @@ internal abstract partial class JsPlannedCompilerBase
             EnterScope(scope.ScopeId);
         }
 
+        var needsPerIterationContext =
+            hasLexicalScope && ShouldReplaceLoopHeadContextPerIteration(activeScopes.Peek());
+
         try
         {
             if (init >= 0)
@@ -129,6 +132,9 @@ internal abstract partial class JsPlannedCompilerBase
                 else
                     EmitExpression(ast, init);
             }
+
+            if (needsPerIterationContext)
+                EmitReplaceCurrentContext(activeScopes.Peek().ContextSlotCount);
 
             var loopStart = builder.CreateLabel();
             var continueTarget = builder.CreateLabel();
@@ -151,6 +157,8 @@ internal abstract partial class JsPlannedCompilerBase
             }
 
             builder.BindLabel(continueTarget);
+            if (needsPerIterationContext)
+                EmitReplaceCurrentContext(activeScopes.Peek().ContextSlotCount);
             if (parts[2] >= 0)
                 EmitExpression(ast, parts[2]);
             EmitJump(loopStart);
@@ -160,6 +168,48 @@ internal abstract partial class JsPlannedCompilerBase
         {
             if (hasLexicalScope)
                 LeaveScope();
+        }
+    }
+
+    private static bool ShouldReplaceLoopHeadContextPerIteration(in ActiveScope scope)
+    {
+        for (var i = 0; i < scope.Bindings.Count; i++)
+        {
+            var binding = scope.Bindings[i].Planned;
+            if (
+                binding.Kind == CompilerCollectedBindingKind.LoopHeadAlias
+                && binding.IsCaptured
+                && binding.StorageKind == CompilerPlannedStorageKind.ContextSlot
+            )
+                return true;
+        }
+
+        return false;
+    }
+
+    private void EmitReplaceCurrentContext(int slotCount)
+    {
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            var copyStart = builder.AllocateTemporaryRegisterBlock(slotCount);
+            for (var slot = 0; slot < slotCount; slot++)
+            {
+                EmitLdaCurrentContextSlot(slot, skipTdz: true);
+                EmitStar(copyStart + slot);
+            }
+
+            EmitPopContext();
+            EmitCreateFunctionContextWithCells(slotCount);
+            for (var slot = 0; slot < slotCount; slot++)
+            {
+                EmitLdar(copyStart + slot);
+                EmitStaCurrentContextSlot(slot);
+            }
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
         }
     }
 

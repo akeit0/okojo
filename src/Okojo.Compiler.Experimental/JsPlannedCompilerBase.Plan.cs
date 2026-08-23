@@ -67,7 +67,7 @@ internal abstract partial class JsPlannedCompilerBase
         }
 
         activeScopes.Clear();
-        activeScopes.Push(new ActiveScope(0, allocated, rootContextSlotCount != 0));
+        activeScopes.Push(new ActiveScope(0, allocated, rootContextSlotCount));
     }
 
     private ReadOnlySpan<CompilerPlannedBinding> GetPlannedBindings(int scopeId)
