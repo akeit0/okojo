@@ -3,7 +3,9 @@ using System.Diagnostics;
 using System.Text;
 using Okojo.Hosting;
 using Okojo.JavaScript;
+using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Compiler.Experimental;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
 using Okojo.JavaScript.Objects;
@@ -461,9 +463,12 @@ internal static partial class Program
             {
                 engineOptions.UseWorkerGlobals();
                 engineOptions.UseWebRuntimeGlobals();
-                engineOptions.ConfigureOptions(options =>
-                    options.UseAtomicsWaitPolicy(Test262RunnerAtomicsWaitPolicy.Shared)
-                );
+                engineOptions.ConfigureOptions(runtimeOptions =>
+                {
+                    runtimeOptions.UseAtomicsWaitPolicy(Test262RunnerAtomicsWaitPolicy.Shared);
+                    if (options.UsePlannedCompiler)
+                        runtimeOptions.Agent.UsePlannedModuleCompiler();
+                });
                 if (runnerTime is not null)
                     engineOptions.UseTimeProvider(runnerTime);
                 engineOptions.UseModuleSourceLoader(new RunnerModuleLoader(entryPath, source));
@@ -532,16 +537,35 @@ internal static partial class Program
             }
             else
             {
-                var parseStart = Stopwatch.GetTimestamp();
-                var program = JavaScriptParser.ParseScript(sourceForScriptPath, entryPath);
-                var parseEnd = Stopwatch.GetTimestamp();
-                timings.AddParse(parseStart, parseEnd);
+                JsScript script;
+                if (options.UsePlannedCompiler)
+                {
+                    var parseStart = Stopwatch.GetTimestamp();
+                    using var ast = FlatJavaScriptParser.ParseScript(
+                        sourceForScriptPath,
+                        entryPath
+                    );
+                    var parseEnd = Stopwatch.GetTimestamp();
+                    timings.AddParse(parseStart, parseEnd);
 
-                var compileStart = Stopwatch.GetTimestamp();
-                Intrinsics.PrepareGlobalScriptDeclarationInstantiation(vm, program);
-                var script = JsCompiler.Compile(vm, program);
-                var compileEnd = Stopwatch.GetTimestamp();
-                timings.AddCompile(compileStart, compileEnd);
+                    var compileStart = Stopwatch.GetTimestamp();
+                    script = new JsPlannedScriptCompiler(vm).Compile(ast, entryPath);
+                    var compileEnd = Stopwatch.GetTimestamp();
+                    timings.AddCompile(compileStart, compileEnd);
+                }
+                else
+                {
+                    var parseStart = Stopwatch.GetTimestamp();
+                    var program = JavaScriptParser.ParseScript(sourceForScriptPath, entryPath);
+                    var parseEnd = Stopwatch.GetTimestamp();
+                    timings.AddParse(parseStart, parseEnd);
+
+                    var compileStart = Stopwatch.GetTimestamp();
+                    Intrinsics.PrepareGlobalScriptDeclarationInstantiation(vm, program);
+                    script = JsCompiler.Compile(vm, program);
+                    var compileEnd = Stopwatch.GetTimestamp();
+                    timings.AddCompile(compileStart, compileEnd);
+                }
 
                 var runStart = Stopwatch.GetTimestamp();
                 vm.Execute(script);

@@ -54,6 +54,9 @@ Current project contents:
   - experimental script compiler
 - `JsPlannedFunctionCompiler`
   - experimental function-body compiler
+- `JsPlannedModuleCompiler`
+  - direct flat module emission integrated with the production module graph behind an
+    explicit compiler selection
 
 The shared emitter is split into partial files to keep growth readable.
 
@@ -115,9 +118,7 @@ lowerer comparison.
 
 Still intentionally unsupported in the experimental pipeline:
 
-- private member access
-- static blocks and private names
-- module binding emission
+- top-level module resource management
 - direct production replacement of `JsCompiler`
 
 Unsupported paths should fail explicitly, not silently degrade.
@@ -156,7 +157,9 @@ Current milestone status:
 - root/function current-context capture: done
 - block-context push/pop capture: done for current subset
 - inherited captured-binding store: done for current subset
-- production compiler migration: not started
+- production compiler migration: opt-in linked module execution and an explicit
+  `Test262Runner --planned-compiler` validation mode are landed; default adoption is
+  gated on broader correctness, diagnostics, workload, and performance evidence
 
 ## How To Work On It
 
@@ -179,8 +182,8 @@ dotnet test tests/Okojo.Compiler.Tests/Okojo.Compiler.Tests.csproj --no-build
 
 Recommended next slices:
 
-1. static blocks and private names
-2. module parse/binding/link metadata
-3. complete declaration early errors and debugger/source metadata
-4. planned-compiler Test262 mode and parser differential campaigns
-5. corpus benchmarks, explicit production cutover, and bounded old-path removal
+1. complete declaration early errors and debugger/source metadata
+2. expand planned-compiler Test262 and parser differential campaigns
+3. run Okojo.Node and browser-host workloads
+4. benchmark the direct path, cut over explicitly, and remove the old path after a
+   bounded stabilization window

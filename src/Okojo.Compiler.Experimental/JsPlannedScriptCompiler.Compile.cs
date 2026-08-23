@@ -19,7 +19,7 @@ internal sealed partial class JsPlannedScriptCompiler
         return Compile(ast, sourcePath);
     }
 
-    private JsScript Compile(FlatAst ast, string? sourcePath)
+    internal JsScript Compile(FlatAst ast, string? sourcePath)
     {
         builder.SetSourceText(ast.SourceText);
         strictDeclared = ast.StrictDeclared;

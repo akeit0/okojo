@@ -1333,7 +1333,9 @@ must be explicit rather than hidden in temporary parser tables.
 ### Stage F5 - Replacement
 
 1. complete normalized parser differential coverage
-2. run applicable Test262 through the planned compiler
+2. expand the explicit `Test262Runner --planned-compiler` gate across applicable
+   coverage; its direct script and flat-module worker paths and separate passed cache
+   are landed, with initial addition and module-code probes green
 3. run Okojo.Node and browser-host application workloads
 4. make direct flat compilation the default
 5. keep the old path only behind an explicit diagnostic switch for a bounded

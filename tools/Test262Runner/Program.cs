@@ -85,7 +85,11 @@ internal static partial class Program
         var skipped = new ConcurrentBag<(string Path, string Reason)>();
         var runSw = Stopwatch.StartNew();
         var totalFiles = files.Length;
-        var passedCachePath = GetPassedCachePath(repoRoot, resolvedRoot);
+        var passedCachePath = GetPassedCachePath(
+            repoRoot,
+            resolvedRoot,
+            options.UsePlannedCompiler
+        );
         var passedCache = options.SkipPassed
             ? LoadPassedCache(passedCachePath)
             : new(StringComparer.OrdinalIgnoreCase);
@@ -138,6 +142,8 @@ internal static partial class Program
         if (options.StopOnLongTestSeconds > 0)
             Log($"Skip long test after: {options.StopOnLongTestSeconds}s");
         Log($"Parallelism: {options.Parallelism}");
+        if (options.UsePlannedCompiler)
+            Log("Compiler: direct flat planned");
         if (options.ProgressSeconds > 0)
             Log($"Progress interval: {options.ProgressSeconds}s");
         if (options.SkipPassed)

@@ -541,7 +541,12 @@ no class-AST module objects remain on the execution path.
 ### P5 - Production replacement and deletion
 
 - run parser differential tests over the production corpus
-- run planned-compiler execution against applicable Test262 coverage
+- landed an explicit Test262 `--planned-compiler` mode: script cases time direct flat
+  parse and planned emission separately, module cases use the flat linker/compiler,
+  worker processes preserve the selection, and a separate passed cache prevents legacy
+  compiler results from masking coverage. The mode never reparses through the class AST.
+- expand planned-compiler execution across applicable Test262 coverage; the initial
+  30-case addition and 30-runnable-case module-code probes are green
 - validate Okojo.Node and browser-host workloads
 - switch the default compile entry points to the direct flat path
 - retain the old path only behind an explicit diagnostic switch during a bounded
