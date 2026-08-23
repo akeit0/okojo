@@ -38,6 +38,9 @@ internal abstract partial class JsPlannedCompilerBase
             case AstKind.ForStatement:
                 EmitForStatement(ast, nodeIndex, node);
                 return;
+            case AstKind.ForInOfStatement:
+                EmitForInOfStatement(ast, nodeIndex, node);
+                return;
             case AstKind.BreakStatement:
                 EmitAbruptCommand(AbruptCommand.Break);
                 return;
@@ -182,6 +185,131 @@ internal abstract partial class JsPlannedCompilerBase
             if (hasLexicalScope)
                 LeaveScope();
         }
+    }
+
+    private void EmitForInOfStatement(FlatAst ast, int nodeIndex, AstNode node)
+    {
+        if (node.Arg2 != 0)
+            throw new NotSupportedException($"{CompilerName} does not support for-of yet.");
+
+        var parts = ast.ChildRange(node.Arg0, node.Arg1);
+        var left = parts[0];
+        var hasLexicalScope =
+            ast[left].Kind == AstKind.VariableDeclaration
+            && (JsVariableDeclarationKind)ast[left].Arg2
+                is JsVariableDeclarationKind.Let
+                    or JsVariableDeclarationKind.Const;
+        if (hasLexicalScope)
+        {
+            var scope = FindChildScope(
+                activeScopes.Peek().ScopeId,
+                CompilerCollectedScopeKind.Block,
+                ast.GetPosition(nodeIndex)
+            );
+            EnterScope(scope.ScopeId);
+        }
+
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            EmitExpression(ast, parts[1]);
+            var enumerableRegister = builder.AllocateTemporaryRegister();
+            EmitStar(enumerableRegister);
+            EmitForInRegisterOperation(
+                JsOpCode.ForInEnumerate,
+                RuntimeId.ForInEnumerate,
+                enumerableRegister
+            );
+            var enumeratorRegister = builder.AllocateTemporaryRegister();
+            EmitStar(enumeratorRegister);
+
+            var loopStart = builder.CreateLabel();
+            var continueTarget = builder.CreateLabel();
+            var breakTarget = builder.CreateLabel();
+            var needsPerIterationContext =
+                hasLexicalScope && ShouldReplaceLoopHeadContextPerIteration(activeScopes.Peek());
+            builder.BindLabel(loopStart);
+            EmitForInRegisterOperation(JsOpCode.ForInNext, RuntimeId.ForInNext, enumeratorRegister);
+            builder.EmitJump(JsOpCode.JumpIfUndefined, breakTarget);
+            EmitForInAssignment(ast, left);
+
+            PushIterationControlScope(breakTarget, continueTarget);
+            try
+            {
+                EmitStatement(ast, parts[2]);
+            }
+            finally
+            {
+                controlScopes.Pop();
+            }
+
+            builder.BindLabel(continueTarget);
+            if (needsPerIterationContext)
+                EmitReplaceCurrentContext(activeScopes.Peek().ContextSlotCount);
+            EmitForInRegisterOperation(JsOpCode.ForInStep, RuntimeId.ForInStep, enumeratorRegister);
+            EmitJump(loopStart);
+            builder.BindLabel(breakTarget);
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+            if (hasLexicalScope)
+                LeaveScope();
+        }
+    }
+
+    private void EmitForInAssignment(FlatAst ast, int left)
+    {
+        ref readonly var node = ref ast[left];
+        if (node.Kind == AstKind.VariableDeclaration)
+        {
+            var declarators = ast.ChildRange(node.Arg0, node.Arg1);
+            ref readonly var declarator = ref ast[declarators[0]];
+            if (declarator.Kind == AstKind.VariableDeclaratorPattern)
+            {
+                EmitStoreBindingTarget(ast, declarator.Arg0);
+                return;
+            }
+
+            var name = ast.GetString(declarator.Arg0);
+            if (!TryResolveBinding(name, out var binding))
+                throw new InvalidOperationException($"No planned binding found for '{name}'.");
+            EmitStore(
+                binding,
+                isInitialization: (JsVariableDeclarationKind)node.Arg2
+                    != JsVariableDeclarationKind.Var
+            );
+            return;
+        }
+
+        var identifier = ast.GetString(node.Arg0);
+        var hasLocalBinding = TryResolveBindingAccess(
+            identifier,
+            out var localBinding,
+            out var contextDepth
+        );
+        var hasExternalBinding = TryResolveExternalBinding(
+            identifier,
+            out var externalBinding,
+            out var externalDepth
+        );
+        EmitResolvedIdentifierStore(
+            identifier,
+            hasLocalBinding,
+            hasExternalBinding,
+            localBinding,
+            contextDepth,
+            externalBinding,
+            externalDepth
+        );
+    }
+
+    private void EmitForInRegisterOperation(JsOpCode opcode, RuntimeId runtime, int register)
+    {
+        if ((uint)register <= byte.MaxValue)
+            builder.Emit(opcode, (byte)register);
+        else
+            builder.EmitCallRuntime((int)runtime, register, 1);
     }
 
     private static bool ShouldReplaceLoopHeadContextPerIteration(in ActiveScope scope)

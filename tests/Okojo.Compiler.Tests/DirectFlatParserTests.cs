@@ -29,6 +29,81 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_ExecutesForInEnumerationAndControl()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            function read(object) {
+                let result = '';
+                let assigned = '';
+                let closures = [];
+                for (const key in object) {
+                    closures.push(() => key);
+                    if (key === 'skip') continue;
+                    assigned = key;
+                    result += key;
+                    if (key === 'stop') break;
+                }
+                let bare;
+                for (bare in { tail: 1 }) {}
+                let nullishCount = 0;
+                for (var ignored in null) nullishCount++;
+                let inherited = '';
+                let child = Object.create({ inherited: 1 });
+                child.own = 1;
+                for (let property in child) inherited += property + ',';
+                let pattern = '';
+                for (const [first] in { ab: 1, cd: 2 }) pattern += first;
+                var varPattern = '';
+                for (var [varFirst] in { xy: 1 }) varPattern = varFirst;
+                return result + '|' + assigned + '|' + bare + '|'
+                    + closures[0]() + ',' + closures[1]() + ',' + closures[2]()
+                    + '|' + inherited + '|' + nullishCount + '|' + pattern + '|' + varPattern;
+            }
+            read({ first: 1, skip: 2, stop: 3, after: 4 });
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(
+            realm.Accumulator.AsString(),
+            Is.EqualTo("firststop|stop|tail|first,skip,stop|own,inherited,|0|ac|x")
+        );
+    }
+
+    [Test]
+    public void CompileAst_ExecutesForInEnumeration()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            JavaScriptParser.ParseScript(
+                "let result = ''; for (const [key] in { ab: 1, cd: 2 }) result += key; result;"
+            )
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("ac"));
+    }
+
+    [TestCase("for (let first, second in {}) {}")]
+    [TestCase("for (let value = 1 in {}) {}")]
+    [TestCase("for (target.value in {}) {}")]
+    public void ParseScript_RejectsUnsupportedOrInvalidForInHeads(string source) =>
+        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+
+    [Test]
+    public void CompileString_RejectsForOfUntilIteratorCloseLoweringLands()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        Assert.Throws<NotSupportedException>(() =>
+            new JsPlannedScriptCompiler(realm).Compile("for (const value of []) {}")
+        );
+    }
+
+    [Test]
     public void ParseScript_EmitsPostOrderFlatNodesDirectly()
     {
         using var ast = FlatJavaScriptParser.ParseScript(

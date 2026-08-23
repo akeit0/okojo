@@ -51,7 +51,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 |---|---|---|
 | Parse goal | scripts | modules, standalone function goal |
 | Declarations | `var`/`let`/`const`, ordinary function declarations, function/block declaration prologues, function-scoped `var`, persistent script globals/lexicals, initial global conflict validation | classes, imports/exports, complete declaration early errors, Annex B |
-| Blocks/control | block, `if`, `while`, `do`, ordinary `for`, `switch`, unlabeled `break`/`continue`, `return`, `throw`, `try`/`catch`/`finally`, empty/expression statement | `for-in/of`, labels, `debugger` |
+| Blocks/control | block, `if`, `while`, `do`, ordinary `for`, `for-in`, `switch`, unlabeled `break`/`continue`, `return`, `throw`, `try`/`catch`/`finally`, empty/expression statement | `for-of`, labels, `debugger` |
 | Primitive expressions | number, BigInt, string, boolean, null, regexp, untagged template, identifier, `this`, `new.target`, grouping | tagged templates, `super`, `import.meta` |
 | Operators | precedence table, assignment, arithmetic/logical/bitwise/comparison, conditionals, sequence, updates, property/identifier/value `delete` | optional-chain operators and delete-chain behavior, remaining edge-specific early errors |
 | References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed properties | imports, private and super references |
@@ -249,6 +249,24 @@ the equivalent `LdaNewTarget` frame opcode and arrow `BoundNewTargetValue` runti
 contract. The flat path therefore needs one leaf node and direct opcode emission,
 not a synthetic binding or capture-table entry. Function metadata records actual
 use for observability, while the hot execution path stays a single frame load.
+
+### `for-in` enumeration slice
+
+The direct path supports synchronous `for-in` with single identifier or nested
+pattern declarations, identifier assignment targets, `break`/`continue`, and
+captured lexical loop heads. `for-of`, member assignment heads, and iterator-close
+control remain separate slices.
+The reference case is `artifacts/okojobytecodetool/cases/flat_ast_for_in.js`;
+focused tests cover inherited enumerable keys, nullish inputs, assignment targets,
+abrupt loop control, and per-iteration closure capture.
+
+V8 lowers `for-in` to receiver conversion, enumeration preparation, next-key,
+undefined filtering, and step operations. Okojo already exposes the compact
+`ForInEnumerate`/`ForInNext`/`ForInStep` ABI with runtime fallbacks for wide
+registers. The planned compiler will emit that existing sequence directly and
+reuse its loop control/context rotation machinery. The flat node stores one dense
+three-child range (`left`, `right`, `body`) plus an in/of flag so `for-of` can reuse
+the parser and storage-planning shape without changing the arena ABI.
 
 ### Destructuring
 
@@ -584,7 +602,7 @@ function read(value = function nested(next = outer) { return next; }) {
 - extend effect/value/test modes to the remaining expressions
 - extend abrupt-completion routing to labels and iterator cleanup; switch breaks
   are landed
-- `for-in`/`for-of` and labels
+- `for-of` and labels
 - `debugger`
 - tagged template literals and cached site identity
 - optional chaining/calls

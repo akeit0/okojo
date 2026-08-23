@@ -88,6 +88,7 @@ internal static class FlatAstLowerer
                     position: doWhileStatement.Position
                 ),
                 JsForStatement forStatement => LowerForStatement(forStatement),
+                JsForInOfStatement forInOfStatement => LowerForInOfStatement(forInOfStatement),
                 JsBreakStatement { Label: null } => Arena.Add(
                     AstKind.BreakStatement,
                     position: statement.Position
@@ -316,6 +317,55 @@ internal static class FlatAstLowerer
                 children.Offset,
                 children.Count,
                 position: statement.Position
+            );
+        }
+
+        private int LowerForInOfStatement(JsForInOfStatement statement)
+        {
+            var left = statement.Left switch
+            {
+                JsVariableDeclarationStatement declaration => LowerForInOfDeclaration(declaration),
+                JsExpression expression => LowerExpression(expression),
+                _ => throw new NotSupportedException(
+                    $"{compilerName} does not support for-in/of binding '{statement.Left.GetType().Name}'."
+                ),
+            };
+            Span<int> parts =
+            [
+                left,
+                LowerExpression(statement.Right),
+                LowerStatement(statement.Body),
+            ];
+            var children = Arena.AddChildren(parts);
+            return Arena.Add(
+                AstKind.ForInOfStatement,
+                children.Offset,
+                children.Count,
+                statement.IsOf ? 1 : 0,
+                statement.Position
+            );
+        }
+
+        private int LowerForInOfDeclaration(JsVariableDeclarationStatement declaration)
+        {
+            if (declaration.BindingPattern is null)
+                return LowerVariableDeclaration(declaration);
+            Span<int> declarators =
+            [
+                Arena.Add(
+                    AstKind.VariableDeclaratorPattern,
+                    LowerBindingPattern(declaration.BindingPattern),
+                    -1,
+                    position: declaration.Position
+                ),
+            ];
+            var children = Arena.AddChildren(declarators);
+            return Arena.Add(
+                AstKind.VariableDeclaration,
+                children.Offset,
+                children.Count,
+                (int)declaration.Kind,
+                declaration.Position
             );
         }
 

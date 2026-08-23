@@ -222,6 +222,9 @@ internal static partial class CompilerBindingCollector
                 case AstKind.ForStatement:
                     VisitForStatement(ast, nodeIndex, scopeId);
                     return;
+                case AstKind.ForInOfStatement:
+                    VisitForInOfStatement(ast, nodeIndex, scopeId);
+                    return;
                 case AstKind.BreakStatement:
                 case AstKind.ContinueStatement:
                     return;
@@ -317,6 +320,84 @@ internal static partial class CompilerBindingCollector
             if (parts[2] >= 0)
                 VisitExpression(ast, parts[2], scopeId);
             VisitStatement(ast, parts[3], scopeId);
+        }
+
+        private void VisitForInOfStatement(FlatAst ast, int nodeIndex, int parentScopeId)
+        {
+            ref readonly var node = ref ast[nodeIndex];
+            var parts = ast.ChildRange(node.Arg0, node.Arg1);
+            var left = parts[0];
+            var scopeId = parentScopeId;
+            if (ast[left].Kind == AstKind.VariableDeclaration)
+            {
+                ref readonly var declaration = ref ast[left];
+                var declarationKind = (JsVariableDeclarationKind)declaration.Arg2;
+                if (
+                    declarationKind
+                    is JsVariableDeclarationKind.Let
+                        or JsVariableDeclarationKind.Const
+                )
+                {
+                    scopeId = AddScope(
+                        parentScopeId,
+                        CompilerCollectedScopeKind.Block,
+                        ast.GetPosition(nodeIndex)
+                    );
+                    var declarators = ast.ChildRange(declaration.Arg0, declaration.Arg1);
+                    for (var i = 0; i < declarators.Length; i++)
+                    {
+                        ref readonly var declarator = ref ast[declarators[i]];
+                        if (declarator.Kind == AstKind.VariableDeclaratorPattern)
+                            VisitBindingPattern(
+                                ast,
+                                declarator.Arg0,
+                                scopeId,
+                                CompilerCollectedBindingKind.LoopHeadAlias,
+                                declarationKind == JsVariableDeclarationKind.Const
+                            );
+                        else
+                            AddBinding(
+                                scopeId,
+                                CompilerCollectedBindingKind.LoopHeadAlias,
+                                ast.GetString(declarator.Arg0),
+                                declarator.Arg1,
+                                declarationKind == JsVariableDeclarationKind.Const,
+                                ast.GetPosition(declarators[i])
+                            );
+                    }
+                }
+                else
+                {
+                    var bindingScopeId = FindVariableScope(parentScopeId);
+                    var declarators = ast.ChildRange(declaration.Arg0, declaration.Arg1);
+                    for (var i = 0; i < declarators.Length; i++)
+                    {
+                        ref readonly var declarator = ref ast[declarators[i]];
+                        if (declarator.Kind == AstKind.VariableDeclaratorPattern)
+                            VisitBindingPattern(
+                                ast,
+                                declarator.Arg0,
+                                bindingScopeId,
+                                CompilerCollectedBindingKind.Var,
+                                false
+                            );
+                        else
+                            AddBinding(
+                                bindingScopeId,
+                                CompilerCollectedBindingKind.Var,
+                                ast.GetString(declarator.Arg0),
+                                declarator.Arg1,
+                                false,
+                                ast.GetPosition(declarators[i])
+                            );
+                    }
+                }
+            }
+            else
+                VisitExpression(ast, left, parentScopeId);
+
+            VisitExpression(ast, parts[1], scopeId);
+            VisitStatement(ast, parts[2], scopeId);
         }
 
         private void VisitVariableDeclaration(FlatAst ast, AstNode declaration, int scopeId)

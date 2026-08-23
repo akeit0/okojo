@@ -138,7 +138,11 @@ internal sealed class FlatJavaScriptParser
         }
     }
 
-    private int ParseVariableDeclaration(bool consumeSemicolon)
+    private int ParseVariableDeclaration(
+        bool consumeSemicolon,
+        bool allowMissingInitializer = false,
+        bool allowInInitializer = true
+    )
     {
         var position = current.Position;
         var kind = current.Kind switch
@@ -162,7 +166,8 @@ internal sealed class FlatJavaScriptParser
                         current.Kind == JsTokenKind.LeftBracket
                             ? ParseArrayBindingPattern()
                             : ParseObjectBindingPattern();
-                    if (!Match(JsTokenKind.Assign))
+                    var hasInitializer = Match(JsTokenKind.Assign);
+                    if (!hasInitializer && !allowMissingInitializer)
                         throw Error(
                             "Binding declaration requires initializer",
                             Arena.GetPosition(pattern)
@@ -171,7 +176,7 @@ internal sealed class FlatJavaScriptParser
                         Arena.Add(
                             AstKind.VariableDeclaratorPattern,
                             pattern,
-                            ParseAssignment(allowIn: true),
+                            hasInitializer ? ParseAssignment(allowInInitializer) : -1,
                             position: Arena.GetPosition(pattern)
                         )
                     );
@@ -181,8 +186,8 @@ internal sealed class FlatJavaScriptParser
                     var identifier = ExpectIdentifier();
                     var initializer = -1;
                     if (Match(JsTokenKind.Assign))
-                        initializer = ParseAssignment(allowIn: true);
-                    else if (kind == JsVariableDeclarationKind.Const)
+                        initializer = ParseAssignment(allowInInitializer);
+                    else if (kind == JsVariableDeclarationKind.Const && !allowMissingInitializer)
                         throw Error("Const declaration requires initializer", identifier.Position);
                     declarators.Add(
                         Arena.Add(
@@ -765,11 +770,31 @@ internal sealed class FlatJavaScriptParser
         if (current.Kind != JsTokenKind.Semicolon)
         {
             init = current.Kind is JsTokenKind.Var or JsTokenKind.Let or JsTokenKind.Const
-                ? ParseVariableDeclaration(consumeSemicolon: false)
+                ? ParseVariableDeclaration(
+                    consumeSemicolon: false,
+                    allowMissingInitializer: true,
+                    allowInInitializer: false
+                )
                 : ParseExpression(allowIn: false);
         }
         if (current.Kind is JsTokenKind.In or JsTokenKind.Of)
-            throw Error("for-in/of is not supported by FlatJavaScriptParser", current.Position);
+        {
+            var isOf = current.Kind == JsTokenKind.Of;
+            ValidateForInOfLeft(init, position);
+            Next();
+            var right = ParseExpression();
+            Expect(JsTokenKind.RightParen);
+            Span<int> iterationParts = [init, right, ParseLoopBody()];
+            var iterationChildren = Arena.AddChildren(iterationParts);
+            return Arena.Add(
+                AstKind.ForInOfStatement,
+                iterationChildren.Offset,
+                iterationChildren.Count,
+                isOf ? 1 : 0,
+                position
+            );
+        }
+        ValidateOrdinaryForInitializer(init);
         Expect(JsTokenKind.Semicolon);
         var test = current.Kind == JsTokenKind.Semicolon ? -1 : ParseExpression();
         Expect(JsTokenKind.Semicolon);
@@ -778,6 +803,51 @@ internal sealed class FlatJavaScriptParser
         Span<int> parts = [init, test, update, ParseLoopBody()];
         var children = Arena.AddChildren(parts);
         return Arena.Add(AstKind.ForStatement, children.Offset, children.Count, position: position);
+    }
+
+    private void ValidateForInOfLeft(int left, int position)
+    {
+        if (left < 0)
+            throw Error("Missing for-in/of binding", position);
+        ref readonly var node = ref Arena[left];
+        if (node.Kind == AstKind.VariableDeclaration)
+        {
+            var declarators = Arena.ChildRange(node.Arg0, node.Arg1);
+            if (declarators.Length != 1)
+                throw Error("for-in/of requires one binding", position);
+            ref readonly var declarator = ref Arena[declarators[0]];
+            var initializer =
+                declarator.Kind == AstKind.VariableDeclaratorPattern
+                    ? declarator.Arg1
+                    : declarator.Arg2;
+            if (initializer >= 0)
+                throw Error("for-in/of binding cannot have an initializer", position);
+            return;
+        }
+
+        if (node.Kind != AstKind.Identifier)
+            throw Error("for-in/of assignment target must be an identifier", position);
+    }
+
+    private void ValidateOrdinaryForInitializer(int init)
+    {
+        if (init < 0 || Arena[init].Kind != AstKind.VariableDeclaration)
+            return;
+        ref readonly var declaration = ref Arena[init];
+        var kind = (JsVariableDeclarationKind)declaration.Arg2;
+        var declarators = Arena.ChildRange(declaration.Arg0, declaration.Arg1);
+        for (var i = 0; i < declarators.Length; i++)
+        {
+            ref readonly var declarator = ref Arena[declarators[i]];
+            var initializer =
+                declarator.Kind == AstKind.VariableDeclaratorPattern
+                    ? declarator.Arg1
+                    : declarator.Arg2;
+            if (initializer < 0 && kind == JsVariableDeclarationKind.Const)
+                throw Error("Const declaration requires initializer", Arena.GetPosition(init));
+            if (initializer < 0 && declarator.Kind == AstKind.VariableDeclaratorPattern)
+                throw Error("Binding declaration requires initializer", Arena.GetPosition(init));
+        }
     }
 
     private int ParseLoopControl(AstKind kind)

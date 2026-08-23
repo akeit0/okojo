@@ -84,6 +84,8 @@ Both planned compilers currently support:
 - named/computed member assignment, compound/logical assignment, and update
 - nested capture and assignment for parameter, root, function, and block bindings
 - capture-gated per-iteration contexts for lexical ordinary `for` heads
+- `for-in` enumeration with declaration/pattern heads, identifier assignment,
+  loop control, and captured per-iteration lexicals
 
 `JsPlannedScriptCompiler.Compile(string)` uses the direct flat parser. The
 `Compile(JsProgram)` overload remains as the compatibility bridge for parser and
@@ -98,7 +100,7 @@ Still intentionally unsupported in the experimental pipeline:
 - generator/async and `super` object methods
 - tagged template literals
 - module/global binding emission
-- `for-in` / `for-of` per-iteration behavior
+- `for-of` iteration/close behavior and member assignment heads for iteration
 - labeled loop control
 - direct production replacement of `JsCompiler`
 
