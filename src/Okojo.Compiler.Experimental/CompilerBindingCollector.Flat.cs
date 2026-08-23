@@ -318,6 +318,12 @@ internal static partial class CompilerBindingCollector
                     if (((AstMemberFlags)node.Arg2 & AstMemberFlags.Computed) != 0)
                         VisitExpression(ast, node.Arg1, scopeId);
                     return;
+                case AstKind.ArrayExpression:
+                    var elements = ast.ChildRange(node.Arg0, node.Arg1);
+                    for (var i = 0; i < elements.Length; i++)
+                        if (elements[i] >= 0)
+                            VisitExpression(ast, elements[i], scopeId);
+                    return;
                 case AstKind.NumericLiteral:
                 case AstKind.StringLiteral:
                 case AstKind.BooleanLiteral:

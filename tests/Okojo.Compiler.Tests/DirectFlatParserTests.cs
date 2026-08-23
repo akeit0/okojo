@@ -166,6 +166,18 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_ExecutesArrayLiteralWithHoleAndDynamicElement()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+
+        var script = compiler.Compile("let values = [1, 2 + 3, , 4]; values.length + values[1];");
+
+        realm.Execute(script);
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(9));
+    }
+
+    [Test]
     public void ParseScript_AllocatesLessThanClassParseAndLowerBridge()
     {
         var source = string.Join(

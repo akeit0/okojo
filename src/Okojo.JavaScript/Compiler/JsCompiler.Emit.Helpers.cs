@@ -290,12 +290,7 @@ public sealed partial class JsCompiler
 
     private void EmitCreateArrayLiteralByIndex(int idx)
     {
-        if ((uint)idx > ushort.MaxValue)
-            throw new InvalidOperationException(
-                "CreateArrayLiteral constant index exceeds ushort operand capacity."
-            );
-
-        builder.Emit(JsOpCode.CreateArrayLiteral, (byte)(idx & 0xFF), (byte)((idx >> 8) & 0xFF));
+        builder.EmitCreateArrayLiteral(idx);
     }
 
     private void EmitCreateEmptyObjectLiteral(int flags = 0)
@@ -305,18 +300,7 @@ public sealed partial class JsCompiler
 
     private void EmitInitializeArrayElement(int targetRegister, int index)
     {
-        if ((uint)targetRegister > ushort.MaxValue || (uint)index > ushort.MaxValue)
-            throw new InvalidOperationException(
-                "InitializeArrayElement operands exceed ushort operand capacity."
-            );
-
-        builder.Emit(
-            JsOpCode.InitializeArrayElement,
-            (byte)targetRegister,
-            (byte)(targetRegister >> 8),
-            (byte)(index & 0xFF),
-            (byte)((index >> 8) & 0xFF)
-        );
+        builder.EmitInitializeArrayElement(targetRegister, index);
     }
 
     private void EmitLdaKeyedProperty(int targetRegister)

@@ -58,10 +58,41 @@ internal abstract partial class JsPlannedCompilerBase
             case AstKind.MemberExpression:
                 EmitMemberExpression(ast, node);
                 return;
+            case AstKind.ArrayExpression:
+                EmitArrayExpression(ast, node);
+                return;
             default:
                 throw new NotSupportedException(
                     $"{CompilerName} does not support flat expression '{node.Kind}'."
                 );
+        }
+    }
+
+    private void EmitArrayExpression(FlatAst ast, AstNode node)
+    {
+        if ((uint)node.Arg1 > ushort.MaxValue)
+            throw new NotSupportedException("Flat array literal exceeds ushort element capacity.");
+
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            var literalIndex = builder.AddObjectConstant(node.Arg1);
+            builder.EmitCreateArrayLiteral(literalIndex);
+            var arrayRegister = builder.AllocateTemporaryRegister();
+            EmitStar(arrayRegister);
+            var elements = ast.ChildRange(node.Arg0, node.Arg1);
+            for (var i = 0; i < elements.Length; i++)
+            {
+                if (elements[i] < 0)
+                    continue;
+                EmitExpression(ast, elements[i]);
+                builder.EmitInitializeArrayElement(arrayRegister, i);
+            }
+            EmitLdar(arrayRegister);
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
         }
     }
 

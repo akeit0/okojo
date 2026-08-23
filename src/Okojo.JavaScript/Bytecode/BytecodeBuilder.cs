@@ -373,6 +373,30 @@ public sealed class BytecodeBuilder : IDisposable
         );
     }
 
+    internal void EmitCreateArrayLiteral(int constantIndex)
+    {
+        if ((uint)constantIndex > ushort.MaxValue)
+            throw new InvalidOperationException(
+                "CreateArrayLiteral constant index exceeds ushort operand capacity."
+            );
+        Emit(JsOpCode.CreateArrayLiteral, (byte)constantIndex, (byte)(constantIndex >> 8));
+    }
+
+    internal void EmitInitializeArrayElement(int objectRegister, int index)
+    {
+        if ((uint)objectRegister > ushort.MaxValue || (uint)index > ushort.MaxValue)
+            throw new InvalidOperationException(
+                "InitializeArrayElement operands exceed ushort operand capacity."
+            );
+        Emit(
+            JsOpCode.InitializeArrayElement,
+            (byte)objectRegister,
+            (byte)(objectRegister >> 8),
+            (byte)index,
+            (byte)(index >> 8)
+        );
+    }
+
     private void EmitScaledOperands(JsOpCode op, ReadOnlySpan<int> operands)
     {
         var max = 0;

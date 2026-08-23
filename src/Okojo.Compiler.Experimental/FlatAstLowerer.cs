@@ -307,10 +307,41 @@ internal static class FlatAstLowerer
                 JsSequenceExpression sequence => LowerSequence(sequence),
                 JsCallExpression call => LowerCall(call),
                 JsMemberExpression member => LowerMember(member),
+                JsArrayExpression array => LowerArray(array),
                 _ => throw new NotSupportedException(
                     $"{compilerName} does not support expression '{expression.GetType().Name}'."
                 ),
             };
+        }
+
+        private int LowerArray(JsArrayExpression array)
+        {
+            var elements = ArrayPool<int>.Shared.Rent(array.Elements.Count);
+            try
+            {
+                for (var i = 0; i < array.Elements.Count; i++)
+                {
+                    elements[i] = array.Elements[i] switch
+                    {
+                        null => -1,
+                        JsSpreadExpression => throw new NotSupportedException(
+                            $"Array spread is not supported by {compilerName}."
+                        ),
+                        var element => LowerExpression(element),
+                    };
+                }
+                var children = Arena.AddChildren(elements.AsSpan(0, array.Elements.Count));
+                return Arena.Add(
+                    AstKind.ArrayExpression,
+                    children.Offset,
+                    children.Count,
+                    position: array.Position
+                );
+            }
+            finally
+            {
+                ArrayPool<int>.Shared.Return(elements);
+            }
         }
 
         private int LowerCall(JsCallExpression call)

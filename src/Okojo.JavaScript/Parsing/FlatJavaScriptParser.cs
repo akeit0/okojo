@@ -614,11 +614,51 @@ internal sealed class FlatJavaScriptParser
                 var expression = ParseExpression();
                 Expect(JsTokenKind.RightParen);
                 return expression;
+            case JsTokenKind.LeftBracket:
+                return ParseArrayLiteral();
             default:
                 throw Error(
                     $"Expression token '{token.Kind}' is not supported by FlatJavaScriptParser",
                     token.Position
                 );
+        }
+    }
+
+    private int ParseArrayLiteral()
+    {
+        var position = Expect(JsTokenKind.LeftBracket).Position;
+        Span<int> initial = stackalloc int[8];
+        var elements = new NodeList(initial);
+        try
+        {
+            while (current.Kind != JsTokenKind.RightBracket)
+            {
+                if (Match(JsTokenKind.Comma))
+                {
+                    elements.Add(-1);
+                    continue;
+                }
+                if (current.Kind == JsTokenKind.Ellipsis)
+                    throw Error(
+                        "Array spread is not supported by FlatJavaScriptParser",
+                        current.Position
+                    );
+                elements.Add(ParseAssignment(allowIn: true));
+                if (!Match(JsTokenKind.Comma) && current.Kind != JsTokenKind.RightBracket)
+                    throw Error("Expected ',' or ']'", current.Position);
+            }
+            Next();
+            var children = Arena.AddChildren(elements.AsSpan());
+            return Arena.Add(
+                AstKind.ArrayExpression,
+                children.Offset,
+                children.Count,
+                position: position
+            );
+        }
+        finally
+        {
+            elements.Dispose();
         }
     }
 

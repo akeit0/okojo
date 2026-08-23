@@ -18,6 +18,8 @@ class parser.
 
 This slice adds ordinary calls plus named/computed member loads. It excludes
 spread, optional chaining, `super`, private names, construction, and member writes.
+The following slice adds array literals with elisions and dynamic elements;
+array spread remains explicit unsupported syntax.
 
 ## Minimal Repros
 
@@ -41,6 +43,11 @@ function invoke(target, key) {
 }
 ```
 
+```js
+let values = [1, 2 + 3, , 4];
+values.length + values[1];
+```
+
 ## Planned Tests
 
 - `tests/Okojo.Compiler.Tests/DirectFlatParserTests.cs`
@@ -49,6 +56,7 @@ function invoke(target, key) {
   - nested function capture
   - allocated-byte comparison against class parse plus lowering
   - direct/member calls and named/computed property loads
+  - array length, holes, and dynamic element initialization
 
 ## Reference Observations
 
@@ -63,6 +71,10 @@ arguments in a contiguous register range, and distinguish undefined-receiver
 calls from property calls. Named loads carry a constant-pool key and feedback
 slot; computed loads keep the key in the accumulator. The flat emitter copies
 that shape while using Okojo's existing opcode ABI.
+
+V8 uses an array boilerplate and patches dynamic elements. Okojo intentionally
+creates a length-sized array and initializes only present elements in source
+order; skipped indices remain holes without emitting hole stores.
 
 ## Performance Plan
 
@@ -81,8 +93,9 @@ Initial Release measurement for 80 declaration/update pairs after warm-up:
 
 ## Deferred
 
-- arrays, objects, templates, classes, modules, destructuring, and advanced
+- objects, templates, classes, modules, destructuring, and advanced
   parameter forms
+- array spread
 - spread calls, optional chaining, construction, private/super members, and
   member assignment/update
 - converging the remaining production grammar on flat node handles
