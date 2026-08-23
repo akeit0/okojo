@@ -367,6 +367,142 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_ExecutesNestedObjectBindingsWithComputedDefaultsAndRest()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile(
+            """
+            let key = 'b';
+            let source = { a: 1, b: undefined, c: 3, d: 4, 2: 5, nested: { x: 6 } };
+            let { a: first, [key]: second = 7, c, 2: numeric, nested: { x }, ...rest } = source;
+            let { length } = 'abc';
+            first * 100 + second * 10 + c + numeric + x + rest.d + length;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(191));
+    }
+
+    [Test]
+    public void CompileString_EvaluatesObjectBindingKeyDefaultAndNextPropertyInOrder()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile(
+            """
+            let order = 0;
+            let { [order = order + 1]: value = (order = order + 10), next: after = order } = {};
+            order * 100 + value * 10 + after;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(1221));
+    }
+
+    [Test]
+    public void CompileString_RejectsNullishObjectBindingBeforeComputedKeyEffect()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        realm.Evaluate("globalThis.__flatObjectBindingTouched = 0;");
+        var touch = realm.Evaluate(
+            "(function () { __flatObjectBindingTouched++; return 'value'; })"
+        );
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile(
+            "function run(source, touch) { let { [touch()]: value } = source; return value; } run;"
+        );
+        realm.Execute(script);
+        var run = (JsFunction)realm.Accumulator.Obj!;
+
+        Assert.Throws<JsRuntimeException>(() =>
+            realm.InvokeFunction(run, JsValue.Undefined, [JsValue.Null, touch])
+        );
+        Assert.That(realm.Evaluate("__flatObjectBindingTouched").Int32Value, Is.Zero);
+    }
+
+    [Test]
+    public void CompileString_CreatesFreshCapturedObjectBindingForEachLoopIteration()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile(
+            """
+            let first, second;
+            for (let { value: i } = { value: 0 }; i < 2; i++) {
+                function read() { return i; }
+                if (i === 0) first = read;
+                else second = read;
+            }
+            first() * 10 + second();
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void CompileString_PreservesAndExcludesSymbolKeysInObjectBindingRest()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var symbol = realm.Evaluate("Symbol('flat-object-binding')");
+        realm.Global["__flatObjectBindingSymbol"] = symbol;
+        var source = realm.Evaluate("({ keep: 2, [__flatObjectBindingSymbol]: 9 })");
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile(
+            """
+            function run(source, symbol) {
+                let { [symbol]: removed, ...rest } = source;
+                return removed * 100 + rest.keep * 10 + (rest[symbol] === undefined ? 1 : 0);
+            }
+            run;
+            """
+        );
+        realm.Execute(script);
+        var run = (JsFunction)realm.Accumulator.Obj!;
+
+        var result = realm.InvokeFunction(run, JsValue.Undefined, [source, symbol]);
+
+        Assert.That(result.Int32Value, Is.EqualTo(921));
+    }
+
+    [Test]
+    public void CompileString_ExecutesWideObjectBindingRegisters()
+    {
+        var properties = string.Join(
+            ", ",
+            Enumerable.Range(0, 260).Select(static i => $"p{i}: {i}")
+        );
+        var names = string.Join(", ", Enumerable.Range(0, 260).Select(static i => $"p{i}"));
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile(
+            $"let source = {{ {properties} }}; let {{ {names} }} = source; p259;"
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(259));
+        Assert.That(script.Bytecode, Does.Contain((byte)JsOpCode.Wide));
+    }
+
+    [Test]
+    public void ParseScript_RejectsTrailingCommaAfterObjectRestBinding()
+    {
+        var exception = Assert.Throws<JsParseException>(() =>
+            FlatJavaScriptParser.ParseScript("let { ...rest, } = source;")
+        );
+
+        Assert.That(exception!.Message, Does.Contain("Rest binding"));
+    }
+
+    [Test]
     public void CompileString_ExecutesObjectLiteralPropertyShapes()
     {
         var realm = JsRuntime.Create().DefaultRealm;

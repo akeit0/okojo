@@ -69,6 +69,7 @@ internal enum AstKind : byte
     ImportSpecifier,
     ExportSpecifier,
     ArrayBindingPattern,
+    ObjectBindingPattern,
 }
 
 [Flags]

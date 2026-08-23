@@ -155,12 +155,15 @@ internal sealed class FlatJavaScriptParser
         {
             do
             {
-                if (current.Kind == JsTokenKind.LeftBracket)
+                if (current.Kind is JsTokenKind.LeftBracket or JsTokenKind.LeftBrace)
                 {
-                    var pattern = ParseArrayBindingPattern();
+                    var pattern =
+                        current.Kind == JsTokenKind.LeftBracket
+                            ? ParseArrayBindingPattern()
+                            : ParseObjectBindingPattern();
                     if (!Match(JsTokenKind.Assign))
                         throw Error(
-                            "Array binding declaration requires initializer",
+                            "Binding declaration requires initializer",
                             Arena.GetPosition(pattern)
                         );
                     declarators.Add(
@@ -231,7 +234,7 @@ internal sealed class FlatJavaScriptParser
                     elements.Add(
                         Arena.Add(
                             AstKind.SpreadElement,
-                            ParseArrayBindingTarget(),
+                            ParseBindingTarget(),
                             position: restPosition
                         )
                     );
@@ -240,15 +243,8 @@ internal sealed class FlatJavaScriptParser
                     break;
                 }
 
-                var target = ParseArrayBindingTarget();
-                if (Match(JsTokenKind.Assign))
-                    target = Arena.Add(
-                        AstKind.AssignmentExpression,
-                        target,
-                        ParseAssignment(allowIn: true),
-                        (int)JsAssignmentOperator.Assign,
-                        Arena.GetPosition(target)
-                    );
+                var target = ParseBindingTarget();
+                target = ParseBindingDefault(target);
                 elements.Add(target);
                 if (!Match(JsTokenKind.Comma))
                     break;
@@ -269,13 +265,15 @@ internal sealed class FlatJavaScriptParser
         }
     }
 
-    private int ParseArrayBindingTarget()
+    private int ParseBindingTarget()
     {
         if (current.Kind == JsTokenKind.LeftBracket)
             return ParseArrayBindingPattern();
+        if (current.Kind == JsTokenKind.LeftBrace)
+            return ParseObjectBindingPattern();
         if (current.Kind != JsTokenKind.Identifier)
             throw Error(
-                "Array binding target must be an identifier or nested array pattern",
+                "Binding target must be an identifier, array pattern, or object pattern",
                 current.Position
             );
 
@@ -287,6 +285,104 @@ internal sealed class FlatJavaScriptParser
             identifier.IdentifierId,
             position: identifier.Position
         );
+    }
+
+    private int ParseBindingDefault(int target)
+    {
+        if (!Match(JsTokenKind.Assign))
+            return target;
+        return Arena.Add(
+            AstKind.AssignmentExpression,
+            target,
+            ParseAssignment(allowIn: true),
+            (int)JsAssignmentOperator.Assign,
+            Arena.GetPosition(target)
+        );
+    }
+
+    private int ParseObjectBindingPattern()
+    {
+        var position = Expect(JsTokenKind.LeftBrace).Position;
+        Span<FlatObjectProperty> initial = stackalloc FlatObjectProperty[8];
+        var properties = new ObjectPropertyList(initial);
+        try
+        {
+            while (current.Kind != JsTokenKind.RightBrace)
+            {
+                var propertyPosition = current.Position;
+                if (Match(JsTokenKind.Ellipsis))
+                {
+                    if (current.Kind != JsTokenKind.Identifier)
+                        throw Error(
+                            "Object rest binding target must be an identifier",
+                            current.Position
+                        );
+                    properties.Add(
+                        new FlatObjectProperty(
+                            -1,
+                            ParseBindingTarget(),
+                            propertyPosition,
+                            FlatObjectPropertyFlags.Rest
+                        )
+                    );
+                    if (current.Kind == JsTokenKind.Comma)
+                        throw Error("Rest binding must be the final property", current.Position);
+                    break;
+                }
+
+                var computed = Match(JsTokenKind.LeftBracket);
+                int key;
+                JsToken shorthandToken = default;
+                if (computed)
+                {
+                    key = ParseAssignment(allowIn: true);
+                    Expect(JsTokenKind.RightBracket);
+                }
+                else
+                {
+                    shorthandToken = current;
+                    key = Arena.AddString(GetObjectPropertyName(current));
+                    Next();
+                }
+
+                int target;
+                if (Match(JsTokenKind.Colon))
+                    target = ParseBindingTarget();
+                else if (!computed && shorthandToken.Kind == JsTokenKind.Identifier)
+                    target = Arena.Add(
+                        AstKind.Identifier,
+                        Arena.AddString(GetIdentifierText(shorthandToken)),
+                        shorthandToken.IdentifierId,
+                        position: shorthandToken.Position
+                    );
+                else
+                    throw Error("Expected ':' after object binding key", current.Position);
+
+                properties.Add(
+                    new FlatObjectProperty(
+                        key,
+                        ParseBindingDefault(target),
+                        propertyPosition,
+                        computed ? FlatObjectPropertyFlags.Computed : FlatObjectPropertyFlags.None
+                    )
+                );
+                if (!Match(JsTokenKind.Comma) && current.Kind != JsTokenKind.RightBrace)
+                    throw Error("Expected ',' or '}'", current.Position);
+            }
+
+            Expect(JsTokenKind.RightBrace);
+            var range = ast.AddObjectProperties(properties.AsSpan());
+            return Arena.Add(
+                AstKind.ObjectBindingPattern,
+                range.Offset,
+                range.Count,
+                position: position
+            );
+        }
+        finally
+        {
+            properties.Dispose();
+        }
     }
 
     private int ParseFunctionDeclaration()

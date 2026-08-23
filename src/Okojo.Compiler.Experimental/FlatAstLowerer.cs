@@ -63,6 +63,8 @@ internal static class FlatAstLowerer
             return statement switch
             {
                 JsVariableDeclarationStatement declaration => LowerVariableDeclaration(declaration),
+                JsEmptyObjectBindingDeclarationStatement emptyObjectBinding =>
+                    LowerEmptyObjectBindingDeclaration(emptyObjectBinding),
                 JsFunctionDeclaration function => LowerFunctionDeclaration(function),
                 JsBlockStatement block => LowerBlock(block),
                 JsIfStatement ifStatement => Arena.Add(
@@ -215,7 +217,7 @@ internal static class FlatAstLowerer
                 [
                     Arena.Add(
                         AstKind.VariableDeclaratorPattern,
-                        LowerArrayBindingPattern(declaration.BindingPattern),
+                        LowerBindingPattern(declaration.BindingPattern),
                         LowerExpression(declaration.BindingInitializer),
                         position: declaration.Position
                     ),
@@ -264,7 +266,7 @@ internal static class FlatAstLowerer
             }
         }
 
-        private int LowerArrayBindingPattern(JsExpression pattern)
+        private int LowerBindingPattern(JsExpression pattern)
         {
             return pattern switch
             {
@@ -276,20 +278,21 @@ internal static class FlatAstLowerer
                 ),
                 JsSpreadExpression spread => Arena.Add(
                     AstKind.SpreadElement,
-                    LowerArrayBindingPattern(spread.Argument),
+                    LowerBindingPattern(spread.Argument),
                     position: spread.Position
                 ),
                 JsAssignmentExpression { Operator: JsAssignmentOperator.Assign } assignment =>
                     Arena.Add(
                         AstKind.AssignmentExpression,
-                        LowerArrayBindingPattern(assignment.Left),
+                        LowerBindingPattern(assignment.Left),
                         LowerExpression(assignment.Right),
                         (int)JsAssignmentOperator.Assign,
                         assignment.Position
                     ),
                 JsArrayExpression array => LowerArrayBindingArray(array),
+                JsObjectExpression @object => LowerObjectBindingObject(@object),
                 _ => throw new NotSupportedException(
-                    $"Array binding target '{pattern.GetType().Name}' is not supported by {compilerName}."
+                    $"Binding target '{pattern.GetType().Name}' is not supported by {compilerName}."
                 ),
             };
         }
@@ -301,7 +304,7 @@ internal static class FlatAstLowerer
             {
                 for (var i = 0; i < array.Elements.Count; i++)
                     elements[i] = array.Elements[i] is { } element
-                        ? LowerArrayBindingPattern(element)
+                        ? LowerBindingPattern(element)
                         : -1;
                 var children = Arena.AddChildren(elements.AsSpan(0, array.Elements.Count));
                 return Arena.Add(
@@ -315,6 +318,89 @@ internal static class FlatAstLowerer
             {
                 ArrayPool<int>.Shared.Return(elements);
             }
+        }
+
+        private int LowerObjectBindingObject(JsObjectExpression @object)
+        {
+            var properties = ArrayPool<FlatObjectProperty>.Shared.Rent(@object.Properties.Count);
+            try
+            {
+                for (var i = 0; i < @object.Properties.Count; i++)
+                {
+                    var property = @object.Properties[i];
+                    if (property.Kind == JsObjectPropertyKind.Spread)
+                    {
+                        if (i != @object.Properties.Count - 1)
+                            throw new NotSupportedException(
+                                "Object rest binding must be the final property."
+                            );
+                        properties[i] = new(
+                            -1,
+                            LowerBindingPattern(property.Value),
+                            property.Position,
+                            FlatObjectPropertyFlags.Rest
+                        );
+                        continue;
+                    }
+                    if (property.Kind != JsObjectPropertyKind.Data)
+                        throw new NotSupportedException(
+                            $"Object binding property '{property.Kind}' is not supported by {compilerName}."
+                        );
+
+                    properties[i] = new(
+                        property.IsComputed
+                            ? LowerExpression(property.ComputedKey!)
+                            : Arena.AddString(property.Key),
+                        LowerBindingPattern(property.Value),
+                        property.Position,
+                        property.IsComputed
+                            ? FlatObjectPropertyFlags.Computed
+                            : FlatObjectPropertyFlags.None
+                    );
+                }
+
+                var range = Ast.AddObjectProperties(properties.AsSpan(0, @object.Properties.Count));
+                return Arena.Add(
+                    AstKind.ObjectBindingPattern,
+                    range.Offset,
+                    range.Count,
+                    position: @object.Position
+                );
+            }
+            finally
+            {
+                ArrayPool<FlatObjectProperty>.Shared.Return(properties);
+            }
+        }
+
+        private int LowerEmptyObjectBindingDeclaration(
+            JsEmptyObjectBindingDeclarationStatement declaration
+        )
+        {
+            var range = Ast.AddObjectProperties(ReadOnlySpan<FlatObjectProperty>.Empty);
+            var pattern = Arena.Add(
+                AstKind.ObjectBindingPattern,
+                range.Offset,
+                range.Count,
+                position: declaration.Position
+            );
+            Span<int> declarator =
+            [
+                Arena.Add(
+                    AstKind.VariableDeclaratorPattern,
+                    pattern,
+                    LowerExpression(declaration.Initializer),
+                    position: declaration.Position
+                ),
+            ];
+            var children = Arena.AddChildren(declarator);
+            return Arena.Add(
+                AstKind.VariableDeclaration,
+                children.Offset,
+                children.Count,
+                (int)declaration.Kind,
+                declaration.Position
+            );
         }
 
         private (int Offset, int Count) LowerStatements(IReadOnlyList<JsStatement> statements)

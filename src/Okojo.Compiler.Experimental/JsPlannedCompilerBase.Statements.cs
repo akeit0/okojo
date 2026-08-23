@@ -1,5 +1,7 @@
+using System.Buffers;
 using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Execution;
 using Okojo.JavaScript.Parsing;
 
 namespace Okojo.JavaScript.Compiler.Experimental;
@@ -318,7 +320,7 @@ internal abstract partial class JsPlannedCompilerBase
             return;
         }
 
-        if (target.Kind != AstKind.ArrayBindingPattern)
+        if (target.Kind is not (AstKind.ArrayBindingPattern or AstKind.ObjectBindingPattern))
             throw new NotSupportedException(
                 $"{CompilerName} does not support binding target '{target.Kind}'."
             );
@@ -328,7 +330,10 @@ internal abstract partial class JsPlannedCompilerBase
         {
             var valueRegister = builder.AllocateTemporaryRegister();
             EmitStar(valueRegister);
-            EmitArrayBindingPattern(ast, target, valueRegister);
+            if (target.Kind == AstKind.ArrayBindingPattern)
+                EmitArrayBindingPattern(ast, target, valueRegister);
+            else
+                EmitObjectBindingPattern(ast, target, valueRegister);
         }
         finally
         {
@@ -505,6 +510,135 @@ internal abstract partial class JsPlannedCompilerBase
         EmitLdar(iteratorRegister);
         builder.EmitCallRuntime((int)RuntimeId.DestructureIteratorClose, iteratorRegister, 1);
         builder.BindLabel(endLabel);
+    }
+
+    private void EmitObjectBindingPattern(FlatAst ast, AstNode pattern, int sourceRegister)
+    {
+        var properties = ast.GetObjectProperties(pattern.Arg0, pattern.Arg1);
+        var restIndex = -1;
+        for (var i = 0; i < properties.Length; i++)
+            if (properties[i].IsRest)
+            {
+                restIndex = i;
+                break;
+            }
+        var computedKeyRegisters = restIndex >= 0 ? ArrayPool<int>.Shared.Rent(restIndex) : null;
+        if (computedKeyRegisters is not null)
+            Array.Fill(computedKeyRegisters, -1, 0, restIndex);
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            EmitLdar(sourceRegister);
+            builder.EmitCallRuntime((int)RuntimeId.RequireObjectCoercible, sourceRegister, 1);
+            var propertyValueRegister = -1;
+            var reusableKeyRegister = -1;
+            for (var i = 0; i < properties.Length; i++)
+            {
+                ref readonly var property = ref properties[i];
+                if (property.IsRest)
+                {
+                    EmitObjectBindingRest(
+                        ast,
+                        property.ValueNode,
+                        sourceRegister,
+                        properties[..i],
+                        computedKeyRegisters!.AsSpan(0, i)
+                    );
+                    continue;
+                }
+
+                if (property.IsComputed)
+                {
+                    EmitExpression(ast, property.Key);
+                    var keyRegister =
+                        restIndex >= 0 ? builder.AllocateTemporaryRegister()
+                        : reusableKeyRegister >= 0 ? reusableKeyRegister
+                        : reusableKeyRegister = builder.AllocateTemporaryRegister();
+                    EmitStar(keyRegister);
+                    builder.EmitCallRuntime((int)RuntimeId.NormalizePropertyKey, keyRegister, 1);
+                    EmitStar(keyRegister);
+                    if (computedKeyRegisters is not null)
+                        computedKeyRegisters[i] = keyRegister;
+                    EmitLdar(keyRegister);
+                    builder.EmitLdaKeyedProperty(sourceRegister);
+                }
+                else
+                {
+                    var name = ast.GetString(property.Key);
+                    if (AtomTable.TryGetArrayIndexFromCanonicalString(name, out var index))
+                    {
+                        EmitNumericLiteral(index);
+                        builder.EmitLdaKeyedProperty(sourceRegister);
+                    }
+                    else
+                    {
+                        builder.EmitLdaNamedProperty(
+                            sourceRegister,
+                            builder.AddAtomizedStringConstant(name),
+                            builder.AllocateFeedbackSlot()
+                        );
+                    }
+                }
+
+                var targetIndex = property.ValueNode;
+                var defaultIndex = -1;
+                ref readonly var target = ref ast[targetIndex];
+                if (
+                    target.Kind == AstKind.AssignmentExpression
+                    && (JsAssignmentOperator)target.Arg2 == JsAssignmentOperator.Assign
+                )
+                {
+                    targetIndex = target.Arg0;
+                    defaultIndex = target.Arg1;
+                }
+                if (defaultIndex >= 0)
+                {
+                    if (propertyValueRegister < 0)
+                        propertyValueRegister = builder.AllocateTemporaryRegister();
+                    EmitBindingDefault(ast, defaultIndex, propertyValueRegister);
+                }
+                EmitStoreBindingTarget(ast, targetIndex);
+            }
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+            if (computedKeyRegisters is not null)
+                ArrayPool<int>.Shared.Return(computedKeyRegisters);
+        }
+    }
+
+    private void EmitObjectBindingRest(
+        FlatAst ast,
+        int targetIndex,
+        int sourceRegister,
+        ReadOnlySpan<FlatObjectProperty> excludedProperties,
+        ReadOnlySpan<int> computedKeyRegisters
+    )
+    {
+        builder.Emit(JsOpCode.CreateEmptyObjectLiteral);
+        var restRegister = builder.AllocateTemporaryRegister();
+        EmitStar(restRegister);
+        var argumentStart = builder.AllocateTemporaryRegisterBlock(2 + excludedProperties.Length);
+        EmitLdar(restRegister);
+        EmitStar(argumentStart);
+        EmitLdar(sourceRegister);
+        EmitStar(argumentStart + 1);
+        for (var i = 0; i < excludedProperties.Length; i++)
+        {
+            if (computedKeyRegisters[i] >= 0)
+                EmitLdar(computedKeyRegisters[i]);
+            else
+                EmitStringLiteral(ast.GetString(excludedProperties[i].Key));
+            EmitStar(argumentStart + 2 + i);
+        }
+        builder.EmitCallRuntime(
+            (int)RuntimeId.CopyDataPropertiesExcluding,
+            argumentStart,
+            2 + excludedProperties.Length
+        );
+        EmitLdar(restRegister);
+        EmitStoreBindingTarget(ast, targetIndex);
     }
 
     private void EmitFunctionDeclaration(FlatAst ast, int functionIndex, int bodyRoot)

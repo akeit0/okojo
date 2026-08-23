@@ -265,6 +265,10 @@ Array binding declarations now stay flat through discovery and emission. Pattern
 children reuse dense arena spans, while bytecode performs iterator step, default,
 and binding store in source order. A declaration-local try region handles iterator
 close without adding the production compiler's general finally-routing state.
+Object binding declarations reuse the parsing-owned dense property table with a
+distinct pattern node and rest flag. The emitter retains separate normalized
+computed-key registers only when rest requires them; patterns without rest reuse
+one key scratch register. Static numeric keys stay on keyed property loads.
 Captured ordinary `for` heads now use per-iteration sibling-context replacement.
 The loop-head context is copied and replaced before the first test and before each
 update, so closures retain the prior iteration without inserting an extra context

@@ -73,6 +73,7 @@ Both planned compilers currently support:
 - ordinary and spread construction
 - array literals with holes and dynamic elements, excluding spread
 - array binding declarations with elisions, defaults, nesting, and rest
+- object binding declarations with static/computed keys, defaults, nesting, and rest
 - object literals with named, indexed, computed, shorthand, and duplicate data properties
 - named/computed member assignment, compound/logical assignment, and update
 - nested capture and assignment for parameter, root, function, and block bindings
@@ -87,7 +88,7 @@ lowerer comparison.
 Still intentionally unsupported in the experimental pipeline:
 
 - optional calls, `new.target`, and private/super member access
-- object binding declarations, destructuring assignments, and pattern parameters
+- destructuring assignments and pattern parameters
 - object methods/accessors/spread and array spread
 - module/global binding emission
 - `for-in` / `for-of` per-iteration behavior
@@ -113,6 +114,7 @@ Current milestone status:
 - spread calls and construction with source-ordered iterator materialization: done
 - array literals without spread: done
 - array binding declarations with iterator-safe step/store lowering: done
+- object binding declarations with normalized-key rest exclusion: done
 - data-property object literals with stable-prefix shapes: done
 - prepared-reference member writes and updates: done
 - dense scope/capture planning: done
@@ -144,7 +146,7 @@ dotnet test tests/Okojo.Compiler.Tests/Okojo.Compiler.Tests.csproj --no-build
 
 Recommended next slices:
 
-1. object binding declarations and destructuring assignments
+1. destructuring assignments
 2. binding patterns in formal parameters
 3. object methods and accessors
 4. `for-in` / `for-of`

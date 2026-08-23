@@ -166,6 +166,28 @@ public class JsPlannedFunctionCompilerTests
     }
 
     [Test]
+    public void CompileScript_ExecutesClassBridgeObjectBindingDeclaration()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var program = JavaScriptParser.ParseScript(
+            """
+            let {} = {};
+            let key = 'b';
+            let source = { a: 1, b: undefined, c: 3, d: 4, 2: 5, nested: { x: 6 } };
+            let { a: first, [key]: second = 7, c, 2: numeric, nested: { x }, ...rest } = source;
+            let { length } = 'abc';
+            first * 100 + second * 10 + c + numeric + x + rest.d + length;
+            """
+        );
+        var script = compiler.Compile(program);
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(191));
+    }
+
+    [Test]
     public void CompileFunction_ProducesBytecodeForParametersAndReturn()
     {
         var realm = JsRuntime.Create().DefaultRealm;

@@ -280,6 +280,18 @@ internal static partial class CompilerBindingCollector
                             VisitBindingPattern(ast, elements[i], scopeId, bindingKind, isConst);
                     return;
                 }
+                case AstKind.ObjectBindingPattern:
+                {
+                    var properties = ast.GetObjectProperties(node.Arg0, node.Arg1);
+                    for (var i = 0; i < properties.Length; i++)
+                    {
+                        ref readonly var property = ref properties[i];
+                        if (property.IsComputed)
+                            VisitExpression(ast, property.Key, scopeId);
+                        VisitBindingPattern(ast, property.ValueNode, scopeId, bindingKind, isConst);
+                    }
+                    return;
+                }
                 case AstKind.SpreadElement:
                     VisitBindingPattern(ast, node.Arg0, scopeId, bindingKind, isConst);
                     return;

@@ -40,6 +40,11 @@ and a final rest element. It covers `var`/`let`/`const` declarations; assignment
 patterns and formal-parameter patterns remain separate follow-up work.
 An unshadowed `undefined` identifier now emits `LdaUndefined` directly after local
 binding lookup, so lexical shadowing retains normal binding semantics.
+The object-binding slice adds a distinct `ObjectBindingPattern` node backed by the
+existing pooled `FlatObjectProperty` table. Properties retain static or computed
+source keys plus binding targets; rest is an explicit property flag. It covers
+empty, shorthand, aliased, computed, defaulted, nested, numeric, and rest bindings
+for `var`/`let`/`const` declarations.
 
 ## Minimal Repros
 
@@ -100,6 +105,11 @@ let [first, , third = 3, ...rest] = [1, 2, undefined, 4, 5];
 first * 100 + third * 10 + rest.length; // 132
 ```
 
+```js
+let { a: first, [key()]: second = 7, c, ...rest } = source;
+first * 100 + second * 10 + c + rest.d;
+```
+
 ## Planned Tests
 
 - `tests/Okojo.Compiler.Tests/DirectFlatParserTests.cs`
@@ -118,6 +128,8 @@ first * 100 + third * 10 + rest.length; // 132
   - array binding elisions, defaults, rest, nesting, iterator close, wide registers,
     and class bridging
   - unshadowed and lexically shadowed `undefined` reads
+  - object binding key order, defaults, nesting, numeric keys, rest exclusions,
+    nullish rejection, wide operands, and class bridging
 
 ## Reference Observations
 
@@ -179,6 +191,14 @@ V8 emits the undefined constant directly for an unshadowed `undefined` read. The
 flat emitter copies that shape only after planned local lookup, preserving code
 such as `let undefined = 42` without allocating a synthetic global binding.
 
+V8 and production Okojo require an object-coercible source before computed-key
+effects, normalize each computed key once, load and initialize its target before
+the next property, then copy rest properties with every prior static or normalized
+key excluded. The flat emitter copies that order and reuses Okojo's
+`RequireObjectCoercible`, keyed/named load, `NormalizePropertyKey`, and
+`CopyDataPropertiesExcluding` ABI. Numeric static keys use keyed loads so they stay
+off atom/shape-oriented paths.
+
 For captured `for (let ...)` heads, V8 creates a new block context for each
 iteration and moves the value through the update path. Production Okojo clones a
 function context because its loop aliases share function-level cells. The flat
@@ -198,6 +218,7 @@ outer capture depths unchanged and retains old contexts only through closures.
 - reuse the call argument span/register allocator for construction
 - materialize spread iterables once at their source-order evaluation point
 - store array bindings between iterator steps and share the existing iterator-close runtimes
+- retain normalized computed object-binding keys only until a following rest copy
 
 Initial Release measurement for 80 declaration/update pairs after warm-up:
 
@@ -207,8 +228,8 @@ Initial Release measurement for 80 declaration/update pairs after warm-up:
 
 ## Deferred
 
-- templates, classes, modules, object destructuring, destructuring assignments,
-  and destructuring parameter forms
+- templates, classes, modules, destructuring assignments, and destructuring
+  parameter forms
 - object methods, accessors, and spread
 - array spread
 - optional chaining, `new.target`, and private/super members
