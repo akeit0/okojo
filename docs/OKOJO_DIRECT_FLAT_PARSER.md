@@ -38,6 +38,8 @@ The array-binding slice represents binding targets directly in the flat arena:
 whose dense child span contains identifiers, elisions, defaults, nested arrays,
 and a final rest element. It covers `var`/`let`/`const` declarations; assignment
 patterns and formal-parameter patterns remain separate follow-up work.
+An unshadowed `undefined` identifier now emits `LdaUndefined` directly after local
+binding lookup, so lexical shadowing retains normal binding semantics.
 
 ## Minimal Repros
 
@@ -94,7 +96,7 @@ collect(...values, 3); // 123
 ```
 
 ```js
-let [first, , third = 3, ...rest] = [1, 2, void 0, 4, 5];
+let [first, , third = 3, ...rest] = [1, 2, undefined, 4, 5];
 first * 100 + third * 10 + rest.length; // 132
 ```
 
@@ -115,6 +117,7 @@ first * 100 + third * 10 + rest.length; // 132
   - direct/property spread calls, spread construction, and iterator evaluation order
   - array binding elisions, defaults, rest, nesting, iterator close, wide registers,
     and class bridging
+  - unshadowed and lexically shadowed `undefined` reads
 
 ## Reference Observations
 
@@ -171,6 +174,10 @@ operations but adds a declaration-local `PushTry` region instead of importing th
 production compiler's general finally-routing machinery; declarations cannot
 branch out of the pattern, so this smaller control-flow shape is complete for the
 slice.
+
+V8 emits the undefined constant directly for an unshadowed `undefined` read. The
+flat emitter copies that shape only after planned local lookup, preserving code
+such as `let undefined = 42` without allocating a synthetic global binding.
 
 For captured `for (let ...)` heads, V8 creates a new block context for each
 iteration and moves the value through the update path. Production Okojo clones a

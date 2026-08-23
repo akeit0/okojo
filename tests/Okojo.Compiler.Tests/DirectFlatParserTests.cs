@@ -221,7 +221,7 @@ public class DirectFlatParserTests
         var compiler = new JsPlannedScriptCompiler(realm);
         var script = compiler.Compile(
             """
-            let [first, , third = 3, ...rest] = [1, 2, void 0, 4, 5];
+            let [first, , third = 3, ...rest] = [1, 2, undefined, 4, 5];
             let [ignored, [nested = 6]] = [0, []];
             first * 100 + third * 10 + rest.length + nested;
             """
@@ -349,6 +349,21 @@ public class DirectFlatParserTests
 
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(259));
         Assert.That(script.Bytecode, Does.Contain((byte)JsOpCode.Wide));
+    }
+
+    [Test]
+    public void CompileString_LoadsUnshadowedUndefinedIntrinsicAndPrefersLocalBinding()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var intrinsicScript = new JsPlannedScriptCompiler(realm).Compile("undefined;");
+        var shadowedScript = new JsPlannedScriptCompiler(realm).Compile(
+            "let undefined = 42; undefined;"
+        );
+
+        realm.Execute(intrinsicScript);
+        Assert.That(realm.Accumulator.IsUndefined, Is.True);
+        realm.Execute(shadowedScript);
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(42));
     }
 
     [Test]

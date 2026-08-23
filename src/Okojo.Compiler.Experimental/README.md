@@ -65,6 +65,7 @@ Both planned compilers currently support:
 - blocks, `if`, `while`, `do/while`, ordinary `for`, `break`, and `continue`
 - function declarations, expression statements, and function `return`
 - null, boolean, number, and string literals
+- unshadowed `undefined` intrinsic reads with lexical shadowing
 - unary, arithmetic, bitwise, comparison, logical, conditional, sequence, and
   identifier update expressions
 - identifier assignment and compound/logical assignment

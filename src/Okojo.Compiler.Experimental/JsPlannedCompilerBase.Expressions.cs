@@ -945,6 +945,12 @@ internal abstract partial class JsPlannedCompilerBase
     {
         if (!TryResolveBindingAccess(name, out var binding, out var contextDepth))
         {
+            if (string.Equals(name, "undefined", StringComparison.Ordinal))
+            {
+                builder.EmitLda(JsOpCode.LdaUndefined);
+                return;
+            }
+
             if (TryResolveExternalBinding(name, out var externalBinding, out var externalDepth))
             {
                 EmitLdaContextSlot(externalBinding.Slot, externalDepth);

@@ -154,7 +154,7 @@ public class JsPlannedFunctionCompilerTests
         var compiler = new JsPlannedScriptCompiler(realm);
         var program = JavaScriptParser.ParseScript(
             """
-            let [first, , third = 3, ...rest] = [1, 2, void 0, 4, 5];
+            let [first, , third = 3, ...rest] = [1, 2, undefined, 4, 5];
             first * 100 + third * 10 + rest.length;
             """
         );
