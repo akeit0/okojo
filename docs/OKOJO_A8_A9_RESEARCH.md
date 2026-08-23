@@ -424,3 +424,32 @@ ExecMatchResult + replacement-template machinery; replace-with-callback adds
 call-lane cost), and per-match Substring+array-element stores remain.
 Next candidates: mirror the same fast stepping into [Symbol.replace] string
 case; audit String.split(regex) loop allocations.
+
+## 9a. Regexp fast-path attempts - REVERTED, deferred with spec notes
+
+Two fast paths ([Symbol.match]/[Symbol.replace] global loops stepping
+RegExpEngine directly with pooled capture buffers) were implemented,
+measured (match-g micro -12%, whole-file flat), then REVERTED after the
+suite exposed spec-observability violations:
+
+1. The exec GET is observable EVERY iteration (RegExpExec reads R.exec each
+   time). A pre-loop identity probe adds an extra get; skipping per-iteration
+   reads drops them. Fixed once by re-checking inside the loop + mid-stream
+   fallback to the generic loop via lastIndex writeback.
+2. Custom exec interplay (RegExpExternalEngineTests.AdvanceLastIndexAfterEmptyMatch):
+   fallback writeback of lastIndex=0 clobbers state a custom exec set
+   (2^54 -> expected clamp/advance semantics 2^53). Correct handling requires
+   exact ToLength/AdvanceStringIndex ordering identical to RegExpBuiltinExec.
+3. String_Match_Global...Primitive_Path: TypeError from primitive property
+   access during matchAll section - root cause not yet isolated; possibly
+   interaction beyond the fast path.
+
+Deferred design requirements before retrying:
+- Per-iteration observable exec get (identity re-check inside loop).
+- lastIndex read/write through the SAME property path as generic loop
+  (no hidden-slot shortcuts) OR prove shadowing impossible for JsRegExpObject.
+- Empty-match advance using AdvanceStringIndexLong on the ToLength-clamped
+  value exactly like RegExpBuiltinExec; verify FromLengthValue clamping at
+  2^53 boundary against test262 RegExp.prototype[Symbol.replace] cases.
+- Isolate the matchAll primitive-path TypeError separately from the fast
+  path (may be a pre-existing bug worth its own fix).

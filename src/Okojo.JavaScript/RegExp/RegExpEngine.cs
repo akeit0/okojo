@@ -12,9 +12,6 @@ internal sealed class RegExpEngine
 
     private readonly RegExpOptions _options;
 
-    [ThreadStatic]
-    private static CaptureRange[]? t_reuseCaptures;
-
     private RegExpEngine(RegExpOptions? options = null)
     {
         _options = options ?? RegExpOptions.Default;
@@ -33,49 +30,6 @@ internal sealed class RegExpEngine
         {
             EngineState = regexp,
         };
-    }
-
-    /// <summary>
-    ///     R8-regexp fast path: executes <paramref name="compiled"/> against
-    ///     <paramref name="input"/> from <paramref name="startIndex"/> and
-    ///     reports only the group-0 range without constructing any match-result
-    ///     objects. The scratch capture buffer is reused per thread.
-    /// </summary>
-    public bool TryMatchRange(
-        RegExpCompiledPattern compiled,
-        string input,
-        int startIndex,
-        out int index,
-        out int length
-    )
-    {
-        if (
-            compiled.EngineState is not CompiledRegExp regexp
-            || startIndex > input.Length
-            || startIndex < 0
-        )
-        {
-            index = 0;
-            length = 0;
-            return false;
-        }
-
-        var required = regexp.RequiredCaptureCount;
-        var captures = t_reuseCaptures;
-        if (captures is null || captures.Length < required)
-            captures = new CaptureRange[Math.Max(required, 4)];
-        t_reuseCaptures = captures;
-
-        if (!regexp.TryMatch(input, startIndex, captures.AsSpan(0, required), out _))
-        {
-            index = 0;
-            length = 0;
-            return false;
-        }
-
-        index = captures[0].Index;
-        length = captures[0].Length;
-        return true;
     }
 
     public RegExpMatchResult? Exec(RegExpCompiledPattern compiled, string input, int startIndex)
