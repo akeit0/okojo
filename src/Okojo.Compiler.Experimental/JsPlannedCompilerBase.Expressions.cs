@@ -7,9 +7,38 @@ namespace Okojo.JavaScript.Compiler.Experimental;
 
 internal abstract partial class JsPlannedCompilerBase
 {
-    private void EmitExpression(FlatAst ast, int nodeIndex)
+    private void EmitExpression(FlatAst ast, int nodeIndex) =>
+        EmitExpression(ast, nodeIndex, ExpressionResult.Value);
+
+    private void EmitExpressionForEffect(FlatAst ast, int nodeIndex) =>
+        EmitExpression(ast, nodeIndex, ExpressionResult.Effect);
+
+    private void EmitExpressionForTest(
+        FlatAst ast,
+        int nodeIndex,
+        BytecodeBuilder.Label target,
+        bool jumpIfTrue
+    ) => EmitExpression(ast, nodeIndex, ExpressionResult.Test(target, jumpIfTrue));
+
+    private void EmitExpression(FlatAst ast, int nodeIndex, ExpressionResult result)
     {
         ref readonly var node = ref ast[nodeIndex];
+        if (result.Mode == ExpressionResultMode.Test)
+        {
+            EmitTestExpression(ast, nodeIndex, node, result.Target, result.JumpIfTrue);
+            return;
+        }
+
+        if (
+            result.Mode == ExpressionResultMode.Effect
+            && node.Kind
+                is AstKind.NullLiteral
+                    or AstKind.BooleanLiteral
+                    or AstKind.NumericLiteral
+                    or AstKind.StringLiteral
+        )
+            return;
+
         switch (node.Kind)
         {
             case AstKind.NullLiteral:
@@ -56,7 +85,7 @@ internal abstract partial class JsPlannedCompilerBase
                     $"{CompilerName} does not support this assignment target."
                 );
             case AstKind.BinaryExpression:
-                EmitBinaryExpression(ast, node);
+                EmitBinaryExpression(ast, node, result);
                 return;
             case AstKind.UnaryExpression:
                 EmitUnaryExpression(ast, node);
@@ -65,10 +94,10 @@ internal abstract partial class JsPlannedCompilerBase
                 EmitUpdateExpression(ast, node);
                 return;
             case AstKind.ConditionalExpression:
-                EmitConditionalExpression(ast, node);
+                EmitConditionalExpression(ast, node, result);
                 return;
             case AstKind.SequenceExpression:
-                EmitSequenceExpression(ast, node);
+                EmitSequenceExpression(ast, node, result);
                 return;
             case AstKind.CallExpression:
                 EmitCallExpression(ast, node);
@@ -93,6 +122,113 @@ internal abstract partial class JsPlannedCompilerBase
                     $"{CompilerName} does not support flat expression '{node.Kind}'."
                 );
         }
+    }
+
+    private void EmitTestExpression(
+        FlatAst ast,
+        int nodeIndex,
+        AstNode node,
+        BytecodeBuilder.Label target,
+        bool jumpIfTrue
+    )
+    {
+        if (node.Kind == AstKind.BooleanLiteral)
+        {
+            if ((node.Arg0 != 0) == jumpIfTrue)
+                EmitJump(target);
+            return;
+        }
+
+        if (
+            node.Kind == AstKind.UnaryExpression
+            && (JsUnaryOperator)node.Arg1 == JsUnaryOperator.LogicalNot
+        )
+        {
+            EmitExpressionForTest(ast, node.Arg0, target, !jumpIfTrue);
+            return;
+        }
+
+        if (node.Kind == AstKind.BinaryExpression)
+        {
+            var op = (JsBinaryOperator)node.Arg2;
+            if (op is JsBinaryOperator.LogicalAnd or JsBinaryOperator.LogicalOr)
+            {
+                EmitLogicalTestExpression(ast, node, op, target, jumpIfTrue);
+                return;
+            }
+        }
+
+        if (node.Kind == AstKind.ConditionalExpression)
+        {
+            var alternate = builder.CreateLabel();
+            var end = builder.CreateLabel();
+            EmitExpressionForTest(ast, node.Arg0, alternate, jumpIfTrue: false);
+            EmitExpressionForTest(ast, node.Arg1, target, jumpIfTrue);
+            EmitJump(end);
+            builder.BindLabel(alternate);
+            EmitExpressionForTest(ast, node.Arg2, target, jumpIfTrue);
+            builder.BindLabel(end);
+            return;
+        }
+
+        if (node.Kind == AstKind.SequenceExpression)
+        {
+            var expressions = ast.ChildRange(node.Arg0, node.Arg1);
+            if (expressions.Length == 0)
+            {
+                if (!jumpIfTrue)
+                    EmitJump(target);
+                return;
+            }
+
+            for (var i = 0; i < expressions.Length - 1; i++)
+                EmitExpressionForEffect(ast, expressions[i]);
+            EmitExpressionForTest(ast, expressions[^1], target, jumpIfTrue);
+            return;
+        }
+
+        EmitExpression(ast, nodeIndex, ExpressionResult.Value);
+        if (jumpIfTrue)
+            EmitJumpIfToBooleanTrue(target);
+        else
+            EmitJumpIfToBooleanFalse(target);
+    }
+
+    private void EmitLogicalTestExpression(
+        FlatAst ast,
+        AstNode node,
+        JsBinaryOperator op,
+        BytecodeBuilder.Label target,
+        bool jumpIfTrue
+    )
+    {
+        if (op == JsBinaryOperator.LogicalAnd)
+        {
+            if (!jumpIfTrue)
+            {
+                EmitExpressionForTest(ast, node.Arg0, target, jumpIfTrue: false);
+                EmitExpressionForTest(ast, node.Arg1, target, jumpIfTrue: false);
+                return;
+            }
+
+            var falseFallthrough = builder.CreateLabel();
+            EmitExpressionForTest(ast, node.Arg0, falseFallthrough, jumpIfTrue: false);
+            EmitExpressionForTest(ast, node.Arg1, target, jumpIfTrue: true);
+            builder.BindLabel(falseFallthrough);
+            return;
+        }
+
+        if (jumpIfTrue)
+        {
+            EmitExpressionForTest(ast, node.Arg0, target, jumpIfTrue: true);
+            EmitExpressionForTest(ast, node.Arg1, target, jumpIfTrue: true);
+            return;
+        }
+
+        var trueFallthrough = builder.CreateLabel();
+        EmitExpressionForTest(ast, node.Arg0, trueFallthrough, jumpIfTrue: true);
+        EmitExpressionForTest(ast, node.Arg1, target, jumpIfTrue: false);
+        builder.BindLabel(trueFallthrough);
     }
 
     private void EmitFunctionExpression(FlatAst ast, int functionIndex, int bodyRoot)
@@ -506,7 +642,7 @@ internal abstract partial class JsPlannedCompilerBase
         builder.EmitLdaNamedProperty(objectRegister, nameIndex, feedbackSlot);
     }
 
-    private void EmitBinaryExpression(FlatAst ast, AstNode node)
+    private void EmitBinaryExpression(FlatAst ast, AstNode node, ExpressionResult result)
     {
         var op = (JsBinaryOperator)node.Arg2;
         if (op is JsBinaryOperator.LogicalAnd or JsBinaryOperator.LogicalOr)
@@ -517,7 +653,7 @@ internal abstract partial class JsPlannedCompilerBase
                 EmitJumpIfToBooleanFalse(end);
             else
                 EmitJumpIfToBooleanTrue(end);
-            EmitExpression(ast, node.Arg1);
+            EmitExpression(ast, node.Arg1, result);
             builder.BindLabel(end);
             return;
         }
@@ -531,7 +667,7 @@ internal abstract partial class JsPlannedCompilerBase
             EmitJumpIfUndefined(evaluateRight);
             EmitJump(end);
             builder.BindLabel(evaluateRight);
-            EmitExpression(ast, node.Arg1);
+            EmitExpression(ast, node.Arg1, result);
             builder.BindLabel(end);
             return;
         }
@@ -608,16 +744,15 @@ internal abstract partial class JsPlannedCompilerBase
         }
     }
 
-    private void EmitConditionalExpression(FlatAst ast, AstNode node)
+    private void EmitConditionalExpression(FlatAst ast, AstNode node, ExpressionResult result)
     {
         var alternate = builder.CreateLabel();
         var end = builder.CreateLabel();
-        EmitExpression(ast, node.Arg0);
-        EmitJumpIfToBooleanFalse(alternate);
-        EmitExpression(ast, node.Arg1);
+        EmitExpressionForTest(ast, node.Arg0, alternate, jumpIfTrue: false);
+        EmitExpression(ast, node.Arg1, result);
         EmitJump(end);
         builder.BindLabel(alternate);
-        EmitExpression(ast, node.Arg2);
+        EmitExpression(ast, node.Arg2, result);
         builder.BindLabel(end);
     }
 
@@ -806,17 +941,19 @@ internal abstract partial class JsPlannedCompilerBase
         bool IsComputed
     );
 
-    private void EmitSequenceExpression(FlatAst ast, AstNode node)
+    private void EmitSequenceExpression(FlatAst ast, AstNode node, ExpressionResult result)
     {
         var expressions = ast.ChildRange(node.Arg0, node.Arg1);
         if (expressions.Length == 0)
         {
-            builder.EmitLda(JsOpCode.LdaUndefined);
+            if (result.Mode == ExpressionResultMode.Value)
+                builder.EmitLda(JsOpCode.LdaUndefined);
             return;
         }
 
-        for (var i = 0; i < expressions.Length; i++)
-            EmitExpression(ast, expressions[i]);
+        for (var i = 0; i < expressions.Length - 1; i++)
+            EmitExpressionForEffect(ast, expressions[i]);
+        EmitExpression(ast, expressions[^1], result);
     }
 
     private void EmitIdentifierAssignment(

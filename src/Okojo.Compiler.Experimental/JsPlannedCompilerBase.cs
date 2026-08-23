@@ -7,7 +7,7 @@ internal abstract partial class JsPlannedCompilerBase
 {
     protected readonly BytecodeBuilder builder;
     protected readonly Stack<ActiveScope> activeScopes;
-    private readonly Stack<LoopTargets> loopTargets;
+    private readonly Stack<ControlScope> controlScopes;
     private CompilerPlannedBinding[] plannedBindings = [];
     private int[] plannedBindingOffsets = [];
     private int[] plannedBindingCounts = [];
@@ -22,7 +22,7 @@ internal abstract partial class JsPlannedCompilerBase
         Vm = realm;
         builder = new(realm);
         activeScopes = [];
-        loopTargets = [];
+        controlScopes = [];
     }
 
     protected JsRealm Vm { get; }
@@ -55,9 +55,42 @@ internal abstract partial class JsPlannedCompilerBase
         public bool HasContext => ContextSlotCount != 0;
     }
 
-    private readonly record struct LoopTargets(
+    private enum AbruptCommand : byte
+    {
+        Break,
+        Continue,
+        Return,
+    }
+
+    private enum ControlScopeKind : byte
+    {
+        Iteration,
+    }
+
+    private readonly record struct ControlScope(
+        ControlScopeKind Kind,
         BytecodeBuilder.Label Break,
         BytecodeBuilder.Label Continue,
         int ContextDepth
     );
+
+    private enum ExpressionResultMode : byte
+    {
+        Effect,
+        Value,
+        Test,
+    }
+
+    private readonly record struct ExpressionResult(
+        ExpressionResultMode Mode,
+        BytecodeBuilder.Label Target,
+        bool JumpIfTrue
+    )
+    {
+        public static ExpressionResult Effect => new(ExpressionResultMode.Effect, default, false);
+        public static ExpressionResult Value => new(ExpressionResultMode.Value, default, false);
+
+        public static ExpressionResult Test(BytecodeBuilder.Label target, bool jumpIfTrue) =>
+            new(ExpressionResultMode.Test, target, jumpIfTrue);
+    }
 }

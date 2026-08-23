@@ -1,3 +1,4 @@
+using Okojo.Diagnostics;
 using Okojo.JavaScript;
 using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Compiler.Experimental;
@@ -307,6 +308,37 @@ public class DirectFlatParserTests
 
         realm.Execute(script);
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(19));
+    }
+
+    [Test]
+    public void CompileString_EmitsLogicalConditionsInTestMode()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedScriptCompiler(realm);
+        var script = compiler.Compile(
+            """
+            function choose(a, b, c) {
+                if ((123, a && (b || !c))) return 1;
+                while (a ? b : c) {
+                    if (b) break;
+                    c = 0;
+                }
+                return 0;
+            }
+            choose(true, false, false) * 100
+                + choose(true, false, true) * 10
+                + choose(false, true, false);
+            """
+        );
+
+        realm.Execute(script);
+
+        var choose = script.ObjectConstants.OfType<JsBytecodeFunction>().Single();
+        var disassembly = Disassembler.Dump(choose.Script);
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(100));
+        Assert.That(disassembly, Does.Not.Contain(nameof(JsOpCode.LogicalNot)));
+        Assert.That(disassembly, Does.Not.Contain("LdaSmi 123"));
+        Assert.That(disassembly, Does.Contain(nameof(JsOpCode.JumpIfToBooleanTrue)));
     }
 
     [Test]

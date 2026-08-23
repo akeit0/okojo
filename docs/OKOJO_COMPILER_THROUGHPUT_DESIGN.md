@@ -271,6 +271,11 @@ hoisting without compiler-specific rewrites.
 - ordinary arrow functions
 - optional calls/chains and delete-chain behavior
 
+Foundation status: effect/value/test intent now propagates through logical-not,
+logical, conditional, and sequence expressions, and existing break, continue,
+and return emission shares one control-scope dispatcher. Try/finally interception,
+continuation tokens, labeled targets, and handler metadata remain part of P1.
+
 Exit gate: the direct path compiles the synchronous non-class application corpus
 and has differential execution coverage for every new control-flow form.
 

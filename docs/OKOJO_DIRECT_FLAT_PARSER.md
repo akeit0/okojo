@@ -248,6 +248,39 @@ function read(value = function nested(next = outer) { return next; }) {
 New side tables should be purpose-specific and dense: handler/catch records,
 switch clauses, and template spans. Avoid generic object payloads.
 
+First foundation slice landed:
+
+- `ExpressionResult` carries effect, value, or single-target test intent without
+  allocating result-scope objects
+- logical `&&`/`||`, logical-not, conditional, and sequence expressions propagate
+  test intent directly to jumps
+- pure literals in sequence-effect positions emit no accumulator load
+- break, continue, and return route through one control-scope dispatcher; loop
+  context unwinding is no longer a separate statement-only path
+
+Minimal repro:
+
+```js
+function choose(a, b, c) {
+  if ((123, a && (b || !c))) return 1;
+  while (a ? b : c) {
+    if (b) break;
+    c = 0;
+  }
+  return 0;
+}
+```
+
+Regression target:
+`DirectFlatParserTests.CompileString_EmitsLogicalConditionsInTestMode`.
+
+This copies V8's `ExpressionResultScope` and `ControlScope` responsibilities with
+value records and no per-scope object allocation. It intentionally does not yet
+copy try-finally continuation tokens: handler records, intercepted commands, and
+post-finally dispatch land with the try/finally grammar slice. The immediate
+throughput check is fewer materialized booleans and no redundant literal loads;
+end-to-end impact remains benchmark-gated.
+
 ### Stage F2 - Resumable functions
 
 - generators, `yield`, and `yield*`

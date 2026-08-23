@@ -35,10 +35,10 @@ internal abstract partial class JsPlannedCompilerBase
                 EmitForStatement(ast, nodeIndex, node);
                 return;
             case AstKind.BreakStatement:
-                EmitLoopControl(isContinue: false);
+                EmitAbruptCommand(AbruptCommand.Break);
                 return;
             case AstKind.ContinueStatement:
-                EmitLoopControl(isContinue: true);
+                EmitAbruptCommand(AbruptCommand.Continue);
                 return;
             case AstKind.ExpressionStatement:
                 EmitExpression(ast, node.Arg0);
@@ -48,7 +48,7 @@ internal abstract partial class JsPlannedCompilerBase
                     EmitExpression(ast, node.Arg0);
                 else
                     builder.EmitLda(JsOpCode.LdaUndefined);
-                builder.Emit(JsOpCode.Return);
+                EmitAbruptCommand(AbruptCommand.Return);
                 return;
             case AstKind.EmptyStatement:
                 builder.EmitLda(JsOpCode.LdaUndefined);
@@ -65,16 +65,15 @@ internal abstract partial class JsPlannedCompilerBase
         var continueTarget = builder.CreateLabel();
         var breakTarget = builder.CreateLabel();
         builder.BindLabel(continueTarget);
-        EmitExpression(ast, test);
-        EmitJumpIfToBooleanFalse(breakTarget);
-        PushLoopTargets(breakTarget, continueTarget);
+        EmitExpressionForTest(ast, test, breakTarget, jumpIfTrue: false);
+        PushIterationControlScope(breakTarget, continueTarget);
         try
         {
             EmitStatement(ast, body);
         }
         finally
         {
-            loopTargets.Pop();
+            controlScopes.Pop();
         }
         EmitJump(continueTarget);
         builder.BindLabel(breakTarget);
@@ -86,18 +85,17 @@ internal abstract partial class JsPlannedCompilerBase
         var continueTarget = builder.CreateLabel();
         var breakTarget = builder.CreateLabel();
         builder.BindLabel(loopStart);
-        PushLoopTargets(breakTarget, continueTarget);
+        PushIterationControlScope(breakTarget, continueTarget);
         try
         {
             EmitStatement(ast, body);
         }
         finally
         {
-            loopTargets.Pop();
+            controlScopes.Pop();
         }
         builder.BindLabel(continueTarget);
-        EmitExpression(ast, test);
-        EmitJumpIfToBooleanFalse(breakTarget);
+        EmitExpressionForTest(ast, test, breakTarget, jumpIfTrue: false);
         EmitJump(loopStart);
         builder.BindLabel(breakTarget);
     }
@@ -144,18 +142,17 @@ internal abstract partial class JsPlannedCompilerBase
             builder.BindLabel(loopStart);
             if (parts[1] >= 0)
             {
-                EmitExpression(ast, parts[1]);
-                EmitJumpIfToBooleanFalse(breakTarget);
+                EmitExpressionForTest(ast, parts[1], breakTarget, jumpIfTrue: false);
             }
 
-            PushLoopTargets(breakTarget, continueTarget);
+            PushIterationControlScope(breakTarget, continueTarget);
             try
             {
                 EmitStatement(ast, parts[3]);
             }
             finally
             {
-                loopTargets.Pop();
+                controlScopes.Pop();
             }
 
             builder.BindLabel(continueTarget);
@@ -215,22 +212,47 @@ internal abstract partial class JsPlannedCompilerBase
         }
     }
 
-    private void PushLoopTargets(
+    private void PushIterationControlScope(
         BytecodeBuilder.Label breakTarget,
         BytecodeBuilder.Label continueTarget
     )
     {
-        loopTargets.Push(new LoopTargets(breakTarget, continueTarget, CurrentContextDepth));
+        controlScopes.Push(
+            new ControlScope(
+                ControlScopeKind.Iteration,
+                breakTarget,
+                continueTarget,
+                CurrentContextDepth
+            )
+        );
     }
 
-    private void EmitLoopControl(bool isContinue)
+    private void EmitAbruptCommand(AbruptCommand command)
     {
-        if (loopTargets.Count == 0)
-            throw new InvalidOperationException("Loop control emitted without an active loop.");
-        var target = loopTargets.Peek();
-        for (var depth = CurrentContextDepth; depth > target.ContextDepth; depth--)
-            EmitPopContext();
-        EmitJump(isContinue ? target.Continue : target.Break);
+        foreach (var scope in controlScopes)
+        {
+            if (
+                scope.Kind != ControlScopeKind.Iteration
+                || command is not (AbruptCommand.Break or AbruptCommand.Continue)
+            )
+                continue;
+
+            for (var depth = CurrentContextDepth; depth > scope.ContextDepth; depth--)
+                EmitPopContext();
+            EmitJump(command == AbruptCommand.Continue ? scope.Continue : scope.Break);
+            return;
+        }
+
+        switch (command)
+        {
+            case AbruptCommand.Return:
+                builder.Emit(JsOpCode.Return);
+                return;
+            default:
+                throw new InvalidOperationException(
+                    $"Abrupt command '{command}' has no active control scope."
+                );
+        }
     }
 
     private void EmitBlockStatement(FlatAst ast, int nodeIndex)
@@ -256,10 +278,9 @@ internal abstract partial class JsPlannedCompilerBase
 
     private void EmitIfStatement(FlatAst ast, int test, int consequent, int alternate)
     {
-        EmitExpression(ast, test);
         var elseLabel = builder.CreateLabel();
         var endLabel = builder.CreateLabel();
-        EmitJumpIfToBooleanFalse(elseLabel);
+        EmitExpressionForTest(ast, test, elseLabel, jumpIfTrue: false);
         EmitStatement(ast, consequent);
         if (alternate >= 0)
         {
