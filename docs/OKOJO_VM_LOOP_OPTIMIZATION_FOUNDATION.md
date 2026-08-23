@@ -178,7 +178,6 @@ evidence).
 ## Attempt Log
 
 ### a2-hot-cold-split - ACCEPTED (branch vmopt-a2-hot-cold-split)
-
 Extracted 7 cold opcode arm groups into NoInlining handlers returning the
 consumed-delta (CreateClosure, CreateFunctionContext family, context-slot
 families, StaGlobal family, GetNamedPropertyFromSuper, CreateObjectLiteral).
@@ -207,6 +206,21 @@ Knowledge produced by this attempt:
 3. **A1 implementation hint**: reduce locals C-style - declare shared temps
    once at method top (the loop-head already does this for num/intNum/reg);
    extend that pattern rather than adding per-arm locals when extracting.
+
+### a1-locals-diet - ACCEPTED (branch vmopt-a1-locals-diet)
+
+C-style shared-temp conversion of cold-arm decodes (module vars, Mov,
+LdaGlobal decode, rest/array/object literal indices, typed const, Smi-imm
+arith) plus one shared `operandOffset` replacing 10 per-arm declarations.
+
+- IL locals 117 -> 93 (-20%), Int32 slots 47 -> 23.
+- Tier1 code size 21058 -> 20562 vs A2 (-2.4%); -8.1% cumulative vs baseline.
+- bench-ab vs vm-opt: all six cases within noise; no regressions
+  (pure-function-call +2.2% is inside this machine's variance band).
+- Hygiene fix bundled: deleted six dead v1 handler overloads left by the A2
+  bulk replace (void/ref-reseat variants were unreachable but silently
+  legal as overloads). Lesson: after bulk method replacement, grep the old
+  signature shape to confirm zero leftovers before merging.
 
 ## Optimization Work Rules (binding for this effort)
 
