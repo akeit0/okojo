@@ -7,7 +7,7 @@ internal abstract partial class JsPlannedCompilerBase
 {
     protected void EmitGeneratorPrologue()
     {
-        if (!isGenerator)
+        if (!isGenerator && !isAsync)
             return;
         generatorSwitchInstructionPc = builder.CodeLength;
         builder.Emit(JsOpCode.SwitchOnGeneratorState, 0xFF, 0, 0);
@@ -15,7 +15,7 @@ internal abstract partial class JsPlannedCompilerBase
 
     protected void PatchGeneratorSwitchTable()
     {
-        if (!isGenerator)
+        if (!isGenerator && !isAsync)
             return;
         if (generatorResumeTargets.Count > byte.MaxValue)
             throw new NotSupportedException(
@@ -52,6 +52,14 @@ internal abstract partial class JsPlannedCompilerBase
         else
             builder.EmitLda(JsOpCode.LdaUndefined);
         EmitGeneratorSuspendResume(0xFF, guaranteedNextOnly: false);
+    }
+
+    private void EmitAwaitExpression(FlatAst ast, in AstNode node)
+    {
+        if (!isAsync)
+            throw new InvalidOperationException("await requires an async function.");
+        EmitExpression(ast, node.Arg0);
+        EmitGeneratorSuspendResume(0xFE, guaranteedNextOnly: false);
     }
 
     private void EmitYieldDelegateExpression(FlatAst ast, int argument)

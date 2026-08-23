@@ -34,6 +34,7 @@ internal sealed partial class JsPlannedFunctionCompiler
                 parameterPlan.FunctionLength,
                 false,
                 false,
+                false,
                 false
             ),
             collected,
@@ -69,7 +70,8 @@ internal sealed partial class JsPlannedFunctionCompiler
                 function.FunctionLength,
                 function.IsMethod,
                 function.IsArrow,
-                function.IsGenerator
+                function.IsGenerator,
+                function.IsAsync
             ),
             collected,
             ast,
@@ -88,6 +90,7 @@ internal sealed partial class JsPlannedFunctionCompiler
     {
         hasNewTarget = false;
         isGenerator = metadata.IsGenerator;
+        isAsync = metadata.IsAsync;
         if (!metadata.HasSimpleParameterList && flatFunction is null)
             throw new NotSupportedException("Advanced parameters require flat function metadata.");
         strictDeclared = metadata.StrictDeclared;
@@ -130,7 +133,9 @@ internal sealed partial class JsPlannedFunctionCompiler
             requiresClosureBinding: false,
             isStrict: metadata.StrictDeclared,
             hasNewTarget: hasNewTarget,
-            kind: isGenerator ? JsBytecodeFunctionKind.Generator : JsBytecodeFunctionKind.Normal,
+            kind: isGenerator ? JsBytecodeFunctionKind.Generator
+                : isAsync ? JsBytecodeFunctionKind.Async
+                : JsBytecodeFunctionKind.Normal,
             isArrow: metadata.IsArrow,
             isMethod: metadata.IsMethod,
             formalParameterCount: metadata.ParameterCount,
@@ -222,6 +227,7 @@ internal sealed partial class JsPlannedFunctionCompiler
         int FunctionLength,
         bool IsMethod,
         bool IsArrow,
-        bool IsGenerator
+        bool IsGenerator,
+        bool IsAsync
     );
 }

@@ -11,9 +11,11 @@ internal sealed class FlatJavaScriptParser
     private int functionDepth;
     private int receiverFunctionDepth;
     private int generatorFunctionDepth;
+    private int asyncFunctionDepth;
     private int loopDepth;
     private int switchDepth;
     private bool strictMode;
+    private bool parsingAsyncParameters;
     private List<ActiveLabel>? activeLabels;
 
     private FlatJavaScriptParser(string source, string? sourcePath)
@@ -73,6 +75,8 @@ internal sealed class FlatJavaScriptParser
     private int ParseStatement()
     {
         var position = current.Position;
+        if (IsAsyncFunctionPrefix())
+            return ParseFunction(isDeclaration: true, isAsync: true);
         if (current.Kind == JsTokenKind.Identifier && PeekToken().Kind == JsTokenKind.Colon)
             return ParseLabeledStatement();
         return current.Kind switch
@@ -196,6 +200,7 @@ internal sealed class FlatJavaScriptParser
                 else
                 {
                     var identifier = ExpectIdentifier();
+                    ValidateBindingIdentifier(identifier);
                     var initializer = -1;
                     if (Match(JsTokenKind.Assign))
                         initializer = ParseAssignment(allowInInitializer);
@@ -296,6 +301,7 @@ internal sealed class FlatJavaScriptParser
             );
 
         var identifier = current;
+        ValidateBindingIdentifier(identifier);
         Next();
         return Arena.Add(
             AstKind.Identifier,
@@ -405,18 +411,26 @@ internal sealed class FlatJavaScriptParser
 
     private int ParseFunctionDeclaration() => ParseFunction(isDeclaration: true);
 
-    private int ParseFunctionExpression() => ParseFunction(isDeclaration: false);
+    private int ParseFunctionExpression(bool isAsync = false) =>
+        ParseFunction(isDeclaration: false, isAsync);
 
-    private int ParseFunction(bool isDeclaration)
+    private int ParseFunction(bool isDeclaration, bool isAsync = false)
     {
-        var position = Expect(JsTokenKind.Function).Position;
+        var position = current.Position;
+        if (isAsync)
+            Next();
+        Expect(JsTokenKind.Function);
         var isGenerator = Match(JsTokenKind.Star);
+        if (isAsync && isGenerator)
+            throw Error("Async generators are not supported by FlatJavaScriptParser", position);
         var nameId = -1;
         string name;
         if (isDeclaration || current.Kind == JsTokenKind.Identifier)
         {
             var nameToken = ExpectIdentifier();
             name = GetIdentifierText(nameToken);
+            if ((asyncFunctionDepth > 0 || (isAsync && !isDeclaration)) && name == "await")
+                throw Error("Unexpected await binding", nameToken.Position);
             nameId = nameToken.IdentifierId;
         }
         else
@@ -427,7 +441,8 @@ internal sealed class FlatJavaScriptParser
             nameId,
             position,
             isMethod: false,
-            isGenerator
+            isGenerator,
+            isAsync
         );
     }
 
@@ -437,14 +452,19 @@ internal sealed class FlatJavaScriptParser
         int nameId,
         int position,
         bool isMethod,
-        bool isGenerator = false
+        bool isGenerator = false,
+        bool isAsync = false
     )
     {
         var generatorDepthBeforeFunction = generatorFunctionDepth;
+        var asyncDepthBeforeFunction = asyncFunctionDepth;
+        var parsingAsyncParametersBeforeFunction = parsingAsyncParameters;
         receiverFunctionDepth++;
         try
         {
             generatorFunctionDepth = 0;
+            asyncFunctionDepth = 0;
+            parsingAsyncParameters = isAsync;
             return ParseFunctionTailCore(
                 isDeclaration,
                 name,
@@ -452,12 +472,16 @@ internal sealed class FlatJavaScriptParser
                 position,
                 isMethod,
                 isGenerator,
-                generatorDepthBeforeFunction
+                generatorDepthBeforeFunction,
+                isAsync,
+                asyncDepthBeforeFunction
             );
         }
         finally
         {
             generatorFunctionDepth = generatorDepthBeforeFunction;
+            asyncFunctionDepth = asyncDepthBeforeFunction;
+            parsingAsyncParameters = parsingAsyncParametersBeforeFunction;
             receiverFunctionDepth--;
         }
     }
@@ -469,7 +493,9 @@ internal sealed class FlatJavaScriptParser
         int position,
         bool isMethod,
         bool isGenerator,
-        int generatorDepthBeforeFunction
+        int generatorDepthBeforeFunction,
+        bool isAsync,
+        int asyncDepthBeforeFunction
     )
     {
         Expect(JsTokenKind.LeftParen);
@@ -620,6 +646,8 @@ internal sealed class FlatJavaScriptParser
             loopDepth = 0;
             switchDepth = 0;
             generatorFunctionDepth = isGenerator ? generatorDepthBeforeFunction + 1 : 0;
+            asyncFunctionDepth = isAsync ? asyncDepthBeforeFunction + 1 : 0;
+            parsingAsyncParameters = false;
             functionDepth++;
             int body;
             bool strictDeclared;
@@ -657,7 +685,8 @@ internal sealed class FlatJavaScriptParser
                     hasDuplicateParameters,
                     position,
                     isMethod,
-                    IsGenerator: isGenerator
+                    IsGenerator: isGenerator,
+                    IsAsync: isAsync
                 )
             );
             return Arena.Add(
@@ -751,13 +780,15 @@ internal sealed class FlatJavaScriptParser
         }
     }
 
-    private static void TrackParameterName(
+    private void TrackParameterName(
         string name,
         ref ParameterNameTracker names,
         ref bool hasDuplicate,
         ref bool hasRestrictedName
     )
     {
+        if (parsingAsyncParameters && name == "await")
+            throw Error("Unexpected await in async function parameters", current.Position);
         if (!names.Add(name))
             hasDuplicate = true;
         if (name is "eval" or "arguments")
@@ -1258,6 +1289,19 @@ internal sealed class FlatJavaScriptParser
     private int ParseUnary()
     {
         var position = current.Position;
+        if (
+            current.Kind is JsTokenKind.Identifier or JsTokenKind.ReservedWord
+            && source.AsSpan(current.Position, current.SourceLength).SequenceEqual("await".AsSpan())
+        )
+        {
+            if (parsingAsyncParameters)
+                throw Error("Unexpected await in async function parameters", position);
+            if (asyncFunctionDepth > 0)
+            {
+                Next();
+                return Arena.Add(AstKind.AwaitExpression, ParseUnary(), position: position);
+            }
+        }
         if (current.Kind == JsTokenKind.New)
             return ParseNewExpression();
 
@@ -1499,6 +1543,8 @@ internal sealed class FlatJavaScriptParser
     private int ParsePrimary()
     {
         var token = current;
+        if (IsAsyncFunctionPrefix())
+            return ParseFunctionExpression(isAsync: true);
         switch (token.Kind)
         {
             case JsTokenKind.Identifier:
@@ -1770,7 +1816,9 @@ internal sealed class FlatJavaScriptParser
             switchDepth = 0;
             functionDepth++;
             var generatorDepthBeforeArrow = generatorFunctionDepth;
+            var asyncDepthBeforeArrow = asyncFunctionDepth;
             generatorFunctionDepth = 0;
+            asyncFunctionDepth = 0;
             int body;
             bool strictDeclared;
             try
@@ -1800,6 +1848,7 @@ internal sealed class FlatJavaScriptParser
             {
                 functionDepth--;
                 generatorFunctionDepth = generatorDepthBeforeArrow;
+                asyncFunctionDepth = asyncDepthBeforeArrow;
                 loopDepth = loopDepthBeforeFunction;
                 switchDepth = switchDepthBeforeFunction;
             }
@@ -2328,6 +2377,15 @@ internal sealed class FlatJavaScriptParser
             : source.Substring(token.Position, token.SourceLength);
     }
 
+    private void ValidateBindingIdentifier(in JsToken token)
+    {
+        if (
+            (asyncFunctionDepth > 0 || parsingAsyncParameters)
+            && source.AsSpan(token.Position, token.SourceLength).SequenceEqual("await".AsSpan())
+        )
+            throw Error("Unexpected await binding", token.Position);
+    }
+
     private JsToken ExpectIdentifier()
     {
         if (current.Kind != JsTokenKind.Identifier)
@@ -2382,6 +2440,19 @@ internal sealed class FlatJavaScriptParser
         {
             lexer.SetIndex(index);
         }
+    }
+
+    private bool IsAsyncFunctionPrefix()
+    {
+        if (
+            current.Kind != JsTokenKind.Identifier
+            || !source
+                .AsSpan(current.Position, current.SourceLength)
+                .SequenceEqual("async".AsSpan())
+        )
+            return false;
+        var next = PeekToken();
+        return !next.HasLineTerminatorBefore && next.Kind == JsTokenKind.Function;
     }
 
     private bool IsOptionalChainPunctuator()

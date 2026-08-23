@@ -147,7 +147,8 @@ internal readonly record struct FlatFunctionInfo(
     int Position,
     bool IsMethod,
     bool IsArrow = false,
-    bool IsGenerator = false
+    bool IsGenerator = false,
+    bool IsAsync = false
 );
 
 internal readonly record struct FlatParameter(

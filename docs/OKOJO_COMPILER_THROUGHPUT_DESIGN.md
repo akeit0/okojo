@@ -89,7 +89,8 @@ branches, ordinary loops, and `switch`, calls and construction, named/computed
 properties,
 array/object data literals, binding and assignment destructuring, advanced
 parameters, ordinary function expressions, closures, `this`, `throw`, and
-`try`/`catch`/`finally` with optional or destructured catch bindings.
+`try`/`catch`/`finally` with optional or destructured catch bindings, synchronous
+generators, and ordinary async functions with `await`.
 
 ## Reference Architecture Insights
 
@@ -365,7 +366,7 @@ and has differential execution coverage for every new control-flow form.
 
 ### P2 - Resumable functions
 
-- async functions and `await`
+- direct async arrows and object methods
 - async generators and `for-await-of`
 - measured live-range narrowing for the landed conservative register snapshot
 
@@ -375,7 +376,11 @@ values, and next/return/throw resume modes are landed. Return resumes reuse the
 abrupt-command stack so `finally` and iterator cleanup stay on the same path;
 throw resumes reuse the VM's restored exception-handler continuation. Delegation
 retains the active iterator in the existing continuation and forwards abrupt
-resumes in the VM.
+resumes in the VM. Ordinary async declarations/expressions and unary `await` are
+also landed. They share the same switch/suspend/resume emitter, use the existing
+`0xFE` await operand, and leave promise resolve/reject driving in
+`StartAsyncBytecodeFunction`, matching V8's resumable shape without duplicating
+runtime promise state in flat nodes.
 
 Exit gate: planned-compiler tests cover every resume mode and Test262 can target
 the new compiler for the supported function families.

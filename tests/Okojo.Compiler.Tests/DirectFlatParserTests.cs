@@ -2071,6 +2071,78 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_ExecutesAsyncFunctionsAndAwaitResumeModes()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            globalThis.__flatAsync = '';
+            async function fulfilled(value = 2) {
+                let captured = value;
+                let result = await Promise.resolve(captured + 1);
+                return result + captured;
+            }
+            let rejected = async function reject() {
+                try { await Promise.reject(7); }
+                catch (error) { return error + 1; }
+            };
+            let thrown = async function boom() { throw 9; };
+            fulfilled().then(function (value) { __flatAsync += 'f' + value; });
+            rejected().then(function (value) { __flatAsync += 'r' + value; });
+            thrown().catch(function (value) { __flatAsync += 't' + value; });
+            """
+        );
+
+        realm.Execute(script);
+        realm.Agent.RunPromiseJobs();
+
+        Assert.That(realm.Evaluate("__flatAsync").AsString(), Is.EqualTo("t9f5r8"));
+        var fulfilled = script
+            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .Single(static function => function.Name == "fulfilled");
+        Assert.That(fulfilled.Kind, Is.EqualTo(JsBytecodeFunctionKind.Async));
+        Assert.That(fulfilled.Script.Bytecode, Does.Contain((byte)JsOpCode.SwitchOnGeneratorState));
+        Assert.That(fulfilled.Script.Bytecode, Does.Contain((byte)JsOpCode.SuspendGenerator));
+        Assert.That(fulfilled.Script.Bytecode, Does.Contain((byte)JsOpCode.ResumeGenerator));
+        Assert.That(fulfilled.Script.GeneratorSwitchTargets, Has.Length.EqualTo(1));
+    }
+
+    [Test]
+    public void CompileAst_ExecutesAsyncFunctionBridge()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            JavaScriptParser.ParseScript(
+                "globalThis.__flatAsyncBridge = 0; async function read() { return await 4; } read().then(function (value) { __flatAsyncBridge = value; });"
+            )
+        );
+
+        realm.Execute(script);
+        realm.Agent.RunPromiseJobs();
+
+        Assert.That(realm.Evaluate("__flatAsyncBridge").Int32Value, Is.EqualTo(4));
+    }
+
+    [TestCase("async function invalid(await) {}")]
+    [TestCase("async function invalid(value = await) {}")]
+    [TestCase("let invalid = async function await() {}")]
+    [TestCase("async function invalid() { let await; }")]
+    [TestCase("async function invalid() { try {} catch (await) {} }")]
+    [TestCase("async function* invalid() {}")]
+    public void ParseScript_RejectsInvalidOrDeferredAsyncFunctions(string source) =>
+        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+
+    [Test]
+    public void ParseScript_ResetsAwaitContextForNestedNormalFunctions()
+    {
+        using var ast = FlatJavaScriptParser.ParseScript(
+            "let await = 3; async function outer() { function inner() { return await; } return inner(); }"
+        );
+
+        Assert.That(ast.Count, Is.GreaterThan(0));
+    }
+
+    [Test]
     public void CompileString_ExecutesYieldDelegateResumeModes()
     {
         var realm = JsRuntime.Create().DefaultRealm;

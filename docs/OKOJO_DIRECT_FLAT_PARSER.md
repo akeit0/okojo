@@ -59,7 +59,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Arrays/objects | holes, array/object spread, data properties, ordinary/generator concise methods, getters/setters, computed/shorthand/index keys, stable data shape prefix | async and `super` methods, legacy `__proto__` intentionally excluded |
 | Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings | class, module bindings and remaining early errors |
 | Assignments | identifier/member targets, compound/logical/update, array/object destructuring, core optional-chain target restrictions | private/super targets, remaining early errors |
-| Functions | ordinary declarations/expressions, closures, synchronous generators with `yield`/`yield*`, synchronous arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`/`new.target`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function name inference, demand-driven mapped/unmapped `arguments` | async, class-name inference, lazy bodies |
+| Functions | ordinary declarations/expressions, closures, synchronous generators with `yield`/`yield*`, ordinary async declarations/expressions with `await`, synchronous arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`/`new.target`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function name inference, demand-driven mapped/unmapped `arguments` | async arrows/methods/generators, class-name inference, lazy bodies |
 | Classes | none | declaration/expression, constructors, methods, fields, static blocks, private names, super |
 | Modules | none | parse goal, entries, linking metadata, live bindings, top-level await |
 
@@ -358,8 +358,8 @@ next/return/throw resume modes. The minimal reference cases are
 `artifacts/okojobytecodetool/cases/flat_ast_generator.js` and
 `artifacts/okojobytecodetool/cases/flat_ast_yield_delegate.js`; focused execution
 coverage also places suspension under `try`/`finally` and iterator cleanup so
-abrupt resumes reuse the landed completion dispatcher. Async functions and async
-generators remain separate slices.
+abrupt resumes reuse the landed completion dispatcher. Async generators remain a
+separate slice.
 
 The follow-up object-method slice accepts named/computed `*method()` forms and
 feeds them through the same flat function metadata and closure emitter. Its
@@ -376,6 +376,23 @@ AST or new runtime object is introduced. Delegation reuses the VM's active
 iterator continuation and return/throw forwarding. The implementation
 conservatively snapshots the complete planned register file. Narrower liveness is
 benchmark-gated after correctness.
+
+### Async-function slice
+
+This iteration starts async coverage with `async function` declarations and
+expressions plus unary `await`. The minimal reference case is
+`artifacts/okojobytecodetool/cases/flat_ast_async_await.js`; focused coverage
+includes fulfilled values, rejected awaits caught in the function, synchronous
+throws becoming rejections, captured locals, and nested non-async function
+boundaries. Async arrows, async generators, and `for-await-of` remain separate
+slices.
+
+V8 uses the generator state switch and suspend/resume machinery underneath async
+functions, wrapping body completion in promise resolve/reject handling. Okojo
+already centralizes that promise driver in `StartAsyncBytecodeFunction`, so the
+flat emitter reuses the same switch table and marks await suspension with the
+existing `0xFE` ABI operand. Function metadata gains the async kind bit and await
+remains a fixed one-child node. No promise or continuation nodes enter the AST.
 
 ### Destructuring
 
@@ -781,13 +798,14 @@ Try/finally slice note:
 
 ### Stage F2 - Resumable functions
 
-- async functions and `await`
+- ordinary async declarations/expressions and `await` are landed; add direct async
+  arrows and object methods without changing the resumable-function ABI
 - async generators and `for-await-of`
 - narrow the landed conservative register snapshot only with measured liveness data
 
-The parser records the landed generator flag and fixed yield node; the emitter
-owns suspend IDs/tables and the VM owns continuation state. This keeps suspension
-layout out of syntax metadata.
+The parser records generator/async kind bits plus fixed yield/await nodes; one
+emitter owns suspend IDs/tables and the VM owns continuation and async-promise
+state. This keeps suspension layout and promise plumbing out of syntax metadata.
 
 ### Stage F3 - Classes
 

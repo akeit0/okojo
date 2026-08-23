@@ -19,6 +19,7 @@ internal abstract partial class JsPlannedCompilerBase
     protected bool strictDeclared;
     protected bool hasNewTarget;
     protected bool isGenerator;
+    protected bool isAsync;
     private BytecodeBuilder.Label optionalChainNullTarget;
     private int nextGeneratorSuspendId;
     private int generatorSwitchInstructionPc = -1;

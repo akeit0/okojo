@@ -201,9 +201,9 @@ internal static class FlatAstLowerer
 
         private int LowerFunctionDeclaration(JsFunctionDeclaration function)
         {
-            if (function.IsAsync)
+            if (function.IsAsync && function.IsGenerator)
                 throw new NotSupportedException(
-                    $"{compilerName} does not support async flat function declarations."
+                    $"{compilerName} does not support async generator declarations."
                 );
             var bodyRoot = LowerFunctionBody(function.Body);
             var parameters = LowerParameters(
@@ -227,7 +227,8 @@ internal static class FlatAstLowerer
                     function.HasDuplicateParameters,
                     function.Position,
                     false,
-                    IsGenerator: function.IsGenerator
+                    IsGenerator: function.IsGenerator,
+                    IsAsync: function.IsAsync
                 )
             );
             return Arena.Add(
@@ -240,9 +241,9 @@ internal static class FlatAstLowerer
 
         private int LowerFunctionExpression(JsFunctionExpression function)
         {
-            if (function.IsAsync)
+            if (function.IsAsync && function.IsGenerator)
                 throw new NotSupportedException(
-                    $"{compilerName} does not support async flat function expressions."
+                    $"{compilerName} does not support async generator expressions."
                 );
 
             var bodyRoot = LowerFunctionBody(function.Body);
@@ -268,7 +269,8 @@ internal static class FlatAstLowerer
                     function.Position,
                     function.HasSuperBindingHint,
                     function.IsArrow,
-                    function.IsGenerator
+                    function.IsGenerator,
+                    function.IsAsync
                 )
             );
             return Arena.Add(
@@ -671,6 +673,11 @@ internal static class FlatAstLowerer
                 JsTemplateExpression template => LowerTemplate(template),
                 JsTaggedTemplateExpression tagged => LowerTaggedTemplate(tagged),
                 JsYieldExpression yield => LowerYield(yield),
+                JsAwaitExpression awaitExpression => Arena.Add(
+                    AstKind.AwaitExpression,
+                    LowerExpression(awaitExpression.Argument),
+                    position: awaitExpression.Position
+                ),
                 _ => throw new NotSupportedException(
                     $"{compilerName} does not support expression '{expression.GetType().Name}'."
                 ),
