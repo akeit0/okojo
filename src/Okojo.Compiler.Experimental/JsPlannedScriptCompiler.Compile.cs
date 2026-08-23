@@ -10,16 +10,19 @@ internal sealed partial class JsPlannedScriptCompiler
         builder.SetSourceText(program.SourceText);
         builder.SetStrictDeclared(program.StrictDeclared);
 
-        using var collected = CompilerBindingCollector.Collect(program);
+        using var ast = FlatAstLowerer.Lower(program);
+        using var collected = CompilerBindingCollector.Collect(ast);
         using var plan = CompilerStoragePlanner.Plan(collected);
         InitializePlanIndexes(collected, plan);
         InitializeRootBindings();
         EmitFunctionContextSetup();
 
-        for (var i = 0; i < program.Statements.Count; i++)
-            EmitStatement(program.Statements[i]);
+        ref readonly var root = ref ast[ast.Root];
+        var statements = ast.ChildRange(root.Arg0, root.Arg1);
+        for (var i = 0; i < statements.Length; i++)
+            EmitStatement(ast, statements[i]);
 
-        if (program.Statements.Count == 0)
+        if (statements.Length == 0)
             builder.EmitLda(JsOpCode.LdaUndefined);
 
         builder.Emit(JsOpCode.Return);

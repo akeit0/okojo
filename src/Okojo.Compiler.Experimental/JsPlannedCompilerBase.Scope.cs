@@ -1,7 +1,19 @@
 namespace Okojo.JavaScript.Compiler.Experimental;
 
-internal sealed partial class JsPlannedFunctionCompiler
+internal abstract partial class JsPlannedCompilerBase
 {
+    protected int CurrentContextDepth
+    {
+        get
+        {
+            var depth = 0;
+            foreach (var scope in activeScopes)
+                if (scope.HasContext)
+                    depth++;
+            return depth;
+        }
+    }
+
     private bool TryResolveBinding(string name, out BindingStorage binding)
     {
         return TryResolveBindingAccess(name, out binding, out _);
@@ -39,12 +51,13 @@ internal sealed partial class JsPlannedFunctionCompiler
         int position
     )
     {
-        if (!scopesByParentScopeId.TryGetValue(parentScopeId, out var children))
+        var children = GetChildScopes(parentScopeId);
+        if (children.Length == 0)
             throw new InvalidOperationException(
                 $"No child scopes found for parent scope {parentScopeId}."
             );
 
-        for (var i = 0; i < children.Count; i++)
+        for (var i = 0; i < children.Length; i++)
         {
             var child = children[i];
             if (child.Kind == kind && child.Position == position)
@@ -58,7 +71,8 @@ internal sealed partial class JsPlannedFunctionCompiler
 
     private void EnterScope(int scopeId)
     {
-        if (!plannedBindingsByScopeId.TryGetValue(scopeId, out var bindings))
+        var bindings = GetPlannedBindings(scopeId);
+        if (bindings.Length == 0)
         {
             activeScopes.Push(new ActiveScope(scopeId, [], false));
             return;
@@ -66,8 +80,8 @@ internal sealed partial class JsPlannedFunctionCompiler
 
         var hasContext = false;
         var contextSlotCount = 0;
-        var allocated = new List<BindingStorage>(bindings.Count);
-        for (var i = 0; i < bindings.Count; i++)
+        var allocated = new List<BindingStorage>(bindings.Length);
+        for (var i = 0; i < bindings.Length; i++)
         {
             var binding = bindings[i];
             var register = binding.StorageKind switch
@@ -124,7 +138,7 @@ internal sealed partial class JsPlannedFunctionCompiler
                 currentDepth++;
         }
 
-        foreach (var pair in inheritedCaptures)
+        foreach (var pair in ExternalCaptures)
             captures.TryAdd(
                 pair.Key,
                 new CapturedBindingAccess(pair.Value.Slot, pair.Value.Depth + currentDepth)
@@ -132,19 +146,4 @@ internal sealed partial class JsPlannedFunctionCompiler
 
         return captures;
     }
-
-    private int GetInheritedCaptureDepth(CapturedBindingAccess inherited)
-    {
-        var currentDepth = 0;
-        foreach (var scope in activeScopes)
-            if (scope.HasContext)
-                currentDepth++;
-        return inherited.Depth + currentDepth;
-    }
-
-    private readonly record struct ActiveScope(
-        int ScopeId,
-        IReadOnlyList<BindingStorage> Bindings,
-        bool HasContext
-    );
 }

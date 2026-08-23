@@ -217,6 +217,31 @@ public class CompilerBindingCollectorTests
     }
 
     [Test]
+    public void CollectFlat_TracksNestedFunctionCaptureFromSharedArena()
+    {
+        using var ast = FlatAstLowerer.Lower(
+            JavaScriptParser.ParseScript(
+                """
+                let outer = 1;
+                function f() {
+                    return outer + 1;
+                }
+                """
+            )
+        );
+        using var collected = CompilerBindingCollector.Collect(ast);
+        using var plan = CompilerStoragePlanner.Plan(collected);
+
+        var outer = plan.Bindings.ToArray().Single(binding => binding.Name == "outer");
+        Assert.That(outer.IsCaptured, Is.True);
+        Assert.That(outer.StorageKind, Is.EqualTo(CompilerPlannedStorageKind.ContextSlot));
+        Assert.That(
+            collected.References.ToArray().Select(reference => reference.Name),
+            Does.Contain("outer")
+        );
+    }
+
+    [Test]
     public void Collect_RootLexicalBindings_RecordSourcePositions()
     {
         var program = JavaScriptParser.ParseScript(

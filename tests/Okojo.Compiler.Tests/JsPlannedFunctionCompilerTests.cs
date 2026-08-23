@@ -10,6 +10,101 @@ namespace Okojo.JavaScript.Compiler.Tests;
 
 public class JsPlannedFunctionCompilerTests
 {
+    [TestCase("x - y", 38)]
+    [TestCase("x / y", 20)]
+    [TestCase("x % 3", 1)]
+    [TestCase("x << y", 160)]
+    [TestCase("x > y ? x : y", 40)]
+    [TestCase("(x = y, x + 1)", 3)]
+    [TestCase("+(false || (x > y && true))", 1)]
+    [TestCase("null ?? x", 40)]
+    [TestCase("void x === void y ? 42 : 0", 42)]
+    public void CompileFunction_ExecutesFlatExpressionFamilies(string expression, double expected)
+    {
+        var (realm, compiled) = CompileFunction(
+            $"function evaluate(x, y) {{ return {expression}; }}"
+        );
+
+        var result = realm.InvokeFunction(
+            compiled,
+            JsValue.Undefined,
+            [JsValue.FromInt32(40), JsValue.FromInt32(2)]
+        );
+
+        Assert.That(result.FastNumberValue, Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void CompileFunction_ExecutesStringLiteralAddition()
+    {
+        var (realm, compiled) = CompileFunction("function evaluate(y) { return \"answer\" + y; }");
+
+        var result = realm.InvokeFunction(compiled, JsValue.Undefined, [JsValue.FromInt32(42)]);
+
+        Assert.That(result.AsString(), Is.EqualTo("answer42"));
+    }
+
+    [Test]
+    public void CompileFunction_ExecutesCompoundAndShortCircuitAssignments()
+    {
+        var (realm, compiled) = CompileFunction(
+            """
+            function evaluate(x, y) {
+                let value = x;
+                value -= y;
+                value *= 2;
+                value /= 4;
+                value **= 2;
+                let logical = 0;
+                logical ||= x;
+                logical &&= y;
+                let fallback = null;
+                fallback ??= 40;
+                return value + logical + fallback;
+            }
+            """
+        );
+
+        var result = realm.InvokeFunction(
+            compiled,
+            JsValue.Undefined,
+            [JsValue.FromInt32(10), JsValue.FromInt32(2)]
+        );
+
+        Assert.That(result.FastNumberValue, Is.EqualTo(58));
+    }
+
+    [Test]
+    public void CompileFunction_ExecutesFlatLoopsWithBreakAndContinue()
+    {
+        var (realm, compiled) = CompileFunction(
+            """
+            function evaluate(limit) {
+                let sum = 0;
+                for (let i = 0; i < limit; i++) {
+                    if (i === 2) continue;
+                    if (i === 7) break;
+                    sum += i;
+                }
+                let n = 0;
+                while (n < 2) {
+                    sum += 10;
+                    n++;
+                }
+                do {
+                    sum += 1;
+                    n--;
+                } while (n > 0);
+                return sum;
+            }
+            """
+        );
+
+        var result = realm.InvokeFunction(compiled, JsValue.Undefined, [JsValue.FromInt32(10)]);
+
+        Assert.That(result.Int32Value, Is.EqualTo(41));
+    }
+
     [Test]
     public void CompileFunction_ProducesBytecodeForParametersAndReturn()
     {
@@ -30,6 +125,16 @@ public class JsPlannedFunctionCompilerTests
         Assert.That(compiled.Script.Bytecode.Length, Is.GreaterThan(0));
         Assert.That(compiled.Script.RegisterCount, Is.GreaterThanOrEqualTo(2));
         Assert.That(compiled.Name, Is.EqualTo("sum"));
+        Assert.That(
+            realm
+                .InvokeFunction(
+                    compiled,
+                    JsValue.Undefined,
+                    [JsValue.FromInt32(40), JsValue.FromInt32(2)]
+                )
+                .Int32Value,
+            Is.EqualTo(42)
+        );
     }
 
     [Test]
@@ -54,13 +159,25 @@ public class JsPlannedFunctionCompilerTests
 
         var compiled = compiler.CompileFunction("choose", plan, function.Body);
 
-        Assert.That(compiled.Script.Bytecode.Contains((byte)JsOpCode.TestLessThan), Is.True);
+        Assert.That(
+            compiled.Script.Bytecode.Contains((byte)JsOpCode.TestLessThan)
+                || compiled.Script.Bytecode.Contains((byte)JsOpCode.TestLessThanSmi),
+            Is.True
+        );
         Assert.That(
             compiled.Script.Bytecode.Contains((byte)JsOpCode.JumpIfFalse)
                 || compiled.Script.Bytecode.Contains((byte)JsOpCode.JumpIfToBooleanFalse),
             Is.True
         );
         Assert.That(compiled.Script.Bytecode.Contains((byte)JsOpCode.Return), Is.True);
+        Assert.That(
+            realm.InvokeFunction(compiled, JsValue.Undefined, [JsValue.FromInt32(1)]).Int32Value,
+            Is.EqualTo(41)
+        );
+        Assert.That(
+            realm.InvokeFunction(compiled, JsValue.Undefined, [JsValue.FromInt32(3)]).Int32Value,
+            Is.EqualTo(0)
+        );
     }
 
     [Test]
@@ -161,5 +278,15 @@ public class JsPlannedFunctionCompilerTests
         var result = realm.InvokeFunction(closure, JsValue.Undefined, ReadOnlySpan<JsValue>.Empty);
 
         Assert.That(result.Int32Value, Is.EqualTo(42));
+    }
+
+    private static (JsRealm Realm, JsBytecodeFunction Compiled) CompileFunction(string source)
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var compiler = new JsPlannedFunctionCompiler(realm);
+        var program = JavaScriptParser.ParseScript(source);
+        var function = (JsFunctionDeclaration)program.Statements[0];
+        var plan = FunctionParameterPlan.FromFunction(function);
+        return (realm, compiler.CompileFunction(function.Name, plan, function.Body));
     }
 }

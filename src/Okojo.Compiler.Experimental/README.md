@@ -37,86 +37,35 @@ The goal is to replace the current mixed compiler model with a clearer pipeline:
 
 Current project contents:
 
+- `FlatAst` / `FlatAstLowerer`
+  - pooled 16-byte nodes and side tables
+  - one arena shared by scripts and nested functions
+  - typed nested-function metadata
 - `CompilerBindingCollector`
-  - scope discovery
-  - binding discovery
-  - identifier reference collection
+  - flat scope, binding, and identifier-reference discovery
 - `CompilerStoragePlanner`
-  - storage classification
-  - first capture-aware planning
+  - dense-ID storage and capture planning without dictionaries
+- `JsPlannedCompilerBase`
+  - shared allocation, scope, expression, statement, and bytecode emission
 - `JsPlannedScriptCompiler`
   - experimental script compiler
 - `JsPlannedFunctionCompiler`
   - experimental function-body compiler
 
-Both emitters are split into partial files to keep growth readable.
+The shared emitter is split into partial files to keep growth readable.
 
 ## Current Supported Experimental Subset
 
-### Script compiler
+Both planned compilers currently support:
 
-`JsPlannedScriptCompiler` currently supports:
-
-- top-level `var` / `let` / `const` declarations without patterns
-- block statements
-- `if`
-- function declarations
-- expression statements
-- literals:
-  - `null`
-  - booleans
-  - small integers
-- identifier reads
-- binary `+`
-- comparisons:
-  - `==`
-  - `===`
-  - `<`
-  - `>`
-  - `<=`
-  - `>=`
-- assignments:
-  - `=`
-  - `+=`
-  - `-=`
-- nested function capture for:
-  - root lexicals
-  - function-scope bindings
-  - block lexicals via pushed block contexts
-
-### Function compiler
-
-`JsPlannedFunctionCompiler` currently supports:
-
-- parameters
-- local declarations without patterns
-- block statements
-- `if`
-- function declarations
-- expression statements
-- `return`
-- literals:
-  - `null`
-  - booleans
-  - small integers
-- identifier reads
-- binary `+`
-- comparisons:
-  - `==`
-  - `===`
-  - `<`
-  - `>`
-  - `<=`
-  - `>=`
-- assignments:
-  - `=`
-  - `+=`
-  - `-=`
-- nested function capture for:
-  - parameters
-  - outer/root function lexicals
-  - block lexicals
-- inherited captured-binding assignment
+- parameters and `var` / `let` / `const` declarations without patterns
+- blocks, `if`, `while`, `do/while`, ordinary `for`, `break`, and `continue`
+- function declarations, expression statements, and function `return`
+- null, boolean, number, and string literals
+- unary, arithmetic, bitwise, comparison, logical, conditional, sequence, and
+  identifier update expressions
+- identifier assignment and compound/logical assignment
+- nested capture and assignment for parameter, root, function, and block bindings
 
 ## Not Supported Yet
 
@@ -125,10 +74,10 @@ Still intentionally unsupported in the experimental pipeline:
 - general call expressions
 - member/property access
 - destructuring
-- loops
 - object/array literals beyond current collector support
 - module/global binding emission
 - full per-iteration context behavior
+- labeled loop control
 - direct production replacement of `JsCompiler`
 
 Unsupported paths should fail explicitly, not silently degrade.
@@ -139,8 +88,10 @@ Current milestone status:
 
 - separate experimental assembly: done
 - separate compiler-focused test project: done
-- planned script emitter: started
-- planned function emitter: started
+- flat script/function emitter: active
+- shared flat nested-function arena: done for the supported subset
+- dense scope/capture planning: done
+- ordinary loop lowering: done, excluding per-iteration closure cloning
 - compare/branch lowering: done for current subset
 - root/function current-context capture: done
 - block-context push/pop capture: done for current subset
@@ -154,13 +105,6 @@ Fast loop:
 ```powershell
 dotnet build tests/Okojo.Compiler.Tests/Okojo.Compiler.Tests.csproj /p:UseSharedCompilation=false
 dotnet test tests/Okojo.Compiler.Tests/Okojo.Compiler.Tests.csproj --no-build
-```
-
-Production sanity check:
-
-```powershell
-dotnet build tests/Okojo.Tests/Okojo.Tests.csproj /p:UseSharedCompilation=false
-dotnet test tests/Okojo.Tests/Okojo.Tests.csproj --no-build --filter "TryCatchTests"
 ```
 
 ## Rules
@@ -177,7 +121,7 @@ Recommended next slices:
 
 1. call expressions
 2. member access
-3. destructuring
-4. loops and per-iteration context planning
-5. richer storage/allocation planning
-6. only then consider production migration slices
+3. parser-direct flat output
+4. per-iteration context cloning
+5. destructuring and literals
+6. measured production migration slices

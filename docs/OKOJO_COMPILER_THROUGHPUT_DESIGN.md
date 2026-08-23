@@ -183,3 +183,47 @@ consumer. It is the single largest remaining optimization but also
 the one with the highest ceiling: it addresses PollGC (30%), improves
 cache locality for ALL subsequent passes, and reduces memory footprint
 proportionally.
+
+## 9. C1 Phases 2-4 - Flat Planned Compiler
+
+Implemented scope:
+- lower the supported class-AST bridge into pooled 16-byte `AstNode` arrays
+- keep script and all nested function bodies in one shared `FlatAst`
+- collect bindings/references and emit bytecode directly from integer node IDs
+- share one planned compiler base between script and function compilation
+- replace dictionary/list-based capture planning with dense scope-ID arrays
+- use typed flat function metadata instead of retaining declaration AST objects
+- cover declarations, blocks, functions, branches, ordinary loops, loop control,
+  literals, unary/binary/conditional/sequence expressions, updates, and
+  identifier assignments
+
+Minimal repro:
+
+```js
+let x = 40;
+x += 2;
+x;
+```
+
+Checks:
+- arena layout and post-order child indices in `Okojo.Compiler.Tests`
+- end-to-end execution through the planned function and script compilers
+- capture/context behavior for root, function, and block bindings
+- loop execution with `break`, `continue`, and lexical loop heads
+
+Reference observation:
+- V8 Ignition evaluates the left side, keeps intermediate values in a
+  register/accumulator pair, then emits the arithmetic operation
+- V8 emits compact local-register loops with conditional exit and back-edge
+  `JumpLoop`; Okojo currently copies the evaluation/control-flow shape while
+  retaining its existing bytecode ABI and generic `Jump` back edge
+- non-commutative Okojo operations require left-in-register/right-in-accumulator,
+  as confirmed from the VM implementation
+
+Performance plan:
+- current bridge: measure class parse + flat lowering + plan + emit together
+- next architecture step: make the parser produce `FlatAst` directly; the bridge
+  cannot remove the already-incurred class-node allocations
+- add calls/member access before using application-sized compile throughput as a
+  migration gate
+- add per-iteration context cloning before claiming closure-correct lexical loops

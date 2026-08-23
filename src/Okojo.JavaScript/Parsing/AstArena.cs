@@ -5,10 +5,11 @@ using System.Runtime.InteropServices;
 namespace Okojo.JavaScript.Parsing;
 
 /// <summary>Node kind tags for the flat AST.</summary>
-public enum AstKind : byte
+internal enum AstKind : byte
 {
     // Statements
-    EmptyStatement = 0,
+    Program = 0,
+    EmptyStatement,
     BlockStatement,
     ExpressionStatement,
     VariableDeclaration,
@@ -35,6 +36,8 @@ public enum AstKind : byte
     Identifier,
     NumericLiteral,
     StringLiteral,
+    BooleanLiteral,
+    NullLiteral,
     RegExpLiteral,
     ThisExpression,
     SuperExpression,
@@ -74,7 +77,7 @@ public enum AstKind : byte
 ///     tables addressed by <c>Extra</c>.
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
-public struct AstNode
+internal struct AstNode
 {
     /// <summary>Node kind tag.</summary>
     public AstKind Kind;
@@ -109,9 +112,10 @@ public struct AstNode
 ///     fixed-size node struct: child lists for blocks/calls/arguments,
 ///     identifier name string indices, numeric/string literal values.
 /// </summary>
-public sealed class AstArena
+internal sealed class AstArena : IDisposable
 {
     private AstNode[] _nodes;
+    private int[] _positions;
     private int _count;
 
     // Side tables: children and strings stored in shared pools with
@@ -122,31 +126,36 @@ public sealed class AstArena
     private int _stringPoolCount;
     private double[] _numberPool;
     private int _numberPoolCount;
+    private bool _disposed;
 
     public AstArena(string source)
     {
         var estimated = Math.Max(64, source.Length / 2 + 16);
-        _nodes = new AstNode[estimated];
-        _childPool = new int[Math.Max(256, estimated * 2)];
-        _stringPool = new string[Math.Max(64, estimated / 4)];
-        _numberPool = new double[Math.Max(32, estimated / 8)];
+        _nodes = ArrayPool<AstNode>.Shared.Rent(estimated);
+        _positions = ArrayPool<int>.Shared.Rent(estimated);
+        _childPool = ArrayPool<int>.Shared.Rent(Math.Max(256, estimated * 2));
+        _stringPool = ArrayPool<string>.Shared.Rent(Math.Max(64, estimated / 4));
+        _numberPool = ArrayPool<double>.Shared.Rent(Math.Max(32, estimated / 8));
     }
 
     public int Count => _count;
+
+    public int Root { get; set; } = -1;
 
     public ref AstNode this[int index] => ref _nodes[index];
 
     public ReadOnlySpan<AstNode> Nodes => _nodes.AsSpan(0, _count);
 
-    public ReadOnlySpan<int> ChildRange(int offset, int count)
-        => _childPool.AsSpan(offset, count);
+    public ReadOnlySpan<int> ChildRange(int offset, int count) => _childPool.AsSpan(offset, count);
 
     public string GetString(int poolIndex) => _stringPool[poolIndex];
 
     public double GetNumber(int poolIndex) => _numberPool[poolIndex];
 
+    public int GetPosition(int nodeIndex) => _positions[nodeIndex];
+
     /// <summary>O(1) node creation. Grows the array if needed.</summary>
-    public int Add(AstKind kind, int arg0 = -1, int arg1 = -1, int arg2 = -1)
+    public int Add(AstKind kind, int arg0 = -1, int arg1 = -1, int arg2 = -1, int position = 0)
     {
         if ((uint)_count >= (uint)_nodes.Length)
             GrowNodes();
@@ -156,6 +165,7 @@ public sealed class AstArena
         _nodes[idx].Arg0 = arg0;
         _nodes[idx].Arg1 = arg1;
         _nodes[idx].Arg2 = arg2;
+        _positions[idx] = position;
         return idx;
     }
 
@@ -187,27 +197,65 @@ public sealed class AstArena
 
     private void GrowNodes()
     {
-        var newSize = _nodes.Length * 2;
-        Array.Resize(ref _nodes, newSize);
+        var nodes = ArrayPool<AstNode>.Shared.Rent(_nodes.Length * 2);
+        var positions = ArrayPool<int>.Shared.Rent(_positions.Length * 2);
+        Array.Copy(_nodes, nodes, _count);
+        Array.Copy(_positions, positions, _count);
+        ArrayPool<AstNode>.Shared.Return(_nodes);
+        ArrayPool<int>.Shared.Return(_positions);
+        _nodes = nodes;
+        _positions = positions;
     }
 
     private void EnsureChildPool(int additional)
     {
         if (_childPoolCount + additional <= _childPool.Length)
             return;
-        var newSize = Math.Max(_childPool.Length * 2, _childPoolCount + additional);
-        Array.Resize(ref _childPool, newSize);
+        var next = ArrayPool<int>.Shared.Rent(
+            Math.Max(_childPool.Length * 2, _childPoolCount + additional)
+        );
+        Array.Copy(_childPool, next, _childPoolCount);
+        ArrayPool<int>.Shared.Return(_childPool);
+        _childPool = next;
     }
 
     private void EnsureStringPool()
     {
         if (_stringPoolCount >= _stringPool.Length)
-            Array.Resize(ref _stringPool, _stringPool.Length * 2);
+        {
+            var next = ArrayPool<string>.Shared.Rent(_stringPool.Length * 2);
+            Array.Copy(_stringPool, next, _stringPoolCount);
+            ArrayPool<string>.Shared.Return(_stringPool, clearArray: true);
+            _stringPool = next;
+        }
     }
 
     private void EnsureNumberPool()
     {
         if (_numberPoolCount >= _numberPool.Length)
-            Array.Resize(ref _numberPool, _numberPool.Length * 2);
+        {
+            var next = ArrayPool<double>.Shared.Rent(_numberPool.Length * 2);
+            Array.Copy(_numberPool, next, _numberPoolCount);
+            ArrayPool<double>.Shared.Return(_numberPool);
+            _numberPool = next;
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+        _disposed = true;
+        ArrayPool<AstNode>.Shared.Return(_nodes);
+        ArrayPool<int>.Shared.Return(_positions);
+        ArrayPool<int>.Shared.Return(_childPool);
+        ArrayPool<string>.Shared.Return(_stringPool, clearArray: true);
+        ArrayPool<double>.Shared.Return(_numberPool);
+        _nodes = [];
+        _positions = [];
+        _childPool = [];
+        _stringPool = [];
+        _numberPool = [];
+        _count = 0;
     }
 }

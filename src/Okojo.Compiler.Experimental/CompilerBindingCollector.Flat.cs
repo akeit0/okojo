@@ -1,0 +1,384 @@
+using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Parsing;
+
+namespace Okojo.JavaScript.Compiler.Experimental;
+
+internal static partial class CompilerBindingCollector
+{
+    public static CompilerBindingCollectionResult Collect(FlatAst ast)
+    {
+        var collector = new FlatCollector();
+        collector.CollectBody(ast, ast.Root, 0);
+        return collector.MoveResult();
+    }
+
+    public static CompilerBindingCollectionResult CollectFunction(
+        string? name,
+        int nameId,
+        FunctionParameterPlan parameterPlan,
+        FlatAst ast,
+        int bodyRoot,
+        bool hasSelfBinding = false
+    )
+    {
+        var collector = new FlatCollector(CompilerCollectedScopeKind.Function);
+        collector.CollectFunctionRoot(name, nameId, parameterPlan, ast, bodyRoot, hasSelfBinding);
+        return collector.MoveResult();
+    }
+
+    private sealed class FlatCollector
+    {
+        private readonly PooledArrayBuilder<CompilerCollectedScope> scopes = new(16);
+        private readonly PooledArrayBuilder<CompilerCollectedBinding> bindings = new(32);
+        private readonly PooledArrayBuilder<CompilerCollectedReference> references = new(64);
+        private int nextScopeId = 1;
+
+        public FlatCollector(
+            CompilerCollectedScopeKind rootKind = CompilerCollectedScopeKind.Program
+        )
+        {
+            scopes.Add(new CompilerCollectedScope(0, -1, rootKind));
+        }
+
+        public void CollectFunctionRoot(
+            string? name,
+            int nameId,
+            FunctionParameterPlan parameterPlan,
+            FlatAst ast,
+            int bodyRoot,
+            bool hasSelfBinding
+        )
+        {
+            if (hasSelfBinding && !string.IsNullOrEmpty(name))
+                AddBinding(
+                    0,
+                    CompilerCollectedBindingKind.FunctionNameSelf,
+                    name!,
+                    nameId,
+                    position: ast.GetPosition(bodyRoot)
+                );
+
+            CollectParameters(parameterPlan, 0);
+            CollectParameterInitializers(parameterPlan, 0);
+            CollectBody(ast, bodyRoot, 0);
+        }
+
+        public void CollectBody(FlatAst ast, int bodyRoot, int scopeId)
+        {
+            ref readonly var body = ref ast[bodyRoot];
+            if (body.Kind != AstKind.Program)
+                throw new InvalidOperationException(
+                    $"Expected flat function/program root, found '{body.Kind}'."
+                );
+
+            var statements = ast.ChildRange(body.Arg0, body.Arg1);
+            for (var i = 0; i < statements.Length; i++)
+                VisitStatement(ast, statements[i], scopeId);
+        }
+
+        public CompilerBindingCollectionResult MoveResult()
+        {
+            return new(scopes, bindings, references);
+        }
+
+        private void VisitStatement(FlatAst ast, int nodeIndex, int scopeId)
+        {
+            ref readonly var node = ref ast[nodeIndex];
+            switch (node.Kind)
+            {
+                case AstKind.VariableDeclaration:
+                    VisitVariableDeclaration(ast, node, scopeId);
+                    return;
+                case AstKind.BlockStatement:
+                    VisitBlock(ast, nodeIndex, scopeId);
+                    return;
+                case AstKind.FunctionDeclaration:
+                    VisitFunctionDeclaration(ast, node, scopeId);
+                    return;
+                case AstKind.IfStatement:
+                    VisitExpression(ast, node.Arg0, scopeId);
+                    VisitStatement(ast, node.Arg1, scopeId);
+                    if (node.Arg2 >= 0)
+                        VisitStatement(ast, node.Arg2, scopeId);
+                    return;
+                case AstKind.WhileStatement:
+                    VisitExpression(ast, node.Arg0, scopeId);
+                    VisitStatement(ast, node.Arg1, scopeId);
+                    return;
+                case AstKind.DoWhileStatement:
+                    VisitStatement(ast, node.Arg0, scopeId);
+                    VisitExpression(ast, node.Arg1, scopeId);
+                    return;
+                case AstKind.ForStatement:
+                    VisitForStatement(ast, nodeIndex, scopeId);
+                    return;
+                case AstKind.BreakStatement:
+                case AstKind.ContinueStatement:
+                    return;
+                case AstKind.ReturnStatement:
+                case AstKind.ExpressionStatement:
+                    if (node.Arg0 >= 0)
+                        VisitExpression(ast, node.Arg0, scopeId);
+                    return;
+                case AstKind.EmptyStatement:
+                    return;
+                default:
+                    throw new NotSupportedException(
+                        $"Flat binding collection does not support statement '{node.Kind}'."
+                    );
+            }
+        }
+
+        private void VisitForStatement(FlatAst ast, int nodeIndex, int parentScopeId)
+        {
+            ref readonly var node = ref ast[nodeIndex];
+            var parts = ast.ChildRange(node.Arg0, node.Arg1);
+            var init = parts[0];
+            var scopeId = parentScopeId;
+            if (init >= 0 && ast[init].Kind == AstKind.VariableDeclaration)
+            {
+                ref readonly var declaration = ref ast[init];
+                var declarationKind = (JsVariableDeclarationKind)declaration.Arg2;
+                if (
+                    declarationKind
+                    is JsVariableDeclarationKind.Let
+                        or JsVariableDeclarationKind.Const
+                )
+                {
+                    scopeId = AddScope(
+                        parentScopeId,
+                        CompilerCollectedScopeKind.Block,
+                        ast.GetPosition(nodeIndex)
+                    );
+                    var declarators = ast.ChildRange(declaration.Arg0, declaration.Arg1);
+                    for (var i = 0; i < declarators.Length; i++)
+                    {
+                        ref readonly var declarator = ref ast[declarators[i]];
+                        AddBinding(
+                            scopeId,
+                            CompilerCollectedBindingKind.LoopHeadAlias,
+                            ast.GetString(declarator.Arg0),
+                            declarator.Arg1,
+                            declarationKind == JsVariableDeclarationKind.Const,
+                            ast.GetPosition(declarators[i])
+                        );
+                        if (declarator.Arg2 >= 0)
+                            VisitExpression(ast, declarator.Arg2, scopeId);
+                    }
+                }
+                else
+                {
+                    VisitStatement(ast, init, scopeId);
+                }
+            }
+            else if (init >= 0)
+            {
+                VisitExpression(ast, init, scopeId);
+            }
+
+            if (parts[1] >= 0)
+                VisitExpression(ast, parts[1], scopeId);
+            if (parts[2] >= 0)
+                VisitExpression(ast, parts[2], scopeId);
+            VisitStatement(ast, parts[3], scopeId);
+        }
+
+        private void VisitVariableDeclaration(FlatAst ast, AstNode declaration, int scopeId)
+        {
+            var declarationKind = (JsVariableDeclarationKind)declaration.Arg2;
+            var bindingKind =
+                declarationKind == JsVariableDeclarationKind.Var
+                    ? CompilerCollectedBindingKind.Var
+                    : CompilerCollectedBindingKind.Lexical;
+            var isConst = declarationKind == JsVariableDeclarationKind.Const;
+            var declarators = ast.ChildRange(declaration.Arg0, declaration.Arg1);
+            for (var i = 0; i < declarators.Length; i++)
+            {
+                ref readonly var declarator = ref ast[declarators[i]];
+                AddBinding(
+                    scopeId,
+                    bindingKind,
+                    ast.GetString(declarator.Arg0),
+                    declarator.Arg1,
+                    isConst,
+                    ast.GetPosition(declarators[i])
+                );
+                if (declarator.Arg2 >= 0)
+                    VisitExpression(ast, declarator.Arg2, scopeId);
+            }
+        }
+
+        private void VisitBlock(FlatAst ast, int nodeIndex, int parentScopeId)
+        {
+            ref readonly var block = ref ast[nodeIndex];
+            var scopeId = AddScope(
+                parentScopeId,
+                CompilerCollectedScopeKind.Block,
+                ast.GetPosition(nodeIndex)
+            );
+            var statements = ast.ChildRange(block.Arg0, block.Arg1);
+            for (var i = 0; i < statements.Length; i++)
+                VisitStatement(ast, statements[i], scopeId);
+        }
+
+        private void VisitFunctionDeclaration(FlatAst ast, AstNode node, int parentScopeId)
+        {
+            var function = ast.GetFunction(node.Arg0);
+            AddBinding(
+                parentScopeId,
+                CompilerCollectedBindingKind.FunctionDeclaration,
+                function.Name,
+                function.NameId,
+                position: function.Position
+            );
+            var functionScopeId = AddScope(
+                parentScopeId,
+                CompilerCollectedScopeKind.Function,
+                function.Position
+            );
+            CollectParameters(function.ParameterPlan, functionScopeId);
+            CollectParameterInitializers(function.ParameterPlan, functionScopeId);
+            CollectBody(ast, node.Arg1, functionScopeId);
+        }
+
+        private void VisitExpression(FlatAst ast, int nodeIndex, int scopeId)
+        {
+            ref readonly var node = ref ast[nodeIndex];
+            switch (node.Kind)
+            {
+                case AstKind.Identifier:
+                    references.Add(
+                        new CompilerCollectedReference(
+                            scopeId,
+                            ast.GetString(node.Arg0),
+                            ast.GetPosition(nodeIndex)
+                        )
+                    );
+                    return;
+                case AstKind.AssignmentExpression:
+                case AstKind.BinaryExpression:
+                    VisitExpression(ast, node.Arg0, scopeId);
+                    VisitExpression(ast, node.Arg1, scopeId);
+                    return;
+                case AstKind.UnaryExpression:
+                case AstKind.UpdateExpression:
+                    VisitExpression(ast, node.Arg0, scopeId);
+                    return;
+                case AstKind.ConditionalExpression:
+                    VisitExpression(ast, node.Arg0, scopeId);
+                    VisitExpression(ast, node.Arg1, scopeId);
+                    VisitExpression(ast, node.Arg2, scopeId);
+                    return;
+                case AstKind.SequenceExpression:
+                    var expressions = ast.ChildRange(node.Arg0, node.Arg1);
+                    for (var i = 0; i < expressions.Length; i++)
+                        VisitExpression(ast, expressions[i], scopeId);
+                    return;
+                case AstKind.NumericLiteral:
+                case AstKind.StringLiteral:
+                case AstKind.BooleanLiteral:
+                case AstKind.NullLiteral:
+                    return;
+                default:
+                    throw new NotSupportedException(
+                        $"Flat binding collection does not support expression '{node.Kind}'."
+                    );
+            }
+        }
+
+        private void CollectParameters(FunctionParameterPlan parameterPlan, int scopeId)
+        {
+            for (var i = 0; i < parameterPlan.Bindings.Count; i++)
+            {
+                var binding = parameterPlan.Bindings[i];
+                AddBinding(
+                    scopeId,
+                    CompilerCollectedBindingKind.Parameter,
+                    binding.Name,
+                    binding.NameId,
+                    position: binding.Position
+                );
+                for (var j = 0; j < binding.BoundIdentifiers.Count; j++)
+                {
+                    var bound = binding.BoundIdentifiers[j];
+                    AddBinding(
+                        scopeId,
+                        CompilerCollectedBindingKind.Parameter,
+                        bound.Name,
+                        bound.NameId,
+                        position: binding.Position
+                    );
+                }
+            }
+        }
+
+        private void CollectParameterInitializers(FunctionParameterPlan parameterPlan, int scopeId)
+        {
+            for (var i = 0; i < parameterPlan.Initializers.Count; i++)
+                if (parameterPlan.Initializers[i] is not null)
+                    VisitClassExpression(parameterPlan.Initializers[i]!, scopeId);
+        }
+
+        private void VisitClassExpression(JsExpression expression, int scopeId)
+        {
+            switch (expression)
+            {
+                case JsIdentifierExpression identifier:
+                    references.Add(
+                        new CompilerCollectedReference(
+                            scopeId,
+                            identifier.Name,
+                            identifier.Position
+                        )
+                    );
+                    return;
+                case JsAssignmentExpression assignment:
+                    VisitClassExpression(assignment.Left, scopeId);
+                    VisitClassExpression(assignment.Right, scopeId);
+                    return;
+                case JsBinaryExpression binary:
+                    VisitClassExpression(binary.Left, scopeId);
+                    VisitClassExpression(binary.Right, scopeId);
+                    return;
+                case JsUnaryExpression unary:
+                    VisitClassExpression(unary.Argument, scopeId);
+                    return;
+                case JsUpdateExpression update:
+                    VisitClassExpression(update.Argument, scopeId);
+                    return;
+                case JsConditionalExpression conditional:
+                    VisitClassExpression(conditional.Test, scopeId);
+                    VisitClassExpression(conditional.Consequent, scopeId);
+                    VisitClassExpression(conditional.Alternate, scopeId);
+                    return;
+                case JsSequenceExpression sequence:
+                    for (var i = 0; i < sequence.Expressions.Count; i++)
+                        VisitClassExpression(sequence.Expressions[i], scopeId);
+                    return;
+                default:
+                    return;
+            }
+        }
+
+        private int AddScope(int parentScopeId, CompilerCollectedScopeKind kind, int position)
+        {
+            var scopeId = nextScopeId++;
+            scopes.Add(new CompilerCollectedScope(scopeId, parentScopeId, kind, position));
+            return scopeId;
+        }
+
+        private void AddBinding(
+            int scopeId,
+            CompilerCollectedBindingKind kind,
+            string name,
+            int nameId = -1,
+            bool isConst = false,
+            int position = 0
+        )
+        {
+            bindings.Add(
+                new CompilerCollectedBinding(scopeId, kind, name, nameId, isConst, position)
+            );
+        }
+    }
+}

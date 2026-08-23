@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Okojo.JavaScript;
 using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Compiler.Experimental;
@@ -10,6 +11,33 @@ namespace Okojo.JavaScript.Compiler.Tests;
 
 public class JsPlannedScriptCompilerTests
 {
+    [Test]
+    public void FlatAstLowerer_ProducesDensePostOrderNodes()
+    {
+        using var ast = FlatAstLowerer.Lower(
+            JavaScriptParser.ParseScript(
+                """
+                let x = 41;
+                x + 1;
+                """
+            )
+        );
+
+        ref readonly var root = ref ast[ast.Root];
+        var statements = ast.ChildRange(root.Arg0, root.Arg1);
+        ref readonly var expressionStatement = ref ast[statements[1]];
+        ref readonly var binary = ref ast[expressionStatement.Arg0];
+
+        Assert.That(Unsafe.SizeOf<AstNode>(), Is.EqualTo(16));
+        Assert.That(root.Kind, Is.EqualTo(AstKind.Program));
+        Assert.That(statements.Length, Is.EqualTo(2));
+        Assert.That(binary.Kind, Is.EqualTo(AstKind.BinaryExpression));
+        Assert.That(binary.Arg0, Is.LessThan(expressionStatement.Arg0));
+        Assert.That(binary.Arg1, Is.LessThan(expressionStatement.Arg0));
+        Assert.That(expressionStatement.Arg0, Is.LessThan(statements[1]));
+        Assert.That(statements[1], Is.LessThan(ast.Root));
+    }
+
     [Test]
     public void Compile_ExecutesLocalOnlyLetAndAddProgram()
     {
@@ -28,6 +56,7 @@ public class JsPlannedScriptCompilerTests
 
         realm.Execute(script);
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(42));
+        Assert.That(script.Bytecode.Contains((byte)JsOpCode.AddSmi), Is.True);
     }
 
     [Test]
@@ -63,7 +92,7 @@ public class JsPlannedScriptCompilerTests
             compiler.Compile(
                 JavaScriptParser.ParseScript(
                     """
-                    while (true) 1;
+                    throw 1;
                     """
                 )
             )
@@ -154,8 +183,10 @@ public class JsPlannedScriptCompilerTests
             JavaScriptParser.ParseScript(
                 """
                 let x = 40;
-                x += 3;
-                x -= 1;
+                let delta = 2;
+                x += delta;
+                x -= delta;
+                x += delta;
                 x;
                 """
             )

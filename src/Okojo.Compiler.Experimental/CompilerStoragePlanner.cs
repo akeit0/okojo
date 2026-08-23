@@ -1,140 +1,174 @@
+using System.Buffers;
+
 namespace Okojo.JavaScript.Compiler.Experimental;
 
 internal static class CompilerStoragePlanner
 {
     public static CompilerBindingPlan Plan(CompilerBindingCollectionResult collected)
     {
-        var planned = new PooledArrayBuilder<CompilerPlannedBinding>(
-            collected.Bindings.Length == 0 ? 4 : collected.Bindings.Length
-        );
-        var nextStorageIndexByScopeId = new Dictionary<int, int>();
-        var scopeById = CreateScopeById(collected.Scopes);
-        var bindingsByScopeId = CreateBindingsByScopeId(collected.Bindings);
-        var capturedBindingIndexes = CollectCapturedBindingIndexes(
-            collected,
-            scopeById,
-            bindingsByScopeId
-        );
+        var scopes = collected.Scopes;
+        var bindings = collected.Bindings;
+        ValidateDenseScopeIds(scopes);
 
-        for (var bindingIndex = 0; bindingIndex < collected.Bindings.Length; bindingIndex++)
+        var scopeCount = Math.Max(1, scopes.Length);
+        var bindingCount = bindings.Length;
+        var firstBindingByScope = ArrayPool<int>.Shared.Rent(scopeCount);
+        var nextBinding = ArrayPool<int>.Shared.Rent(Math.Max(1, bindingCount));
+        var nextStorageIndexByScope = ArrayPool<int>.Shared.Rent(scopeCount);
+        var captured = ArrayPool<bool>.Shared.Rent(Math.Max(1, bindingCount));
+
+        Array.Fill(firstBindingByScope, -1, 0, scopeCount);
+        Array.Clear(nextStorageIndexByScope, 0, scopeCount);
+        Array.Clear(captured, 0, bindingCount);
+
+        try
         {
-            var binding = collected.Bindings[bindingIndex];
-            var isCaptured = capturedBindingIndexes.Contains(bindingIndex);
-            var storageKind = ClassifyStorage(binding.Kind);
-            if (isCaptured && storageKind != CompilerPlannedStorageKind.ImportBinding)
-                storageKind = CompilerPlannedStorageKind.ContextSlot;
-            var storageIndex =
-                storageKind == CompilerPlannedStorageKind.ImportBinding
-                    ? -1
-                    : GetNextStorageIndex(nextStorageIndexByScopeId, binding.ScopeId);
-            planned.Add(
-                new CompilerPlannedBinding(
-                    binding.ScopeId,
-                    binding.Name,
-                    binding.NameId,
-                    binding.Kind,
-                    storageKind,
-                    storageIndex,
-                    isCaptured,
-                    binding.IsConst,
-                    binding.Position
-                )
+            IndexBindings(bindings, firstBindingByScope, nextBinding, scopeCount);
+            MarkCapturedBindings(
+                collected.References,
+                scopes,
+                bindings,
+                firstBindingByScope,
+                nextBinding,
+                captured
             );
-        }
 
-        return new(planned);
-    }
-
-    private static Dictionary<int, CompilerCollectedScope> CreateScopeById(
-        ReadOnlySpan<CompilerCollectedScope> scopes
-    )
-    {
-        var result = new Dictionary<int, CompilerCollectedScope>(scopes.Length);
-        for (var i = 0; i < scopes.Length; i++)
-            result[scopes[i].ScopeId] = scopes[i];
-        return result;
-    }
-
-    private static Dictionary<int, List<int>> CreateBindingsByScopeId(
-        ReadOnlySpan<CompilerCollectedBinding> bindings
-    )
-    {
-        var result = new Dictionary<int, List<int>>();
-        for (var i = 0; i < bindings.Length; i++)
-        {
-            var binding = bindings[i];
-            if (!result.TryGetValue(binding.ScopeId, out var indexes))
+            var planned = new PooledArrayBuilder<CompilerPlannedBinding>(
+                bindingCount == 0 ? 4 : bindingCount
+            );
+            for (var bindingIndex = 0; bindingIndex < bindingCount; bindingIndex++)
             {
-                indexes = [];
-                result[binding.ScopeId] = indexes;
+                var binding = bindings[bindingIndex];
+                var storageKind = ClassifyStorage(binding.Kind);
+                if (
+                    captured[bindingIndex]
+                    && storageKind != CompilerPlannedStorageKind.ImportBinding
+                )
+                    storageKind = CompilerPlannedStorageKind.ContextSlot;
+                var storageIndex =
+                    storageKind == CompilerPlannedStorageKind.ImportBinding
+                        ? -1
+                        : nextStorageIndexByScope[binding.ScopeId]++;
+                planned.Add(
+                    new CompilerPlannedBinding(
+                        binding.ScopeId,
+                        binding.Name,
+                        binding.NameId,
+                        binding.Kind,
+                        storageKind,
+                        storageIndex,
+                        captured[bindingIndex],
+                        binding.IsConst,
+                        binding.Position
+                    )
+                );
             }
 
-            indexes.Add(i);
+            return new(planned);
         }
-
-        return result;
+        finally
+        {
+            ArrayPool<int>.Shared.Return(firstBindingByScope);
+            ArrayPool<int>.Shared.Return(nextBinding);
+            ArrayPool<int>.Shared.Return(nextStorageIndexByScope);
+            ArrayPool<bool>.Shared.Return(captured);
+        }
     }
 
-    private static HashSet<int> CollectCapturedBindingIndexes(
-        CompilerBindingCollectionResult collected,
-        Dictionary<int, CompilerCollectedScope> scopeById,
-        Dictionary<int, List<int>> bindingsByScopeId
+    private static void ValidateDenseScopeIds(ReadOnlySpan<CompilerCollectedScope> scopes)
+    {
+        for (var i = 0; i < scopes.Length; i++)
+            if (scopes[i].ScopeId != i)
+                throw new InvalidOperationException(
+                    $"Compiler scope IDs must be dense; expected {i}, found {scopes[i].ScopeId}."
+                );
+    }
+
+    private static void IndexBindings(
+        ReadOnlySpan<CompilerCollectedBinding> bindings,
+        int[] firstBindingByScope,
+        int[] nextBinding,
+        int scopeCount
     )
     {
-        var captured = new HashSet<int>();
-        for (var i = 0; i < collected.References.Length; i++)
+        for (var i = 0; i < bindings.Length; i++)
         {
-            var reference = collected.References[i];
+            var scopeId = bindings[i].ScopeId;
+            if ((uint)scopeId >= (uint)scopeCount)
+                throw new InvalidOperationException(
+                    $"Binding '{bindings[i].Name}' references invalid scope {scopeId}."
+                );
+            nextBinding[i] = firstBindingByScope[scopeId];
+            firstBindingByScope[scopeId] = i;
+        }
+    }
+
+    private static void MarkCapturedBindings(
+        ReadOnlySpan<CompilerCollectedReference> references,
+        ReadOnlySpan<CompilerCollectedScope> scopes,
+        ReadOnlySpan<CompilerCollectedBinding> bindings,
+        int[] firstBindingByScope,
+        int[] nextBinding,
+        bool[] captured
+    )
+    {
+        for (var i = 0; i < references.Length; i++)
+        {
+            var reference = references[i];
             if (
                 !TryResolveBindingIndex(
                     reference,
-                    collected.Bindings,
-                    scopeById,
-                    bindingsByScopeId,
+                    scopes,
+                    bindings,
+                    firstBindingByScope,
+                    nextBinding,
                     out var bindingIndex
                 )
             )
                 continue;
 
-            var bindingScopeId = collected.Bindings[bindingIndex].ScopeId;
-            if (HasInterveningFunctionScope(reference.ScopeId, bindingScopeId, scopeById))
-                captured.Add(bindingIndex);
+            if (
+                HasInterveningFunctionScope(
+                    reference.ScopeId,
+                    bindings[bindingIndex].ScopeId,
+                    scopes
+                )
+            )
+                captured[bindingIndex] = true;
         }
-
-        return captured;
     }
 
     private static bool TryResolveBindingIndex(
         CompilerCollectedReference reference,
+        ReadOnlySpan<CompilerCollectedScope> scopes,
         ReadOnlySpan<CompilerCollectedBinding> bindings,
-        Dictionary<int, CompilerCollectedScope> scopeById,
-        Dictionary<int, List<int>> bindingsByScopeId,
+        int[] firstBindingByScope,
+        int[] nextBinding,
         out int bindingIndex
     )
     {
-        for (var scopeId = reference.ScopeId; scopeId >= 0; )
+        for (var scopeId = reference.ScopeId; scopeId >= 0; scopeId = scopes[scopeId].ParentScopeId)
         {
-            if (bindingsByScopeId.TryGetValue(scopeId, out var indexes))
+            if ((uint)scopeId >= (uint)scopes.Length)
+                break;
+            for (
+                var candidate = firstBindingByScope[scopeId];
+                candidate >= 0;
+                candidate = nextBinding[candidate]
+            )
             {
-                for (var i = indexes.Count - 1; i >= 0; i--)
-                {
-                    var candidateIndex = indexes[i];
-                    if (
-                        !string.Equals(
-                            bindings[candidateIndex].Name,
-                            reference.Name,
-                            StringComparison.Ordinal
-                        )
+                if (
+                    string.Equals(
+                        bindings[candidate].Name,
+                        reference.Name,
+                        StringComparison.Ordinal
                     )
-                        continue;
-                    bindingIndex = candidateIndex;
+                )
+                {
+                    bindingIndex = candidate;
                     return true;
                 }
             }
-
-            if (!scopeById.TryGetValue(scopeId, out var scope))
-                break;
-            scopeId = scope.ParentScopeId;
         }
 
         bindingIndex = -1;
@@ -144,16 +178,19 @@ internal static class CompilerStoragePlanner
     private static bool HasInterveningFunctionScope(
         int referenceScopeId,
         int bindingScopeId,
-        Dictionary<int, CompilerCollectedScope> scopeById
+        ReadOnlySpan<CompilerCollectedScope> scopes
     )
     {
-        for (var scopeId = referenceScopeId; scopeId >= 0 && scopeId != bindingScopeId; )
+        for (
+            var scopeId = referenceScopeId;
+            scopeId >= 0 && scopeId != bindingScopeId;
+            scopeId = scopes[scopeId].ParentScopeId
+        )
         {
-            if (!scopeById.TryGetValue(scopeId, out var scope))
+            if ((uint)scopeId >= (uint)scopes.Length)
                 break;
-            if (scope.Kind == CompilerCollectedScopeKind.Function)
+            if (scopes[scopeId].Kind == CompilerCollectedScopeKind.Function)
                 return true;
-            scopeId = scope.ParentScopeId;
         }
 
         return false;
@@ -177,16 +214,5 @@ internal static class CompilerStoragePlanner
                 CompilerPlannedStorageKind.LexicalRegister,
             _ => CompilerPlannedStorageKind.LocalRegister,
         };
-    }
-
-    private static int GetNextStorageIndex(
-        Dictionary<int, int> nextStorageIndexByScopeId,
-        int scopeId
-    )
-    {
-        if (!nextStorageIndexByScopeId.TryGetValue(scopeId, out var nextIndex))
-            nextIndex = 0;
-        nextStorageIndexByScopeId[scopeId] = nextIndex + 1;
-        return nextIndex;
     }
 }

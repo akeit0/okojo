@@ -3,7 +3,7 @@ using Okojo.JavaScript.Parsing;
 
 namespace Okojo.JavaScript.Compiler.Experimental;
 
-internal static class CompilerBindingCollector
+internal static partial class CompilerBindingCollector
 {
     public static CompilerBindingCollectionResult Collect(JsProgram program)
     {

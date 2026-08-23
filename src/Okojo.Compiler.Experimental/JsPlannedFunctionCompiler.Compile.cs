@@ -15,13 +15,34 @@ internal sealed partial class JsPlannedFunctionCompiler
         bool hasSelfBinding = false
     )
     {
-        builder.SetStrictDeclared(body.StrictDeclared);
+        using var ast = FlatAstLowerer.Lower(body);
+        return CompileFunction(
+            name,
+            parameterPlan,
+            body.StrictDeclared,
+            ast,
+            ast.Root,
+            hasSelfBinding
+        );
+    }
+
+    internal JsBytecodeFunction CompileFunction(
+        string? name,
+        FunctionParameterPlan parameterPlan,
+        bool strictDeclared,
+        FlatAst ast,
+        int bodyRoot,
+        bool hasSelfBinding = false
+    )
+    {
+        builder.SetStrictDeclared(strictDeclared);
         InitializeParameterRegisterMap(parameterPlan);
         using var collected = CompilerBindingCollector.CollectFunction(
             name,
             -1,
             parameterPlan,
-            body,
+            ast,
+            bodyRoot,
             hasSelfBinding
         );
         using var plan = CompilerStoragePlanner.Plan(collected);
@@ -29,23 +50,21 @@ internal sealed partial class JsPlannedFunctionCompiler
         InitializeRootBindings();
         EmitFunctionContextSetup();
 
-        for (var i = 0; i < body.Statements.Count; i++)
-            EmitStatement(body.Statements[i]);
+        ref readonly var root = ref ast[bodyRoot];
+        var statements = ast.ChildRange(root.Arg0, root.Arg1);
+        for (var i = 0; i < statements.Length; i++)
+            EmitStatement(ast, statements[i]);
 
         builder.EmitLda(JsOpCode.LdaUndefined);
         builder.Emit(JsOpCode.Return);
-        var script = builder.ToScript() with
-        {
-            SourceCode = null,
-            StrictDeclared = body.StrictDeclared,
-        };
+        var script = builder.ToScript() with { SourceCode = null, StrictDeclared = strictDeclared };
         script.BindAgent(Vm.Agent);
         return new JsBytecodeFunction(
             Vm,
             script,
             name ?? string.Empty,
             requiresClosureBinding: false,
-            isStrict: body.StrictDeclared,
+            isStrict: strictDeclared,
             hasNewTarget: false,
             kind: JsBytecodeFunctionKind.Normal,
             isArrow: false,

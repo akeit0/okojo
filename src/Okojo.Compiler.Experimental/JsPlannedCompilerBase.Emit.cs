@@ -1,9 +1,10 @@
 using Okojo.JavaScript.Bytecode;
+using Okojo.JavaScript.Objects;
 using Okojo.JavaScript.Parsing;
 
 namespace Okojo.JavaScript.Compiler.Experimental;
 
-internal sealed partial class JsPlannedFunctionCompiler
+internal abstract partial class JsPlannedCompilerBase
 {
     private void EmitSmi(int value)
     {
@@ -19,37 +20,70 @@ internal sealed partial class JsPlannedFunctionCompiler
             return;
         }
 
+        if (value is >= short.MinValue and <= short.MaxValue)
+        {
+            builder.EmitLda(
+                JsOpCode.LdaSmiWide,
+                unchecked((byte)(value & 0xFF)),
+                unchecked((byte)((value >> 8) & 0xFF))
+            );
+            return;
+        }
+
         builder.EmitLda(
-            JsOpCode.LdaSmiWide,
+            JsOpCode.LdaSmiExtraWide,
             unchecked((byte)(value & 0xFF)),
-            unchecked((byte)((value >> 8) & 0xFF))
+            unchecked((byte)((value >> 8) & 0xFF)),
+            unchecked((byte)((value >> 16) & 0xFF)),
+            unchecked((byte)((value >> 24) & 0xFF))
         );
     }
 
-    private static bool TryGetSmallIntLiteral(JsExpression expression, out int value)
+    private void EmitNumericConstant(double value)
     {
-        switch (expression)
+        var index = builder.AddNumericConstant(value);
+        if ((uint)index <= byte.MaxValue)
         {
-            case JsLiteralExpression { Value: int int32 }:
-                value = int32;
-                return true;
-            case JsLiteralExpression { Value: long int64 }
-                when int64 >= sbyte.MinValue && int64 <= sbyte.MaxValue:
-                value = (int)int64;
-                return true;
-            case JsLiteralExpression { Value: double number }
-                when Math.Truncate(number) == number
-                    && number >= sbyte.MinValue
-                    && number <= sbyte.MaxValue:
-                value = (int)number;
-                return true;
-            default:
-                value = default;
-                return false;
+            builder.EmitLda(JsOpCode.LdaNumericConstant, (byte)index);
+            return;
         }
+
+        if ((uint)index <= ushort.MaxValue)
+        {
+            builder.EmitLda(
+                JsOpCode.LdaNumericConstantWide,
+                (byte)(index & 0xFF),
+                (byte)((index >> 8) & 0xFF)
+            );
+            return;
+        }
+
+        throw new InvalidOperationException("Numeric constant pool exceeds ushort capacity.");
     }
 
-    private void EmitLdar(int register)
+    private void EmitStringConstant(int index)
+    {
+        if ((uint)index <= byte.MaxValue)
+        {
+            builder.EmitLda(JsOpCode.LdaStringConstant, (byte)index);
+            return;
+        }
+
+        if ((uint)index <= ushort.MaxValue)
+        {
+            builder.EmitLda(
+                JsOpCode.LdaTypedConstWide,
+                (byte)Tag.JsTagString,
+                (byte)(index & 0xFF),
+                (byte)((index >> 8) & 0xFF)
+            );
+            return;
+        }
+
+        throw new InvalidOperationException("String constant pool exceeds ushort capacity.");
+    }
+
+    protected void EmitLdar(int register)
     {
         if (register <= byte.MaxValue)
             builder.EmitLda(JsOpCode.Ldar, (byte)register);
@@ -97,30 +131,12 @@ internal sealed partial class JsPlannedFunctionCompiler
             );
     }
 
-    private void EmitFunctionContextSetup()
+    protected void EmitFunctionContextSetup()
     {
         if (rootContextSlotCount == 0)
             return;
-
         EmitCreateFunctionContextWithCells(rootContextSlotCount);
-        var rootScope = activeScopes.Peek();
-        for (var i = 0; i < rootScope.Bindings.Count; i++)
-        {
-            var binding = rootScope.Bindings[i];
-            if (binding.Planned.StorageKind != CompilerPlannedStorageKind.ContextSlot)
-                continue;
-            if (binding.Planned.Kind != CompilerCollectedBindingKind.Parameter)
-                continue;
-            if (
-                !parameterRegisterByName.TryGetValue(
-                    binding.Planned.Name,
-                    out var parameterRegister
-                )
-            )
-                continue;
-            EmitLdar(parameterRegister);
-            EmitStaCurrentContextSlot(binding.Planned.StorageIndex);
-        }
+        EmitRootContextBindings();
     }
 
     private void EmitCreateFunctionContextWithCells(int slotCount)
@@ -161,7 +177,7 @@ internal sealed partial class JsPlannedFunctionCompiler
         );
     }
 
-    private void EmitStaCurrentContextSlot(int slot)
+    protected void EmitStaCurrentContextSlot(int slot)
     {
         if ((uint)slot <= byte.MaxValue)
         {
@@ -229,37 +245,11 @@ internal sealed partial class JsPlannedFunctionCompiler
         }
     }
 
-    private void EmitAddRegister(int register)
-    {
-        EmitRegisterWithSlotOp(JsOpCode.Add, register);
-    }
-
-    private void EmitSubRegister(int register)
-    {
-        EmitRegisterWithSlotOp(JsOpCode.Sub, register);
-    }
-
-    private void EmitTestRegister(JsOpCode op, int register)
-    {
-        EmitRegisterWithSlotOp(op, register);
-    }
-
-    private void EmitAddSmi(int value)
+    private void EmitImmediateWithSlotOp(JsOpCode op, int value)
     {
         if (value is < sbyte.MinValue or > sbyte.MaxValue)
-            throw new NotSupportedException(
-                "JsPlannedFunctionCompiler supports only small AddSmi immediates."
-            );
-        builder.Emit(JsOpCode.AddSmi, unchecked((byte)(sbyte)value), 0);
-    }
-
-    private void EmitSubSmi(int value)
-    {
-        if (value is < sbyte.MinValue or > sbyte.MaxValue)
-            throw new NotSupportedException(
-                "JsPlannedFunctionCompiler supports only small SubSmi immediates."
-            );
-        builder.Emit(JsOpCode.SubSmi, unchecked((byte)(sbyte)value), 0);
+            throw new ArgumentOutOfRangeException(nameof(value));
+        builder.Emit(op, unchecked((byte)(sbyte)value), 0);
     }
 
     private void EmitJump(BytecodeBuilder.Label target)
@@ -270,6 +260,21 @@ internal sealed partial class JsPlannedFunctionCompiler
     private void EmitJumpIfToBooleanFalse(BytecodeBuilder.Label target)
     {
         builder.EmitJumpIfFalsy(JsOpCode.JumpIfToBooleanFalse, target);
+    }
+
+    private void EmitJumpIfToBooleanTrue(BytecodeBuilder.Label target)
+    {
+        builder.EmitJumpIfTruethy(JsOpCode.JumpIfToBooleanTrue, target);
+    }
+
+    private void EmitJumpIfNull(BytecodeBuilder.Label target)
+    {
+        builder.EmitJump(JsOpCode.JumpIfNull, target);
+    }
+
+    private void EmitJumpIfUndefined(BytecodeBuilder.Label target)
+    {
+        builder.EmitJump(JsOpCode.JumpIfUndefined, target);
     }
 
     private void EmitCreateClosureByIndex(int idx, byte flags = 0)
