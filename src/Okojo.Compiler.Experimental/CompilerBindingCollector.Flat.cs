@@ -248,6 +248,7 @@ internal static partial class CompilerBindingCollector
                     VisitSwitchStatement(ast, nodeIndex, scopeId);
                     return;
                 case AstKind.EmptyStatement:
+                case AstKind.DebuggerStatement:
                     return;
                 default:
                     throw new NotSupportedException(

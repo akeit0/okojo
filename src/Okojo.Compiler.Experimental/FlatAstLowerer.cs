@@ -105,6 +105,10 @@ internal static class FlatAstLowerer
                     LowerStatement(labeledStatement.Statement),
                     position: statement.Position
                 ),
+                JsDebuggerStatement => Arena.Add(
+                    AstKind.DebuggerStatement,
+                    position: statement.Position
+                ),
                 JsExpressionStatement expression => Arena.Add(
                     AstKind.ExpressionStatement,
                     LowerExpression(expression.Expression),

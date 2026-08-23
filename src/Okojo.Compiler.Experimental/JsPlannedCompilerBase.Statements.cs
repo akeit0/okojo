@@ -79,6 +79,9 @@ internal abstract partial class JsPlannedCompilerBase
             case AstKind.EmptyStatement:
                 builder.EmitLda(JsOpCode.LdaUndefined);
                 return;
+            case AstKind.DebuggerStatement:
+                builder.Emit(JsOpCode.Debugger);
+                return;
             default:
                 throw new NotSupportedException(
                     $"{CompilerName} does not support flat statement '{node.Kind}'."

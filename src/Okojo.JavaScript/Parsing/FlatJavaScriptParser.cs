@@ -92,7 +92,8 @@ internal sealed class FlatJavaScriptParser
             JsTokenKind.Throw => ParseThrowStatement(),
             JsTokenKind.Try => ParseTryStatement(),
             JsTokenKind.Switch => ParseSwitchStatement(),
-            JsTokenKind.With or JsTokenKind.Debugger => throw UnsupportedStatement(current.Kind),
+            JsTokenKind.Debugger => ParseDebuggerStatement(),
+            JsTokenKind.With => throw UnsupportedStatement(current.Kind),
             _ => ParseExpressionStatement(),
         };
     }
@@ -101,6 +102,13 @@ internal sealed class FlatJavaScriptParser
     {
         Next();
         return Arena.Add(AstKind.EmptyStatement, position: position);
+    }
+
+    private int ParseDebuggerStatement()
+    {
+        var position = Expect(JsTokenKind.Debugger).Position;
+        ConsumeSemicolon();
+        return Arena.Add(AstKind.DebuggerStatement, position: position);
     }
 
     private int ParseBlock(

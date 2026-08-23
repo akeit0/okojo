@@ -94,7 +94,7 @@ public class JsPlannedScriptCompilerTests
             compiler.Compile(
                 JavaScriptParser.ParseScript(
                     """
-                    debugger;
+                    with ({}) {}
                     """
                 )
             )

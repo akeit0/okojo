@@ -67,6 +67,7 @@ Both planned compilers currently support:
 - null, boolean, number, and string literals
 - BigInt and RegExp literals
 - untagged template literals, including nested substitutions and escape cooking
+- `debugger` statements through the existing VM checkpoint opcode
 - synchronous arrow functions with simple/default/rest/pattern parameters,
   expression/block bodies, inferred names, and lexical `this`/`arguments`/`new.target`
 - `new.target` in ordinary functions with function-scope early errors

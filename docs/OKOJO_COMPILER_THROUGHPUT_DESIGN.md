@@ -221,6 +221,8 @@ The direct flat work has already established several reusable rules:
   close unfinished iterators on normal or abrupt completion
 - preserve each `for-in`/`for-of` value while preparing a member assignment head;
   evaluate its base/key per iteration and reuse the ordinary prepared-member store
+- emit `debugger;` as the existing single `Debugger` opcode and leave pause policy
+  in the VM checkpoint layer
 - reserve incoming argument registers as an ABI prefix, materialize rest before
   overlapping writes, establish parameter TDZ, and initialize each parameter in
   source order
@@ -350,7 +352,7 @@ member receivers, and return true for short-circuited delete. Full early errors,
 tagged-template site metadata, and diagnostic handler metadata remain part of P1.
 Iteration assignment heads now accept named/computed members and preserve the
 current value while evaluating the reference, including iterator close when that
-evaluation throws.
+evaluation throws. Debugger statements now reuse the production opcode/hook ABI.
 
 Exit gate: the direct path compiles the synchronous non-class application corpus
 and has differential execution coverage for every new control-flow form.

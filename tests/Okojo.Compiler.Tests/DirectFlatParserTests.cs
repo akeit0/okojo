@@ -204,6 +204,20 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_EmitsDebuggerOpcodeAndContinuesWithoutHook()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            "let value = 1; debugger; value += 1; value;"
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(2));
+        Assert.That(script.Bytecode, Does.Contain((byte)JsOpCode.Debugger));
+    }
+
+    [Test]
     public void CompileString_ExecutesLabeledControlAcrossFinallyAndForOf()
     {
         var realm = JsRuntime.Create().DefaultRealm;
