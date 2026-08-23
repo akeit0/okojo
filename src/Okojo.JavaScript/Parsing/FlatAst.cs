@@ -14,6 +14,12 @@ internal sealed class FlatAst : IDisposable
     private int classCount;
     private FlatClassElement[] classElements;
     private int classElementCount;
+    private FlatModuleRequest[] moduleRequests;
+    private int moduleRequestCount;
+    private FlatImportEntry[] importEntries;
+    private int importEntryCount;
+    private FlatImportAttribute[] importAttributes;
+    private int importAttributeCount;
     private bool disposed;
 
     public FlatAst(string source, string? sourcePath = null)
@@ -26,12 +32,16 @@ internal sealed class FlatAst : IDisposable
         objectProperties = ArrayPool<FlatObjectProperty>.Shared.Rent(16);
         classes = ArrayPool<FlatClassInfo>.Shared.Rent(4);
         classElements = ArrayPool<FlatClassElement>.Shared.Rent(16);
+        moduleRequests = [];
+        importEntries = [];
+        importAttributes = [];
     }
 
     public AstArena Arena { get; }
     public string SourceText { get; }
     public string? SourcePath { get; }
     public bool StrictDeclared { get; set; }
+    public bool IsModule { get; set; }
     public int Count => Arena.Count;
     public int Root
     {
@@ -85,6 +95,45 @@ internal sealed class FlatAst : IDisposable
 
     public ReadOnlySpan<FlatClassElement> GetClassElements(in FlatClassInfo info) =>
         classElements.AsSpan(info.ElementOffset, info.ElementCount);
+
+    public int AddModuleRequest(
+        int specifierStringIndex,
+        int position,
+        ReadOnlySpan<FlatImportAttribute> attributes
+    )
+    {
+        EnsureModuleRequestCapacity(1);
+        EnsureImportAttributeCapacity(attributes.Length);
+        var attributeOffset = importAttributeCount;
+        attributes.CopyTo(importAttributes.AsSpan(attributeOffset));
+        importAttributeCount += attributes.Length;
+        var index = moduleRequestCount++;
+        moduleRequests[index] = new(
+            specifierStringIndex,
+            attributeOffset,
+            attributes.Length,
+            position
+        );
+        return index;
+    }
+
+    public (int Offset, int Count) AddImportEntries(ReadOnlySpan<FlatImportEntry> values)
+    {
+        EnsureImportEntryCapacity(values.Length);
+        var offset = importEntryCount;
+        values.CopyTo(importEntries.AsSpan(offset));
+        importEntryCount += values.Length;
+        return (offset, values.Length);
+    }
+
+    public ReadOnlySpan<FlatModuleRequest> ModuleRequests =>
+        moduleRequests.AsSpan(0, moduleRequestCount);
+
+    public ReadOnlySpan<FlatImportEntry> GetImportEntries(in AstNode declaration) =>
+        importEntries.AsSpan(declaration.Arg1, declaration.Arg2);
+
+    public ReadOnlySpan<FlatImportAttribute> GetImportAttributes(in FlatModuleRequest request) =>
+        importAttributes.AsSpan(request.AttributeOffset, request.AttributeCount);
 
     public int AddClass(FlatClassInfo info)
     {
@@ -174,6 +223,45 @@ internal sealed class FlatAst : IDisposable
         classElements = next;
     }
 
+    private void EnsureModuleRequestCapacity(int additional)
+    {
+        if (moduleRequestCount + additional <= moduleRequests.Length)
+            return;
+        var next = ArrayPool<FlatModuleRequest>.Shared.Rent(
+            Math.Max(Math.Max(4, moduleRequests.Length * 2), moduleRequestCount + additional)
+        );
+        Array.Copy(moduleRequests, next, moduleRequestCount);
+        if (moduleRequests.Length != 0)
+            ArrayPool<FlatModuleRequest>.Shared.Return(moduleRequests);
+        moduleRequests = next;
+    }
+
+    private void EnsureImportEntryCapacity(int additional)
+    {
+        if (importEntryCount + additional <= importEntries.Length)
+            return;
+        var next = ArrayPool<FlatImportEntry>.Shared.Rent(
+            Math.Max(Math.Max(8, importEntries.Length * 2), importEntryCount + additional)
+        );
+        Array.Copy(importEntries, next, importEntryCount);
+        if (importEntries.Length != 0)
+            ArrayPool<FlatImportEntry>.Shared.Return(importEntries);
+        importEntries = next;
+    }
+
+    private void EnsureImportAttributeCapacity(int additional)
+    {
+        if (importAttributeCount + additional <= importAttributes.Length)
+            return;
+        var next = ArrayPool<FlatImportAttribute>.Shared.Rent(
+            Math.Max(Math.Max(4, importAttributes.Length * 2), importAttributeCount + additional)
+        );
+        Array.Copy(importAttributes, next, importAttributeCount);
+        if (importAttributes.Length != 0)
+            ArrayPool<FlatImportAttribute>.Shared.Return(importAttributes);
+        importAttributes = next;
+    }
+
     public void Dispose()
     {
         if (disposed)
@@ -184,18 +272,59 @@ internal sealed class FlatAst : IDisposable
         ArrayPool<FlatObjectProperty>.Shared.Return(objectProperties);
         ArrayPool<FlatClassInfo>.Shared.Return(classes);
         ArrayPool<FlatClassElement>.Shared.Return(classElements);
+        if (moduleRequests.Length != 0)
+            ArrayPool<FlatModuleRequest>.Shared.Return(moduleRequests);
+        if (importEntries.Length != 0)
+            ArrayPool<FlatImportEntry>.Shared.Return(importEntries);
+        if (importAttributes.Length != 0)
+            ArrayPool<FlatImportAttribute>.Shared.Return(importAttributes);
         functions = [];
         parameters = [];
         objectProperties = [];
         classes = [];
         classElements = [];
+        moduleRequests = [];
+        importEntries = [];
+        importAttributes = [];
         functionCount = 0;
         parameterCount = 0;
         objectPropertyCount = 0;
         classCount = 0;
         classElementCount = 0;
+        moduleRequestCount = 0;
+        importEntryCount = 0;
+        importAttributeCount = 0;
         Arena.Dispose();
     }
+}
+
+internal readonly record struct FlatModuleRequest(
+    int SpecifierStringIndex,
+    int AttributeOffset,
+    int AttributeCount,
+    int Position
+);
+
+internal readonly record struct FlatImportEntry(
+    int ModuleRequestIndex,
+    int ImportedNameStringIndex,
+    int LocalNameStringIndex,
+    int LocalNameId,
+    FlatImportKind Kind,
+    int Position
+);
+
+internal readonly record struct FlatImportAttribute(
+    int KeyStringIndex,
+    int ValueStringIndex,
+    int Position
+);
+
+internal enum FlatImportKind : byte
+{
+    Default,
+    Named,
+    Namespace,
 }
 
 internal readonly record struct FlatFunctionInfo(

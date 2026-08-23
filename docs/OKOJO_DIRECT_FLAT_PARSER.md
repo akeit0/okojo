@@ -50,19 +50,19 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 
 | area | implemented direct path | remaining |
 |---|---|---|
-| Parse goal | scripts | modules, standalone function goal |
-| Declarations | `var`/`let`/`const`, ordinary function and base-class declarations, function/block declaration prologues, function-scoped `var`, persistent script globals/lexicals, initial global conflict validation | imports/exports, complete declaration early errors, Annex B |
+| Parse goal | scripts, initial strict module goal | module exports/execution, standalone function goal |
+| Declarations | `var`/`let`/`const`, ordinary function and base-class declarations, function/block declaration prologues, function-scoped `var`, persistent script globals/lexicals, initial global conflict validation, side-effect/default/named/namespace import descriptors | exports, cross-declaration module early errors, complete declaration early errors, Annex B |
 | Blocks/control | block, `if`, `while`, `do`, ordinary `for`, `for-in`, synchronous `for-of`, `for-await-of`, `switch`, chained labels, labeled/unlabeled `break`/`continue`, `return`, `throw`, `try`/`catch`/`finally`, `debugger`, empty/expression statement | remaining declaration/control early errors |
 | Primitive expressions | number, BigInt, string, boolean, null, regexp, tagged/untagged template, identifier, `this`, `new.target`, contextual `super` roots, grouping | `import.meta` |
 | Operators | precedence table, assignment, arithmetic/logical/bitwise/comparison, conditionals, sequence, updates, optional chains, property/identifier/value/optional-chain `delete` | remaining edge-specific early errors |
-| References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed ordinary and `super` properties, private field/method/accessor loads, calls, stores, updates, and `#x in value` | imports |
+| References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed ordinary and `super` properties, private field/method/accessor loads, calls, stores, updates, and `#x in value` | import live-cell emission |
 | Calls/construction | direct/member/optional calls, spread calls, ordinary/spread `new`, implicit/explicit/spread `super()`, super-property calls, wide operands | dynamic import |
 | Arrays/objects | holes, array/object spread, data properties, ordinary/generator/async concise methods, getters/setters, computed/shorthand/index keys, stable data shape prefix, demand-driven super home objects | legacy `__proto__` intentionally excluded |
-| Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings, class declaration and inner-name bindings | module bindings and remaining early errors |
+| Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings, class declaration and inner-name bindings, read-only import bindings in a module root scope | module local/export cells and remaining early errors |
 | Assignments | identifier/ordinary/super/private-field member targets, compound/logical/update, array/object destructuring, core optional-chain target restrictions | remaining early errors |
 | Functions | ordinary declarations/expressions, closures, synchronous and async generators with `yield`/`yield*`, async declarations/expressions/object methods with `await`, synchronous and async arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`/`new.target`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function/class name inference, demand-driven mapped/unmapped `arguments` | lazy bodies |
 | Classes | base/derived declarations and expressions, explicit/implicit constructors, heritage/prototype setup, derived `this`/return rules, public/private instance/static methods and accessors, named/computed public fields, instance/static private fields and brands, source-ordered static blocks, named/computed super loads/calls/stores/updates, strict bodies, declaration TDZ/const storage, inner class-name capture, anonymous name inference including named/computed fields, private methods, and private accessors | full ordering differential and Test262 gate |
-| Modules | none | parse goal, entries, linking metadata, live bindings, top-level await |
+| Modules | strict parse goal, side-effect/default/named/namespace imports, string import names, import attributes, compact request/import tables | export tables, linker metadata consumption, live cells, dynamic import, `import.meta`, top-level await |
 
 The direct parser rejects unsupported grammar. It does not catch an error and
 restart through `JavaScriptParser`; that would allocate both representations,
@@ -1139,6 +1139,27 @@ Computed field-initializer naming slice landed:
   initialization observes the name at V8's point
 - performance plan: no new object or side table; one hidden argument only for a
   computed static initializer and one runtime naming call only for anonymous values
+
+Module import-descriptor slice landed:
+
+- iteration scope: module parse goal plus side-effect/default/named/namespace
+  imports, string export names, import attributes, and import binding collection
+- minimal repro: `import value, { read as local } from 'pkg' with { type: 'json' }`
+- reference case:
+  `artifacts/okojobytecodetool/cases/flat_ast_module_imports.js`
+- focused tests cover compact request/attribute/entry metadata, module strictness,
+  module root scope, import binding kind/read-only planning, malformed clauses,
+  string-name alias requirements, and duplicate attribute errors
+- V8 observation: `SourceTextModuleDescriptor` keeps module requests separate from
+  import/export entries and assigns binding/cell information after parsing; import
+  declarations do not become executable statements
+- Okojo implementation: lazily allocated pooled `FlatModuleRequest`,
+  `FlatImportEntry`, and `FlatImportAttribute` tables are addressed by thin import
+  nodes; the binding pass uses an explicit module root and read-only import kind,
+  while linker execution stays on the production path until export/live-cell
+  metadata lands
+- performance plan: module-only pooled tables, no class-AST import objects, and no
+  impact on the script parser/compiler hot path
 
 ### Stage F4 - Modules
 

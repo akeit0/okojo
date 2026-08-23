@@ -485,8 +485,14 @@ checks, and observable function names match the production engine and V8.
 
 ### P4 - Modules
 
-- module parse goal and early errors
-- import/export entries in compact side tables
+- landed import-descriptor foundation: an explicit strict module parse goal handles
+  side-effect/default/named/namespace imports, string import names, and import
+  attributes. Lazily allocated request/attribute/import tables follow V8's
+  `SourceTextModuleDescriptor` split, import nodes only address dense ranges, and
+  the binding collector creates a module root with read-only import bindings.
+- complete module early errors, especially import/local/export cross-declaration
+  conflicts
+- export entries in compact side tables
 - module scope and live binding storage
 - linking/evaluation integration
 - dynamic import, `import.meta`, top-level await, and async dependency ordering

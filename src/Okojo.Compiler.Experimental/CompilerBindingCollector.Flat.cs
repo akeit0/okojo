@@ -9,7 +9,9 @@ internal static partial class CompilerBindingCollector
 
     public static CompilerBindingCollectionResult Collect(FlatAst ast)
     {
-        var collector = new FlatCollector();
+        var collector = new FlatCollector(
+            ast.IsModule ? CompilerCollectedScopeKind.Module : CompilerCollectedScopeKind.Program
+        );
         collector.CollectBody(ast, ast.Root, 0);
         collector.AddSyntheticArgumentsBindings();
         return collector.MoveResult();
@@ -237,6 +239,18 @@ internal static partial class CompilerBindingCollector
                     return;
                 case AstKind.ClassDeclaration:
                     VisitClass(ast, node, scopeId, isDeclaration: true);
+                    return;
+                case AstKind.ImportDeclaration:
+                    var imports = ast.GetImportEntries(node);
+                    for (var i = 0; i < imports.Length; i++)
+                        AddBinding(
+                            scopeId,
+                            CompilerCollectedBindingKind.Import,
+                            ast.GetString(imports[i].LocalNameStringIndex),
+                            imports[i].LocalNameId,
+                            isConst: true,
+                            imports[i].Position
+                        );
                     return;
                 case AstKind.IfStatement:
                     VisitExpression(ast, node.Arg0, scopeId);
@@ -468,6 +482,7 @@ internal static partial class CompilerBindingCollector
                 allScopes[scopeId].Kind
                     is not (
                         CompilerCollectedScopeKind.Program
+                        or CompilerCollectedScopeKind.Module
                         or CompilerCollectedScopeKind.Function
                     )
             )

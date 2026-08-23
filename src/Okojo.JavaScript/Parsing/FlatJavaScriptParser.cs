@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Runtime.InteropServices;
 
 namespace Okojo.JavaScript.Parsing;
 
@@ -7,6 +8,7 @@ internal sealed class FlatJavaScriptParser
     private readonly FlatAst ast;
     private readonly JsLexer lexer;
     private readonly string source;
+    private readonly bool isModule;
     private JsToken current;
     private int functionDepth;
     private int receiverFunctionDepth;
@@ -25,11 +27,19 @@ internal sealed class FlatJavaScriptParser
     private PrivateNameScope? privateNameScope;
     private int deferredAsyncParameterErrorPosition = -1;
     private List<ActiveLabel>? activeLabels;
+    private HashSet<string>? moduleImportBindings;
 
-    private FlatJavaScriptParser(string source, string? sourcePath)
+    private FlatJavaScriptParser(string source, string? sourcePath, bool isModule = false)
     {
         this.source = source ?? throw new ArgumentNullException(nameof(source));
         ast = new FlatAst(source, sourcePath);
+        this.isModule = isModule;
+        ast.IsModule = isModule;
+        if (isModule)
+        {
+            strictMode = true;
+            ast.StrictDeclared = true;
+        }
         lexer = new JsLexer(source);
         current = lexer.NextToken();
     }
@@ -37,6 +47,21 @@ internal sealed class FlatJavaScriptParser
     public static FlatAst ParseScript(string source, string? sourcePath = null)
     {
         var parser = new FlatJavaScriptParser(source, sourcePath);
+        try
+        {
+            parser.ast.Root = parser.ParseProgram();
+            return parser.ast;
+        }
+        catch
+        {
+            parser.ast.Dispose();
+            throw;
+        }
+    }
+
+    public static FlatAst ParseModule(string source, string? sourcePath = null)
+    {
+        var parser = new FlatJavaScriptParser(source, sourcePath, isModule: true);
         try
         {
             parser.ast.Root = parser.ParseProgram();
@@ -60,7 +85,7 @@ internal sealed class FlatJavaScriptParser
         {
             while (current.Kind != JsTokenKind.Eof)
             {
-                var statement = ParseStatement();
+                var statement = isModule ? ParseModuleItem() : ParseStatement();
                 statements.Add(statement);
                 if (allowsDirectives && IsUseStrictDirective(statement))
                 {
@@ -78,6 +103,187 @@ internal sealed class FlatJavaScriptParser
         {
             statements.Dispose();
         }
+    }
+
+    private int ParseModuleItem()
+    {
+        if (
+            IsCurrentIdentifierName("import")
+            && PeekToken().Kind is not (JsTokenKind.LeftParen or JsTokenKind.Dot)
+        )
+            return ParseImportDeclaration();
+        if (IsCurrentIdentifierName("export"))
+            throw Error("Module export declarations are not supported yet", current.Position);
+        return ParseStatement();
+    }
+
+    private int ParseImportDeclaration()
+    {
+        var position = current.Position;
+        Next();
+        List<FlatImportEntry>? pending = null;
+
+        if (current.Kind != JsTokenKind.String)
+        {
+            pending = new(4);
+            if (current.Kind == JsTokenKind.Identifier)
+            {
+                pending.Add(ParseImportBinding("default", FlatImportKind.Default));
+                if (Match(JsTokenKind.Comma))
+                    ParseImportClauseTail(pending);
+            }
+            else
+                ParseImportClauseTail(pending);
+
+            ExpectContextualKeyword("from");
+        }
+
+        var sourceToken = Expect(JsTokenKind.String);
+        var attributes = ParseImportAttributes();
+        ConsumeSemicolon();
+        var requestIndex = ast.AddModuleRequest(
+            Arena.AddString(lexer.GetStringLiteral(sourceToken)),
+            sourceToken.Position,
+            attributes is null
+                ? ReadOnlySpan<FlatImportAttribute>.Empty
+                : CollectionsMarshal.AsSpan(attributes)
+        );
+        var entries = pending is null
+            ? Span<FlatImportEntry>.Empty
+            : CollectionsMarshal.AsSpan(pending);
+        for (var i = 0; i < entries.Length; i++)
+            entries[i] = entries[i] with { ModuleRequestIndex = requestIndex };
+        var range = ast.AddImportEntries(entries);
+        return Arena.Add(
+            AstKind.ImportDeclaration,
+            requestIndex,
+            range.Offset,
+            range.Count,
+            position
+        );
+    }
+
+    private void ParseImportClauseTail(List<FlatImportEntry> entries)
+    {
+        if (Match(JsTokenKind.Star))
+        {
+            ExpectContextualKeyword("as");
+            entries.Add(ParseImportBinding("*", FlatImportKind.Namespace));
+            return;
+        }
+        Expect(JsTokenKind.LeftBrace);
+        while (current.Kind != JsTokenKind.RightBrace)
+        {
+            var importedPosition = current.Position;
+            var importedToken = current;
+            var importedName = ParseModuleExportName();
+            if (IsCurrentIdentifierName("as"))
+            {
+                Next();
+                entries.Add(ParseImportBinding(importedName, FlatImportKind.Named));
+            }
+            else
+            {
+                if (importedToken.Kind != JsTokenKind.Identifier)
+                    throw Error("Imported name requires a local alias", importedPosition);
+                entries.Add(
+                    new(
+                        -1,
+                        Arena.AddString(importedName),
+                        Arena.AddString(importedName),
+                        importedToken.IdentifierId,
+                        FlatImportKind.Named,
+                        importedPosition
+                    )
+                );
+                DeclareModuleImportBinding(importedName, importedPosition);
+            }
+            if (!Match(JsTokenKind.Comma))
+                break;
+            if (current.Kind == JsTokenKind.RightBrace)
+                break;
+        }
+        Expect(JsTokenKind.RightBrace);
+    }
+
+    private FlatImportEntry ParseImportBinding(string importedName, FlatImportKind kind)
+    {
+        var token = ExpectIdentifier();
+        ValidateBindingIdentifier(token);
+        var localName = GetIdentifierText(token);
+        DeclareModuleImportBinding(localName, token.Position);
+        return new(
+            -1,
+            Arena.AddString(importedName),
+            Arena.AddString(localName),
+            token.IdentifierId,
+            kind,
+            token.Position
+        );
+    }
+
+    private string ParseModuleExportName()
+    {
+        var token = current;
+        if (token.Kind == JsTokenKind.String)
+        {
+            Next();
+            return lexer.GetStringLiteral(token);
+        }
+        if (!JsTokenFacts.IsIdentifierName(token.Kind))
+            throw Error("Expected module export name", token.Position);
+        Next();
+        return GetIdentifierText(token);
+    }
+
+    private List<FlatImportAttribute>? ParseImportAttributes()
+    {
+        if (current.Kind != JsTokenKind.With && !IsCurrentIdentifierName("with"))
+            return null;
+        Next();
+        Expect(JsTokenKind.LeftBrace);
+        var attributes = new List<FlatImportAttribute>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        while (current.Kind != JsTokenKind.RightBrace)
+        {
+            var position = current.Position;
+            var key =
+                current.Kind == JsTokenKind.String
+                    ? lexer.GetStringLiteral(current)
+                    : GetObjectPropertyName(current);
+            Next();
+            Expect(JsTokenKind.Colon);
+            var valueToken = Expect(JsTokenKind.String);
+            if (!seen.Add(key))
+                throw Error($"Duplicate import attribute key '{key}'", position);
+            attributes.Add(
+                new(
+                    Arena.AddString(key),
+                    Arena.AddString(lexer.GetStringLiteral(valueToken)),
+                    position
+                )
+            );
+            if (!Match(JsTokenKind.Comma))
+                break;
+            if (current.Kind == JsTokenKind.RightBrace)
+                break;
+        }
+        Expect(JsTokenKind.RightBrace);
+        return attributes;
+    }
+
+    private void ExpectContextualKeyword(string value)
+    {
+        if (!IsCurrentIdentifierName(value))
+            throw Error($"Expected '{value}'", current.Position);
+        Next();
+    }
+
+    private void DeclareModuleImportBinding(string name, int position)
+    {
+        moduleImportBindings ??= new(StringComparer.Ordinal);
+        if (!moduleImportBindings.Add(name))
+            throw Error($"Duplicate module binding '{name}'", position);
     }
 
     private int ParseStatement()
@@ -3248,10 +3454,25 @@ internal sealed class FlatJavaScriptParser
 
     private void ValidateBindingIdentifier(in JsToken token)
     {
+        var name = GetIdentifierText(token);
         if (
-            (asyncFunctionDepth > 0 || parsingAsyncParameters)
-            && source.AsSpan(token.Position, token.SourceLength).SequenceEqual("await".AsSpan())
+            strictMode
+            && name
+                is "eval"
+                    or "arguments"
+                    or "yield"
+                    or "implements"
+                    or "interface"
+                    or "package"
+                    or "private"
+                    or "protected"
+                    or "public"
+                    or "static"
         )
+            throw Error($"Invalid binding identifier '{name}' in strict mode", token.Position);
+        if (isModule && name == "await")
+            throw Error("Invalid binding identifier 'await' in module", token.Position);
+        if ((asyncFunctionDepth > 0 || parsingAsyncParameters) && name == "await")
             ReportAsyncParameterError(token.Position);
     }
 

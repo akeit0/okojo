@@ -11,6 +11,96 @@ namespace Okojo.JavaScript.Compiler.Tests;
 
 public class DirectFlatParserTests
 {
+    [Test]
+    public void ParseModule_CollectsCompactImportDescriptorsAndBindings()
+    {
+        using var ast = FlatJavaScriptParser.ParseModule(
+            """
+            import 'side-effect' with { type: 'json' };
+            import defaultValue, { named, 'string-name' as alias } from 'named';
+            import * as namespaceValue from 'namespace';
+            """,
+            "entry.mjs"
+        );
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(ast.IsModule, Is.True);
+            Assert.That(ast.StrictDeclared, Is.True);
+            Assert.That(ast.SourcePath, Is.EqualTo("entry.mjs"));
+            Assert.That(ast.ModuleRequests.Length, Is.EqualTo(3));
+        });
+
+        var requests = ast.ModuleRequests.ToArray();
+        Assert.That(
+            requests.Select(request => ast.GetString(request.SpecifierStringIndex)).ToArray(),
+            Is.EqualTo(new[] { "side-effect", "named", "namespace" })
+        );
+        var attributes = ast.GetImportAttributes(requests[0]).ToArray();
+        Assert.That(attributes, Has.Length.EqualTo(1));
+        Assert.That(ast.GetString(attributes[0].KeyStringIndex), Is.EqualTo("type"));
+        Assert.That(ast.GetString(attributes[0].ValueStringIndex), Is.EqualTo("json"));
+
+        var statements = ast.ChildRange(ast[ast.Root].Arg0, ast[ast.Root].Arg1);
+        var imports = statements
+            .ToArray()
+            .SelectMany(index => ast.GetImportEntries(ast[index]).ToArray())
+            .ToArray();
+        Assert.That(
+            imports
+                .Select(entry =>
+                    (
+                        ast.GetString(entry.ImportedNameStringIndex),
+                        ast.GetString(entry.LocalNameStringIndex),
+                        entry.Kind
+                    )
+                )
+                .ToArray(),
+            Is.EqualTo(
+                new[]
+                {
+                    ("default", "defaultValue", FlatImportKind.Default),
+                    ("named", "named", FlatImportKind.Named),
+                    ("string-name", "alias", FlatImportKind.Named),
+                    ("*", "namespaceValue", FlatImportKind.Namespace),
+                }
+            )
+        );
+
+        using var collected = CompilerBindingCollector.Collect(ast);
+        Assert.That(collected.Scopes[0].Kind, Is.EqualTo(CompilerCollectedScopeKind.Module));
+        Assert.That(
+            collected
+                .Bindings.ToArray()
+                .Select(binding => (binding.Name, binding.Kind, binding.IsConst))
+                .ToArray(),
+            Is.EqualTo(
+                new[]
+                {
+                    ("defaultValue", CompilerCollectedBindingKind.Import, true),
+                    ("named", CompilerCollectedBindingKind.Import, true),
+                    ("alias", CompilerCollectedBindingKind.Import, true),
+                    ("namespaceValue", CompilerCollectedBindingKind.Import, true),
+                }
+            )
+        );
+        using var plan = CompilerStoragePlanner.Plan(collected);
+        Assert.That(
+            plan.Bindings.ToArray().Select(binding => binding.StorageKind),
+            Is.All.EqualTo(CompilerPlannedStorageKind.ImportBinding)
+        );
+    }
+
+    [TestCase("import { 'name' } from 'pkg';")]
+    [TestCase("import value 'pkg';")]
+    [TestCase("import * namespaceValue from 'pkg';")]
+    [TestCase("import await from 'pkg';")]
+    [TestCase("import yield from 'pkg';")]
+    [TestCase("import value from 'a'; import { named as value } from 'b';")]
+    [TestCase("import value from 'pkg' with { type: 'json', type: 'css' };")]
+    public void ParseModule_RejectsInvalidImportDeclarations(string source) =>
+        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseModule(source));
+
     [TestCase("1 + 2 * 3", 7)]
     [TestCase("(1 + 2) * 3", 9)]
     [TestCase("2 ** 3 ** 2", 512)]

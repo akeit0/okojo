@@ -8,4 +8,5 @@ internal enum CompilerCollectedScopeKind : byte
     Catch = 3,
     Class = 4,
     StaticBlock = 5,
+    Module = 6,
 }
