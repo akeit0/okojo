@@ -56,12 +56,12 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Primitive expressions | number, BigInt, string, boolean, null, regexp, tagged/untagged template, identifier, `this`, `new.target`, grouping | `super`, `import.meta` |
 | Operators | precedence table, assignment, arithmetic/logical/bitwise/comparison, conditionals, sequence, updates, optional chains, property/identifier/value/optional-chain `delete` | remaining edge-specific early errors |
 | References | locals, lexical contexts, globals/unresolvable load/store/`typeof`/`delete`, named/computed properties | imports, private and super references |
-| Calls/construction | direct/member/optional calls, spread calls, ordinary/spread `new`, wide operands | dynamic import, super call |
+| Calls/construction | direct/member/optional calls, spread calls, ordinary/spread `new`, implicit/explicit/spread `super()`, wide operands | dynamic import, super-property calls |
 | Arrays/objects | holes, array/object spread, data properties, ordinary/generator/async concise methods, getters/setters, computed/shorthand/index keys, stable data shape prefix | `super` methods, legacy `__proto__` intentionally excluded |
 | Bindings | identifier and nested array/object declarations, defaults, rest, computed keys, optional/identifier/destructured catch bindings, class declaration and inner-name bindings | module bindings and remaining early errors |
 | Assignments | identifier/member targets, compound/logical/update, array/object destructuring, core optional-chain target restrictions | private/super targets, remaining early errors |
 | Functions | ordinary declarations/expressions, closures, synchronous and async generators with `yield`/`yield*`, async declarations/expressions/object methods with `await`, synchronous and async arrows with simple/default/rest/pattern parameters and lexical `this`/`arguments`/`new.target`, ordinary simple/default/rest/pattern parameters, named self, ordinary anonymous-function name inference, demand-driven mapped/unmapped `arguments` | anonymous class-expression name inference, lazy bodies |
-| Classes | base declarations/expressions, explicit/implicit constructors, public named/computed instance/static methods and accessors, strict bodies, declaration TDZ/const storage, inner class-name capture | heritage/derived constructors, `super`, fields, static blocks, private names/brands, anonymous class-expression name inference |
+| Classes | base/derived declarations and expressions, explicit/implicit constructors, heritage/prototype setup, derived `this`/return rules, public named/computed instance/static methods and accessors, strict bodies, declaration TDZ/const storage, inner class-name capture | super properties, fields, static blocks, private names/brands, anonymous class-expression name inference |
 | Modules | none | parse goal, entries, linking metadata, live bindings, top-level await |
 
 The direct parser rejects unsupported grammar. It does not catch an error and
@@ -910,6 +910,35 @@ Baseline class slice landed:
   once into the shared function table, allocate constructor/prototype registers
   in one temporary scope, and avoid dictionaries until private-name resolution
   requires them
+
+Heritage and derived-constructor slice landed:
+
+- iteration scope: `extends` evaluation, prototype/constructor heritage, implicit
+  argument forwarding, explicit `super()` with ordinary/spread arguments, derived
+  `this` TDZ, duplicate/missing-super errors, and derived return rules
+- minimal repro:
+  `class D extends B { constructor(v) { super(v); this.ready = true } }`
+- reference case:
+  `artifacts/okojobytecodetool/cases/flat_ast_class_heritage.js`
+- focused regressions cover heritage evaluation before constructor initialization,
+  implicit forwarding, explicit/spread calls, `new.target`, `this` before super,
+  missing/duplicate super, object/undefined/primitive constructor returns, and the
+  class-AST bridge
+- V8 observation: `BuildClassLiteral` evaluates heritage before creating the
+  constructor and computed members, and keeps the inner class binding in TDZ
+  through public-element definition; derived frames keep hole-valued `this` until
+  `super()` succeeds
+- Okojo implementation: reuse `SetClassHeritage`, `CallSuperConstructor`,
+  `CallSuperConstructorWithSpread`, and `CallSuperConstructorForwardAll`; carry
+  only derived/implicit-forward bits in flat function metadata
+- intentional difference: Okojo keeps its existing runtime super-construction ABI
+  instead of copying V8's `FindNonDefaultConstructorOrConstruct` bytecode sequence;
+  observable evaluation, forwarding, and error rules match V8
+- intentional boundary: named/computed `super` properties and super method calls
+  follow with method-environment capture; fields/private initialization remains a
+  later source-ordered class phase
+- performance plan: retain the heritage value in one temporary register, use the
+  existing contiguous argument ABI, and add no new runtime helper or class object
 
 ### Stage F4 - Modules
 

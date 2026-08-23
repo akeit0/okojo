@@ -18,8 +18,6 @@ internal abstract partial class JsPlannedCompilerBase
     private void EmitClassExpression(FlatAst ast, int classIndex)
     {
         var info = ast.GetClass(classIndex);
-        if (info.HasExtends)
-            throw new NotSupportedException("Flat class heritage is not implemented yet.");
 
         var classScope = FindChildScope(
             activeScopes.Peek().ScopeId,
@@ -31,6 +29,14 @@ internal abstract partial class JsPlannedCompilerBase
         try
         {
             var name = ast.GetString(info.NameStringIndex);
+            var heritageRegister = -1;
+            if (info.HasExtends)
+            {
+                EmitExpression(ast, info.ExtendsNode);
+                heritageRegister = builder.AllocateTemporaryRegister();
+                EmitStar(heritageRegister);
+            }
+
             ref readonly var constructor = ref ast[info.ConstructorNode];
             EmitFunctionExpression(
                 ast,
@@ -41,14 +47,14 @@ internal abstract partial class JsPlannedCompilerBase
             var constructorRegister = builder.AllocateTemporaryRegister();
             EmitStar(constructorRegister);
 
-            if (name.Length != 0)
+            if (heritageRegister >= 0)
             {
-                if (!TryResolveBinding(name, out var classAlias))
-                    throw new InvalidOperationException(
-                        $"No planned class lexical binding found for '{name}'."
-                    );
+                var heritageArguments = builder.AllocateTemporaryRegisterBlock(2);
                 EmitLdar(constructorRegister);
-                EmitStore(classAlias, isInitialization: true);
+                EmitStar(heritageArguments);
+                EmitLdar(heritageRegister);
+                EmitStar(heritageArguments + 1);
+                builder.EmitCallRuntime((int)RuntimeId.SetClassHeritage, heritageArguments, 2);
             }
 
             builder.EmitCallRuntime(
@@ -66,6 +72,16 @@ internal abstract partial class JsPlannedCompilerBase
                 if (element.Kind == JsClassElementKind.Constructor)
                     continue;
                 EmitClassElement(ast, element, constructorRegister, prototypeRegister);
+            }
+
+            if (name.Length != 0)
+            {
+                if (!TryResolveBinding(name, out var classAlias))
+                    throw new InvalidOperationException(
+                        $"No planned class lexical binding found for '{name}'."
+                    );
+                EmitLdar(constructorRegister);
+                EmitStore(classAlias, isInitialization: true);
             }
 
             EmitLdar(constructorRegister);

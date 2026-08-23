@@ -245,7 +245,9 @@ internal static class FlatAstLowerer
             JsFunctionExpression function,
             bool implicitlyStrict = false,
             bool isMethod = false,
-            bool isClassConstructor = false
+            bool isClassConstructor = false,
+            bool isDerivedConstructor = false,
+            bool emitImplicitSuperForwardAll = false
         )
         {
             var bodyRoot = LowerFunctionBody(function.Body);
@@ -273,7 +275,9 @@ internal static class FlatAstLowerer
                     function.IsArrow,
                     function.IsGenerator,
                     function.IsAsync,
-                    IsClassConstructor: isClassConstructor
+                    IsClassConstructor: isClassConstructor,
+                    IsDerivedConstructor: isDerivedConstructor,
+                    EmitImplicitSuperForwardAll: emitImplicitSuperForwardAll
                 )
             );
             return Arena.Add(
@@ -630,6 +634,10 @@ internal static class FlatAstLowerer
                     AstKind.ThisExpression,
                     position: expression.Position
                 ),
+                JsSuperExpression => Arena.Add(
+                    AstKind.SuperExpression,
+                    position: expression.Position
+                ),
                 JsNewTargetExpression => Arena.Add(
                     AstKind.NewTargetExpression,
                     position: expression.Position
@@ -702,10 +710,12 @@ internal static class FlatAstLowerer
             int nameId
         )
         {
-            if (classExpression.HasExtends)
-                throw new NotSupportedException(
-                    $"{compilerName} does not support class heritage yet."
-                );
+            var extendsNode =
+                classExpression.HasExtends && classExpression.ExtendsExpression is { } heritage
+                    ? LowerExpression(heritage)
+                    : -1;
+            if (classExpression.HasExtends && extendsNode < 0)
+                throw new InvalidOperationException("Class extends expression is missing.");
 
             var elements = ArrayPool<FlatClassElement>.Shared.Rent(
                 Math.Max(1, classExpression.Elements.Count)
@@ -731,7 +741,9 @@ internal static class FlatAstLowerer
                         element.Value,
                         implicitlyStrict: true,
                         isMethod: element.Kind != JsClassElementKind.Constructor,
-                        isClassConstructor: element.Kind == JsClassElementKind.Constructor
+                        isClassConstructor: element.Kind == JsClassElementKind.Constructor,
+                        isDerivedConstructor: element.Kind == JsClassElementKind.Constructor
+                            && classExpression.HasExtends
                     );
                     if (element.Kind == JsClassElementKind.Constructor)
                         constructorNode = value;
@@ -749,8 +761,8 @@ internal static class FlatAstLowerer
 
                 if (constructorNode < 0)
                     constructorNode = AddImplicitClassConstructor(
-                        name ?? string.Empty,
-                        classExpression.Position
+                        classExpression.Position,
+                        isDerived: classExpression.HasExtends
                     );
                 var range = Ast.AddClassElements(
                     elements.AsSpan(0, classExpression.Elements.Count)
@@ -762,7 +774,7 @@ internal static class FlatAstLowerer
                         range.Offset,
                         range.Count,
                         constructorNode,
-                        -1,
+                        extendsNode,
                         classExpression.Position
                     )
                 );
@@ -778,7 +790,7 @@ internal static class FlatAstLowerer
             }
         }
 
-        private int AddImplicitClassConstructor(string name, int position)
+        private int AddImplicitClassConstructor(int position, bool isDerived = false)
         {
             var bodyChildren = Arena.AddChildren(ReadOnlySpan<int>.Empty);
             var body = Arena.Add(
@@ -790,7 +802,7 @@ internal static class FlatAstLowerer
             var parameters = Ast.AddParameters(ReadOnlySpan<FlatParameter>.Empty);
             var functionIndex = Ast.AddFunction(
                 new FlatFunctionInfo(
-                    Arena.AddString(name),
+                    Arena.AddString(string.Empty),
                     -1,
                     parameters.Offset,
                     parameters.Count,
@@ -801,7 +813,9 @@ internal static class FlatAstLowerer
                     false,
                     position,
                     false,
-                    IsClassConstructor: true
+                    IsClassConstructor: true,
+                    IsDerivedConstructor: isDerived,
+                    EmitImplicitSuperForwardAll: isDerived
                 )
             );
             return Arena.Add(AstKind.FunctionExpression, functionIndex, body, position: position);

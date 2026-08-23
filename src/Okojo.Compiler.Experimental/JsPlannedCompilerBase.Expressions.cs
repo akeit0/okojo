@@ -86,6 +86,8 @@ internal abstract partial class JsPlannedCompilerBase
             case AstKind.NewTargetExpression:
                 builder.EmitLda(JsOpCode.LdaNewTarget);
                 return;
+            case AstKind.SuperExpression:
+                throw new InvalidOperationException("Bare super cannot be emitted as a value.");
             case AstKind.AssignmentExpression
                 when (JsAssignmentOperator)node.Arg2 == JsAssignmentOperator.Assign
                     && ast[node.Arg0].Kind is AstKind.ArrayExpression or AstKind.ObjectExpression:
@@ -811,6 +813,13 @@ internal abstract partial class JsPlannedCompilerBase
         try
         {
             ref readonly var callee = ref ast[node.Arg0];
+            if (callee.Kind == AstKind.SuperExpression)
+            {
+                if (optional)
+                    throw new InvalidOperationException("super() cannot be optional.");
+                EmitSuperCall(ast, node.Arg1, node.Arg2);
+                return;
+            }
             if (callee.Kind == AstKind.MemberExpression)
             {
                 EmitExpression(ast, callee.Arg0);
@@ -857,6 +866,31 @@ internal abstract partial class JsPlannedCompilerBase
         {
             builder.ReleaseTemporaryRegistersToMarker(marker);
         }
+    }
+
+    private void EmitSuperCall(FlatAst ast, int offset, int count)
+    {
+        if (!HasSpreadArgument(ast, offset, count))
+        {
+            var argumentStart = EmitCallArguments(ast, offset, count);
+            builder.EmitCallRuntime((int)RuntimeId.CallSuperConstructor, argumentStart, count);
+            return;
+        }
+
+        var arguments = EmitSpreadArguments(ast, offset, count, out var flagsRegister);
+        var runtimeArguments = builder.AllocateTemporaryRegisterBlock(count + 1);
+        EmitLdar(flagsRegister);
+        EmitStar(runtimeArguments);
+        for (var i = 0; i < count; i++)
+        {
+            EmitLdar(arguments + i);
+            EmitStar(runtimeArguments + 1 + i);
+        }
+        builder.EmitCallRuntime(
+            (int)RuntimeId.CallSuperConstructorWithSpread,
+            runtimeArguments,
+            count + 1
+        );
     }
 
     private void EmitNewExpression(FlatAst ast, AstNode node)

@@ -3232,6 +3232,108 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_ExecutesImplicitExplicitAndSpreadSuperCalls()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            class Base {
+                constructor(...values) {
+                    this.values = values.join(',');
+                    this.target = new.target.name;
+                }
+            }
+            class Implicit extends Base {}
+            class Explicit extends Base {
+                constructor(prefix, values) {
+                    (() => super(prefix, ...values))();
+                    this.ready = true;
+                }
+            }
+            let implicit = new Implicit(1, 2);
+            let explicit = new Explicit('x', [3, 4]);
+            implicit.values + '|' + implicit.target + '|' + explicit.values + '|'
+                + explicit.target + '|' + explicit.ready + '|'
+                + (Object.getPrototypeOf(Explicit) === Base) + '|'
+                + (Object.getPrototypeOf(Explicit.prototype) === Base.prototype);
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(
+            realm.Accumulator.AsString(),
+            Is.EqualTo("1,2|Implicit|x,3,4|Explicit|true|true|true")
+        );
+        var constructors = script
+            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .Where(static function => function.IsClassConstructor)
+            .ToArray();
+        Assert.That(
+            constructors.Count(static function => function.IsDerivedConstructor),
+            Is.EqualTo(2)
+        );
+    }
+
+    [Test]
+    public void CompileString_EnforcesDerivedThisAndReturnRules()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            class Base {}
+            class BeforeSuper extends Base { constructor() { this.value = 1; super(); } }
+            class MissingSuper extends Base { constructor() {} }
+            class Twice extends Base { constructor() { super(); super(); } }
+            class Primitive extends Base { constructor() { return 1; } }
+            class ObjectReturn extends Base { constructor() { return { ok: true }; } }
+            class NullBase extends null { constructor() { return { ok: true }; } }
+            function rejects(Ctor, ErrorType) {
+                try { new Ctor(); return false; }
+                catch (error) { return error instanceof ErrorType; }
+            }
+            rejects(BeforeSuper, ReferenceError) + '|'
+                + rejects(MissingSuper, ReferenceError) + '|'
+                + rejects(Twice, ReferenceError) + '|'
+                + rejects(Primitive, TypeError) + '|'
+                + (new ObjectReturn().ok) + '|'
+                + (new NullBase().ok) + '|'
+                + (Object.getPrototypeOf(NullBase.prototype) === null);
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("true|true|true|true|true|true|true"));
+    }
+
+    [Test]
+    public void CompileString_EvaluatesHeritageBeforeKeysAndKeepsInnerNameInTdz()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let order = '';
+            let innerTdz = false;
+            try { let Bad = class Inner extends (order += 'heritage,', Inner) {}; }
+            catch (error) { innerTdz = error instanceof ReferenceError; }
+            let keyTdz = false;
+            try { class Keyed { [Keyed]() {} } }
+            catch (error) { keyTdz = error instanceof ReferenceError; }
+            class Base {}
+            class Derived extends (order += 'base,', Base) {
+                [order += 'key,']() {}
+            }
+            order + '|' + innerTdz + '|' + keyTdz;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("heritage,base,key,|true|true"));
+    }
+
+    [Test]
     public void CompileAst_ExecutesBaselineClassBridge()
     {
         var realm = JsRuntime.Create().DefaultRealm;
@@ -3246,11 +3348,28 @@ public class DirectFlatParserTests
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(4));
     }
 
-    [TestCase("class Derived extends Base {}")]
+    [Test]
+    public void CompileAst_ExecutesDerivedClassBridge()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            JavaScriptParser.ParseScript(
+                "class Base { constructor(value) { this.value = value; } } class Derived extends Base { constructor(value) { super(value + 1); } } new Derived(4).value;"
+            )
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(5));
+    }
+
+    [TestCase("class Derived extends Base { read() { return super.value; } }")]
+    [TestCase("class Base { constructor() { super(); } }")]
+    [TestCase("class Derived extends Base { method() { super(); } }")]
     [TestCase("class Fields { value = 1; }")]
     [TestCase("class Private { #value; }")]
     [TestCase("class StaticBlock { static {} }")]
-    public void ParseScript_RejectsDeferredClassElements(string source) =>
+    public void ParseScript_RejectsInvalidOrDeferredClassSyntax(string source) =>
         Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
 
     [Test]

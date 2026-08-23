@@ -207,7 +207,8 @@ internal readonly record struct FlatFunctionInfo(
     bool IsGenerator = false,
     bool IsAsync = false,
     bool IsClassConstructor = false,
-    bool IsDerivedConstructor = false
+    bool IsDerivedConstructor = false,
+    bool EmitImplicitSuperForwardAll = false
 );
 
 internal readonly record struct FlatParameter(

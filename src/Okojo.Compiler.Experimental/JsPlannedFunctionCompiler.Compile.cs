@@ -37,6 +37,7 @@ internal sealed partial class JsPlannedFunctionCompiler
                 false,
                 false,
                 false,
+                false,
                 false
             ),
             collected,
@@ -75,7 +76,8 @@ internal sealed partial class JsPlannedFunctionCompiler
                 function.IsGenerator,
                 function.IsAsync,
                 function.IsClassConstructor,
-                function.IsDerivedConstructor
+                function.IsDerivedConstructor,
+                function.EmitImplicitSuperForwardAll
             ),
             collected,
             ast,
@@ -113,6 +115,8 @@ internal sealed partial class JsPlannedFunctionCompiler
         if (flatFunction is { } function)
             EmitParameterPrologue(ast, function);
         EmitDeclarationPrologue(ast, bodyRoot);
+        if (metadata.EmitImplicitSuperForwardAll)
+            builder.EmitCallRuntime((int)RuntimeId.CallSuperConstructorForwardAll, 0, 0);
         if (isGenerator && !metadata.HasSimpleParameterList)
             EmitGeneratorPrestartSuspend();
 
@@ -235,6 +239,7 @@ internal sealed partial class JsPlannedFunctionCompiler
         bool IsGenerator,
         bool IsAsync,
         bool IsClassConstructor,
-        bool IsDerivedConstructor
+        bool IsDerivedConstructor,
+        bool EmitImplicitSuperForwardAll
     );
 }

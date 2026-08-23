@@ -93,6 +93,8 @@ parameters, ordinary function expressions, closures, `this`, `throw`, and
 generators, ordinary async functions with `await`, async generators, and
 `for-await-of`, plus base class declarations/expressions with explicit or implicit
 constructors and public named/computed instance/static methods and accessors.
+Class heritage, derived constructors, and implicit/explicit/spread `super()` are
+also on the direct path.
 
 ## Reference Architecture Insights
 
@@ -218,8 +220,11 @@ The direct flat work has already established several reusable rules:
   data methods in the shape prefix and lower accessors through the existing keyed
   accessor runtime until measurements justify a V8-style paired accessor table
 - represent a class as one compact record plus a dense source-ordered element
-  range; create and initialize the constructor/inner class binding first, then
-  reuse the existing prototype, method, and accessor runtime operations
+  range; create the constructor, reuse the existing prototype/method/accessor
+  runtime operations, then initialize the captured inner class binding
+- evaluate heritage before constructor/public elements, retain the inner class
+  binding as a hole through computed-key evaluation, and encode implicit derived
+  forwarding as one function metadata bit using the existing super runtime ABI
 - keep RegExp pattern/flags and canonical BigInt digits as arena string IDs;
   construct fresh RegExp objects through the existing runtime and load parsed
   BigInt constants through the typed constant-pool opcode
@@ -413,11 +418,11 @@ the new compiler for the supported function families.
 
 ### P3 - Classes and advanced references
 
-- landed baseline: base class declarations/expressions, explicit and implicit
-  constructors, declaration TDZ/const storage, inner class-name capture, and
-  public named/computed instance/static methods and accessors
-- add heritage, derived constructors, and `super()` while preserving constructor
-  call rejection, `new.target`, and derived-this initialization rules
+- landed baseline: base/derived class declarations/expressions, explicit and
+  implicit constructors, heritage/prototype setup, declaration and computed-key
+  TDZ, inner class-name capture, public named/computed instance/static methods and
+  accessors, implicit/explicit/spread `super()`, `new.target`, and derived
+  `this`/return rules
 - add public fields and static blocks using dense initializer records scheduled in
   specification order rather than parser-time execution
 - `super` calls and named/computed super properties

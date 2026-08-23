@@ -17,6 +17,7 @@ internal sealed class FlatJavaScriptParser
     private bool strictMode;
     private bool parsingAsyncParameters;
     private bool deferringAsyncParameterErrors;
+    private bool allowSuperCall;
     private int deferredAsyncParameterErrorPosition = -1;
     private List<ActiveLabel>? activeLabels;
 
@@ -463,12 +464,14 @@ internal sealed class FlatJavaScriptParser
         var generatorDepthBeforeFunction = generatorFunctionDepth;
         var asyncDepthBeforeFunction = asyncFunctionDepth;
         var parsingAsyncParametersBeforeFunction = parsingAsyncParameters;
+        var allowSuperCallBeforeFunction = allowSuperCall;
         receiverFunctionDepth++;
         try
         {
             generatorFunctionDepth = 0;
             asyncFunctionDepth = 0;
             parsingAsyncParameters = isAsync;
+            allowSuperCall = isDerivedConstructor;
             return ParseFunctionTailCore(
                 isDeclaration,
                 name,
@@ -488,6 +491,7 @@ internal sealed class FlatJavaScriptParser
             generatorFunctionDepth = generatorDepthBeforeFunction;
             asyncFunctionDepth = asyncDepthBeforeFunction;
             parsingAsyncParameters = parsingAsyncParametersBeforeFunction;
+            allowSuperCall = allowSuperCallBeforeFunction;
             receiverFunctionDepth--;
         }
     }
@@ -732,8 +736,15 @@ internal sealed class FlatJavaScriptParser
         else if (isDeclaration)
             throw Error("Expected class name", current.Position);
 
+        var extendsNode = -1;
         if (IsCurrentIdentifierName("extends"))
-            throw Error("Class heritage is not supported by the flat parser yet", current.Position);
+        {
+            Next();
+            extendsNode =
+                current.Kind == JsTokenKind.New
+                    ? ParseNewExpression()
+                    : ParseMemberAndCallSuffix(ParsePrimary(), allowCalls: true);
+        }
 
         Expect(JsTokenKind.LeftBrace);
         var strictBeforeClass = strictMode;
@@ -895,7 +906,8 @@ internal sealed class FlatJavaScriptParser
                     isMethod: !isConstructor,
                     isGenerator,
                     isAsync,
-                    isClassConstructor: isConstructor
+                    isClassConstructor: isConstructor,
+                    isDerivedConstructor: isConstructor && extendsNode >= 0
                 );
                 if (isConstructor)
                     constructorNode = method;
@@ -912,7 +924,10 @@ internal sealed class FlatJavaScriptParser
             }
             Expect(JsTokenKind.RightBrace);
             if (constructorNode < 0)
-                constructorNode = AddImplicitClassConstructor(name, position);
+                constructorNode = AddImplicitClassConstructor(
+                    position,
+                    isDerived: extendsNode >= 0
+                );
             var elementRange = ast.AddClassElements(elements.AsSpan());
             var classIndex = ast.AddClass(
                 new FlatClassInfo(
@@ -921,7 +936,7 @@ internal sealed class FlatJavaScriptParser
                     elementRange.Offset,
                     elementRange.Count,
                     constructorNode,
-                    -1,
+                    extendsNode,
                     position
                 )
             );
@@ -938,14 +953,14 @@ internal sealed class FlatJavaScriptParser
         }
     }
 
-    private int AddImplicitClassConstructor(string name, int position)
+    private int AddImplicitClassConstructor(int position, bool isDerived = false)
     {
         var empty = Arena.AddChildren(ReadOnlySpan<int>.Empty);
         var body = Arena.Add(AstKind.Program, empty.Offset, empty.Count, position: position);
         var parameters = ast.AddParameters(ReadOnlySpan<FlatParameter>.Empty);
         var functionIndex = ast.AddFunction(
             new FlatFunctionInfo(
-                Arena.AddString(name),
+                Arena.AddString(string.Empty),
                 -1,
                 parameters.Offset,
                 parameters.Count,
@@ -956,7 +971,9 @@ internal sealed class FlatJavaScriptParser
                 false,
                 position,
                 false,
-                IsClassConstructor: true
+                IsClassConstructor: true,
+                IsDerivedConstructor: isDerived,
+                EmitImplicitSuperForwardAll: isDerived
             )
         );
         return Arena.Add(AstKind.FunctionExpression, functionIndex, body, position: position);
@@ -1701,6 +1718,8 @@ internal sealed class FlatJavaScriptParser
             var position = Arena.GetPosition(expression);
             if (IsOptionalChainPunctuator())
             {
+                if (Arena[expression].Kind == AstKind.SuperExpression)
+                    throw Error("Optional chaining is not valid on super", current.Position);
                 Next();
                 Expect(JsTokenKind.Dot);
                 optionalChain = true;
@@ -1740,6 +1759,11 @@ internal sealed class FlatJavaScriptParser
 
             if (Match(JsTokenKind.Dot))
             {
+                if (Arena[expression].Kind == AstKind.SuperExpression)
+                    throw Error(
+                        "Super properties are not supported by the flat parser yet",
+                        position
+                    );
                 if (!JsTokenFacts.IsIdentifierName(current.Kind))
                     throw Error($"Expected Identifier but found {current.Kind}", current.Position);
                 var property = current;
@@ -1756,6 +1780,11 @@ internal sealed class FlatJavaScriptParser
 
             if (Match(JsTokenKind.LeftBracket))
             {
+                if (Arena[expression].Kind == AstKind.SuperExpression)
+                    throw Error(
+                        "Super properties are not supported by the flat parser yet",
+                        position
+                    );
                 var property = ParseExpression();
                 Expect(JsTokenKind.RightBracket);
                 expression = Arena.Add(
@@ -1770,12 +1799,16 @@ internal sealed class FlatJavaScriptParser
 
             if (allowCalls && Match(JsTokenKind.LeftParen))
             {
+                if (Arena[expression].Kind == AstKind.SuperExpression && !allowSuperCall)
+                    throw Error("super() is only valid in a derived constructor", position);
                 expression = ParseCallArguments(expression, position, optional: false);
                 continue;
             }
 
             if (current.Kind == JsTokenKind.Template)
             {
+                if (Arena[expression].Kind == AstKind.SuperExpression)
+                    throw Error("Invalid use of super", position);
                 if (optionalChain)
                     throw Error(
                         "Tagged template cannot follow an optional chain",
@@ -1786,6 +1819,8 @@ internal sealed class FlatJavaScriptParser
                 continue;
             }
 
+            if (Arena[expression].Kind == AstKind.SuperExpression)
+                throw Error("Invalid use of super", position);
             return optionalChain
                 ? Arena.Add(
                     AstKind.OptionalChainExpression,
@@ -1848,6 +1883,11 @@ internal sealed class FlatJavaScriptParser
         var token = current;
         if (IsCurrentIdentifierName("class"))
             return ParseClass(isDeclaration: false);
+        if (IsCurrentIdentifierName("super"))
+        {
+            Next();
+            return Arena.Add(AstKind.SuperExpression, position: token.Position);
+        }
         if (IsAsyncFunctionPrefix())
             return ParseFunctionExpression(isAsync: true);
         switch (token.Kind)
