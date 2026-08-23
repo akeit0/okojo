@@ -331,7 +331,69 @@ for-loop-sum and lexical-block should follow).
 | R4 | Fusion: StaCurrentContextSlotFromReg | CLOSED per owner policy |
 | R5 | Fusion: LdaGlobalToReg, GetNamedPropertyTo, AddToReg | CLOSED per owner policy; revisit trigger documented in 1.5 |
 | R6 | Engine-vs-metadata operand-length contract audit + test + rename | DONE (see 1.4) |
-| R7 | test262-wide opcode histogram before any pruning | tooling | none |
-| R8 | Investigate plain-Jump vs JumpLoop back-edge semantics vs V8 | design note | after R7 |
+| R7 | test262-wide opcode histogram | DONE (section 7; CSV snapshot saved) |
+| R8 | plain Jump vs JumpLoop | DONE (section 8; JumpLoop dormant) |
 
+
+
+## 7. R7 DONE - test262-wide opcode histogram
+
+Tool: tools/Test262OpcodeHistogram (in-process parse+compile over every
+test262 .js file; compilation only). CSV snapshot:
+artifacts/okojobytecodetool/snapshots/r7-test262-histogram.csv
+
+Coverage: files=53432 parsedOk=53432 compiled=49685 units=169099
+instructions=10,748,516. moduleSkipped detection was not wired (module-flag
+files land in compileUnsupported), negativeSyntaxSkipped=2530,
+compileUnsupported=1217 (with-statements / destructuring assignment targets /
+annexB assignmenttargettype set) - consistent with policy exclusions.
+
+Distinct emitted: 126/153. Top opcodes test262-wide:
+
+| rank | op            | count     | share |
+| ---- | ------------- | --------- | ----- |
+| 1    | Star          | 3,297,459 | 30.68% |
+| 2    | LdaGlobal     | 580,382   | 5.40% |
+| 3    | Ldar           | 541,476   | 5.04% |
+| 4    | LdaNamedProperty | 519,516 | 4.83% |
+| 5    | LdaUndefined  | 461,430   | 4.29% |
+| 6    | LdaTheHole    | 444,936   | 4.14% |
+| 7    | CallProperty  | 365,224   | 3.40% |
+| 8    | LdaStringConstant | 356,318 | 3.32% |
+| 9    | LdaSmi        | 325,185   | 3.03% |
+| 10   | StaCurrentContextSlot | 246,880 | 2.30% |
+| 11   | CallRuntime   | 229,788   | 2.14% |
+| 12   | Jump          | 215,105   | 2.00% |
+
+Top bigram by a wide margin: `LdaGlobal -> Star` x550k. The Star+copy family
+(Star/Ldar/Mov) is ~37% of everything test262 dispatches.
+
+Final dead list (27 opcodes never emitted across ALL of test262):
+LdaNumericConstantWide, LdaModuleVariable, StaModuleVariable, StaGlobalWide,
+StaGlobalInitWide(?), TypeOfGlobalWide, GetNamedPropertyFromSuperWide,
+PushContext, LdaContextSlotWide, StaContextSlotWide,
+LdaCurrentContextSlotWide(+NoTdzWide), ToName, SwitchOnSmi, JumpLoop, CallAny,
+InvokeIntrinsic, CreateBlockContext, CreateFunctionContext,
+CreateFunctionContextWithCellsWide, Wide, ExtraWide, LdaLexicalLocalWide,
+StaLexicalLocalWide (+duplicates from enum aliasing).
+These are the validated pruning candidates IF a future pass wants bytecode
+compaction; several are Wide twins that exist for operand-width symmetry -
+removal is an A9-class contract change and stays closed under current policy.
+
+## 8. R8 DONE - plain Jump vs JumpLoop
+
+Measured: back-edge ops across test262 = Jump 215,105 / JumpLoop **0**.
+JumpLoop is entirely unimplemented (VM arm falls through to NotImplemented)
+and unemitted; its metadata entry documents [offset16][depth] while the
+disassembler prints a misleading 2-byte view (noted in 1.4).
+
+Analysis vs V8: Ignition's JumpLoop exists to host loop interrupt checks and
+loop-depth feedback at the back edge. Okojo's global countdown check covers
+interrupts at EVERY dispatch edge (A5 proved it effectively free), so there
+is no functional loss from plain Jump today.
+
+Decision: keep JumpLoop dormant and documented (removal would renumber the
+enum against stability for zero runtime gain). If loop-level instrumentation
+or OSR-style feedback is ever needed, implementing JumpLoop emission is the
+designated insertion point.
 
