@@ -739,6 +739,25 @@ internal sealed class FlatJavaScriptParser
         int Position
     );
 
+    private bool ShouldParseLetAsDeclaration()
+    {
+        if (strictMode)
+            return true;
+        var next = PeekToken();
+        if (
+            next.Kind
+            is JsTokenKind.Identifier
+                or JsTokenKind.ReservedWord
+                or JsTokenKind.PrivateIdentifier
+        )
+            return true;
+        if (next.Kind is JsTokenKind.LeftBracket)
+            return true;
+        if (next.Kind is JsTokenKind.LeftBrace)
+            return !next.HasLineTerminatorBefore;
+        return false;
+    }
+
     private int ParseStatement()
     {
         var position = current.Position;
@@ -757,9 +776,12 @@ internal sealed class FlatJavaScriptParser
         {
             JsTokenKind.Semicolon => ParseEmptyStatement(position),
             JsTokenKind.LeftBrace => ParseBlock(out _),
-            JsTokenKind.Var or JsTokenKind.Let or JsTokenKind.Const => ParseVariableDeclaration(
+            JsTokenKind.Var or JsTokenKind.Const => ParseVariableDeclaration(
                 consumeSemicolon: true
             ),
+            JsTokenKind.Let => ShouldParseLetAsDeclaration()
+                ? ParseVariableDeclaration(consumeSemicolon: true)
+                : ParseExpressionStatement(),
             JsTokenKind.Function => ParseFunctionDeclaration(),
             JsTokenKind.If => ParseIfStatement(),
             JsTokenKind.While => ParseWhileStatement(),
@@ -2184,7 +2206,10 @@ internal sealed class FlatJavaScriptParser
         var init = -1;
         if (current.Kind != JsTokenKind.Semicolon)
         {
-            if (current.Kind is JsTokenKind.Var or JsTokenKind.Let or JsTokenKind.Const)
+            if (
+                current.Kind is JsTokenKind.Var or JsTokenKind.Const
+                || (current.Kind == JsTokenKind.Let && ShouldParseLetAsDeclaration())
+            )
             {
                 init = ParseVariableDeclaration(
                     consumeSemicolon: false,
