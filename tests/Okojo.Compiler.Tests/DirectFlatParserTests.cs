@@ -834,6 +834,87 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_RecognizesStrictDirectivesPerPrologueRules()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            globalThis.__flatStrictResult = '';
+            function withContinuation() {
+                'use str\
+                ict';
+                return this === undefined;
+            }
+            function withEscape() {
+                'use\u0020strict';
+                return this === undefined;
+            }
+            function afterBogus() {
+                "bogus directive";
+                "use strict";
+                return this === undefined;
+            }
+            function afterAsi() {
+                "another directive"
+                "use strict" ;
+                return this === undefined;
+            }
+            __flatStrictResult += '' + withContinuation.call(undefined);
+            __flatStrictResult += '|' + withEscape.call(undefined);
+            __flatStrictResult += '|' + afterBogus.call(undefined);
+            __flatStrictResult += '|' + afterAsi.call(undefined);
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(
+            realm.Evaluate("__flatStrictResult").AsString(),
+            Is.EqualTo("false|false|true|true")
+        );
+    }
+
+    [Test]
+    public void CompileString_InsertsAsiSemicolonAfterDoWhile()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            var x;
+            do break ; while (0) x = 42;
+            var y = 0;
+            do do do ; while (y) while (y) while (y) y = 39;
+            x + '|' + y
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("42|39"));
+    }
+
+    [Test]
+    public void CompileString_ParsesLetAfterSingleStatementBodyAsExpression()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            globalThis.__flatLetBodyResult = '';
+            for (var x in null) let // ASI
+            x = 1;
+            __flatLetBodyResult += typeof x;
+            if (0) let
+            {}
+            __flatLetBodyResult += '|ok'
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Evaluate("__flatLetBodyResult").AsString(), Is.EqualTo("number|ok"));
+    }
+
+    [Test]
     public void CompileString_ExecutesForOfWithNestedRestPatternHead()
     {
         var realm = JsRuntime.Create().DefaultRealm;

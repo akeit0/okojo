@@ -93,13 +93,13 @@ internal sealed class FlatJavaScriptParser
                         Arena.GetPosition(statement)
                     );
                 statements.Add(statement);
+                if (allowsDirectives && !IsDirectivePrologueMember(statement))
+                    allowsDirectives = false;
                 if (allowsDirectives && IsUseStrictDirective(statement))
                 {
                     ast.StrictDeclared = true;
                     strictMode = true;
                 }
-                else
-                    allowsDirectives = false;
             }
 
             var children = Arena.AddChildren(statements.AsSpan());
@@ -776,10 +776,11 @@ internal sealed class FlatJavaScriptParser
         {
             JsTokenKind.Semicolon => ParseEmptyStatement(position),
             JsTokenKind.LeftBrace => ParseBlock(out _),
-            JsTokenKind.Var or JsTokenKind.Const => ParseVariableDeclaration(
-                consumeSemicolon: true
-            ),
-            JsTokenKind.Let => ShouldParseLetAsDeclaration()
+            JsTokenKind.Var => ParseVariableDeclaration(consumeSemicolon: true),
+            JsTokenKind.Const => IsSingleStatementContext()
+                ? ParseExpressionStatement()
+                : ParseVariableDeclaration(consumeSemicolon: true),
+            JsTokenKind.Let => ShouldParseLetAsDeclaration() && !IsSingleStatementContext()
                 ? ParseVariableDeclaration(consumeSemicolon: true)
                 : ParseExpressionStatement(),
             JsTokenKind.Function => ParseFunctionDeclaration(),
@@ -823,6 +824,8 @@ internal sealed class FlatJavaScriptParser
         var statements = new NodeList(initial);
         var allowsDirectives = allowDirectives;
         strictDeclared = false;
+        var savedSingleStatementDepth = singleStatementDepth;
+        singleStatementDepth = 0;
         try
         {
             while (current.Kind != JsTokenKind.RightBrace)
@@ -831,13 +834,13 @@ internal sealed class FlatJavaScriptParser
                     throw Error("Unterminated block", position);
                 var statement = ParseStatement();
                 statements.Add(statement);
+                if (allowsDirectives && !IsDirectivePrologueMember(statement))
+                    allowsDirectives = false;
                 if (allowsDirectives && IsUseStrictDirective(statement))
                 {
                     strictDeclared = true;
                     strictMode = true;
                 }
-                else
-                    allowsDirectives = false;
             }
 
             Next();
@@ -846,6 +849,7 @@ internal sealed class FlatJavaScriptParser
         }
         finally
         {
+            singleStatementDepth = savedSingleStatementDepth;
             statements.Dispose();
         }
     }
@@ -2161,8 +2165,8 @@ internal sealed class FlatJavaScriptParser
         Expect(JsTokenKind.LeftParen);
         var test = ParseExpression();
         Expect(JsTokenKind.RightParen);
-        var consequent = ParseStatement();
-        var alternate = Match(JsTokenKind.Else) ? ParseStatement() : -1;
+        var consequent = ParseSingleStatement();
+        var alternate = Match(JsTokenKind.Else) ? ParseSingleStatement() : -1;
         return Arena.Add(AstKind.IfStatement, test, consequent, alternate, position);
     }
 
@@ -2183,7 +2187,7 @@ internal sealed class FlatJavaScriptParser
         Expect(JsTokenKind.LeftParen);
         var test = ParseExpression();
         Expect(JsTokenKind.RightParen);
-        ConsumeSemicolon();
+        Match(JsTokenKind.Semicolon);
         return Arena.Add(AstKind.DoWhileStatement, body, test, position: position);
     }
 
@@ -2371,7 +2375,7 @@ internal sealed class FlatJavaScriptParser
             return Arena.Add(
                 AstKind.LabeledStatement,
                 Arena.AddString(label),
-                ParseStatement(),
+                ParseSingleStatement(),
                 position: labelToken.Position
             );
         }
@@ -2430,6 +2434,8 @@ internal sealed class FlatJavaScriptParser
         var cases = new NodeList(initialCases);
         var hasDefault = false;
         switchDepth++;
+        var savedSingleStatementDepth = singleStatementDepth;
+        singleStatementDepth = 0;
         try
         {
             Span<int> initialStatements = stackalloc int[4];
@@ -2496,6 +2502,7 @@ internal sealed class FlatJavaScriptParser
         }
         finally
         {
+            singleStatementDepth = savedSingleStatementDepth;
             switchDepth--;
             cases.Dispose();
         }
@@ -2559,12 +2566,29 @@ internal sealed class FlatJavaScriptParser
         return Arena.Add(AstKind.TryStatement, block, handler, finalizer, position);
     }
 
+    private int singleStatementDepth;
+
+    private bool IsSingleStatementContext() => singleStatementDepth > 0;
+
+    private int ParseSingleStatement()
+    {
+        singleStatementDepth++;
+        try
+        {
+            return ParseStatement();
+        }
+        finally
+        {
+            singleStatementDepth--;
+        }
+    }
+
     private int ParseLoopBody()
     {
         loopDepth++;
         try
         {
-            return ParseStatement();
+            return ParseSingleStatement();
         }
         finally
         {
@@ -4042,18 +4066,35 @@ internal sealed class FlatJavaScriptParser
         };
     }
 
+    private bool IsDirectivePrologueMember(int statement)
+    {
+        ref readonly var node = ref Arena[statement];
+        return node.Kind == AstKind.ExpressionStatement
+            && Arena[node.Arg0].Kind == AstKind.StringLiteral;
+    }
+
     private bool IsUseStrictDirective(int statement)
     {
         ref readonly var node = ref Arena[statement];
         if (node.Kind != AstKind.ExpressionStatement)
             return false;
         ref readonly var expression = ref Arena[node.Arg0];
-        return expression.Kind == AstKind.StringLiteral
-            && string.Equals(
+        if (
+            expression.Kind != AstKind.StringLiteral
+            || !string.Equals(
                 Arena.GetString(expression.Arg0),
                 "use strict",
                 StringComparison.Ordinal
-            );
+            )
+        )
+            return false;
+        var raw = source.AsSpan(Arena.GetPosition(statement));
+        if (raw.Length < 12)
+            return false;
+        var quote = raw[0];
+        if (quote is not (char)'\'' and not (char)'"')
+            return false;
+        return raw.Slice(1, 10).SequenceEqual("use strict".AsSpan()) && raw[11] == quote;
     }
 
     private void EnsureUpdateTarget(int node, int position)

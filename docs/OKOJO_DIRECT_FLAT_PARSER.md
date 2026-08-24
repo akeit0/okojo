@@ -767,6 +767,19 @@ Regression targets are the test262 `array-*-rtrn-close*` families plus
 `CompileString_ClosesDestructureIteratorOnGeneratorReturnResume` in
 `DirectFlatParserTests`.
 
+Parser semantics slice: single-statement contexts (if/else, loop and labeled
+bodies) no longer accept `let` or `const` declarations — the parser tracks a
+single-statement depth that blocks and switch-case lists reset, so declarations
+inside nested blocks stay legal. `do-while` now applies ASI for the mandatory
+terminating semicolon (any token after the closing parenthesis triggers
+insertion). Directive-prologue scanning continues through non-strict string
+directives instead of ending at the first non-matching string, and strictness
+recognition verifies the raw source text is exactly `'use strict'`/`"use
+strict"` with quotes and no escape sequences or line continuations.
+Regression targets are `CompileString_RecognizesStrictDirectivesPerPrologueRules`,
+`CompileString_InsertsAsiSemicolonAfterDoWhile`, and
+`CompileString_ParsesLetAfterSingleStatementBodyAsExpression`.
+
 ### Using declarations slice
 
 This iteration ports explicit resource management onto the direct path by copying
