@@ -127,6 +127,21 @@ internal sealed partial class JsPlannedFunctionCompiler
             argumentsMaterialized = builder.AllocatePinnedRegister();
             EmitStar(argumentsMaterialized);
         }
+        var restMaterialized = -1;
+        if (
+            flatFunction is { } restFn
+            && !restFn.HasSimpleParameterList
+            && restFn.RestParameterIndex >= 0
+        )
+        {
+            if ((uint)restFn.RestParameterIndex > byte.MaxValue)
+                throw new NotSupportedException(
+                    "Flat rest parameter index exceeds byte operand capacity."
+                );
+            builder.Emit(JsOpCode.CreateRestParameter, (byte)restFn.RestParameterIndex);
+            restMaterialized = builder.AllocatePinnedRegister();
+            EmitStar(restMaterialized);
+        }
         EmitScopeLexicalHoleInitialization();
         if (superBaseContextSlot >= 0)
             EmitSuperBaseContextInitialization(metadata, superBaseContextSlot);
@@ -134,7 +149,7 @@ internal sealed partial class JsPlannedFunctionCompiler
             EmitArgumentsBinding(argumentsMaterialized);
         EmitFunctionSelfBinding();
         if (flatFunction is { } function)
-            EmitParameterPrologue(ast, function);
+            EmitParameterPrologue(ast, function, restMaterialized);
         EmitDeclarationPrologue(ast, bodyRoot);
         if (metadata.EmitImplicitSuperForwardAll)
             builder.EmitCallRuntime((int)RuntimeId.CallSuperConstructorForwardAll, 0, 0);

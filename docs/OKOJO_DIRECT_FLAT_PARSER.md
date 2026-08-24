@@ -844,6 +844,17 @@ keyword. Regression targets: test262 `using`, `await-using`,
 `using-for-statement`, and
 `CompileString_EnforcesUsingBindingAndHeadGrammar`.
 
+Prologue snapshot completion slice: rest-parameter creation hoisted next to
+arguments materialization so both consume the pristine frame argument mirror
+before hole initialization, the arguments-object store, self binding, or
+parameter default evaluation can write into low registers. Top-level script
+global-declaration validation now treats `ClassDeclaration` bindings as global
+lexicals — redeclaration across scripts throws SyntaxError, and `var`
+declarations colliding with an existing class binding are rejected. Regression
+targets: `rest-parameters/no-alias-arguments`, test262
+`script-decl-lex-lex`/`script-decl-var-collision`, and
+`CompileString_SnapshotsRestParameterBeforeArgumentsStore`.
+
 Sloppy shorthand slice: object literal shorthand properties accept contextual
 `let` and `of` keys in sloppy mode (`{let}` after `var let = 1`), while strict
 mode keeps rejecting them. Regression targets are test262

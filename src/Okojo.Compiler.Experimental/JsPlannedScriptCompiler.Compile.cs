@@ -78,7 +78,11 @@ internal sealed partial class JsPlannedScriptCompiler
                 );
 
             var atom = Vm.Atoms.InternNoCheck(binding.Name);
-            if (binding.Kind is CompilerCollectedBindingKind.Lexical)
+            if (
+                binding.Kind
+                is CompilerCollectedBindingKind.Lexical
+                    or CompilerCollectedBindingKind.ClassDeclaration
+            )
             {
                 if (
                     Vm.HasGlobalLexicalBindingAtom(atom)
@@ -131,7 +135,9 @@ internal sealed partial class JsPlannedScriptCompiler
         for (var i = 0; i < bindings.Length; i++)
             if (
                 bindings[i].StorageKind == CompilerPlannedStorageKind.ContextSlot
-                && bindings[i].Kind == CompilerCollectedBindingKind.Lexical
+                && bindings[i].Kind
+                    is CompilerCollectedBindingKind.Lexical
+                        or CompilerCollectedBindingKind.ClassDeclaration
             )
                 count++;
         if (count == 0)
@@ -144,9 +150,14 @@ internal sealed partial class JsPlannedScriptCompiler
         for (var i = 0; i < bindings.Length; i++)
         {
             var binding = bindings[i];
+            if (binding.StorageKind != CompilerPlannedStorageKind.ContextSlot)
+                continue;
             if (
-                binding.StorageKind != CompilerPlannedStorageKind.ContextSlot
-                || binding.Kind != CompilerCollectedBindingKind.Lexical
+                binding.Kind
+                is not (
+                    CompilerCollectedBindingKind.Lexical
+                    or CompilerCollectedBindingKind.ClassDeclaration
+                )
             )
                 continue;
             atoms[index] = Vm.Atoms.InternNoCheck(binding.Name);

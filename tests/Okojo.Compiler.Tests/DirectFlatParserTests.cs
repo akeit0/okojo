@@ -757,6 +757,27 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_SnapshotsRestParameterBeforeArgumentsStore()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            globalThis.__flatRestResult = '';
+            function f(a, ...rest) {
+                arguments[0] = 1;
+                arguments[1] = 2;
+                __flatRestResult += a + '|' + rest[0] + '|' + rest[1];
+            }
+            f(3, 4, 5);
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Evaluate("__flatRestResult").AsString(), Is.EqualTo("3|4|5"));
+    }
+
+    [Test]
     public void CompileString_SkipsIteratorCloseWhenDestructureStepThrows()
     {
         var realm = JsRuntime.Create().DefaultRealm;

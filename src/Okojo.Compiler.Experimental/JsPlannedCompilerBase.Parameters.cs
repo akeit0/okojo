@@ -5,7 +5,11 @@ namespace Okojo.JavaScript.Compiler.Experimental;
 
 internal abstract partial class JsPlannedCompilerBase
 {
-    protected void EmitParameterPrologue(FlatAst ast, in FlatFunctionInfo function)
+    protected void EmitParameterPrologue(
+        FlatAst ast,
+        in FlatFunctionInfo function,
+        int preallocatedRestRegister = -1
+    )
     {
         if (function.HasSimpleParameterList)
             return;
@@ -14,8 +18,8 @@ internal abstract partial class JsPlannedCompilerBase
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
         {
-            var restValueRegister = -1;
-            if (function.RestParameterIndex >= 0)
+            var restValueRegister = preallocatedRestRegister;
+            if (function.RestParameterIndex >= 0 && restValueRegister < 0)
             {
                 if ((uint)function.RestParameterIndex > byte.MaxValue)
                     throw new NotSupportedException(
