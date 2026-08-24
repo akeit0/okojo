@@ -118,6 +118,18 @@ therefore reports its `TypeError` before a converting key runs its
 check. Regression target:
 `CompileString_ChecksMemberBaseCoercibleBeforeCompoundKeyNormalization`.
 
+Update-expression refinement: identifier and member updates apply `ToNumeric`
+immediately after the load, before capturing the postfix old value, so
+`x++` on a boxed number or valueOf-bearing object yields the converted primitive,
+matching production and V8. Regression target:
+`CompileString_AppliesToNumericBeforeCapturingUpdateOldValue`.
+
+Sloppy-identifier refinement: `let` (sloppy only) and `of` are accepted as
+binding identifiers and references, so `for (var let of …)`, `using of`,
+and similar Annex-B-style heads parse like the production parser.
+Regression targets include the planned-mode `head-var-bound-names-let` and
+`using-for-statement` test262 cases.
+
 ### Literal spread slice
 
 This iteration emits array and object literal spread from the existing flat

@@ -3061,6 +3061,15 @@ internal sealed class FlatJavaScriptParser
                     token.IdentifierId,
                     position: token.Position
                 );
+            case JsTokenKind.Let when !strictMode:
+            case JsTokenKind.Of:
+                Next();
+                return Arena.Add(
+                    AstKind.Identifier,
+                    Arena.AddString(GetIdentifierText(token)),
+                    token.IdentifierId,
+                    position: token.Position
+                );
             case JsTokenKind.PrivateIdentifier:
                 var privateName = GetPrivateIdentifierText(token);
                 ReferencePrivateName(privateName, token.Position);
@@ -4154,7 +4163,11 @@ internal sealed class FlatJavaScriptParser
 
     private JsToken ExpectIdentifier()
     {
-        if (current.Kind != JsTokenKind.Identifier)
+        if (
+            current.Kind != JsTokenKind.Identifier
+            && (current.Kind != JsTokenKind.Let || strictMode)
+            && current.Kind != JsTokenKind.Of
+        )
             throw Error($"Expected identifier but found {current.Kind}", current.Position);
         var token = current;
         Next();

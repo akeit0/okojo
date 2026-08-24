@@ -654,6 +654,34 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_AppliesToNumericBeforeCapturingUpdateOldValue()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let result = '';
+            let boxed = new Number(1.1);
+            let oldBoxed = boxed++;
+            result += (oldBoxed === 1.1) + ':' + typeof oldBoxed;
+            let object = { valueOf: function () { return 7; } };
+            let oldObject = object--;
+            result += '|' + (oldObject === 7) + ':' + typeof oldObject;
+            let member = { value: new Number(2.5) };
+            let oldMember = member.value++;
+            result += '|' + (oldMember === 2.5) + ':' + typeof oldMember;
+            result;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(
+            realm.Accumulator.AsString(),
+            Is.EqualTo("true:number|true:number|true:number")
+        );
+    }
+
+    [Test]
     public void CompileString_SeparatesParameterClosureCaptureFromBodyVar()
     {
         var realm = JsRuntime.Create().DefaultRealm;

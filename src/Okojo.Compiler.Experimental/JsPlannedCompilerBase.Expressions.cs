@@ -1539,6 +1539,7 @@ internal abstract partial class JsPlannedCompilerBase
         );
 
         EmitIdentifierLoad(name);
+        builder.Emit(JsOpCode.ToNumeric);
         var oldValueRegister = node.Arg2 == 0 ? builder.AllocateTemporaryRegister() : -1;
         try
         {
@@ -1623,6 +1624,7 @@ internal abstract partial class JsPlannedCompilerBase
         {
             var reference = PrepareMemberReference(ast, member, normalizeComputedKey: true);
             EmitPreparedMemberLoad(reference);
+            builder.Emit(JsOpCode.ToNumeric);
             var oldValueRegister = update.Arg2 == 0 ? builder.AllocateTemporaryRegister() : -1;
             if (oldValueRegister >= 0)
                 EmitStar(oldValueRegister);
