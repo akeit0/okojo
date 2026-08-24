@@ -792,6 +792,18 @@ ordering under the write guard. Regression targets are the test262
 `async-gen-named-func-expr-args-trailing-comma-*` family plus
 `CompileString_SnapshotsArgumentsBeforePrologueRegisterWrites`.
 
+Class element grammar slice: `get`/`set` are only treated as accessor prefixes
+when the following token can start a class element name (identifier, keyword,
+string, number, bigint, computed key, or private name), so fields named `get`
+or `set` parse correctly across ASI boundaries (`get \n *a() {}` is a field
+plus a generator method) and with initializers or empty bodies. Auto-accessor
+fields (`accessor Name`, decorators proposal) remain unsupported in the flat
+parser and are skipped in planned-mode runs with a DeferredImplementation
+reason, matching the decorator policy. Regression targets are
+`grammar-field-named-{get,set}-followed-by-generator-asi`,
+`grammar-field-accessor`, and
+`CompileString_ParsesFieldsNamedGetAndSetAcrossAsi`.
+
 ### Using declarations slice
 
 This iteration ports explicit resource management onto the direct path by copying

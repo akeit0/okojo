@@ -1690,7 +1690,7 @@ internal sealed class FlatJavaScriptParser
                     && !isAsync
                     && !isPrivate
                     && staticName is "get" or "set"
-                    && current.Kind != JsTokenKind.LeftParen
+                    && CanStartClassElementName(current)
                 )
                 {
                     var isGetter = staticName == "get";
@@ -4160,6 +4160,16 @@ internal sealed class FlatJavaScriptParser
         }
         throw Error($"Duplicate private class member '{name}'", position);
     }
+
+    private static bool CanStartClassElementName(in JsToken token) =>
+        token.Kind
+            is JsTokenKind.Identifier
+                or JsTokenKind.ReservedWord
+                or JsTokenKind.String
+                or JsTokenKind.Number
+                or JsTokenKind.BigInt
+                or JsTokenKind.LeftBracket
+                or JsTokenKind.PrivateIdentifier;
 
     private bool IsCurrentIdentifierName(string value) =>
         current.Kind is JsTokenKind.Identifier or JsTokenKind.ReservedWord

@@ -629,6 +629,13 @@ internal static partial class Program
             return true;
         }
 
+        if (options.UsePlannedCompiler && UsesAutoAccessors(path))
+        {
+            reason =
+                "DeferredImplementation: auto-accessor fields are supported by the production parser but not yet by FlatJavaScriptParser";
+            return true;
+        }
+
         reason = string.Empty;
         return false;
     }
@@ -646,7 +653,24 @@ internal static partial class Program
     }
 
     private static readonly System.Text.RegularExpressions.Regex DecoratorPattern = new(
-        @"(?:^|\n)[ \t]*@[A-Za-z_(]",
+        @"(?:^|[\r\n=(,:;{[]) *@[A-Za-z_(]",
+        System.Text.RegularExpressions.RegexOptions.Compiled
+    );
+
+    private static bool UsesAutoAccessors(string path)
+    {
+        try
+        {
+            return AutoAccessorPattern.IsMatch(File.ReadAllText(path));
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex AutoAccessorPattern = new(
+        @"(?:^|\n)[ \t]*(?:static[ \t]+)?accessor[ \t]+[#A-Za-z_\[]",
         System.Text.RegularExpressions.RegexOptions.Compiled
     );
 

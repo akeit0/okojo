@@ -955,6 +955,47 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_ParsesFieldsNamedGetAndSetAcrossAsi()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            globalThis.__flatClassFieldNamesResult = '';
+            class A {
+              get
+              *a() {}
+            }
+            class B {
+              static get
+              *a() {}
+            }
+            class C {
+              get;
+              set = 5;
+            }
+            class D {
+              get x() { return 7; }
+              set y(v) {}
+            }
+            __flatClassFieldNamesResult += new A().hasOwnProperty('get');
+            __flatClassFieldNamesResult += '|' + A.prototype.hasOwnProperty('a');
+            __flatClassFieldNamesResult += '|' + B.hasOwnProperty('get');
+            __flatClassFieldNamesResult += '|' + B.prototype.hasOwnProperty('a');
+            __flatClassFieldNamesResult += '|' + new C().get;
+            __flatClassFieldNamesResult += '|' + new C().set;
+            __flatClassFieldNamesResult += '|' + new D().x;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(
+            realm.Evaluate("__flatClassFieldNamesResult").AsString(),
+            Is.EqualTo("true|true|true|true|undefined|5|7")
+        );
+    }
+
+    [Test]
     public void CompileString_ExecutesForOfWithNestedRestPatternHead()
     {
         var realm = JsRuntime.Create().DefaultRealm;
