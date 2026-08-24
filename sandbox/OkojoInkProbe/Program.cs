@@ -34,9 +34,10 @@ try
     try
     {
         var runtimeBuilder = NodeRuntime.CreateBuilder();
-        runtimeBuilder.ConfigureRuntime(builder =>
-            builder.UseAgent(agent => agent.UseDirectFlatCompilers())
-        );
+        if (Environment.GetEnvironmentVariable("OKOJO_INK_PROD") is null)
+            runtimeBuilder.ConfigureRuntime(builder =>
+                builder.UseAgent(agent => agent.UseDirectFlatCompilers())
+            );
         if (debuggerLog is not null)
             runtimeBuilder.ConfigureRuntime(builder =>
                 builder.UseAgent(agent =>

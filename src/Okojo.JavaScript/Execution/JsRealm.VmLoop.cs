@@ -768,8 +768,10 @@ public sealed partial class JsRealm
         }
 
         JsContext o;
+        var frameKind = CurrentCallFrame.FrameKind;
         if (
             parent is null
+            && frameKind is CallFrameKind.ScriptFrame or CallFrameKind.GeneratorFrame
             && Agent.TryGetCurrentModuleRuntimeBindings(out var activeModuleBindings)
         )
         {
