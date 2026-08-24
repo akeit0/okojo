@@ -615,6 +615,13 @@ internal static partial class Program
             return true;
         }
 
+        if (options.UsePlannedCompiler && metadata.Features.Contains("tail-call-optimization"))
+        {
+            reason =
+                "DeferredImplementation: proper tail calls are supported by the production compiler but not yet by the planned compiler";
+            return true;
+        }
+
         if (options.UsePlannedCompiler && UsesWithStatement(path))
         {
             reason =

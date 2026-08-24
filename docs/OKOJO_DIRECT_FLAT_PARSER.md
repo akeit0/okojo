@@ -867,6 +867,15 @@ spec's AsyncArrowBindingIdentifier lookahead carve-out. Regression targets:
 test262 `optional-call-preserves-this`, `head-init-async-of`, and
 `CompileString_PreservesThisThroughParenthesizedOptionalCalls`.
 
+TCO scope note (per direction check with V8): proper tail calls are an Okojo
+production-compiler capability that V8 deliberately lacks; the planned compiler
+does not implement PTC yet, so planned-mode runs skip test262
+`tail-call-optimization` feature tests with a DeferredImplementation reason.
+Wiring the dormant `IsTailCallContinuation` helper into the VM dispatch was
+evaluated and set aside — the planned conditional emission reaches Return via
+jump chains, but enabling replacement alone did not close the gap and needs a
+dedicated tail-position analysis instead.
+
 Sloppy shorthand slice: object literal shorthand properties accept contextual
 `let` and `of` keys in sloppy mode (`{let}` after `var let = 1`), while strict
 mode keeps rejecting them. Regression targets are test262
