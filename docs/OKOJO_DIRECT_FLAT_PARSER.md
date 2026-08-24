@@ -544,6 +544,11 @@ metadata without mutating `FlatAst`; computed keys reuse Okojo's existing fused
 matching V8 and Node. The shared keyed-property helper now preserves explicit
 function names instead of replacing them with the property key.
 
+Logical assignment operators (`&&=`, `||=`, `??=`) now perform NamedEvaluation
+for identifier targets by reusing `EmitExpressionWithInferredName`, matching
+spec section 13.15.2 step 5; member targets intentionally stay unnamed. Regression
+target: `CompileString_InfersNamesThroughLogicalAssignmentOperators`.
+
 The hot static path adds no runtime operation, AST object, or new string: it reuses
 the pooled identifier/property string. Computed properties add no function-specific
 runtime call beyond their existing keyed definition. Explicit function-expression

@@ -1919,7 +1919,7 @@ internal abstract partial class JsPlannedCompilerBase
         EmitIdentifierLoad(name);
         var end = builder.CreateLabel();
         EmitLogicalAssignmentShortCircuit(op, end);
-        EmitExpression(ast, right);
+        EmitExpressionWithInferredName(ast, right, name);
         EmitResolvedIdentifierStore(
             name,
             hasLocalBinding,

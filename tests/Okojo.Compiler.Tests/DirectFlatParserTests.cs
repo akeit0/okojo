@@ -526,6 +526,40 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_InfersNamesThroughLogicalAssignmentOperators()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            let result = '';
+            let andValue = 1;
+            andValue &&= function () {};
+            result += andValue.name;
+            let nullishValue;
+            nullishValue ??= class {};
+            result += '|' + nullishValue.name;
+            let orArrow;
+            orArrow ||= () => {};
+            result += '|' + orArrow.name;
+            let shortCircuit = 0;
+            shortCircuit &&= (function () { throw 'unreachable'; })();
+            result += '|' + shortCircuit;
+            let memberTarget = { value: 1 };
+            memberTarget.value &&= function () {};
+            result += '|' + (memberTarget.value.name === '');
+            result;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(
+            realm.Accumulator.AsString(),
+            Is.EqualTo("andValue|nullishValue|orArrow|0|true")
+        );
+    }
+
+    [Test]
     public void CompileString_ChecksMemberBaseCoercibleBeforeCompoundKeyNormalization()
     {
         var realm = JsRuntime.Create().DefaultRealm;
