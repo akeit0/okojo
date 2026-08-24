@@ -120,11 +120,19 @@ internal sealed partial class JsPlannedFunctionCompiler
         externalCaptureContextDepthOffset =
             metadata.HasSuperPropertyReference && !metadata.IsArrow ? 1 : 0;
         EmitFunctionContextSetup();
+        var argumentsMaterialized = -1;
+        if (HasSyntheticArgumentsBinding())
+        {
+            EmitArgumentsObjectCreation();
+            argumentsMaterialized = builder.AllocatePinnedRegister();
+            EmitStar(argumentsMaterialized);
+        }
         EmitScopeLexicalHoleInitialization();
         if (superBaseContextSlot >= 0)
             EmitSuperBaseContextInitialization(metadata, superBaseContextSlot);
+        if (argumentsMaterialized >= 0)
+            EmitArgumentsBinding(argumentsMaterialized);
         EmitFunctionSelfBinding();
-        EmitArgumentsBinding();
         if (flatFunction is { } function)
             EmitParameterPrologue(ast, function);
         EmitDeclarationPrologue(ast, bodyRoot);

@@ -915,6 +915,46 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_SnapshotsArgumentsBeforePrologueRegisterWrites()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            globalThis.__flatArgumentsSnapshotResult = '';
+            var named = function g() {
+                __flatArgumentsSnapshotResult += String(arguments[0]);
+                __flatArgumentsSnapshotResult += '|';
+                __flatArgumentsSnapshotResult += typeof arguments[0];
+            };
+            named(42, 'x');
+            var withParam = function h(a) {
+                __flatArgumentsSnapshotResult += '|' + String(arguments[1]);
+            };
+            withParam(42, 'x');
+            function rootLexical()
+            {
+                let z;
+                __flatArgumentsSnapshotResult += '|' + String(arguments[0]);
+            }
+            rootLexical(42);
+            function outer(value)
+            {
+                let expression = add => arguments[0];
+                return expression(2);
+            }
+            __flatArgumentsSnapshotResult += '|' + outer(20);
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(
+            realm.Evaluate("__flatArgumentsSnapshotResult").AsString(),
+            Is.EqualTo("42|number|x|42|20")
+        );
+    }
+
+    [Test]
     public void CompileString_ExecutesForOfWithNestedRestPatternHead()
     {
         var realm = JsRuntime.Create().DefaultRealm;

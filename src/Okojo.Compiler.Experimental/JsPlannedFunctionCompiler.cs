@@ -70,7 +70,24 @@ internal sealed partial class JsPlannedFunctionCompiler : JsPlannedCompilerBase
         }
     }
 
-    private void EmitArgumentsBinding()
+    private bool HasSyntheticArgumentsBinding()
+    {
+        var rootScope = activeScopes.Peek();
+        for (var i = 0; i < rootScope.Bindings.Count; i++)
+        {
+            if (rootScope.Bindings[i].Planned.Kind != CompilerCollectedBindingKind.Arguments)
+                continue;
+            return true;
+        }
+        return false;
+    }
+
+    private void EmitArgumentsObjectCreation()
+    {
+        builder.EmitLda(JsOpCode.CreateMappedArguments);
+    }
+
+    private void EmitArgumentsBinding(int materializedRegister)
     {
         var rootScope = activeScopes.Peek();
         for (var i = 0; i < rootScope.Bindings.Count; i++)
@@ -78,7 +95,7 @@ internal sealed partial class JsPlannedFunctionCompiler : JsPlannedCompilerBase
             var binding = rootScope.Bindings[i];
             if (binding.Planned.Kind != CompilerCollectedBindingKind.Arguments)
                 continue;
-            builder.EmitLda(JsOpCode.CreateMappedArguments);
+            EmitLdar(materializedRegister);
             EmitStore(binding, isInitialization: true);
             return;
         }

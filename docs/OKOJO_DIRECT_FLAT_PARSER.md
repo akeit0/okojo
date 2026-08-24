@@ -780,6 +780,18 @@ Regression targets are `CompileString_RecognizesStrictDirectivesPerPrologueRules
 `CompileString_InsertsAsiSemicolonAfterDoWhile`, and
 `CompileString_ParsesLetAfterSingleStatementBodyAsExpression`.
 
+Arguments snapshot slice: the frame argument mirror shares storage with the
+leading register window, so any prologue write to a low register (self-name
+binding, root lexical hole initialization, parameter default evaluation)
+corrupted `arguments[i]` and rest-parameter snapshots for calls with enough
+actual arguments. The planned function prologue now materializes the arguments
+object into a pinned register immediately after context creation, before hole
+initialization, self binding, and parameter evaluation, then stores it after
+hole initialization so captured-arguments context cells keep correct TDZ
+ordering under the write guard. Regression targets are the test262
+`async-gen-named-func-expr-args-trailing-comma-*` family plus
+`CompileString_SnapshotsArgumentsBeforePrologueRegisterWrites`.
+
 ### Using declarations slice
 
 This iteration ports explicit resource management onto the direct path by copying
