@@ -831,6 +831,12 @@ spec CreatePerIterationEnvironment ordering. Regression targets are test262
 `scope-head-lex-*`/`scope-body-lex-open` and
 `CompileString_KeepsForOfHeadTdzEnvironmentSeparateFromIterations`.
 
+Sloppy shorthand slice: object literal shorthand properties accept contextual
+`let` and `of` keys in sloppy mode (`{let}` after `var let = 1`), while strict
+mode keeps rejecting them. Regression targets are test262
+`let-non-strict-syntax`/`let-non-strict-access` and
+`CompileString_AllowsSloppyLetShorthandInObjectLiterals`.
+
 ### Using declarations slice
 
 This iteration ports explicit resource management onto the direct path by copying

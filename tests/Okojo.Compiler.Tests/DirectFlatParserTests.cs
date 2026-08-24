@@ -740,6 +740,23 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_AllowsSloppyLetShorthandInObjectLiterals()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            var let = 1;
+            var object = {let};
+            let value = object.let === 1;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.IsTrue, Is.True);
+    }
+
+    [Test]
     public void CompileString_SkipsIteratorCloseWhenDestructureStepThrows()
     {
         var realm = JsRuntime.Create().DefaultRealm;

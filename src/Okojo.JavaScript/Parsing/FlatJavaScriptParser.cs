@@ -3973,7 +3973,10 @@ internal sealed class FlatJavaScriptParser
                     value = ParseAssignment(allowIn: true);
                 else if (
                     !computed
-                    && shorthandToken.Kind == JsTokenKind.Identifier
+                    && (
+                        shorthandToken.Kind == JsTokenKind.Identifier
+                        || (!strictMode && shorthandToken.Kind is JsTokenKind.Let or JsTokenKind.Of)
+                    )
                     && current.Kind != JsTokenKind.LeftParen
                 )
                 {
