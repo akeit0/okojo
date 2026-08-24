@@ -1009,7 +1009,10 @@ public class DirectFlatParserTests
 
         realm.Execute(script);
 
-        Assert.That(realm.Evaluate("__flatOptionalResult").AsString(), Is.EqualTo("42|42|42|42"));
+        Assert.That(
+            realm.Evaluate("__flatArgumentsSnapshotResult").AsString(),
+            Is.EqualTo("42|number|x|42|20")
+        );
     }
 
     [Test]
