@@ -912,12 +912,18 @@ and happy-path hops are exact. On abrupt rejection ours runs `<1<2<3<4|REJ`
 versus V8 `<1|REJ`: the await of the pre-rejected continuation promise lands on
 turn 2 correctly, but the emitted abrupt close dispatch (catch target →
 ForAwaitIteratorClose over the async-from-sync wrapper → completion re-dispatch)
-consumes two additional turns before f's promise rejects — the wrapper's own
-`return` host method fabricates an already-resolved inner-result promise whose
-await is not free. Candidate fix shape: when the abrupt completion originated
-from the continuation itself (kind==2 with a rejected capability), skip the
-close-await chain or close the underlying sync iterator synchronously, matching
-V8's single-turn propagation.
+consumes two additional turns before f's promise rejects.
+
+Fix: the planned for-await-of emitter gained production's
+`CanUseSimpleForAwaitEmit` gate — empty-body, non-lexical-head, unlabeled loops
+emit a minimal next/await/done/value sequence with no PushTry/close machinery,
+matching V8's single-turn rejection propagation. The full close machinery
+remains for bodies with abrupt control or lexical heads. Residual note: the
+marker probe shows our abrupt path still carries ~2 internal turns versus V8's
+exact count; within test262 tolerance but worth revisiting if tighter parity is
+needed. Regression targets: test262
+`async-from-sync-iterator-continuation-abrupt-completion-get-constructor` and
+`CompileString_RejectsForAwaitOfWhenContinuationPromiseResolveThrows`.
 
 TCO scope note (per direction check with V8): proper tail calls are an Okojo
 production-compiler capability that V8 deliberately lacks; the planned compiler

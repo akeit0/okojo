@@ -475,6 +475,42 @@ internal abstract partial class JsPlannedCompilerBase
         }
     }
 
+    private void EmitSimpleForAwaitOfStatement(FlatAst ast, ReadOnlySpan<int> parts)
+    {
+        EmitExpression(ast, parts[1]);
+        var sourceRegister = builder.AllocateTemporaryRegister();
+        EmitStar(sourceRegister);
+        var methodRegister = builder.AllocateTemporaryRegister();
+        var iteratorRegister = builder.AllocateTemporaryRegister();
+        EmitCreateAsyncOrSyncIterator(sourceRegister, methodRegister, iteratorRegister);
+        var nextFunctionRegister = builder.AllocateTemporaryRegister();
+        var resultRegister = builder.AllocateTemporaryRegister();
+
+        var nextName = builder.AddAtomizedStringConstant("next");
+        var doneName = builder.AddAtomizedStringConstant("done");
+        var valueName = builder.AddAtomizedStringConstant("value");
+        var loopStart = builder.CreateLabel();
+        var iterationDone = builder.CreateLabel();
+        var resultIsObject = builder.CreateLabel();
+
+        builder.BindLabel(loopStart);
+        builder.EmitLdaNamedProperty(iteratorRegister, nextName, builder.AllocateFeedbackSlot());
+        EmitStar(nextFunctionRegister);
+        builder.EmitCallProperty(nextFunctionRegister, iteratorRegister, 0, 0);
+        EmitAwaitSuspension();
+        EmitStar(resultRegister);
+        builder.EmitJump(JsOpCode.JumpIfJsReceiver, resultIsObject);
+        builder.EmitCallRuntime((int)RuntimeId.ThrowIteratorResultNotObject, 0, 0);
+        builder.BindLabel(resultIsObject);
+        builder.EmitLdaNamedProperty(resultRegister, doneName, builder.AllocateFeedbackSlot());
+        EmitJumpIfToBooleanTrue(iterationDone);
+        builder.EmitLdaNamedProperty(resultRegister, valueName, builder.AllocateFeedbackSlot());
+        EmitForIterationAssignment(ast, parts[0]);
+        EmitJump(loopStart);
+
+        builder.BindLabel(iterationDone);
+    }
+
     private void EmitForAwaitOfStatement(FlatAst ast, int nodeIndex, AstNode node, string[]? labels)
     {
         if (!isAsync)
@@ -499,9 +535,19 @@ internal abstract partial class JsPlannedCompilerBase
             EnterScope(scope.ScopeId);
         }
 
+        var canUseSimpleEmit =
+            !hasLexicalScope
+            && ast[parts[2]].Kind == AstKind.EmptyStatement
+            && (labels is null || labels.Length == 0);
+
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
         {
+            if (canUseSimpleEmit)
+            {
+                EmitSimpleForAwaitOfStatement(ast, parts);
+                return;
+            }
             EmitExpression(ast, parts[1]);
             var sourceRegister = builder.AllocateTemporaryRegister();
             EmitStar(sourceRegister);

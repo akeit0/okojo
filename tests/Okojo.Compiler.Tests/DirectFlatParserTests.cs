@@ -1041,6 +1041,39 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_RejectsForAwaitOfWhenContinuationPromiseResolveThrows()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            globalThis.__flatAsyncFromSyncResult = [];
+            var p = Promise.resolve(0);
+            Object.defineProperty(p, 'constructor', {
+              get() { throw new Error(); }
+            });
+            async function f() {
+              __flatAsyncFromSyncResult.push('start');
+              for await (var x of [p]);
+              __flatAsyncFromSyncResult.push('never');
+            }
+            Promise.resolve(0)
+              .then(() => __flatAsyncFromSyncResult.push('tick 1'))
+              .then(() => __flatAsyncFromSyncResult.push('tick 2'))
+              .then(() => __flatAsyncFromSyncResult.push('compare'));
+            f().catch(() => __flatAsyncFromSyncResult.push('catch'));
+            """
+        );
+
+        realm.Execute(script);
+        realm.Agent.RunPromiseJobs();
+
+        Assert.That(
+            realm.Evaluate("__flatAsyncFromSyncResult.join()").AsString(),
+            Is.EqualTo("start,tick 1,tick 2,catch,compare")
+        );
+    }
+
+    [Test]
     public void CompileString_DerivedConstructorArrowsObserveThisAndSuperState()
     {
         var realm = JsRuntime.Create().DefaultRealm;

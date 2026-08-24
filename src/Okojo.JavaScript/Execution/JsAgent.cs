@@ -21,6 +21,7 @@ public sealed partial class JsAgent : IDisposable
     private readonly Dictionary<string, Symbol> globalSymbolRegistry = new(StringComparer.Ordinal);
     private readonly AutoResetEvent jobsAvailable = new(false);
     private readonly object jobsGate = new();
+    private int jobTraceSeq;
 
     private readonly Dictionary<string, JsModuleNamespaceObject> jsonModuleNamespaceCache = new(
         StringComparer.Ordinal
@@ -984,6 +985,11 @@ public sealed partial class JsAgent : IDisposable
     {
         if (terminated)
             return;
+        if (Environment.GetEnvironmentVariable("OKOJO_JOBTRACE") is not null)
+        {
+            var t = callback.Method?.Name ?? "null";
+            System.Console.Error.WriteLine($"[JOB] enqueue #{System.Threading.Interlocked.Increment(ref jobTraceSeq)} target={t}");
+        }
         lock (jobsGate)
         {
             promiseJobs.Enqueue(new(callback, state));
