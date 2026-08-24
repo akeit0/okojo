@@ -526,6 +526,47 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_ChecksMemberBaseCoercibleBeforeCompoundKeyNormalization()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            globalThis.__flatCoercibleResult = '';
+            try
+            {
+                let base = null;
+                let key = function () { throw 'dummy'; };
+                base[key()] *= function () { throw 'rhs'; }();
+            }
+            catch (error) { __flatCoercibleResult += 'A:' + error; }
+            try
+            {
+                let converted = false;
+                let target = null;
+                let property = { toString() { converted = true; return 'x'; } };
+                try { target[property] *= 1; } catch (error) { __flatCoercibleResult += '|B:' + error.name; }
+                __flatCoercibleResult += '|toStringRan:' + converted;
+            }
+            catch (error) { __flatCoercibleResult += '|outer'; }
+            try
+            {
+                let target = null;
+                let property = { toString() { return 'y'; } };
+                target[property]++;
+            }
+            catch (error) { __flatCoercibleResult += '|C:' + error.name; }
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(
+            realm.Evaluate("__flatCoercibleResult").AsString(),
+            Is.EqualTo("A:dummy|B:TypeError|toStringRan:false|C:TypeError")
+        );
+    }
+
+    [Test]
     public void CompileString_EnforcesTdzOnContextSlotLexicalStores()
     {
         var realm = JsRuntime.Create().DefaultRealm;

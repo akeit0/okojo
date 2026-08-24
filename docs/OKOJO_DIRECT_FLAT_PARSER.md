@@ -110,6 +110,14 @@ Member assignment prepares the base and normalized computed key once. Compound,
 logical, prefix, postfix, and destructuring stores reuse that prepared reference,
 so observable base/key expressions are never duplicated.
 
+Prepared-reference refinement: compound, update, call, and iteration-head
+references emit `RequireObjectCoercible` on the prepared base before
+`NormalizePropertyKey`, matching production Okojo and V8. A null/undefined base
+therefore reports its `TypeError` before a converting key runs its
+`toString`, while a throwing key expression still evaluates before the coercion
+check. Regression target:
+`CompileString_ChecksMemberBaseCoercibleBeforeCompoundKeyNormalization`.
+
 ### Literal spread slice
 
 This iteration emits array and object literal spread from the existing flat

@@ -1689,6 +1689,7 @@ internal abstract partial class JsPlannedCompilerBase
             EmitStar(keyRegister);
             if (normalizeComputedKey)
             {
+                builder.EmitCallRuntime((int)RuntimeId.RequireObjectCoercible, objectRegister, 1);
                 builder.EmitCallRuntime((byte)RuntimeId.NormalizePropertyKey, keyRegister, 1);
                 EmitStar(keyRegister);
             }
