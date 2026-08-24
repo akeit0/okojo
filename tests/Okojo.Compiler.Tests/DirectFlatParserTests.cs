@@ -653,6 +653,30 @@ public class DirectFlatParserTests
         Assert.That(realm.Accumulator.AsString(), Is.EqualTo("iter,x,iter,y"));
     }
 
+    [Test]
+    public void CompileString_SeparatesParameterClosureCaptureFromBodyVar()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            var x = 'outside';
+            var probeParams, probeBody;
+            class C {
+                m(_ = probeParams = function () { return x; }) {
+                    var x = 'inside';
+                    probeBody = function () { return x; };
+                }
+            }
+            C.prototype.m();
+            probeParams() + '|' + probeBody();
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("outside|inside"));
+    }
+
     [TestCase("using value = 1;")]
     [TestCase("function f() { using value; }")]
     public void ParseScript_RejectsInvalidUsingDeclarations(string source) =>

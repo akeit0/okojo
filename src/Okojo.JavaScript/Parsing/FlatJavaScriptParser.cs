@@ -2170,13 +2170,15 @@ internal sealed class FlatJavaScriptParser
         var position = Expect(JsTokenKind.For).Position;
         var isAwait = false;
         if (
-            asyncFunctionDepth > 0
+            (asyncFunctionDepth > 0 || (isModule && functionDepth == 0))
             && current.Kind is JsTokenKind.Identifier or JsTokenKind.ReservedWord
             && source.AsSpan(current.Position, current.SourceLength).SequenceEqual("await".AsSpan())
         )
         {
             isAwait = true;
             Next();
+            if (asyncFunctionDepth == 0)
+                ast.HasTopLevelAwait = true;
         }
         Expect(JsTokenKind.LeftParen);
         var init = -1;

@@ -147,6 +147,17 @@ internal abstract partial class JsPlannedCompilerBase
                 )
                     continue;
                 if (
+                    emittingParameterInitializers
+                    && scope.ScopeId == 0
+                    && binding.Planned.Kind
+                        is not (
+                            CompilerCollectedBindingKind.Parameter
+                            or CompilerCollectedBindingKind.FunctionNameSelf
+                            or CompilerCollectedBindingKind.Arguments
+                        )
+                )
+                    continue;
+                if (
                     binding.Planned.StorageKind
                     is not (
                         CompilerPlannedStorageKind.ContextSlot

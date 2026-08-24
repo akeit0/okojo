@@ -622,9 +622,33 @@ internal static partial class Program
             return true;
         }
 
+        if (options.UsePlannedCompiler && UsesDecorators(path))
+        {
+            reason =
+                "DeferredImplementation: class decorators are supported by the production parser but not yet by FlatJavaScriptParser";
+            return true;
+        }
+
         reason = string.Empty;
         return false;
     }
+
+    private static bool UsesDecorators(string path)
+    {
+        try
+        {
+            return DecoratorPattern.IsMatch(File.ReadAllText(path));
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex DecoratorPattern = new(
+        @"(?:^|\n)[ \t]*@[A-Za-z_(]",
+        System.Text.RegularExpressions.RegexOptions.Compiled
+    );
 
     private static bool UsesWithStatement(string path)
     {

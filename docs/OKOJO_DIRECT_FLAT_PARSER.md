@@ -514,6 +514,14 @@ Incoming formal arguments occupy the frame prefix. Advanced-parameter prologues:
 This follows V8's observable ordering and fixes a production Okojo discrepancy in
 which all outer defaults run before all patterns.
 
+Parameter/body environment refinement: closures created while emitting parameter
+initializers now exclude function-scope non-parameter bindings from their capture
+set, matching the reference-resolution guard that already applied to direct
+default-expression reads. A parameter-default closure therefore observes the
+outer binding for `var x` declared later in the body, while body closures observe
+the body binding. Regression target:
+`CompileString_SeparatesParameterClosureCaptureFromBodyVar`.
+
 ### Closures and loops
 
 Binding discovery and storage planning decide whether a local stays in a register
@@ -1382,6 +1390,9 @@ Production module execution opt-in slice landed:
   it directly into `ModuleExecutionPlan`. The planned module body emits the existing
   async generator prologue/resume table, while a tiny ordinary script wrapper creates
   and calls that async closure so evaluation returns its promise.
+- `for await (...)` heads are recognized in module top-level scope the same way as
+  unary `await`, so `for await (binding of [await 1])` parses and records the TLA bit
+  even though `asyncFunctionDepth` is zero.
 - V8 observation: `bytecode-generator.cc` handles
   `kModuleWithTopLevelAwait` through `GenerateAsyncFunctionBody`, while
   `source-text-module.cc` owns pending dependency counts and async-parent release.
