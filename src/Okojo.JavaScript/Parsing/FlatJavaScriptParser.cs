@@ -93,6 +93,19 @@ internal sealed class FlatJavaScriptParser
                         Arena.GetPosition(statement)
                     );
                 statements.Add(statement);
+                if (isModule && functionDepth == 0 && IsUsingLikeDeclaration(statement))
+                {
+                    ref readonly var declarationNode = ref Arena[statement];
+                    ast.HasTopLevelUsingLike = true;
+                    if (
+                        (JsVariableDeclarationKind)declarationNode.Arg2
+                        == JsVariableDeclarationKind.AwaitUsing
+                    )
+                    {
+                        ast.HasTopLevelAwaitUsingLike = true;
+                        ast.HasTopLevelAwait = true;
+                    }
+                }
                 if (allowsDirectives && !IsDirectivePrologueMember(statement))
                     allowsDirectives = false;
                 if (allowsDirectives && IsUseStrictDirective(statement))
@@ -854,7 +867,7 @@ internal sealed class FlatJavaScriptParser
         }
     }
 
-    private bool IsUsingDeclarationStart(bool allowOfBinding = true)
+    private bool IsUsingDeclarationStart()
     {
         if (current.Kind != JsTokenKind.Identifier || !IsCurrentIdentifierName("using"))
             return false;
@@ -863,9 +876,8 @@ internal sealed class FlatJavaScriptParser
             return false;
         if (next.Kind == JsTokenKind.Identifier)
             return true;
-        if (next.Kind == JsTokenKind.Of && allowOfBinding)
+        if (next.Kind == JsTokenKind.Of)
         {
-            lexer.GetIndex();
             var index = lexer.GetIndex();
             try
             {
@@ -907,12 +919,9 @@ internal sealed class FlatJavaScriptParser
         }
     }
 
-    private bool TryGetUsingDeclarationStatementKind(
-        out JsVariableDeclarationKind kind,
-        bool allowOfBinding = true
-    )
+    private bool TryGetUsingDeclarationStatementKind(out JsVariableDeclarationKind kind)
     {
-        if (IsUsingDeclarationStart(allowOfBinding))
+        if (IsUsingDeclarationStart())
         {
             kind = JsVariableDeclarationKind.Using;
             return true;
@@ -2244,7 +2253,7 @@ internal sealed class FlatJavaScriptParser
             }
             else if (
                 current.Kind == JsTokenKind.Identifier
-                && TryGetUsingDeclarationStatementKind(out var headUsingKind, allowOfBinding: false)
+                && TryGetUsingDeclarationStatementKind(out var headUsingKind)
             )
             {
                 init = ParseUsingDeclaration(

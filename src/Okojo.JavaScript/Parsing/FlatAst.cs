@@ -46,6 +46,8 @@ internal sealed class FlatAst : IDisposable
     public bool StrictDeclared { get; set; }
     public bool IsModule { get; set; }
     public bool HasTopLevelAwait { get; set; }
+    public bool HasTopLevelUsingLike { get; set; }
+    public bool HasTopLevelAwaitUsingLike { get; set; }
     public HashSet<string>? ModuleVarBindings { get; set; }
     public int Count => Arena.Count;
     public int Root

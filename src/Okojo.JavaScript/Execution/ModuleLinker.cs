@@ -171,8 +171,8 @@ internal sealed class ModuleLinker(Func<IModuleSourceLoader> loaderProvider)
             exportLocalByName,
             preinitializedLocalExportNames,
             moduleProgram.HasTopLevelAwait,
-            false,
-            false
+            moduleProgram.HasTopLevelUsingLike,
+            moduleProgram.HasTopLevelAwaitUsingLike
         );
         return new(
             new(

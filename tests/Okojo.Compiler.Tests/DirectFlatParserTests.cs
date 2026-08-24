@@ -1027,12 +1027,18 @@ public class DirectFlatParserTests
               for (using i = null; i === null; i = { [Symbol.dispose]() { } }) {}
             } catch (error) { rejected = error instanceof TypeError; }
             __flatUsingResult += '|' + rejected;
+            let cstyleOf = 'no-throw';
+            for (using of = { [Symbol.dispose]() { } };;) break;
+            __flatUsingResult += '|' + cstyleOf;
             """
         );
 
         realm.Execute(script);
 
-        Assert.That(realm.Evaluate("__flatUsingResult").AsString(), Is.EqualTo("[7]|true"));
+        Assert.That(
+            realm.Evaluate("__flatUsingResult").AsString(),
+            Is.EqualTo("[7]|true|no-throw")
+        );
     }
 
     [Test]

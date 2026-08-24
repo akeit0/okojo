@@ -36,8 +36,10 @@ internal sealed class JsPlannedModuleCompiler(JsRealm realm) : JsPlannedCompiler
         EmitDeclarationPrologue(ast, ast.Root);
 
         var rootIndex = ast.Root;
-        hasActiveModuleTopLevelExplicitResourceScope = true;
-        moduleTopLevelExplicitResourceScopeIsAsync = ast.HasTopLevelAwait;
+        hasActiveModuleTopLevelExplicitResourceScope =
+            ast.HasTopLevelUsingLike || ast.HasTopLevelAwaitUsingLike;
+        moduleTopLevelExplicitResourceScopeIsAsync =
+            hasActiveModuleTopLevelExplicitResourceScope && ast.HasTopLevelAwait;
         try
         {
             var statements = ast.ChildRange(ast[rootIndex].Arg0, ast[rootIndex].Arg1);

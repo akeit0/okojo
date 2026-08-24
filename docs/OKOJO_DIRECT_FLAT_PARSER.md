@@ -831,6 +831,19 @@ spec CreatePerIterationEnvironment ordering. Regression targets are test262
 `scope-head-lex-*`/`scope-body-lex-open` and
 `CompileString_KeepsForOfHeadTdzEnvironmentSeparateFromIterations`.
 
+Module top-level using slice: the parser records top-level using and
+await-using declarations on the module FlatAst (`HasTopLevelUsingLike`,
+`HasTopLevelAwaitUsingLike`, with await-using implying top-level await), the
+linker propagates them into `ModuleExecutionPlan`, and the planned module
+compiler activates its ambient resource scope only when using-like statements
+exist. This replaces the blanket NotSupportedException gate. C-style for-heads
+keep accepting `using of = init` declarations via the third-token lookahead
+(`=` or `,`), while for-of heads still treat `using of` as identifier plus
+keyword. Regression targets: test262 `using`, `await-using`,
+`using-allowed-at-top-level-of-module`, `await-using-allowed-at-top-level-of-module`,
+`using-for-statement`, and
+`CompileString_EnforcesUsingBindingAndHeadGrammar`.
+
 Sloppy shorthand slice: object literal shorthand properties accept contextual
 `let` and `of` keys in sloppy mode (`{let}` after `var let = 1`), while strict
 mode keeps rejecting them. Regression targets are test262
