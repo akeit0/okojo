@@ -1074,6 +1074,64 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_ClosesForAwaitIteratorOnceOnNextResultRejection()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            globalThis.__flatCloseOnce = '';
+            globalThis.__flatReturnCount = 0;
+            const source = {
+              [Symbol.iterator]() {
+                return {
+                  next() { return { value: Promise.reject('reject'), done: false }; },
+                  return() { __flatReturnCount += 1; return {}; }
+                };
+              }
+            };
+            async function run() {
+              for await (let _ of source);
+            }
+            run().catch(() => { __flatCloseOnce = 'caught:' + __flatReturnCount; });
+            """
+        );
+
+        realm.Execute(script);
+        realm.Agent.RunPromiseJobs();
+
+        Assert.That(realm.Evaluate("__flatCloseOnce").AsString(), Is.EqualTo("caught:1"));
+    }
+
+    [Test]
+    public void CompileString_ClosesForAwaitIteratorOnceOnBodyThrow()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            globalThis.__flatBodyThrowClose = '';
+            globalThis.__flatBodyReturnCount = 0;
+            const source = {
+              [Symbol.iterator]() {
+                return {
+                  next() { return { value: 1, done: false }; },
+                  return() { __flatBodyReturnCount += 1; return {}; }
+                };
+              }
+            };
+            async function run() {
+              for await (const v of source) { throw new Error('boom'); }
+            }
+            run().catch(() => { __flatBodyThrowClose = 'caught:' + __flatBodyReturnCount; });
+            """
+        );
+
+        realm.Execute(script);
+        realm.Agent.RunPromiseJobs();
+
+        Assert.That(realm.Evaluate("__flatBodyThrowClose").AsString(), Is.EqualTo("caught:1"));
+    }
+
+    [Test]
     public void CompileString_DerivedConstructorArrowsObserveThisAndSuperState()
     {
         var realm = JsRuntime.Create().DefaultRealm;

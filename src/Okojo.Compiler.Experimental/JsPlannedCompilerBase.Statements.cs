@@ -590,7 +590,6 @@ internal abstract partial class JsPlannedCompilerBase
                 builder.BindLabel(loopStart);
                 if (needsPerIterationContext)
                     EmitReplaceCurrentContext(activeScopes.Peek().ContextSlotCount);
-                builder.EmitJump(JsOpCode.PushTry, catchTarget);
                 builder.EmitLdaNamedProperty(
                     iteratorRegister,
                     nextName,
@@ -617,6 +616,12 @@ internal abstract partial class JsPlannedCompilerBase
                 );
                 EmitStar(valueRegister);
                 EmitLdar(valueRegister);
+
+                // The close-dispatching region covers only the per-iteration body:
+                // a rejection from the awaited next() itself must not run the loop
+                // close because AsyncFromSyncIteratorContinuation already closed
+                // the sync iterator via its onRejected step.
+                builder.EmitJump(JsOpCode.PushTry, catchTarget);
                 EmitForIterationAssignment(ast, left);
                 EmitForOfIterationBodyWithResources(ast, left, valueRegister, parts[2], true);
                 builder.Emit(JsOpCode.PopTry);
@@ -625,7 +630,6 @@ internal abstract partial class JsPlannedCompilerBase
                 EmitJump(loopStart);
 
                 builder.BindLabel(iterationDone);
-                builder.Emit(JsOpCode.PopTry);
                 EmitJump(breakTarget);
             }
             finally

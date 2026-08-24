@@ -895,35 +895,29 @@ targets: test262 `class-definition-null-proto-this`,
 `lexical-super-call-from-within-constructor`, the `super/call-spread-*`
 family, and `CompileString_DerivedConstructorArrowsObserveThisAndSuperState`.
 
-Remaining known failure (diagnosed, unscheduled): for-await-of
-`async-from-sync-iterator-continuation-abrupt-completion-get-constructor`.
-The abrupt rejection itself works; microtask hop counting shows our rejection
-lands three turns late (ours `abcd|REJ`, Node/V8 `a|REJ`), so the test's
-compareArray misses "catch". Baseline `await <rejected promise>` timing is
-exactly correct, isolating the extra hops to the planned for-await-of
-abrupt-resume propagation between the await resumption with a thrown value and
-f's promise rejection (suspects: completion-dispatch re-wrapping in
-EmitForOfIterationBodyWithResources or an extra assimilation layer in the
-async driver's exception path).
-
-Sharper diagnosis via per-turn markers (`<turn` interleaving): normal for-await
-timing matches V8 instruction-for-turn (`<1|body<2<3|done<4|RES`), so next-wrap
-and happy-path hops are exact. On abrupt rejection ours runs `<1<2<3<4|REJ`
-versus V8 `<1|REJ`: the await of the pre-rejected continuation promise lands on
-turn 2 correctly, but the emitted abrupt close dispatch (catch target →
-ForAwaitIteratorClose over the async-from-sync wrapper → completion re-dispatch)
-consumes two additional turns before f's promise rejects.
-
-Fix: the planned for-await-of emitter gained production's
-`CanUseSimpleForAwaitEmit` gate — empty-body, non-lexical-head, unlabeled loops
-emit a minimal next/await/done/value sequence with no PushTry/close machinery,
-matching V8's single-turn rejection propagation. The full close machinery
-remains for bodies with abrupt control or lexical heads. Residual note: the
-marker probe shows our abrupt path still carries ~2 internal turns versus V8's
-exact count; within test262 tolerance but worth revisiting if tighter parity is
-needed. Regression targets: test262
+Resolved (was misdiagnosed as a microtask-turn delta): for-await-of
 `async-from-sync-iterator-continuation-abrupt-completion-get-constructor` and
-`CompileString_RejectsForAwaitOfWhenContinuationPromiseResolveThrows`.
+`for-await-next-rejected-promise-close`. The real failure was a double
+IteratorClose (`return()` called twice, `SameValue(2, 1)`), not timing: the
+planned full-path for-await emitter opened its PushTry region before the awaited
+next() call, so a rejected next-result promise entered the close-dispatching
+finally on top of the AsyncFromSyncIteratorContinuation onRejected close.
+Production and V8 keep the try region body-only, so next-result rejections
+propagate without re-closing the iterator. Fix: moved PushTry after the await so
+the close region covers only the per-iteration assignment and body; the simple
+emit path already had this shape. Regression targets: test262
+`for-await-next-rejected-promise-close`,
+`async-from-sync-iterator-continuation-abrupt-completion-get-constructor`, and
+`CompileString_ClosesForAwaitIteratorOnceOnNextResultRejection` /
+`CompileString_ClosesForAwaitIteratorOnceOnBodyThrow`.
+
+Earlier note kept for context: normal for-await timing matches V8
+instruction-for-turn; baseline `await <rejected promise>` timing was already
+exact. The "extra turns" observed in marker probes were the awaited
+close-result suspension of the spurious loop close, which the structural fix
+removes. The earlier `CanUseSimpleForAwaitEmit` gate (empty-body,
+non-lexical-head, unlabeled loops emit a minimal next/await/done/value sequence)
+stays as an emission-size win.
 
 Emission optimization slice: added `EmitMove(src, dst)` over the `Mov`/`MovWide`
 opcodes and converted register-to-register copy pairs across class heritage,
