@@ -340,6 +340,8 @@ internal abstract partial class JsPlannedCompilerBase
             var needsPerIterationContext =
                 hasLexicalScope && ShouldReplaceLoopHeadContextPerIteration(activeScopes.Peek());
             builder.BindLabel(loopStart);
+            if (needsPerIterationContext)
+                EmitReplaceCurrentContext(activeScopes.Peek().ContextSlotCount);
             EmitForInRegisterOperation(JsOpCode.ForInNext, RuntimeId.ForInNext, enumeratorRegister);
             builder.EmitJump(JsOpCode.JumpIfUndefined, breakTarget);
             EmitForIterationAssignment(ast, left);
@@ -355,8 +357,6 @@ internal abstract partial class JsPlannedCompilerBase
             }
 
             builder.BindLabel(continueTarget);
-            if (needsPerIterationContext)
-                EmitReplaceCurrentContext(activeScopes.Peek().ContextSlotCount);
             EmitForInRegisterOperation(JsOpCode.ForInStep, RuntimeId.ForInStep, enumeratorRegister);
             EmitJump(loopStart);
             builder.BindLabel(breakTarget);
@@ -413,6 +413,8 @@ internal abstract partial class JsPlannedCompilerBase
                 hasLexicalScope && ShouldReplaceLoopHeadContextPerIteration(activeScopes.Peek());
 
             builder.BindLabel(loopStart);
+            if (needsPerIterationContext)
+                EmitReplaceCurrentContext(activeScopes.Peek().ContextSlotCount);
             EmitLdar(iteratorRegister);
             builder.EmitCallRuntime(
                 (int)RuntimeId.DestructureIteratorStepValue,
@@ -441,8 +443,6 @@ internal abstract partial class JsPlannedCompilerBase
             builder.Emit(JsOpCode.PopTry);
 
             builder.BindLabel(continueTarget);
-            if (needsPerIterationContext)
-                EmitReplaceCurrentContext(activeScopes.Peek().ContextSlotCount);
             EmitJump(loopStart);
 
             builder.BindLabel(catchTarget);
@@ -531,6 +531,8 @@ internal abstract partial class JsPlannedCompilerBase
             try
             {
                 builder.BindLabel(loopStart);
+                if (needsPerIterationContext)
+                    EmitReplaceCurrentContext(activeScopes.Peek().ContextSlotCount);
                 builder.EmitJump(JsOpCode.PushTry, catchTarget);
                 builder.EmitLdaNamedProperty(
                     iteratorRegister,
@@ -563,8 +565,6 @@ internal abstract partial class JsPlannedCompilerBase
                 builder.Emit(JsOpCode.PopTry);
 
                 builder.BindLabel(continueTarget);
-                if (needsPerIterationContext)
-                    EmitReplaceCurrentContext(activeScopes.Peek().ContextSlotCount);
                 EmitJump(loopStart);
 
                 builder.BindLabel(iterationDone);

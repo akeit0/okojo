@@ -1019,6 +1019,29 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_KeepsForOfHeadTdzEnvironmentSeparateFromIterations()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            globalThis.__flatHeadTdzResult = '';
+            let x = 'outside';
+            let headProbe = null;
+            for (let x in { k: headProbe = function () { return typeof x; } }) ;
+            try { __flatHeadTdzResult += String(headProbe()); }
+            catch (error) { __flatHeadTdzResult += error instanceof ReferenceError; }
+            let bodyClosures = [];
+            for (let y of ['a', 'b']) bodyClosures.push(function () { return y; });
+            __flatHeadTdzResult += '|' + bodyClosures[0]() + bodyClosures[1]();
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Evaluate("__flatHeadTdzResult").AsString(), Is.EqualTo("true|ab"));
+    }
+
+    [Test]
     public void CompileString_ExecutesForOfWithNestedRestPatternHead()
     {
         var realm = JsRuntime.Create().DefaultRealm;

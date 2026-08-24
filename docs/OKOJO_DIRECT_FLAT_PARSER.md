@@ -821,6 +821,16 @@ so reassignment throws TypeError per the explicit-resource-management spec.
 Regression targets: `using-invalid-assignment-*`, `using-for-using-of-of`, and
 `CompileString_EnforcesUsingBindingAndHeadGrammar`.
 
+For-in/of head TDZ slice: per-iteration context replacement for lexical loop
+heads moved from the continue target to the loop-start target in for-in,
+for-of, and for-await-of. The head environment captured by closures formed
+during collection-expression evaluation therefore stays permanently
+uninitialized (ReferenceError on access), while body closures keep fresh copies
+per iteration. C-style for keeps its existing pre-loop replacement, matching
+spec CreatePerIterationEnvironment ordering. Regression targets are test262
+`scope-head-lex-*`/`scope-body-lex-open` and
+`CompileString_KeepsForOfHeadTdzEnvironmentSeparateFromIterations`.
+
 ### Using declarations slice
 
 This iteration ports explicit resource management onto the direct path by copying
