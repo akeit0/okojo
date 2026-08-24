@@ -745,6 +745,14 @@ move to context cells only in functions that observe `arguments`. No runtime typ
 or opcode is added. The object allocation occurs only when JavaScript can observe
 it.
 
+Shadowing refinement: when a function has parameter expressions, body-level
+lexical or function declarations named `arguments` no longer suppress synthesis,
+matching spec section 9.2.12 step 20 (which applies only when
+hasParameterExpressions is false). The parameter-scope default therefore still
+observes the real `arguments` object while the body binding shadows it locally.
+The class-AST bridge passes the same flag from its parameter plan. Regression
+targets are the planned-mode test262 `arguments-with-arguments-*` family.
+
 ### Using declarations slice
 
 This iteration ports explicit resource management onto the direct path by copying

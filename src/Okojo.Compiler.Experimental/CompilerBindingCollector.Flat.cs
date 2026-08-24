@@ -28,7 +28,9 @@ internal static partial class CompilerBindingCollector
     {
         var collector = new FlatCollector(CompilerCollectedScopeKind.Function);
         collector.CollectFunctionRoot(name, nameId, parameterPlan, ast, bodyRoot, hasSelfBinding);
-        collector.AddSyntheticArgumentsBindings();
+        collector.AddSyntheticArgumentsBindings(
+            parameterPlan.HasInitializers || parameterPlan.HasPatternBindings
+        );
         return collector.MoveResult();
     }
 
@@ -48,7 +50,7 @@ internal static partial class CompilerBindingCollector
             hasSelfBinding,
             instanceFieldClassIndex
         );
-        collector.AddSyntheticArgumentsBindings();
+        collector.AddSyntheticArgumentsBindings(!function.HasSimpleParameterList);
         return collector.MoveResult();
     }
 
@@ -155,7 +157,7 @@ internal static partial class CompilerBindingCollector
             return new(scopes, bindings, references);
         }
 
-        public void AddSyntheticArgumentsBindings()
+        public void AddSyntheticArgumentsBindings(bool ignoreBodyArgumentsShadow = false)
         {
             var hasArgumentsReference = false;
             for (var i = 0; i < references.Count; i++)
@@ -174,6 +176,14 @@ internal static partial class CompilerBindingCollector
             for (var i = 0; i < bindings.Count; i++)
                 if (string.Equals(bindings[i].Name, "arguments", StringComparison.Ordinal))
                 {
+                    if (
+                        ignoreBodyArgumentsShadow
+                        && bindings[i].ScopeId == 0
+                        && bindings[i].Kind
+                            is CompilerCollectedBindingKind.Lexical
+                                or CompilerCollectedBindingKind.FunctionDeclaration
+                    )
+                        continue;
                     if (bindings[i].Kind == CompilerCollectedBindingKind.Var)
                         varBindingIndex[bindings[i].ScopeId] = i;
                     else
