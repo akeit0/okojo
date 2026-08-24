@@ -615,9 +615,33 @@ internal static partial class Program
             return true;
         }
 
+        if (options.UsePlannedCompiler && UsesWithStatement(path))
+        {
+            reason =
+                "Intentional skip: with statement semantics are intentionally unsupported in Okojo";
+            return true;
+        }
+
         reason = string.Empty;
         return false;
     }
+
+    private static bool UsesWithStatement(string path)
+    {
+        try
+        {
+            return WithStatementPattern.IsMatch(File.ReadAllText(path));
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex WithStatementPattern = new(
+        @"(?:^|[\{;\n])\s*with\s*\(",
+        System.Text.RegularExpressions.RegexOptions.Compiled
+    );
 
     private static bool IsModuleCase(Test262Metadata metadata, string path)
     {
