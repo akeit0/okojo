@@ -4075,10 +4075,10 @@ public class DirectFlatParserTests
             class Before {}
             let inside;
             { class Local {} inside = typeof Local; }
-            let assignmentRejected = false;
-            try { Before = 1; }
-            catch (error) { assignmentRejected = error instanceof TypeError; }
-            tdz + '|' + inside + '|' + typeof Local + '|' + assignmentRejected;
+            let reassigned = false;
+            try { Before = 1; reassigned = Before === 1; }
+            catch (error) { reassigned = false; }
+            tdz + '|' + inside + '|' + typeof Local + '|' + reassigned;
             """
         );
 

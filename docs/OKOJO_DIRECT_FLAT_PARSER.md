@@ -804,6 +804,15 @@ reason, matching the decorator policy. Regression targets are
 `grammar-field-accessor`, and
 `CompileString_ParsesFieldsNamedGetAndSetAcrossAsi`.
 
+Class name binding slice: the outer binding created by a class declaration is
+mutable (let-like), matching spec section 15.5.1 — only the inner class-scope
+alias is immutable. Assigning to a declared class name no longer throws;
+TDZ-before-declaration and block scoping are unchanged. Regression target:
+updated `CompileString_EnforcesClassTdzConstAndBlockScope` and test262
+`scope-name-lex-*`. Remaining known gap: `this` inside arrows captured by
+null-extending derived constructors must stay uninitialized until an explicit
+super call (`class-definition-null-proto-this`).
+
 ### Using declarations slice
 
 This iteration ports explicit resource management onto the direct path by copying

@@ -906,7 +906,7 @@ internal static partial class CompilerBindingCollector
                     CompilerCollectedBindingKind.ClassDeclaration,
                     name,
                     info.NameId,
-                    isConst: true,
+                    isConst: false,
                     position: info.Position
                 );
             var classScopeId = AddScope(
