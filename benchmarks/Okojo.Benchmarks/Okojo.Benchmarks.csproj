@@ -10,6 +10,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\src\Okojo.JavaScript.Embedding\Okojo.JavaScript.Embedding.csproj" />
+        <ProjectReference Include="..\..\src\Okojo.Compiler.Experimental\Okojo.Compiler.Experimental.csproj" />
     </ItemGroup>
 
     <ItemGroup>

@@ -68,6 +68,45 @@ grammar. It is evidence for the representation, not yet a production migration
 result: application syntax coverage and end-to-end compile time are still the
 gates.
 
+### Production vs planned parse/compile benchmark (2026-08)
+
+BenchmarkDotNet (`benchmarks/Okojo.Benchmarks/ParseCompileBenchmarks.cs`,
+ShortRun, 6 warmup + 10 iterations, MemoryDiagnoser), five fixed corpora,
+one shared realm per iteration set. `Production_*` = `JavaScriptParser` +
+`JsCompiler.Compile`; `Experimental_*` = `FlatJavaScriptParser` +
+`JsPlannedScriptCompiler.Compile(FlatAst)`.
+
+| scenario | prod parse | exp parse | ratio | prod compile | exp compile | ratio |
+|---|---:|---:|---:|---:|---:|---:|
+| Micro | 3.04 µs | 2.08 µs | 0.68× | 16.52 µs | 9.71 µs | 0.59× |
+| Closures | 5.10 µs | 3.58 µs | 0.70× | 42.49 µs | 25.91 µs | 0.61× |
+| Classes | 8.70 µs | 5.96 µs | 0.68× | 61.36 µs | 66.75 µs* | ~1.0× |
+| Patterns | 13.65 µs | 6.47 µs | 0.47× | 47.65 µs | 27.05 µs | 0.57× |
+| AsyncGen | 6.25 µs | 4.29 µs | 0.69× | 42.08 µs | 30.48 µs | 0.72× |
+
+\* high variance (StdDev 20 µs, median 80 µs) — see allocation note.
+
+Allocations tell a split story:
+
+- Parse: experimental allocates **0.20–0.28×** of production (pooled FlatAst);
+  e.g. Patterns 5.12 KB vs 25.08 KB.
+- Compile: planned allocates **1.8–2.3×** MORE than production (e.g. Closures
+  89.9 KB vs 39.2 KB, Classes 124.7 KB vs 58.5 KB) with higher Gen0/Gen1 rates —
+  yet is still faster on wall-clock for four of five scenarios.
+
+Takeaways:
+
+1. Flat parsing wins on both time and memory everywhere (up to 2× faster,
+   5× less memory on pattern-heavy code).
+2. Planned compile is faster end-to-end despite allocating more; allocation
+   volume is now the top compile-throughput target (pooled binding collections
+   and register-block reuse are the likely levers).
+3. Classes is the outlier where planned compile reaches parity only; its high
+   variance correlates with the elevated Gen1 rate.
+
+Reproduce:
+`dotnet run --project benchmarks/Okojo.Benchmarks -c Release --no-build -- --filter "*ParseCompile*"`
+
 ## Current Flat Architecture
 
 The implemented path has these properties:
