@@ -2069,7 +2069,6 @@ internal abstract partial class JsPlannedCompilerBase
             EmitJumpIfToBooleanTrue(rethrowLabel);
             EmitLdar(inStepRegister);
             EmitJumpIfToBooleanTrue(rethrowLabel);
-            EmitLdar(iteratorRegister);
             builder.EmitCallRuntime(
                 (int)RuntimeId.DestructureIteratorCloseBestEffort,
                 iteratorRegister,
@@ -2115,7 +2114,6 @@ internal abstract partial class JsPlannedCompilerBase
         EmitJumpIfToBooleanTrue(doneLabel);
         builder.EmitLda(JsOpCode.LdaTrue);
         EmitStar(inStepRegister);
-        EmitLdar(iteratorRegister);
         builder.EmitCallRuntime((int)RuntimeId.DestructureIteratorStepValue, iteratorRegister, 1);
         EmitStar(valueRegister);
         builder.EmitLda(JsOpCode.LdaFalse);
@@ -2145,7 +2143,6 @@ internal abstract partial class JsPlannedCompilerBase
         EmitJumpIfToBooleanTrue(endLabel);
         builder.EmitLda(JsOpCode.LdaTrue);
         EmitStar(inStepRegister);
-        EmitLdar(iteratorRegister);
         builder.EmitCallRuntime((int)RuntimeId.DestructureIteratorStepValue, iteratorRegister, 1);
         EmitStar(valueRegister);
         builder.EmitLda(JsOpCode.LdaFalse);
@@ -2175,7 +2172,6 @@ internal abstract partial class JsPlannedCompilerBase
         EmitJumpIfToBooleanTrue(emptyLabel);
         builder.EmitLda(JsOpCode.LdaTrue);
         EmitStar(inStepRegister);
-        EmitLdar(iteratorRegister);
         builder.EmitCallRuntime((int)RuntimeId.DestructureIteratorRestArray, iteratorRegister, 1);
         EmitStar(valueRegister);
         builder.EmitLda(JsOpCode.LdaFalse);
@@ -2216,7 +2212,6 @@ internal abstract partial class JsPlannedCompilerBase
         var endLabel = builder.CreateLabel();
         EmitLdar(doneRegister);
         EmitJumpIfToBooleanTrue(endLabel);
-        EmitLdar(iteratorRegister);
         builder.EmitCallRuntime((int)RuntimeId.DestructureIteratorClose, iteratorRegister, 1);
         builder.BindLabel(endLabel);
     }

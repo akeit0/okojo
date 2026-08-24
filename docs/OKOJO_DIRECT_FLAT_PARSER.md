@@ -925,6 +925,19 @@ needed. Regression targets: test262
 `async-from-sync-iterator-continuation-abrupt-completion-get-constructor` and
 `CompileString_RejectsForAwaitOfWhenContinuationPromiseResolveThrows`.
 
+Emission optimization slice: added `EmitMove(src, dst)` over the `Mov`/`MovWide`
+opcodes and converted register-to-register copy pairs across class heritage,
+private-brand mapping, `SetFunctionName`, object accessor definition, method
+environment attachment, array spread argument blocks, super-call spread
+argument assembly, and the parameter snapshot fill loop — halving instruction
+count at those sites and leaving the accumulator untouched. Removed five dead
+`Ldar iteratorRegister` loads that fed register-argument runtime calls (the
+handlers read operands from registers, not acc). Kept conservative: the
+`CallWithSpread`/`ConstructWithSpread` runtime-argument windows still use
+Ldar/Star — a Mov conversion there reproduced an NRE inside the callee's Run;
+root cause unconfirmed (handler reads only registers), so reverted pending
+investigation.
+
 TCO scope note (per direction check with V8): proper tail calls are an Okojo
 production-compiler capability that V8 deliberately lacks; the planned compiler
 does not implement PTC yet, so planned-mode runs skip test262

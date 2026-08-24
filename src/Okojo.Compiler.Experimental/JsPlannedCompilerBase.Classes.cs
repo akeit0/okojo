@@ -69,10 +69,8 @@ internal abstract partial class JsPlannedCompilerBase
             if (heritageRegister >= 0)
             {
                 var heritageArguments = builder.AllocateTemporaryRegisterBlock(2);
-                EmitLdar(constructorRegister);
-                EmitStar(heritageArguments);
-                EmitLdar(heritageRegister);
-                EmitStar(heritageArguments + 1);
+                EmitMove(constructorRegister, heritageArguments);
+                EmitMove(heritageRegister, heritageArguments + 1);
                 builder.EmitCallRuntime((int)RuntimeId.SetClassHeritage, heritageArguments, 2);
             }
 
@@ -787,12 +785,10 @@ internal abstract partial class JsPlannedCompilerBase
         try
         {
             var arguments = builder.AllocateTemporaryRegisterBlock(3);
-            EmitLdar(targetRegister);
-            EmitStar(arguments);
+            EmitMove(targetRegister, arguments);
             EmitSmi(brandId);
             EmitStar(arguments + 1);
-            EmitLdar(sourceRegister);
-            EmitStar(arguments + 2);
+            EmitMove(sourceRegister, arguments + 2);
             builder.EmitCallRuntime((int)runtime, arguments, 3);
         }
         finally

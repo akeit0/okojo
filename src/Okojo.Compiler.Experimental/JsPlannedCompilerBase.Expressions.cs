@@ -339,8 +339,7 @@ internal abstract partial class JsPlannedCompilerBase
         {
             var arguments = builder.AllocateTemporaryRegisterBlock(2);
             EmitStar(arguments);
-            EmitLdar(nameRegister);
-            EmitStar(arguments + 1);
+            EmitMove(nameRegister, arguments + 1);
             builder.EmitCallRuntime((int)RuntimeId.SetFunctionName, arguments, 2);
         }
         finally
@@ -660,10 +659,8 @@ internal abstract partial class JsPlannedCompilerBase
         try
         {
             var arguments = builder.AllocateTemporaryRegisterBlock(4);
-            EmitLdar(objectRegister);
-            EmitStar(arguments);
-            EmitLdar(keyRegister);
-            EmitStar(arguments + 1);
+            EmitMove(objectRegister, arguments);
+            EmitMove(keyRegister, arguments + 1);
             if (property.IsGetter)
             {
                 EmitExpression(ast, property.ValueNode);
@@ -702,8 +699,7 @@ internal abstract partial class JsPlannedCompilerBase
             return;
         var arguments = builder.AllocateTemporaryRegisterBlock(3);
         EmitStar(arguments);
-        EmitLdar(homeObjectRegister);
-        EmitStar(arguments + 1);
+        EmitMove(homeObjectRegister, arguments + 1);
         builder.EmitLda(JsOpCode.LdaUndefined);
         EmitStar(arguments + 2);
         builder.EmitCallRuntime((int)RuntimeId.SetFunctionMethodEnvironment, arguments, 3);
@@ -812,12 +808,9 @@ internal abstract partial class JsPlannedCompilerBase
             var sourceRegister = builder.AllocateTemporaryRegister();
             EmitStar(sourceRegister);
             var arguments = builder.AllocateTemporaryRegisterBlock(3);
-            EmitLdar(arrayRegister);
-            EmitStar(arguments);
-            EmitLdar(sourceRegister);
-            EmitStar(arguments + 1);
-            EmitLdar(indexRegister);
-            EmitStar(arguments + 2);
+            EmitMove(arrayRegister, arguments);
+            EmitMove(sourceRegister, arguments + 1);
+            EmitMove(indexRegister, arguments + 2);
             builder.EmitCallRuntime((int)RuntimeId.AppendArraySpread, arguments, 3);
             EmitStar(indexRegister);
         }
@@ -1081,13 +1074,9 @@ internal abstract partial class JsPlannedCompilerBase
 
         var arguments = EmitSpreadArguments(ast, offset, count, out var flagsRegister);
         var runtimeArguments = builder.AllocateTemporaryRegisterBlock(count + 1);
-        EmitLdar(flagsRegister);
-        EmitStar(runtimeArguments);
+        EmitMove(flagsRegister, runtimeArguments);
         for (var i = 0; i < count; i++)
-        {
-            EmitLdar(arguments + i);
-            EmitStar(runtimeArguments + 1 + i);
-        }
+            EmitMove(arguments + i, runtimeArguments + 1 + i);
         builder.EmitCallRuntime(
             (int)RuntimeId.CallSuperConstructorWithSpread,
             runtimeArguments,

@@ -32,10 +32,7 @@ internal abstract partial class JsPlannedCompilerBase
 
             var argumentSnapshot = builder.AllocateTemporaryRegisterBlock(parameters.Length);
             for (var i = 0; i < parameters.Length; i++)
-            {
-                EmitLdar(i);
-                EmitStar(argumentSnapshot + i);
-            }
+                EmitMove(i, argumentSnapshot + i);
 
             for (var i = 0; i < parameters.Length; i++)
             {

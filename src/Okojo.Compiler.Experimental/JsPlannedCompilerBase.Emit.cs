@@ -167,6 +167,23 @@ internal abstract partial class JsPlannedCompilerBase
         EmitRootContextBindings();
     }
 
+    protected void EmitMove(int sourceRegister, int destinationRegister)
+    {
+        if ((uint)sourceRegister <= byte.MaxValue && (uint)destinationRegister <= byte.MaxValue)
+        {
+            builder.Emit(JsOpCode.Mov, (byte)sourceRegister, (byte)destinationRegister);
+            return;
+        }
+
+        builder.Emit(
+            JsOpCode.MovWide,
+            (byte)(sourceRegister & 0xFF),
+            (byte)((sourceRegister >> 8) & 0xFF),
+            (byte)(destinationRegister & 0xFF),
+            (byte)((destinationRegister >> 8) & 0xFF)
+        );
+    }
+
     protected void EmitScopeLexicalHoleInitialization()
     {
         var scope = activeScopes.Peek();
