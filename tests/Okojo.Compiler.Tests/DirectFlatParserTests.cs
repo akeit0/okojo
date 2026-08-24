@@ -1009,10 +1009,32 @@ public class DirectFlatParserTests
 
         realm.Execute(script);
 
-        Assert.That(
-            realm.Evaluate("__flatArgumentsSnapshotResult").AsString(),
-            Is.EqualTo("42|number|x|42|20")
+        Assert.That(realm.Evaluate("__flatOptionalResult").AsString(), Is.EqualTo("42|42|42|42"));
+    }
+
+    [Test]
+    public void CompileString_LexicalShadowingOfNamedFunctionSelfBinding()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            globalThis.__flatSelfShadowResult = '';
+            var n = 'outside';
+            var probeInside;
+            var func = function n() {
+              let n = 'inside';
+              probeInside = function() { return n; };
+            };
+            func();
+            __flatSelfShadowResult += probeInside() + '|';
+            var counter = function count(c) { return c <= 0 ? 'done' : count(c - 1); };
+            __flatSelfShadowResult += counter(2);
+            """
         );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Evaluate("__flatSelfShadowResult").AsString(), Is.EqualTo("inside|done"));
     }
 
     [Test]

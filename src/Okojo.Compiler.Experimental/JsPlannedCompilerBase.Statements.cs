@@ -403,28 +403,39 @@ internal abstract partial class JsPlannedCompilerBase
             );
             var iteratorRegister = builder.AllocateTemporaryRegister();
             EmitStar(iteratorRegister);
+            var nextName = builder.AddAtomizedStringConstant("next");
+            var doneName = builder.AddAtomizedStringConstant("done");
+            var valueName = builder.AddAtomizedStringConstant("value");
+            var nextFunctionRegister = builder.AllocateTemporaryRegister();
+            var resultRegister = builder.AllocateTemporaryRegister();
+            builder.EmitLdaNamedProperty(
+                iteratorRegister,
+                nextName,
+                builder.AllocateFeedbackSlot()
+            );
+            EmitStar(nextFunctionRegister);
             var valueRegister = builder.AllocateTemporaryRegister();
             var exceptionRegister = builder.AllocateTemporaryRegister();
             var loopStart = builder.CreateLabel();
             var continueTarget = builder.CreateLabel();
             var breakTarget = builder.CreateLabel();
             var catchTarget = builder.CreateLabel();
+            var resultIsObject = builder.CreateLabel();
             var needsPerIterationContext =
                 hasLexicalScope && ShouldReplaceLoopHeadContextPerIteration(activeScopes.Peek());
 
             builder.BindLabel(loopStart);
             if (needsPerIterationContext)
                 EmitReplaceCurrentContext(activeScopes.Peek().ContextSlotCount);
-            EmitLdar(iteratorRegister);
-            builder.EmitCallRuntime(
-                (int)RuntimeId.DestructureIteratorStepValue,
-                iteratorRegister,
-                1
-            );
-            EmitStar(valueRegister);
-            builder.EmitLda(JsOpCode.LdaTheHole);
-            EmitRegisterWithSlotOp(JsOpCode.TestEqualStrict, valueRegister);
+            builder.EmitCallProperty(nextFunctionRegister, iteratorRegister, 0, 0);
+            EmitStar(resultRegister);
+            builder.EmitJump(JsOpCode.JumpIfJsReceiver, resultIsObject);
+            builder.EmitCallRuntime((int)RuntimeId.ThrowIteratorResultNotObject, 0, 0);
+            builder.BindLabel(resultIsObject);
+            builder.EmitLdaNamedProperty(resultRegister, doneName, builder.AllocateFeedbackSlot());
             EmitJumpIfToBooleanTrue(breakTarget);
+            builder.EmitLdaNamedProperty(resultRegister, valueName, builder.AllocateFeedbackSlot());
+            EmitStar(valueRegister);
 
             builder.EmitJump(JsOpCode.PushTry, catchTarget);
             PushForOfControlScope(breakTarget, continueTarget, iteratorRegister, labels);
@@ -1744,7 +1755,8 @@ internal abstract partial class JsPlannedCompilerBase
                 value.Arg0,
                 value.Arg1,
                 inferredName: "default",
-                deferredBinding: binding
+                deferredBinding: binding,
+                suppressSelfBinding: true
             )
         )
             return;

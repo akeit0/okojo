@@ -355,11 +355,13 @@ internal abstract partial class JsPlannedCompilerBase
         int bodyRoot,
         string? inferredName = null,
         int instanceFieldClassIndex = -1,
-        BindingStorage? deferredBinding = null
+        BindingStorage? deferredBinding = null,
+        bool suppressSelfBinding = false
     )
     {
         var function = ast.GetFunction(functionIndex);
-        var hasSelfBinding = ast.GetString(function.NameStringIndex).Length != 0;
+        var hasSelfBinding =
+            !suppressSelfBinding && ast.GetString(function.NameStringIndex).Length != 0;
         var functionCompiler = new JsPlannedFunctionCompiler(
             Vm,
             BuildChildCaptureBindings(),

@@ -867,6 +867,19 @@ spec's AsyncArrowBindingIdentifier lookahead carve-out. Regression targets:
 test262 `optional-call-preserves-this`, `head-init-async-of`, and
 `CompileString_PreservesThisThroughParenthesizedOptionalCalls`.
 
+Binding resolution consistency slice: when a function root scope holds both a
+`FunctionNameSelf` binding and a same-name body declaration (named function
+expression shadowed by `let n`), all resolution paths — planner capture
+marking, closure capture maps, and emitter loads/stores — now prefer the
+shadowing non-self binding, so closures observe the initialized lexical instead
+of an uninitialized alias. Default-exported named functions no longer receive a
+self binding at all (`export default function fn(){ fn = 2; }` mutates the live
+module binding), and planned for-of loops cache the iterator's `next` method
+once before iteration like production's fallback path. Regression targets:
+test262 `scope-lex-open`, `eval-gtbndng-indirect-update-dflt`,
+`iterator-next-reference`, and
+`CompileString_LexicalShadowingOfNamedFunctionSelfBinding`.
+
 TCO scope note (per direction check with V8): proper tail calls are an Okojo
 production-compiler capability that V8 deliberately lacks; the planned compiler
 does not implement PTC yet, so planned-mode runs skip test262

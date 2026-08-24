@@ -199,6 +199,8 @@ internal static class CompilerStoragePlanner
         {
             if ((uint)scopeId >= (uint)scopes.Length)
                 break;
+            int selfCandidate = -1;
+            var selfCandidateSet = false;
             for (
                 var candidate = firstBindingByScope[scopeId];
                 candidate >= 0;
@@ -215,16 +217,30 @@ internal static class CompilerStoragePlanner
                 )
                     continue;
                 if (
-                    string.Equals(
+                    !string.Equals(
                         bindings[candidate].Name,
                         reference.Name,
                         StringComparison.Ordinal
                     )
                 )
+                    continue;
+                if (bindings[candidate].Kind == CompilerCollectedBindingKind.FunctionNameSelf)
                 {
-                    bindingIndex = candidate;
-                    return true;
+                    if (!selfCandidateSet)
+                    {
+                        selfCandidate = candidate;
+                        selfCandidateSet = true;
+                    }
+                    continue;
                 }
+                bindingIndex = candidate;
+                return true;
+            }
+
+            if (selfCandidateSet)
+            {
+                bindingIndex = selfCandidate;
+                return true;
             }
         }
 

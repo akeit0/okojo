@@ -28,6 +28,7 @@ internal abstract partial class JsPlannedCompilerBase
         contextDepth = 0;
         foreach (var scope in activeScopes)
         {
+            BindingStorage? selfShadowCandidate = null;
             for (var i = 0; i < scope.Bindings.Count; i++)
             {
                 if (emittingInstanceFieldInitializer && scope.ScopeId == 0)
@@ -45,7 +46,18 @@ internal abstract partial class JsPlannedCompilerBase
                     continue;
                 if (!string.Equals(scope.Bindings[i].Planned.Name, name, StringComparison.Ordinal))
                     continue;
+                if (scope.Bindings[i].Planned.Kind == CompilerCollectedBindingKind.FunctionNameSelf)
+                {
+                    selfShadowCandidate ??= scope.Bindings[i];
+                    continue;
+                }
                 binding = scope.Bindings[i];
+                return true;
+            }
+
+            if (selfShadowCandidate is { } shadowed)
+            {
+                binding = shadowed;
                 return true;
             }
 
@@ -165,17 +177,22 @@ internal abstract partial class JsPlannedCompilerBase
                     )
                 )
                     continue;
-                captures.TryAdd(
-                    binding.Planned.Name,
-                    new CapturedBindingAccess(
-                        binding.Planned.StorageIndex,
-                        currentDepth,
-                        binding.Planned.IsConst,
-                        binding.Planned.Kind == CompilerCollectedBindingKind.FunctionNameSelf,
-                        binding.Planned.StorageKind == CompilerPlannedStorageKind.ModuleBinding,
-                        NeedsTdzWriteCheck(binding.Planned.Kind)
-                    )
+                var access = new CapturedBindingAccess(
+                    binding.Planned.StorageIndex,
+                    currentDepth,
+                    binding.Planned.IsConst,
+                    binding.Planned.Kind == CompilerCollectedBindingKind.FunctionNameSelf,
+                    binding.Planned.StorageKind == CompilerPlannedStorageKind.ModuleBinding,
+                    NeedsTdzWriteCheck(binding.Planned.Kind)
                 );
+                if (
+                    captures.TryGetValue(binding.Planned.Name, out var existing)
+                    && existing.IsImmutableFunctionName
+                    && !access.IsImmutableFunctionName
+                )
+                    captures[binding.Planned.Name] = access;
+                else
+                    captures.TryAdd(binding.Planned.Name, access);
             }
 
             if (scope.HasContext)
