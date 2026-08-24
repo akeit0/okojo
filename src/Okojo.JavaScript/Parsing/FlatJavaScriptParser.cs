@@ -854,13 +854,31 @@ internal sealed class FlatJavaScriptParser
         }
     }
 
-    private bool IsUsingDeclarationStart()
+    private bool IsUsingDeclarationStart(bool allowOfBinding = true)
     {
         if (current.Kind != JsTokenKind.Identifier || !IsCurrentIdentifierName("using"))
             return false;
         var next = PeekToken();
-        return !next.HasLineTerminatorBefore
-            && next.Kind is JsTokenKind.Identifier or JsTokenKind.Of;
+        if (next.HasLineTerminatorBefore)
+            return false;
+        if (next.Kind == JsTokenKind.Identifier)
+            return true;
+        if (next.Kind == JsTokenKind.Of && allowOfBinding)
+        {
+            lexer.GetIndex();
+            var index = lexer.GetIndex();
+            try
+            {
+                _ = lexer.NextToken();
+                var third = lexer.NextToken();
+                return third.Kind is JsTokenKind.Assign or JsTokenKind.Comma;
+            }
+            finally
+            {
+                lexer.SetIndex(index);
+            }
+        }
+        return false;
     }
 
     private bool IsAwaitUsingPrefix()
@@ -889,9 +907,12 @@ internal sealed class FlatJavaScriptParser
         }
     }
 
-    private bool TryGetUsingDeclarationStatementKind(out JsVariableDeclarationKind kind)
+    private bool TryGetUsingDeclarationStatementKind(
+        out JsVariableDeclarationKind kind,
+        bool allowOfBinding = true
+    )
     {
-        if (IsUsingDeclarationStart())
+        if (IsUsingDeclarationStart(allowOfBinding))
         {
             kind = JsVariableDeclarationKind.Using;
             return true;
@@ -2223,7 +2244,7 @@ internal sealed class FlatJavaScriptParser
             }
             else if (
                 current.Kind == JsTokenKind.Identifier
-                && TryGetUsingDeclarationStatementKind(out var headUsingKind)
+                && TryGetUsingDeclarationStatementKind(out var headUsingKind, allowOfBinding: false)
             )
             {
                 init = ParseUsingDeclaration(

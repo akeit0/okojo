@@ -996,6 +996,29 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_EnforcesUsingBindingAndHeadGrammar()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            globalThis.__flatUsingResult = '';
+            var of = [[9], [8], [7]], result = [], using;
+            for (using of of [0, 1, 2]) { result.push(using); }
+            __flatUsingResult += JSON.stringify(result);
+            let rejected = false;
+            try {
+              for (using i = null; i === null; i = { [Symbol.dispose]() { } }) {}
+            } catch (error) { rejected = error instanceof TypeError; }
+            __flatUsingResult += '|' + rejected;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Evaluate("__flatUsingResult").AsString(), Is.EqualTo("[7]|true"));
+    }
+
+    [Test]
     public void CompileString_ExecutesForOfWithNestedRestPatternHead()
     {
         var realm = JsRuntime.Create().DefaultRealm;

@@ -813,6 +813,14 @@ updated `CompileString_EnforcesClassTdzConstAndBlockScope` and test262
 null-extending derived constructors must stay uninitialized until an explicit
 super call (`class-definition-null-proto-this`).
 
+Using grammar slice: `using of` is no longer parsed as a using declaration in
+for-heads (spec lookahead ≠ of), while statement-level `using of = ...` stays a
+declaration when followed by `=` or `,`. Using and await-using bindings are now
+immutable — including loop-head aliases in C-style, for-in, and for-of heads —
+so reassignment throws TypeError per the explicit-resource-management spec.
+Regression targets: `using-invalid-assignment-*`, `using-for-using-of-of`, and
+`CompileString_EnforcesUsingBindingAndHeadGrammar`.
+
 ### Using declarations slice
 
 This iteration ports explicit resource management onto the direct path by copying

@@ -433,7 +433,10 @@ internal static partial class CompilerBindingCollector
                             declarators[i],
                             scopeId,
                             CompilerCollectedBindingKind.LoopHeadAlias,
-                            declarationKind == JsVariableDeclarationKind.Const
+                            declarationKind
+                                is JsVariableDeclarationKind.Const
+                                    or JsVariableDeclarationKind.Using
+                                    or JsVariableDeclarationKind.AwaitUsing
                         );
                 }
                 else
@@ -476,6 +479,11 @@ internal static partial class CompilerBindingCollector
                         CompilerCollectedScopeKind.Block,
                         ast.GetPosition(nodeIndex)
                     );
+                    var headIsConst =
+                        declarationKind
+                        is JsVariableDeclarationKind.Const
+                            or JsVariableDeclarationKind.Using
+                            or JsVariableDeclarationKind.AwaitUsing;
                     var declarators = ast.ChildRange(declaration.Arg0, declaration.Arg1);
                     for (var i = 0; i < declarators.Length; i++)
                     {
@@ -486,7 +494,7 @@ internal static partial class CompilerBindingCollector
                                 declarator.Arg0,
                                 scopeId,
                                 CompilerCollectedBindingKind.LoopHeadAlias,
-                                declarationKind == JsVariableDeclarationKind.Const
+                                headIsConst
                             );
                         else
                             AddBinding(
@@ -494,7 +502,7 @@ internal static partial class CompilerBindingCollector
                                 CompilerCollectedBindingKind.LoopHeadAlias,
                                 ast.GetString(declarator.Arg0),
                                 declarator.Arg1,
-                                declarationKind == JsVariableDeclarationKind.Const,
+                                headIsConst,
                                 ast.GetPosition(declarators[i])
                             );
                     }
@@ -540,7 +548,11 @@ internal static partial class CompilerBindingCollector
                 declarationKind == JsVariableDeclarationKind.Var
                     ? CompilerCollectedBindingKind.Var
                     : CompilerCollectedBindingKind.Lexical;
-            var isConst = declarationKind == JsVariableDeclarationKind.Const;
+            var isConst =
+                declarationKind
+                is JsVariableDeclarationKind.Const
+                    or JsVariableDeclarationKind.Using
+                    or JsVariableDeclarationKind.AwaitUsing;
             var bindingScopeId =
                 declarationKind == JsVariableDeclarationKind.Var
                     ? FindVariableScope(scopeId)
