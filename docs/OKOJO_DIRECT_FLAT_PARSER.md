@@ -753,6 +753,20 @@ observes the real `arguments` object while the body binding shadows it locally.
 The class-AST bridge passes the same flag from its parameter plan. Regression
 targets are the planned-mode test262 `arguments-with-arguments-*` family.
 
+Generator return-resume slice: array destructuring regions now intercept
+`Return` abrupt commands issued by resumed yields inside the pattern, matching
+the production compiler's finally-flow protocol. Each array pattern region
+pushes a `Destructuring` control scope holding completion kind/value registers;
+the resume-mode dispatch's return branch lands on the region's close entry,
+which performs a full iterator close when the iterator is not exhausted
+(propagating close errors over the return value), then re-dispatches the return
+through outer control scopes. Throw handling keeps the in-step guard and uses a
+best-effort close so step failures do not invoke `return`. Nested patterns chain
+naturally because each region re-emits the return after its own close.
+Regression targets are the test262 `array-*-rtrn-close*` families plus
+`CompileString_ClosesDestructureIteratorOnGeneratorReturnResume` in
+`DirectFlatParserTests`.
+
 ### Using declarations slice
 
 This iteration ports explicit resource management onto the direct path by copying

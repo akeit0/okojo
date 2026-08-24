@@ -780,6 +780,60 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_ClosesDestructureIteratorOnGeneratorReturnResume()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            globalThis.__flatReturnResumeResult = '';
+            function makeIterable(returnThrows) {
+                let calls = { next: 0, ret: 0 };
+                let iterator = {
+                    next() { calls.next++; return { done: false, value: undefined }; },
+                    return() {
+                        calls.ret++;
+                        if (returnThrows) throw 'close-err';
+                        return {};
+                    }
+                };
+                let source = {};
+                source[Symbol.iterator] = function () { return iterator; };
+                source.__calls = calls;
+                return source;
+            }
+            let closedSource = makeIterable(false);
+            function* g() {
+                let result;
+                result = [ {} = yield ] = closedSource;
+                __flatReturnResumeResult += 'unreachable';
+            }
+            let iter = g();
+            iter.next();
+            __flatReturnResumeResult += 'ret' + closedSource.__calls.ret;
+            let closeResult = iter.return(777);
+            __flatReturnResumeResult += '|ret' + closedSource.__calls.ret;
+            __flatReturnResumeResult += '|v' + closeResult.value;
+            __flatReturnResumeResult += '|done' + closeResult.done;
+            let errSource = makeIterable(true);
+            function* h() {
+                let r;
+                r = [ {} = yield ] = errSource;
+            }
+            let hiter = h();
+            hiter.next();
+            try { hiter.return(1); } catch (e) { __flatReturnResumeResult += '|' + e; }
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(
+            realm.Evaluate("__flatReturnResumeResult").AsString(),
+            Is.EqualTo("ret0|ret1|v777|donetrue|close-err")
+        );
+    }
+
+    [Test]
     public void CompileString_ExecutesForOfWithNestedRestPatternHead()
     {
         var realm = JsRuntime.Create().DefaultRealm;

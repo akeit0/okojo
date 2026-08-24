@@ -956,6 +956,18 @@ internal abstract partial class JsPlannedCompilerBase
                 }
                 continue;
             }
+            if (scope.Kind == ControlScopeKind.Destructuring)
+            {
+                if (command == AbruptCommand.Return)
+                {
+                    EmitStar(scope.CompletionValueRegister);
+                    EmitSmi(1);
+                    EmitStar(scope.CompletionKindRegister);
+                    EmitJump(scope.Finally);
+                    return;
+                }
+                continue;
+            }
             if (scope.Kind == ControlScopeKind.Finally)
             {
                 if (command == AbruptCommand.Return)
@@ -1875,10 +1887,26 @@ internal abstract partial class JsPlannedCompilerBase
             var inStepRegister = builder.AllocateTemporaryRegister();
             builder.EmitLda(JsOpCode.LdaFalse);
             EmitStar(inStepRegister);
+            var kindRegister = builder.AllocateTemporaryRegister();
+            builder.EmitLda(JsOpCode.LdaZero);
+            EmitStar(kindRegister);
             var catchLabel = builder.CreateLabel();
+            var abruptExitLabel = builder.CreateLabel();
+            var closeEntryLabel = builder.CreateLabel();
             var endLabel = builder.CreateLabel();
 
             builder.EmitJump(JsOpCode.PushTry, catchLabel);
+            controlScopes.Push(
+                new ControlScope(
+                    ControlScopeKind.Destructuring,
+                    default,
+                    default,
+                    abruptExitLabel,
+                    CurrentContextDepth,
+                    kindRegister,
+                    valueRegister
+                )
+            );
             var elements = ast.ChildRange(pattern.Arg0, pattern.Arg1);
             for (var i = 0; i < elements.Length; i++)
             {
@@ -1952,13 +1980,33 @@ internal abstract partial class JsPlannedCompilerBase
                     builder.ReleaseTemporaryRegistersToMarker(targetMarker);
                 }
             }
+            controlScopes.Pop();
             builder.Emit(JsOpCode.PopTry);
-            EmitCloseArrayBindingIterator(iteratorRegister, doneRegister);
-            EmitJump(endLabel);
+            EmitJump(closeEntryLabel);
+
+            builder.BindLabel(abruptExitLabel);
+            builder.Emit(JsOpCode.PopTry);
+            EmitJump(closeEntryLabel);
 
             builder.BindLabel(catchLabel);
             EmitStar(valueRegister);
+            EmitSmi(2);
+            EmitStar(kindRegister);
+            EmitJump(closeEntryLabel);
+
+            builder.BindLabel(closeEntryLabel);
+            var throwCloseLabel = builder.CreateLabel();
+            var dispatchLabel = builder.CreateLabel();
+            var returnDispatchLabel = builder.CreateLabel();
+            var throwDispatchLabel = builder.CreateLabel();
             var rethrowLabel = builder.CreateLabel();
+            EmitSmi(2);
+            EmitRegisterWithSlotOp(JsOpCode.TestEqualStrict, kindRegister);
+            EmitJumpIfToBooleanTrue(throwCloseLabel);
+            EmitCloseArrayBindingIterator(iteratorRegister, doneRegister);
+            EmitJump(dispatchLabel);
+
+            builder.BindLabel(throwCloseLabel);
             EmitLdar(doneRegister);
             EmitJumpIfToBooleanTrue(rethrowLabel);
             EmitLdar(inStepRegister);
@@ -1970,6 +2018,21 @@ internal abstract partial class JsPlannedCompilerBase
                 1
             );
             builder.BindLabel(rethrowLabel);
+
+            builder.BindLabel(dispatchLabel);
+            EmitSmi(1);
+            EmitRegisterWithSlotOp(JsOpCode.TestEqualStrict, kindRegister);
+            EmitJumpIfToBooleanTrue(returnDispatchLabel);
+            EmitSmi(2);
+            EmitRegisterWithSlotOp(JsOpCode.TestEqualStrict, kindRegister);
+            EmitJumpIfToBooleanTrue(throwDispatchLabel);
+            EmitJump(endLabel);
+
+            builder.BindLabel(returnDispatchLabel);
+            EmitLdar(valueRegister);
+            EmitAbruptCommand(AbruptCommand.Return);
+
+            builder.BindLabel(throwDispatchLabel);
             EmitLdar(valueRegister);
             builder.Emit(JsOpCode.Throw);
             builder.BindLabel(endLabel);

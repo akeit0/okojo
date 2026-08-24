@@ -122,6 +122,7 @@ internal abstract partial class JsPlannedCompilerBase
         Switch,
         Try,
         Finally,
+        Destructuring,
     }
 
     private readonly record struct ControlScope(
