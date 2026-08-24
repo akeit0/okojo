@@ -1041,6 +1041,34 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_DerivedConstructorArrowsObserveThisAndSuperState()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            globalThis.__flatDerivedResult = '';
+            class Base { constructor() { __flatDerivedResult += 'base'; } }
+            class Derived extends Base {
+              constructor() {
+                var before = () => {
+                  try { this.x = 1; __flatDerivedResult += '|no-tdz'; }
+                  catch (e) { __flatDerivedResult += '|tdz:' + (e instanceof ReferenceError); }
+                };
+                before();
+                super();
+                this.after = _ => super();
+              }
+            }
+            try { new Derived(); } catch (e) { __flatDerivedResult += '|ctor:' + (e instanceof ReferenceError); }
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Evaluate("__flatDerivedResult").AsString(), Is.EqualTo("|tdz:truebase"));
+    }
+
+    [Test]
     public void CompileString_ParsesFieldsNamedGetAndSetAcrossAsi()
     {
         var realm = JsRuntime.Create().DefaultRealm;

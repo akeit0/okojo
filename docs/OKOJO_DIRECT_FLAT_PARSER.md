@@ -880,6 +880,21 @@ test262 `scope-lex-open`, `eval-gtbndng-indirect-update-dflt`,
 `iterator-next-reference`, and
 `CompileString_LexicalShadowingOfNamedFunctionSelfBinding`.
 
+Derived-this port slice: the planned compiler now ports production's derived
+constructor this/super capture. Derived (non-arrow) constructors allocate a
+synthetic context slot (`DerivedThisContextSlot`, published to nested closures
+as the `\0derived-this` capture) initialized to the hole in the prologue;
+arrows consume it by setting `LexicalThisContextSlot`/Depth so invocations
+resolve `this` through the enclosing constructor's context — hole until
+`super()` runs, initialized after, and stale-super calls after the constructor
+returns throw ReferenceError via the shared runtime state. Critical detail:
+allocating the slot must rebuild the root ActiveScope entry so
+CurrentContextDepth accounts for the new context; otherwise external captures
+in derived constructors under-read by one hop and TDZ-throw. Regression
+targets: test262 `class-definition-null-proto-this`,
+`lexical-super-call-from-within-constructor`, the `super/call-spread-*`
+family, and `CompileString_DerivedConstructorArrowsObserveThisAndSuperState`.
+
 TCO scope note (per direction check with V8): proper tail calls are an Okojo
 production-compiler capability that V8 deliberately lacks; the planned compiler
 does not implement PTC yet, so planned-mode runs skip test262

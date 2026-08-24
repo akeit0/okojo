@@ -212,6 +212,12 @@ internal abstract partial class JsPlannedCompilerBase
                 )
             );
 
+        if (derivedThisContextSlot >= 0)
+            captures.TryAdd(
+                DerivedThisBindingName,
+                new CapturedBindingAccess(derivedThisContextSlot, 0, true, false, false, false)
+            );
+
         return captures;
     }
 

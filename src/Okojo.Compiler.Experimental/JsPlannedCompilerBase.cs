@@ -15,6 +15,8 @@ internal abstract partial class JsPlannedCompilerBase
     private int[] childScopeOffsets = [];
     private int[] childScopeCounts = [];
     protected int rootContextSlotCount;
+    protected int derivedThisContextSlot = -1;
+    internal const string DerivedThisBindingName = "\0derived-this";
     protected bool emittingParameterInitializers;
     protected bool emittingInstanceFieldInitializer;
     protected bool strictDeclared;

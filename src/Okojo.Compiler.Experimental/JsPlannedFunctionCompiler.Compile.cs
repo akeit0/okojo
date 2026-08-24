@@ -115,11 +115,25 @@ internal sealed partial class JsPlannedFunctionCompiler
         for (var i = 0; i < metadata.ParameterCount; i++)
             builder.AllocatePinnedRegister();
         InitializeRootBindings(parameterRegisterByName);
+        if (!metadata.IsArrow && metadata.IsDerivedConstructor)
+        {
+            derivedThisContextSlot = rootContextSlotCount;
+            rootContextSlotCount++;
+            var rootScope = activeScopes.Pop();
+            activeScopes.Push(
+                new ActiveScope(rootScope.ScopeId, rootScope.Bindings, rootContextSlotCount)
+            );
+        }
         var superBaseContextSlot = FindSuperBaseContextSlot();
         initializeParametersInPrologue = !metadata.HasSimpleParameterList;
         externalCaptureContextDepthOffset =
             metadata.HasSuperPropertyReference && !metadata.IsArrow ? 1 : 0;
         EmitFunctionContextSetup();
+        if (derivedThisContextSlot >= 0)
+        {
+            builder.EmitLda(JsOpCode.LdaTheHole);
+            EmitStaCurrentContextSlot(derivedThisContextSlot);
+        }
         var argumentsMaterialized = -1;
         if (HasSyntheticArgumentsBinding())
         {
@@ -205,6 +219,15 @@ internal sealed partial class JsPlannedFunctionCompiler
         );
         result.ArgumentsMappedSlots = BuildArgumentsMappedSlots(metadata);
         result.SuperBaseContextSlot = superBaseContextSlot;
+        result.DerivedThisContextSlot = derivedThisContextSlot;
+        if (
+            metadata.IsArrow
+            && inheritedCaptures.TryGetValue(DerivedThisBindingName, out var derivedThis)
+        )
+        {
+            result.LexicalThisContextSlot = derivedThis.Slot;
+            result.LexicalThisContextDepth = derivedThis.Depth;
+        }
         return result;
     }
 

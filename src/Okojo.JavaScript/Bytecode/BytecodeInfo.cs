@@ -331,7 +331,8 @@ internal static class BytecodeInfo
                 or JsOpCode.Ldar
                 or JsOpCode.LdarWide
                 or JsOpCode.LdaCurrentFunction
-                or JsOpCode.LdaThis
+                // LdaThis is deliberately excluded: it throws for uninitialized
+                // derived-constructor this, so it is observable and must not be elided.
                 or JsOpCode.LdaNewTarget;
     }
 
