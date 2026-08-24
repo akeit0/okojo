@@ -10,6 +10,7 @@ internal sealed class FlatJavaScriptParser
     private readonly string source;
     private readonly bool isModule;
     private JsToken current;
+    private int previousTokenEnd = -1;
     private int functionDepth;
     private int receiverFunctionDepth;
     private int generatorFunctionDepth;
@@ -43,6 +44,7 @@ internal sealed class FlatJavaScriptParser
         }
         lexer = new JsLexer(source);
         current = lexer.NextToken();
+        previousTokenEnd = current.Position + current.SourceLength;
     }
 
     public static FlatAst ParseScript(string source, string? sourcePath = null)
@@ -1573,7 +1575,8 @@ internal sealed class FlatJavaScriptParser
                     IsAsync: isAsync,
                     IsClassConstructor: isClassConstructor,
                     IsDerivedConstructor: isDerivedConstructor,
-                    HasSuperPropertyReference: superPropertySeen
+                    HasSuperPropertyReference: superPropertySeen,
+                    EndPosition: previousTokenEnd
                 )
             );
             return Arena.Add(
@@ -1628,6 +1631,7 @@ internal sealed class FlatJavaScriptParser
         Span<FlatClassElement> initial = stackalloc FlatClassElement[8];
         var elements = new ClassElementList(initial);
         var constructorNode = -1;
+        var hasExplicitConstructor = false;
         var nextInstanceFieldKeyIndex = 0;
         var instanceFieldsUseSuper = false;
         try
@@ -1674,6 +1678,9 @@ internal sealed class FlatJavaScriptParser
                 }
 
                 var isAsync = false;
+                // Function-source start excludes the `static` prefix but includes
+                // get/set/async/*/name tokens, matching Function.prototype.toString.
+                var functionSourceStartPosition = current.Position;
                 if (IsCurrentIdentifierName("async"))
                 {
                     var next = PeekToken();
@@ -1746,7 +1753,7 @@ internal sealed class FlatJavaScriptParser
                         isDeclaration: false,
                         string.Empty,
                         -1,
-                        elementPosition,
+                        functionSourceStartPosition,
                         isMethod: true
                     );
                     var accessorFunction = ast.GetFunction(Arena[accessor].Arg0);
@@ -1867,7 +1874,7 @@ internal sealed class FlatJavaScriptParser
                     isDeclaration: false,
                     string.Empty,
                     -1,
-                    elementPosition,
+                    functionSourceStartPosition,
                     isMethod: !isConstructor,
                     isGenerator,
                     isAsync,
@@ -1876,6 +1883,7 @@ internal sealed class FlatJavaScriptParser
                 );
                 if (isConstructor)
                     constructorNode = method;
+                hasExplicitConstructor = true;
                 elements.Add(
                     new FlatClassElement(
                         key,
@@ -1889,6 +1897,7 @@ internal sealed class FlatJavaScriptParser
                 );
             }
             Expect(JsTokenKind.RightBrace);
+            var classEndPosition = previousTokenEnd;
             if (!classPrivateNameScope.Resolve(out var unresolvedPrivateName))
                 throw Error(
                     $"Private name '{unresolvedPrivateName.Name}' is not declared in an enclosing class",
@@ -1907,6 +1916,19 @@ internal sealed class FlatJavaScriptParser
                     ast.GetFunction(constructorFunctionIndex) with
                     {
                         HasSuperPropertyReference = true,
+                    }
+                );
+            }
+            // An explicit constructor's toString span is the entire class source.
+            if (constructorNode >= 0 && hasExplicitConstructor)
+            {
+                var ctorFnIndex = Arena[constructorNode].Arg0;
+                ast.SetFunction(
+                    ctorFnIndex,
+                    ast.GetFunction(ctorFnIndex) with
+                    {
+                        Position = position,
+                        EndPosition = classEndPosition,
                     }
                 );
             }
@@ -1975,7 +1997,8 @@ internal sealed class FlatJavaScriptParser
                     false,
                     position,
                     true,
-                    HasSuperPropertyReference: superPropertySeen
+                    HasSuperPropertyReference: superPropertySeen,
+                    EndPosition: previousTokenEnd
                 )
             );
             return Arena.Add(AstKind.FunctionExpression, functionIndex, body, position: position);
@@ -2064,7 +2087,8 @@ internal sealed class FlatJavaScriptParser
                 true,
                 HasSuperPropertyReference: hasSuperPropertyReference,
                 ReturnInferredNameStringIndex: inferredNameStringIndex,
-                ReturnInferredNameFromFirstParameter: inferNameFromFirstParameter
+                ReturnInferredNameFromFirstParameter: inferNameFromFirstParameter,
+                EndPosition: previousTokenEnd
             )
         );
         return Arena.Add(AstKind.FunctionExpression, functionIndex, body, position: position);
@@ -2090,7 +2114,8 @@ internal sealed class FlatJavaScriptParser
                 false,
                 IsClassConstructor: true,
                 IsDerivedConstructor: isDerived,
-                EmitImplicitSuperForwardAll: isDerived
+                EmitImplicitSuperForwardAll: isDerived,
+                EndPosition: -1
             )
         );
         return Arena.Add(AstKind.FunctionExpression, functionIndex, body, position: position);
@@ -3584,7 +3609,8 @@ internal sealed class FlatJavaScriptParser
                     false,
                     true,
                     IsAsync: isAsync,
-                    HasSuperPropertyReference: superPropertySeen
+                    HasSuperPropertyReference: superPropertySeen,
+                    EndPosition: previousTokenEnd
                 )
             );
             return Arena.Add(
@@ -4309,6 +4335,7 @@ internal sealed class FlatJavaScriptParser
 
     private void Next()
     {
+        previousTokenEnd = current.Position + current.SourceLength;
         current = lexer.NextToken();
     }
 

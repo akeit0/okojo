@@ -499,7 +499,8 @@ internal readonly record struct FlatFunctionInfo(
     bool EmitImplicitSuperForwardAll = false,
     bool HasSuperPropertyReference = false,
     int ReturnInferredNameStringIndex = -1,
-    bool ReturnInferredNameFromFirstParameter = false
+    bool ReturnInferredNameFromFirstParameter = false,
+    int EndPosition = -1
 );
 
 internal readonly record struct FlatParameter(

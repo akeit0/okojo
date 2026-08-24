@@ -190,6 +190,31 @@ internal sealed partial class JsPlannedFunctionCompiler
         builder.EmitLda(JsOpCode.LdaUndefined);
         builder.Emit(JsOpCode.Return);
         PatchGeneratorSwitchTable();
+        var functionSourceStart = flatFunction?.Position ?? -1;
+        var functionSourceEnd = flatFunction?.EndPosition ?? -1;
+        FunctionSourceTextSegment? functionSourceText = null;
+        if (
+            flatFunction is { } sourceFn
+            && !string.IsNullOrEmpty(ast.SourceText)
+            && (uint)functionSourceStart <= (uint)ast.SourceText.Length
+            && functionSourceEnd > functionSourceStart
+            && functionSourceEnd <= ast.SourceText.Length
+        )
+        {
+            var start = functionSourceStart;
+            while (start < functionSourceEnd && char.IsWhiteSpace(ast.SourceText[start]))
+                start++;
+            var end = functionSourceEnd;
+            while (end > start && char.IsWhiteSpace(ast.SourceText[end - 1]))
+                end--;
+            if (end > start)
+                functionSourceText = new FunctionSourceTextSegment(
+                    ast.SourceText,
+                    start,
+                    end - start
+                );
+        }
+
         var script = builder.ToScript() with
         {
             SourceCode =
@@ -197,6 +222,7 @@ internal sealed partial class JsPlannedFunctionCompiler
                     ? null
                     : new SourceCode(ast.SourceText, ast.SourcePath),
             StrictDeclared = metadata.StrictDeclared,
+            FunctionSourceText = functionSourceText ?? default,
         };
         script.BindAgent(Vm.Agent);
         var result = new JsBytecodeFunction(
