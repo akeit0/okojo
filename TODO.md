@@ -22,7 +22,7 @@
 ### Active supporting work
 
 - [ ] continue module/runtime simplification without reintroducing wrapper-heavy paths
-- [ ] direct-flat modules: make flat parsing/compilation the default module path
+- [ ] direct-flat built-ins gaps (6 deterministic failures, all pass under production): (a) Function.prototype.toString on a planned-compiled computed-name method reports native-function syntax - planned functions lack the source metadata production attaches for this shape; (b) Array.prototype.shift/pop on sparse generic objects returns a wrong element instead of undefined when the test script is planned-compiled (runtime dense-elements path exposed by planned property-write ordering) - 3 tests; (c) AsyncFromSync rejected-promise-close: SameValue(2,1) - residual ~2-turn microtask delta in async abrupt-close dispatch
 - [ ] expand `Test262Runner --planned-compiler` coverage before direct-flat default adoption
 - [ ] explicit-resource-management: the current compiler/runtime seam for top-level-module `await using` is still awkward; give module async cleanup a dedicated lowering path instead of leaning on normal async-function suspension flow
 - [ ] explicit-resource-management: async disposal still loses non-`Error` thrown values through the host async bridge in the remaining staging `await using` rejection case; give disposal promise completion a JS-value-preserving path instead of relying on generic task fault wrapping

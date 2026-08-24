@@ -4195,14 +4195,9 @@ internal sealed class FlatJavaScriptParser
     }
 
     private static bool CanStartClassElementName(in JsToken token) =>
-        token.Kind
-            is JsTokenKind.Identifier
-                or JsTokenKind.ReservedWord
-                or JsTokenKind.String
-                or JsTokenKind.Number
-                or JsTokenKind.BigInt
-                or JsTokenKind.LeftBracket
-                or JsTokenKind.PrivateIdentifier;
+        token.Kind is JsTokenKind.LeftBracket or JsTokenKind.PrivateIdentifier
+        || JsTokenFacts.IsIdentifierName(token.Kind)
+        || token.Kind is JsTokenKind.String or JsTokenKind.Number or JsTokenKind.BigInt;
 
     private bool IsCurrentIdentifierName(string value) =>
         current.Kind is JsTokenKind.Identifier or JsTokenKind.ReservedWord
