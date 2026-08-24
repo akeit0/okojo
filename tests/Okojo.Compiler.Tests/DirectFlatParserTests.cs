@@ -526,6 +526,75 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_EnforcesTdzOnContextSlotLexicalStores()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            globalThis.__flatTdzResult = '';
+            try { for ({ a: x } of [{}]) { __flatTdzResult += 'unreachable'; } }
+            catch (error) { __flatTdzResult += 'loop:' + (error instanceof ReferenceError); }
+            let x;
+            __flatTdzResult += '|';
+            function outer() {
+                inner();
+                let captured = 2;
+                function inner() { captured = 1; }
+            }
+            try { outer(); }
+            catch (error) { __flatTdzResult += 'closure:' + (error instanceof ReferenceError); }
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(
+            realm.Evaluate("__flatTdzResult").AsString(),
+            Is.EqualTo("loop:true|closure:true")
+        );
+    }
+
+    [Test]
+    public void CompileString_SkipsIteratorCloseWhenDestructureStepThrows()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            globalThis.__flatCloseResult = '';
+            function makeSource(closeThrows) {
+                let calls = { next: 0, ret: 0 };
+                let iterator = {
+                    next() {
+                        calls.next++;
+                        if (calls.next === 1 && closeThrows !== 'step') return { done: false, value: undefined };
+                        throw 'boom';
+                    },
+                    return() { calls.ret++; if (closeThrows === 'close') throw 'close-err'; return {}; }
+                };
+                let source = {};
+                source[Symbol.iterator] = function () { return iterator; };
+                source.__calls = calls;
+                return source;
+            }
+            let stepSource = makeSource('step');
+            try { let x; [x, y] = stepSource; } catch (e) { __flatCloseResult += '' + e; }
+            __flatCloseResult += '|ret' + stepSource.__calls.ret;
+            let defaultSource = makeSource('close');
+            try { let a; [a = (function () { throw 'dflt'; })()] = defaultSource; }
+            catch (e) { __flatCloseResult += '|' + e; }
+            __flatCloseResult += '|ret' + defaultSource.__calls.ret;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(
+            realm.Evaluate("__flatCloseResult").AsString(),
+            Is.EqualTo("boom|ret0|dflt|ret1")
+        );
+    }
+
+    [Test]
     public void CompileString_ExecutesForOfWithNestedRestPatternHead()
     {
         var realm = JsRuntime.Create().DefaultRealm;

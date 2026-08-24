@@ -484,6 +484,15 @@ copy.
 The flat emitter uses existing iterator/property runtime operations but avoids the
 class compiler's target-thunk packaging.
 
+Iterator-close refinement: a `next()` step that itself throws marks the iterator
+as already closing, so the shared catch handler rethrows without calling
+`return()`. Abrupt completions from defaults, targets, or stores still close
+best-effort before rethrowing. The emitter tracks this with one in-step flag
+register around each step call instead of per-element handler tables; V8 copies
+the same semantic split between its step and target scopes. Regression targets:
+`CompileString_SkipsIteratorCloseWhenDestructureStepThrows` plus the test262
+`dstr/*iter-abpt` and `*thrw-close-skip` families.
+
 ### Parameters
 
 Incoming formal arguments occupy the frame prefix. Advanced-parameter prologues:
@@ -631,6 +640,16 @@ assignment uses `StaLexicalLocal` and preserves its TDZ check. Function-name sel
 and parameter bindings keep their separate prologue ordering. This distinction is
 required by Okojo's opcode ABI and mirrors Ignition's separation between creating
 uninitialized bindings and initializing them.
+
+Context-slot stores now preserve the same split: assignment to a captured or
+script-scope `let`/class binding composes a hole-checked load before the plain
+context store, so forward references through destructuring targets and nested
+closures throw the required `ReferenceError` instead of silently writing.
+Initialization stores (declarations, catch/loop-head bindings) stay unchecked,
+and `var`/parameter/function kinds never check. The guard is one temporary
+register plus a checked load, matching V8's conditional
+`ThrowReferenceErrorIfHole` placement without adding an opcode. Regression
+target: `CompileString_EnforcesTdzOnContextSlotLexicalStores`.
 
 This iteration covers cross-script persistence, global lexical/var conflicts,
 restricted global properties, duplicate root lexicals, const reassignment, and

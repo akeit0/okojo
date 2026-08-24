@@ -161,7 +161,8 @@ internal abstract partial class JsPlannedCompilerBase
                         currentDepth,
                         binding.Planned.IsConst,
                         binding.Planned.Kind == CompilerCollectedBindingKind.FunctionNameSelf,
-                        binding.Planned.StorageKind == CompilerPlannedStorageKind.ModuleBinding
+                        binding.Planned.StorageKind == CompilerPlannedStorageKind.ModuleBinding,
+                        NeedsTdzWriteCheck(binding.Planned.Kind)
                     )
                 );
             }
@@ -178,10 +179,20 @@ internal abstract partial class JsPlannedCompilerBase
                     pair.Value.Depth + currentDepth + ExternalCaptureContextDepthOffset,
                     pair.Value.IsConst,
                     pair.Value.IsImmutableFunctionName,
-                    pair.Value.IsModuleVariable
+                    pair.Value.IsModuleVariable,
+                    pair.Value.NeedsTdzWriteCheck
                 )
             );
 
         return captures;
     }
+
+    private static bool NeedsTdzWriteCheck(CompilerCollectedBindingKind kind) =>
+        kind
+            is CompilerCollectedBindingKind.Lexical
+                or CompilerCollectedBindingKind.ClassDeclaration
+                or CompilerCollectedBindingKind.BlockAlias
+                or CompilerCollectedBindingKind.LoopHeadAlias
+                or CompilerCollectedBindingKind.CatchAlias
+                or CompilerCollectedBindingKind.ClassLexicalAlias;
 }

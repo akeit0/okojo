@@ -1536,6 +1536,9 @@ internal abstract partial class JsPlannedCompilerBase
             builder.EmitLda(JsOpCode.LdaFalse);
             EmitStar(doneRegister);
             var valueRegister = builder.AllocateTemporaryRegister();
+            var inStepRegister = builder.AllocateTemporaryRegister();
+            builder.EmitLda(JsOpCode.LdaFalse);
+            EmitStar(inStepRegister);
             var catchLabel = builder.CreateLabel();
             var endLabel = builder.CreateLabel();
 
@@ -1545,7 +1548,12 @@ internal abstract partial class JsPlannedCompilerBase
             {
                 if (elements[i] < 0)
                 {
-                    EmitArrayBindingElision(iteratorRegister, doneRegister, valueRegister);
+                    EmitArrayBindingElision(
+                        iteratorRegister,
+                        doneRegister,
+                        valueRegister,
+                        inStepRegister
+                    );
                     continue;
                 }
 
@@ -1569,7 +1577,8 @@ internal abstract partial class JsPlannedCompilerBase
                             doneRegister,
                             valueRegister,
                             assignment,
-                            preparedRestTarget
+                            preparedRestTarget,
+                            inStepRegister
                         );
                         continue;
                     }
@@ -1592,7 +1601,12 @@ internal abstract partial class JsPlannedCompilerBase
                             ast[targetIndex],
                             normalizeComputedKey: false
                         );
-                    EmitArrayBindingStep(iteratorRegister, doneRegister, valueRegister);
+                    EmitArrayBindingStep(
+                        iteratorRegister,
+                        doneRegister,
+                        valueRegister,
+                        inStepRegister
+                    );
                     if (defaultIndex >= 0)
                         EmitBindingDefault(ast, targetIndex, defaultIndex, valueRegister);
                     EmitStoreDestructuringTarget(ast, targetIndex, assignment, preparedTarget);
@@ -1611,6 +1625,8 @@ internal abstract partial class JsPlannedCompilerBase
             var rethrowLabel = builder.CreateLabel();
             EmitLdar(doneRegister);
             EmitJumpIfToBooleanTrue(rethrowLabel);
+            EmitLdar(inStepRegister);
+            EmitJumpIfToBooleanTrue(rethrowLabel);
             EmitLdar(iteratorRegister);
             builder.EmitCallRuntime(
                 (int)RuntimeId.DestructureIteratorCloseBestEffort,
@@ -1628,16 +1644,25 @@ internal abstract partial class JsPlannedCompilerBase
         }
     }
 
-    private void EmitArrayBindingStep(int iteratorRegister, int doneRegister, int valueRegister)
+    private void EmitArrayBindingStep(
+        int iteratorRegister,
+        int doneRegister,
+        int valueRegister,
+        int inStepRegister
+    )
     {
         var doneLabel = builder.CreateLabel();
         var hasValueLabel = builder.CreateLabel();
         var endLabel = builder.CreateLabel();
         EmitLdar(doneRegister);
         EmitJumpIfToBooleanTrue(doneLabel);
+        builder.EmitLda(JsOpCode.LdaTrue);
+        EmitStar(inStepRegister);
         EmitLdar(iteratorRegister);
         builder.EmitCallRuntime((int)RuntimeId.DestructureIteratorStepValue, iteratorRegister, 1);
         EmitStar(valueRegister);
+        builder.EmitLda(JsOpCode.LdaFalse);
+        EmitStar(inStepRegister);
         builder.EmitLda(JsOpCode.LdaTheHole);
         EmitRegisterWithSlotOp(JsOpCode.TestEqualStrict, valueRegister);
         EmitJumpIfToBooleanFalse(hasValueLabel);
@@ -1651,14 +1676,23 @@ internal abstract partial class JsPlannedCompilerBase
         builder.BindLabel(endLabel);
     }
 
-    private void EmitArrayBindingElision(int iteratorRegister, int doneRegister, int valueRegister)
+    private void EmitArrayBindingElision(
+        int iteratorRegister,
+        int doneRegister,
+        int valueRegister,
+        int inStepRegister
+    )
     {
         var endLabel = builder.CreateLabel();
         EmitLdar(doneRegister);
         EmitJumpIfToBooleanTrue(endLabel);
+        builder.EmitLda(JsOpCode.LdaTrue);
+        EmitStar(inStepRegister);
         EmitLdar(iteratorRegister);
         builder.EmitCallRuntime((int)RuntimeId.DestructureIteratorStepValue, iteratorRegister, 1);
         EmitStar(valueRegister);
+        builder.EmitLda(JsOpCode.LdaFalse);
+        EmitStar(inStepRegister);
         builder.EmitLda(JsOpCode.LdaTheHole);
         EmitRegisterWithSlotOp(JsOpCode.TestEqualStrict, valueRegister);
         EmitJumpIfToBooleanFalse(endLabel);
@@ -1674,16 +1708,21 @@ internal abstract partial class JsPlannedCompilerBase
         int doneRegister,
         int valueRegister,
         bool assignment,
-        PreparedMemberReference? preparedTarget
+        PreparedMemberReference? preparedTarget,
+        int inStepRegister
     )
     {
         var emptyLabel = builder.CreateLabel();
         var storeLabel = builder.CreateLabel();
         EmitLdar(doneRegister);
         EmitJumpIfToBooleanTrue(emptyLabel);
+        builder.EmitLda(JsOpCode.LdaTrue);
+        EmitStar(inStepRegister);
         EmitLdar(iteratorRegister);
         builder.EmitCallRuntime((int)RuntimeId.DestructureIteratorRestArray, iteratorRegister, 1);
         EmitStar(valueRegister);
+        builder.EmitLda(JsOpCode.LdaFalse);
+        EmitStar(inStepRegister);
         builder.EmitLda(JsOpCode.LdaTrue);
         EmitStar(doneRegister);
         EmitLdar(valueRegister);

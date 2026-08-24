@@ -2162,6 +2162,8 @@ internal abstract partial class JsPlannedCompilerBase
                     EmitStaLexicalLocal(binding.Register);
                 return;
             case CompilerPlannedStorageKind.ContextSlot:
+                if (!isInitialization && NeedsTdzWriteCheck(binding.Planned.Kind))
+                    EmitContextSlotTdzWriteGuard(binding.Planned.StorageIndex, contextDepth);
                 if (contextDepth == 0)
                     EmitStaCurrentContextSlot(binding.Planned.StorageIndex);
                 else
@@ -2221,6 +2223,8 @@ internal abstract partial class JsPlannedCompilerBase
                     EmitThrowConstAssignError(name);
                 return;
             }
+            if (!externalBinding.IsModuleVariable && externalBinding.NeedsTdzWriteCheck)
+                EmitContextSlotTdzWriteGuard(externalBinding.Slot, externalDepth);
             if (externalBinding.IsModuleVariable)
                 EmitModuleVariableAccess(
                     JsOpCode.StaModuleVariable,

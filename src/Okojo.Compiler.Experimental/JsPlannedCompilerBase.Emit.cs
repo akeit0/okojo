@@ -260,6 +260,25 @@ internal abstract partial class JsPlannedCompilerBase
         );
     }
 
+    private void EmitContextSlotTdzWriteGuard(int slot, int depth)
+    {
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            var valueRegister = builder.AllocateTemporaryRegister();
+            EmitStar(valueRegister);
+            if (depth == 0)
+                EmitLdaCurrentContextSlot(slot);
+            else
+                EmitLdaContextSlot(slot, depth);
+            EmitLdar(valueRegister);
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+        }
+    }
+
     protected void EmitLdaContextSlot(int slot, int depth)
     {
         if ((uint)depth > byte.MaxValue)

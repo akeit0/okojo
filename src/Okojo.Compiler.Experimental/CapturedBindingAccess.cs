@@ -5,5 +5,6 @@ internal readonly record struct CapturedBindingAccess(
     int Depth,
     bool IsConst = false,
     bool IsImmutableFunctionName = false,
-    bool IsModuleVariable = false
+    bool IsModuleVariable = false,
+    bool NeedsTdzWriteCheck = false
 );
