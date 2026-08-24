@@ -895,6 +895,17 @@ targets: test262 `class-definition-null-proto-this`,
 `lexical-super-call-from-within-constructor`, the `super/call-spread-*`
 family, and `CompileString_DerivedConstructorArrowsObserveThisAndSuperState`.
 
+Remaining known failure (diagnosed, unscheduled): for-await-of
+`async-from-sync-iterator-continuation-abrupt-completion-get-constructor`.
+The abrupt rejection itself works; microtask hop counting shows our rejection
+lands three turns late (ours `abcd|REJ`, Node/V8 `a|REJ`), so the test's
+compareArray misses "catch". Baseline `await <rejected promise>` timing is
+exactly correct, isolating the extra hops to the planned for-await-of
+abrupt-resume propagation between the await resumption with a thrown value and
+f's promise rejection (suspects: completion-dispatch re-wrapping in
+EmitForOfIterationBodyWithResources or an extra assimilation layer in the
+async driver's exception path).
+
 TCO scope note (per direction check with V8): proper tail calls are an Okojo
 production-compiler capability that V8 deliberately lacks; the planned compiler
 does not implement PTC yet, so planned-mode runs skip test262
