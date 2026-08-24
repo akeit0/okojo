@@ -778,6 +778,29 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_PreservesThisThroughParenthesizedOptionalCalls()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            const a = {
+                b() { return this._b; },
+                _b: { c: 42 }
+            };
+            globalThis.__flatOptionalResult = '';
+            __flatOptionalResult += a?.b().c;
+            __flatOptionalResult += '|' + (a?.b)().c;
+            __flatOptionalResult += '|' + a.b?.().c;
+            __flatOptionalResult += '|' + ((a?.b)?.()).c;
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Evaluate("__flatOptionalResult").AsString(), Is.EqualTo("42|42|42|42"));
+    }
+
+    [Test]
     public void CompileString_SkipsIteratorCloseWhenDestructureStepThrows()
     {
         var realm = JsRuntime.Create().DefaultRealm;

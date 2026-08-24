@@ -989,6 +989,59 @@ internal abstract partial class JsPlannedCompilerBase
                 );
                 return;
             }
+            if (
+                callee.Kind == AstKind.OptionalChainExpression
+                && ast[callee.Arg0].Kind == AstKind.MemberExpression
+            )
+            {
+                var previous = optionalChainNullTarget;
+                var chainNullTarget = builder.CreateLabel();
+                var chainDone = builder.CreateLabel();
+                optionalChainNullTarget = chainNullTarget;
+                try
+                {
+                    ref readonly var chainMember = ref ast[callee.Arg0];
+                    EmitExpression(ast, chainMember.Arg0);
+                    var chainObjectRegister = builder.AllocateTemporaryRegister();
+                    EmitStar(chainObjectRegister);
+                    EmitMemberLoad(ast, chainMember, chainObjectRegister);
+                    var chainFunctionRegister = builder.AllocateTemporaryRegister();
+                    EmitStar(chainFunctionRegister);
+                    if (optional)
+                        EmitOptionalChainNullCheck(chainFunctionRegister);
+                    if (HasSpreadArgument(ast, node.Arg1, node.Arg2))
+                    {
+                        EmitSpreadCall(
+                            ast,
+                            chainFunctionRegister,
+                            chainObjectRegister,
+                            node.Arg1,
+                            node.Arg2
+                        );
+                        EmitJump(chainDone);
+                        builder.BindLabel(chainNullTarget);
+                        builder.EmitLda(JsOpCode.LdaUndefined);
+                        builder.BindLabel(chainDone);
+                        return;
+                    }
+                    var chainArgumentStart = EmitCallArguments(ast, node.Arg1, node.Arg2);
+                    builder.EmitCallProperty(
+                        chainFunctionRegister,
+                        chainObjectRegister,
+                        chainArgumentStart,
+                        node.Arg2
+                    );
+                    EmitJump(chainDone);
+                    builder.BindLabel(chainNullTarget);
+                    builder.EmitLda(JsOpCode.LdaUndefined);
+                    builder.BindLabel(chainDone);
+                }
+                finally
+                {
+                    optionalChainNullTarget = previous;
+                }
+                return;
+            }
 
             EmitExpression(ast, node.Arg0);
             var directFunctionRegister = builder.AllocateTemporaryRegister();

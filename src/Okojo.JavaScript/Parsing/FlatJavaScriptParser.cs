@@ -4361,7 +4361,7 @@ internal sealed class FlatJavaScriptParser
                 return false;
             if (token.Kind == JsTokenKind.LeftParen)
                 return true;
-            if (token.Kind == JsTokenKind.Identifier)
+            if (token.Kind == JsTokenKind.Identifier || token.Kind == JsTokenKind.Of)
             {
                 var arrow = lexer.NextToken();
                 return !arrow.HasLineTerminatorBefore && arrow.Kind == JsTokenKind.Arrow;

@@ -855,6 +855,18 @@ targets: `rest-parameters/no-alias-arguments`, test262
 `script-decl-lex-lex`/`script-decl-var-collision`, and
 `CompileString_SnapshotsRestParameterBeforeArgumentsStore`.
 
+Chain-call and async-arrow slice (V8-referenced): calls whose callee is an
+optional chain — including parenthesized chains like `(a?.b)()` — now evaluate
+the chain base within a fresh null-target context and dispatch through
+CallProperty so the receiver is preserved, with the whole call short-circuiting
+to undefined when the base is nullish; this mirrors V8's
+NAMED_OPTIONAL_CHAIN_PROPERTY_CALL classification in ast.cc GetCallType.
+Async arrow detection accepts the contextual token `of` as a parameter name
+(`for (async of => {};;)` is a C-style for over an async arrow), matching the
+spec's AsyncArrowBindingIdentifier lookahead carve-out. Regression targets:
+test262 `optional-call-preserves-this`, `head-init-async-of`, and
+`CompileString_PreservesThisThroughParenthesizedOptionalCalls`.
+
 Sloppy shorthand slice: object literal shorthand properties accept contextual
 `let` and `of` keys in sloppy mode (`{let}` after `var let = 1`), while strict
 mode keeps rejecting them. Regression targets are test262
