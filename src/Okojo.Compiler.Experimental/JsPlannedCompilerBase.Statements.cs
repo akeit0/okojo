@@ -1846,6 +1846,13 @@ internal abstract partial class JsPlannedCompilerBase
             if (!TryResolveBinding(name, out var binding))
                 throw new InvalidOperationException($"No planned binding found for '{name}'.");
 
+            // A global `var x = v` body statement is an assignment against the
+            // binding the declaration prologue already created: StaGlobalInit would
+            // be a no-op for undefined values on existing globals.
+            var isInitStore =
+                declarationKind != JsVariableDeclarationKind.Var
+                || binding.Planned.StorageKind != CompilerPlannedStorageKind.GlobalBinding;
+
             int valueRegister = -1;
             var resourceMarker = builder.GetTemporaryRegisterScopeMarker();
             try
@@ -1862,7 +1869,7 @@ internal abstract partial class JsPlannedCompilerBase
                     EmitLdar(valueRegister);
                 }
 
-                EmitStore(binding, isInitialization: true);
+                EmitStore(binding, isInitialization: isInitStore);
                 if (valueRegister >= 0)
                     EmitAddDisposableResource(declarationKind, valueRegister);
             }
