@@ -407,6 +407,8 @@ internal static partial class CompilerBindingCollector
                     declarationKind
                     is JsVariableDeclarationKind.Let
                         or JsVariableDeclarationKind.Const
+                        or JsVariableDeclarationKind.Using
+                        or JsVariableDeclarationKind.AwaitUsing
                 )
                 {
                     scopeId = AddScope(
@@ -455,6 +457,8 @@ internal static partial class CompilerBindingCollector
                     declarationKind
                     is JsVariableDeclarationKind.Let
                         or JsVariableDeclarationKind.Const
+                        or JsVariableDeclarationKind.Using
+                        or JsVariableDeclarationKind.AwaitUsing
                 )
                 {
                     scopeId = AddScope(

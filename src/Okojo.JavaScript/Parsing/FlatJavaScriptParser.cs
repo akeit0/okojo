@@ -87,6 +87,11 @@ internal sealed class FlatJavaScriptParser
             while (current.Kind != JsTokenKind.Eof)
             {
                 var statement = isModule ? ParseModuleItem() : ParseStatement();
+                if (!isModule && functionDepth == 0 && IsUsingLikeDeclaration(statement))
+                    throw Error(
+                        "using declarations are not allowed at the top level of scripts",
+                        Arena.GetPosition(statement)
+                    );
                 statements.Add(statement);
                 if (allowsDirectives && IsUseStrictDirective(statement))
                 {
@@ -743,6 +748,11 @@ internal sealed class FlatJavaScriptParser
             return ParseFunction(isDeclaration: true, isAsync: true);
         if (current.Kind == JsTokenKind.Identifier && PeekToken().Kind == JsTokenKind.Colon)
             return ParseLabeledStatement();
+        if (
+            current.Kind == JsTokenKind.Identifier
+            && TryGetUsingDeclarationStatementKind(out var usingKind)
+        )
+            return ParseUsingDeclaration(usingKind);
         return current.Kind switch
         {
             JsTokenKind.Semicolon => ParseEmptyStatement(position),
@@ -816,6 +826,140 @@ internal sealed class FlatJavaScriptParser
         {
             statements.Dispose();
         }
+    }
+
+    private bool IsUsingDeclarationStart()
+    {
+        if (current.Kind != JsTokenKind.Identifier || !IsCurrentIdentifierName("using"))
+            return false;
+        var next = PeekToken();
+        return !next.HasLineTerminatorBefore
+            && next.Kind is JsTokenKind.Identifier or JsTokenKind.Of;
+    }
+
+    private bool IsAwaitUsingPrefix()
+    {
+        if (!IsCurrentIdentifierName("await"))
+            return false;
+        var index = lexer.GetIndex();
+        try
+        {
+            var second = lexer.NextToken();
+            if (
+                second.HasLineTerminatorBefore
+                || second.Kind != JsTokenKind.Identifier
+                || !source
+                    .AsSpan(second.Position, second.SourceLength)
+                    .SequenceEqual("using".AsSpan())
+            )
+                return false;
+            var third = lexer.NextToken();
+            return !third.HasLineTerminatorBefore
+                && third.Kind is JsTokenKind.Identifier or JsTokenKind.Of;
+        }
+        finally
+        {
+            lexer.SetIndex(index);
+        }
+    }
+
+    private bool TryGetUsingDeclarationStatementKind(out JsVariableDeclarationKind kind)
+    {
+        if (IsUsingDeclarationStart())
+        {
+            kind = JsVariableDeclarationKind.Using;
+            return true;
+        }
+
+        if ((asyncFunctionDepth > 0 || (isModule && functionDepth == 0)) && IsAwaitUsingPrefix())
+        {
+            kind = JsVariableDeclarationKind.AwaitUsing;
+            return true;
+        }
+
+        kind = default;
+        return false;
+    }
+
+    private int ParseUsingDeclaration(
+        JsVariableDeclarationKind kind,
+        bool consumeSemicolon = true,
+        bool allowMissingInitializer = false
+    )
+    {
+        var position = current.Position;
+        if (kind == JsVariableDeclarationKind.AwaitUsing)
+        {
+            if (asyncFunctionDepth == 0 && isModule && functionDepth == 0)
+                ast.HasTopLevelAwait = true;
+            Expect(current.Kind);
+        }
+
+        Expect(JsTokenKind.Identifier);
+
+        Span<int> initial = stackalloc int[4];
+        var declarators = new NodeList(initial);
+        try
+        {
+            do
+            {
+                var identifier = ExpectIdentifier();
+                ValidateBindingIdentifier(identifier);
+                if (!Match(JsTokenKind.Assign))
+                {
+                    if (allowMissingInitializer)
+                    {
+                        declarators.Add(
+                            Arena.Add(
+                                AstKind.VariableDeclarator,
+                                Arena.AddString(GetIdentifierText(identifier)),
+                                identifier.IdentifierId,
+                                -1,
+                                identifier.Position
+                            )
+                        );
+                        continue;
+                    }
+                    throw Error(
+                        $"{(kind == JsVariableDeclarationKind.AwaitUsing ? "await using" : "using")} declaration requires an initializer",
+                        identifier.Position
+                    );
+                }
+                var initializer = ParseAssignment(allowIn: true);
+                declarators.Add(
+                    Arena.Add(
+                        AstKind.VariableDeclarator,
+                        Arena.AddString(GetIdentifierText(identifier)),
+                        identifier.IdentifierId,
+                        initializer,
+                        identifier.Position
+                    )
+                );
+            } while (Match(JsTokenKind.Comma));
+
+            if (consumeSemicolon)
+                ConsumeSemicolon();
+            var children = Arena.AddChildren(declarators.AsSpan());
+            return Arena.Add(
+                AstKind.VariableDeclaration,
+                children.Offset,
+                children.Count,
+                (int)kind,
+                position
+            );
+        }
+        finally
+        {
+            declarators.Dispose();
+        }
+    }
+
+    private bool IsUsingLikeDeclaration(int statementIndex)
+    {
+        ref readonly var node = ref Arena[statementIndex];
+        if (node.Kind != AstKind.VariableDeclaration)
+            return false;
+        return ((JsVariableDeclarationKind)node.Arg2).IsUsingLike();
     }
 
     private int ParseVariableDeclaration(
@@ -2038,13 +2182,29 @@ internal sealed class FlatJavaScriptParser
         var init = -1;
         if (current.Kind != JsTokenKind.Semicolon)
         {
-            init = current.Kind is JsTokenKind.Var or JsTokenKind.Let or JsTokenKind.Const
-                ? ParseVariableDeclaration(
+            if (current.Kind is JsTokenKind.Var or JsTokenKind.Let or JsTokenKind.Const)
+            {
+                init = ParseVariableDeclaration(
                     consumeSemicolon: false,
                     allowMissingInitializer: true,
                     allowInInitializer: false
-                )
-                : ParseExpression(allowIn: false);
+                );
+            }
+            else if (
+                current.Kind == JsTokenKind.Identifier
+                && TryGetUsingDeclarationStatementKind(out var headUsingKind)
+            )
+            {
+                init = ParseUsingDeclaration(
+                    headUsingKind,
+                    consumeSemicolon: false,
+                    allowMissingInitializer: true
+                );
+            }
+            else
+            {
+                init = ParseExpression(allowIn: false);
+            }
         }
         if (current.Kind is JsTokenKind.In or JsTokenKind.Of)
         {
@@ -2088,6 +2248,15 @@ internal sealed class FlatJavaScriptParser
         if (node.Kind == AstKind.VariableDeclaration)
         {
             var declarators = Arena.ChildRange(node.Arg0, node.Arg1);
+            var declarationKind = (JsVariableDeclarationKind)node.Arg2;
+            if (declarationKind.IsUsingLike())
+            {
+                if (!isOf)
+                    throw Error("using declarations are not allowed in for-in", position);
+                if (declarators.Length != 1)
+                    throw Error("for-in/of requires one binding", position);
+                return;
+            }
             if (declarators.Length != 1)
                 throw Error("for-in/of requires one binding", position);
             ref readonly var declarator = ref Arena[declarators[0]];

@@ -33,12 +33,17 @@ internal sealed partial class JsPlannedScriptCompiler
         EmitScopeLexicalHoleInitialization();
         EmitDeclarationPrologue(ast, ast.Root);
 
-        ref readonly var root = ref ast[ast.Root];
-        var statements = ast.ChildRange(root.Arg0, root.Arg1);
-        for (var i = 0; i < statements.Length; i++)
-            EmitStatement(ast, statements[i]);
+        var rootIndex = ast.Root;
+        var bodyOffset = ast[rootIndex].Arg0;
+        var bodyCount = ast[rootIndex].Arg1;
+        EmitBodyStatementListWithResources(
+            ast,
+            bodyOffset,
+            bodyCount,
+            () => EmitRootStatementList(ast, bodyOffset, bodyCount)
+        );
 
-        if (statements.Length == 0)
+        if (bodyCount == 0)
             builder.EmitLda(JsOpCode.LdaUndefined);
 
         builder.Emit(JsOpCode.Return);

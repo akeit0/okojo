@@ -601,6 +601,64 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_ExecutesUsingDeclarationsWithLifoDisposal()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            globalThis.__flatUsingOrder = [];
+            function makeResource(name) {
+                return { [Symbol.dispose]() { __flatUsingOrder.push(name); } };
+            }
+            function run() {
+                let x = 1;
+                using a = makeResource('a');
+                using b = makeResource('b'), c = makeResource('c');
+                __flatUsingOrder.push('body');
+                return x;
+            }
+            run();
+            try {
+                using failing = makeResource('outer');
+                throw 'boom';
+            } catch (error) { __flatUsingOrder.push('caught:' + error); }
+            __flatUsingOrder.join(',');
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("body,c,b,a,outer,caught:boom"));
+    }
+
+    [Test]
+    public void CompileString_ExecutesForOfUsingHeadsWithPerIterationDisposal()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            globalThis.__flatUsingLoopOrder = [];
+            function makeResource(name) {
+                return { [Symbol.dispose]() { __flatUsingLoopOrder.push(name); } };
+            }
+            for (using resource of [makeResource('x'), makeResource('y')]) {
+                __flatUsingLoopOrder.push('iter');
+            }
+            __flatUsingLoopOrder.join(',');
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("iter,x,iter,y"));
+    }
+
+    [TestCase("using value = 1;")]
+    [TestCase("function f() { using value; }")]
+    public void ParseScript_RejectsInvalidUsingDeclarations(string source) =>
+        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+
+    [Test]
     public void CompileString_EnforcesTdzOnContextSlotLexicalStores()
     {
         var realm = JsRuntime.Create().DefaultRealm;

@@ -35,10 +35,20 @@ internal sealed class JsPlannedModuleCompiler(JsRealm realm) : JsPlannedCompiler
         EmitNamespaceImports(ast);
         EmitDeclarationPrologue(ast, ast.Root);
 
-        ref readonly var root = ref ast[ast.Root];
-        var statements = ast.ChildRange(root.Arg0, root.Arg1);
-        for (var i = 0; i < statements.Length; i++)
-            EmitStatement(ast, statements[i]);
+        var rootIndex = ast.Root;
+        hasActiveModuleTopLevelExplicitResourceScope = true;
+        moduleTopLevelExplicitResourceScopeIsAsync = ast.HasTopLevelAwait;
+        try
+        {
+            var statements = ast.ChildRange(ast[rootIndex].Arg0, ast[rootIndex].Arg1);
+            for (var i = 0; i < statements.Length; i++)
+                EmitStatement(ast, statements[i]);
+        }
+        finally
+        {
+            hasActiveModuleTopLevelExplicitResourceScope = false;
+            moduleTopLevelExplicitResourceScopeIsAsync = false;
+        }
 
         builder.EmitLda(JsOpCode.LdaUndefined);
         builder.Emit(JsOpCode.Return);

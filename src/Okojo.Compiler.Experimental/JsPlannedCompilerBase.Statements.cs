@@ -9,6 +9,20 @@ namespace Okojo.JavaScript.Compiler.Experimental;
 
 internal abstract partial class JsPlannedCompilerBase
 {
+    private readonly struct ExplicitResourceScope(int stackRegister, bool isAsync)
+    {
+        public readonly int StackRegister = stackRegister;
+        public readonly bool IsAsync = isAsync;
+    }
+
+    private readonly Stack<ExplicitResourceScope> activeExplicitResourceScopes = new();
+
+    protected bool hasActiveModuleTopLevelExplicitResourceScope;
+    protected bool moduleTopLevelExplicitResourceScopeIsAsync;
+
+    private bool HasAmbientExplicitResourceScope =>
+        activeExplicitResourceScopes.Count != 0 || hasActiveModuleTopLevelExplicitResourceScope;
+
     protected void EmitStatement(FlatAst ast, int nodeIndex)
     {
         ref readonly var node = ref ast[nodeIndex];
@@ -20,12 +34,7 @@ internal abstract partial class JsPlannedCompilerBase
                 EmitExportDeclaration(ast, node);
                 return;
             case AstKind.VariableDeclaration:
-                EmitVariableDeclaration(
-                    ast,
-                    node.Arg0,
-                    node.Arg1,
-                    (JsVariableDeclarationKind)node.Arg2
-                );
+                EmitVariableDeclarationStatement(ast, nodeIndex);
                 return;
             case AstKind.FunctionDeclaration:
                 return;
@@ -45,7 +54,7 @@ internal abstract partial class JsPlannedCompilerBase
                 EmitDoWhileStatement(ast, node.Arg0, node.Arg1);
                 return;
             case AstKind.ForStatement:
-                EmitForStatement(ast, nodeIndex, node);
+                EmitForStatementEntry(ast, nodeIndex, node);
                 return;
             case AstKind.ForInOfStatement:
                 EmitForInOfStatement(ast, nodeIndex, node);
@@ -181,6 +190,27 @@ internal abstract partial class JsPlannedCompilerBase
         builder.BindLabel(breakTarget);
     }
 
+    private void EmitForStatementEntry(FlatAst ast, int nodeIndex, AstNode node)
+    {
+        var parts = ast.ChildRange(node.Arg0, node.Arg1);
+        var init = parts[0];
+        if (
+            init < 0
+            || ast[init].Kind != AstKind.VariableDeclaration
+            || !((JsVariableDeclarationKind)ast[init].Arg2).IsUsingLike()
+        )
+        {
+            EmitForStatement(ast, nodeIndex, node);
+            return;
+        }
+
+        var kind = (JsVariableDeclarationKind)ast[init].Arg2;
+        EmitExplicitResourceScope(
+            () => EmitForStatement(ast, nodeIndex, node),
+            kind == JsVariableDeclarationKind.AwaitUsing
+        );
+    }
+
     private void EmitForStatement(FlatAst ast, int nodeIndex, AstNode node, string[]? labels = null)
     {
         var parts = ast.ChildRange(node.Arg0, node.Arg1);
@@ -190,7 +220,9 @@ internal abstract partial class JsPlannedCompilerBase
             && ast[init].Kind == AstKind.VariableDeclaration
             && (JsVariableDeclarationKind)ast[init].Arg2
                 is JsVariableDeclarationKind.Let
-                    or JsVariableDeclarationKind.Const;
+                    or JsVariableDeclarationKind.Const
+                    or JsVariableDeclarationKind.Using
+                    or JsVariableDeclarationKind.AwaitUsing;
         if (hasLexicalScope)
         {
             var scope = FindChildScope(
@@ -275,7 +307,9 @@ internal abstract partial class JsPlannedCompilerBase
             ast[left].Kind == AstKind.VariableDeclaration
             && (JsVariableDeclarationKind)ast[left].Arg2
                 is JsVariableDeclarationKind.Let
-                    or JsVariableDeclarationKind.Const;
+                    or JsVariableDeclarationKind.Const
+                    or JsVariableDeclarationKind.Using
+                    or JsVariableDeclarationKind.AwaitUsing;
         if (hasLexicalScope)
         {
             var scope = FindChildScope(
@@ -343,7 +377,9 @@ internal abstract partial class JsPlannedCompilerBase
             ast[left].Kind == AstKind.VariableDeclaration
             && (JsVariableDeclarationKind)ast[left].Arg2
                 is JsVariableDeclarationKind.Let
-                    or JsVariableDeclarationKind.Const;
+                    or JsVariableDeclarationKind.Const
+                    or JsVariableDeclarationKind.Using
+                    or JsVariableDeclarationKind.AwaitUsing;
         if (hasLexicalScope)
         {
             var scope = FindChildScope(
@@ -395,7 +431,7 @@ internal abstract partial class JsPlannedCompilerBase
             {
                 EmitLdar(valueRegister);
                 EmitForIterationAssignment(ast, left);
-                EmitStatement(ast, parts[2]);
+                EmitForOfIterationBodyWithResources(ast, left, valueRegister, parts[2], false);
             }
             finally
             {
@@ -439,7 +475,9 @@ internal abstract partial class JsPlannedCompilerBase
             ast[left].Kind == AstKind.VariableDeclaration
             && (JsVariableDeclarationKind)ast[left].Arg2
                 is JsVariableDeclarationKind.Let
-                    or JsVariableDeclarationKind.Const;
+                    or JsVariableDeclarationKind.Const
+                    or JsVariableDeclarationKind.Using
+                    or JsVariableDeclarationKind.AwaitUsing;
         if (hasLexicalScope)
         {
             var scope = FindChildScope(
@@ -521,7 +559,7 @@ internal abstract partial class JsPlannedCompilerBase
                 EmitStar(valueRegister);
                 EmitLdar(valueRegister);
                 EmitForIterationAssignment(ast, left);
-                EmitStatement(ast, parts[2]);
+                EmitForOfIterationBodyWithResources(ast, left, valueRegister, parts[2], true);
                 builder.Emit(JsOpCode.PopTry);
 
                 builder.BindLabel(continueTarget);
@@ -1328,6 +1366,21 @@ internal abstract partial class JsPlannedCompilerBase
     private void EmitBlockStatement(FlatAst ast, int nodeIndex)
     {
         ref readonly var block = ref ast[nodeIndex];
+        var statements = ast.ChildRange(block.Arg0, block.Arg1);
+        if (BlockNeedsExplicitResourceScope(ast, block.Arg0, block.Arg1))
+        {
+            EmitExplicitResourceScope(
+                () => EmitBlockStatementCore(ast, nodeIndex),
+                BlockNeedsAsyncExplicitResourceScope(ast, block.Arg0, block.Arg1)
+            );
+            return;
+        }
+        EmitBlockStatementCore(ast, nodeIndex);
+    }
+
+    private void EmitBlockStatementCore(FlatAst ast, int nodeIndex)
+    {
+        ref readonly var block = ref ast[nodeIndex];
         var childScope = FindChildScope(
             activeScopes.Peek().ScopeId,
             CompilerCollectedScopeKind.Block,
@@ -1345,6 +1398,267 @@ internal abstract partial class JsPlannedCompilerBase
         {
             LeaveScope();
         }
+    }
+
+    private void EmitVariableDeclarationStatement(FlatAst ast, int nodeIndex)
+    {
+        ref readonly var node = ref ast[nodeIndex];
+        var kind = (JsVariableDeclarationKind)node.Arg2;
+        var offset = node.Arg0;
+        var count = node.Arg1;
+        if (!kind.IsUsingLike() || HasAmbientExplicitResourceScope)
+        {
+            EmitVariableDeclaration(ast, offset, count, kind);
+            return;
+        }
+
+        EmitExplicitResourceScope(
+            () => EmitVariableDeclaration(ast, offset, count, kind),
+            kind == JsVariableDeclarationKind.AwaitUsing
+        );
+    }
+
+    private void EmitExplicitResourceScope(
+        Action emitBody,
+        bool isAsyncScope,
+        Action<int>? emitEnter = null
+    )
+    {
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        try
+        {
+            var abruptRoutes = new List<FinallyAbruptRoute>();
+            var completionKind = builder.AllocateTemporaryRegister();
+            var completionValue = builder.AllocateTemporaryRegister();
+            var compare = builder.AllocateTemporaryRegister();
+            var stackRegister = builder.AllocateTemporaryRegister();
+            var catchLabel = builder.CreateLabel();
+            var finallyEntry = builder.CreateLabel();
+
+            builder.EmitCallRuntime(
+                (int)(
+                    isAsyncScope
+                        ? RuntimeId.CreateAsyncDisposableResourceStack
+                        : RuntimeId.CreateDisposableResourceStack
+                ),
+                0,
+                0
+            );
+            EmitStar(stackRegister);
+
+            EmitSmi(0);
+            EmitStar(completionKind);
+            builder.EmitLda(JsOpCode.LdaUndefined);
+            EmitStar(completionValue);
+
+            builder.EmitJump(JsOpCode.PushTry, catchLabel);
+            PushFinallyControlScope(finallyEntry, completionKind, completionValue, abruptRoutes);
+            try
+            {
+                builder.EmitLda(JsOpCode.LdaUndefined);
+                activeExplicitResourceScopes.Push(new(stackRegister, isAsyncScope));
+                try
+                {
+                    emitEnter?.Invoke(stackRegister);
+                    emitBody();
+                    EmitStar(completionValue);
+                }
+                finally
+                {
+                    activeExplicitResourceScopes.Pop();
+                }
+            }
+            finally
+            {
+                controlScopes.Pop();
+            }
+            builder.Emit(JsOpCode.PopTry);
+            EmitJump(finallyEntry);
+
+            builder.BindLabel(catchLabel);
+            EmitStar(completionValue);
+            EmitSmi(2);
+            EmitStar(completionKind);
+
+            builder.BindLabel(finallyEntry);
+            {
+                var finalizerArgs = builder.AllocateTemporaryRegisterBlock(3);
+                EmitLdar(stackRegister);
+                EmitStar(finalizerArgs);
+                EmitLdar(completionKind);
+                EmitStar(finalizerArgs + 1);
+                EmitLdar(completionValue);
+                EmitStar(finalizerArgs + 2);
+                builder.EmitCallRuntime(
+                    (int)(
+                        isAsyncScope
+                            ? RuntimeId.DisposeAsyncDisposableResourceStack
+                            : RuntimeId.DisposeDisposableResourceStack
+                    ),
+                    finalizerArgs,
+                    3
+                );
+                if (isAsyncScope)
+                {
+                    var resumeDone = builder.CreateLabel();
+                    builder.EmitJump(JsOpCode.JumpIfUndefined, resumeDone);
+                    EmitAwaitSuspension();
+                    builder.BindLabel(resumeDone);
+                }
+            }
+
+            EmitFinallyCompletionJump(completionKind, compare, 1, out var notReturn);
+            EmitLdar(completionValue);
+            EmitAbruptCommand(AbruptCommand.Return);
+            builder.BindLabel(notReturn);
+
+            EmitFinallyCompletionJump(completionKind, compare, 2, out var notThrow);
+            EmitLdar(completionValue);
+            builder.Emit(JsOpCode.Throw);
+            builder.BindLabel(notThrow);
+
+            for (var i = 0; i < abruptRoutes.Count; i++)
+            {
+                var route = abruptRoutes[i];
+                EmitFinallyCompletionJump(
+                    completionKind,
+                    compare,
+                    route.CompletionKind,
+                    out var next
+                );
+                EmitAbruptCommand(route.Command, route.Label);
+                builder.BindLabel(next);
+            }
+            EmitLdar(completionValue);
+        }
+        finally
+        {
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+        }
+    }
+
+    private void EmitForOfIterationBodyWithResources(
+        FlatAst ast,
+        int left,
+        int valueRegister,
+        int body,
+        bool isAsyncIteration
+    )
+    {
+        if (!IsUsingLikeDeclarationNode(ast, left))
+        {
+            EmitStatement(ast, body);
+            return;
+        }
+
+        var kind = (JsVariableDeclarationKind)ast[left].Arg2;
+        EmitExplicitResourceScope(
+            () => EmitStatement(ast, body),
+            kind == JsVariableDeclarationKind.AwaitUsing || isAsyncIteration,
+            _ => EmitAddDisposableResource(kind, valueRegister)
+        );
+    }
+
+    private void EmitAddDisposableResource(JsVariableDeclarationKind kind, int valueRegister)
+    {
+        if (activeExplicitResourceScopes.Count == 0)
+        {
+            if (!hasActiveModuleTopLevelExplicitResourceScope)
+                throw new InvalidOperationException(
+                    "using declaration requires an active explicit resource scope."
+                );
+            if (
+                kind == JsVariableDeclarationKind.AwaitUsing
+                && !moduleTopLevelExplicitResourceScopeIsAsync
+            )
+                throw new InvalidOperationException(
+                    "await using declaration requires an async explicit resource scope."
+                );
+
+            var moduleArgs = builder.AllocateTemporaryRegisterBlock(1);
+            EmitLdar(valueRegister);
+            EmitStar(moduleArgs);
+            builder.EmitCallRuntime(
+                (int)(
+                    kind == JsVariableDeclarationKind.AwaitUsing
+                        ? RuntimeId.AddCurrentModuleAsyncDisposableResource
+                        : RuntimeId.AddCurrentModuleDisposableResource
+                ),
+                moduleArgs,
+                1
+            );
+            return;
+        }
+
+        var scope = activeExplicitResourceScopes.Peek();
+        var args = builder.AllocateTemporaryRegisterBlock(2);
+        EmitLdar(scope.StackRegister);
+        EmitStar(args);
+        EmitLdar(valueRegister);
+        EmitStar(args + 1);
+        builder.EmitCallRuntime(
+            (int)(
+                kind == JsVariableDeclarationKind.AwaitUsing
+                    ? RuntimeId.AddAsyncDisposableResource
+                    : RuntimeId.AddDisposableResource
+            ),
+            args,
+            2
+        );
+    }
+
+    protected void EmitBodyStatementListWithResources(
+        FlatAst ast,
+        int offset,
+        int count,
+        Action emitStatements
+    )
+    {
+        if (BlockNeedsExplicitResourceScope(ast, offset, count))
+            EmitExplicitResourceScope(
+                emitStatements,
+                BlockNeedsAsyncExplicitResourceScope(ast, offset, count)
+            );
+        else
+            emitStatements();
+    }
+
+    protected void EmitRootStatementList(FlatAst ast, int offset, int count)
+    {
+        var statements = ast.ChildRange(offset, count);
+        for (var i = 0; i < statements.Length; i++)
+            EmitStatement(ast, statements[i]);
+    }
+
+    private bool BlockNeedsExplicitResourceScope(FlatAst ast, int offset, int count)
+    {
+        var statements = ast.ChildRange(offset, count);
+        for (var i = 0; i < statements.Length; i++)
+            if (IsUsingLikeDeclarationNode(ast, statements[i]))
+                return true;
+        return false;
+    }
+
+    private bool BlockNeedsAsyncExplicitResourceScope(FlatAst ast, int offset, int count)
+    {
+        var statements = ast.ChildRange(offset, count);
+        for (var i = 0; i < statements.Length; i++)
+        {
+            ref readonly var statement = ref ast[statements[i]];
+            if (
+                statement.Kind == AstKind.VariableDeclaration
+                && (JsVariableDeclarationKind)statement.Arg2 == JsVariableDeclarationKind.AwaitUsing
+            )
+                return true;
+        }
+        return false;
+    }
+
+    private static bool IsUsingLikeDeclarationNode(FlatAst ast, int nodeIndex)
+    {
+        ref readonly var statement = ref ast[nodeIndex];
+        return statement.Kind == AstKind.VariableDeclaration
+            && ((JsVariableDeclarationKind)statement.Arg2).IsUsingLike();
     }
 
     private void EmitIfStatement(FlatAst ast, int test, int consequent, int alternate)
@@ -1432,6 +1746,10 @@ internal abstract partial class JsPlannedCompilerBase
         JsVariableDeclarationKind declarationKind
     )
     {
+        var addResource =
+            declarationKind
+            is JsVariableDeclarationKind.Using
+                or JsVariableDeclarationKind.AwaitUsing;
         var declarators = ast.ChildRange(offset, count);
         for (var i = 0; i < declarators.Length; i++)
         {
@@ -1458,12 +1776,30 @@ internal abstract partial class JsPlannedCompilerBase
             if (!TryResolveBinding(name, out var binding))
                 throw new InvalidOperationException($"No planned binding found for '{name}'.");
 
-            if (declarator.Arg2 >= 0)
-                EmitExpressionWithInferredName(ast, declarator.Arg2, name);
-            else
-                builder.EmitLda(JsOpCode.LdaUndefined);
+            int valueRegister = -1;
+            var resourceMarker = builder.GetTemporaryRegisterScopeMarker();
+            try
+            {
+                if (declarator.Arg2 >= 0)
+                    EmitExpressionWithInferredName(ast, declarator.Arg2, name);
+                else
+                    builder.EmitLda(JsOpCode.LdaUndefined);
 
-            EmitStore(binding, isInitialization: true);
+                if (addResource)
+                {
+                    valueRegister = builder.AllocateTemporaryRegister();
+                    EmitStar(valueRegister);
+                    EmitLdar(valueRegister);
+                }
+
+                EmitStore(binding, isInitialization: true);
+                if (valueRegister >= 0)
+                    EmitAddDisposableResource(declarationKind, valueRegister);
+            }
+            finally
+            {
+                builder.ReleaseTemporaryRegistersToMarker(resourceMarker);
+            }
         }
     }
 

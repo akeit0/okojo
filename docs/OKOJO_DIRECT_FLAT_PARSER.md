@@ -725,6 +725,32 @@ move to context cells only in functions that observe `arguments`. No runtime typ
 or opcode is added. The object allocation occurs only when JavaScript can observe
 it.
 
+### Using declarations slice
+
+This iteration ports explicit resource management onto the direct path by copying
+production's runtime seam. The flat parser recognizes contextual `using` and
+`await using` heads with one-token and two-token lexer peeks, parses them as the
+existing `VariableDeclaration` node carrying `JsVariableDeclarationKind.Using`
+kinds, requires initializers, restricts bindings to identifiers, rejects
+script-top-level declarations, and allows `for (using x of y)` heads while still
+rejecting `using` in `for-in`. Collection treats using kinds as per-loop lexical
+bindings; planning reuses lexical register/context storage.
+
+Emission adds one explicit-resource scope wrapper built on the existing finally
+control-scope machinery: create a disposable resource stack, run the wrapped body
+with the scope pushed, and dispose through `DisposeDisposableResourceStack` (with
+an await suspension for async scopes) before replaying return/throw/break/continue.
+Declarations evaluate their initializer, store, then call
+`AddDisposableResource`. Wrapping mirrors production granularity: blocks and body
+statement lists containing using wrap as a whole, bare declarations without an
+ambient scope get a mini scope, C-style `for` wraps the loop, and for-of/for-await-of
+heads add each iteration value per iteration. Module top-level using skips stack
+scopes entirely and uses the module-scoped `AddCurrentModule*` runtime, matching
+`JsCompiler.ModuleExecution`. Regression targets:
+`CompileString_ExecutesUsingDeclarationsWithLifoDisposal`,
+`CompileString_ExecutesForOfUsingHeadsWithPerIterationDisposal`, and
+`ParseScript_RejectsInvalidUsingDeclarations`.
+
 ### Delete expression slice
 
 Iteration scope: lower property, local identifier, persistent global lexical,

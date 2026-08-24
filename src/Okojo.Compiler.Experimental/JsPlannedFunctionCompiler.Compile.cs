@@ -138,10 +138,15 @@ internal sealed partial class JsPlannedFunctionCompiler
         if (isGenerator && !metadata.HasSimpleParameterList)
             EmitGeneratorPrestartSuspend();
 
-        ref readonly var root = ref ast[bodyRoot];
-        var statements = ast.ChildRange(root.Arg0, root.Arg1);
-        for (var i = 0; i < statements.Length; i++)
-            EmitStatement(ast, statements[i]);
+        var rootIndex = bodyRoot;
+        var bodyOffset = ast[rootIndex].Arg0;
+        var bodyCount = ast[rootIndex].Arg1;
+        EmitBodyStatementListWithResources(
+            ast,
+            bodyOffset,
+            bodyCount,
+            () => EmitRootStatementList(ast, bodyOffset, bodyCount)
+        );
 
         builder.EmitLda(JsOpCode.LdaUndefined);
         builder.Emit(JsOpCode.Return);
