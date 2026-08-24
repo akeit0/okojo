@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using Okojo.Diagnostics;
 using Okojo.JavaScript;
 using Okojo.JavaScript.Bytecode;
+using Okojo.JavaScript.Compiler.Experimental;
 using Okojo.JavaScript.Execution;
 using Okojo.JavaScript.Objects;
 using Okojo.JavaScript.Parsing;
@@ -33,6 +34,9 @@ try
     try
     {
         var runtimeBuilder = NodeRuntime.CreateBuilder();
+        runtimeBuilder.ConfigureRuntime(builder =>
+            builder.UseAgent(agent => agent.UseDirectFlatCompilers())
+        );
         if (debuggerLog is not null)
             runtimeBuilder.ConfigureRuntime(builder =>
                 builder.UseAgent(agent =>

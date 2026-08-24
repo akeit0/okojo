@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using Okojo.Diagnostics;
 using Okojo.JavaScript;
 using Okojo.JavaScript.Bytecode;
+using Okojo.JavaScript.Compiler.Experimental;
 using Okojo.JavaScript.Execution;
 using Okojo.JavaScript.Objects;
 using Okojo.Node;
@@ -54,14 +55,14 @@ catch (Exception ex)
 
 return 0;
 
-static OkojoNodeRuntime CreateRuntime(
+static NodeRuntime CreateRuntime(
     NodeDebugOptions options,
     StringWriter stdout,
     StringWriter stderr,
     TextWriter debugWriter
 )
 {
-    var builder = OkojoNodeRuntime
+    var builder = NodeRuntime
         .CreateBuilder()
         .ConfigureTerminal(terminal =>
         {
@@ -78,6 +79,7 @@ static OkojoNodeRuntime CreateRuntime(
         {
             runtime.UseAgent(agent =>
             {
+                agent.UseDirectFlatCompilers();
                 agent.DebuggerSession = new NodeDebugSession(
                     debugWriter,
                     options.StopMask,
@@ -131,7 +133,7 @@ static OkojoNodeRuntime CreateRuntime(
 }
 
 static void ApplyBreakpoints(
-    OkojoNodeRuntime runtime,
+    NodeRuntime runtime,
     NodeDebugOptions options,
     TextWriter debugWriter
 )
@@ -152,7 +154,7 @@ static void ApplyBreakpoints(
     }
 }
 
-static JsValue RunNodeMain(OkojoNodeRuntime runtime, string runEntry, NodeDebugOptions options)
+static JsValue RunNodeMain(NodeRuntime runtime, string runEntry, NodeDebugOptions options)
 {
     string? previousDirectory = null;
     if (options.SourceMode == NodeDebugSourceMode.AppRoot)

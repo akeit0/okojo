@@ -227,6 +227,8 @@ public sealed partial class JsRealm
 
     private JsScript CompileScript(string source)
     {
+        if (Agent.Options.ScriptExecutionCompiler is { } scriptCompiler)
+            return scriptCompiler(this, source);
         var program = JavaScriptParser.ParseScript(source);
         return JsCompiler.Compile(this, program);
     }
