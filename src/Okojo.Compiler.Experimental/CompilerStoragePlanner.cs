@@ -67,6 +67,29 @@ internal static class CompilerStoragePlanner
                         ? CompilerPlannedStorageKind.ContextSlot
                     : ClassifyStorage(binding, scopes[binding.ScopeId].Kind);
                 if (
+                    moduleCells is not null
+                    && !hasModuleCell
+                    && binding.ScopeId == 0
+                    && binding.Kind
+                        is not (
+                            CompilerCollectedBindingKind.Import
+                            or CompilerCollectedBindingKind.Parameter
+                        )
+                )
+                {
+                    // Module top-level bindings without an export/import cell stay
+                    // module-private lexical state; they must live in the module
+                    // context so nested functions can close over them. Register and
+                    // global storages would leak across modules or vanish entirely.
+                    if (
+                        storageKind
+                        is CompilerPlannedStorageKind.LexicalRegister
+                            or CompilerPlannedStorageKind.LocalRegister
+                            or CompilerPlannedStorageKind.GlobalBinding
+                    )
+                        storageKind = CompilerPlannedStorageKind.ContextSlot;
+                }
+                if (
                     captured[bindingIndex]
                     && storageKind
                         is not (

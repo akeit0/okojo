@@ -132,7 +132,8 @@ public class CompilerStoragePlannerTests
             );
             Assert.That(
                 bindings["hidden"].StorageKind,
-                Is.EqualTo(CompilerPlannedStorageKind.LexicalRegister)
+                Is.EqualTo(CompilerPlannedStorageKind.ContextSlot),
+                "non-exported module top-levels must live in the module context so nested functions can capture them"
             );
         });
     }

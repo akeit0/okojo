@@ -192,6 +192,99 @@ public class JsPlannedScriptCompilerTests
     }
 
     [Test]
+    public void CompileModule_ClassFieldInitializerSeesSiblingTopLevelClass()
+    {
+        var options = new JsRuntimeOptions().UseModuleSourceLoader(
+            new TestModuleSourceLoader(
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["/mods/main.js"] = """
+                    class Helper {
+                      tag() { return 'helper'; }
+                    }
+                    export class Main {
+                      helper = new Helper();
+                    }
+                    """,
+                }
+            )
+        );
+        options.Agent.UsePlannedModuleCompiler();
+        using var runtime = JsRuntime.Create(options);
+        var realm = runtime.DefaultRealm;
+
+        var module = runtime.MainRealm.LoadModule("/mods/main.js");
+        realm.GlobalObject.DefineDataProperty(
+            "__Main",
+            module.GetExport("Main"),
+            JsShapePropertyFlags.Open
+        );
+        realm.Evaluate("globalThis.__probeTag = new __Main().helper.tag();");
+
+        Assert.That(realm.Evaluate("__probeTag").AsString(), Is.EqualTo("helper"));
+    }
+
+    [Test]
+    public void CompileModule_DefaultClassFieldInitializerSeesSiblingTopLevelClass()
+    {
+        var options = new JsRuntimeOptions().UseModuleSourceLoader(
+            new TestModuleSourceLoader(
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["/mods/main.js"] = """
+                    class OutputCaches {
+                      get(key) { return 'cached:' + key; }
+                    }
+                    export default class Output {
+                      caches = new OutputCaches();
+                    }
+                    """,
+                }
+            )
+        );
+        options.Agent.UsePlannedModuleCompiler();
+        using var runtime = JsRuntime.Create(options);
+        var realm = runtime.DefaultRealm;
+
+        var module = runtime.MainRealm.LoadModule("/mods/main.js");
+        realm.GlobalObject.DefineDataProperty(
+            "__Output",
+            module.GetExport("default"),
+            JsShapePropertyFlags.Open
+        );
+        realm.Evaluate("globalThis.__probeCache = new __Output().caches.get('line');");
+
+        Assert.That(realm.Evaluate("__probeCache").AsString(), Is.EqualTo("cached:line"));
+    }
+
+    [Test]
+    public void CompileModule_NonExportedFunctionDeclarationStaysModuleScoped()
+    {
+        var options = new JsRuntimeOptions().UseModuleSourceLoader(
+            new TestModuleSourceLoader(
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["/mods/main.js"] = """
+                    function buildValue() { return 41; }
+                    export const value = buildValue() + 1;
+                    """,
+                }
+            )
+        );
+        options.Agent.UsePlannedModuleCompiler();
+        using var runtime = JsRuntime.Create(options);
+
+        var module = runtime.MainRealm.LoadModule("/mods/main.js");
+
+        Assert.That(module.GetExport("value").Int32Value, Is.EqualTo(42));
+        Assert.That(
+            runtime.DefaultRealm.Evaluate("typeof buildValue").AsString(),
+            Is.EqualTo("undefined"),
+            "module top-level declarations must not leak to the global object"
+        );
+    }
+
+    [Test]
     public void CompileModule_ExecutesImportMetaInModuleAndClosureContexts()
     {
         var options = new JsRuntimeOptions().UseModuleSourceLoader(
