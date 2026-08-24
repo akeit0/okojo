@@ -78,31 +78,44 @@ one shared realm per iteration set. `Production_*` = `JavaScriptParser` +
 
 | scenario | prod parse | exp parse | ratio | prod compile | exp compile | ratio |
 |---|---:|---:|---:|---:|---:|---:|
-| Micro | 3.04 µs | 2.08 µs | 0.68× | 16.52 µs | 9.71 µs | 0.59× |
-| Closures | 5.10 µs | 3.58 µs | 0.70× | 42.49 µs | 25.91 µs | 0.61× |
-| Classes | 8.70 µs | 5.96 µs | 0.68× | 61.36 µs | 66.75 µs* | ~1.0× |
-| Patterns | 13.65 µs | 6.47 µs | 0.47× | 47.65 µs | 27.05 µs | 0.57× |
-| AsyncGen | 6.25 µs | 4.29 µs | 0.69× | 42.08 µs | 30.48 µs | 0.72× |
+| Micro | 3.05 µs | 2.10 µs | 0.69× | 16.91 µs | 8.89 µs | 0.53× |
+| Closures | 5.12 µs | 3.52 µs | 0.69× | 41.74 µs | 22.88 µs | 0.55× |
+| Classes | 8.96 µs | 5.95 µs | 0.66× | 59.22 µs | 35.98 µs | 0.61× |
+| Patterns | 13.13 µs | 6.37 µs | 0.49× | 47.42 µs | 25.54 µs | 0.54× |
+| AsyncGen | 6.01 µs | 4.21 µs | 0.70× | 38.00 µs | 27.59 µs | 0.73× |
 
-\* high variance (StdDev 20 µs, median 80 µs) — see allocation note.
+Allocations per compile operation:
 
-Allocations tell a split story:
-
-- Parse: experimental allocates **0.20–0.28×** of production (pooled FlatAst);
-  e.g. Patterns 5.12 KB vs 25.08 KB.
-- Compile: planned allocates **1.8–2.3×** MORE than production (e.g. Closures
-  89.9 KB vs 39.2 KB, Classes 124.7 KB vs 58.5 KB) with higher Gen0/Gen1 rates —
-  yet is still faster on wall-clock for four of five scenarios.
+| scenario | production | experimental | ratio |
+|---|---:|---:|---:|
+| Micro | 17.47 KB | 8.13 KB | 0.47× |
+| Closures | 39.20 KB | 21.35 KB | 0.54× |
+| Classes | 58.30 KB | 30.42 KB | 0.52× |
+| Patterns | 54.51 KB | 16.81 KB | 0.31× |
+| AsyncGen | 36.93 KB | 21.95 KB | 0.59× |
 
 Takeaways:
 
-1. Flat parsing wins on both time and memory everywhere (up to 2× faster,
-   5× less memory on pattern-heavy code).
-2. Planned compile is faster end-to-end despite allocating more; allocation
-   volume is now the top compile-throughput target (pooled binding collections
-   and register-block reuse are the likely levers).
-3. Classes is the outlier where planned compile reaches parity only; its high
-   variance correlates with the elevated Gen1 rate.
+1. Flat parsing wins on both time and memory (up to 2× faster, 5× less
+   memory on pattern-heavy code).
+2. Planned compile is **1.4–2.1× faster** than production compile across all
+   scenarios.
+3. Planned compile now allocates **1.7–3.2× less** than production. The single
+   largest win was disposing each function's `BytecodeBuilder` after
+   `ToScript()`: without it, none of the ~17 rented collections were returned,
+   so every nested-function compile paid full pool-rent cost (~12–14 KB per
+   function; measured `mid` 15.6→4.2 KB). Secondary wins: `Mov`-based register
+   copies in spread/heritage/name argument blocks, removal of dead
+   `Ldar iteratorRegister` loads before register-argument runtime calls, a
+   reusable child-capture dictionary, pooled scope binding lists, lazy
+   parameter maps for zero-parameter functions, and list-instead-of-HashSet
+   global duplicate detection.
+4. Attribution methodology: stage-level deltas via
+   `GC.GetTotalAllocatedBytes(precise:true)` around parse / collect / plan /
+   emit (parse ≈2.3 KB, collect ≈0.7 KB, plan <0.1 KB — emission owns the rest),
+   plus per-function attribution through the env-gated `OKOJO_FNALLOC` trace in
+   `JsPlannedFunctionCompiler`. The reusable harness lives in
+   `tools/CompilerAllocProbe`.
 
 Reproduce:
 `dotnet run --project benchmarks/Okojo.Benchmarks -c Release --no-build -- --filter "*ParseCompile*"`

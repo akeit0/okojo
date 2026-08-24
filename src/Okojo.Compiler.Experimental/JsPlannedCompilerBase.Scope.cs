@@ -94,6 +94,23 @@ internal abstract partial class JsPlannedCompilerBase
         );
     }
 
+    private readonly Stack<List<BindingStorage>> bindingStorageListPool = new();
+
+    private List<BindingStorage> RentBindingStorageList(int capacity)
+    {
+        if (!bindingStorageListPool.TryPop(out var list))
+            return new List<BindingStorage>(capacity);
+        if (list.Capacity < capacity)
+            list.Capacity = capacity;
+        return list;
+    }
+
+    private void ReturnBindingStorageList(List<BindingStorage> list)
+    {
+        list.Clear();
+        bindingStorageListPool.Push(list);
+    }
+
     private void EnterScope(int scopeId)
     {
         var bindings = GetPlannedBindings(scopeId);
@@ -104,7 +121,7 @@ internal abstract partial class JsPlannedCompilerBase
         }
 
         var contextSlotCount = 0;
-        var allocated = new List<BindingStorage>(bindings.Length);
+        var allocated = RentBindingStorageList(bindings.Length);
         for (var i = 0; i < bindings.Length; i++)
         {
             var binding = bindings[i];
@@ -139,13 +156,23 @@ internal abstract partial class JsPlannedCompilerBase
             if (scope.Bindings[i].Register >= 0)
                 builder.ReleaseTemporaryRegister(scope.Bindings[i].Register);
 
+        if (scope.Bindings is List<BindingStorage> pooledList)
+            ReturnBindingStorageList(pooledList);
+
         if (scope.HasContext)
             EmitPopContext();
     }
 
+    private Dictionary<string, CapturedBindingAccess> childCaptureScratch = new(
+        StringComparer.Ordinal
+    );
+
     private Dictionary<string, CapturedBindingAccess> BuildChildCaptureBindings()
     {
-        var captures = new Dictionary<string, CapturedBindingAccess>(StringComparer.Ordinal);
+        // Sequential child compiles consume this synchronously and copy what they
+        // need, so one reusable dictionary avoids a fresh allocation per closure.
+        var captures = childCaptureScratch;
+        captures.Clear();
         var currentDepth = 0;
         foreach (var scope in activeScopes)
         {

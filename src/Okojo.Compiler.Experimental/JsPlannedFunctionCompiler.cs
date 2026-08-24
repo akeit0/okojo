@@ -6,8 +6,8 @@ namespace Okojo.JavaScript.Compiler.Experimental;
 internal sealed partial class JsPlannedFunctionCompiler : JsPlannedCompilerBase
 {
     private readonly IReadOnlyDictionary<string, CapturedBindingAccess> inheritedCaptures;
-    private readonly Dictionary<string, int> parameterRegisterByName;
-    private readonly List<string?> parameterNames;
+    private Dictionary<string, int>? parameterRegisterByName;
+    private List<string?>? parameterNames;
     private int externalCaptureContextDepthOffset;
     private bool initializeParametersInPrologue;
 
@@ -21,8 +21,12 @@ internal sealed partial class JsPlannedFunctionCompiler : JsPlannedCompilerBase
         this.inheritedCaptures =
             inheritedCaptures
             ?? new Dictionary<string, CapturedBindingAccess>(StringComparer.Ordinal);
-        parameterRegisterByName = new(StringComparer.Ordinal);
-        parameterNames = [];
+    }
+
+    private void EnsureParameterMaps()
+    {
+        parameterRegisterByName ??= new(StringComparer.Ordinal);
+        parameterNames ??= [];
     }
 
     protected override IEnumerable<KeyValuePair<string, CapturedBindingAccess>> ExternalCaptures =>
@@ -59,7 +63,8 @@ internal sealed partial class JsPlannedFunctionCompiler : JsPlannedCompilerBase
             if (binding.Planned.Kind != CompilerCollectedBindingKind.Parameter)
                 continue;
             if (
-                !parameterRegisterByName.TryGetValue(
+                parameterRegisterByName is null
+                || !parameterRegisterByName.TryGetValue(
                     binding.Planned.Name,
                     out var parameterRegister
                 )

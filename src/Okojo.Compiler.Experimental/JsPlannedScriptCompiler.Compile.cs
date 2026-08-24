@@ -60,22 +60,25 @@ internal sealed partial class JsPlannedScriptCompiler
             TopLevelLexicalConstFlags = lexicalMetadata?.ConstFlags,
         };
         script.BindAgent(Vm.Agent);
+        builder.Dispose();
         return script;
     }
 
     private void ValidateGlobalDeclarations(CompilerBindingCollectionResult collected)
     {
-        var seen = new HashSet<string>(StringComparer.Ordinal);
+        // Root binding counts are tiny; a linear list beats a HashSet allocation.
+        List<string> seen = [];
         foreach (ref readonly var binding in collected.Bindings)
         {
             if (binding.ScopeId != 0)
                 continue;
-            if (!seen.Add(binding.Name))
+            if (seen.Contains(binding.Name))
                 throw GlobalDeclarationError(
                     JsErrorKind.SyntaxError,
                     binding.Name,
                     "SCRIPT_GLOBAL_DUPLICATE_DECLARATION"
                 );
+            seen.Add(binding.Name);
 
             var atom = Vm.Atoms.InternNoCheck(binding.Name);
             if (

@@ -99,6 +99,8 @@ internal sealed partial class JsPlannedFunctionCompiler
         FlatFunctionInfo? flatFunction
     )
     {
+        var fnAllocTrace = Environment.GetEnvironmentVariable("OKOJO_FNALLOC") is not null;
+        var fnAllocStart = fnAllocTrace ? GC.GetTotalAllocatedBytes(precise: true) : 0L;
         hasNewTarget = false;
         isGenerator = metadata.IsGenerator;
         isAsync = metadata.IsAsync;
@@ -219,6 +221,12 @@ internal sealed partial class JsPlannedFunctionCompiler
         );
         result.ArgumentsMappedSlots = BuildArgumentsMappedSlots(metadata);
         result.SuperBaseContextSlot = superBaseContextSlot;
+        if (fnAllocTrace)
+            Console.Error.WriteLine(
+                $"[FNALLOC] '{(metadata.Name.Length == 0 ? "<anon>" : metadata.Name)}' "
+                    + (metadata.IsArrow ? "arrow" : string.Empty)
+                    + $" = {(GC.GetTotalAllocatedBytes(precise: true) - fnAllocStart) / 1024.0:F2} KB"
+            );
         result.DerivedThisContextSlot = derivedThisContextSlot;
         if (
             metadata.IsArrow
@@ -228,6 +236,9 @@ internal sealed partial class JsPlannedFunctionCompiler
             result.LexicalThisContextSlot = derivedThis.Slot;
             result.LexicalThisContextDepth = derivedThis.Depth;
         }
+        // Return all pooled collections before handing the finished script out;
+        // skipping this made every nested-function compile pay full pool-rent cost.
+        builder.Dispose();
         return result;
     }
 
@@ -267,8 +278,9 @@ internal sealed partial class JsPlannedFunctionCompiler
 
     private void InitializeParameterRegisterMap(FunctionParameterPlan parameterPlan)
     {
-        parameterRegisterByName.Clear();
-        parameterNames.Clear();
+        EnsureParameterMaps();
+        parameterRegisterByName!.Clear();
+        parameterNames!.Clear();
         for (var i = 0; i < parameterPlan.Bindings.Count; i++)
         {
             var binding = parameterPlan.Bindings[i];
@@ -280,8 +292,9 @@ internal sealed partial class JsPlannedFunctionCompiler
 
     private void InitializeParameterRegisterMap(FlatAst ast, in FlatFunctionInfo function)
     {
-        parameterRegisterByName.Clear();
-        parameterNames.Clear();
+        EnsureParameterMaps();
+        parameterRegisterByName!.Clear();
+        parameterNames!.Clear();
         var parameters = ast.GetParameters(function);
         for (var i = 0; i < parameters.Length; i++)
         {
@@ -316,7 +329,7 @@ internal sealed partial class JsPlannedFunctionCompiler
 
         var slots = new int[metadata.ParameterCount];
         Array.Fill(slots, -1);
-        for (var i = 0; i < parameterNames.Count; i++)
+        for (var i = 0; i < parameterNames!.Count; i++)
         {
             var name = parameterNames[i];
             if (name is null || parameterNames.LastIndexOf(name) != i)

@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("Okojo.Compiler.Tests")]
 [assembly: InternalsVisibleTo("Okojo.Compiler.Experimental")]
 [assembly: InternalsVisibleTo("Okojo.Benchmarks")]
+[assembly: InternalsVisibleTo("CompilerAllocProbe")]
 [assembly: InternalsVisibleTo("Okojo.Reflection")] // Lockstep CLR interop ABI and atom-based object overrides.
 [assembly: InternalsVisibleTo("Okojo.Node")] // Lockstep Node profile: CommonJS compilation, nextTick, abstract operations, and dense/typed-array fast paths.
 [assembly: InternalsVisibleTo("Okojo.Diagnostics")]
