@@ -3,7 +3,6 @@ using System.Text.RegularExpressions;
 using Okojo.Diagnostics;
 using Okojo.JavaScript;
 using Okojo.JavaScript.Bytecode;
-using Okojo.JavaScript.Compiler.Experimental;
 using Okojo.JavaScript.Execution;
 using Okojo.JavaScript.Objects;
 using Okojo.Node;
@@ -79,7 +78,6 @@ static NodeRuntime CreateRuntime(
         {
             runtime.UseAgent(agent =>
             {
-                agent.UseDirectFlatCompilers();
                 agent.DebuggerSession = new NodeDebugSession(
                     debugWriter,
                     options.StopMask,

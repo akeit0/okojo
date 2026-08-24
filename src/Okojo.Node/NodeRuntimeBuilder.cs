@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using Okojo.Hosting;
 using Okojo.JavaScript;
+using Okojo.JavaScript.Compiler.Experimental;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
 using Okojo.WebAssembly;
@@ -17,6 +18,17 @@ public sealed class NodeRuntimeBuilder
     private readonly JsRuntimeBuilder runtimeBuilder = JsRuntime.CreateBuilder();
     private readonly NodeTerminalOptions terminalOptions = new();
     private bool installNodeGlobals = true;
+    private bool useLegacyCompilers;
+
+    /// <summary>
+    ///     Opts this runtime back into the legacy script/module compiler path instead
+    ///     of the direct-flat compilers that the Node profile uses by default.
+    /// </summary>
+    public NodeRuntimeBuilder UseLegacyCompilers(bool enabled = true)
+    {
+        useLegacyCompilers = enabled;
+        return this;
+    }
 
     /// <summary>
     ///     Escape hatch for core runtime configuration. Prefer this over adding more
@@ -91,6 +103,8 @@ public sealed class NodeRuntimeBuilder
     public NodeRuntime Build()
     {
         var options = runtimeBuilder.BuildOptions();
+        if (!useLegacyCompilers)
+            options.Agent.UseDirectFlatCompilers();
         var baseLoader = options.ModuleSourceLoader ?? new FileModuleSourceLoader();
         var nodeLoader = new NodeModuleSourceLoader(baseLoader, options.Host.SourceMapRegistry);
         options.Host.UseModuleSourceLoader(nodeLoader);

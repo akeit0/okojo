@@ -18,16 +18,42 @@ internal sealed class ModuleGraph(JsAgent agent)
         if (nodes.TryGetValue(resolvedId, out var existing))
             return existing;
 
-        ModuleRecordNode node = agent.Options.ModuleExecutionCompiler is null
-            ? new(resolvedId, JavaScriptParser.ParseModule(source, resolvedId), null, exportsObject)
-            : new(
+        if (agent.Options.ModuleExecutionCompiler is null)
+        {
+            var node = new ModuleRecordNode(
+                resolvedId,
+                JavaScriptParser.ParseModule(source, resolvedId),
+                null,
+                exportsObject
+            );
+            nodes.Add(resolvedId, node);
+            return node;
+        }
+
+        try
+        {
+            var flatNode = new ModuleRecordNode(
                 resolvedId,
                 null,
                 FlatJavaScriptParser.ParseModule(source, resolvedId),
                 exportsObject
             );
-        nodes.Add(resolvedId, node);
-        return node;
+            nodes.Add(resolvedId, flatNode);
+            return flatNode;
+        }
+        catch (JsParseException)
+        {
+            // The flat parser cannot handle this source (for example decorators),
+            // so keep the node on the legacy compiler path instead.
+            var node = new ModuleRecordNode(
+                resolvedId,
+                JavaScriptParser.ParseModule(source, resolvedId),
+                null,
+                exportsObject
+            );
+            nodes.Add(resolvedId, node);
+            return node;
+        }
     }
 
     public bool TryGet(string resolvedId, out ModuleRecordNode node)

@@ -17,12 +17,8 @@ internal static class ModuleExecutor
     )
     {
         JsValue result;
-        if (realm.Agent.Options.ModuleExecutionCompiler is not null)
+        if (moduleCompilation is not null)
         {
-            if (moduleCompilation is null)
-                throw new InvalidOperationException(
-                    "The planned module compiler requires an instantiated compilation."
-                );
             realm.Execute(moduleCompilation.Script, waitForTopLevelAwaitCompletion);
             result = realm.Accumulator;
         }

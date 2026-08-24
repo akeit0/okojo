@@ -131,7 +131,7 @@ public sealed partial class JsAgent
                         targetPlan.ResolvedImportBindings,
                         targetPlan.ExecutionPlan.ExportLocalByName,
                         targetPlan.ExecutionPlan.PreinitializedLocalExportNames,
-                        Options.ModuleExecutionCompiler is not null
+                        targetNode.FlatProgram is not null
                     );
                 var defaultNameEligibleLocals = CollectDefaultNameEligibleExportLocals(
                     targetPlan.ExecutionPlan.Operations

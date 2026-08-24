@@ -12,6 +12,9 @@
 - [ ] clarify `Okojo.Hosting` presets and keep environment globals separate from embedder control APIs
 - [ ] complete the experimental compiler and make it usable in real execution paths
 - [ ] replace the production class parser/compiler with the direct flat path after closing semantic, metadata, and workload gates
+  - Node profile default flip LANDED: NodeRuntimeBuilder now applies direct-flat compilers (script + module) by default; UseLegacyCompilers() opts back out. Module parse fallback in ModuleGraph keeps decorator/auto-accessor sources on the legacy path per-node until the flat parser grows support
+  - transitional scaffolding to DELETE once flat-parser gaps close (decorators, auto-accessors): (1) JsParseException fallback branches in JsPlannedCompilerOptions.CompileDirectFlatWithProductionFallback and ModuleGraph.GetOrCreate, (2) NodeRuntimeBuilder.UseLegacyCompilers + OKOJO_INK_PROD probe gate, (3) Test262Runner A/B flag, then (4) production script/module compile paths, JavaScriptParser module/script entry points still used by eval/EvaluateAsync/REPL, and finally JsCompiler+JsCompiler.* itself
+- [ ] close FlatJavaScriptParser gaps that keep modules on the legacy path: decorators (`@expr` on classes/members/accessors) and auto-accessors (`accessor x`); each currently throws JsParseException and triggers per-node legacy fallback
 - [ ] improve hot-path runtime allocation and branch behavior
 - [ ] improve `Okojo.Node` compatibility against real Node-facing workloads
 - [ ] attempt a real HTML/CSS renderer integration for DOM-manipulation browser compatibility testing
