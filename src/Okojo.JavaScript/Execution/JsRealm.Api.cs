@@ -1,5 +1,6 @@
 using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Compiler.Experimental;
 using Okojo.JavaScript.Execution.Interop;
 using Okojo.JavaScript.Parsing;
 
@@ -227,10 +228,8 @@ public sealed partial class JsRealm
 
     private JsScript CompileScript(string source)
     {
-        if (Agent.Options.ScriptExecutionCompiler is { } scriptCompiler)
-            return scriptCompiler(this, source);
-        var program = JavaScriptParser.ParseScript(source);
-        return JsCompiler.Compile(this, program);
+        using var ast = FlatJavaScriptParser.ParseScript(source);
+        return new JsPlannedScriptCompiler(this).Compile(ast, null);
     }
 
     private async ValueTask<JsValue> AwaitEvaluatedValueAsync(

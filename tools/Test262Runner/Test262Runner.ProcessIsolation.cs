@@ -418,8 +418,6 @@ internal static partial class Program
 
         if (options.UseRealTimers)
             startInfo.ArgumentList.Add("--real-timers");
-        if (options.UsePlannedCompiler)
-            startInfo.ArgumentList.Add("--planned-compiler");
 
         return startInfo;
     }

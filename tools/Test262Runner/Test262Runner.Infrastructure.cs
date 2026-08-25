@@ -289,7 +289,7 @@ internal static partial class Program
             rel = "root";
 
         var safe = rel.Replace("/", "__").Replace(":", "_");
-        var compiler = usePlannedCompiler ? ".planned" : string.Empty;
+        var compiler = usePlannedCompiler ? ".planned" : ".legacy";
         return Path.Combine(
             repoRoot,
             "artifacts",
@@ -618,28 +618,28 @@ internal static partial class Program
             return true;
         }
 
-        if (options.UsePlannedCompiler && metadata.Features.Contains("tail-call-optimization"))
+        if (metadata.Features.Contains("tail-call-optimization"))
         {
             reason =
                 "DeferredImplementation: proper tail calls are supported by the production compiler but not yet by the planned compiler";
             return true;
         }
 
-        if (options.UsePlannedCompiler && UsesWithStatement(path))
+        if (UsesWithStatement(path))
         {
             reason =
                 "Intentional skip: with statement semantics are intentionally unsupported in Okojo";
             return true;
         }
 
-        if (options.UsePlannedCompiler && UsesDecorators(path))
+        if (UsesDecorators(path))
         {
             reason =
                 "DeferredImplementation: class decorators are supported by the production parser but not yet by FlatJavaScriptParser";
             return true;
         }
 
-        if (options.UsePlannedCompiler && UsesAutoAccessors(path))
+        if (UsesAutoAccessors(path))
         {
             reason =
                 "DeferredImplementation: auto-accessor fields are supported by the production parser but not yet by FlatJavaScriptParser";
@@ -804,7 +804,7 @@ internal static partial class Program
             var fullPath = false;
             var skipPassed = false;
             var useRealTimers = false;
-            var usePlannedCompiler = false;
+            var usePlannedCompiler = true;
             for (var i = 0; i < args.Length; i++)
                 switch (args[i])
                 {
@@ -937,9 +937,6 @@ internal static partial class Program
                         break;
                     case "--real-timers":
                         useRealTimers = true;
-                        break;
-                    case "--planned-compiler":
-                        usePlannedCompiler = true;
                         break;
                 }
 

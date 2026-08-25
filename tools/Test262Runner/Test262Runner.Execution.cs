@@ -466,8 +466,7 @@ internal static partial class Program
                 engineOptions.ConfigureOptions(runtimeOptions =>
                 {
                     runtimeOptions.UseAtomicsWaitPolicy(Test262RunnerAtomicsWaitPolicy.Shared);
-                    if (options.UsePlannedCompiler)
-                        runtimeOptions.Agent.UsePlannedModuleCompiler();
+                    runtimeOptions.Agent.UsePlannedModuleCompiler();
                 });
                 if (runnerTime is not null)
                     engineOptions.UseTimeProvider(runnerTime);
@@ -538,7 +537,6 @@ internal static partial class Program
             else
             {
                 JsScript script;
-                if (options.UsePlannedCompiler)
                 {
                     var parseStart = Stopwatch.GetTimestamp();
                     using var ast = FlatJavaScriptParser.ParseScript(
@@ -550,19 +548,6 @@ internal static partial class Program
 
                     var compileStart = Stopwatch.GetTimestamp();
                     script = new JsPlannedScriptCompiler(vm).Compile(ast, entryPath);
-                    var compileEnd = Stopwatch.GetTimestamp();
-                    timings.AddCompile(compileStart, compileEnd);
-                }
-                else
-                {
-                    var parseStart = Stopwatch.GetTimestamp();
-                    var program = JavaScriptParser.ParseScript(sourceForScriptPath, entryPath);
-                    var parseEnd = Stopwatch.GetTimestamp();
-                    timings.AddParse(parseStart, parseEnd);
-
-                    var compileStart = Stopwatch.GetTimestamp();
-                    Intrinsics.PrepareGlobalScriptDeclarationInstantiation(vm, program);
-                    script = JsCompiler.Compile(vm, program);
                     var compileEnd = Stopwatch.GetTimestamp();
                     timings.AddCompile(compileStart, compileEnd);
                 }

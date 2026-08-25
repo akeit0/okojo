@@ -1,4 +1,5 @@
 using Okojo.JavaScript.Bytecode;
+using Okojo.JavaScript.Compiler.Experimental;
 using Okojo.JavaScript.Parsing;
 
 namespace Okojo.JavaScript.Execution;
@@ -13,6 +14,14 @@ public sealed class JsAgentOptions
 
     public object? HostDefined { get; set; }
     public Action<JsAgent>? Initialize { get; set; }
+
+    public JsAgentOptions()
+    {
+        // The direct-flat module compiler is the engine's only module path.
+        ModuleExecutionCompiler = static (realm, ast, plan) =>
+            new Compiler.Experimental.JsPlannedModuleCompiler(realm).CompileForExecution(ast);
+    }
+
     public ulong CheckInterval { get; private set; } = ulong.MaxValue;
     public ulong MaxInstructions { get; private set; } = ulong.MaxValue;
     public TimeSpan? ExecutionTimeout { get; private set; }
@@ -28,7 +37,6 @@ public sealed class JsAgentOptions
         ModuleExecutionPlan,
         ModuleExecutionCompilation
     >? ModuleExecutionCompiler { get; set; }
-    internal Func<JsRealm, string, JsScript>? ScriptExecutionCompiler { get; set; }
     public IReadOnlyList<IExecutionConstraint> Constraints => constraints;
     public JsRealmOptions Realm { get; } = new();
 
@@ -190,7 +198,6 @@ public sealed class JsAgentOptions
             ExecutionCheckpointHooks = ExecutionCheckpointHooks,
             DebuggerSession = DebuggerSession,
             ModuleExecutionCompiler = ModuleExecutionCompiler,
-            ScriptExecutionCompiler = ScriptExecutionCompiler,
         };
         clone.constraints.AddRange(constraints);
         return clone.ApplyRealm(Realm.Clone());

@@ -142,8 +142,6 @@ internal static partial class Program
         if (options.StopOnLongTestSeconds > 0)
             Log($"Skip long test after: {options.StopOnLongTestSeconds}s");
         Log($"Parallelism: {options.Parallelism}");
-        if (options.UsePlannedCompiler)
-            Log("Compiler: direct flat planned");
         if (options.ProgressSeconds > 0)
             Log($"Progress interval: {options.ProgressSeconds}s");
         if (options.SkipPassed)

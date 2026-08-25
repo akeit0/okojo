@@ -16,38 +16,17 @@ internal static class ModuleExecutor
         bool waitForTopLevelAwaitCompletion = true
     )
     {
-        JsValue result;
-        if (moduleCompilation is not null)
-        {
-            realm.Execute(moduleCompilation.Script, waitForTopLevelAwaitCompletion);
-            result = realm.Accumulator;
-        }
-        else
-        {
-            using var compiler = JsCompiler.CreateForModuleExecution(realm, moduleVariableBindings);
-            if (executionPlan.RequiresTopLevelAwait)
-            {
-                var compiled = compiler.CompileModuleExecutionAsync(
-                    executionPlan,
-                    moduleSourceText,
-                    moduleSourcePath,
-                    moduleIdentifierTable
-                );
-                realm.Execute(compiled, waitForTopLevelAwaitCompletion);
-                result = realm.Accumulator;
-            }
-            else
-            {
-                var compiled = compiler.CompileModuleExecution(
-                    executionPlan,
-                    moduleSourceText,
-                    moduleSourcePath,
-                    moduleIdentifierTable
-                );
-                realm.Execute(compiled);
-                result = realm.Accumulator;
-            }
-        }
+        _ = moduleSourcePath;
+        _ = moduleSourceText;
+        _ = moduleIdentifierTable;
+        _ = moduleVariableBindings;
+
+        if (moduleCompilation is null)
+            throw new InvalidOperationException(
+                "Module evaluation requires an instantiated compilation."
+            );
+        realm.Execute(moduleCompilation.Script, waitForTopLevelAwaitCompletion);
+        var result = realm.Accumulator;
 
         if (
             executionPlan.RequiresTopLevelAwait

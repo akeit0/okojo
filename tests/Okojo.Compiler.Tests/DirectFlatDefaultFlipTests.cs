@@ -37,18 +37,20 @@ public sealed class DirectFlatDefaultFlipTests
     }
 
     [Test]
-    public void UseDirectFlatCompilers_FallsBackToProductionWhenFlatParseThrows()
+    public void UseDirectFlatCompilers_DecoratorSyntaxIsUnsupported()
     {
         using var runtime = JsRuntime.Create(builder =>
             builder.UseAgent(options => options.UseDirectFlatCompilers())
         );
         var realm = runtime.DefaultRealm;
 
-        Assert.That(realm.Evaluate(DecoratorSource).AsString(), Is.EqualTo("survived"));
+        // Stage-3 decorator syntax has no flat-parser support and no legacy
+        // fallback remains, so it surfaces as a parse-time SyntaxError.
+        Assert.Throws<JsParseException>(() => realm.Evaluate(DecoratorSource));
     }
 
     [Test]
-    public void WithoutRegistration_ScriptsKeepProductionCompiler()
+    public void WithoutRegistration_ScriptsRunThroughDirectFlat()
     {
         using var runtime = JsRuntime.Create();
         var realm = runtime.DefaultRealm;

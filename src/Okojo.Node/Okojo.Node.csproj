@@ -8,7 +8,6 @@
 
     <ItemGroup>
         <ProjectReference Include="..\Okojo.JavaScript.Embedding\Okojo.JavaScript.Embedding.csproj" />
-        <ProjectReference Include="..\Okojo.Compiler.Experimental\Okojo.Compiler.Experimental.csproj" />
         <ProjectReference Include="..\Okojo.Diagnostics\Okojo.Diagnostics.csproj" />
         <ProjectReference Include="..\Okojo.Hosting\Okojo.Hosting.csproj" />
         <ProjectReference Include="..\Okojo.Repl\Okojo.Repl.csproj" />
