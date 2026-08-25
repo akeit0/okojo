@@ -9,6 +9,7 @@ public class JsObject
 {
     private const byte DeleteChurnPromotionThreshold = 2;
     private const byte RedefineChurnPromotionThreshold = 2;
+    private const int StaticNamedPropertyCapacityIncrement = 3;
     internal readonly JsObjectKind ObjectKind;
     private byte deleteChurn;
     protected internal Dictionary<uint, PropertyDescriptor>? IndexedProperties;
@@ -29,6 +30,16 @@ public class JsObject
         NamedPropertyLayout = shape;
         if (shape.StorageSlotCount != 0)
             SlotsArray = new JsValue[shape.StorageSlotCount];
+    }
+
+    protected void ResetObjectStateForClosure(JsRealm realm)
+    {
+        NamedPropertyLayout = realm.EmptyShape;
+        SlotsArray = Array.Empty<JsValue>();
+        IndexedProperties = null;
+        IsExtensibleFlag = true;
+        deleteChurn = 0;
+        redefineChurn = 0;
     }
 
     public JsObject? Prototype { get; internal set; }
@@ -427,7 +438,7 @@ public class JsObject
         NamedPropertyLayout = shape;
         var required = shape.StorageSlotCount;
         if (required > SlotsArray.Length)
-            Array.Resize(ref SlotsArray, required);
+            EnsureStaticNamedSlotCapacity(required);
         SlotsArray[slotInfo.Slot] = value;
     }
 
@@ -1214,7 +1225,7 @@ public class JsObject
         var nextShape = StaticNamedPropertyLayout.GetOrAddTransition(atom, flags, out var slotInfo);
         NamedPropertyLayout = nextShape;
         if (nextShape.StorageSlotCount > SlotsArray.Length)
-            Array.Resize(ref SlotsArray, nextShape.StorageSlotCount);
+            EnsureStaticNamedSlotCapacity(nextShape.StorageSlotCount);
         SlotsArray[slotInfo.Slot] = value;
         return true;
     }
@@ -1422,7 +1433,7 @@ public class JsObject
         shape = shape.GetOrAddTransition(atom, flags, out var slotInfo);
         NamedPropertyLayout = shape;
         if (shape.StorageSlotCount > SlotsArray.Length)
-            Array.Resize(ref SlotsArray, shape.StorageSlotCount);
+            EnsureStaticNamedSlotCapacity(shape.StorageSlotCount);
         WriteAccessorSlots(slotInfo, getter, setter);
     }
 
@@ -1539,7 +1550,7 @@ public class JsObject
         var nextShape = StaticNamedPropertyLayout.GetOrAddTransition(atom, flags, out var slotInfo);
         NamedPropertyLayout = nextShape;
         if (nextShape.StorageSlotCount > SlotsArray.Length)
-            Array.Resize(ref SlotsArray, nextShape.StorageSlotCount);
+            EnsureStaticNamedSlotCapacity(nextShape.StorageSlotCount);
         WriteAccessorSlots(slotInfo, getter, setter);
         return true;
     }
@@ -2067,6 +2078,17 @@ public class JsObject
         Array.Resize(ref SlotsArray, newLength);
     }
 
+    private void EnsureStaticNamedSlotCapacity(int minimumLength)
+    {
+        if (SlotsArray.Length >= minimumLength)
+            return;
+
+        var newLength = SlotsArray.Length + StaticNamedPropertyCapacityIncrement;
+        if (newLength < minimumLength)
+            newLength = minimumLength;
+        Array.Resize(ref SlotsArray, newLength);
+    }
+
     [MethodImpl(MethodImplOptions.NoInlining)]
     private void ResizeNamedSlotCapacity(int minimumLength)
     {
@@ -2118,7 +2140,7 @@ public class JsObject
         NamedPropertyLayout = shape;
         var required = shape.StorageSlotCount;
         if (required > SlotsArray.Length)
-            Array.Resize(ref SlotsArray, required);
+            EnsureStaticNamedSlotCapacity(required);
         SlotsArray[slotInfo.Slot] = value;
         return true;
     }
@@ -2143,7 +2165,7 @@ public class JsObject
         var shape = StaticNamedPropertyLayout.GetOrAddTransition(atom, flags, out var slotInfo);
         NamedPropertyLayout = shape;
         if (shape.StorageSlotCount > SlotsArray.Length)
-            Array.Resize(ref SlotsArray, shape.StorageSlotCount);
+            EnsureStaticNamedSlotCapacity(shape.StorageSlotCount);
         SlotsArray[slotInfo.Slot] = value;
     }
 

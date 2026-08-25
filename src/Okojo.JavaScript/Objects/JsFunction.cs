@@ -49,6 +49,46 @@ public abstract class JsFunction : JsObject
         }
     }
 
+    protected void ResetFunctionStateForClosure(
+        bool hasPrototypeProperty,
+        bool prototypeHasConstructor,
+        bool isConstructor,
+        bool isClassConstructor
+    )
+    {
+        prototypePropertyObject = null;
+        Flags = FunctionFlags.HasLengthProperty | FunctionFlags.HasNameProperty;
+        if (isConstructor)
+            Flags |= FunctionFlags.IsConstructor;
+        if (isClassConstructor)
+        {
+            var functionPrototypeObject = new JsPlainObject(realm: Realm, false)
+            {
+                Prototype = GetPrototypePropertyObjectPrototype(Realm),
+            };
+            functionPrototypeObject.InitializeStorageFromCachedShape(
+                Realm.FunctionPrototypeObjectShape
+            );
+            functionPrototypeObject.SetNamedSlotUnchecked(
+                JsRealm.FunctionPrototypeConstructorSlot,
+                JsValue.FromObject(this)
+            );
+            DefineOwnDataPropertyExact(
+                Realm,
+                IdPrototype,
+                JsValue.FromObject(functionPrototypeObject),
+                JsShapePropertyFlags.None
+            );
+            return;
+        }
+        if (hasPrototypeProperty)
+        {
+            Flags |= FunctionFlags.HasPrototypeProperty | FunctionFlags.PrototypeValuePending;
+            if (prototypeHasConstructor)
+                Flags |= FunctionFlags.PrototypeHasConstructor;
+        }
+    }
+
     public string Name { get; }
     public int Length { get; }
     public bool IsConstructor => (Flags & FunctionFlags.IsConstructor) != 0;

@@ -5,6 +5,7 @@ namespace Okojo.JavaScript.Objects;
 public sealed class JsBytecodeFunction : JsFunction
 {
     private JsContext? functionMetadataContext;
+    private readonly FunctionTemplate functionTemplate;
 
     public JsBytecodeFunction(
         JsRealm realm,
@@ -47,18 +48,20 @@ public sealed class JsBytecodeFunction : JsFunction
     {
         Script = script;
         Script.BindAgent(realm.Agent);
-        Kind = kind;
-        RequiresClosureBinding = requiresClosureBinding;
-        HasNewTarget = hasNewTarget;
-        IsDerivedConstructor = isDerivedConstructor;
-        IsArrow = isArrow;
-        IsMethod = isMethod;
-        FormalParameterCount = formalParameterCount;
-        HasSimpleParameterList = hasSimpleParameterList;
-        HasEagerGeneratorParameterBinding = hasEagerGeneratorParameterBinding;
-        IsClassConstructor = isClassConstructor;
-        IsStrict = isStrict;
-        PrivateBrandId = privateBrandId;
+        functionTemplate = new(
+            kind,
+            requiresClosureBinding,
+            hasNewTarget,
+            isDerivedConstructor,
+            isArrow,
+            isMethod,
+            formalParameterCount,
+            hasSimpleParameterList,
+            hasEagerGeneratorParameterBinding,
+            isClassConstructor,
+            isStrict,
+            privateBrandId
+        );
 
         if (assignFunctionPrototype)
             Prototype = realm.Intrinsics.GetFunctionPrototypeForKind(kind);
@@ -81,18 +84,19 @@ public sealed class JsBytecodeFunction : JsFunction
     }
 
     public JsScript Script { get; internal set; }
-    public JsBytecodeFunctionKind Kind { get; }
-    public bool RequiresClosureBinding { get; }
-    public bool HasNewTarget { get; }
-    public bool IsDerivedConstructor { get; }
-    public bool IsArrow { get; }
-    public bool IsMethod { get; }
+    public JsBytecodeFunctionKind Kind => functionTemplate.Kind;
+    public bool RequiresClosureBinding => functionTemplate.RequiresClosureBinding;
+    public bool HasNewTarget => functionTemplate.HasNewTarget;
+    public bool IsDerivedConstructor => functionTemplate.IsDerivedConstructor;
+    public bool IsArrow => functionTemplate.IsArrow;
+    public bool IsMethod => functionTemplate.IsMethod;
     public bool UsesResumeModeDispatch => Kind != JsBytecodeFunctionKind.Normal;
-    public int FormalParameterCount { get; }
-    public bool HasSimpleParameterList { get; }
+    public int FormalParameterCount => functionTemplate.FormalParameterCount;
+    public bool HasSimpleParameterList => functionTemplate.HasSimpleParameterList;
     public int[]? ArgumentsMappedSlots { get; set; }
-    public bool HasEagerGeneratorParameterBinding { get; }
-    public bool IsClassConstructor { get; }
+    public bool HasEagerGeneratorParameterBinding =>
+        functionTemplate.HasEagerGeneratorParameterBinding;
+    public bool IsClassConstructor => functionTemplate.IsClassConstructor;
     public JsContext? BoundParentContext { get; set; }
 
     public JsValue[]? PrecomputedPrivateMethodValues
@@ -118,8 +122,8 @@ public sealed class JsBytecodeFunction : JsFunction
     internal DerivedSuperCallState? BoundDerivedSuperCallState { get; set; }
     internal JsValue[]? PrecomputedInstanceFieldKeys { get; set; }
 
-    public bool IsStrict { get; }
-    public int PrivateBrandId { get; }
+    public bool IsStrict => functionTemplate.IsStrict;
+    public int PrivateBrandId => functionTemplate.PrivateBrandId;
     public int SuperBaseContextSlot { get; set; } = -1;
     public int DerivedThisContextSlot { get; set; } = -1;
     public int LexicalThisContextSlot { get; set; } = -1;
@@ -129,43 +133,34 @@ public sealed class JsBytecodeFunction : JsFunction
 
     public JsBytecodeFunction CloneForClosure(JsRealm realm)
     {
-        var clone = new JsBytecodeFunction(
-            realm,
-            Script,
-            Name,
-            RequiresClosureBinding,
-            IsStrict,
-            PrivateBrandId,
-            true,
-            HasNewTarget,
-            IsDerivedConstructor,
-            Kind,
-            IsArrow,
-            IsMethod,
-            FormalParameterCount,
-            HasSimpleParameterList,
-            IsClassConstructor,
-            HasEagerGeneratorParameterBinding,
-            Length
-        )
-        {
-            ArgumentsMappedSlots = ArgumentsMappedSlots is null
-                ? null
-                : (int[])ArgumentsMappedSlots.Clone(),
-            BoundThisValue = BoundThisValue,
-            BoundNewTargetValue = BoundNewTargetValue,
-            BoundDerivedSuperCallState = BoundDerivedSuperCallState,
-            PrecomputedInstanceFieldKeys = PrecomputedInstanceFieldKeys is null
-                ? null
-                : (JsValue[])PrecomputedInstanceFieldKeys.Clone(),
-            SuperBaseContextSlot = SuperBaseContextSlot,
-            DerivedThisContextSlot = DerivedThisContextSlot,
-            LexicalThisContextSlot = LexicalThisContextSlot,
-            LexicalThisContextDepth = LexicalThisContextDepth,
-            UsesClassLexicalBinding = UsesClassLexicalBinding,
-            UsesMethodEnvironmentCapture = UsesMethodEnvironmentCapture,
-            Prototype = Prototype,
-        };
+        var clone = (JsBytecodeFunction)MemberwiseClone();
+        clone.Script.BindAgent(realm.Agent);
+        clone.ResetObjectStateForClosure(realm);
+        clone.ResetFunctionStateForClosure(
+            hasPrototypeProperty: !IsArrow
+                && (
+                    Kind
+                        is JsBytecodeFunctionKind.Generator
+                            or JsBytecodeFunctionKind.AsyncGenerator
+                    || (!IsMethod && Kind is not JsBytecodeFunctionKind.Async)
+                ),
+            prototypeHasConstructor: !IsArrow
+                && !IsMethod
+                && Kind
+                    is not (
+                        JsBytecodeFunctionKind.Generator
+                        or JsBytecodeFunctionKind.Async
+                        or JsBytecodeFunctionKind.AsyncGenerator
+                    ),
+            isConstructor: Kind
+                is not (JsBytecodeFunctionKind.Generator or JsBytecodeFunctionKind.AsyncGenerator),
+            isClassConstructor: IsClassConstructor
+        );
+        clone.BoundParentContext = null;
+        clone.ArgumentsMappedSlots = ArgumentsMappedSlots;
+        clone.PrecomputedInstanceFieldKeys = PrecomputedInstanceFieldKeys is null
+            ? null
+            : (JsValue[])PrecomputedInstanceFieldKeys.Clone();
 
         if (functionMetadataContext?.Metadata is { } metadata)
             clone.functionMetadataContext = CreateMetadataContext(metadata.Clone());
@@ -263,6 +258,36 @@ public sealed class JsBytecodeFunction : JsFunction
     private static JsContext CreateMetadataContext(JsContext.FunctionMetadata metadata)
     {
         return new(null, 0) { Metadata = metadata };
+    }
+
+    private sealed class FunctionTemplate(
+        JsBytecodeFunctionKind kind,
+        bool requiresClosureBinding,
+        bool hasNewTarget,
+        bool isDerivedConstructor,
+        bool isArrow,
+        bool isMethod,
+        int formalParameterCount,
+        bool hasSimpleParameterList,
+        bool hasEagerGeneratorParameterBinding,
+        bool isClassConstructor,
+        bool isStrict,
+        int privateBrandId
+    )
+    {
+        internal readonly JsBytecodeFunctionKind Kind = kind;
+        internal readonly bool RequiresClosureBinding = requiresClosureBinding;
+        internal readonly bool HasNewTarget = hasNewTarget;
+        internal readonly bool IsDerivedConstructor = isDerivedConstructor;
+        internal readonly bool IsArrow = isArrow;
+        internal readonly bool IsMethod = isMethod;
+        internal readonly int FormalParameterCount = formalParameterCount;
+        internal readonly bool HasSimpleParameterList = hasSimpleParameterList;
+        internal readonly bool HasEagerGeneratorParameterBinding =
+            hasEagerGeneratorParameterBinding;
+        internal readonly bool IsClassConstructor = isClassConstructor;
+        internal readonly bool IsStrict = isStrict;
+        internal readonly int PrivateBrandId = privateBrandId;
     }
 
     protected override JsObject GetPrototypePropertyObjectPrototype(JsRealm realm)
