@@ -21,12 +21,54 @@ internal sealed partial class JsPlannedScriptCompiler
 
     internal JsScript Compile(FlatAst ast, string? sourcePath)
     {
+        return Compile(
+            ast,
+            sourcePath,
+            ephemeralTopLevelLocality: false,
+            suppressTopLevelLexicalRegistration: false,
+            validateGlobalDeclarations: true
+        );
+    }
+
+    /// <summary>
+    ///     Compiles an indirect-eval body. Sloppy eval keeps var/function bindings
+    ///     on the global object but its lexicals stay ephemeral; strict eval keeps
+    ///     every declaration in the eval's own environment.
+    /// </summary>
+    internal JsScript CompileIndirectEval(FlatAst ast, string? sourcePath)
+    {
+        var strict = ast.StrictDeclared;
+        return Compile(
+            ast,
+            sourcePath,
+            ephemeralTopLevelLocality: strict,
+            suppressTopLevelLexicalRegistration: true,
+            validateGlobalDeclarations: !strict
+        );
+    }
+
+    private JsScript Compile(
+        FlatAst ast,
+        string? sourcePath,
+        bool ephemeralTopLevelLocality,
+        bool suppressTopLevelLexicalRegistration,
+        bool validateGlobalDeclarations
+    )
+    {
         builder.SetSourceText(ast.SourceText);
         strictDeclared = ast.StrictDeclared;
         builder.SetStrictDeclared(strictDeclared);
         using var collected = CompilerBindingCollector.Collect(ast);
-        ValidateGlobalDeclarations(collected);
-        using var plan = CompilerStoragePlanner.Plan(collected);
+        if (validateGlobalDeclarations)
+            ValidateGlobalDeclarations(
+                collected,
+                allowEphemeralTopLevelLexicals: suppressTopLevelLexicalRegistration
+            );
+        using var plan = CompilerStoragePlanner.Plan(
+            collected,
+            null,
+            ephemeralProgramScopeLocality: ephemeralTopLevelLocality
+        );
         InitializePlanIndexes(collected, plan);
         InitializeRootBindings();
         EmitFunctionContextSetup();
@@ -58,13 +100,17 @@ internal sealed partial class JsPlannedScriptCompiler
             TopLevelLexicalAtoms = lexicalMetadata?.Atoms,
             TopLevelLexicalSlots = lexicalMetadata?.Slots,
             TopLevelLexicalConstFlags = lexicalMetadata?.ConstFlags,
+            SuppressTopLevelLexicalRegistration = suppressTopLevelLexicalRegistration,
         };
         script.BindAgent(Vm.Agent);
         builder.Dispose();
         return script;
     }
 
-    private void ValidateGlobalDeclarations(CompilerBindingCollectionResult collected)
+    private void ValidateGlobalDeclarations(
+        CompilerBindingCollectionResult collected,
+        bool allowEphemeralTopLevelLexicals = false
+    )
     {
         // Root binding counts are tiny; a linear list beats a HashSet allocation.
         List<string> seen = [];
@@ -98,6 +144,12 @@ internal sealed partial class JsPlannedScriptCompiler
                     or CompilerCollectedBindingKind.ClassDeclaration
             )
             {
+                if (allowEphemeralTopLevelLexicals)
+                {
+                    // Sloppy indirect eval lexicals live in the eval's ephemeral
+                    // environment; they never interact with persistent globals.
+                    continue;
+                }
                 if (
                     Vm.HasGlobalLexicalBindingAtom(atom)
                     || Vm.GlobalObject.HasRestrictedGlobalPropertyAtom(atom)

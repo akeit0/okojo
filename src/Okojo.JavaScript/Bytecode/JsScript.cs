@@ -124,6 +124,12 @@ public sealed record JsScript
     public int[]? TopLevelLexicalAtoms { get; init; }
     public int[]? TopLevelLexicalSlots { get; init; }
     public bool[]? TopLevelLexicalConstFlags { get; init; }
+
+    /// <summary>
+    ///     Eval scripts declare lexicals in their own ephemeral environment, so the
+    ///     VM must not register them as persistent global lexical bindings.
+    /// </summary>
+    internal bool SuppressTopLevelLexicalRegistration { get; init; }
     public long[]? PrivateFieldDebugKeys { get; init; }
     public int[]? PrivateFieldDebugNameIndices { get; init; }
     public JsLocalDebugInfo[]? LocalDebugInfos { get; init; }

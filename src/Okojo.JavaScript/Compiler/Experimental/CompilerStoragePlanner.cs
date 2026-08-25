@@ -7,7 +7,8 @@ internal static class CompilerStoragePlanner
 {
     public static CompilerBindingPlan Plan(
         CompilerBindingCollectionResult collected,
-        FlatAst? moduleAst = null
+        FlatAst? moduleAst = null,
+        bool ephemeralProgramScopeLocality = false
     )
     {
         var scopes = collected.Scopes;
@@ -65,7 +66,11 @@ internal static class CompilerStoragePlanner
                     : binding.Kind == CompilerCollectedBindingKind.Parameter
                     && hasArgumentsBinding[binding.ScopeId]
                         ? CompilerPlannedStorageKind.ContextSlot
-                    : ClassifyStorage(binding, scopes[binding.ScopeId].Kind);
+                    : ClassifyStorage(
+                        binding,
+                        scopes[binding.ScopeId].Kind,
+                        ephemeralProgramScopeLocality
+                    );
                 if (
                     moduleCells is not null
                     && !hasModuleCell
@@ -294,10 +299,24 @@ internal static class CompilerStoragePlanner
 
     private static CompilerPlannedStorageKind ClassifyStorage(
         CompilerCollectedBinding binding,
-        CompilerCollectedScopeKind scopeKind
+        CompilerCollectedScopeKind scopeKind,
+        bool ephemeralProgramScopeLocality = false
     )
     {
         if (scopeKind == CompilerCollectedScopeKind.Program)
+        {
+            if (
+                ephemeralProgramScopeLocality
+                && binding.Kind
+                    is CompilerCollectedBindingKind.Var
+                        or CompilerCollectedBindingKind.FunctionDeclaration
+            )
+            {
+                // Strict indirect eval keeps var and function declarations in the
+                // eval's own environment instead of the global object.
+                return CompilerPlannedStorageKind.ContextSlot;
+            }
+
             return binding.Kind switch
             {
                 CompilerCollectedBindingKind.Var
@@ -308,6 +327,8 @@ internal static class CompilerStoragePlanner
                     CompilerPlannedStorageKind.ContextSlot,
                 _ => ClassifyLocalStorage(binding.Kind),
             };
+        }
+
         return ClassifyLocalStorage(binding.Kind);
     }
 

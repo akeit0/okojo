@@ -697,7 +697,7 @@ internal static partial class Program
     }
 
     private static readonly System.Text.RegularExpressions.Regex WithStatementPattern = new(
-        @"(?:^|[\{;\n])\s*with\s*\(",
+        @"(?:^|[^\w$.])with\s*\(",
         System.Text.RegularExpressions.RegexOptions.Compiled
     );
 

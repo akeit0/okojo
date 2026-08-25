@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Compiler.Experimental;
 using Okojo.JavaScript.Parsing;
 
 namespace Okojo.JavaScript.Execution;
