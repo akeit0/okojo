@@ -33,6 +33,17 @@ public sealed partial class JsRealm
     )
     {
         ArgumentNullException.ThrowIfNull(source);
+        using var ast = FlatJavaScriptParser.ParseScript(
+            source,
+            "<eval>",
+            allowTopLevelAwait: true
+        );
+        if (!ast.HasTopLevelAwait)
+        {
+            Execute(new JsPlannedScriptCompiler(this).Compile(ast, "<eval>"));
+            return AwaitEvaluatedValueAsync(Accumulator, cancellationToken);
+        }
+
         var replTopLevelLexicalNames = new HashSet<string>(StringComparer.Ordinal);
         var replTopLevelConstNames = new HashSet<string>(StringComparer.Ordinal);
         var compileContext = new JsCompilerContext
@@ -42,25 +53,23 @@ public sealed partial class JsRealm
             ReplTopLevelConstNames = replTopLevelConstNames,
         };
         var program = JavaScriptParser.ParseScript(source, false, false, true, "<eval>");
-        var script = program.HasTopLevelAwait
-            ? JsCompiler.Compile(this, program, compileContext, JsBytecodeFunctionKind.Async)
-            : JsCompiler.Compile(this, program, compileContext);
-
-        if (!program.HasTopLevelAwait)
-        {
-            Execute(script);
-            return AwaitEvaluatedValueAsync(Accumulator, cancellationToken);
-        }
-
-        var root = new JsBytecodeFunction(
+        var script = JsCompiler.Compile(
+            this,
+            program,
+            compileContext,
+            JsBytecodeFunctionKind.Async
+        );
+        var function = new JsBytecodeFunction(
             this,
             script,
-            "root",
+            "<eval>",
             isStrict: script.StrictDeclared,
             kind: JsBytecodeFunctionKind.Async
         );
-        var rawResult = Call(root, JsValue.FromObject(GlobalObject));
-        return AwaitEvaluatedValueAsync(rawResult, cancellationToken);
+        return AwaitEvaluatedValueAsync(
+            Call(function, JsValue.FromObject(GlobalObject)),
+            cancellationToken
+        );
     }
 
     public JsValue Import(string specifier, string? referrer = null)

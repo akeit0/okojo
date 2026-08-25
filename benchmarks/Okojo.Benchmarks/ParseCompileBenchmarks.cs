@@ -2,12 +2,12 @@ using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Order;
 using Okojo.Benchmarks;
 using Okojo.JavaScript;
+using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Compiler.Experimental;
 using Okojo.JavaScript.Embedding;
-using Okojo.JavaScript.Parsing;
-using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Parsing;
 
 [MemoryDiagnoser]
 [ShortRunJob]
@@ -43,7 +43,8 @@ public class ParseCompileBenchmarks
     public JsScript Production_Compile()
     {
         var program = JavaScriptParser.ParseScript(source);
-        return JsCompiler.Compile(realm, program);
+        using var compiler = new JsCompiler(realm);
+        return compiler.Compile(program);
     }
 
     // --- experimental (flat parser + planned compiler) ---
@@ -76,8 +77,7 @@ internal static class Corpus
             _ => throw new ArgumentOutOfRangeException(nameof(scenario)),
         };
 
-    private const string Micro =
-        """
+    private const string Micro = """
         const scale = 2;
         function add(a, b) { return a * scale + b; }
         let total = 0;
@@ -88,8 +88,7 @@ internal static class Corpus
         total;
         """;
 
-    private const string Closures =
-        """
+    private const string Closures = """
         function makeCounters(n) {
           const counters = [];
           for (let i = 0; i < n; i++) {
@@ -112,8 +111,7 @@ internal static class Corpus
         sum;
         """;
 
-    private const string Classes =
-        """
+    private const string Classes = """
         class Base {
           secret = 7;
           static origin = 'base';
@@ -133,8 +131,7 @@ internal static class Corpus
         acc.length;
         """;
 
-    private const string Patterns =
-        """
+    private const string Patterns = """
         const config = {
           server: { host: 'h', ports: [80, 443] },
           flags: { debug: true, verbose: false },
@@ -156,8 +153,7 @@ internal static class Corpus
         tpl.length + a1 + a3 + p1 + Object.keys(restObj).length + swapped.length;
         """;
 
-    private const string AsyncGen =
-        """
+    private const string AsyncGen = """
         async function produce(values) {
           const out = [];
           for await (const v of values) out.push(v * 2);

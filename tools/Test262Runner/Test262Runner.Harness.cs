@@ -625,8 +625,7 @@ internal static partial class Program
                 var source = args.Length > 0 ? args[0].ToString() : string.Empty;
                 try
                 {
-                    var program = JavaScriptParser.ParseScript(source);
-                    return innerVm.ExecuteProgramInline(program);
+                    return innerVm.ExecuteProgramInline(source);
                 }
                 catch (JsParseException ex)
                 {

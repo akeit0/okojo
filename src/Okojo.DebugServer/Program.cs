@@ -3,10 +3,8 @@ using System.Text.Json;
 using Okojo.DebugServer;
 using Okojo.Hosting;
 using Okojo.JavaScript;
-using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
-using Okojo.JavaScript.Parsing;
 using Okojo.JavaScript.SourceMaps;
 
 var options = DebugServerOptions.Parse(args);
@@ -71,8 +69,7 @@ try
     else
     {
         var source = runtime.ModuleSourceLoader.LoadSource(scriptPath);
-        var program = JavaScriptParser.ParseScript(source, scriptPath);
-        var script = JsCompiler.Compile(runtime.MainRealm, program);
+        var script = runtime.MainRealm.CompileScript(source, scriptPath);
         runtime.MainRealm.Execute(script, options.PumpJobsAfterRun);
     }
 

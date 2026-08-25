@@ -3,7 +3,7 @@ using System.Reflection;
 using Okojo.Diagnostics;
 using Okojo.Hosting;
 using Okojo.JavaScript;
-using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Compiler.Experimental;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
 using Okojo.JavaScript.Objects;
@@ -186,13 +186,6 @@ internal static class NodeCliApplication
             SetEvalArgv(runtime.MainRealm, cli.ScriptArguments);
 
         var topLevelLexicalNames = new HashSet<string>(StringComparer.Ordinal);
-        var topLevelConstNames = new HashSet<string>(StringComparer.Ordinal);
-        var compileContext = new JsCompilerContext
-        {
-            IsRepl = true,
-            ReplTopLevelLexicalNames = topLevelLexicalNames,
-            ReplTopLevelConstNames = topLevelConstNames,
-        };
 
         for (var i = 0; i < cli.Expressions.Count; i++)
         {
@@ -200,9 +193,7 @@ internal static class NodeCliApplication
             await ExecuteAndMaybePrintAsync(
                 runtime.MainRealm,
                 hostLoop,
-                compileContext,
                 topLevelLexicalNames,
-                topLevelConstNames,
                 cli.Expressions[i],
                 cli.StrictMode,
                 cli.PrintEvalResult ? EvalPrintMode.Always : EvalPrintMode.Never,
@@ -307,9 +298,7 @@ internal static class NodeCliApplication
     private static async Task ExecuteAndMaybePrintAsync(
         JsRealm realm,
         IHostTaskQueuePump hostLoop,
-        JsCompilerContext compileContext,
         HashSet<string> topLevelLexicalNames,
-        HashSet<string> topLevelConstNames,
         string source,
         int strictMode,
         EvalPrintMode printMode,
@@ -320,12 +309,14 @@ internal static class NodeCliApplication
     )
     {
         var adjustedSource = ApplyStrictMode(source, strictMode);
-        var program = JavaScriptParser.ParseScript(adjustedSource, false, false, true, sourcePath);
-        ValidateReplTopLevelLexicalRedeclaration(program, topLevelLexicalNames);
+        using var ast = FlatJavaScriptParser.ParseScript(
+            adjustedSource,
+            sourcePath,
+            allowTopLevelAwait: true
+        );
+        ValidateReplTopLevelLexicalRedeclaration(ast, topLevelLexicalNames);
 
-        var script = program.HasTopLevelAwait
-            ? JsCompiler.Compile(realm, program, compileContext, JsBytecodeFunctionKind.Async)
-            : JsCompiler.Compile(realm, program, compileContext);
+        var script = new JsPlannedScriptCompiler(realm).Compile(ast, sourcePath);
         if (printBytecode)
             NodeCliBytecodePrinter.PrintCompiledScript(script, sourcePath);
 
@@ -336,28 +327,13 @@ internal static class NodeCliApplication
         )
             return;
 
-        JsValue rawResult;
-        if (program.HasTopLevelAwait)
-        {
-            var root = new JsBytecodeFunction(
-                realm,
-                script,
-                "root",
-                isStrict: script.StrictDeclared,
-                kind: JsBytecodeFunctionKind.Async
-            );
-            rawResult = realm.Call(root, JsValue.FromObject(realm.GlobalObject));
-        }
-        else
-        {
-            realm.Execute(script);
-            rawResult = realm.Accumulator;
-        }
+        realm.Execute(script);
+        var rawResult = realm.Accumulator;
 
-        RegisterTopLevelLexicalDeclarations(program, topLevelLexicalNames, topLevelConstNames);
+        RegisterTopLevelLexicalDeclarations(ast, topLevelLexicalNames);
 
         var result =
-            awaitPromiseResult || program.HasTopLevelAwait
+            awaitPromiseResult || ast.HasTopLevelAwait
                 ? await AwaitIfPromiseAsync(realm, hostLoop, rawResult)
                 : rawResult;
         switch (printMode)
@@ -413,11 +389,11 @@ internal static class NodeCliApplication
     }
 
     private static void ValidateReplTopLevelLexicalRedeclaration(
-        JsProgram program,
+        FlatAst ast,
         HashSet<string> existingLexicalNames
     )
     {
-        foreach (var name in EnumerateTopLevelLexicalNames(program))
+        foreach (var name in EnumerateTopLevelLexicalNames(ast))
             if (existingLexicalNames.Contains(name))
                 throw new InvalidOperationException(
                     $"SyntaxError: Identifier '{name}' has already been declared"
@@ -425,39 +401,40 @@ internal static class NodeCliApplication
     }
 
     private static void RegisterTopLevelLexicalDeclarations(
-        JsProgram program,
-        HashSet<string> lexicalNames,
-        HashSet<string> constNames
+        FlatAst ast,
+        HashSet<string> lexicalNames
     )
     {
-        foreach (var stmt in program.Statements)
-        {
-            if (stmt is not JsVariableDeclarationStatement decl)
-                continue;
-            if (decl.Kind is not (JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const))
-                continue;
-
-            foreach (var declarator in decl.Declarators)
-            {
-                lexicalNames.Add(declarator.Name);
-                if (decl.Kind == JsVariableDeclarationKind.Const)
-                    constNames.Add(declarator.Name);
-            }
-        }
+        foreach (var name in EnumerateTopLevelLexicalNames(ast))
+            lexicalNames.Add(name);
     }
 
-    private static IEnumerable<string> EnumerateTopLevelLexicalNames(JsProgram program)
+    private static List<string> EnumerateTopLevelLexicalNames(FlatAst ast)
     {
-        foreach (var stmt in program.Statements)
+        var names = new List<string>();
+        ref readonly var root = ref ast[ast.Root];
+        var statements = ast.ChildRange(root.Arg0, root.Arg1);
+        for (var i = 0; i < statements.Length; i++)
         {
-            if (stmt is not JsVariableDeclarationStatement decl)
+            ref readonly var statement = ref ast[statements[i]];
+            if (statement.Kind != AstKind.VariableDeclaration)
                 continue;
-            if (decl.Kind is not (JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const))
+            if (
+                (JsVariableDeclarationKind)statement.Arg2
+                is not (JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const)
+            )
                 continue;
 
-            foreach (var declarator in decl.Declarators)
-                yield return declarator.Name;
+            var declarators = ast.ChildRange(statement.Arg0, statement.Arg1);
+            for (var j = 0; j < declarators.Length; j++)
+            {
+                ref readonly var declarator = ref ast[declarators[j]];
+                if (declarator.Kind != AstKind.VariableDeclarator)
+                    continue;
+                names.Add(ast.GetString(declarator.Arg0));
+            }
         }
+        return names;
     }
 
     private static string GetOkojonodeVersion()

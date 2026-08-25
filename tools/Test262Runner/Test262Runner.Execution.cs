@@ -4,7 +4,6 @@ using System.Text;
 using Okojo.Hosting;
 using Okojo.JavaScript;
 using Okojo.JavaScript.Bytecode;
-using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Compiler.Experimental;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
@@ -513,13 +512,12 @@ internal static partial class Program
                 {
                     // Module tests should run harness helpers as classic script globals.
                     var harnessParseStart = Stopwatch.GetTimestamp();
-                    var harnessProgram = JavaScriptParser.ParseScript(harnessSource.Source);
+                    using var harnessAst = FlatJavaScriptParser.ParseScript(harnessSource.Source);
                     var harnessParseEnd = Stopwatch.GetTimestamp();
                     timings.AddParse(harnessParseStart, harnessParseEnd);
 
                     var harnessCompileStart = Stopwatch.GetTimestamp();
-                    Intrinsics.PrepareGlobalScriptDeclarationInstantiation(vm, harnessProgram);
-                    var harnessScript = JsCompiler.Compile(vm, harnessProgram);
+                    var harnessScript = new JsPlannedScriptCompiler(vm).Compile(harnessAst, null);
                     var harnessCompileEnd = Stopwatch.GetTimestamp();
                     timings.AddCompile(harnessCompileStart, harnessCompileEnd);
 
@@ -551,7 +549,8 @@ internal static partial class Program
                     {
                         script = new JsPlannedScriptCompiler(vm).Compile(ast, entryPath);
                     }
-                    catch (Exception ex) when (Environment.GetEnvironmentVariable("OKOJO_CPLTRACE") is not null)
+                    catch (Exception ex)
+                        when (Environment.GetEnvironmentVariable("OKOJO_CPLTRACE") is not null)
                     {
                         Console.Error.WriteLine("[CPL] COMPILE CRASH: " + ex.GetType().Name);
                         Console.Error.WriteLine(ex.StackTrace);
