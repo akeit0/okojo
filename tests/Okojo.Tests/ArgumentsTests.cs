@@ -14,7 +14,7 @@ public class ArgumentsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function f(a) {
                   arguments[0] = 2;
@@ -38,7 +38,7 @@ public class ArgumentsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function f(a = 10) {
                   arguments[0] = 2;
@@ -62,7 +62,7 @@ public class ArgumentsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 try { arguments; false; }
                 catch (e) { e instanceof ReferenceError; }
@@ -80,7 +80,7 @@ public class ArgumentsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var args;
                 var f = function (x = args = arguments) {
@@ -102,7 +102,7 @@ public class ArgumentsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var fnArgs;
                 function f(x = fnArgs = arguments) {
@@ -132,7 +132,7 @@ public class ArgumentsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function outer() {
                   const wrapped = function () {
@@ -157,7 +157,7 @@ public class ArgumentsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var arg;
                 (function(a, b, c) { arg = arguments; }(0, 1, 2));
@@ -186,7 +186,7 @@ public class ArgumentsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 (function(a, b, c) {
                   Object.defineProperty(arguments, "0", {
@@ -213,7 +213,7 @@ public class ArgumentsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 (function() {
                   arguments.length = "something different";
@@ -238,7 +238,7 @@ public class ArgumentsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 (function(a) {
                   Object.defineProperty(arguments, "0", { configurable: false });
@@ -264,7 +264,7 @@ public class ArgumentsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var direct = (function(a) {
                   Object.defineProperty(arguments, "0", { configurable: false });
@@ -302,7 +302,7 @@ public class ArgumentsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function strictFn() {
                   "use strict";
@@ -340,7 +340,7 @@ public class ArgumentsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 (function(a) {
                   Object.defineProperty(arguments, "0", { configurable: false });
@@ -388,7 +388,7 @@ public class ArgumentsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 (function(a) {
                   Object.defineProperty(arguments, "0", { configurable: false });
@@ -420,7 +420,7 @@ public class ArgumentsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var argObj = (function() { return arguments; }(1,2,3));
                 Object.freeze(argObj);
@@ -439,7 +439,7 @@ public class ArgumentsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 (function() {
                   var arr = [...arguments];
@@ -466,7 +466,7 @@ public class ArgumentsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 (function() {
                   var d = Object.getOwnPropertyDescriptor(arguments, Symbol.iterator);
@@ -490,7 +490,7 @@ public class ArgumentsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 (function() {
                   return function() {
@@ -519,7 +519,7 @@ public class ArgumentsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const answer = "Answer to Life, the Universe, and Everything";
                 function f() {
@@ -541,7 +541,7 @@ public class ArgumentsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function f() {
                   return typeof arguments;

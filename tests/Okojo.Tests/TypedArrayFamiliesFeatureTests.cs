@@ -15,7 +15,7 @@ public class TypedArrayFamiliesFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const TypedArray = Object.getPrototypeOf(Int8Array);
                 const cases = [
@@ -63,7 +63,7 @@ public class TypedArrayFamiliesFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const TypedArray = Object.getPrototypeOf(Int8Array);
                 let callTypeError = false;
@@ -97,7 +97,7 @@ public class TypedArrayFamiliesFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const TypedArray = Object.getPrototypeOf(Int8Array);
                 const desc = Object.getOwnPropertyDescriptor(TypedArray.prototype, "constructor");
@@ -120,7 +120,7 @@ public class TypedArrayFamiliesFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const TypedArray = Object.getPrototypeOf(Int8Array);
                 const from = TypedArray.from;
@@ -190,7 +190,7 @@ public class TypedArrayFamiliesFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const i8 = new Int8Array([257, -129]);
                 const u8c = new Uint8ClampedArray([300, -1, 2.5, 1.5, 0.5]);
@@ -228,7 +228,7 @@ public class TypedArrayFamiliesFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const buffer = new ArrayBuffer(8);
                 const view = new Int16Array(buffer, 2, 2);
@@ -263,7 +263,7 @@ public class TypedArrayFamiliesFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var of = Object.getPrototypeOf(Int8Array).of;
                 typeof of === "function";
@@ -281,7 +281,7 @@ public class TypedArrayFamiliesFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let throwOnGrossBufferConstruction = false;
 
@@ -319,7 +319,7 @@ public class TypedArrayFamiliesFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let badDefault = false;
                 let badExplicit = false;
@@ -346,7 +346,7 @@ public class TypedArrayFamiliesFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const cases = ["Z g==", "Z\tg==", "Z\x0Ag==", "Z\x0Cg==", "Z\x0Dg=="];
                 let ok = true;
@@ -369,7 +369,7 @@ public class TypedArrayFamiliesFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const illegal = ['a.a', 'aa^', 'a a', 'a\ta', 'a\x0Aa', 'a\x0Ca', 'a\x0Da', 'a\u00A0a', 'a\u2009a', 'a\u2028a'];
                 let ok = Uint8Array.fromHex("c7eff2").join(",") === "199,239,242";
@@ -393,7 +393,7 @@ public class TypedArrayFamiliesFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let calls = 0;
                 const value = { toString() { calls++; throw new Error("unreachable"); } };
@@ -414,7 +414,7 @@ public class TypedArrayFamiliesFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let sourceToStringCalls = 0;
                 const badSource = { toString() { sourceToStringCalls++; throw new Error("unreachable"); } };
@@ -448,7 +448,7 @@ public class TypedArrayFamiliesFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let strictError = false;
                 let invalidError = false;
@@ -537,7 +537,7 @@ public class TypedArrayFamiliesFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let values = [0, {
                   valueOf() {
@@ -565,7 +565,7 @@ public class TypedArrayFamiliesFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let rab = new ArrayBuffer(3, { maxByteLength: 4 });
                 let ta = new Int8Array(rab);
@@ -625,7 +625,7 @@ public class TypedArrayFamiliesFeatureTests
 
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const sample = new Float64Array(new ArrayBuffer(128), 8, 1);
                 detachBuffer(sample.buffer);
@@ -644,7 +644,7 @@ public class TypedArrayFamiliesFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const rab = new ArrayBuffer(32, { maxByteLength: 40 });
                 const fixed = new Float64Array(rab, 8, 2);
@@ -670,7 +670,7 @@ public class TypedArrayFamiliesFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const rab = new ArrayBuffer(10, { maxByteLength: 20 });
                 const view = new Float64Array(rab);
@@ -689,7 +689,7 @@ public class TypedArrayFamiliesFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const TypedArray = Object.getPrototypeOf(Int8Array);
                 let typeError = false;
@@ -713,7 +713,7 @@ public class TypedArrayFamiliesFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const TypedArray = Object.getPrototypeOf(Int8Array);
                 let ok = false;

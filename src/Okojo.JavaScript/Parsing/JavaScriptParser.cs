@@ -3,10 +3,10 @@ using System.Runtime.InteropServices;
 
 namespace Okojo.JavaScript.Parsing;
 
-internal sealed class FlatJavaScriptParser
+internal sealed class JavaScriptParser
 {
     private const int MaxParseDepth = 256;
-    private readonly FlatAst ast;
+    private readonly JsAst ast;
     private readonly JsLexer lexer;
     private readonly string source;
     private readonly bool isModule;
@@ -34,10 +34,10 @@ internal sealed class FlatJavaScriptParser
     private HashSet<string>? moduleImportBindings;
     private HashSet<string>? moduleExportNames;
 
-    private FlatJavaScriptParser(string source, string? sourcePath, bool isModule = false)
+    private JavaScriptParser(string source, string? sourcePath, bool isModule = false)
     {
         this.source = source ?? throw new ArgumentNullException(nameof(source));
-        ast = new FlatAst(source, sourcePath);
+        ast = new JsAst(source, sourcePath);
         this.isModule = isModule;
         ast.IsModule = isModule;
         if (isModule)
@@ -50,13 +50,13 @@ internal sealed class FlatJavaScriptParser
         previousTokenEnd = current.Position + current.SourceLength;
     }
 
-    public static FlatAst ParseScript(
+    public static JsAst ParseScript(
         string source,
         string? sourcePath = null,
         bool allowTopLevelAwait = false
     )
     {
-        var parser = new FlatJavaScriptParser(source, sourcePath)
+        var parser = new JavaScriptParser(source, sourcePath)
         {
             allowTopLevelAwait = allowTopLevelAwait,
         };
@@ -72,9 +72,9 @@ internal sealed class FlatJavaScriptParser
         }
     }
 
-    public static FlatAst ParseModule(string source, string? sourcePath = null)
+    public static JsAst ParseModule(string source, string? sourcePath = null)
     {
-        var parser = new FlatJavaScriptParser(source, sourcePath, isModule: true);
+        var parser = new JavaScriptParser(source, sourcePath, isModule: true);
         try
         {
             parser.ast.Root = parser.ParseProgram();
@@ -158,7 +158,7 @@ internal sealed class FlatJavaScriptParser
             for (var j = 0; j < entries.Length; j++)
             {
                 ref readonly var entry = ref entries[j];
-                if (entry.Kind != FlatExportKind.Local)
+                if (entry.Kind != JsExportKind.Local)
                     continue;
                 var name = Arena.GetString(entry.LocalNameStringIndex);
                 if (!bindings.ContainsKey(name))
@@ -196,9 +196,9 @@ internal sealed class FlatJavaScriptParser
                 var exports = ast.GetExportEntries(statement);
                 if (exports.Length == 0)
                     return;
-                if (exports[0].Kind == FlatExportKind.Local)
+                if (exports[0].Kind == JsExportKind.Local)
                     CollectModuleBindings(statement.Arg0, isTopLevel: true, bindings);
-                else if (exports[0].Kind == FlatExportKind.DefaultDeclaration)
+                else if (exports[0].Kind == JsExportKind.DefaultDeclaration)
                 {
                     var name = Arena.GetString(exports[0].LocalNameStringIndex);
                     if (name.Length != 0 && name[0] != '\0')
@@ -384,7 +384,7 @@ internal sealed class FlatJavaScriptParser
         else
             throw Error("Unsupported export declaration", current.Position);
 
-        var entries = new List<FlatExportEntry>();
+        var entries = new List<JsExportEntry>();
         CollectDeclarationExportEntries(declaration, entries);
         return AddExportNode(position, declaration, CollectionsMarshal.AsSpan(entries));
     }
@@ -392,7 +392,7 @@ internal sealed class FlatJavaScriptParser
     private int ParseExportStar(int position)
     {
         var exportedName = -1;
-        var kind = FlatExportKind.Star;
+        var kind = JsExportKind.Star;
         if (IsCurrentIdentifierName("as"))
         {
             Next();
@@ -400,13 +400,13 @@ internal sealed class FlatJavaScriptParser
             var name = ParseModuleExportName();
             DeclareModuleExportName(name, namePosition);
             exportedName = Arena.AddString(name);
-            kind = FlatExportKind.Namespace;
+            kind = JsExportKind.Namespace;
         }
         ExpectContextualKeyword("from");
         var sourceToken = Expect(JsTokenKind.String);
         var requestIndex = AddModuleRequest(sourceToken, ParseImportAttributes());
         ConsumeSemicolon();
-        Span<FlatExportEntry> entries = [new(requestIndex, -1, -1, exportedName, kind, position)];
+        Span<JsExportEntry> entries = [new(requestIndex, -1, -1, exportedName, kind, position)];
         return AddExportNode(position, -1, entries);
     }
 
@@ -441,7 +441,7 @@ internal sealed class FlatJavaScriptParser
         }
         ConsumeSemicolon();
 
-        var entries = new FlatExportEntry[pending.Count];
+        var entries = new JsExportEntry[pending.Count];
         for (var i = 0; i < pending.Count; i++)
         {
             var specifier = pending[i];
@@ -453,7 +453,7 @@ internal sealed class FlatJavaScriptParser
                 requestIndex < 0 ? Arena.AddString(specifier.LocalName) : -1,
                 requestIndex >= 0 ? Arena.AddString(specifier.LocalName) : -1,
                 Arena.AddString(specifier.ExportedName),
-                requestIndex < 0 ? FlatExportKind.Local : FlatExportKind.Indirect,
+                requestIndex < 0 ? JsExportKind.Local : JsExportKind.Indirect,
                 specifier.Position
             );
         }
@@ -463,21 +463,21 @@ internal sealed class FlatJavaScriptParser
     private int ParseExportDefault(int position)
     {
         int value;
-        var kind = FlatExportKind.DefaultExpression;
+        var kind = JsExportKind.DefaultExpression;
         if (current.Kind == JsTokenKind.Function)
         {
             value = ParseFunctionExpression();
-            kind = FlatExportKind.DefaultDeclaration;
+            kind = JsExportKind.DefaultDeclaration;
         }
         else if (IsAsyncFunctionPrefix())
         {
             value = ParseFunctionExpression(isAsync: true);
-            kind = FlatExportKind.DefaultDeclaration;
+            kind = JsExportKind.DefaultDeclaration;
         }
         else if (IsCurrentIdentifierName("class"))
         {
             value = ParseClass(isDeclaration: false);
-            kind = FlatExportKind.DefaultDeclaration;
+            kind = JsExportKind.DefaultDeclaration;
         }
         else
         {
@@ -486,7 +486,7 @@ internal sealed class FlatJavaScriptParser
         }
         DeclareModuleExportName("default", position);
         var localName = GetDefaultExportLocalName(value);
-        Span<FlatExportEntry> entries =
+        Span<JsExportEntry> entries =
         [
             new(-1, Arena.AddString(localName), -1, Arena.AddString("default"), kind, position),
         ];
@@ -509,7 +509,7 @@ internal sealed class FlatJavaScriptParser
         return "\0default";
     }
 
-    private void CollectDeclarationExportEntries(int declaration, List<FlatExportEntry> entries)
+    private void CollectDeclarationExportEntries(int declaration, List<JsExportEntry> entries)
     {
         ref readonly var node = ref Arena[declaration];
         if (node.Kind == AstKind.VariableDeclaration)
@@ -536,7 +536,7 @@ internal sealed class FlatJavaScriptParser
         AddLocalExportEntry(name, declaration, entries);
     }
 
-    private void CollectPatternExportEntries(int pattern, List<FlatExportEntry> entries)
+    private void CollectPatternExportEntries(int pattern, List<JsExportEntry> entries)
     {
         ref readonly var node = ref Arena[pattern];
         switch (node.Kind)
@@ -564,15 +564,15 @@ internal sealed class FlatJavaScriptParser
         }
     }
 
-    private void AddLocalExportEntry(string name, int node, List<FlatExportEntry> entries)
+    private void AddLocalExportEntry(string name, int node, List<JsExportEntry> entries)
     {
         var position = Arena.GetPosition(node);
         DeclareModuleExportName(name, position);
         var nameIndex = Arena.AddString(name);
-        entries.Add(new(-1, nameIndex, -1, nameIndex, FlatExportKind.Local, position));
+        entries.Add(new(-1, nameIndex, -1, nameIndex, JsExportKind.Local, position));
     }
 
-    private int AddExportNode(int position, int value, ReadOnlySpan<FlatExportEntry> entries)
+    private int AddExportNode(int position, int value, ReadOnlySpan<JsExportEntry> entries)
     {
         var range = ast.AddExportEntries(entries);
         return Arena.Add(AstKind.ExportDeclaration, value, range.Offset, range.Count, position);
@@ -582,14 +582,14 @@ internal sealed class FlatJavaScriptParser
     {
         var position = current.Position;
         Next();
-        List<FlatImportEntry>? pending = null;
+        List<JsImportEntry>? pending = null;
 
         if (current.Kind != JsTokenKind.String)
         {
             pending = new(4);
             if (current.Kind == JsTokenKind.Identifier)
             {
-                pending.Add(ParseImportBinding("default", FlatImportKind.Default));
+                pending.Add(ParseImportBinding("default", JsImportKind.Default));
                 if (Match(JsTokenKind.Comma))
                     ParseImportClauseTail(pending);
             }
@@ -604,7 +604,7 @@ internal sealed class FlatJavaScriptParser
         ConsumeSemicolon();
         var requestIndex = AddModuleRequest(sourceToken, attributes);
         var entries = pending is null
-            ? Span<FlatImportEntry>.Empty
+            ? Span<JsImportEntry>.Empty
             : CollectionsMarshal.AsSpan(pending);
         for (var i = 0; i < entries.Length; i++)
             entries[i] = entries[i] with { ModuleRequestIndex = requestIndex };
@@ -618,12 +618,12 @@ internal sealed class FlatJavaScriptParser
         );
     }
 
-    private void ParseImportClauseTail(List<FlatImportEntry> entries)
+    private void ParseImportClauseTail(List<JsImportEntry> entries)
     {
         if (Match(JsTokenKind.Star))
         {
             ExpectContextualKeyword("as");
-            entries.Add(ParseImportBinding("*", FlatImportKind.Namespace));
+            entries.Add(ParseImportBinding("*", JsImportKind.Namespace));
             return;
         }
         Expect(JsTokenKind.LeftBrace);
@@ -635,7 +635,7 @@ internal sealed class FlatJavaScriptParser
             if (IsCurrentIdentifierName("as"))
             {
                 Next();
-                entries.Add(ParseImportBinding(importedName, FlatImportKind.Named));
+                entries.Add(ParseImportBinding(importedName, JsImportKind.Named));
             }
             else
             {
@@ -647,7 +647,7 @@ internal sealed class FlatJavaScriptParser
                         Arena.AddString(importedName),
                         Arena.AddString(importedName),
                         importedToken.IdentifierId,
-                        FlatImportKind.Named,
+                        JsImportKind.Named,
                         importedPosition
                     )
                 );
@@ -661,7 +661,7 @@ internal sealed class FlatJavaScriptParser
         Expect(JsTokenKind.RightBrace);
     }
 
-    private FlatImportEntry ParseImportBinding(string importedName, FlatImportKind kind)
+    private JsImportEntry ParseImportBinding(string importedName, JsImportKind kind)
     {
         var token = ExpectIdentifier();
         ValidateBindingIdentifier(token);
@@ -691,13 +691,13 @@ internal sealed class FlatJavaScriptParser
         return GetIdentifierText(token);
     }
 
-    private List<FlatImportAttribute>? ParseImportAttributes()
+    private List<JsImportAttribute>? ParseImportAttributes()
     {
         if (current.Kind != JsTokenKind.With && !IsCurrentIdentifierName("with"))
             return null;
         Next();
         Expect(JsTokenKind.LeftBrace);
-        var attributes = new List<FlatImportAttribute>();
+        var attributes = new List<JsImportAttribute>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
         while (current.Kind != JsTokenKind.RightBrace)
         {
@@ -727,12 +727,12 @@ internal sealed class FlatJavaScriptParser
         return attributes;
     }
 
-    private int AddModuleRequest(in JsToken sourceToken, List<FlatImportAttribute>? attributes) =>
+    private int AddModuleRequest(in JsToken sourceToken, List<JsImportAttribute>? attributes) =>
         ast.AddModuleRequest(
             Arena.AddString(lexer.GetStringLiteral(sourceToken)),
             sourceToken.Position,
             attributes is null
-                ? ReadOnlySpan<FlatImportAttribute>.Empty
+                ? ReadOnlySpan<JsImportAttribute>.Empty
                 : CollectionsMarshal.AsSpan(attributes)
         );
 
@@ -1211,7 +1211,7 @@ internal sealed class FlatJavaScriptParser
     private int ParseObjectBindingPattern()
     {
         var position = Expect(JsTokenKind.LeftBrace).Position;
-        Span<FlatObjectProperty> initial = stackalloc FlatObjectProperty[8];
+        Span<JsObjectProperty> initial = stackalloc JsObjectProperty[8];
         var properties = new ObjectPropertyList(initial);
         try
         {
@@ -1226,11 +1226,11 @@ internal sealed class FlatJavaScriptParser
                             current.Position
                         );
                     properties.Add(
-                        new FlatObjectProperty(
+                        new JsObjectProperty(
                             -1,
                             ParseBindingTarget(),
                             propertyPosition,
-                            FlatObjectPropertyFlags.Rest
+                            JsObjectPropertyFlags.Rest
                         )
                     );
                     if (current.Kind == JsTokenKind.Comma)
@@ -1267,11 +1267,11 @@ internal sealed class FlatJavaScriptParser
                     throw Error("Expected ':' after object binding key", current.Position);
 
                 properties.Add(
-                    new FlatObjectProperty(
+                    new JsObjectProperty(
                         key,
                         ParseBindingDefault(target),
                         propertyPosition,
-                        computed ? FlatObjectPropertyFlags.Computed : FlatObjectPropertyFlags.None
+                        computed ? JsObjectPropertyFlags.Computed : JsObjectPropertyFlags.None
                     )
                 );
                 if (!Match(JsTokenKind.Comma) && current.Kind != JsTokenKind.RightBrace)
@@ -1403,7 +1403,7 @@ internal sealed class FlatJavaScriptParser
     )
     {
         Expect(JsTokenKind.LeftParen);
-        Span<FlatParameter> initialParameters = stackalloc FlatParameter[8];
+        Span<JsParameter> initialParameters = stackalloc JsParameter[8];
         var parameterList = new ParameterList(initialParameters);
         ParameterNameTracker boundParameterNames = default;
         var functionLength = 0;
@@ -1434,7 +1434,7 @@ internal sealed class FlatJavaScriptParser
                                 ref hasRestrictedParameterName
                             );
                             parameterList.Add(
-                                new FlatParameter(
+                                new JsParameter(
                                     Arena.AddString(
                                         $"$rest_pattern_{functionDepth}_{restPosition}"
                                     ),
@@ -1457,7 +1457,7 @@ internal sealed class FlatJavaScriptParser
                                 ref hasRestrictedParameterName
                             );
                             parameterList.Add(
-                                new FlatParameter(
+                                new JsParameter(
                                     Arena.AddString(parameterName),
                                     parameter.IdentifierId,
                                     -1,
@@ -1492,7 +1492,7 @@ internal sealed class FlatJavaScriptParser
                         if (!seenDefault)
                             functionLength++;
                         parameterList.Add(
-                            new FlatParameter(
+                            new JsParameter(
                                 Arena.AddString(
                                     $"$param_pattern_{functionDepth}_{parameterPosition}"
                                 ),
@@ -1525,7 +1525,7 @@ internal sealed class FlatJavaScriptParser
                         if (!seenDefault)
                             functionLength++;
                         parameterList.Add(
-                            new FlatParameter(
+                            new JsParameter(
                                 Arena.AddString(parameterName),
                                 parameter.IdentifierId,
                                 initializer,
@@ -1577,7 +1577,7 @@ internal sealed class FlatJavaScriptParser
             if (effectiveStrict && hasRestrictedParameterName)
                 throw Error("Unexpected eval or arguments in strict mode", position);
             var functionIndex = ast.AddFunction(
-                new FlatFunctionInfo(
+                new JsFunctionInfo(
                     Arena.AddString(name),
                     nameId,
                     parameterRange.Offset,
@@ -1646,7 +1646,7 @@ internal sealed class FlatJavaScriptParser
         var classPrivateNameScope = new PrivateNameScope(privateNameScopeBeforeClass);
         privateNameScope = classPrivateNameScope;
         strictMode = true;
-        Span<FlatClassElement> initial = stackalloc FlatClassElement[8];
+        Span<JsClassElement> initial = stackalloc JsClassElement[8];
         var elements = new ClassElementList(initial);
         var constructorNode = -1;
         var hasExplicitConstructor = false;
@@ -1681,12 +1681,12 @@ internal sealed class FlatJavaScriptParser
                         if (current.Kind == JsTokenKind.LeftBrace)
                         {
                             elements.Add(
-                                new FlatClassElement(
+                                new JsClassElement(
                                     Arena.AddString(string.Empty),
                                     ParseClassStaticBlock(elementPosition),
                                     elementPosition,
                                     JsClassElementKind.StaticBlock,
-                                    FlatClassElementFlags.Static
+                                    JsClassElementFlags.Static
                                 )
                             );
                             _ = Match(JsTokenKind.Semicolon);
@@ -1794,14 +1794,14 @@ internal sealed class FlatJavaScriptParser
                             elementPosition
                         );
                     elements.Add(
-                        new FlatClassElement(
+                        new JsClassElement(
                             key,
                             accessor,
                             elementPosition,
                             isGetter ? JsClassElementKind.Getter : JsClassElementKind.Setter,
-                            (isStatic ? FlatClassElementFlags.Static : 0)
-                                | (computed ? FlatClassElementFlags.Computed : 0)
-                                | (isPrivate ? FlatClassElementFlags.Private : 0)
+                            (isStatic ? JsClassElementFlags.Static : 0)
+                                | (computed ? JsClassElementFlags.Computed : 0)
+                                | (isPrivate ? JsClassElementFlags.Private : 0)
                         )
                     );
                     continue;
@@ -1853,14 +1853,14 @@ internal sealed class FlatJavaScriptParser
                             elementPosition
                         );
                     elements.Add(
-                        new FlatClassElement(
+                        new JsClassElement(
                             key,
                             initializer,
                             elementPosition,
                             JsClassElementKind.Field,
-                            (isStatic ? FlatClassElementFlags.Static : 0)
-                                | (computed ? FlatClassElementFlags.Computed : 0)
-                                | (isPrivate ? FlatClassElementFlags.Private : 0),
+                            (isStatic ? JsClassElementFlags.Static : 0)
+                                | (computed ? JsClassElementFlags.Computed : 0)
+                                | (isPrivate ? JsClassElementFlags.Private : 0),
                             !isStatic && computed ? nextInstanceFieldKeyIndex++ : -1
                         )
                     );
@@ -1903,14 +1903,14 @@ internal sealed class FlatJavaScriptParser
                     constructorNode = method;
                 hasExplicitConstructor = true;
                 elements.Add(
-                    new FlatClassElement(
+                    new JsClassElement(
                         key,
                         method,
                         elementPosition,
                         isConstructor ? JsClassElementKind.Constructor : JsClassElementKind.Method,
-                        (isStatic ? FlatClassElementFlags.Static : 0)
-                            | (computed ? FlatClassElementFlags.Computed : 0)
-                            | (isPrivate ? FlatClassElementFlags.Private : 0)
+                        (isStatic ? JsClassElementFlags.Static : 0)
+                            | (computed ? JsClassElementFlags.Computed : 0)
+                            | (isPrivate ? JsClassElementFlags.Private : 0)
                     )
                 );
             }
@@ -1952,7 +1952,7 @@ internal sealed class FlatJavaScriptParser
             }
             var elementRange = ast.AddClassElements(elements.AsSpan());
             var classIndex = ast.AddClass(
-                new FlatClassInfo(
+                new JsClassInfo(
                     Arena.AddString(name),
                     nameId,
                     elementRange.Offset,
@@ -2001,9 +2001,9 @@ internal sealed class FlatJavaScriptParser
         try
         {
             var body = ParseBlock(out _, AstKind.Program);
-            var parameters = ast.AddParameters(ReadOnlySpan<FlatParameter>.Empty);
+            var parameters = ast.AddParameters(ReadOnlySpan<JsParameter>.Empty);
             var functionIndex = ast.AddFunction(
-                new FlatFunctionInfo(
+                new JsFunctionInfo(
                     Arena.AddString(string.Empty),
                     -1,
                     parameters.Offset,
@@ -2080,7 +2080,7 @@ internal sealed class FlatJavaScriptParser
         );
         var parameters = inferNameFromFirstParameter
             ? ast.AddParameters([
-                new FlatParameter(
+                new JsParameter(
                     Arena.AddString("\0computed field key"),
                     -1,
                     -1,
@@ -2089,9 +2089,9 @@ internal sealed class FlatJavaScriptParser
                     JsFormalParameterBindingKind.Plain
                 ),
             ])
-            : ast.AddParameters(ReadOnlySpan<FlatParameter>.Empty);
+            : ast.AddParameters(ReadOnlySpan<JsParameter>.Empty);
         var functionIndex = ast.AddFunction(
-            new FlatFunctionInfo(
+            new JsFunctionInfo(
                 Arena.AddString(string.Empty),
                 -1,
                 parameters.Offset,
@@ -2116,9 +2116,9 @@ internal sealed class FlatJavaScriptParser
     {
         var empty = Arena.AddChildren(ReadOnlySpan<int>.Empty);
         var body = Arena.Add(AstKind.Program, empty.Offset, empty.Count, position: position);
-        var parameters = ast.AddParameters(ReadOnlySpan<FlatParameter>.Empty);
+        var parameters = ast.AddParameters(ReadOnlySpan<JsParameter>.Empty);
         var functionIndex = ast.AddFunction(
-            new FlatFunctionInfo(
+            new JsFunctionInfo(
                 Arena.AddString(string.Empty),
                 -1,
                 parameters.Offset,
@@ -3390,7 +3390,7 @@ internal sealed class FlatJavaScriptParser
                 throw Error("Unexpected token ')'", token.Position);
             default:
                 throw Error(
-                    $"Expression token '{token.Kind}' is not supported by FlatJavaScriptParser",
+                    $"Expression token '{token.Kind}' is not supported by JavaScriptParser",
                     token.Position
                 );
         }
@@ -3582,7 +3582,7 @@ internal sealed class FlatJavaScriptParser
 
         Span<int> initialNodes = stackalloc int[8];
         var nodes = new NodeList(initialNodes);
-        Span<FlatParameter> initialParameters = stackalloc FlatParameter[8];
+        Span<JsParameter> initialParameters = stackalloc JsParameter[8];
         var parameters = new ParameterList(initialParameters);
         ParameterNameTracker names = default;
         var hasDuplicate = false;
@@ -3656,7 +3656,7 @@ internal sealed class FlatJavaScriptParser
                         ref hasRestrictedName
                     );
                     parameters.Add(
-                        new FlatParameter(
+                        new JsParameter(
                             Arena.AddString(
                                 $"$arrow_pattern_{functionDepth}_{Arena.GetPosition(bindingNode)}"
                             ),
@@ -3675,7 +3675,7 @@ internal sealed class FlatJavaScriptParser
                     var name = Arena.GetString(binding.Arg0);
                     TrackParameterName(name, ref names, ref hasDuplicate, ref hasRestrictedName);
                     parameters.Add(
-                        new FlatParameter(
+                        new JsParameter(
                             binding.Arg0,
                             binding.Arg1,
                             initializer,
@@ -3752,7 +3752,7 @@ internal sealed class FlatJavaScriptParser
             if (effectiveStrict && hasRestrictedName)
                 throw Error("Unexpected eval or arguments in strict mode", position);
             var functionIndex = ast.AddFunction(
-                new FlatFunctionInfo(
+                new JsFunctionInfo(
                     Arena.AddString(string.Empty),
                     -1,
                     parameterRange.Offset,
@@ -4015,7 +4015,7 @@ internal sealed class FlatJavaScriptParser
     private int ParseObjectLiteral()
     {
         var position = Expect(JsTokenKind.LeftBrace).Position;
-        Span<FlatObjectProperty> initial = stackalloc FlatObjectProperty[8];
+        Span<JsObjectProperty> initial = stackalloc JsObjectProperty[8];
         var properties = new ObjectPropertyList(initial);
         try
         {
@@ -4025,11 +4025,11 @@ internal sealed class FlatJavaScriptParser
                 if (Match(JsTokenKind.Ellipsis))
                 {
                     properties.Add(
-                        new FlatObjectProperty(
+                        new JsObjectProperty(
                             -1,
                             ParseAssignment(allowIn: true),
                             propertyPosition,
-                            FlatObjectPropertyFlags.Rest
+                            JsObjectPropertyFlags.Rest
                         )
                     );
                     if (!Match(JsTokenKind.Comma) && current.Kind != JsTokenKind.RightBrace)
@@ -4127,13 +4127,13 @@ internal sealed class FlatJavaScriptParser
                         throw Error("Expected setter parameter", propertyPosition);
 
                     var accessorFlags = computed
-                        ? FlatObjectPropertyFlags.Computed
-                        : FlatObjectPropertyFlags.None;
+                        ? JsObjectPropertyFlags.Computed
+                        : JsObjectPropertyFlags.None;
                     accessorFlags |= isGetter
-                        ? FlatObjectPropertyFlags.Getter
-                        : FlatObjectPropertyFlags.Setter;
+                        ? JsObjectPropertyFlags.Getter
+                        : JsObjectPropertyFlags.Setter;
                     properties.Add(
-                        new FlatObjectProperty(key, accessor, propertyPosition, accessorFlags)
+                        new JsObjectProperty(key, accessor, propertyPosition, accessorFlags)
                     );
                     if (!Match(JsTokenKind.Comma) && current.Kind != JsTokenKind.RightBrace)
                         throw Error("Expected ',' or '}'", current.Position);
@@ -4152,13 +4152,11 @@ internal sealed class FlatJavaScriptParser
                         isAsync: isAsyncMethod
                     );
                     properties.Add(
-                        new FlatObjectProperty(
+                        new JsObjectProperty(
                             key,
                             method,
                             propertyPosition,
-                            computed
-                                ? FlatObjectPropertyFlags.Computed
-                                : FlatObjectPropertyFlags.None
+                            computed ? JsObjectPropertyFlags.Computed : JsObjectPropertyFlags.None
                         )
                     );
                     if (!Match(JsTokenKind.Comma) && current.Kind != JsTokenKind.RightBrace)
@@ -4172,9 +4170,7 @@ internal sealed class FlatJavaScriptParser
                     throw Error("Expected '(' after async method name", current.Position);
 
                 int value;
-                var flags = computed
-                    ? FlatObjectPropertyFlags.Computed
-                    : FlatObjectPropertyFlags.None;
+                var flags = computed ? JsObjectPropertyFlags.Computed : JsObjectPropertyFlags.None;
                 if (Match(JsTokenKind.Colon))
                     value = ParseAssignment(allowIn: true);
                 else if (
@@ -4194,7 +4190,7 @@ internal sealed class FlatJavaScriptParser
                     );
                     if (Match(JsTokenKind.Assign))
                     {
-                        flags |= FlatObjectPropertyFlags.CoverInitializedName;
+                        flags |= JsObjectPropertyFlags.CoverInitializedName;
                         value = Arena.Add(
                             AstKind.AssignmentExpression,
                             value,
@@ -4206,11 +4202,11 @@ internal sealed class FlatJavaScriptParser
                 }
                 else
                     throw Error(
-                        "Object methods and accessors are not supported by FlatJavaScriptParser",
+                        "Object methods and accessors are not supported by JavaScriptParser",
                         current.Position
                     );
 
-                properties.Add(new FlatObjectProperty(key, value, propertyPosition, flags));
+                properties.Add(new JsObjectProperty(key, value, propertyPosition, flags));
                 if (!Match(JsTokenKind.Comma) && current.Kind != JsTokenKind.RightBrace)
                     throw Error("Expected ',' or '}'", current.Position);
             }
@@ -4579,10 +4575,7 @@ internal sealed class FlatJavaScriptParser
 
     private JsParseException UnsupportedStatement(JsTokenKind kind)
     {
-        return Error(
-            $"Statement '{kind}' is not supported by FlatJavaScriptParser",
-            current.Position
-        );
+        return Error($"Statement '{kind}' is not supported by JavaScriptParser", current.Position);
     }
 
     private JsParseException Error(string message, int position)
@@ -4700,29 +4693,29 @@ internal sealed class FlatJavaScriptParser
 
     private ref struct ParameterList
     {
-        private Span<FlatParameter> buffer;
-        private FlatParameter[]? rented;
+        private Span<JsParameter> buffer;
+        private JsParameter[]? rented;
 
-        public ParameterList(Span<FlatParameter> initialBuffer)
+        public ParameterList(Span<JsParameter> initialBuffer)
         {
             buffer = initialBuffer;
         }
 
         public int Count { get; private set; }
 
-        public void Add(FlatParameter parameter)
+        public void Add(JsParameter parameter)
         {
             if (Count == buffer.Length)
                 Grow();
             buffer[Count++] = parameter;
         }
 
-        public ReadOnlySpan<FlatParameter> AsSpan() => buffer[..Count];
+        public ReadOnlySpan<JsParameter> AsSpan() => buffer[..Count];
 
         public void Dispose()
         {
             if (rented is not null)
-                ArrayPool<FlatParameter>.Shared.Return(rented);
+                ArrayPool<JsParameter>.Shared.Return(rented);
             rented = null;
             buffer = [];
             Count = 0;
@@ -4730,10 +4723,10 @@ internal sealed class FlatJavaScriptParser
 
         private void Grow()
         {
-            var next = ArrayPool<FlatParameter>.Shared.Rent(Math.Max(8, buffer.Length * 2));
+            var next = ArrayPool<JsParameter>.Shared.Rent(Math.Max(8, buffer.Length * 2));
             buffer.CopyTo(next);
             if (rented is not null)
-                ArrayPool<FlatParameter>.Shared.Return(rented);
+                ArrayPool<JsParameter>.Shared.Return(rented);
             rented = next;
             buffer = next;
         }
@@ -4741,29 +4734,29 @@ internal sealed class FlatJavaScriptParser
 
     private ref struct ObjectPropertyList
     {
-        private Span<FlatObjectProperty> buffer;
-        private FlatObjectProperty[]? rented;
+        private Span<JsObjectProperty> buffer;
+        private JsObjectProperty[]? rented;
 
-        public ObjectPropertyList(Span<FlatObjectProperty> initialBuffer)
+        public ObjectPropertyList(Span<JsObjectProperty> initialBuffer)
         {
             buffer = initialBuffer;
         }
 
         public int Count { get; private set; }
 
-        public void Add(FlatObjectProperty property)
+        public void Add(JsObjectProperty property)
         {
             if (Count == buffer.Length)
                 Grow();
             buffer[Count++] = property;
         }
 
-        public ReadOnlySpan<FlatObjectProperty> AsSpan() => buffer[..Count];
+        public ReadOnlySpan<JsObjectProperty> AsSpan() => buffer[..Count];
 
         public void Dispose()
         {
             if (rented is not null)
-                ArrayPool<FlatObjectProperty>.Shared.Return(rented);
+                ArrayPool<JsObjectProperty>.Shared.Return(rented);
             rented = null;
             buffer = [];
             Count = 0;
@@ -4771,10 +4764,10 @@ internal sealed class FlatJavaScriptParser
 
         private void Grow()
         {
-            var next = ArrayPool<FlatObjectProperty>.Shared.Rent(Math.Max(8, buffer.Length * 2));
+            var next = ArrayPool<JsObjectProperty>.Shared.Rent(Math.Max(8, buffer.Length * 2));
             buffer.CopyTo(next);
             if (rented is not null)
-                ArrayPool<FlatObjectProperty>.Shared.Return(rented);
+                ArrayPool<JsObjectProperty>.Shared.Return(rented);
             rented = next;
             buffer = next;
         }
@@ -4782,29 +4775,29 @@ internal sealed class FlatJavaScriptParser
 
     private ref struct ClassElementList
     {
-        private Span<FlatClassElement> buffer;
-        private FlatClassElement[]? rented;
+        private Span<JsClassElement> buffer;
+        private JsClassElement[]? rented;
 
-        public ClassElementList(Span<FlatClassElement> initialBuffer)
+        public ClassElementList(Span<JsClassElement> initialBuffer)
         {
             buffer = initialBuffer;
         }
 
         public int Count { get; private set; }
 
-        public void Add(FlatClassElement element)
+        public void Add(JsClassElement element)
         {
             if (Count == buffer.Length)
                 Grow();
             buffer[Count++] = element;
         }
 
-        public ReadOnlySpan<FlatClassElement> AsSpan() => buffer[..Count];
+        public ReadOnlySpan<JsClassElement> AsSpan() => buffer[..Count];
 
         public void Dispose()
         {
             if (rented is not null)
-                ArrayPool<FlatClassElement>.Shared.Return(rented);
+                ArrayPool<JsClassElement>.Shared.Return(rented);
             rented = null;
             buffer = [];
             Count = 0;
@@ -4812,10 +4805,10 @@ internal sealed class FlatJavaScriptParser
 
         private void Grow()
         {
-            var next = ArrayPool<FlatClassElement>.Shared.Rent(Math.Max(8, buffer.Length * 2));
+            var next = ArrayPool<JsClassElement>.Shared.Rent(Math.Max(8, buffer.Length * 2));
             buffer.CopyTo(next);
             if (rented is not null)
-                ArrayPool<FlatClassElement>.Shared.Return(rented);
+                ArrayPool<JsClassElement>.Shared.Return(rented);
             rented = next;
             buffer = next;
         }

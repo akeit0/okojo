@@ -5,7 +5,7 @@ using Okojo.JavaScript.Parsing;
 
 namespace Okojo.Compiler.Tests;
 
-public sealed class DirectFlatDefaultFlipTests
+public sealed class DirectDefaultFlipTests
 {
     [Test]
     public void UseModuleCompiler_ExecutesScriptsThroughCanonicalPath()
@@ -22,7 +22,7 @@ public sealed class DirectFlatDefaultFlipTests
     }
 
     [Test]
-    public void WithoutRegistration_ScriptsRunThroughDirectFlat()
+    public void WithoutRegistration_ScriptsRunThroughDirect()
     {
         using var runtime = JsRuntime.Create();
         var realm = runtime.DefaultRealm;

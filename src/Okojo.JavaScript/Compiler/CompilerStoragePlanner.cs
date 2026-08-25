@@ -7,7 +7,7 @@ internal static class CompilerStoragePlanner
 {
     public static CompilerBindingPlan Plan(
         CompilerBindingCollectionResult collected,
-        FlatAst? moduleAst = null,
+        JsAst? moduleAst = null,
         bool ephemeralProgramScopeLocality = false
     )
     {
@@ -136,7 +136,7 @@ internal static class CompilerStoragePlanner
         }
     }
 
-    private static Dictionary<string, int>? BuildModuleCells(FlatAst? ast)
+    private static Dictionary<string, int>? BuildModuleCells(JsAst? ast)
     {
         if (ast is null || !ast.IsModule)
             return null;

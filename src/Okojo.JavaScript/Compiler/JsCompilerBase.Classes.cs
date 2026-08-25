@@ -6,7 +6,7 @@ namespace Okojo.JavaScript.Compiler;
 
 internal abstract partial class JsCompilerBase
 {
-    private void EmitClassDeclaration(FlatAst ast, in AstNode node)
+    private void EmitClassDeclaration(JsAst ast, in AstNode node)
     {
         var info = ast.GetClass(node.Arg0);
         EmitClassExpression(ast, node.Arg0);
@@ -17,7 +17,7 @@ internal abstract partial class JsCompilerBase
     }
 
     private void EmitClassExpression(
-        FlatAst ast,
+        JsAst ast,
         int classIndex,
         string? inferredName = null,
         int inferredNameRegister = -1
@@ -208,8 +208,8 @@ internal abstract partial class JsCompilerBase
     }
 
     private void EmitPreparePrivateMethod(
-        FlatAst ast,
-        in FlatClassElement element,
+        JsAst ast,
+        in JsClassElement element,
         int constructorRegister,
         int prototypeRegister
     )
@@ -233,8 +233,8 @@ internal abstract partial class JsCompilerBase
     }
 
     private void EmitPreparePrivateAccessor(
-        FlatAst ast,
-        in FlatClassElement element,
+        JsAst ast,
+        in JsClassElement element,
         int constructorRegister,
         int prototypeRegister,
         ref Dictionary<string, PrivateAccessorRegisters>? staticAccessors
@@ -291,8 +291,8 @@ internal abstract partial class JsCompilerBase
     );
 
     private IReadOnlyDictionary<string, PlannedPrivateBinding> BuildClassPrivateBindings(
-        FlatAst ast,
-        ReadOnlySpan<FlatClassElement> elements,
+        JsAst ast,
+        ReadOnlySpan<JsClassElement> elements,
         out int instanceBrandId,
         out int staticBrandId
     )
@@ -356,8 +356,8 @@ internal abstract partial class JsCompilerBase
     }
 
     private void EmitClassElement(
-        FlatAst ast,
-        in FlatClassElement element,
+        JsAst ast,
+        in JsClassElement element,
         int constructorRegister,
         int prototypeRegister
     )
@@ -388,7 +388,7 @@ internal abstract partial class JsCompilerBase
 
             if (element.Kind != JsClassElementKind.Method)
                 throw new NotSupportedException(
-                    $"Flat class element '{element.Kind}' is not implemented yet."
+                    $"Class element '{element.Kind}' is not implemented yet."
                 );
             var methodArguments = builder.AllocateTemporaryRegisterBlock(3);
             EmitLdar(targetRegister);
@@ -405,8 +405,8 @@ internal abstract partial class JsCompilerBase
     }
 
     private void EmitStaticClassFieldInitializer(
-        FlatAst ast,
-        in FlatClassElement element,
+        JsAst ast,
+        in JsClassElement element,
         int constructorRegister,
         int keyRegister
     )
@@ -438,8 +438,8 @@ internal abstract partial class JsCompilerBase
     }
 
     private void EmitStaticPrivateFieldInitializer(
-        FlatAst ast,
-        in FlatClassElement element,
+        JsAst ast,
+        in JsClassElement element,
         int constructorRegister
     )
     {
@@ -466,11 +466,7 @@ internal abstract partial class JsCompilerBase
         }
     }
 
-    private void EmitClassStaticBlock(
-        FlatAst ast,
-        in FlatClassElement element,
-        int constructorRegister
-    )
+    private void EmitClassStaticBlock(JsAst ast, in JsClassElement element, int constructorRegister)
     {
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
@@ -487,8 +483,8 @@ internal abstract partial class JsCompilerBase
     }
 
     private void EmitCacheInstanceFieldKey(
-        FlatAst ast,
-        in FlatClassElement element,
+        JsAst ast,
+        in JsClassElement element,
         int constructorRegister
     )
     {
@@ -509,7 +505,7 @@ internal abstract partial class JsCompilerBase
         }
     }
 
-    protected void EmitInstanceFieldInitializers(FlatAst ast, int classIndex)
+    protected void EmitInstanceFieldInitializers(JsAst ast, int classIndex)
     {
         var elements = ast.GetClassElements(ast.GetClass(classIndex));
         Dictionary<string, byte>? privateAccessorMasks = null;
@@ -638,7 +634,7 @@ internal abstract partial class JsCompilerBase
         }
     }
 
-    private void EmitInstancePrivateMethod(FlatAst ast, in FlatClassElement element)
+    private void EmitInstancePrivateMethod(JsAst ast, in JsClassElement element)
     {
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
@@ -703,7 +699,7 @@ internal abstract partial class JsCompilerBase
         }
     }
 
-    private void EmitClassElementKey(FlatAst ast, in FlatClassElement element, int keyRegister)
+    private void EmitClassElementKey(JsAst ast, in JsClassElement element, int keyRegister)
     {
         if (element.IsComputed)
         {
@@ -902,8 +898,8 @@ internal abstract partial class JsCompilerBase
     }
 
     private void EmitClassElementFunction(
-        FlatAst ast,
-        in FlatClassElement element,
+        JsAst ast,
+        in JsClassElement element,
         int homeObjectRegister
     )
     {

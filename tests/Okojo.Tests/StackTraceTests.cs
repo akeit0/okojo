@@ -15,7 +15,7 @@ public class StackTraceTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function inner() {
                     let x = 1;
@@ -42,7 +42,7 @@ public class StackTraceTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function inner() {
                     let x = 1;
@@ -77,7 +77,7 @@ public class StackTraceTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function inner() {
                     let x = 1;
@@ -105,7 +105,7 @@ public class StackTraceTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function inner() {
                     throw new TypeError("boom");
@@ -130,7 +130,7 @@ public class StackTraceTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function recur(n) {
                     if (n === 0) {
@@ -173,7 +173,7 @@ public class StackTraceTests
 
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function recur(n) {
                     if (n === 0) return 0;
@@ -197,7 +197,7 @@ public class StackTraceTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var callCount = 0;
                 (function f(n) {

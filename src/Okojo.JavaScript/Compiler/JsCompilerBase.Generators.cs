@@ -38,7 +38,7 @@ internal abstract partial class JsCompilerBase
         EmitGeneratorSuspendResume(0xFD, guaranteedNextOnly: true);
     }
 
-    private void EmitYieldExpression(FlatAst ast, in AstNode node)
+    private void EmitYieldExpression(JsAst ast, in AstNode node)
     {
         if (!isGenerator)
             throw new InvalidOperationException("yield requires a generator function.");
@@ -54,7 +54,7 @@ internal abstract partial class JsCompilerBase
         EmitGeneratorSuspendResume(0xFF, guaranteedNextOnly: false);
     }
 
-    private void EmitAwaitExpression(FlatAst ast, in AstNode node)
+    private void EmitAwaitExpression(JsAst ast, in AstNode node)
     {
         if (!isAsync)
             throw new InvalidOperationException("await requires an async function.");
@@ -67,7 +67,7 @@ internal abstract partial class JsCompilerBase
         EmitGeneratorSuspendResume(0xFE, guaranteedNextOnly: false, returnAsNext: returnAsNext);
     }
 
-    private void EmitYieldDelegateExpression(FlatAst ast, int argument)
+    private void EmitYieldDelegateExpression(JsAst ast, int argument)
     {
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try

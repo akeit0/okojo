@@ -309,7 +309,7 @@ internal static class NodeCliApplication
     )
     {
         var adjustedSource = ApplyStrictMode(source, strictMode);
-        using var ast = FlatJavaScriptParser.ParseScript(
+        using var ast = JavaScriptParser.ParseScript(
             adjustedSource,
             sourcePath,
             allowTopLevelAwait: true
@@ -389,7 +389,7 @@ internal static class NodeCliApplication
     }
 
     private static void ValidateReplTopLevelLexicalRedeclaration(
-        FlatAst ast,
+        JsAst ast,
         HashSet<string> existingLexicalNames
     )
     {
@@ -400,16 +400,13 @@ internal static class NodeCliApplication
                 );
     }
 
-    private static void RegisterTopLevelLexicalDeclarations(
-        FlatAst ast,
-        HashSet<string> lexicalNames
-    )
+    private static void RegisterTopLevelLexicalDeclarations(JsAst ast, HashSet<string> lexicalNames)
     {
         foreach (var name in EnumerateTopLevelLexicalNames(ast))
             lexicalNames.Add(name);
     }
 
-    private static List<string> EnumerateTopLevelLexicalNames(FlatAst ast)
+    private static List<string> EnumerateTopLevelLexicalNames(JsAst ast)
     {
         var names = new List<string>();
         ref readonly var root = ref ast[ast.Root];

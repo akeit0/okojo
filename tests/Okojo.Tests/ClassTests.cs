@@ -76,7 +76,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function $() {}
                 var C = @($) class {};
@@ -95,7 +95,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function dec() {}
                 @dec class C {}
@@ -114,7 +114,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var C = class {
                   static * constructor() { yield 1; }
@@ -136,7 +136,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var C = class {
                   'a'; "b" = 2; m() { return this["b"]; }
@@ -158,7 +158,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var cls = class C {
                   probe() { return C; }
@@ -189,7 +189,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var probeBefore = function() { return C; };
                 var probeHeritage, setHeritage;
@@ -230,7 +230,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class C {
                   constructor(x) { this.x = x; }
@@ -251,7 +251,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class C {
                   static self = C;
@@ -271,7 +271,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var D = class {
                   m() { return 7; }
@@ -291,7 +291,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var await = 0;
                 var fromParam, fromBody;
@@ -319,7 +319,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class C {
                   static {
@@ -341,7 +341,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function Parent() {}
                 Parent.test262 = "test262";
@@ -369,7 +369,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var instance;
                 var method, methodParam;
@@ -441,7 +441,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class E {}
                 try { E(); false; }
@@ -460,7 +460,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class C { m() {} }
                 Object.prototype.propertyIsEnumerable.call(C.prototype, "m") === false;
@@ -478,7 +478,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class C {
                   #x = 1;
@@ -499,7 +499,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class C {
                   #x = 0;
@@ -540,7 +540,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(sourceBuilder.ToString())
+            JavaScriptParser.ParseScript(sourceBuilder.ToString())
         );
 
         realm.Execute(script);
@@ -553,7 +553,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class A { #x = 1; get() { return this.#x; } }
                 class B { #x = 2; }
@@ -576,7 +576,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class A { #x = 1; get() { return this.#x; } }
                 class B { #x = 2; get() { return this.#x; } }
@@ -595,7 +595,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class C {
                   #x = 0;
@@ -619,7 +619,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class Base {
                   constructor(o) {
@@ -659,7 +659,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class C {
                   #x = null;
@@ -696,7 +696,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class C {
                   x = 1;
@@ -717,7 +717,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class A {
                   constructor() { this.base = 2; }
@@ -741,7 +741,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var key = "xy";
                 class C {
@@ -763,7 +763,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function make() {
                   let x = "p";
@@ -787,7 +787,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let x = 1;
                 let C = class {
@@ -808,7 +808,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let x = 1;
                 let C = class {
@@ -831,7 +831,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var computed = "h";
                 var C = class {
@@ -857,7 +857,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let x;
                 let C = class {
@@ -880,7 +880,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let x = 0;
                 let C = class {
@@ -907,7 +907,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 'use strict';
                 let x;
@@ -935,7 +935,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let x;
                 let C = class {
@@ -960,7 +960,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var initCount = 0;
                 var iterCount = 0;
@@ -990,7 +990,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var first = 0;
                 var second = 0;
@@ -1024,7 +1024,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var C = class {
                   * #m() { return 42; }
@@ -1048,7 +1048,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var C = class {
                   a = this.#m();
@@ -1073,7 +1073,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var C = class {
                   #m() { return "test262"; }
@@ -1099,7 +1099,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var C = class {
                   static #m() { return "outer class"; }
@@ -1208,7 +1208,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var C = class {
                   static #f() { return 42; }
@@ -1233,7 +1233,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var C = class {
                   get #m() { return "Test262"; }
@@ -1261,7 +1261,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var C = class {
                   static get #f() { return "Test262"; }
@@ -1289,7 +1289,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var C = class {
                   static #m() { return "outer"; }
@@ -1313,7 +1313,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var probeCtorThis;
                 var thisDuringField;
@@ -1369,7 +1369,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var C = class {
                   st\u0061tic() { return 42; }
@@ -1391,7 +1391,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var stringSet;
 
@@ -1418,7 +1418,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class A { m() { return 3; } }
                 class B extends A { constructor() { super(); } }
@@ -1437,7 +1437,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class A { constructor() { this.v = 9; } m() { return this.v; } }
                 class B extends A {}
@@ -1456,7 +1456,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class A { constructor(v) { this.v = v; } m() { return this.v; } }
                 class B extends A {}
@@ -1475,7 +1475,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class A {
                   constructor(a, b, c) { this.sum = a + b + c; }
@@ -1497,7 +1497,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var ok = false;
                 try { class B extends 1 {} }
@@ -1517,7 +1517,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class A {
                   constructor(v) { this.v = v; }
@@ -1541,7 +1541,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class A {}
                 class B extends A { constructor() {} }
@@ -1561,7 +1561,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class A {}
                 class B extends A {
@@ -1587,7 +1587,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var baseCtorCalled = 0;
                 var fieldInitCalled = 0;
@@ -1622,7 +1622,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class A { #x = 1; get() { return this.#x; } }
                 class B { #y = 2; }
@@ -1646,7 +1646,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var ok = true;
 
@@ -1685,7 +1685,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function classfactory() {
                   return class {
@@ -1719,7 +1719,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function classfactory() {
                   return class {
@@ -1750,7 +1750,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function classfactory() {
                   return class {
@@ -1791,7 +1791,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function classfactory() {
                   return class {
@@ -1839,7 +1839,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class A {
                   #a = 0;
@@ -1872,7 +1872,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class A {
                   #a = 1;
@@ -1902,7 +1902,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class A {
                   m() { return this.v; }
@@ -1926,7 +1926,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class A {}
                 A.prototype.x = 9;
@@ -1949,7 +1949,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class A {}
                 A.prototype.x = 1;
@@ -1973,7 +1973,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class A {
                   get x() { return this._x; }
@@ -2002,7 +2002,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class A {
                   get x() { return this._x; }
@@ -2031,7 +2031,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class A {
                   get x() { return this._x; }
@@ -2059,7 +2059,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class A {
                   get x() { return this._x; }
@@ -2090,7 +2090,7 @@ public class ClassTests
         var ex = Assert.Throws<JsParseException>(() =>
             JsCompiler.Compile(
                 realm,
-                FlatJavaScriptParser.ParseScript(
+                JavaScriptParser.ParseScript(
                     """
                     class A { #x = 1; }
                     class B extends A {
@@ -2112,7 +2112,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class A {
                   get x() { return this._x; }
@@ -2135,7 +2135,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class A {
                   get x() { return this._x; }
@@ -2162,7 +2162,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class A {
                   static v = 1;
@@ -2187,7 +2187,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class A {
                   static get x() { return this._x; }
@@ -2213,7 +2213,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class C {
                   #xv = 1;
@@ -2239,7 +2239,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class A {
                   get #x() { return 1; }
@@ -2265,7 +2265,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class C {
                   static #x = 1;
@@ -2288,7 +2288,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class A {
                   static #x = 1;
@@ -2313,7 +2313,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class C {
                   #m(v) { return v + 1; }
@@ -2334,7 +2334,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class C {
                   static #m(v) { return v + 2; }
@@ -2355,7 +2355,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class A {
                   #m() { return 1; }
@@ -2381,7 +2381,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var k = "m";
                 class C {
@@ -2402,7 +2402,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var km = "run";
                 var kf = "value";
@@ -2425,7 +2425,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var k = "x";
                 class C {
@@ -2449,7 +2449,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var counter = 0;
                 var key1ToString = [];
@@ -2536,7 +2536,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var counter = 0;
                 var key1 = {
@@ -2577,7 +2577,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var x = 'outside';
                 var probeParams, probeBody;
@@ -2605,7 +2605,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var probe;
 
@@ -2633,7 +2633,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var C = 'outside';
                 var cls = class C {
@@ -2656,7 +2656,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class C {
                   method() {
@@ -2678,7 +2678,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class Base {
                   constructor(a, b) {
@@ -2728,7 +2728,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class Base { constructor() {} }
                 class Sub extends Base { constructor() { super(); } }
@@ -2753,7 +2753,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class C extends null {
                   constructor() {
@@ -2779,7 +2779,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class C extends null {
                   constructor() {
@@ -2809,7 +2809,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class A {
                   constructor() {
@@ -2857,7 +2857,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class A {
                   constructor() {
@@ -2890,7 +2890,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var viaCall;
                 var viaMember;
@@ -2921,7 +2921,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class A {
                   constructor() {
@@ -2948,7 +2948,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var stringSet;
                 var C = class {
@@ -2970,7 +2970,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class B {
                   1() { return 1; }
@@ -3001,7 +3001,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var caught;
                 class C {
@@ -3032,7 +3032,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class A {
                   get
@@ -3064,7 +3064,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var x = "prototype";
                 var ok = false;
@@ -3099,7 +3099,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var desc = Object.getOwnPropertyDescriptor(class C {}, "prototype");
                 var ok = desc.configurable === false &&
@@ -3126,7 +3126,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.done = false;
                 globalThis.out = "";
@@ -3165,7 +3165,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var observed = [];
                 var expectedTarget = null;
@@ -3209,7 +3209,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var threw = false;
                 try {
@@ -3235,7 +3235,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var ok = true;
 
@@ -3291,7 +3291,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 try {
                   class TestNonExtensibleStaticData {
@@ -3315,7 +3315,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var className;
                 var C = class C {
@@ -3339,7 +3339,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var C = class {
                   static f = () => this;
@@ -3360,7 +3360,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var C = class {
                   static #field = () => 'Test262';
@@ -3386,7 +3386,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var className;
                 var C = class {
@@ -3408,7 +3408,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var C = class {
                   static g() { return 45; }
@@ -3430,7 +3430,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var Base = class {};
                 var C = class extends Base {
@@ -3461,7 +3461,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class C {
                   func = () => {
@@ -3491,7 +3491,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var out = [];
 
@@ -3538,7 +3538,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class Base {}
                 var out = [];
@@ -3571,7 +3571,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var executed = false;
                 var C = class {
@@ -3598,7 +3598,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const Subclass = class extends Array {};
                 const sub = new Subclass();
@@ -3617,7 +3617,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const Subclass = class extends WeakMap {};
                 const sub = new Subclass();
@@ -3636,7 +3636,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const Subclass = class extends Uint32Array {};
                 const sub = new Subclass();
@@ -3655,7 +3655,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var result = false;
                 var C = class {
@@ -3688,7 +3688,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var C = class {
                   #m = 'test262';
@@ -3725,7 +3725,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var C = class {
                   #f = 'Test262';
@@ -3764,7 +3764,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var C = class {
                   a
@@ -3794,7 +3794,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var C = class {
                   #x; #y;
@@ -3817,7 +3817,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var stringKey = "m";
                 var namedSym = Symbol("test262");
@@ -3853,7 +3853,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var stringKey = "m";
                 var namedSym = Symbol("test262");
@@ -3892,7 +3892,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var ready = false;
                 class NameGet {
@@ -3944,7 +3944,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 async function* fn() {}
 
@@ -3991,7 +3991,7 @@ public class ClassTests
     [Test]
     public void Class_Private_Fields_After_SameLine_Async_Generator_Methods_Are_Visible()
     {
-        using var _ = FlatJavaScriptParser.ParseScript(
+        using var _ = JavaScriptParser.ParseScript(
             """
             var C = class {
               async *m() { return 42; } #\u{6F};
@@ -4009,7 +4009,7 @@ public class ClassTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var C = class {
                   async *m() { return 42; } #\u{6F};

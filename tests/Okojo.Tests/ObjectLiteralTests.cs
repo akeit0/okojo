@@ -57,7 +57,7 @@ public class ObjectLiteralTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var counter = 0;
                 var key = {
@@ -84,7 +84,7 @@ public class ObjectLiteralTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var key = {
                   toString: function() {
@@ -109,7 +109,7 @@ public class ObjectLiteralTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var key = {
                   toString: function() {
@@ -137,7 +137,7 @@ public class ObjectLiteralTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var key = {
                   toString: function() {
@@ -163,7 +163,7 @@ public class ObjectLiteralTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var out = 0;
                 var key = {
@@ -191,7 +191,7 @@ public class ObjectLiteralTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var counter = 0;
                 var key1 = {
@@ -365,7 +365,7 @@ public class ObjectLiteralTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var obj = {
                   *foo(a = super.toString) {
@@ -389,7 +389,7 @@ public class ObjectLiteralTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.done = false;
                 globalThis.out = "";

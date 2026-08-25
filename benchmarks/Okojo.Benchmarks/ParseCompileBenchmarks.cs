@@ -37,16 +37,16 @@ public class ParseCompileBenchmarks
     }
 
     [Benchmark]
-    public int Flat_Parse()
+    public int Parse()
     {
-        using var ast = FlatJavaScriptParser.ParseScript(source);
+        using var ast = JavaScriptParser.ParseScript(source);
         return ast.Count;
     }
 
     [Benchmark]
-    public JsScript Flat_Compile()
+    public JsScript Compile()
     {
-        using var ast = FlatJavaScriptParser.ParseScript(source);
+        using var ast = JavaScriptParser.ParseScript(source);
         return new JsScriptCompiler(realm).Compile(ast, null);
     }
 }

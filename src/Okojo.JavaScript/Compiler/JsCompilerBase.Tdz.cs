@@ -86,7 +86,7 @@ internal abstract partial class JsCompilerBase
         suppressKnownInitializedLexicalTracking = previous;
     }
 
-    protected void PrepareLexicalHoleInitializationSkips(FlatAst ast, int bodyRoot)
+    protected void PrepareLexicalHoleInitializationSkips(JsAst ast, int bodyRoot)
     {
         skippedLexicalHoleInitializations.Clear();
         var body = ast[bodyRoot];
@@ -102,7 +102,7 @@ internal abstract partial class JsCompilerBase
 
             var referencesEarlier = false;
             for (var j = 0; j < prefix.Count; j++)
-                if (FlatStatementReferencesIdentifier(ast, prefix[j], binding.Planned.Name))
+                if (StatementReferencesIdentifier(ast, prefix[j], binding.Planned.Name))
                 {
                     referencesEarlier = true;
                     break;
@@ -115,7 +115,7 @@ internal abstract partial class JsCompilerBase
     }
 
     protected void PrepareLoopLexicalHoleInitializationSkip(
-        FlatAst ast,
+        JsAst ast,
         int declarationIndex,
         int scopeId
     )
@@ -138,7 +138,7 @@ internal abstract partial class JsCompilerBase
     }
 
     private bool TryGetSafeLexicalDeclaration(
-        FlatAst ast,
+        JsAst ast,
         int statementIndex,
         out BindingStorage binding
     )
@@ -153,7 +153,7 @@ internal abstract partial class JsCompilerBase
     }
 
     private static bool TryGetSafeLexicalDeclaration(
-        FlatAst ast,
+        JsAst ast,
         int statementIndex,
         out string name,
         out int initializer
@@ -178,7 +178,7 @@ internal abstract partial class JsCompilerBase
         return initializer >= 0;
     }
 
-    private static bool CanInitializeWithoutUserCode(FlatAst ast, int nodeIndex)
+    private static bool CanInitializeWithoutUserCode(JsAst ast, int nodeIndex)
     {
         ref readonly var node = ref ast[nodeIndex];
         switch (node.Kind)
@@ -220,7 +220,7 @@ internal abstract partial class JsCompilerBase
         }
     }
 
-    private static bool FlatStatementReferencesIdentifier(FlatAst ast, int nodeIndex, string name)
+    private static bool StatementReferencesIdentifier(JsAst ast, int nodeIndex, string name)
     {
         ref readonly var node = ref ast[nodeIndex];
         switch (node.Kind)
@@ -230,7 +230,7 @@ internal abstract partial class JsCompilerBase
             case AstKind.ExpressionStatement:
             case AstKind.ReturnStatement:
             case AstKind.ThrowStatement:
-                return node.Arg0 >= 0 && FlatExpressionReferencesIdentifier(ast, node.Arg0, name);
+                return node.Arg0 >= 0 && ExpressionReferencesIdentifier(ast, node.Arg0, name);
             case AstKind.VariableDeclaration:
             {
                 var declarators = ast.ChildRange(node.Arg0, node.Arg1);
@@ -241,10 +241,7 @@ internal abstract partial class JsCompilerBase
                         declarator.Kind == AstKind.VariableDeclaratorPattern
                             ? declarator.Arg1
                             : declarator.Arg2;
-                    if (
-                        initializer >= 0
-                        && FlatExpressionReferencesIdentifier(ast, initializer, name)
-                    )
+                    if (initializer >= 0 && ExpressionReferencesIdentifier(ast, initializer, name))
                         return true;
                 }
                 return false;
@@ -254,18 +251,18 @@ internal abstract partial class JsCompilerBase
             {
                 var statements = ast.ChildRange(node.Arg0, node.Arg1);
                 for (var i = 0; i < statements.Length; i++)
-                    if (FlatStatementReferencesIdentifier(ast, statements[i], name))
+                    if (StatementReferencesIdentifier(ast, statements[i], name))
                         return true;
                 return false;
             }
             case AstKind.IfStatement:
-                return FlatExpressionReferencesIdentifier(ast, node.Arg0, name)
-                    || FlatStatementReferencesIdentifier(ast, node.Arg1, name)
-                    || node.Arg2 >= 0 && FlatStatementReferencesIdentifier(ast, node.Arg2, name);
+                return ExpressionReferencesIdentifier(ast, node.Arg0, name)
+                    || StatementReferencesIdentifier(ast, node.Arg1, name)
+                    || node.Arg2 >= 0 && StatementReferencesIdentifier(ast, node.Arg2, name);
             case AstKind.WhileStatement:
             case AstKind.DoWhileStatement:
-                return FlatExpressionReferencesIdentifier(ast, node.Arg0, name)
-                    || FlatStatementReferencesIdentifier(ast, node.Arg1, name);
+                return ExpressionReferencesIdentifier(ast, node.Arg0, name)
+                    || StatementReferencesIdentifier(ast, node.Arg1, name);
             case AstKind.ForStatement:
             case AstKind.ForInOfStatement:
             {
@@ -278,21 +275,21 @@ internal abstract partial class JsCompilerBase
                                 is AstKind.VariableDeclaration
                                     or AstKind.BlockStatement
                                     or AstKind.ExpressionStatement
-                                ? FlatStatementReferencesIdentifier(ast, parts[i], name)
-                                : FlatExpressionReferencesIdentifier(ast, parts[i], name)
+                                ? StatementReferencesIdentifier(ast, parts[i], name)
+                                : ExpressionReferencesIdentifier(ast, parts[i], name)
                         )
                     )
                         return true;
                 return false;
             }
             case AstKind.LabeledStatement:
-                return FlatStatementReferencesIdentifier(ast, node.Arg1, name);
+                return StatementReferencesIdentifier(ast, node.Arg1, name);
             case AstKind.TryStatement:
-                return FlatStatementReferencesIdentifier(ast, node.Arg0, name)
-                    || node.Arg1 >= 0 && FlatStatementReferencesIdentifier(ast, node.Arg1, name)
-                    || node.Arg2 >= 0 && FlatStatementReferencesIdentifier(ast, node.Arg2, name);
+                return StatementReferencesIdentifier(ast, node.Arg0, name)
+                    || node.Arg1 >= 0 && StatementReferencesIdentifier(ast, node.Arg1, name)
+                    || node.Arg2 >= 0 && StatementReferencesIdentifier(ast, node.Arg2, name);
             case AstKind.SwitchStatement:
-                if (FlatExpressionReferencesIdentifier(ast, node.Arg0, name))
+                if (ExpressionReferencesIdentifier(ast, node.Arg0, name))
                     return true;
                 var cases = ast.ChildRange(node.Arg1, node.Arg2);
                 for (var i = 0; i < cases.Length; i++)
@@ -300,17 +297,17 @@ internal abstract partial class JsCompilerBase
                     ref readonly var switchCase = ref ast[cases[i]];
                     if (
                         switchCase.Arg0 >= 0
-                        && FlatExpressionReferencesIdentifier(ast, switchCase.Arg0, name)
+                        && ExpressionReferencesIdentifier(ast, switchCase.Arg0, name)
                     )
                         return true;
                     var statements = ast.ChildRange(switchCase.Arg1, switchCase.Arg2);
                     for (var j = 0; j < statements.Length; j++)
-                        if (FlatStatementReferencesIdentifier(ast, statements[j], name))
+                        if (StatementReferencesIdentifier(ast, statements[j], name))
                             return true;
                 }
                 return false;
             case AstKind.ExportDeclaration:
-                return node.Arg0 >= 0 && FlatStatementReferencesIdentifier(ast, node.Arg0, name);
+                return node.Arg0 >= 0 && StatementReferencesIdentifier(ast, node.Arg0, name);
             case AstKind.ClassDeclaration:
                 return true;
             default:
@@ -318,7 +315,7 @@ internal abstract partial class JsCompilerBase
         }
     }
 
-    private static bool FlatExpressionReferencesIdentifier(FlatAst ast, int nodeIndex, string name)
+    private static bool ExpressionReferencesIdentifier(JsAst ast, int nodeIndex, string name)
     {
         ref readonly var node = ref ast[nodeIndex];
         switch (node.Kind)
@@ -331,37 +328,37 @@ internal abstract partial class JsCompilerBase
             case AstKind.AssignmentExpression:
             case AstKind.BinaryExpression:
             case AstKind.ConditionalExpression:
-                return FlatExpressionReferencesIdentifier(ast, node.Arg0, name)
-                    || node.Arg1 >= 0 && FlatExpressionReferencesIdentifier(ast, node.Arg1, name)
+                return ExpressionReferencesIdentifier(ast, node.Arg0, name)
+                    || node.Arg1 >= 0 && ExpressionReferencesIdentifier(ast, node.Arg1, name)
                     || node.Kind == AstKind.ConditionalExpression
                         && node.Arg2 >= 0
-                        && FlatExpressionReferencesIdentifier(ast, node.Arg2, name);
+                        && ExpressionReferencesIdentifier(ast, node.Arg2, name);
             case AstKind.UnaryExpression:
             case AstKind.UpdateExpression:
             case AstKind.SpreadElement:
             case AstKind.OptionalChainExpression:
             case AstKind.YieldExpression:
             case AstKind.AwaitExpression:
-                return node.Arg0 >= 0 && FlatExpressionReferencesIdentifier(ast, node.Arg0, name);
+                return node.Arg0 >= 0 && ExpressionReferencesIdentifier(ast, node.Arg0, name);
             case AstKind.ImportCallExpression:
-                return FlatExpressionReferencesIdentifier(ast, node.Arg0, name)
-                    || node.Arg1 >= 0 && FlatExpressionReferencesIdentifier(ast, node.Arg1, name);
+                return ExpressionReferencesIdentifier(ast, node.Arg0, name)
+                    || node.Arg1 >= 0 && ExpressionReferencesIdentifier(ast, node.Arg1, name);
             case AstKind.CallExpression:
             case AstKind.OptionalCallExpression:
             case AstKind.NewExpression:
             {
-                if (FlatExpressionReferencesIdentifier(ast, node.Arg0, name))
+                if (ExpressionReferencesIdentifier(ast, node.Arg0, name))
                     return true;
                 var arguments = ast.ChildRange(node.Arg1, node.Arg2);
                 for (var i = 0; i < arguments.Length; i++)
-                    if (FlatExpressionReferencesIdentifier(ast, arguments[i], name))
+                    if (ExpressionReferencesIdentifier(ast, arguments[i], name))
                         return true;
                 return false;
             }
             case AstKind.MemberExpression:
-                return FlatExpressionReferencesIdentifier(ast, node.Arg0, name)
+                return ExpressionReferencesIdentifier(ast, node.Arg0, name)
                     || (node.Arg2 & (int)AstMemberFlags.Computed) != 0
-                        && FlatExpressionReferencesIdentifier(ast, node.Arg1, name);
+                        && ExpressionReferencesIdentifier(ast, node.Arg1, name);
             case AstKind.SequenceExpression:
             case AstKind.TemplateExpression:
             {
@@ -369,20 +366,20 @@ internal abstract partial class JsCompilerBase
                 for (var i = 0; i < expressions.Length; i++)
                     if (
                         expressions[i] >= 0
-                        && FlatExpressionReferencesIdentifier(ast, expressions[i], name)
+                        && ExpressionReferencesIdentifier(ast, expressions[i], name)
                     )
                         return true;
                 return false;
             }
             case AstKind.TaggedTemplateExpression:
             {
-                if (FlatExpressionReferencesIdentifier(ast, node.Arg0, name))
+                if (ExpressionReferencesIdentifier(ast, node.Arg0, name))
                     return true;
                 var expressions = ast.ChildRange(node.Arg1, node.Arg2);
                 for (var i = 0; i < expressions.Length; i++)
                     if (
                         expressions[i] >= 0
-                        && FlatExpressionReferencesIdentifier(ast, expressions[i], name)
+                        && ExpressionReferencesIdentifier(ast, expressions[i], name)
                     )
                         return true;
                 return false;
@@ -391,10 +388,7 @@ internal abstract partial class JsCompilerBase
             {
                 var elements = ast.ChildRange(node.Arg0, node.Arg1);
                 for (var i = 0; i < elements.Length; i++)
-                    if (
-                        elements[i] >= 0
-                        && FlatExpressionReferencesIdentifier(ast, elements[i], name)
-                    )
+                    if (elements[i] >= 0 && ExpressionReferencesIdentifier(ast, elements[i], name))
                         return true;
                 return false;
             }
@@ -406,8 +400,8 @@ internal abstract partial class JsCompilerBase
                     ref readonly var property = ref properties[i];
                     if (
                         property.IsComputed
-                            && FlatExpressionReferencesIdentifier(ast, property.Key, name)
-                        || FlatExpressionReferencesIdentifier(ast, property.ValueNode, name)
+                            && ExpressionReferencesIdentifier(ast, property.Key, name)
+                        || ExpressionReferencesIdentifier(ast, property.ValueNode, name)
                     )
                         return true;
                 }

@@ -13,7 +13,7 @@ namespace Okojo.Benchmarks;
 [Orderer(SummaryOrderPolicy.Declared)]
 public class OkojoCompileBenchmarks
 {
-    private FlatAst program = null!;
+    private JsAst program = null!;
     private JsRuntime sharedRuntime = null!;
     private JsRealm sharedRealm = null!;
     private string source = string.Empty;
@@ -25,7 +25,7 @@ public class OkojoCompileBenchmarks
     public void Setup()
     {
         source = ScriptSourceLoader.LoadScenario(Scenario);
-        program = FlatJavaScriptParser.ParseScript(source);
+        program = JavaScriptParser.ParseScript(source);
         sharedRuntime = JsRuntime.CreateBuilder().Build();
         sharedRealm = sharedRuntime.DefaultRealm;
     }
@@ -40,7 +40,7 @@ public class OkojoCompileBenchmarks
     [Benchmark(Baseline = true)]
     public int Okojo_Parse_Only()
     {
-        using var ast = FlatJavaScriptParser.ParseScript(source);
+        using var ast = JavaScriptParser.ParseScript(source);
         return ast.ChildRange(ast[ast.Root].Arg0, ast[ast.Root].Arg1).Length;
     }
 
@@ -54,7 +54,7 @@ public class OkojoCompileBenchmarks
     [Benchmark]
     public int Okojo_Parse_And_Compile()
     {
-        using var ast = FlatJavaScriptParser.ParseScript(source);
+        using var ast = JavaScriptParser.ParseScript(source);
         var script = new JsScriptCompiler(sharedRealm).Compile(ast, null);
         return script.Bytecode.Length;
     }

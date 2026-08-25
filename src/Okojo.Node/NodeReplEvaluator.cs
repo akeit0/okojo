@@ -39,7 +39,7 @@ public sealed class NodeReplEvaluator
         ArgumentNullException.ThrowIfNull(sourcePath);
 
         var adjustedSource = ApplyStrictMode(source, strictMode);
-        using var ast = FlatJavaScriptParser.ParseScript(
+        using var ast = JavaScriptParser.ParseScript(
             adjustedSource,
             sourcePath,
             allowTopLevelAwait: true
@@ -104,7 +104,7 @@ public sealed class NodeReplEvaluator
         return promise.SettledResult;
     }
 
-    private void ValidateTopLevelLexicalRedeclaration(FlatAst ast)
+    private void ValidateTopLevelLexicalRedeclaration(JsAst ast)
     {
         foreach (var name in CollectTopLevelLexicalNames(ast))
             if (topLevelLexicalNames.Contains(name))
@@ -113,7 +113,7 @@ public sealed class NodeReplEvaluator
                 );
     }
 
-    private void RegisterTopLevelLexicalDeclarations(FlatAst ast)
+    private void RegisterTopLevelLexicalDeclarations(JsAst ast)
     {
         foreach (var name in CollectTopLevelLexicalNames(ast))
         {
@@ -122,7 +122,7 @@ public sealed class NodeReplEvaluator
         }
     }
 
-    private static List<string> CollectTopLevelLexicalNames(FlatAst ast)
+    private static List<string> CollectTopLevelLexicalNames(JsAst ast)
     {
         var names = new List<string>();
         ref readonly var root = ref ast[ast.Root];

@@ -14,7 +14,7 @@ public class SwitchScopeAndFinallyTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 switch (0) {
                   case 0:
@@ -36,7 +36,7 @@ public class SwitchScopeAndFinallyTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function f(v) {
                   switch (v) {
@@ -66,7 +66,7 @@ public class SwitchScopeAndFinallyTests
         var ex = Assert.Throws<JsParseException>(() =>
             JsCompiler.Compile(
                 realm,
-                FlatJavaScriptParser.ParseScript(
+                JavaScriptParser.ParseScript(
                     """
                     switch (0) {
                       case 0: let x = 1; break;
@@ -86,7 +86,7 @@ public class SwitchScopeAndFinallyTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let x = 'outside';
                 let probeExpr;
@@ -109,7 +109,7 @@ public class SwitchScopeAndFinallyTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let x = 'outside';
                 let probeSelector;
@@ -132,7 +132,7 @@ public class SwitchScopeAndFinallyTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let log = 0;
                 switch (1) {
@@ -160,7 +160,7 @@ public class SwitchScopeAndFinallyTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let g = 0;
                 function f() {
@@ -189,7 +189,7 @@ public class SwitchScopeAndFinallyTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let g = 0;
                 let caught = 0;
@@ -223,7 +223,7 @@ public class SwitchScopeAndFinallyTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let x = 'outside';
                 let probeExpr;
@@ -246,7 +246,7 @@ public class SwitchScopeAndFinallyTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let x = 'outside';
                 let probeExpr;
@@ -269,7 +269,7 @@ public class SwitchScopeAndFinallyTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let x = 'outside';
                 let probeDecl, probeBody;
@@ -291,7 +291,7 @@ public class SwitchScopeAndFinallyTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let x = 'outside';
                 let probeDecl, probeBody;
@@ -313,7 +313,7 @@ public class SwitchScopeAndFinallyTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var probeBefore = function() { return x; };
                 let x = 'outside';
@@ -343,7 +343,7 @@ public class SwitchScopeAndFinallyTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let x = 'outside';
                 var probeDecl, probeExpr, probeBody;

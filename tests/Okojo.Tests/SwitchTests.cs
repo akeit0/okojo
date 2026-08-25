@@ -14,7 +14,7 @@ public class SwitchTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let x = 0;
                 switch (2) {
@@ -37,7 +37,7 @@ public class SwitchTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let x = 0;
                 switch (1) {
@@ -60,7 +60,7 @@ public class SwitchTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let x = 0;
                 done: switch (1) {
@@ -86,7 +86,7 @@ public class SwitchTests
         var ex = Assert.Throws<JsParseException>(() =>
             JsCompiler.Compile(
                 realm,
-                FlatJavaScriptParser.ParseScript(
+                JavaScriptParser.ParseScript(
                     """
                     L: switch (1) {
                       case 1:
@@ -107,7 +107,7 @@ public class SwitchTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function t() {
                   "use strict";
@@ -136,7 +136,7 @@ public class SwitchTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 eval('8; do { switch ("a") { case "a": 9; case "b": 10; continue; default: } } while (false)') === 10;
                 """
@@ -153,7 +153,7 @@ public class SwitchTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 eval("1; switch ('a') { case 'a': 2; case 'b': 3; }") === 3;
                 """
@@ -170,7 +170,7 @@ public class SwitchTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 eval("2; switch ('a') { default: case 'b': { 3; break; } }") === 3;
                 """

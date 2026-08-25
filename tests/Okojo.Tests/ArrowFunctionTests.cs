@@ -14,7 +14,7 @@ public class ArrowFunctionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let f = (x) => x + x;
                 f(3);
@@ -32,7 +32,7 @@ public class ArrowFunctionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function make() {
                     let o = { x: 7 };
@@ -57,7 +57,7 @@ public class ArrowFunctionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function F() {
                   this.af = _ => this;
@@ -82,7 +82,7 @@ public class ArrowFunctionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let f = () => 1;
                 new f();
@@ -100,7 +100,7 @@ public class ArrowFunctionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var functionInvocationCount = 0;
                 var newInvocationCount = 0;
@@ -127,7 +127,7 @@ public class ArrowFunctionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function F() {
                   this.af = _ => {
@@ -153,7 +153,7 @@ public class ArrowFunctionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var count = 0;
                 class A {
@@ -186,7 +186,7 @@ public class ArrowFunctionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var count = 0;
                 class A {
@@ -222,7 +222,7 @@ public class ArrowFunctionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var count = 0;
 

@@ -12,15 +12,15 @@ internal sealed class JsModuleCompiler(JsRealm realm) : JsCompilerBase(realm)
 
     public JsScript Compile(string source, string? sourcePath = null)
     {
-        using var ast = FlatJavaScriptParser.ParseModule(source, sourcePath);
+        using var ast = JavaScriptParser.ParseModule(source, sourcePath);
         return Compile(ast);
     }
 
-    public JsScript Compile(FlatAst ast)
+    public JsScript Compile(JsAst ast)
     {
         ArgumentNullException.ThrowIfNull(ast);
         if (!ast.IsModule)
-            throw new ArgumentException("A module FlatAst is required.", nameof(ast));
+            throw new ArgumentException("A module JsAst is required.", nameof(ast));
         builder.SetSourceText(ast.SourceText);
         strictDeclared = true;
         isAsync = ast.HasTopLevelAwait;
@@ -65,7 +65,7 @@ internal sealed class JsModuleCompiler(JsRealm realm) : JsCompilerBase(realm)
         return ast.HasTopLevelAwait ? WrapAsyncModule(bodyScript, ast) : bodyScript;
     }
 
-    internal ModuleExecutionCompilation CompileForExecution(FlatAst ast)
+    internal ModuleExecutionCompilation CompileForExecution(JsAst ast)
     {
         deferHoistedFunctions = true;
         var script = Compile(ast);
@@ -85,7 +85,7 @@ internal sealed class JsModuleCompiler(JsRealm realm) : JsCompilerBase(realm)
         return new(script, initialContextSlots, hoistedFunctions.ToArray());
     }
 
-    internal JsScript WrapAsyncModule(JsScript bodyScript, FlatAst ast)
+    internal JsScript WrapAsyncModule(JsScript bodyScript, JsAst ast)
     {
         var function = new JsBytecodeFunction(
             Vm,
@@ -134,11 +134,11 @@ internal sealed class JsModuleCompiler(JsRealm realm) : JsCompilerBase(realm)
         return true;
     }
 
-    private void EmitNamespaceImports(FlatAst ast)
+    private void EmitNamespaceImports(JsAst ast)
     {
         foreach (ref readonly var import in ast.ImportEntries)
         {
-            if (import.Kind != FlatImportKind.Namespace)
+            if (import.Kind != JsImportKind.Namespace)
                 continue;
 
             var marker = builder.GetTemporaryRegisterScopeMarker();
@@ -169,7 +169,7 @@ internal sealed class JsModuleCompiler(JsRealm realm) : JsCompilerBase(realm)
         }
     }
 
-    private static string? GetImportType(FlatAst ast, in FlatModuleRequest request)
+    private static string? GetImportType(JsAst ast, in JsModuleRequest request)
     {
         var attributes = ast.GetImportAttributes(request);
         for (var i = 0; i < attributes.Length; i++)

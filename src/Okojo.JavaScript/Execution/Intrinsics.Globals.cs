@@ -34,7 +34,7 @@ public partial class Intrinsics
                 JsScript script;
                 try
                 {
-                    using var ast = FlatJavaScriptParser.ParseScript(source);
+                    using var ast = JavaScriptParser.ParseScript(source);
                     script = new JsScriptCompiler(realm).CompileIndirectEval(ast, null);
                 }
                 catch (JsParseException ex)

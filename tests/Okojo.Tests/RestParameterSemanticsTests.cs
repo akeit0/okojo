@@ -14,7 +14,7 @@ public class RestParameterSemanticsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function f(a, ...rest) {
                   arguments[0] = 1;
@@ -42,7 +42,7 @@ public class RestParameterSemanticsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function cmp(a, b) {
                   if (a.length !== b.length) return "len:" + String(a.length) + "," + String(b.length);
@@ -88,7 +88,7 @@ public class RestParameterSemanticsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class Base {
                   constructor(...a) {

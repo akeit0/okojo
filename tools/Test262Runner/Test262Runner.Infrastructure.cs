@@ -624,14 +624,14 @@ internal static partial class Program
         if (UsesDecorators(path))
         {
             reason =
-                "DeferredImplementation: class decorators are supported by the production parser but not yet by FlatJavaScriptParser";
+                "DeferredImplementation: class decorators are supported by the production parser but not yet by JavaScriptParser";
             return true;
         }
 
         if (UsesAutoAccessors(path))
         {
             reason =
-                "DeferredImplementation: auto-accessor fields are supported by the production parser but not yet by FlatJavaScriptParser";
+                "DeferredImplementation: auto-accessor fields are supported by the production parser but not yet by JavaScriptParser";
             return true;
         }
 

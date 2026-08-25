@@ -14,7 +14,7 @@ public class ConstLetShadowingTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const x = "outer_x";
                 const y = "outer_y";

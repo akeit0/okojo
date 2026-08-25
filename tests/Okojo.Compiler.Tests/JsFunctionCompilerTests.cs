@@ -127,7 +127,7 @@ public class JsFunctionCompilerTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var compiler = new JsScriptCompiler(realm);
-        var program = FlatJavaScriptParser.ParseScript(
+        var program = JavaScriptParser.ParseScript(
             """
             function Box(a, b) {
                 return { value: a * 10 + b };
@@ -152,7 +152,7 @@ public class JsFunctionCompilerTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var compiler = new JsScriptCompiler(realm);
-        var program = FlatJavaScriptParser.ParseScript(
+        var program = JavaScriptParser.ParseScript(
             """
             let [first, , third = 3, ...rest] = [1, 2, undefined, 4, 5];
             first * 100 + third * 10 + rest.length;
@@ -170,7 +170,7 @@ public class JsFunctionCompilerTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var compiler = new JsScriptCompiler(realm);
-        var program = FlatJavaScriptParser.ParseScript(
+        var program = JavaScriptParser.ParseScript(
             """
             let {} = {};
             let key = 'b';
@@ -192,7 +192,7 @@ public class JsFunctionCompilerTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var compiler = new JsScriptCompiler(realm);
-        var program = FlatJavaScriptParser.ParseScript(
+        var program = JavaScriptParser.ParseScript(
             """
             let first, tail, rest;
             let target = {};
@@ -217,7 +217,7 @@ public class JsFunctionCompilerTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var compiler = new JsScriptCompiler(realm);
-        var program = FlatJavaScriptParser.ParseScript(
+        var program = JavaScriptParser.ParseScript(
             """
             function read({ a = 1, ...rest } = {}, [first, ...tail], value = a, ...extra) {
                 return a + rest.b + first + tail.length + value + extra.length;
@@ -237,7 +237,7 @@ public class JsFunctionCompilerTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var compiler = new JsScriptCompiler(realm);
-        var program = FlatJavaScriptParser.ParseScript(
+        var program = JavaScriptParser.ParseScript(
             "let offset = 40; let read = function self(value = 2) { return value ? offset + value : self(2); }; read(0);"
         );
         var script = compiler.Compile(program);
@@ -252,7 +252,7 @@ public class JsFunctionCompilerTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var compiler = new JsScriptCompiler(realm);
-        var program = FlatJavaScriptParser.ParseScript(
+        var program = JavaScriptParser.ParseScript(
             "let object = { value: 42, read: function () { return this.value; } }; object.read();"
         );
         var script = compiler.Compile(program);
@@ -425,7 +425,7 @@ public class JsFunctionCompilerTests
 
     private static JsBytecodeFunction CompileDeclaredFunction(JsRealm realm, string source)
     {
-        using var ast = FlatJavaScriptParser.ParseScript(source);
+        using var ast = JavaScriptParser.ParseScript(source);
         var statements = ast.ChildRange(ast[ast.Root].Arg0, ast[ast.Root].Arg1);
         if (statements.Length != 1 || ast[statements[0]].Kind != AstKind.FunctionDeclaration)
             throw new InvalidOperationException("Expected one function declaration.");

@@ -6,7 +6,7 @@ namespace Okojo.JavaScript.Compiler;
 
 public static class JsCompiler
 {
-    internal static JsScript Compile(JsRealm realm, FlatAst ast)
+    internal static JsScript Compile(JsRealm realm, JsAst ast)
     {
         ArgumentNullException.ThrowIfNull(realm);
         ArgumentNullException.ThrowIfNull(ast);

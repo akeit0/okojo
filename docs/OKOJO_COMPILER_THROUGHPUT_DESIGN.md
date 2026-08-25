@@ -1,4 +1,4 @@
-# Compiler Throughput Design - Direct Flat Replacement Plan
+# Compiler Throughput Design - Direct Compiler Replacement Plan
 
 ## Objective
 
@@ -8,8 +8,8 @@ backend:
 ```text
 source
   -> JsLexer
-  -> FlatJavaScriptParser
-  -> FlatAst
+  -> JavaScriptParser
+  -> JsAst
   -> binding discovery and reference collection
   -> scope/capture resolution
   -> register/context allocation
@@ -60,7 +60,7 @@ measures:
 
 | path | allocated bytes |
 |---|---:|
-| direct lexer -> `FlatAst` | ~10.5 KB |
+| direct lexer -> `JsAst` | ~10.5 KB |
 | class AST parse -> flat lowering | ~81.1 KB |
 
 This is approximately an 87% parse/lowering allocation reduction for the covered
@@ -72,8 +72,8 @@ remaining work is coverage and measured end-to-end optimization.
 BenchmarkDotNet (`benchmarks/Okojo.Benchmarks/ParseCompileBenchmarks.cs`,
 ShortRun, 6 warmup + 10 iterations, MemoryDiagnoser), five fixed corpora,
 one shared realm per iteration set. `Production_*` records the pre-cutover
-class-based pre-cutover path; `Flat_*` records `FlatJavaScriptParser` +
-`JsScriptCompiler.Compile(FlatAst)`.
+class-based pre-cutover path; `*` records `JavaScriptParser` +
+`JsScriptCompiler.Compile(JsAst)`.
 
 | scenario | prod parse | flat parse | ratio | prod compile | flat compile | ratio |
 |---|---:|---:|---:|---:|---:|---:|
@@ -119,7 +119,7 @@ Takeaways:
 Reproduce:
 `dotnet run --project benchmarks/Okojo.Benchmarks -c Release --no-build -- --filter "*ParseCompile*"`
 
-## Current Flat Architecture
+## Current Compiler Architecture
 
 The implemented path has these properties:
 
@@ -128,11 +128,11 @@ The implemented path has these properties:
 - post-order construction, so most children precede their parent
 - dense side tables for child lists, object properties, nested functions, formal
   parameters, classes, and class elements
-- one disposable `FlatAst` owning the script and every nested function body
+- one disposable `JsAst` owning the script and every nested function body
 - separate binding collection, capture resolution, storage planning, and emit
   passes
 - one register/accumulator emitter shared by scripts and functions
-- flat AST lowering is the only production lowering path
+- AST lowering is the only production lowering path
 - unsupported direct grammar fails explicitly instead of silently parsing twice
 
 Implemented execution coverage includes ordinary declarations and functions,
@@ -244,7 +244,7 @@ when a syntax tree must survive edits and serve many tools.
 Okojo does not need that cost on the execution path. The reusable lesson is to
 keep the hot compiler representation internal and expose richer diagnostic views
 only on demand. If Okojo later needs an IDE-grade public syntax API, it should be a
-separate product surface rather than changing `FlatAst` into a full-fidelity tree.
+separate product surface rather than changing `JsAst` into a full-fidelity tree.
 
 ### JavaScriptCore: share grammar, vary the builder
 
@@ -562,7 +562,7 @@ checks, and observable function names match the production engine and V8.
   assembly dependency. Runtime slot allocation uses the same deterministic signed
   cell order as the flat descriptor, including linked named, namespace, aliased,
   and anonymous-default exports. There is no fallback to `JsCompiler` in this mode.
-- the opt-in module graph now parses once to a pooled `FlatAst`; the linker copies its
+- the opt-in module graph now parses once to a pooled `JsAst`; the linker copies its
   compact request/import/export descriptors into the persistent `ModuleLinkPlan`, the
   compiler consumes that same AST, and the module record releases it after compilation.
   Legacy class-based module parsing is absent from this path.
@@ -651,7 +651,7 @@ After eager production replacement:
    scope summaries
 2. reduce scanning cost on measured ASCII/minified hot paths
 3. specialize side-table packing only where size profiles justify it
-4. consider direct parser-to-discovery event fusion, while retaining `FlatAst` for
+4. consider direct parser-to-discovery event fusion, while retaining `JsAst` for
    bytecode emission and diagnostics
 5. consider a separate optional syntax facade for tooling; do not burden runtime
    compilation with Roslyn-style full fidelity by default

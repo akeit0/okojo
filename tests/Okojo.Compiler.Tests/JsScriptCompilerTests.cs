@@ -20,7 +20,7 @@ public class JsScriptCompilerTests
         var compiler = new JsScriptCompiler(realm);
 
         var script = compiler.Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let x = 41;
                 x + 1;
@@ -41,7 +41,7 @@ public class JsScriptCompilerTests
         var compiler = new JsScriptCompiler(realm);
 
         var script = compiler.Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var a = 1;
                 const b = 2;
@@ -160,7 +160,7 @@ public class JsScriptCompilerTests
         Assert.That(module.GetExport("answer").Int32Value, Is.EqualTo(42));
         Assert.That(module.GetExport("default").Int32Value, Is.EqualTo(42));
         Assert.That(runtime.MainAgent.ModuleGraph.TryGet("entry", out var entry), Is.True);
-        Assert.That(entry.FlatProgram, Is.Null, "pooled FlatAst should be released after compile");
+        Assert.That(entry.Program, Is.Null, "pooled JsAst should be released after compile");
     }
 
     [Test]
@@ -458,7 +458,7 @@ public class JsScriptCompilerTests
 
         var ex = Assert.Throws<JsParseException>(() =>
             compiler.Compile(
-                FlatJavaScriptParser.ParseScript(
+                JavaScriptParser.ParseScript(
                     """
                     with ({}) {}
                     """
@@ -467,7 +467,7 @@ public class JsScriptCompilerTests
         );
 
         Assert.That(ex, Is.Not.Null);
-        Assert.That(ex!.Message, Does.Contain("not supported by FlatJavaScriptParser"));
+        Assert.That(ex!.Message, Does.Contain("not supported by JavaScriptParser"));
     }
 
     [Test]
@@ -514,7 +514,7 @@ public class JsScriptCompilerTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 "let result = 0; switch (2) { case 1: result = 1; break; case 2: result = 42; } result;"
             )
         );
@@ -530,7 +530,7 @@ public class JsScriptCompilerTests
         var realm = JsRuntime.Create().DefaultRealm;
         var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
-            FlatJavaScriptParser.ParseScript("try { throw 42; } catch (error) { error; }")
+            JavaScriptParser.ParseScript("try { throw 42; } catch (error) { error; }")
         );
 
         realm.Execute(script);
@@ -543,7 +543,7 @@ public class JsScriptCompilerTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 "let object = { base: 40, method() { return this.base + 2; }, get value() { return this.method(); } }; object.value;"
             )
         );
@@ -558,7 +558,7 @@ public class JsScriptCompilerTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 "let expression = /ok/i; let amount = 40n + 2n; expression.test('OK') && amount === 42n;"
             )
         );
@@ -573,7 +573,7 @@ public class JsScriptCompilerTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 "let value = 40; let prefix = `answer`; let text = `${prefix}:${` ${value + 2}`}`; text;"
             )
         );
@@ -588,7 +588,7 @@ public class JsScriptCompilerTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 "function outer(value) { return (() => this.base + value + arguments[0])(); } outer.call({ base: 2 }, 3);"
             )
         );
@@ -606,7 +606,7 @@ public class JsScriptCompilerTests
         var compiler = new JsScriptCompiler(realm);
 
         var script = compiler.Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let x = 1;
                 {
@@ -630,7 +630,7 @@ public class JsScriptCompilerTests
         var compiler = new JsScriptCompiler(realm);
 
         var script = compiler.Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let x = 1;
                 x = x + 41;
@@ -651,7 +651,7 @@ public class JsScriptCompilerTests
         var compiler = new JsScriptCompiler(realm);
 
         var script = compiler.Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let x = 1;
                 if (x < 2) {
@@ -676,7 +676,7 @@ public class JsScriptCompilerTests
         var compiler = new JsScriptCompiler(realm);
 
         var script = compiler.Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let x = 40;
                 let delta = 2;
@@ -700,7 +700,7 @@ public class JsScriptCompilerTests
         var compiler = new JsScriptCompiler(realm);
 
         var script = compiler.Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function answer() {
                     return 42;
@@ -722,7 +722,7 @@ public class JsScriptCompilerTests
         var compiler = new JsScriptCompiler(realm);
 
         var script = compiler.Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let x = 41;
                 function answer() {

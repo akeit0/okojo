@@ -25,7 +25,7 @@ Current next-phase priorities:
 1. refine the stable embedding and host API shape so browser profiles can own their complete event loop
 2. improve runtime performance and allocation behavior on hot paths
 3. add selectively chosen staging features that are worth carrying, such as `Temporal`
-4. extend and optimize the adopted flat compiler path
+4. extend and optimize the adopted compiler path
 5. improve `Okojo.Node` compatibility against real Node-facing workloads
 6. attempt real HTML/CSS renderer integration to test DOM-manipulation browser compatibility
 
@@ -161,7 +161,7 @@ Should cover:
 
 Candidate areas already present:
 
-- `FlatJavaScriptParser`
+- `JavaScriptParser`
 - `OkojoScript`
 - `JsDisassembler`
 - `OkojoBytecodeBuilder`
@@ -406,4 +406,4 @@ Also keep these boundaries explicit:
 5. tighten module/job/worker host seams for browser-like embedding
 6. continue Proxy/Object/descriptor correctness work
 7. keep shape/dictionary and property hot paths simple while preserving semantics
-8. extend and optimize the adopted flat compiler path without splitting compiler and VM assemblies
+8. extend and optimize the adopted compiler path without splitting compiler and VM assemblies

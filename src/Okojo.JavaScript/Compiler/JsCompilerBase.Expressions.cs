@@ -10,20 +10,20 @@ namespace Okojo.JavaScript.Compiler;
 
 internal abstract partial class JsCompilerBase
 {
-    private void EmitExpression(FlatAst ast, int nodeIndex) =>
+    private void EmitExpression(JsAst ast, int nodeIndex) =>
         EmitExpression(ast, nodeIndex, ExpressionResult.Value);
 
-    private void EmitExpressionForEffect(FlatAst ast, int nodeIndex) =>
+    private void EmitExpressionForEffect(JsAst ast, int nodeIndex) =>
         EmitExpression(ast, nodeIndex, ExpressionResult.Effect);
 
     private void EmitExpressionForTest(
-        FlatAst ast,
+        JsAst ast,
         int nodeIndex,
         BytecodeBuilder.Label target,
         bool jumpIfTrue
     ) => EmitExpression(ast, nodeIndex, ExpressionResult.Test(target, jumpIfTrue));
 
-    private void EmitExpression(FlatAst ast, int nodeIndex, ExpressionResult result)
+    private void EmitExpression(JsAst ast, int nodeIndex, ExpressionResult result)
     {
         ref readonly var node = ref ast[nodeIndex];
         EmitSourcePosition(ast.GetPosition(nodeIndex));
@@ -184,13 +184,13 @@ internal abstract partial class JsCompilerBase
                 return;
             default:
                 throw new NotSupportedException(
-                    $"{CompilerName} does not support flat expression '{node.Kind}'."
+                    $"{CompilerName} does not support expression '{node.Kind}'."
                 );
         }
     }
 
     private void EmitTestExpression(
-        FlatAst ast,
+        JsAst ast,
         int nodeIndex,
         AstNode node,
         BytecodeBuilder.Label target,
@@ -260,7 +260,7 @@ internal abstract partial class JsCompilerBase
     }
 
     private void EmitLogicalTestExpression(
-        FlatAst ast,
+        JsAst ast,
         AstNode node,
         JsBinaryOperator op,
         BytecodeBuilder.Label target,
@@ -296,7 +296,7 @@ internal abstract partial class JsCompilerBase
         builder.BindLabel(trueFallthrough);
     }
 
-    private void EmitExpressionWithInferredName(FlatAst ast, int nodeIndex, string inferredName)
+    private void EmitExpressionWithInferredName(JsAst ast, int nodeIndex, string inferredName)
     {
         ref readonly var node = ref ast[nodeIndex];
         if (node.Kind is AstKind.FunctionExpression or AstKind.ArrowFunctionExpression)
@@ -313,7 +313,7 @@ internal abstract partial class JsCompilerBase
         EmitExpression(ast, nodeIndex);
     }
 
-    private void EmitExpressionWithComputedName(FlatAst ast, int nodeIndex, int nameRegister)
+    private void EmitExpressionWithComputedName(JsAst ast, int nodeIndex, int nameRegister)
     {
         ref readonly var node = ref ast[nodeIndex];
         if (node.Kind is AstKind.FunctionExpression or AstKind.ArrowFunctionExpression)
@@ -350,7 +350,7 @@ internal abstract partial class JsCompilerBase
     }
 
     private bool EmitFunctionExpression(
-        FlatAst ast,
+        JsAst ast,
         int functionIndex,
         int bodyRoot,
         string? inferredName = null,
@@ -382,7 +382,7 @@ internal abstract partial class JsCompilerBase
         return false;
     }
 
-    private void EmitImportCallExpression(FlatAst ast, in AstNode node)
+    private void EmitImportCallExpression(JsAst ast, in AstNode node)
     {
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
@@ -422,11 +422,11 @@ internal abstract partial class JsCompilerBase
         }
     }
 
-    private void EmitTemplateExpression(FlatAst ast, in AstNode node)
+    private void EmitTemplateExpression(JsAst ast, in AstNode node)
     {
         var parts = ast.ChildRange(node.Arg0, node.Arg1);
         if (parts.Length < 3 || (parts.Length & 1) == 0)
-            throw new InvalidOperationException("Invalid flat template literal layout.");
+            throw new InvalidOperationException("Invalid template literal layout.");
 
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
@@ -464,11 +464,11 @@ internal abstract partial class JsCompilerBase
         }
     }
 
-    private void EmitTaggedTemplateExpression(FlatAst ast, in AstNode node)
+    private void EmitTaggedTemplateExpression(JsAst ast, in AstNode node)
     {
         var parts = ast.ChildRange(node.Arg1, node.Arg2);
         if (parts.Length < 2 || (parts.Length - 2) % 3 != 0)
-            throw new InvalidOperationException("Invalid flat tagged-template layout.");
+            throw new InvalidOperationException("Invalid tagged-template layout.");
 
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
@@ -561,7 +561,7 @@ internal abstract partial class JsCompilerBase
         }
     }
 
-    private void EmitObjectExpression(FlatAst ast, AstNode node, int targetRegister = -1)
+    private void EmitObjectExpression(JsAst ast, AstNode node, int targetRegister = -1)
     {
         var properties = ast.GetObjectProperties(node.Arg0, node.Arg1);
         for (var i = 0; i < properties.Length; i++)
@@ -611,7 +611,7 @@ internal abstract partial class JsCompilerBase
                     var atom = Vm.Atoms.InternNoCheck(name);
                     if (!shape.TryGetSlotInfo(atom, out var slotInfo))
                         throw new InvalidOperationException(
-                            "Missing precomputed flat object-literal shape slot."
+                            "Missing precomputed object-literal shape slot."
                         );
                     builder.EmitInitializeNamedProperty(objectRegister, slotInfo.Slot);
                     continue;
@@ -659,10 +659,10 @@ internal abstract partial class JsCompilerBase
     }
 
     private void EmitObjectLiteralAccessor(
-        FlatAst ast,
+        JsAst ast,
         int objectRegister,
         int keyRegister,
-        in FlatObjectProperty property
+        in JsObjectProperty property
     )
     {
         var marker = builder.GetTemporaryRegisterScopeMarker();
@@ -696,7 +696,7 @@ internal abstract partial class JsCompilerBase
     }
 
     private void EmitAttachMethodEnvironmentIfNeeded(
-        FlatAst ast,
+        JsAst ast,
         int functionNode,
         int homeObjectRegister
     )
@@ -715,7 +715,7 @@ internal abstract partial class JsCompilerBase
         builder.EmitCallRuntime((int)RuntimeId.SetFunctionMethodEnvironment, arguments, 3);
     }
 
-    private void EmitObjectLiteralSpread(FlatAst ast, int objectRegister, int sourceNode)
+    private void EmitObjectLiteralSpread(JsAst ast, int objectRegister, int sourceNode)
     {
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
@@ -733,10 +733,10 @@ internal abstract partial class JsCompilerBase
         }
     }
 
-    private void EmitArrayExpression(FlatAst ast, AstNode node, int targetRegister = -1)
+    private void EmitArrayExpression(JsAst ast, AstNode node, int targetRegister = -1)
     {
         if ((uint)node.Arg1 > ushort.MaxValue)
-            throw new NotSupportedException("Flat array literal exceeds ushort element capacity.");
+            throw new NotSupportedException("Array literal exceeds ushort element capacity.");
 
         var elements = ast.ChildRange(node.Arg0, node.Arg1);
         for (var i = 0; i < elements.Length; i++)
@@ -777,7 +777,7 @@ internal abstract partial class JsCompilerBase
         }
     }
 
-    private void EmitArrayExpressionWithSpread(FlatAst ast, ReadOnlySpan<int> elements)
+    private void EmitArrayExpressionWithSpread(JsAst ast, ReadOnlySpan<int> elements)
     {
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
@@ -818,7 +818,7 @@ internal abstract partial class JsCompilerBase
         }
     }
 
-    private void EmitArraySpread(FlatAst ast, int arrayRegister, int indexRegister, int sourceNode)
+    private void EmitArraySpread(JsAst ast, int arrayRegister, int indexRegister, int sourceNode)
     {
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
@@ -839,7 +839,7 @@ internal abstract partial class JsCompilerBase
         }
     }
 
-    private void EmitDestructuringAssignment(FlatAst ast, AstNode assignment)
+    private void EmitDestructuringAssignment(JsAst ast, AstNode assignment)
     {
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
@@ -861,7 +861,7 @@ internal abstract partial class JsCompilerBase
     }
 
     private void EmitStoreAssignmentTarget(
-        FlatAst ast,
+        JsAst ast,
         int targetIndex,
         PreparedMemberReference? preparedTarget
     )
@@ -937,7 +937,7 @@ internal abstract partial class JsCompilerBase
         }
     }
 
-    private void EmitCallExpression(FlatAst ast, AstNode node, bool optional)
+    private void EmitCallExpression(JsAst ast, AstNode node, bool optional)
     {
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
@@ -1119,7 +1119,7 @@ internal abstract partial class JsCompilerBase
         }
     }
 
-    private void EmitSuperCall(FlatAst ast, int offset, int count)
+    private void EmitSuperCall(JsAst ast, int offset, int count)
     {
         if (!HasSpreadArgument(ast, offset, count))
         {
@@ -1144,7 +1144,7 @@ internal abstract partial class JsCompilerBase
             EmitInstanceFieldInitializers(ast, InstanceFieldClassIndex);
     }
 
-    private void EmitNewExpression(FlatAst ast, AstNode node)
+    private void EmitNewExpression(JsAst ast, AstNode node)
     {
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
@@ -1166,7 +1166,7 @@ internal abstract partial class JsCompilerBase
         }
     }
 
-    private static bool HasSpreadArgument(FlatAst ast, int offset, int count)
+    private static bool HasSpreadArgument(JsAst ast, int offset, int count)
     {
         var arguments = ast.ChildRange(offset, count);
         for (var i = 0; i < arguments.Length; i++)
@@ -1175,7 +1175,7 @@ internal abstract partial class JsCompilerBase
         return false;
     }
 
-    private bool CallArgumentsLeaveRegisterUntouched(FlatAst ast, int offset, int count)
+    private bool CallArgumentsLeaveRegisterUntouched(JsAst ast, int offset, int count)
     {
         var arguments = ast.ChildRange(offset, count);
         for (var i = 0; i < arguments.Length; i++)
@@ -1195,7 +1195,7 @@ internal abstract partial class JsCompilerBase
         return true;
     }
 
-    private int EmitSpreadArguments(FlatAst ast, int offset, int count, out int flagsRegister)
+    private int EmitSpreadArguments(JsAst ast, int offset, int count, out int flagsRegister)
     {
         var start = builder.AllocateTemporaryRegisterBlock(count);
         var flags = new int[count];
@@ -1222,7 +1222,7 @@ internal abstract partial class JsCompilerBase
     }
 
     private void EmitSpreadCall(
-        FlatAst ast,
+        JsAst ast,
         int functionRegister,
         int receiverRegister,
         int offset,
@@ -1248,7 +1248,7 @@ internal abstract partial class JsCompilerBase
         builder.EmitCallRuntime((int)RuntimeId.CallWithSpread, runtimeStart, count + 3);
     }
 
-    private void EmitSpreadConstruct(FlatAst ast, int functionRegister, int offset, int count)
+    private void EmitSpreadConstruct(JsAst ast, int functionRegister, int offset, int count)
     {
         var argumentStart = EmitSpreadArguments(ast, offset, count, out var flagsRegister);
         var runtimeStart = builder.AllocateTemporaryRegisterBlock(count + 2);
@@ -1264,7 +1264,7 @@ internal abstract partial class JsCompilerBase
         builder.EmitCallRuntime((int)RuntimeId.ConstructWithSpread, runtimeStart, count + 2);
     }
 
-    private bool TryGetDirectLocalRegister(FlatAst ast, int nodeIndex, out int register)
+    private bool TryGetDirectLocalRegister(JsAst ast, int nodeIndex, out int register)
     {
         ref readonly var node = ref ast[nodeIndex];
         if (node.Kind != AstKind.Identifier)
@@ -1298,7 +1298,7 @@ internal abstract partial class JsCompilerBase
         return true;
     }
 
-    private int EmitCallArguments(FlatAst ast, int offset, int count)
+    private int EmitCallArguments(JsAst ast, int offset, int count)
     {
         if (count == 0)
             return 0;
@@ -1320,7 +1320,7 @@ internal abstract partial class JsCompilerBase
         return start;
     }
 
-    private void EmitMemberExpression(FlatAst ast, AstNode node)
+    private void EmitMemberExpression(JsAst ast, AstNode node)
     {
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
@@ -1367,7 +1367,7 @@ internal abstract partial class JsCompilerBase
         }
     }
 
-    private void EmitMemberLoad(FlatAst ast, AstNode member, int objectRegister)
+    private void EmitMemberLoad(JsAst ast, AstNode member, int objectRegister)
     {
         if (((AstMemberFlags)member.Arg2 & AstMemberFlags.OptionalChainLink) != 0)
             EmitOptionalChainNullCheck(objectRegister);
@@ -1392,7 +1392,7 @@ internal abstract partial class JsCompilerBase
         builder.EmitLdaNamedProperty(objectRegister, nameIndex, feedbackSlot);
     }
 
-    private void EmitOptionalChainExpression(FlatAst ast, int expression)
+    private void EmitOptionalChainExpression(JsAst ast, int expression)
     {
         var previous = optionalChainNullTarget;
         var nullTarget = builder.CreateLabel();
@@ -1422,7 +1422,7 @@ internal abstract partial class JsCompilerBase
         EmitJumpIfUndefined(optionalChainNullTarget);
     }
 
-    private void EmitBinaryExpression(FlatAst ast, AstNode node, ExpressionResult result)
+    private void EmitBinaryExpression(JsAst ast, AstNode node, ExpressionResult result)
     {
         var op = (JsBinaryOperator)node.Arg2;
         if (op == JsBinaryOperator.In && ast[node.Arg0].Kind == AstKind.PrivateIdentifier)
@@ -1535,7 +1535,7 @@ internal abstract partial class JsCompilerBase
         }
     }
 
-    private void EmitUnaryExpression(FlatAst ast, AstNode node)
+    private void EmitUnaryExpression(JsAst ast, AstNode node)
     {
         var op = (JsUnaryOperator)node.Arg1;
         if (op == JsUnaryOperator.Delete)
@@ -1588,7 +1588,7 @@ internal abstract partial class JsCompilerBase
         }
     }
 
-    private void EmitDeleteExpression(FlatAst ast, int argumentIndex)
+    private void EmitDeleteExpression(JsAst ast, int argumentIndex)
     {
         ref readonly var argument = ref ast[argumentIndex];
         if (argument.Kind == AstKind.OptionalChainExpression)
@@ -1674,7 +1674,7 @@ internal abstract partial class JsCompilerBase
         builder.EmitLda(JsOpCode.LdaTrue);
     }
 
-    private void EmitDeleteOptionalChain(FlatAst ast, int expressionIndex)
+    private void EmitDeleteOptionalChain(JsAst ast, int expressionIndex)
     {
         ref readonly var expression = ref ast[expressionIndex];
         if (expression.Kind != AstKind.MemberExpression)
@@ -1722,7 +1722,7 @@ internal abstract partial class JsCompilerBase
         }
     }
 
-    private void EmitConditionalExpression(FlatAst ast, AstNode node, ExpressionResult result)
+    private void EmitConditionalExpression(JsAst ast, AstNode node, ExpressionResult result)
     {
         var alternate = builder.CreateLabel();
         var end = builder.CreateLabel();
@@ -1734,7 +1734,7 @@ internal abstract partial class JsCompilerBase
         builder.BindLabel(end);
     }
 
-    private void EmitUpdateExpression(FlatAst ast, AstNode node, bool preserveResult)
+    private void EmitUpdateExpression(JsAst ast, AstNode node, bool preserveResult)
     {
         ref readonly var argument = ref ast[node.Arg0];
         if (argument.Kind == AstKind.MemberExpression)
@@ -1787,12 +1787,7 @@ internal abstract partial class JsCompilerBase
         }
     }
 
-    private void EmitMemberAssignment(
-        FlatAst ast,
-        AstNode member,
-        JsAssignmentOperator op,
-        int right
-    )
+    private void EmitMemberAssignment(JsAst ast, AstNode member, JsAssignmentOperator op, int right)
     {
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
@@ -1862,7 +1857,7 @@ internal abstract partial class JsCompilerBase
                 or JsAssignmentOperator.NullishCoalescingAssign;
     }
 
-    private void EmitMemberUpdate(FlatAst ast, AstNode member, AstNode update, bool preserveResult)
+    private void EmitMemberUpdate(JsAst ast, AstNode member, AstNode update, bool preserveResult)
     {
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
@@ -1890,7 +1885,7 @@ internal abstract partial class JsCompilerBase
     }
 
     private PreparedMemberReference PrepareMemberReference(
-        FlatAst ast,
+        JsAst ast,
         AstNode member,
         bool normalizeComputedKey
     )
@@ -1948,7 +1943,7 @@ internal abstract partial class JsCompilerBase
         return new(objectRegister, -1, nameIndex, builder.AllocateFeedbackSlot(), false, false);
     }
 
-    private bool IsSideEffectFreeExpression(FlatAst ast, int nodeIndex)
+    private bool IsSideEffectFreeExpression(JsAst ast, int nodeIndex)
     {
         ref readonly var node = ref ast[nodeIndex];
         return node.Kind switch
@@ -2044,7 +2039,7 @@ internal abstract partial class JsCompilerBase
         int PrivateSlotIndex = -1
     );
 
-    private void EmitSequenceExpression(FlatAst ast, AstNode node, ExpressionResult result)
+    private void EmitSequenceExpression(JsAst ast, AstNode node, ExpressionResult result)
     {
         var expressions = ast.ChildRange(node.Arg0, node.Arg1);
         if (expressions.Length == 0)
@@ -2060,7 +2055,7 @@ internal abstract partial class JsCompilerBase
     }
 
     private void EmitIdentifierAssignment(
-        FlatAst ast,
+        JsAst ast,
         string name,
         JsAssignmentOperator op,
         int right,
@@ -2138,7 +2133,7 @@ internal abstract partial class JsCompilerBase
         }
     }
 
-    private void EmitCompoundRightExpression(FlatAst ast, JsAssignmentOperator op, int right)
+    private void EmitCompoundRightExpression(JsAst ast, JsAssignmentOperator op, int right)
     {
         var binaryOp = MapCompoundAssignmentOperator(op);
         if (
@@ -2168,7 +2163,7 @@ internal abstract partial class JsCompilerBase
     }
 
     private void EmitShortCircuitIdentifierAssignment(
-        FlatAst ast,
+        JsAst ast,
         string name,
         JsAssignmentOperator op,
         int right,
@@ -2305,7 +2300,7 @@ internal abstract partial class JsCompilerBase
         EmitStringConstant(builder.AddObjectConstant(value));
     }
 
-    private static bool TryGetSmallIntLiteral(FlatAst ast, int nodeIndex, out int value)
+    private static bool TryGetSmallIntLiteral(JsAst ast, int nodeIndex, out int value)
     {
         ref readonly var node = ref ast[nodeIndex];
         if (node.Kind == AstKind.NumericLiteral)

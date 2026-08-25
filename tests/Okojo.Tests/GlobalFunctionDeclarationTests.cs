@@ -46,7 +46,7 @@ public class GlobalFunctionDeclarationTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 Object.prototype.hasOwnProperty.call(this, "brandNew") === true &&
                 Object.getOwnPropertyDescriptor(this, "brandNew").writable === true &&
@@ -67,7 +67,7 @@ public class GlobalFunctionDeclarationTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 'use strict';
                 Object.prototype.hasOwnProperty.call(this, "brandNew") === true &&
@@ -89,7 +89,7 @@ public class GlobalFunctionDeclarationTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let Array;
                 var descriptor = Object.getOwnPropertyDescriptor(this, "Array");
@@ -110,7 +110,7 @@ public class GlobalFunctionDeclarationTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var before = Object.getOwnPropertyDescriptor(this, "x");
                 var x;
@@ -132,7 +132,7 @@ public class GlobalFunctionDeclarationTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 eval("function f(){return 1;}function f(){return 2;}function f(){return 3;}");
                 f() === 3;
@@ -152,7 +152,7 @@ public class GlobalFunctionDeclarationTests
 
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 $262.evalScript(
                   'function f() { return 1; }' +
@@ -176,7 +176,7 @@ public class GlobalFunctionDeclarationTests
 
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 Object.preventExtensions(this);
                 $262.evalScript('let test262let = 1;');
@@ -213,7 +213,7 @@ public class GlobalFunctionDeclarationTests
 
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 $262.evalScript('function brandNew() {}');
                 Object.defineProperty(this, 'existingConfigurable', { configurable: true, value: 0 });
@@ -255,7 +255,7 @@ public class GlobalFunctionDeclarationTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function data1() {}
                 try {
@@ -278,7 +278,7 @@ public class GlobalFunctionDeclarationTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var result = typeof __decl === "function";
                 var __decl = 1;
@@ -298,7 +298,7 @@ public class GlobalFunctionDeclarationTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 (function () {
                   return typeof __decl === "function";

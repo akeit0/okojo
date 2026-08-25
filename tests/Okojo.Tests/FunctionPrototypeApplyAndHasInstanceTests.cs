@@ -52,7 +52,7 @@ public class FunctionPrototypeApplyAndHasInstanceTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function F() {}
                 var instance = new F();

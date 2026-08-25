@@ -16,7 +16,7 @@ public sealed partial class JsRealm
     public JsValue Evaluate(string source, bool pumpJobsAfterRun = true)
     {
         ArgumentNullException.ThrowIfNull(source);
-        using var ast = FlatJavaScriptParser.ParseScript(source);
+        using var ast = JavaScriptParser.ParseScript(source);
         Execute(new JsScriptCompiler(this).CompileIndirectEval(ast, null), pumpJobsAfterRun);
         return Accumulator;
     }
@@ -32,11 +32,7 @@ public sealed partial class JsRealm
     )
     {
         ArgumentNullException.ThrowIfNull(source);
-        using var ast = FlatJavaScriptParser.ParseScript(
-            source,
-            "<eval>",
-            allowTopLevelAwait: true
-        );
+        using var ast = JavaScriptParser.ParseScript(source, "<eval>", allowTopLevelAwait: true);
         Execute(new JsScriptCompiler(this).Compile(ast, "<eval>"), pumpJobsAfterRun: false);
         var result = Accumulator;
         PumpJobs();
@@ -212,7 +208,7 @@ public sealed partial class JsRealm
     /// </summary>
     public JsScript CompileScript(string source, string? sourcePath = null)
     {
-        using var ast = FlatJavaScriptParser.ParseScript(source, sourcePath);
+        using var ast = JavaScriptParser.ParseScript(source, sourcePath);
         return new JsScriptCompiler(this).Compile(ast, sourcePath);
     }
 

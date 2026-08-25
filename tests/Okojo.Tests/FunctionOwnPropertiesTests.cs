@@ -14,7 +14,7 @@ public class FunctionOwnPropertiesTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function f(x){ return x; }
                 const names = Object.getOwnPropertyNames(f);
@@ -39,7 +39,7 @@ public class FunctionOwnPropertiesTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function sample(alpha, beta) {}
                 var lengthDesc = Object.getOwnPropertyDescriptor(sample, "length");
@@ -74,7 +74,7 @@ public class FunctionOwnPropertiesTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var a = (x) => x;
                 const names = Object.getOwnPropertyNames(a);
@@ -98,7 +98,7 @@ public class FunctionOwnPropertiesTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function F() {}
                 var replacement = { marker: 1 };
@@ -131,7 +131,7 @@ public class FunctionOwnPropertiesTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function af(...a) {}
                 function bf(a, ...b) {}
@@ -152,7 +152,7 @@ public class FunctionOwnPropertiesTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var nameDesc = Object.getOwnPropertyDescriptor(Proxy, "name");
                 var lengthDesc = Object.getOwnPropertyDescriptor(Proxy, "length");
@@ -188,7 +188,7 @@ public class FunctionOwnPropertiesTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var dataViewDesc = Object.getOwnPropertyDescriptor(DataView, "prototype");
                 var errorDesc = Object.getOwnPropertyDescriptor(Error, "prototype");
@@ -218,7 +218,7 @@ public class FunctionOwnPropertiesTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class MyArray extends Uint8Array {}
                 const sample = new MyArray(1);
@@ -239,7 +239,7 @@ public class FunctionOwnPropertiesTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var throwTypeError = Object.getOwnPropertyDescriptor((function() {
                   "use strict";

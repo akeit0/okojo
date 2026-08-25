@@ -94,7 +94,7 @@ public sealed partial class JsAgent
             node.State = ModuleEvalState.Failed;
             node.PendingTopLevelAwaitPromise = null;
             node.LastError = ex;
-            node.ReleaseFlatProgram();
+            node.ReleaseProgram();
             throw;
         }
 
@@ -130,7 +130,7 @@ public sealed partial class JsAgent
                         targetPlan.ResolvedImportBindings,
                         targetPlan.ExecutionPlan.ExportLocalByName,
                         targetPlan.ExecutionPlan.PreinitializedLocalExportNames,
-                        targetNode.FlatProgram is not null
+                        targetNode.Program is not null
                     );
                 var defaultNameEligibleLocals = targetPlan
                     .ExecutionPlan
@@ -148,12 +148,12 @@ public sealed partial class JsAgent
 
                 if (
                     Options.ModuleExecutionCompiler is { } moduleCompiler
-                    && targetNode.FlatProgram is { } flatProgram
+                    && targetNode.Program is { } program
                 )
                 {
                     var compilation = moduleCompiler(
                         targetRealm,
-                        flatProgram,
+                        program,
                         targetPlan.ExecutionPlan
                     );
                     targetNode.Compilation = compilation;
@@ -175,7 +175,7 @@ public sealed partial class JsAgent
                         else
                             context.Slots[hoisted.StorageIndex] = JsValue.FromObject(closure);
                     }
-                    targetNode.ReleaseFlatProgram();
+                    targetNode.ReleaseProgram();
                 }
 
                 InstallLocalSlotBackedLiveExports(
@@ -439,7 +439,7 @@ public sealed partial class JsAgent
             finally
             {
                 PopModuleRuntimeBindings();
-                targetNode.ReleaseFlatProgram();
+                targetNode.ReleaseProgram();
             }
         }
 
@@ -1005,7 +1005,7 @@ public sealed partial class JsAgent
 
                 if (plan is null)
                 {
-                    var linkResult = ModuleLinker.BuildPlanResult(resolvedId, node.FlatProgram!);
+                    var linkResult = ModuleLinker.BuildPlanResult(resolvedId, node.Program!);
                     if (linkResult.Diagnostics.Count != 0)
                         throw WrapModuleLinkException(
                             resolvedId,
@@ -1039,7 +1039,7 @@ public sealed partial class JsAgent
     }
 
     private ModuleLinkPlan BuildModuleLinkPlan(ModuleRecordNode node) =>
-        ModuleLinker.BuildPlanResult(node.ResolvedId, node.FlatProgram!).Plan;
+        ModuleLinker.BuildPlanResult(node.ResolvedId, node.Program!).Plan;
 
     private static IEnumerable<ResolvedModuleDependency> EnumerateLinkDependencies(
         ModuleLinkPlan plan

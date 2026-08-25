@@ -100,7 +100,7 @@ public class RegisterRecycleSnapshotTests
         foreach (var item in ScopeCases)
         {
             var realm = JsRuntime.Create().DefaultRealm;
-            var script = JsCompiler.Compile(realm, FlatJavaScriptParser.ParseScript(item.Source));
+            var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript(item.Source));
 
             Assert.That(
                 script.RegisterCount,
@@ -116,7 +116,7 @@ public class RegisterRecycleSnapshotTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function t() {
                   {

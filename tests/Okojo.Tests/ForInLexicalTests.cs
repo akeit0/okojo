@@ -14,7 +14,7 @@ public class ForInLexicalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function fn(x) {
                   let a = [];
@@ -43,7 +43,7 @@ public class ForInLexicalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var let = 1;
                 var object = {let};

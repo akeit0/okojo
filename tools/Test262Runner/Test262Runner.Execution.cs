@@ -512,7 +512,7 @@ internal static partial class Program
                 {
                     // Module tests should run harness helpers as classic script globals.
                     var harnessParseStart = Stopwatch.GetTimestamp();
-                    using var harnessAst = FlatJavaScriptParser.ParseScript(harnessSource.Source);
+                    using var harnessAst = JavaScriptParser.ParseScript(harnessSource.Source);
                     var harnessParseEnd = Stopwatch.GetTimestamp();
                     timings.AddParse(harnessParseStart, harnessParseEnd);
 
@@ -537,10 +537,7 @@ internal static partial class Program
                 JsScript script;
                 {
                     var parseStart = Stopwatch.GetTimestamp();
-                    using var ast = FlatJavaScriptParser.ParseScript(
-                        sourceForScriptPath,
-                        entryPath
-                    );
+                    using var ast = JavaScriptParser.ParseScript(sourceForScriptPath, entryPath);
                     var parseEnd = Stopwatch.GetTimestamp();
                     timings.AddParse(parseStart, parseEnd);
 

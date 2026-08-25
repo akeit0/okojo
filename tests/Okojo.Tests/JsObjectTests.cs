@@ -17,7 +17,7 @@ public class JsObjectTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function t() {
                     let np = Object.getPrototypeOf(Object(1));
@@ -321,7 +321,7 @@ public class JsObjectTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function t() {
                     let o = {
@@ -359,7 +359,7 @@ public class JsObjectTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function t() {
                     let a = [1, 2, 3];
@@ -382,7 +382,7 @@ public class JsObjectTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function t() {
                     let a = [];
@@ -407,7 +407,7 @@ public class JsObjectTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function t() {
                     let o = { x: 1 };
@@ -430,7 +430,7 @@ public class JsObjectTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function t() {
                     let o = {};
@@ -453,7 +453,7 @@ public class JsObjectTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function t() {
                     let o = {};
@@ -476,7 +476,7 @@ public class JsObjectTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function t() {
                     let p = {};
@@ -500,7 +500,7 @@ public class JsObjectTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function t() {
                     let p = { x: 3 };
@@ -525,7 +525,7 @@ public class JsObjectTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function t() {
                     let o = { x: 5 };
@@ -555,7 +555,7 @@ public class JsObjectTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function t() {
                     let a = Object(1).toString();
@@ -583,7 +583,7 @@ public class JsObjectTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function t() {
                     return Object.getPrototypeOf(1) === Object.getPrototypeOf(Object(1));
@@ -605,7 +605,7 @@ public class JsObjectTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function t() {
                     let d = Object.getOwnPropertyDescriptor("ab", "0");

@@ -14,7 +14,7 @@ public class SpreadCallFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const target = {
                   base: 10,
@@ -39,7 +39,7 @@ public class SpreadCallFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const helper = (ta, ...rest) => {
                   Array.prototype.copyWithin.call(ta, ...rest);
@@ -61,7 +61,7 @@ public class SpreadCallFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class Box {
                   constructor(a, b, c) {
@@ -85,7 +85,7 @@ public class SpreadCallFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class Base {
                   constructor(a, b) {
@@ -114,7 +114,7 @@ public class SpreadCallFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const helper = {
                   run(construct, constructArgs) {
@@ -153,7 +153,7 @@ public class SpreadCallFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let threw = false;
                 try {

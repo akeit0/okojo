@@ -9,8 +9,8 @@ namespace Okojo.JavaScript.Compiler;
 internal sealed partial class JsFunctionCompiler
 {
     internal JsBytecodeFunction CompileFunction(
-        FlatAst ast,
-        in FlatFunctionInfo function,
+        JsAst ast,
+        in JsFunctionInfo function,
         int bodyRoot,
         bool hasSelfBinding = false,
         string? inferredName = null,
@@ -54,9 +54,9 @@ internal sealed partial class JsFunctionCompiler
     private JsBytecodeFunction CompileFunctionCore(
         in FunctionCompileMetadata metadata,
         CompilerBindingCollectionResult collected,
-        FlatAst ast,
+        JsAst ast,
         int bodyRoot,
-        FlatFunctionInfo? flatFunction
+        JsFunctionInfo? functionInfo
     )
     {
         var fnAllocTrace = Environment.GetEnvironmentVariable("OKOJO_FNALLOC") is not null;
@@ -64,12 +64,12 @@ internal sealed partial class JsFunctionCompiler
         hasNewTarget = false;
         isGenerator = metadata.IsGenerator;
         isAsync = metadata.IsAsync;
-        if (!metadata.HasSimpleParameterList && flatFunction is null)
-            throw new NotSupportedException("Advanced parameters require flat function metadata.");
+        if (!metadata.HasSimpleParameterList && functionInfo is null)
+            throw new NotSupportedException("Advanced parameters require function metadata.");
         strictDeclared = metadata.StrictDeclared;
-        returnInferredNameStringIndex = flatFunction?.ReturnInferredNameStringIndex ?? -1;
+        returnInferredNameStringIndex = functionInfo?.ReturnInferredNameStringIndex ?? -1;
         returnInferredNameFromFirstParameter =
-            flatFunction?.ReturnInferredNameFromFirstParameter ?? false;
+            functionInfo?.ReturnInferredNameFromFirstParameter ?? false;
         builder.SetStrictDeclared(strictDeclared);
         using var plan = CompilerStoragePlanner.Plan(collected);
         InitializePlanIndexes(collected, plan);
@@ -113,14 +113,14 @@ internal sealed partial class JsFunctionCompiler
         }
         var restMaterialized = -1;
         if (
-            flatFunction is { } restFn
+            functionInfo is { } restFn
             && !restFn.HasSimpleParameterList
             && restFn.RestParameterIndex >= 0
         )
         {
             if ((uint)restFn.RestParameterIndex > byte.MaxValue)
                 throw new NotSupportedException(
-                    "Flat rest parameter index exceeds byte operand capacity."
+                    "Rest parameter index exceeds byte operand capacity."
                 );
             builder.Emit(JsOpCode.CreateRestParameter, (byte)restFn.RestParameterIndex);
             restMaterialized = builder.AllocatePinnedRegister();
@@ -132,7 +132,7 @@ internal sealed partial class JsFunctionCompiler
         if (argumentsMaterialized >= 0)
             EmitArgumentsBinding(argumentsMaterialized);
         EmitFunctionSelfBinding();
-        if (flatFunction is { } function)
+        if (functionInfo is { } function)
             EmitParameterPrologue(ast, function, restMaterialized);
         EmitDeclarationPrologue(ast, bodyRoot);
         if (metadata.EmitImplicitSuperForwardAll)
@@ -162,11 +162,11 @@ internal sealed partial class JsFunctionCompiler
         }
         EmitRootLocalDebugInfos();
         PatchGeneratorSwitchTable();
-        var functionSourceStart = flatFunction?.Position ?? -1;
-        var functionSourceEnd = flatFunction?.EndPosition ?? -1;
+        var functionSourceStart = functionInfo?.Position ?? -1;
+        var functionSourceEnd = functionInfo?.EndPosition ?? -1;
         FunctionSourceTextSegment? functionSourceText = null;
         if (
-            flatFunction is { } sourceFn
+            functionInfo is { } sourceFn
             && !string.IsNullOrEmpty(ast.SourceText)
             && (uint)functionSourceStart <= (uint)ast.SourceText.Length
             && functionSourceEnd > functionSourceStart
@@ -274,7 +274,7 @@ internal sealed partial class JsFunctionCompiler
         EmitStaCurrentContextSlot(superBaseContextSlot);
     }
 
-    private void InitializeParameterRegisterMap(FlatAst ast, in FlatFunctionInfo function)
+    private void InitializeParameterRegisterMap(JsAst ast, in JsFunctionInfo function)
     {
         EnsureParameterMaps();
         parameterRegisterByName!.Clear();

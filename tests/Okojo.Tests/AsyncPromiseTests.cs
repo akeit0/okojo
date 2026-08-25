@@ -15,7 +15,7 @@ public class AsyncPromiseTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 async function f() {
                     return 41;
@@ -41,7 +41,7 @@ public class AsyncPromiseTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 async function f() {
                     throw 7;
@@ -64,7 +64,7 @@ public class AsyncPromiseTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = 0;
                 const thenable = {
@@ -110,7 +110,7 @@ public class AsyncPromiseTests
 
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = 0;
                 Promise.resolve(t).catch(function (e) { globalThis.out = e; });
@@ -130,7 +130,7 @@ public class AsyncPromiseTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = 0;
                 const thenable = {
@@ -157,7 +157,7 @@ public class AsyncPromiseTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = 0;
                 const t1 = { then: function (resolve, reject) { resolve({ then: function (r2, rj2) { r2(5); } }); } };
@@ -181,7 +181,7 @@ public class AsyncPromiseTests
 
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 Promise.reject(3);
                 0;
@@ -203,7 +203,7 @@ public class AsyncPromiseTests
 
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 Promise.reject(3).catch(function (e) { return e; });
                 0;
@@ -222,7 +222,7 @@ public class AsyncPromiseTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = 0;
                 var thenable = {
@@ -249,7 +249,7 @@ public class AsyncPromiseTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var desc = Object.getOwnPropertyDescriptor(Promise.prototype, "finally");
                 globalThis.out = [typeof Promise.prototype.finally, desc.writable, desc.enumerable, desc.configurable].join(",");
@@ -269,7 +269,7 @@ public class AsyncPromiseTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = "";
                 var thenable = {
@@ -298,7 +298,7 @@ public class AsyncPromiseTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = "";
                 Promise.try(function () {
@@ -320,7 +320,7 @@ public class AsyncPromiseTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = "";
                 var p1 = Promise.resolve(1);
@@ -343,7 +343,7 @@ public class AsyncPromiseTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = "";
                 Promise.all([1]).then(function (values) { globalThis.out += values[0]; });
@@ -364,7 +364,7 @@ public class AsyncPromiseTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.calls = 0;
                 var originalResolve = Promise.resolve;
@@ -389,7 +389,7 @@ public class AsyncPromiseTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = 0;
                 var value = {};
@@ -416,7 +416,7 @@ public class AsyncPromiseTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = 0;
                 Boolean.prototype.then = function () { globalThis.out += 1; };
@@ -437,7 +437,7 @@ public class AsyncPromiseTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class SubPromise extends Promise {}
                 var instance = Promise.withResolvers.call(SubPromise);
@@ -458,7 +458,7 @@ public class AsyncPromiseTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.same = 0;
                 globalThis.callCount = 0;
@@ -508,7 +508,7 @@ public class AsyncPromiseTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.same = 0;
                 var error = { tag: 1 };
@@ -538,7 +538,7 @@ public class AsyncPromiseTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.same = 0;
                 globalThis.instance = 0;
@@ -595,7 +595,7 @@ public class AsyncPromiseTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.instance = 0;
                 globalThis.proto = 0;
@@ -631,7 +631,7 @@ public class AsyncPromiseTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.instance = 0;
                 globalThis.proto = 0;

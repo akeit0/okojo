@@ -12,7 +12,7 @@ public partial class FunctionParameterBindingTests
     [Test]
     public void ParseScript_FunctionParameterBindingKinds_Preserve_Pattern_And_RestPattern()
     {
-        using var program = FlatJavaScriptParser.ParseScript(
+        using var program = JavaScriptParser.ParseScript(
             """
             function f({ a } = {}, ...[rest]) {}
             """

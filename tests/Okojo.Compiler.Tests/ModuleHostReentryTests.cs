@@ -36,7 +36,7 @@ public sealed class ModuleHostReentryTests
         using var runtime = JsRuntime.Create(options);
         var realm = runtime.DefaultRealm;
 
-        using var parsed = FlatJavaScriptParser.ParseScript(
+        using var parsed = JavaScriptParser.ParseScript(
             "(function (exports, require, module, __filename, __dirname) {\n"
                 + "var captureModule = function () { return module; };\n"
                 + "if (process.env.NODE_ENV === 'production') {\n"
@@ -121,7 +121,7 @@ public sealed class ModuleHostReentryTests
         using var runtime = JsRuntime.Create(options);
         var realm = runtime.DefaultRealm;
 
-        using var parsed = FlatJavaScriptParser.ParseScript(
+        using var parsed = JavaScriptParser.ParseScript(
             "(function (exports, require, module, __filename, __dirname) {\n"
                 + "var captureModule = function () { return module; };\n"
                 + "if (process.env.NODE_ENV === 'production') {\n"

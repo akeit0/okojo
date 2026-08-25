@@ -14,7 +14,7 @@ public class AwaitPrecedenceTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.value = 0;
                 async function foo() {
@@ -38,7 +38,7 @@ public class AwaitPrecedenceTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.x = "initial value";
                 var shouldNotBeAwaited = {

@@ -14,7 +14,7 @@ public class DestructuringReleaseReproTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var o = {
                   [Symbol.iterator]() { return this; },
@@ -37,7 +37,7 @@ public class DestructuringReleaseReproTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var x;
                 ([x] = {
@@ -60,7 +60,7 @@ public class DestructuringReleaseReproTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var x;
                 ([x = (() => { throw 7; })()] = {

@@ -8,7 +8,7 @@ public sealed class BrowserCompatibilityParserTests
     public void ParseScript_Allows_Of_As_Function_Name()
     {
         Assert.That(
-            () => FlatJavaScriptParser.ParseScript("function of(a) { return a; }"),
+            () => JavaScriptParser.ParseScript("function of(a) { return a; }"),
             Throws.Nothing
         );
     }
@@ -18,7 +18,7 @@ public sealed class BrowserCompatibilityParserTests
     {
         Assert.That(
             () =>
-                FlatJavaScriptParser.ParseScript(
+                JavaScriptParser.ParseScript(
                     """
                     function f(d) {
                       const k = d.width, p = d.height, {aa:n, V:m, D:l, hb:t} = d.value;
@@ -35,7 +35,7 @@ public sealed class BrowserCompatibilityParserTests
     {
         Assert.That(
             () =>
-                FlatJavaScriptParser.ParseScript(
+                JavaScriptParser.ParseScript(
                     """
                     function Qo(a,b,c,d,e){
                       var {J:f,I:g}=ek(247,()=>Oo(a,b,c,d,e)),h=g===!0,k=Yd(d.style.width),p=Yd(d.style.height);

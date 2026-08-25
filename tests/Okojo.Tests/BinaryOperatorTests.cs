@@ -14,7 +14,7 @@ public class BinaryOperatorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var trace = "";
                 var ok = false;
@@ -48,7 +48,7 @@ public class BinaryOperatorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var trace = "";
                 var ok = false;
@@ -82,7 +82,7 @@ public class BinaryOperatorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 (-2147483647 >>> 0) === 2147483649;
                 """
@@ -99,7 +99,7 @@ public class BinaryOperatorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var ok = true;
                 try { 1n - 1; ok = false; } catch (e) { ok = ok && e.constructor === TypeError; }
@@ -121,7 +121,7 @@ public class BinaryOperatorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 Object.is(-1 % 1, -0);
                 """

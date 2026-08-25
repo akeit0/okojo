@@ -16,7 +16,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let s = 0;
                 for (let x of [1, 2, 3]) {
@@ -38,7 +38,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let a = [1, 2, 3];
                 a[0];
@@ -58,7 +58,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let s = 0;
                 for (let x of [1, 2, 3, 4]) {
@@ -82,7 +82,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const iter = {
                     i: 0,
@@ -114,7 +114,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const values = [
                   { label: "a", args: [] },
@@ -150,7 +150,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var array = [0, 'a', true, false, null, , undefined, NaN];
                 const seen = [];
@@ -178,7 +178,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function t(a) {
                     let s = 0;
@@ -219,7 +219,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let f = [undefined, undefined, undefined];
                 for (let x of [1, 2, 3]) {
@@ -241,7 +241,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let f = [undefined, undefined, undefined];
                 for (const x of [1, 2, 3]) {
@@ -263,7 +263,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let s = 0;
                 let f = [undefined, undefined, undefined];
@@ -287,7 +287,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const testCases = [
                   { label: "x", args: [], expectedArgs: [undefined, undefined] },
@@ -321,7 +321,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let first, second;
                 for (let x of ['first', 'second']) {
@@ -346,7 +346,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let x = 'outside';
                 let first, second;
@@ -372,7 +372,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function* values() {
                   yield 1;
@@ -405,7 +405,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function* values() {
                   yield 1;
@@ -439,7 +439,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let startedCount = 0;
                 let returnCount = 0;
@@ -483,7 +483,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function* range(start, end) {
                     for (let i = start; i < end; i++) {
@@ -517,7 +517,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function* range(start, end) {
                     for (let i = start; i < end; i++) {
@@ -540,7 +540,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const arrays = [["a", "first"], ["b", "second"]];
                 let s = "";
@@ -563,7 +563,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const values = [[["a", "g"], "abc", "z"], [["b", "gy"], "def", "q"]];
                 let s = "";
@@ -586,7 +586,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const values = [{ label: "first", args: 1 }, { label: "second", args: 2 }];
                 let s = "";
@@ -609,7 +609,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const values = [{ era: "ce" }, { era: "bce", aliases: ["bc"] }];
                 let s = "";
@@ -632,7 +632,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let target = {};
                 let count = 0;
@@ -655,7 +655,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let f = [];
                 for (const [name] of [['green'], ['bgWhiteBright']]) {
@@ -677,7 +677,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let f = [];
                 for (const [name, style] of [['green', '<g>'], ['bgWhiteBright', '<b>']]) {
@@ -699,7 +699,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const styles = Object.create(null);
                 for (const [name, style] of [['green', '<g>'], ['bgWhiteBright', '<b>']]) {
@@ -728,7 +728,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const styles = Object.create(null);
                 for (const [name, style] of [['green', '<g>'], ['bgWhiteBright', '<b>']]) {
@@ -764,7 +764,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var async = { x: 0 };
                 for (async.x of [1]) ;
@@ -784,7 +784,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var returnCount = 0;
                 var iterable = {};
@@ -813,7 +813,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var returnCount = 0;
                 var iterable = {};
@@ -844,7 +844,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var returnCount = 0;
                 var iterable = {};
@@ -876,7 +876,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var returnCount = 0;
                 var iterable = {};
@@ -908,7 +908,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var callCount = 0;
                 var iterable = {};
@@ -943,7 +943,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var callCount = 0;
                 var iterable = {};
@@ -978,7 +978,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var array = [0];
                 var count = 0;
@@ -1004,7 +1004,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var array = [0, 1];
                 var count = 0;
@@ -1028,7 +1028,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var iterable = {};
                 var iterator = {};
@@ -1070,7 +1070,7 @@ public class ForOfTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var string = 'a\ud801b\ud801';
                 var values = [];

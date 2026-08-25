@@ -14,7 +14,7 @@ public class RegExpUnicodeGapTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 /\u{0}/u.test('\u0000') &&
                 /\u{1}/u.test('\u0001') &&
@@ -34,7 +34,7 @@ public class RegExpUnicodeGapTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 /𝌆{2}/u.test('𝌆𝌆');
                 """
@@ -51,7 +51,7 @@ public class RegExpUnicodeGapTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 /^[\ud834\udf06]$/u.test('\ud834\udf06');
                 """
@@ -68,7 +68,7 @@ public class RegExpUnicodeGapTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 /\u212a/iu.test('k') && /\u212a/iu.test('K');
                 """
@@ -88,7 +88,7 @@ public class RegExpUnicodeGapTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 /\u212a/i.test('k') === false &&
                 /\u212a/i.test('K') === false &&
@@ -108,7 +108,7 @@ public class RegExpUnicodeGapTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var nullChar = String.fromCharCode(0);
                 /\0/u.exec(nullChar)[0] === nullChar &&
@@ -128,7 +128,7 @@ public class RegExpUnicodeGapTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var ok1 = '\x00②'.match(/\0②/u)[0] === '\x00②';
                 var ok2 = '\u0000፬'.search(/\0፬$/u) === 0;
@@ -147,7 +147,7 @@ public class RegExpUnicodeGapTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 /^.$/u.test('\ud800\udc00');
                 """
@@ -164,7 +164,7 @@ public class RegExpUnicodeGapTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 /(.+).*\1/u.test('\ud800\udc00\ud800') === false;
                 """
@@ -181,7 +181,7 @@ public class RegExpUnicodeGapTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 /\u{000000003f}/u.test('?');
                 """
@@ -198,7 +198,7 @@ public class RegExpUnicodeGapTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 /^\S$/u.test('\ud800\udc00');
                 """
@@ -215,7 +215,7 @@ public class RegExpUnicodeGapTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var rangeRe = /[💩-💫]/u;
                 rangeRe.test('\ud83d\udca8') === false &&
@@ -237,7 +237,7 @@ public class RegExpUnicodeGapTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 /[^𝌆]/u.test('\ud834') && /[^𝌆]/u.test('\udf06');
                 """

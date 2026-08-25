@@ -423,7 +423,7 @@ internal sealed class OkojoReplPromptCallbacks : PromptCallbacks
 
         try
         {
-            using var _ = FlatJavaScriptParser.ParseScript(input);
+            using var _ = JavaScriptParser.ParseScript(input);
             return true;
         }
         catch (JsParseException ex)

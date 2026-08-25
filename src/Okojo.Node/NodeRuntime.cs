@@ -292,7 +292,7 @@ public sealed class NodeRuntime : IDisposable
         const string wrapperSuffix = "\n})";
         var wrappedSource = wrapperPrefix + source + wrapperSuffix;
 
-        using var ast = FlatJavaScriptParser.ParseScript(wrappedSource, resolvedId);
+        using var ast = JavaScriptParser.ParseScript(wrappedSource, resolvedId);
         var statements = ast.ChildRange(ast[ast.Root].Arg0, ast[ast.Root].Arg1);
         if (statements.Length != 1 || ast[statements[0]].Kind != AstKind.ExpressionStatement)
             throw new InvalidOperationException(

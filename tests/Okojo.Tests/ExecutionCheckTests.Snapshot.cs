@@ -22,7 +22,7 @@ public partial class ExecutionCheckTests
         var realm = runtime.DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let total = 0;
                 total = total + 1;
@@ -62,7 +62,7 @@ public partial class ExecutionCheckTests
             })
         );
         var realm = runtime.DefaultRealm;
-        var program = FlatJavaScriptParser.ParseScript(
+        var program = JavaScriptParser.ParseScript(
             """
             function add(a, b) {
                 debugger;
@@ -116,7 +116,7 @@ public partial class ExecutionCheckTests
         debugger.Realm = realm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function add(a, b) {
                     return a + b;

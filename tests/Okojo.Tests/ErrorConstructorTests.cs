@@ -14,7 +14,7 @@ public class ErrorConstructorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let e = Error("boom");
                 e.name + ":" + e.message;
@@ -33,7 +33,7 @@ public class ErrorConstructorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let x = 1;
                 x();
@@ -52,7 +52,7 @@ public class ErrorConstructorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let out = "";
                 try {
@@ -80,7 +80,7 @@ public class ErrorConstructorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let out = "";
                 try {
@@ -109,7 +109,7 @@ public class ErrorConstructorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let ok = false;
                 try {
@@ -132,7 +132,7 @@ public class ErrorConstructorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let out = 0;
                 try {
@@ -158,7 +158,7 @@ public class ErrorConstructorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let o = {};
                 o instanceof 1;
@@ -177,7 +177,7 @@ public class ErrorConstructorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let e = TypeError("boom");
                 if (e instanceof TypeError) {
@@ -199,7 +199,7 @@ public class ErrorConstructorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const C = function() {};
                 Object.defineProperty(C, Symbol.hasInstance, {
@@ -221,7 +221,7 @@ public class ErrorConstructorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const C = function() {};
                 Object.defineProperty(C, Symbol.hasInstance, { value: 1 });
@@ -241,7 +241,7 @@ public class ErrorConstructorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const e = SyntaxError("bad");
                 (typeof SyntaxError === "function") &&
@@ -263,7 +263,7 @@ public class ErrorConstructorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const ctorDesc = Object.getOwnPropertyDescriptor(URIError, "prototype");
                 const proto = URIError.prototype;
@@ -302,7 +302,7 @@ public class ErrorConstructorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const empty = new TypeError();
                 const withMessage = new TypeError("boom");
@@ -329,7 +329,7 @@ public class ErrorConstructorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class ReturnCalledError extends Error {}
                 const e = new ReturnCalledError("boom");
@@ -353,7 +353,7 @@ public class ErrorConstructorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const desc = Object.getOwnPropertyDescriptor(Error.prototype, "toString");
                 [
@@ -376,7 +376,7 @@ public class ErrorConstructorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const values = [undefined, null, 1, true, "string", Symbol("x")];
                 values.every((value) => {
@@ -398,7 +398,7 @@ public class ErrorConstructorTests
     [Test]
     public void UpdateExpression_OnLiteral_IsEarlyParseError()
     {
-        var ex = Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript("0++;"));
+        var ex = Assert.Throws<JsParseException>(() => JavaScriptParser.ParseScript("0++;"));
         Assert.That(ex!.Message, Does.Contain("Invalid update target"));
     }
 }

@@ -425,7 +425,7 @@ public partial class Intrinsics
                     wrappedSource
                 );
 
-            using var ast = FlatJavaScriptParser.ParseScript(wrappedSource);
+            using var ast = JavaScriptParser.ParseScript(wrappedSource);
             script = new JsScriptCompiler(functionRealm).Compile(ast, null);
         }
         catch (JsParseException ex)

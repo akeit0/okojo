@@ -14,7 +14,7 @@ public class FunctionPrototypeBindTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function add(a, b) { return this.base + a + b; }
                 var bound = add.bind({ base: 10 }, 2);
@@ -33,7 +33,7 @@ public class FunctionPrototypeBindTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function F() {}
                 var bound = F.bind(null);
@@ -53,7 +53,7 @@ public class FunctionPrototypeBindTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function F(a, b) {
                   this.sum = a + b;
@@ -79,7 +79,7 @@ public class FunctionPrototypeBindTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var target = Object.defineProperty(function() {}, "name", { value: "target" });
                 var bound = target.bind(null);
@@ -103,7 +103,7 @@ public class FunctionPrototypeBindTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var target = Object.defineProperty(function() {}, "name", { value: 23 });
                 target.bind(null).name === "bound ";

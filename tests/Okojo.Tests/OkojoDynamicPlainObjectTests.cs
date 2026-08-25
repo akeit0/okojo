@@ -15,7 +15,7 @@ public class OkojoDynamicPlainObjectTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 JSON.parse('{"a":1,"b":2}');
                 """
@@ -50,7 +50,7 @@ public class OkojoDynamicPlainObjectTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const obj = {};
                 obj.a = 1;
@@ -77,7 +77,7 @@ public class OkojoDynamicPlainObjectTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const obj = JSON.parse('{"b":2,"a":1}');
                 const keys = Object.keys(obj).join(',');
@@ -103,7 +103,7 @@ public class OkojoDynamicPlainObjectTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const obj = JSON.parse('{"2":"two","1":"one","b":2,"a":1}');
                 const names = Object.getOwnPropertyNames(obj).join(',');
@@ -129,7 +129,7 @@ public class OkojoDynamicPlainObjectTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 JSON.parse('{"2":"two","1":"one","b":2,"a":1}');
                 """
@@ -158,7 +158,7 @@ public class OkojoDynamicPlainObjectTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const obj = JSON.parse('{"2":"two","1":"one","b":2,"a":1}');
                 JSON.stringify(obj) === '{"1":"one","2":"two","b":2,"a":1}';
@@ -177,7 +177,7 @@ public class OkojoDynamicPlainObjectTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const obj = { "a\"b": "line\n\t\\x" };
                 JSON.stringify(obj) === '{"a\\"b":"line\\n\\t\\\\x"}';
@@ -196,7 +196,7 @@ public class OkojoDynamicPlainObjectTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const obj = JSON.parse('{"a":1,"b":2,"c":3}');
                 delete obj.b;
@@ -217,7 +217,7 @@ public class OkojoDynamicPlainObjectTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const obj = JSON.parse('{"a":1,"b":2,"a":3}');
                 Object.keys(obj).join(',') === "a,b" && obj.a === 3 && obj.b === 2;
@@ -236,7 +236,7 @@ public class OkojoDynamicPlainObjectTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const value = JSON.parse('{"items":[1,2,{"x":[3,4]}]}');
                 Array.isArray(value.items) &&
@@ -262,7 +262,7 @@ public class OkojoDynamicPlainObjectTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const obj = JSON.parse('{"a":1}');
                 let seen = 0;
@@ -293,7 +293,7 @@ public class OkojoDynamicPlainObjectTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const sealedObj = JSON.parse('{"a":1}');
                 Object.seal(sealedObj);
@@ -325,7 +325,7 @@ public class OkojoDynamicPlainObjectTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const obj = JSON.parse('{"b":2,"a":1}');
                 Object.defineProperties(obj, {
@@ -379,7 +379,7 @@ public class OkojoDynamicPlainObjectTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const obj = { a: 1, b: 2, c: 3 };
                 delete obj.b;
@@ -407,7 +407,7 @@ public class OkojoDynamicPlainObjectTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const obj = { a: 1, b: 2 };
                 Object.defineProperty(obj, "a", { get: function () { return 7; }, enumerable: true, configurable: true });
@@ -433,7 +433,7 @@ public class OkojoDynamicPlainObjectTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function f() {}
                 f.a = 1;
@@ -460,7 +460,7 @@ public class OkojoDynamicPlainObjectTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function f() {}
                 f.a = 1;

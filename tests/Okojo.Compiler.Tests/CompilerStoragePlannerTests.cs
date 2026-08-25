@@ -8,7 +8,7 @@ public class CompilerStoragePlannerTests
     [Test]
     public void Plan_ClassifiesRootBindings_IntoRegisterStorageKinds()
     {
-        var program = FlatJavaScriptParser.ParseModule(
+        var program = JavaScriptParser.ParseModule(
             """
             import foo from "pkg";
             var a = 1;
@@ -46,7 +46,7 @@ public class CompilerStoragePlannerTests
     [Test]
     public void Plan_MarksBindingsCapturedAcrossFunctionBoundaries_AsContextSlots()
     {
-        var program = FlatJavaScriptParser.ParseScript(
+        var program = JavaScriptParser.ParseScript(
             """
             let outer = 1;
             function f() {
@@ -67,7 +67,7 @@ public class CompilerStoragePlannerTests
     [Test]
     public void Plan_MarksCapturedLoopHeadAlias_AsContextSlot()
     {
-        var program = FlatJavaScriptParser.ParseScript(
+        var program = JavaScriptParser.ParseScript(
             """
             function captureLoop() {
                 for (let uncaptured = 0, i = 0; i < 3; i++) {
@@ -102,7 +102,7 @@ public class CompilerStoragePlannerTests
     [Test]
     public void Plan_UsesFinalizedFlatModuleCells()
     {
-        using var ast = FlatJavaScriptParser.ParseModule(
+        using var ast = JavaScriptParser.ParseModule(
             """
             import { source as imported } from "dependency";
             import * as namespaceValue from "namespace";

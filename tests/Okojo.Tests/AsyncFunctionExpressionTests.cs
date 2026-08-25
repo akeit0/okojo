@@ -14,7 +14,7 @@ public class AsyncFunctionExpressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var p = async function() { }();
                 p instanceof Promise;
@@ -33,7 +33,7 @@ public class AsyncFunctionExpressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function Test262Error(message) { this.message = message || ""; }
                 function assert(mustBeTrue, message) {
@@ -57,7 +57,7 @@ public class AsyncFunctionExpressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = 0;
                 globalThis.done = false;

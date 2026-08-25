@@ -740,7 +740,7 @@ Important boundary:
 - scripts, modules, host wrappers, tools, and tests use the same compiler path
 - unsupported grammar is reported by the flat parser instead of falling back
 
-## Current Flat Compiler Coverage
+## Current Compiler Coverage
 
 `JsScriptCompiler` currently supports:
 

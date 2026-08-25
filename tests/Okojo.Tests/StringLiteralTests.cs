@@ -14,7 +14,7 @@ public class StringLiteralTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript("\"\u2028\" === \"\\u2028\";")
+            JavaScriptParser.ParseScript("\"\u2028\" === \"\\u2028\";")
         );
 
         realm.Execute(script);
@@ -28,7 +28,7 @@ public class StringLiteralTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript("\"\u2029\" === \"\\u2029\";")
+            JavaScriptParser.ParseScript("\"\u2029\" === \"\\u2029\";")
         );
 
         realm.Execute(script);
@@ -42,7 +42,7 @@ public class StringLiteralTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript("eval(\"'\\u2028'\") === \"\\u2028\";")
+            JavaScriptParser.ParseScript("eval(\"'\\u2028'\") === \"\\u2028\";")
         );
 
         realm.Execute(script);
@@ -56,7 +56,7 @@ public class StringLiteralTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 '\1' === '\x01' &&
                 '\11' === '\x09' &&

@@ -14,7 +14,7 @@ public class DestructuringRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var iterations = 0;
                 var iter = function*() {
@@ -38,7 +38,7 @@ public class DestructuringRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const [{ x, y, z } = { x: 44, y: 55, z: 66 }] = [];
                 x * 10000 + y * 100 + z;
@@ -56,7 +56,7 @@ public class DestructuringRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var first = 0;
                 var second = 0;
@@ -83,7 +83,7 @@ public class DestructuringRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var value;
                 for ( let[x] = [23]; ; ) {
@@ -105,7 +105,7 @@ public class DestructuringRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var obj = Object.create(null);
                 var value;
@@ -128,7 +128,7 @@ public class DestructuringRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var value;
                 for ( let[x] of [[34]] ) {
@@ -149,7 +149,7 @@ public class DestructuringRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var setValue = 0;
 
@@ -178,7 +178,7 @@ public class DestructuringRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var nextCount = 0;
                 var returnCount = 0;
@@ -224,7 +224,7 @@ public class DestructuringRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var counter = 0;
                 var threw = false;
@@ -254,7 +254,7 @@ public class DestructuringRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var eval, arguments;
                 var counter = 0;
@@ -278,7 +278,7 @@ public class DestructuringRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var eval, arguments;
                 var vals = {};
@@ -298,7 +298,7 @@ public class DestructuringRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 "use strict";
                 var xGen, gen;
@@ -319,7 +319,7 @@ public class DestructuringRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var nextCount = 0;
                 var returnCount = 0;
@@ -362,7 +362,7 @@ public class DestructuringRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var nextCount = 0;
                 var returnCount = 0;
@@ -406,7 +406,7 @@ public class DestructuringRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var returnCount = 0;
                 var iterable = {};
@@ -451,7 +451,7 @@ public class DestructuringRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var ok = false;
                 try {
@@ -475,7 +475,7 @@ public class DestructuringRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function thrower() {
                   throw new Error("boom");
@@ -503,7 +503,7 @@ public class DestructuringRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function MyError() {}
                 function thrower() {
@@ -543,7 +543,7 @@ public class DestructuringRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var log = [];
 
@@ -606,7 +606,7 @@ public class DestructuringRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var log = [];
 
@@ -674,7 +674,7 @@ public class DestructuringRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function MyError() {}
                 var target = {
@@ -715,7 +715,7 @@ public class DestructuringRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function MyError() {}
                 function thrower() { throw new MyError(); }
@@ -749,7 +749,7 @@ public class DestructuringRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function MyError() {}
                 function thrower() { throw new MyError(); }
@@ -790,7 +790,7 @@ public class DestructuringRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var iterable = {
                   [Symbol.iterator]() { return this; },
@@ -817,7 +817,7 @@ public class DestructuringRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var iterable = {
                   [Symbol.iterator]() { return this; },
@@ -842,7 +842,7 @@ public class DestructuringRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var iterable = {
                   [Symbol.iterator]() { return this; },
@@ -864,7 +864,7 @@ public class DestructuringRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let {} = 0n;
                 Object.setPrototypeOf(0n, null) === 0n;

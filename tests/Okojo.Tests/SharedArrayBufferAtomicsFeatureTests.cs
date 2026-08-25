@@ -15,7 +15,7 @@ public class SharedArrayBufferAtomicsFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const sabDesc = Object.getOwnPropertyDescriptor(globalThis, "SharedArrayBuffer");
                 const atomicsDesc = Object.getOwnPropertyDescriptor(globalThis, "Atomics");
@@ -42,7 +42,7 @@ public class SharedArrayBufferAtomicsFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const sab = new SharedArrayBuffer(4, { maxByteLength: 8 });
                 const view = new Uint8Array(sab);
@@ -74,7 +74,7 @@ public class SharedArrayBufferAtomicsFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const i32 = new Int32Array(new SharedArrayBuffer(8));
                 const i64 = new BigInt64Array(new SharedArrayBuffer(16));
@@ -114,7 +114,7 @@ public class SharedArrayBufferAtomicsFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const i32 = new Int32Array(new SharedArrayBuffer(4));
                 Atomics.store(i32, 0, 1);
@@ -233,7 +233,7 @@ public class SharedArrayBufferAtomicsFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const view = new Int32Array(new ArrayBuffer(4));
                 const old = Atomics.add(view, 0, 1);

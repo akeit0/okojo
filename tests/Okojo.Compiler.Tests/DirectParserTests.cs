@@ -9,12 +9,12 @@ using Okojo.JavaScript.Parsing;
 
 namespace Okojo.JavaScript.Compiler.Tests;
 
-public class DirectFlatParserTests
+public class DirectParserTests
 {
     [Test]
     public void ParseModule_CollectsCompactImportDescriptorsAndBindings()
     {
-        using var ast = FlatJavaScriptParser.ParseModule(
+        using var ast = JavaScriptParser.ParseModule(
             """
             import 'side-effect' with { type: 'json' };
             import defaultValue, { named, 'string-name' as alias } from 'named';
@@ -59,10 +59,10 @@ public class DirectFlatParserTests
             Is.EqualTo(
                 new[]
                 {
-                    ("default", "defaultValue", FlatImportKind.Default),
-                    ("named", "named", FlatImportKind.Named),
-                    ("string-name", "alias", FlatImportKind.Named),
-                    ("*", "namespaceValue", FlatImportKind.Namespace),
+                    ("default", "defaultValue", JsImportKind.Default),
+                    ("named", "named", JsImportKind.Named),
+                    ("string-name", "alias", JsImportKind.Named),
+                    ("*", "namespaceValue", JsImportKind.Namespace),
                 }
             )
         );
@@ -99,22 +99,22 @@ public class DirectFlatParserTests
     [TestCase("import value from 'a'; import { named as value } from 'b';")]
     [TestCase("import value from 'pkg' with { type: 'json', type: 'css' };")]
     public void ParseModule_RejectsInvalidImportDeclarations(string source) =>
-        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseModule(source));
+        Assert.Throws<JsParseException>(() => JavaScriptParser.ParseModule(source));
 
     [Test]
     public void ParseModule_ParsesImportMetaOnlyInModuleGoal()
     {
-        using var ast = FlatJavaScriptParser.ParseModule("export default import.meta;");
+        using var ast = JavaScriptParser.ParseModule("export default import.meta;");
         var statement = ast.ChildRange(ast[ast.Root].Arg0, ast[ast.Root].Arg1)[0];
 
         Assert.That(ast[ast[statement].Arg0].Kind, Is.EqualTo(AstKind.ImportMetaExpression));
-        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript("import.meta;"));
+        Assert.Throws<JsParseException>(() => JavaScriptParser.ParseScript("import.meta;"));
     }
 
     [Test]
     public void ParseScript_ParsesDynamicImportArguments()
     {
-        using var ast = FlatJavaScriptParser.ParseScript("import('dependency', { with: {} },);");
+        using var ast = JavaScriptParser.ParseScript("import('dependency', { with: {} },);");
         var statement = ast.ChildRange(ast[ast.Root].Arg0, ast[ast.Root].Arg1)[0];
         ref readonly var importCall = ref ast[ast[statement].Arg0];
 
@@ -126,20 +126,20 @@ public class DirectFlatParserTests
     [Test]
     public void ParseModule_MarksTopLevelAwaitOnlyOutsideFunctions()
     {
-        using var ast = FlatJavaScriptParser.ParseModule("await Promise.resolve();");
+        using var ast = JavaScriptParser.ParseModule("await Promise.resolve();");
         var statement = ast.ChildRange(ast[ast.Root].Arg0, ast[ast.Root].Arg1)[0];
 
         Assert.That(ast.HasTopLevelAwait, Is.True);
         Assert.That(ast[ast[statement].Arg0].Kind, Is.EqualTo(AstKind.AwaitExpression));
         Assert.Throws<JsParseException>(() =>
-            FlatJavaScriptParser.ParseModule("function invalid() { await 1; }")
+            JavaScriptParser.ParseModule("function invalid() { await 1; }")
         );
     }
 
     [Test]
     public void ParseModule_CollectsCompactExportDescriptorsAndBindings()
     {
-        using var ast = FlatJavaScriptParser.ParseModule(
+        using var ast = JavaScriptParser.ParseModule(
             """
             export const value = 1, { nested: local, ...rest } = { nested: 2 };
             export function read() { return value; }
@@ -164,7 +164,7 @@ public class DirectFlatParserTests
             .ToArray();
         Assert.That(
             exports
-                .Where(entry => entry.Kind != FlatExportKind.Star)
+                .Where(entry => entry.Kind != JsExportKind.Star)
                 .Select(entry =>
                     (
                         entry.LocalNameStringIndex < 0
@@ -181,21 +181,21 @@ public class DirectFlatParserTests
                 )
                 .ToArray(),
             Is.EqualTo(
-                new (string?, string?, string?, FlatExportKind)[]
+                new (string?, string?, string?, JsExportKind)[]
                 {
-                    ("value", null, "value", FlatExportKind.Local),
-                    ("local", null, "local", FlatExportKind.Local),
-                    ("rest", null, "rest", FlatExportKind.Local),
-                    ("read", null, "read", FlatExportKind.Local),
-                    ("Type", null, "Type", FlatExportKind.Local),
-                    ("value", null, "renamed", FlatExportKind.Local),
-                    (null, "source", "forwarded", FlatExportKind.Indirect),
-                    (null, null, "namespaceValue", FlatExportKind.Namespace),
-                    ("\0default", null, "default", FlatExportKind.DefaultDeclaration),
+                    ("value", null, "value", JsExportKind.Local),
+                    ("local", null, "local", JsExportKind.Local),
+                    ("rest", null, "rest", JsExportKind.Local),
+                    ("read", null, "read", JsExportKind.Local),
+                    ("Type", null, "Type", JsExportKind.Local),
+                    ("value", null, "renamed", JsExportKind.Local),
+                    (null, "source", "forwarded", JsExportKind.Indirect),
+                    (null, null, "namespaceValue", JsExportKind.Namespace),
+                    ("\0default", null, "default", JsExportKind.DefaultDeclaration),
                 }
             )
         );
-        Assert.That(exports.Count(entry => entry.Kind == FlatExportKind.Star), Is.EqualTo(1));
+        Assert.That(exports.Count(entry => entry.Kind == JsExportKind.Star), Is.EqualTo(1));
         Assert.That(
             exports.Where(entry => entry.LocalNameStringIndex < 0).Select(entry => entry.CellIndex),
             Is.All.Zero
@@ -222,14 +222,12 @@ public class DirectFlatParserTests
     [TestCase("let value; var value;")]
     [TestCase("export function eval() {}")]
     public void ParseModule_RejectsInvalidOrDuplicateExports(string source) =>
-        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseModule(source));
+        Assert.Throws<JsParseException>(() => JavaScriptParser.ParseModule(source));
 
     [Test]
     public void ParseModule_AcceptsForwardLocalExportAndDuplicateVar()
     {
-        using var ast = FlatJavaScriptParser.ParseModule(
-            "export { value }; { var value; } var value;"
-        );
+        using var ast = JavaScriptParser.ParseModule("export { value }; { var value; } var value;");
 
         Assert.That(ast.IsModule, Is.True);
         Assert.That(ast.ModuleVarBindings, Is.EquivalentTo(new[] { "value" }));
@@ -238,7 +236,7 @@ public class DirectFlatParserTests
     [Test]
     public void ParseModule_FinalizesImportedExportsAndLiveCells()
     {
-        using var ast = FlatJavaScriptParser.ParseModule(
+        using var ast = JavaScriptParser.ParseModule(
             """
             import zed from 'default-source';
             import { beta as middle, alpha } from 'named-source';
@@ -287,12 +285,12 @@ public class DirectFlatParserTests
                 )
                 .ToArray(),
             Is.EqualTo(
-                new (int, string?, string, FlatExportKind, int)[]
+                new (int, string?, string, JsExportKind, int)[]
                 {
-                    (0, "default", "forwardedDefault", FlatExportKind.Indirect, 0),
-                    (1, "beta", "forwardedMiddle", FlatExportKind.Indirect, 0),
-                    (1, "alpha", "forwardedAlpha", FlatExportKind.Indirect, 0),
-                    (2, null, "forwardedNamespace", FlatExportKind.Namespace, 0),
+                    (0, "default", "forwardedDefault", JsExportKind.Indirect, 0),
+                    (1, "beta", "forwardedMiddle", JsExportKind.Indirect, 0),
+                    (1, "alpha", "forwardedAlpha", JsExportKind.Indirect, 0),
+                    (2, null, "forwardedNamespace", JsExportKind.Namespace, 0),
                 }
             )
         );
@@ -385,7 +383,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 "let result = ''; for (const [key] in { ab: 1, cd: 2 }) result += key; result;"
             )
         );
@@ -398,7 +396,7 @@ public class DirectFlatParserTests
     [TestCase("for (let first, second in {}) {}")]
     [TestCase("for (let value = 1 in {}) {}")]
     public void ParseScript_RejectsUnsupportedOrInvalidForInHeads(string source) =>
-        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+        Assert.Throws<JsParseException>(() => JavaScriptParser.ParseScript(source));
 
     [Test]
     public void CompileString_ExecutesForOfWithIteratorClose()
@@ -460,7 +458,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 "let result = ''; for (const value of [1, 2, 3]) result += value; result;"
             )
         );
@@ -708,7 +706,7 @@ public class DirectFlatParserTests
     [TestCase("using value = 1;")]
     [TestCase("function f() { using value; }")]
     public void ParseScript_RejectsInvalidUsingDeclarations(string source) =>
-        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+        Assert.Throws<JsParseException>(() => JavaScriptParser.ParseScript(source));
 
     [Test]
     public void CompileString_EnforcesTdzOnContextSlotLexicalStores()
@@ -1295,7 +1293,7 @@ public class DirectFlatParserTests
     [TestCase("for ({ value } in { a: 1 }) {}")]
     [TestCase("for ([...rest, tail] of [[1]]) {}")]
     public void ParseScript_RejectsInvalidDestructuringIterationHeads(string source) =>
-        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+        Assert.Throws<JsParseException>(() => JavaScriptParser.ParseScript(source));
 
     [Test]
     public void CompileString_AssignsIterationValuesToMemberTargets()
@@ -1404,7 +1402,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 "let result = ''; outer: for (const value of [1, 2, 3]) { if (value === 2) continue outer; result += value; } result;"
             )
         );
@@ -1419,7 +1417,7 @@ public class DirectFlatParserTests
     [TestCase("label: label: ;")]
     [TestCase("outer: while (true) { function nested() { break outer; } }")]
     public void ParseScript_RejectsInvalidLabeledControl(string source) =>
-        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+        Assert.Throws<JsParseException>(() => JavaScriptParser.ParseScript(source));
 
     [Test]
     public void CompileString_ExecutesOptionalChainsWithV8LinkSemantics()
@@ -1475,12 +1473,12 @@ public class DirectFlatParserTests
     [TestCase("++target?.value;")]
     [TestCase("new target?.value();")]
     public void ParseScript_RejectsInvalidOptionalChainForms(string source) =>
-        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+        Assert.Throws<JsParseException>(() => JavaScriptParser.ParseScript(source));
 
     [Test]
     public void ParseScript_EmitsPostOrderFlatNodesDirectly()
     {
-        using var ast = FlatJavaScriptParser.ParseScript(
+        using var ast = JavaScriptParser.ParseScript(
             """
             let x = 40;
             x += 2;
@@ -1504,7 +1502,7 @@ public class DirectFlatParserTests
     [Test]
     public void ParseScript_StoresFunctionParametersInDenseParsingTables()
     {
-        using var ast = FlatJavaScriptParser.ParseScript(
+        using var ast = JavaScriptParser.ParseScript(
             "function add(left, right) { return left + right; }"
         );
 
@@ -1523,7 +1521,7 @@ public class DirectFlatParserTests
     [Test]
     public void ParseScript_StoresAdvancedFunctionParameterMetadataAndPatterns()
     {
-        using var ast = FlatJavaScriptParser.ParseScript(
+        using var ast = JavaScriptParser.ParseScript(
             "function read(a, { b }, c = 1, ...rest) { return b; }"
         );
 
@@ -1544,7 +1542,7 @@ public class DirectFlatParserTests
     [Test]
     public void ParseScript_StoresArrowPatternAndRestParameterMetadata()
     {
-        using var ast = FlatJavaScriptParser.ParseScript(
+        using var ast = JavaScriptParser.ParseScript(
             "let arrow = (first, { item: [value = 1, ...rest] }, ...tail) => value;"
         );
         ref readonly var root = ref ast[ast.Root];
@@ -1574,7 +1572,7 @@ public class DirectFlatParserTests
     public void ParseScript_StoresNamedFunctionExpressionInFlatTables()
     {
         const string source = "let fn = function self(value = 1) { return value; };";
-        using var ast = FlatJavaScriptParser.ParseScript(source);
+        using var ast = JavaScriptParser.ParseScript(source);
 
         ref readonly var root = ref ast[ast.Root];
         var declaration = ast[ast.ChildRange(root.Arg0, root.Arg1)[0]];
@@ -1810,11 +1808,11 @@ public class DirectFlatParserTests
     [TestCase("'use strict'; function invalid(a, a) {}")]
     public void ParseScript_RejectsInvalidNonSimpleParameterLists(string source)
     {
-        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+        Assert.Throws<JsParseException>(() => JavaScriptParser.ParseScript(source));
     }
 
     [Test]
-    public void CompileString_ExecutesDirectFlatLoop()
+    public void CompileString_ExecutesDirectLoop()
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var compiler = new JsScriptCompiler(realm);
@@ -1838,7 +1836,7 @@ public class DirectFlatParserTests
     [Test]
     public void ParseScript_StoresSwitchCasesInDenseFlatRanges()
     {
-        using var ast = FlatJavaScriptParser.ParseScript(
+        using var ast = JavaScriptParser.ParseScript(
             "switch (value) { case 1: value = 2; break; default: value = 3; }"
         );
 
@@ -1935,7 +1933,7 @@ public class DirectFlatParserTests
     [TestCase("switch (0) { case 0: continue; }")]
     public void ParseScript_RejectsMalformedSwitch(string source)
     {
-        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+        Assert.Throws<JsParseException>(() => JavaScriptParser.ParseScript(source));
     }
 
     [Test]
@@ -2610,7 +2608,7 @@ public class DirectFlatParserTests
     public void ParseScript_RejectsTrailingCommaAfterObjectRestBinding()
     {
         var exception = Assert.Throws<JsParseException>(() =>
-            FlatJavaScriptParser.ParseScript("let { ...rest, } = source;")
+            JavaScriptParser.ParseScript("let { ...rest, } = source;")
         );
 
         Assert.That(exception!.Message, Does.Contain("Rest binding"));
@@ -2787,9 +2785,7 @@ public class DirectFlatParserTests
     [TestCase("let read = () => new.target;")]
     public void ParseScript_RejectsNewTargetWithoutReceiverFunction(string source)
     {
-        var exception = Assert.Throws<JsParseException>(() =>
-            FlatJavaScriptParser.ParseScript(source)
-        );
+        var exception = Assert.Throws<JsParseException>(() => JavaScriptParser.ParseScript(source));
 
         Assert.That(exception!.Message, Does.Contain("new.target"));
     }
@@ -2831,7 +2827,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 "function read() { return new.target; } new read() === read;"
             )
         );
@@ -2844,7 +2840,7 @@ public class DirectFlatParserTests
     [Test]
     public void ParseScript_RejectsEscapedNewTargetMetaProperty() =>
         Assert.Throws<JsParseException>(() =>
-            FlatJavaScriptParser.ParseScript("function read() { return new.\\u0074arget; }")
+            JavaScriptParser.ParseScript("function read() { return new.\\u0074arget; }")
         );
 
     [Test]
@@ -2919,7 +2915,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 "let object = { *value() { yield 6; } }; object.value().next().value;"
             )
         );
@@ -3005,12 +3001,12 @@ public class DirectFlatParserTests
 
     [Test]
     public void ParseScript_RejectsInvalidUntaggedTemplateEscape() =>
-        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript("`bad\\8`;"));
+        Assert.Throws<JsParseException>(() => JavaScriptParser.ParseScript("`bad\\8`;"));
 
     [Test]
     public void ParseScript_RejectsTaggedTemplateAfterOptionalChain() =>
         Assert.Throws<JsParseException>(() =>
-            FlatJavaScriptParser.ParseScript("({ tag() {} })?.tag`x`;")
+            JavaScriptParser.ParseScript("({ tag() {} })?.tag`x`;")
         );
 
     [Test]
@@ -3066,7 +3062,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 "function tag(strings, value) { return strings[0] + value + strings.raw[1]; } tag`a${1}b`;"
             )
         );
@@ -3166,7 +3162,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 "let make = function* () { yield* [1, 2]; }; let iterator = make(); iterator.next().value + '|' + iterator.next().value + '|' + iterator.next().done;"
             )
         );
@@ -3218,7 +3214,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 "globalThis.__flatAsyncBridge = 0; async function read() { return await 4; } read().then(function (value) { __flatAsyncBridge = value; });"
             )
         );
@@ -3321,7 +3317,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 "globalThis.__flatAsyncArrowBridge = 0; let read = async value => await value + 1; read(3).then(function (value) { __flatAsyncArrowBridge = value; });"
             )
         );
@@ -3488,7 +3484,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 "globalThis.__flatAsyncGeneratorBridge = 0; async function* read() { yield await 3; return 4; } let iterator = read(); iterator.next().then(function (first) { iterator.next().then(function (second) { __flatAsyncGeneratorBridge = first.value + second.value; }); });"
             )
         );
@@ -3701,7 +3697,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 "globalThis.__flatForAwaitBridge = 0; async function read() { for await (const value of [Promise.resolve(3), 4]) __flatForAwaitBridge += value; } read();"
             )
         );
@@ -3726,12 +3722,12 @@ public class DirectFlatParserTests
     [TestCase("async (value = await 1) => value;")]
     [TestCase("async\n(value) => value;")]
     public void ParseScript_RejectsInvalidOrDeferredAsyncFunctions(string source) =>
-        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+        Assert.Throws<JsParseException>(() => JavaScriptParser.ParseScript(source));
 
     [Test]
     public void ParseScript_ResetsAwaitContextForNestedNormalFunctions()
     {
-        using var ast = FlatJavaScriptParser.ParseScript(
+        using var ast = JavaScriptParser.ParseScript(
             "let await = 3; async function outer(value = () => await) { function inner() { return await; } return value() + inner(); }"
         );
 
@@ -3793,13 +3789,13 @@ public class DirectFlatParserTests
     [Test]
     public void ParseScript_RejectsYieldDelegateWithoutOperand() =>
         Assert.Throws<JsParseException>(() =>
-            FlatJavaScriptParser.ParseScript("function* invalid() { yield*; }")
+            JavaScriptParser.ParseScript("function* invalid() { yield*; }")
         );
 
     [TestCase("function* invalid(value = yield 1) {}")]
     [TestCase("function* invalid() { let arrow = () => yield 1; }")]
     public void ParseScript_RejectsYieldOutsideGeneratorBody(string source) =>
-        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+        Assert.Throws<JsParseException>(() => JavaScriptParser.ParseScript(source));
 
     [Test]
     public void CompileString_ExecutesArrowsWithLexicalThisAndArguments()
@@ -3841,14 +3837,14 @@ public class DirectFlatParserTests
     [TestCase("let arrow = ({ ...rest, value }) => value;")]
     [TestCase("let arrow = (value += 1) => value;")]
     public void ParseScript_RejectsUnsupportedOrInvalidArrowHeads(string source) =>
-        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+        Assert.Throws<JsParseException>(() => JavaScriptParser.ParseScript(source));
 
     [TestCase("let value = { get item(value) {} };")]
     [TestCase("let value = { set item() {} };")]
     [TestCase("let value = { set item(...value) {} };")]
     [TestCase("let value = { method(value, value) {} };")]
     public void ParseScript_RejectsInvalidObjectMethodParameters(string source) =>
-        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+        Assert.Throws<JsParseException>(() => JavaScriptParser.ParseScript(source));
 
     [TestCase("return 1;")]
     [TestCase("break;")]
@@ -3856,7 +3852,7 @@ public class DirectFlatParserTests
     [TestCase("while (true) { function nested() { break; } }")]
     public void ParseScript_RejectsIllegalAbruptControl(string source)
     {
-        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+        Assert.Throws<JsParseException>(() => JavaScriptParser.ParseScript(source));
     }
 
     [Test]
@@ -4062,7 +4058,7 @@ public class DirectFlatParserTests
     [Test]
     public void Collect_LiftsAndMergesCompatibleVarBindings()
     {
-        using var ast = FlatJavaScriptParser.ParseScript(
+        using var ast = JavaScriptParser.ParseScript(
             "{ var value = 1; } var value; function value() { return 2; }"
         );
         using var collected = CompilerBindingCollector.Collect(ast);
@@ -4558,7 +4554,7 @@ public class DirectFlatParserTests
     [Test]
     public void ParseScript_RejectsStaticPrototypeField() =>
         Assert.Throws<JsParseException>(() =>
-            FlatJavaScriptParser.ParseScript("class Invalid { static prototype = 1; }")
+            JavaScriptParser.ParseScript("class Invalid { static prototype = 1; }")
         );
 
     [Test]
@@ -4611,7 +4607,7 @@ public class DirectFlatParserTests
     [TestCase("class Invalid { value = arguments; }")]
     [TestCase("class Invalid { static value = () => arguments; }")]
     public void ParseScript_RejectsArgumentsInClassFieldInitializer(string source) =>
-        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+        Assert.Throws<JsParseException>(() => JavaScriptParser.ParseScript(source));
 
     [Test]
     public void CompileString_ExecutesInstanceFieldsAfterImplicitAndSpreadSuper()
@@ -4684,7 +4680,7 @@ public class DirectFlatParserTests
     [TestCase("function* outer() { class Invalid { static { yield 1; } } }")]
     [TestCase("while (true) { class Invalid { static { break; } } }")]
     public void ParseScript_RejectsInvalidClassStaticBlockControl(string source) =>
-        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+        Assert.Throws<JsParseException>(() => JavaScriptParser.ParseScript(source));
 
     [Test]
     public void CompileString_ExecutesPrivateClassFieldsAndReferences()
@@ -4731,7 +4727,7 @@ public class DirectFlatParserTests
     [TestCase("class Invalid { #x; read() { return #x; } }")]
     [TestCase("#missing in {}")]
     public void ParseScript_RejectsInvalidPrivateFieldSyntax(string source) =>
-        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+        Assert.Throws<JsParseException>(() => JavaScriptParser.ParseScript(source));
 
     [Test]
     public void CompileString_RejectsPrivateFieldAccessOnWrongReceiver()
@@ -4788,7 +4784,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 "class Names { fn = function () {}; static Cls = class {}; } let value = new Names(); value.fn.name + '|' + Names.Cls.name;"
             )
         );
@@ -4840,7 +4836,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 "let instanceKey = 'instance'; let staticKey = 'StaticValue'; class Names { [instanceKey] = function () {}; static [staticKey] = class { static observed = this.name; }; } let value = new Names(); value.instance.name + '|' + Names.StaticValue.name + '|' + Names.StaticValue.observed;"
             )
         );
@@ -4922,14 +4918,14 @@ public class DirectFlatParserTests
     [TestCase("class Invalid { get #value() {} static set #value(value) {} }")]
     [TestCase("class Invalid { #constructor() {} }")]
     public void ParseScript_RejectsDuplicatePrivateMethodsAndAccessors(string source) =>
-        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+        Assert.Throws<JsParseException>(() => JavaScriptParser.ParseScript(source));
 
     [Test]
     public void CompileAst_ExecutesPrivateMethodAndAccessorBridge()
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 "class Box { #value = 1; #method() { return this.#value; } get #accessor() { return this.#method(); } set #accessor(value) { this.#value = value; } read() { return this.#accessor; } write(value) { this.#accessor = value; } } let box = new Box(); box.write(4); box.read();"
             )
         );
@@ -4995,7 +4991,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 "class Value { constructor(value) { this.value = value; } read() { return this.value; } } new Value(4).read();"
             )
         );
@@ -5010,7 +5006,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 "class Base { constructor(value) { this.value = value; } } class Derived extends Base { constructor(value) { super(value + 1); } } new Derived(4).value;"
             )
         );
@@ -5025,7 +5021,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            FlatJavaScriptParser.ParseScript("let Bridge = class {}; Bridge.name;")
+            JavaScriptParser.ParseScript("let Bridge = class {}; Bridge.name;")
         );
 
         realm.Execute(script);
@@ -5038,7 +5034,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 "class Base { read() { return this.value; } } class Derived extends Base { read() { return super.read() + 1; } } let value = new Derived(); value.value = 4; value.read();"
             )
         );
@@ -5053,7 +5049,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 "class Base { static value = 2; } class Derived extends Base { static result = super.value + 1; } Derived.result;"
             )
         );
@@ -5068,7 +5064,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 "class Base { constructor(value) { this.value = value; } read() { return this.value; } } class Derived extends Base { result = super.read() + 1; } new Derived(4).result;"
             )
         );
@@ -5083,7 +5079,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 "class Base { static value = 2; } class Derived extends Base { static { this.result = super.value + 1; } } Derived.result;"
             )
         );
@@ -5098,7 +5094,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 "class Box { #value = 2; read() { return this.#value; } } new Box().read();"
             )
         );
@@ -5111,7 +5107,7 @@ public class DirectFlatParserTests
     [TestCase("class Base { constructor() { super(); } }")]
     [TestCase("class Derived extends Base { method() { super(); } }")]
     public void ParseScript_RejectsInvalidOrDeferredClassSyntax(string source) =>
-        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+        Assert.Throws<JsParseException>(() => JavaScriptParser.ParseScript(source));
 
     [Test]
     public void CompileString_DeletesPropertiesAndEvaluatesNonReferencesOnce()
@@ -5154,7 +5150,7 @@ public class DirectFlatParserTests
         Assert.That(realm.Accumulator.IsTrue, Is.True);
 
         Assert.Throws<JsParseException>(() =>
-            FlatJavaScriptParser.ParseScript("'use strict'; delete identifier;")
+            JavaScriptParser.ParseScript("'use strict'; delete identifier;")
         );
         Assert.Throws<JsRuntimeException>(() =>
             realm.Execute(
@@ -5170,7 +5166,7 @@ public class DirectFlatParserTests
     [TestCase("try {} catch ({ value, value }) {}")]
     public void ParseScript_RejectsMalformedTryAndThrow(string source)
     {
-        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(source));
+        Assert.Throws<JsParseException>(() => JavaScriptParser.ParseScript(source));
     }
 
     private static long MeasureAllocatedBytes(Action action)

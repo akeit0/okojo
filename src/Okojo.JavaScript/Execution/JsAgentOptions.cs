@@ -17,7 +17,7 @@ public sealed class JsAgentOptions
 
     public JsAgentOptions()
     {
-        // The direct-flat module compiler is the engine's only module path.
+        // The direct module compiler is the engine's only module path.
         ModuleExecutionCompiler = static (realm, ast, plan) =>
             new Compiler.JsModuleCompiler(realm).CompileForExecution(ast);
     }
@@ -33,7 +33,7 @@ public sealed class JsAgentOptions
     public IDebuggerSession? DebuggerSession { get; set; }
     internal Func<
         JsRealm,
-        FlatAst,
+        JsAst,
         ModuleExecutionPlan,
         ModuleExecutionCompilation
     >? ModuleExecutionCompiler { get; set; }

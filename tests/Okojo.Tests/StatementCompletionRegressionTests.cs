@@ -14,7 +14,7 @@ public class StatementCompletionRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 eval('1; while (false) { }');
                 """
@@ -31,7 +31,7 @@ public class StatementCompletionRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 eval("var c = 0, odds = 0; while (c < 10) { c++; if (((''+c/2).split('.')).length > 1) continue; odds++; }");
                 """
@@ -48,7 +48,7 @@ public class StatementCompletionRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 eval("while (1) { marker = 1; break; marker = 2; }");
                 """
@@ -65,7 +65,7 @@ public class StatementCompletionRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 eval("var i = 0; woohoo:{ while(true){ i++; if (i == 10) { break woohoo; } } throw 1; } i;");
                 """
@@ -82,7 +82,7 @@ public class StatementCompletionRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 eval('1; try { } catch (err) { }');
                 """
@@ -99,7 +99,7 @@ public class StatementCompletionRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 eval('1; try { } finally { }');
                 """
@@ -116,7 +116,7 @@ public class StatementCompletionRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 eval('1; try { 3; } finally { 4; }');
                 """
@@ -133,7 +133,7 @@ public class StatementCompletionRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 eval('99; do { -99; try { 39 } catch (e) { -1 } finally { break; -2 }; } while (false);');
                 """
@@ -150,7 +150,7 @@ public class StatementCompletionRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 eval('99; do { -99; try { 39 } catch (e) { -1 } finally { 42; break; -2 }; } while (false);');
                 """
@@ -167,7 +167,7 @@ public class StatementCompletionRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 eval('1; do { 2; if (false) { } else { break; } } while (false)');
                 """
@@ -184,7 +184,7 @@ public class StatementCompletionRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 eval('1; do { break; } while (false)');
                 """
@@ -201,7 +201,7 @@ public class StatementCompletionRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 eval('2; do { 3; break; } while (false)');
                 """
@@ -218,7 +218,7 @@ public class StatementCompletionRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 eval('4; do { continue; } while (false)');
                 """
@@ -235,7 +235,7 @@ public class StatementCompletionRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 eval('5; do { 6; continue; } while (false)');
                 """
@@ -252,7 +252,7 @@ public class StatementCompletionRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 eval('7; var test262id;');
                 """
@@ -269,7 +269,7 @@ public class StatementCompletionRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 eval('1; for (var a of []) { }');
                 """
@@ -286,7 +286,7 @@ public class StatementCompletionRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 eval('2; for (var b of [0]) { 3; }');
                 """
@@ -303,7 +303,7 @@ public class StatementCompletionRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 eval('1; for (var a in {}) { }');
                 """
@@ -320,7 +320,7 @@ public class StatementCompletionRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 eval('2; for (var b in { x: 0 }) { 3; }');
                 """
@@ -337,7 +337,7 @@ public class StatementCompletionRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 eval('1; for (var run = false; run; ) { }');
                 """
@@ -354,7 +354,7 @@ public class StatementCompletionRegressionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 eval('2; for (var run = false; run; ) { 3; }');
                 """

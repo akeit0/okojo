@@ -30,7 +30,7 @@ var realm = JsRuntime.CreateBuilder().Build().DefaultRealm;
 
 for (var i = 0; i < 500; i++)
 {
-    using var ast = FlatJavaScriptParser.ParseScript(source);
+    using var ast = JavaScriptParser.ParseScript(source);
     _ = new JsScriptCompiler(realm).Compile(ast, null);
 }
 
@@ -42,12 +42,12 @@ long collectBytes = 0;
 long planBytes = 0;
 long compileRestBytes = 0;
 
-// Internal stage APIs via IVT: replicate Compile(FlatAst) pipeline manually.
+// Internal stage APIs via IVT: replicate Compile(JsAst) pipeline manually.
 var compiler = new JsScriptCompiler(realm);
 
 // Warm the manual pipeline once to stabilize lazy state.
 {
-    using var ast = FlatJavaScriptParser.ParseScript(source);
+    using var ast = JavaScriptParser.ParseScript(source);
     _ = compiler.Compile(ast, null);
 }
 
@@ -56,7 +56,7 @@ for (var s = 0; s < Samples; s++)
     var before = GC.GetTotalAllocatedBytes(precise: true);
 
     var astStart = before;
-    using var ast = FlatJavaScriptParser.ParseScript(source);
+    using var ast = JavaScriptParser.ParseScript(source);
     parseBytes += GC.GetTotalAllocatedBytes(precise: true) - astStart;
 
     var collectStart = GC.GetTotalAllocatedBytes(precise: true);

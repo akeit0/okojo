@@ -31,7 +31,7 @@ internal sealed class ModuleLinker(Func<IModuleSourceLoader> loaderProvider)
         return new(JsErrorKind.SyntaxError, withLocation, diagnostic.Code);
     }
 
-    public ModuleLinkResult BuildPlanResult(string moduleResolvedId, FlatAst moduleProgram)
+    public ModuleLinkResult BuildPlanResult(string moduleResolvedId, JsAst moduleProgram)
     {
         var loader = loaderProvider();
         var resolvedRequests = new ResolvedModuleDependency[moduleProgram.ModuleRequests.Length];
@@ -67,11 +67,11 @@ internal sealed class ModuleLinker(Func<IModuleSourceLoader> loaderProvider)
             resolvedImports.Add(
                 new(
                     moduleProgram.GetString(import.LocalNameStringIndex),
-                    import.Kind == FlatImportKind.Namespace
+                    import.Kind == JsImportKind.Namespace
                         ? ModuleImportBindingKind.Namespace
                         : ModuleImportBindingKind.Named,
                     request.ResolvedId,
-                    import.Kind == FlatImportKind.Namespace
+                    import.Kind == JsImportKind.Namespace
                         ? string.Empty
                         : moduleProgram.GetString(import.ImportedNameStringIndex),
                     import.Position,
@@ -95,13 +95,13 @@ internal sealed class ModuleLinker(Func<IModuleSourceLoader> loaderProvider)
         {
             switch (export.Kind)
             {
-                case FlatExportKind.Local:
-                case FlatExportKind.DefaultExpression:
-                case FlatExportKind.DefaultDeclaration:
+                case JsExportKind.Local:
+                case JsExportKind.DefaultExpression:
+                case JsExportKind.DefaultDeclaration:
                     exportLocalByName[moduleProgram.GetString(export.ExportNameStringIndex)] =
                         moduleProgram.GetString(export.LocalNameStringIndex);
                     break;
-                case FlatExportKind.Indirect:
+                case JsExportKind.Indirect:
                 {
                     var request = resolvedRequests[export.ModuleRequestIndex];
                     resolvedExportFromBindings.Add(
@@ -115,7 +115,7 @@ internal sealed class ModuleLinker(Func<IModuleSourceLoader> loaderProvider)
                     );
                     break;
                 }
-                case FlatExportKind.Namespace:
+                case JsExportKind.Namespace:
                 {
                     var request = resolvedRequests[export.ModuleRequestIndex];
                     resolvedExportNamespaceFromBindings.Add(
@@ -127,7 +127,7 @@ internal sealed class ModuleLinker(Func<IModuleSourceLoader> loaderProvider)
                     );
                     break;
                 }
-                case FlatExportKind.Star:
+                case JsExportKind.Star:
                     exportStars.Add(resolvedRequests[export.ModuleRequestIndex].ResolvedId);
                     break;
             }
@@ -161,7 +161,7 @@ internal sealed class ModuleLinker(Func<IModuleSourceLoader> loaderProvider)
         );
     }
 
-    private static HashSet<string> CollectDefaultNameEligibleExportLocals(FlatAst ast)
+    private static HashSet<string> CollectDefaultNameEligibleExportLocals(JsAst ast)
     {
         var result = new HashSet<string>(StringComparer.Ordinal);
         var statements = ast.ChildRange(ast[ast.Root].Arg0, ast[ast.Root].Arg1);
@@ -186,8 +186,8 @@ internal sealed class ModuleLinker(Func<IModuleSourceLoader> loaderProvider)
             for (var j = 0; j < exports.Length; j++)
                 if (
                     exports[j].Kind
-                    is FlatExportKind.DefaultExpression
-                        or FlatExportKind.DefaultDeclaration
+                    is JsExportKind.DefaultExpression
+                        or JsExportKind.DefaultDeclaration
                 )
                     result.Add(ast.GetString(exports[j].LocalNameStringIndex));
         }
@@ -195,7 +195,7 @@ internal sealed class ModuleLinker(Func<IModuleSourceLoader> loaderProvider)
         return result;
     }
 
-    private static bool ShouldInferAnonymousClassName(FlatAst ast, in FlatClassInfo info)
+    private static bool ShouldInferAnonymousClassName(JsAst ast, in JsClassInfo info)
     {
         var elements = ast.GetClassElements(info);
         for (var i = 0; i < elements.Length; i++)
@@ -209,7 +209,7 @@ internal sealed class ModuleLinker(Func<IModuleSourceLoader> loaderProvider)
         return true;
     }
 
-    private static string? GetImportType(FlatAst ast, in FlatModuleRequest request)
+    private static string? GetImportType(JsAst ast, in JsModuleRequest request)
     {
         var attributes = ast.GetImportAttributes(request);
         for (var i = 0; i < attributes.Length; i++)

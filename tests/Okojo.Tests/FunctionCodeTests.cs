@@ -14,7 +14,7 @@ public class FunctionCodeTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 'use strict';
                 Object.defineProperty(Object.prototype, "x", { get: function () { return this; } });
@@ -33,7 +33,7 @@ public class FunctionCodeTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var err1, err2;
                 (function() {
@@ -58,7 +58,7 @@ public class FunctionCodeTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var global = (function() { return this; }());
                 var thisValue = null;
@@ -83,7 +83,7 @@ public class FunctionCodeTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var global = (function() { return this; }());
                 var thisValue = null;
@@ -108,7 +108,7 @@ public class FunctionCodeTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function f5(one) {
                   'use strict';

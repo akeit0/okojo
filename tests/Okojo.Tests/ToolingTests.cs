@@ -68,7 +68,7 @@ public class ToolingTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function t(a) { let b = a; return b; }
                 t(7);
@@ -151,7 +151,7 @@ public class ToolingTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function t(a) { let b; [b] = a; return b; }
                 t([7]);
@@ -169,7 +169,7 @@ public class ToolingTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function t(identity, x) {
                     return identity(x);
@@ -193,7 +193,7 @@ public class ToolingTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function t(obj, x) {
                     return obj.f(x);
@@ -215,7 +215,7 @@ public class ToolingTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function t(require) {
                     var React = require("react"),
@@ -242,7 +242,7 @@ public class ToolingTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function t(x) {
                     let s = 0;
@@ -266,7 +266,7 @@ public class ToolingTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function t() {
                     for (let i = 0; i < 10000; i = i + 1) {
@@ -299,7 +299,7 @@ public class ToolingTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function t() {
                     let identity = function (x) { return x; };
@@ -415,7 +415,7 @@ public class ToolingTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function t() {
                     let a = 300;

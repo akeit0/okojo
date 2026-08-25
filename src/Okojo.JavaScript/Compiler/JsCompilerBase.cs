@@ -58,7 +58,7 @@ internal abstract partial class JsCompilerBase
     ///     (V8 rewriter.cc): iterations, try, switch always; an if only when its
     ///     arms disagree on guaranteeing a value. Everything else carries.
     /// </summary>
-    protected static bool StatementNeedsCompletionReset(FlatAst ast, int nodeIndex)
+    protected static bool StatementNeedsCompletionReset(JsAst ast, int nodeIndex)
     {
         var node = ast[nodeIndex];
         while (node.Kind == AstKind.LabeledStatement)
@@ -84,7 +84,7 @@ internal abstract partial class JsCompilerBase
     ///     Used by the if-analysis: an if whose arms disagree needs an undefined
     ///     prefix so the untaken path cannot leak a stale carried value.
     /// </summary>
-    protected static bool StatementGuaranteesCompletionValue(FlatAst ast, int nodeIndex)
+    protected static bool StatementGuaranteesCompletionValue(JsAst ast, int nodeIndex)
     {
         var node = ast[nodeIndex];
         switch (node.Kind)
@@ -110,7 +110,7 @@ internal abstract partial class JsCompilerBase
         }
     }
 
-    protected static bool BodyEndsAbruptly(FlatAst ast, int offset, int count)
+    protected static bool BodyEndsAbruptly(JsAst ast, int offset, int count)
     {
         var statements = ast.ChildRange(offset, count);
         return statements.Length != 0

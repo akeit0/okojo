@@ -18,7 +18,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let o = { x: 1 };
                 o.x += 3;
@@ -37,7 +37,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let o = { 0: 1 };
                 o[0] += 2;
@@ -56,7 +56,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function DummyError() {}
                 var check1 = false;
@@ -92,7 +92,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var key = "x";
                 var obj = {};
@@ -112,7 +112,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var key = "x";
                 var received = "unset";
@@ -135,7 +135,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var x = 1;
                 x = undefined;
@@ -157,7 +157,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var numberCount = 0;
                 var stringCount = 0;
@@ -196,7 +196,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 "use strict";
                 var count = 0;
@@ -218,7 +218,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var called = false;
                 function mark() {
@@ -241,7 +241,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let value = 3;
                 let result = (value **= 2);
@@ -260,7 +260,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 class C {
                   #x = 3;
@@ -284,7 +284,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var fn;
                 (fn) = function() {};
@@ -303,7 +303,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function t() {
                     let o = { x: 1 };
@@ -334,7 +334,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function t() {
                     let o = { 0: 1 };
@@ -386,7 +386,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let o = { x: 1 };
                 let old = o.x++;
@@ -405,7 +405,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let o = { x: 1 };
                 let now = ++o.x;
@@ -424,7 +424,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let o = { 0: 1 };
                 let old = o[0]++;
@@ -443,7 +443,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function t() {
                     let o = { x: 1 };
@@ -473,7 +473,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let a = 0;
                 let r1 = (a &&= 5);
@@ -495,7 +495,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let access = 0;
                 let rhs = 0;
@@ -521,7 +521,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let keyCount = 0;
                 function k() { keyCount += 1; return "x"; }
@@ -542,7 +542,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let a = null;
                 let r1 = (a ??= 5);
@@ -567,7 +567,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let keyCount = 0;
                 function k() { keyCount += 1; return "x"; }
@@ -588,7 +588,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var count = 0;
                 Object.defineProperty(this, "x", {
@@ -626,7 +626,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 (null ?? 3) === 3 &&
                 (undefined ?? 4) === 4 &&
@@ -646,7 +646,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var x;
                 x = new Number(1); x ^= 1; if (x !== 0) throw new Error("n^n");
@@ -668,7 +668,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 ~new Number(3) === -4;
                 """
@@ -685,7 +685,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 ~2147483648 === ~-2147483648 &&
                 ~2147483649 === ~-2147483647 &&
@@ -704,7 +704,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 ({valueOf: function() {return {}}, toString: function() {return "+1"}} != "1") === true &&
                 ({valueOf: function() {return {}}, toString: function() {return "+1"}} != "+1") === false;
@@ -722,7 +722,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 ({ valueOf: function(){ return 1; }, toString: function(){ return "x"; }});
                 """
@@ -741,7 +741,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var out;
                 try {
@@ -765,7 +765,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var object = { valueOf: function() { return 1; }, toString: function() { throw "bad"; } };
                 var y = object++;
@@ -784,7 +784,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var threwTypeError = false;
                 try {
@@ -809,7 +809,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var gotDummy = false;
                 function DummyError() {}
@@ -835,7 +835,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function DummyError() {}
                 var threwDummy = false;
@@ -862,7 +862,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var threwTypeError = false;
                 try {
@@ -888,7 +888,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var threwTypeError = false;
                 try {
@@ -914,7 +914,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var threwTypeError = false;
                 try {
@@ -939,7 +939,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var propKeyEvaluated = false;
                 var baseObj = {};
@@ -967,7 +967,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var propKeyEvaluated = false;
                 var obj = {};
@@ -995,7 +995,7 @@ public class AssignmentTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var propKeyEvaluated = false;
                 var obj = { 1: 1 };

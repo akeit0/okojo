@@ -249,7 +249,7 @@ internal static class Program
             }
 
             using var engine = JsRuntime.Create();
-            using var flatAst = FlatJavaScriptParser.ParseScript(source, input);
+            using var flatAst = JavaScriptParser.ParseScript(source, input);
             var script = new JsScriptCompiler(engine.MainRealm).Compile(flatAst, input);
 
             var functions = CollectOkojoFunctions(script);
@@ -329,7 +329,7 @@ internal static class Program
         bool includeResolvedGraph
     )
     {
-        using var program = FlatJavaScriptParser.ParseModule(source, inputLabel);
+        using var program = JavaScriptParser.ParseModule(source, inputLabel);
         var imports = new List<string>();
         var exports = new List<string>();
         var reexports = new List<string>();
@@ -346,12 +346,12 @@ internal static class Program
             var exportName = program.GetString(export.ExportNameStringIndex);
             switch (export.Kind)
             {
-                case FlatExportKind.Local:
-                case FlatExportKind.DefaultExpression:
-                case FlatExportKind.DefaultDeclaration:
+                case JsExportKind.Local:
+                case JsExportKind.DefaultExpression:
+                case JsExportKind.DefaultDeclaration:
                     exports.Add(exportName);
                     break;
-                case FlatExportKind.Indirect:
+                case JsExportKind.Indirect:
                 {
                     ref readonly var request = ref program.ModuleRequests[
                         export.ModuleRequestIndex
@@ -361,7 +361,7 @@ internal static class Program
                     );
                     break;
                 }
-                case FlatExportKind.Namespace:
+                case JsExportKind.Namespace:
                 {
                     ref readonly var request = ref program.ModuleRequests[
                         export.ModuleRequestIndex
@@ -371,7 +371,7 @@ internal static class Program
                     );
                     break;
                 }
-                case FlatExportKind.Star:
+                case JsExportKind.Star:
                 {
                     ref readonly var request = ref program.ModuleRequests[
                         export.ModuleRequestIndex
@@ -445,7 +445,7 @@ internal static class Program
         var resolvedPath = Path.GetFullPath(modulePath);
         var source = File.ReadAllText(resolvedPath, Encoding.UTF8);
         using var engine = JsRuntime.Create();
-        using var ast = FlatJavaScriptParser.ParseModule(source, resolvedPath);
+        using var ast = JavaScriptParser.ParseModule(source, resolvedPath);
         var script = new JsModuleCompiler(engine.MainRealm).Compile(ast);
         var functions = CollectOkojoFunctions(script);
         return RenderDisassembly(functions, filter);
@@ -471,7 +471,7 @@ internal static class Program
                 return;
 
             var source = loader.LoadSource(resolvedId);
-            using var program = FlatJavaScriptParser.ParseModule(source, resolvedId);
+            using var program = JavaScriptParser.ParseModule(source, resolvedId);
             var deps = new List<string>();
 
             foreach (ref readonly var request in program.ModuleRequests)
@@ -901,7 +901,7 @@ internal static class Program
         {
             var casePath = caseFiles[i];
             var source = File.ReadAllText(casePath, Encoding.UTF8);
-            var program = FlatJavaScriptParser.ParseScript(source);
+            var program = JavaScriptParser.ParseScript(source);
             var script = JsCompiler.Compile(realm, program);
             var functions = CollectOkojoFunctions(script);
             var output = RenderDisassembly(functions, null);

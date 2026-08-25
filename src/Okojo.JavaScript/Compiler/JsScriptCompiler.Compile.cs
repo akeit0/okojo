@@ -8,11 +8,11 @@ internal sealed partial class JsScriptCompiler
 {
     public JsScript Compile(string source, string? sourcePath = null)
     {
-        using var ast = FlatJavaScriptParser.ParseScript(source, sourcePath);
+        using var ast = JavaScriptParser.ParseScript(source, sourcePath);
         return Compile(ast, sourcePath);
     }
 
-    internal JsScript Compile(FlatAst ast, string? sourcePath)
+    internal JsScript Compile(JsAst ast, string? sourcePath)
     {
         return Compile(
             ast,
@@ -23,14 +23,14 @@ internal sealed partial class JsScriptCompiler
         );
     }
 
-    internal JsScript Compile(FlatAst ast) => Compile(ast, ast.SourcePath);
+    internal JsScript Compile(JsAst ast) => Compile(ast, ast.SourcePath);
 
     /// <summary>
     ///     Compiles an indirect-eval body. Sloppy eval keeps var/function bindings
     ///     on the global object but its lexicals stay ephemeral; strict eval keeps
     ///     every declaration in the eval's own environment.
     /// </summary>
-    internal JsScript CompileIndirectEval(FlatAst ast, string? sourcePath)
+    internal JsScript CompileIndirectEval(JsAst ast, string? sourcePath)
     {
         var strict = ast.StrictDeclared;
         return Compile(
@@ -43,7 +43,7 @@ internal sealed partial class JsScriptCompiler
     }
 
     private JsScript Compile(
-        FlatAst ast,
+        JsAst ast,
         string? sourcePath,
         bool ephemeralTopLevelLocality,
         bool suppressTopLevelLexicalRegistration,
@@ -126,7 +126,7 @@ internal sealed partial class JsScriptCompiler
     ///     instead of carrying a stale value forward; value-producing statements
     ///     capture through the active completion sink; blocks and labels recurse.
     /// </summary>
-    private void EmitScriptRootStatements(FlatAst ast, int bodyOffset, int bodyCount)
+    private void EmitScriptRootStatements(JsAst ast, int bodyOffset, int bodyCount)
     {
         var statements = ast.ChildRange(bodyOffset, bodyCount);
         for (var i = 0; i < statements.Length; i++)

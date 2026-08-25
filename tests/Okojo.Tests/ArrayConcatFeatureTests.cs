@@ -14,7 +14,7 @@ public class ArrayConcatFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const a = [0];
                 const b = [1, , 3];
@@ -43,7 +43,7 @@ public class ArrayConcatFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const result = Array.prototype.concat.call(true, 1, 2);
                 result.length === 3 &&
@@ -64,7 +64,7 @@ public class ArrayConcatFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const ta = new Uint8Array([1, 2]);
                 const result = [].concat(ta, ta);
@@ -86,7 +86,7 @@ public class ArrayConcatFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const obj = { length: 3, 0: "a", 2: "c" };
                 obj[Symbol.isConcatSpreadable] = true;
@@ -118,7 +118,7 @@ public class ArrayConcatFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const item = [];
                 item[Symbol.isConcatSpreadable] = undefined;
@@ -139,7 +139,7 @@ public class ArrayConcatFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const arrayProxy = new Proxy([], {});
                 const arrayProxyProxy = new Proxy(arrayProxy, {});
@@ -160,7 +160,7 @@ public class ArrayConcatFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var args = (function(a, a, a) {
                   return arguments;
@@ -193,7 +193,7 @@ public class ArrayConcatFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let threwA = false;
                 let threwB = false;
@@ -236,7 +236,7 @@ public class ArrayConcatFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 Object.defineProperty(Array.prototype, "0", {
                   value: 100,
@@ -271,7 +271,7 @@ public class ArrayConcatFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 Object.defineProperty(Array.prototype, "0", {
                   value: 100,

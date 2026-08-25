@@ -6,8 +6,8 @@ namespace Okojo.JavaScript.Compiler;
 internal abstract partial class JsCompilerBase
 {
     protected void EmitParameterPrologue(
-        FlatAst ast,
-        in FlatFunctionInfo function,
+        JsAst ast,
+        in JsFunctionInfo function,
         int preallocatedRestRegister = -1
     )
     {
@@ -23,7 +23,7 @@ internal abstract partial class JsCompilerBase
             {
                 if ((uint)function.RestParameterIndex > byte.MaxValue)
                     throw new NotSupportedException(
-                        "Flat rest parameter index exceeds byte operand capacity."
+                        "Rest parameter index exceeds byte operand capacity."
                     );
                 builder.Emit(JsOpCode.CreateRestParameter, (byte)function.RestParameterIndex);
                 restValueRegister = builder.AllocateTemporaryRegister();
@@ -91,7 +91,7 @@ internal abstract partial class JsCompilerBase
         }
     }
 
-    private void EmitInitializeParameterPatternHoles(FlatAst ast, int nodeIndex)
+    private void EmitInitializeParameterPatternHoles(JsAst ast, int nodeIndex)
     {
         ref readonly var node = ref ast[nodeIndex];
         switch (node.Kind)

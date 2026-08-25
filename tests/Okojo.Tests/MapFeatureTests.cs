@@ -14,7 +14,7 @@ public class MapFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const d = Object.getOwnPropertyDescriptor(globalThis, "Map");
                 typeof Map === "function" &&
@@ -35,7 +35,7 @@ public class MapFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let ok = false;
                 try { Map(); } catch (e) { ok = e && e.name === "TypeError"; }
@@ -54,7 +54,7 @@ public class MapFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const m = new Map([[1, "a"], [2, "b"]]);
                 Object.getPrototypeOf(m) === Map.prototype &&
@@ -76,7 +76,7 @@ public class MapFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const m = new Map([[NaN, "n"], [-0, "m"], [0, "z"]]);
                 m.get(NaN) === "n" &&
@@ -97,7 +97,7 @@ public class MapFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const m = new Map([[1, "a"], [1, "b"]]);
                 const setResult = m.set(2, "c");
@@ -126,7 +126,7 @@ public class MapFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const arr = [-0, 0, 1, 2, 3];
                 let calls = 0;
@@ -158,7 +158,7 @@ public class MapFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const m = new Map([[1, "a"]]);
                 let threw = false;
@@ -189,7 +189,7 @@ public class MapFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function isConstructor(f) {
                   try {
@@ -220,7 +220,7 @@ public class MapFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const map = new Map([[1, "a"]]);
                 const it = map.keys();
@@ -243,7 +243,7 @@ public class MapFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const mapSet = Map.prototype.set;
                 let counter = 0;
@@ -270,7 +270,7 @@ public class MapFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 Object.defineProperty(Map.prototype, "set", {
                   get: function() { throw new Error("boom"); }

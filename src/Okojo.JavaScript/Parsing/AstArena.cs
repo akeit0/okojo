@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 
 namespace Okojo.JavaScript.Parsing;
 
-/// <summary>Node kind tags for the flat AST.</summary>
+/// <summary>Node kind tags for the arena-backed AST.</summary>
 internal enum AstKind : byte
 {
     // Statements
@@ -97,7 +97,7 @@ internal enum AstOptionalChainFlags : byte
 }
 
 /// <summary>
-///     Flat-array AST node. 16 bytes fixed size.
+///     Arena-array AST node. 16 bytes fixed size.
 ///     Children referenced by integer index into the owning arena's node
 ///     array (-1 = no child). Extra data (strings, lists) stored in side
 ///     tables addressed by <c>Extra</c>.
@@ -130,7 +130,7 @@ internal struct AstNode
 }
 
 /// <summary>
-///     Arena-owned flat AST. All nodes live in one contiguous array
+///     Arena-owned AST. All nodes live in one contiguous array
 ///     pre-sized from the source length. O(1) node creation via bump
 ///     pointer; entire tree freed when the arena is discarded.
 ///

@@ -20,7 +20,7 @@ internal sealed class ModuleGraph(JsAgent agent)
 
         var node = new ModuleRecordNode(
             resolvedId,
-            FlatJavaScriptParser.ParseModule(source, resolvedId),
+            JavaScriptParser.ParseModule(source, resolvedId),
             exportsObject
         );
         nodes.Add(resolvedId, node);
@@ -63,19 +63,19 @@ internal sealed class ModuleGraph(JsAgent agent)
             return deps;
         }
 
-        foreach (ref readonly var request in node.FlatProgram!.ModuleRequests)
+        foreach (ref readonly var request in node.Program!.ModuleRequests)
         {
-            var attributes = node.FlatProgram.GetImportAttributes(request);
+            var attributes = node.Program.GetImportAttributes(request);
             var isText = false;
             for (var i = 0; i < attributes.Length; i++)
                 if (
                     string.Equals(
-                        node.FlatProgram.GetString(attributes[i].KeyStringIndex),
+                        node.Program.GetString(attributes[i].KeyStringIndex),
                         "type",
                         StringComparison.Ordinal
                     )
                     && string.Equals(
-                        node.FlatProgram.GetString(attributes[i].ValueStringIndex),
+                        node.Program.GetString(attributes[i].ValueStringIndex),
                         "text",
                         StringComparison.Ordinal
                     )
@@ -88,7 +88,7 @@ internal sealed class ModuleGraph(JsAgent agent)
             if (isText)
                 continue;
             var depResolved = agent.ModuleSourceLoader.ResolveSpecifier(
-                node.FlatProgram.GetString(request.SpecifierStringIndex),
+                node.Program.GetString(request.SpecifierStringIndex),
                 node.ResolvedId
             );
             if (nodes.TryGetValue(depResolved, out var depNode) && !deps.Contains(depNode))
@@ -169,13 +169,13 @@ internal enum ModuleEvalState
 
 internal sealed class ModuleRecordNode(
     string resolvedId,
-    FlatAst flatProgram,
+    JsAst program,
     JsModuleNamespaceObject exportsObject
 ) : IDisposable
 {
     public string ResolvedId { get; } = resolvedId;
-    public FlatAst? FlatProgram { get; private set; } = flatProgram;
-    public string SourceText => FlatProgram?.SourceText ?? string.Empty;
+    public JsAst? Program { get; private set; } = program;
+    public string SourceText => Program?.SourceText ?? string.Empty;
     public JsModuleNamespaceObject ExportsObject { get; } = exportsObject;
     public ModuleLinkPlan? LinkPlan { get; set; }
     public ModuleExecutionCompilation? Compilation { get; set; }
@@ -193,12 +193,12 @@ internal sealed class ModuleRecordNode(
 
     public void Dispose()
     {
-        ReleaseFlatProgram();
+        ReleaseProgram();
     }
 
-    public void ReleaseFlatProgram()
+    public void ReleaseProgram()
     {
-        FlatProgram?.Dispose();
-        FlatProgram = null;
+        Program?.Dispose();
+        Program = null;
     }
 }

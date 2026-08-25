@@ -8,7 +8,7 @@ public class CompilerBindingCollectorTests
     [Test]
     public void Collect_RootBindings_MatchesDirectLexicalSurface()
     {
-        var program = FlatJavaScriptParser.ParseModule(
+        var program = JavaScriptParser.ParseModule(
             """
             export let alpha = 1;
             class Beta {}
@@ -50,7 +50,7 @@ public class CompilerBindingCollectorTests
     [Test]
     public void Collect_BlockAndLoopBindings_AssignsNestedScopes()
     {
-        var program = FlatJavaScriptParser.ParseScript(
+        var program = JavaScriptParser.ParseScript(
             """
             {
                 let left = 1;
@@ -120,7 +120,7 @@ public class CompilerBindingCollectorTests
     [Test]
     public void Collect_FunctionAndCatchBindings_RecordsParametersAndAliases()
     {
-        var program = FlatJavaScriptParser.ParseScript(
+        var program = JavaScriptParser.ParseScript(
             """
             function outer(first, { second }, ...rest) {
                 try {
@@ -192,7 +192,7 @@ public class CompilerBindingCollectorTests
     [Test]
     public void Collect_TracksIdentifierReferencesAcrossNestedFunctions()
     {
-        var program = FlatJavaScriptParser.ParseScript(
+        var program = JavaScriptParser.ParseScript(
             """
             let outer = 1;
             function f() {
@@ -211,9 +211,9 @@ public class CompilerBindingCollectorTests
     }
 
     [Test]
-    public void CollectFlat_TracksNestedFunctionCaptureFromSharedArena()
+    public void Collect_TracksNestedFunctionCaptureFromSharedArena()
     {
-        using var ast = FlatJavaScriptParser.ParseScript(
+        using var ast = JavaScriptParser.ParseScript(
             """
             let outer = 1;
             function f() {
@@ -236,7 +236,7 @@ public class CompilerBindingCollectorTests
     [Test]
     public void Collect_RootLexicalBindings_RecordSourcePositions()
     {
-        var program = FlatJavaScriptParser.ParseScript(
+        var program = JavaScriptParser.ParseScript(
             """
             let blocked = 1;
             const fixedValue = 2;

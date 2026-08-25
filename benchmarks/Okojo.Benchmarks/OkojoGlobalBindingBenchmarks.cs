@@ -108,12 +108,12 @@ public class OkojoGlobalBindingBenchmarks
         {
             var preludeScript = JsCompiler.Compile(
                 realm,
-                FlatJavaScriptParser.ParseScript(preludeSource)
+                JavaScriptParser.ParseScript(preludeSource)
             );
             realm.Execute(preludeScript);
         }
 
-        var bodyScript = JsCompiler.Compile(realm, FlatJavaScriptParser.ParseScript(bodySource));
+        var bodyScript = JsCompiler.Compile(realm, JavaScriptParser.ParseScript(bodySource));
         return (realm, bodyScript);
     }
 }

@@ -15,7 +15,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let g = async function* AG() {
                     yield await "a";
@@ -34,7 +34,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var results = [];
                 var iter = (async function*() {
@@ -77,7 +77,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var fn = async function* () {};
                 var intrinsicProto = Object.getPrototypeOf(fn.prototype);
@@ -107,7 +107,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var callCount = 0;
                 var f = async function*(_ = (function() { throw new Error("x"); }())) {
@@ -133,7 +133,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var callCount = 0;
                 var f = async function*(x = x) {
@@ -159,7 +159,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var callCount = 0;
                 var f = async function*(x = y, y) {
@@ -185,7 +185,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var g = async function*(a = (g.prototype = null)) {}
                 var oldPrototype = g.prototype;
@@ -205,7 +205,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 async function* g() {}
                 var proto = Object.getPrototypeOf(g);
@@ -232,7 +232,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 "use strict";
                 let ref = async function * BindingIdentifier() {
@@ -263,7 +263,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let callCount = 0;
                 let ref = async function * BindingIdentifier() {
@@ -314,7 +314,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let callCount = 0;
                 let ref = async function * BindingIdentifier() {
@@ -347,7 +347,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let callCount = 0;
                 let ref = async function * BindingIdentifier() {
@@ -383,7 +383,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let callCount = 0;
                 let ref = async function * BindingIdentifier() {
@@ -421,7 +421,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var g = async function*() {};
                 var out;
@@ -447,7 +447,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 typeof Symbol.asyncIterator === "symbol";
                 """
@@ -464,7 +464,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var g = async function*() {};
                 typeof g()[Symbol.asyncIterator] === "function";
@@ -482,7 +482,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var g = async function*() {};
                 var out;
@@ -505,7 +505,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var g = async function*() {};
                 var it = g();
@@ -524,7 +524,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var g = async function*() {};
                 var out;
@@ -547,7 +547,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 async function* g() {}
                 typeof g()[Symbol.asyncIterator] === "function";
@@ -563,7 +563,7 @@ public class AsyncGeneratorTests
     public void ClassAsyncGeneratorMethod_ForAwait_Rejects_With_Rejected_Value_And_Then_Closes()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        using var program = FlatJavaScriptParser.ParseScript(
+        using var program = JavaScriptParser.ParseScript(
             """
             let error = new Error();
             globalThis.out = [];
@@ -618,7 +618,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 async function* readFile() {
                   yield 1;
@@ -640,7 +640,7 @@ public class AsyncGeneratorTests
     public void ClassDeclarationAsyncGeneratorMethod_ForAwait_Rejects_With_Rejected_Value_And_Then_Closes()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var program = FlatJavaScriptParser.ParseScript(
+        var program = JavaScriptParser.ParseScript(
             """
             let error = new Error();
             globalThis.out = [];
@@ -701,7 +701,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = [];
                 const bodyError = new Error("body");
@@ -748,7 +748,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = [];
                 const bodyError = new Error("body");
@@ -797,7 +797,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let error = new Error();
                 globalThis.out = [];
@@ -841,7 +841,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var iterable = {
                   [Symbol.iterator]() {
@@ -886,7 +886,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var log = [];
                 let caughtErr;
@@ -949,7 +949,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = "pending";
                 let error = new SyntaxError("boom");
@@ -978,7 +978,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var iter;
                 var executionorder = 0;
@@ -1030,7 +1030,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var log = [];
 
@@ -1100,7 +1100,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var log = [];
                 var iterable = {
@@ -1186,7 +1186,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var log = [];
                 var iterable = {
@@ -1269,7 +1269,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var log = [];
                 var iterable = {
@@ -1348,7 +1348,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var log = [];
                 var iterable = {
@@ -1420,7 +1420,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let error = new Error("x");
                 let iterable = [Promise.reject(error), "unreachable"];
@@ -1455,7 +1455,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = false;
 
@@ -1482,7 +1482,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = false;
                 const source = { a: 3, b: 4 };
@@ -1517,7 +1517,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = false;
 
@@ -1539,7 +1539,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = false;
                 const source = { a: 1, b: 2 };
@@ -1569,7 +1569,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = false;
 
@@ -1591,7 +1591,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = false;
 
@@ -1623,7 +1623,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = false;
 
@@ -1650,7 +1650,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = false;
 
@@ -1677,7 +1677,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = false;
 
@@ -1699,7 +1699,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = false;
 
@@ -1726,7 +1726,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = false;
 
@@ -1753,7 +1753,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = false;
 
@@ -1780,7 +1780,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = false;
                 let rest;
@@ -1808,7 +1808,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = false;
                 let y;
@@ -1836,7 +1836,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = false;
 
@@ -1874,7 +1874,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = false;
                 const source = { a: 3, b: 4 };
@@ -1909,7 +1909,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = "pending";
                 const boom = new Error("boom");
@@ -1949,7 +1949,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = "pending";
 
@@ -1993,7 +1993,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = "pending";
 
@@ -2031,7 +2031,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = "";
 
@@ -2058,7 +2058,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = "";
 
@@ -2089,7 +2089,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = "";
                 let fnexp;
@@ -2117,7 +2117,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = [];
                 let x;
@@ -2163,7 +2163,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = [];
                 let value = [[22]];
@@ -2209,7 +2209,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = [];
                 let x = {};
@@ -2267,7 +2267,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = false;
                 let src = {};
@@ -2299,7 +2299,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = [];
 
@@ -2326,7 +2326,7 @@ public class AsyncGeneratorTests
     [Test]
     public void AsyncGenerator_ForAwaitOf_Assignment_Array_Element_Object_Default_Yield_Parses()
     {
-        using var program = FlatJavaScriptParser.ParseScript(
+        using var program = JavaScriptParser.ParseScript(
             """
             async function * fn() {
               for await ([ {} = yield ] of [[]]) {
@@ -2347,7 +2347,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.results = [];
                 let nextCount = 0;
@@ -2404,7 +2404,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.results = [];
                 var iterationCount = 0;
@@ -2451,7 +2451,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.actual = [];
 
@@ -2497,7 +2497,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.returnArgumentsLength = -1;
 
@@ -2535,7 +2535,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.done = "pending";
                 globalThis.iterationCount = 0;
@@ -2590,7 +2590,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.done = "pending";
                 globalThis.iterationCount = 0;
@@ -2642,7 +2642,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.returnCount = 0;
                 globalThis.caught = false;
@@ -2684,7 +2684,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.log = "";
                 globalThis.done = "pending";
@@ -2751,7 +2751,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.done = "pending";
                 globalThis.returnCount = 0;
@@ -2803,7 +2803,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.done = "pending";
                 globalThis.returnCount = 0;
@@ -2856,7 +2856,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.actual = [];
 
@@ -2919,7 +2919,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.actual = [];
 
@@ -2990,7 +2990,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.actual = [];
 
@@ -3047,7 +3047,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 async function* g1() {}
                 async function* g2() { return; }
@@ -3087,7 +3087,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.actual = [];
 
@@ -3131,7 +3131,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.same = false;
                 var innerPromise = Promise.resolve("unwrapped value");
@@ -3171,7 +3171,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.actual = [];
 
@@ -3236,7 +3236,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = [];
 
@@ -3269,7 +3269,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.returnCount = 0;
                 globalThis.caught = false;
@@ -3313,7 +3313,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.returnCount = 0;
                 globalThis.caught = false;
@@ -3364,7 +3364,7 @@ public class AsyncGeneratorTests
     [Test]
     public void AsyncGenerator_ForAwaitOf_Allows_Let_ExpressionStatement_Followed_By_Block_Across_Newline()
     {
-        using var program = FlatJavaScriptParser.ParseScript(
+        using var program = JavaScriptParser.ParseScript(
             """
             async function* f() {
               for await (var x of []) let
@@ -3385,7 +3385,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = [];
 
@@ -3424,7 +3424,7 @@ public class AsyncGeneratorTests
     [Test]
     public void AsyncGenerator_ForAwaitOf_Object_Rest_Parses_When_Rhs_Array_Contains_Getter_Object()
     {
-        using var program = FlatJavaScriptParser.ParseScript(
+        using var program = JavaScriptParser.ParseScript(
             """
             async function *fn() {
               for await (let {...x} of [{ get v() { return 2; } }]) {
@@ -3446,7 +3446,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.actual = [];
 
@@ -3484,7 +3484,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.message = "";
 
@@ -3527,7 +3527,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = "pending";
                 {
@@ -3565,7 +3565,7 @@ public class AsyncGeneratorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.out = "pending";
                 {

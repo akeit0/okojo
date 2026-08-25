@@ -13,7 +13,7 @@ public static class ReplInputParser
 
         try
         {
-            using var _ = FlatJavaScriptParser.ParseScript(
+            using var _ = JavaScriptParser.ParseScript(
                 input,
                 allowTopLevelAwait: allowTopLevelAwait
             );

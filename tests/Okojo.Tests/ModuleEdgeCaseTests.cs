@@ -932,7 +932,7 @@ public class ModuleEdgeCaseTests
     [Test]
     public void ParseModule_ClassComputedFieldNames_FromAwait_SetsTopLevelAwait()
     {
-        using var program = FlatJavaScriptParser.ParseModule(
+        using var program = JavaScriptParser.ParseModule(
             """
             let C = class {
               [await 9] = 0;
@@ -948,7 +948,7 @@ public class ModuleEdgeCaseTests
     [Test]
     public void ParseModule_ForAwaitOf_Allows_TopLevelAwait_In_Header_And_Body()
     {
-        using var program = FlatJavaScriptParser.ParseModule(
+        using var program = JavaScriptParser.ParseModule(
             """
             var binding;
 
@@ -970,7 +970,7 @@ public class ModuleEdgeCaseTests
     [Test]
     public void ParseModule_ExportVar_ObjectPattern_With_TopLevelAwait_SetsTopLevelAwait()
     {
-        using var program = FlatJavaScriptParser.ParseModule(
+        using var program = JavaScriptParser.ParseModule(
             """
             export var name1 = await null;
             export var { x = await null } = {};

@@ -45,7 +45,7 @@ public sealed class TempConstCrashProbe
         var combined = "'use strict';\n" + harness + "\n" + source;
         using var runtime = JsRuntime.Create();
         var realm = runtime.DefaultRealm;
-        using var ast = FlatJavaScriptParser.ParseScript(combined, "const.js");
+        using var ast = JavaScriptParser.ParseScript(combined, "const.js");
         try
         {
             _ = new JsScriptCompiler(realm).Compile(ast, "const.js");

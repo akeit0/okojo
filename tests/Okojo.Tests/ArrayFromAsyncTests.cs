@@ -15,7 +15,7 @@ public class ArrayFromAsyncTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 Number.prototype.length = 2;
                 Number.prototype[0] = 1;
@@ -41,7 +41,7 @@ public class ArrayFromAsyncTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.ok = false;
                 const items = [1, 2, 3];
@@ -72,7 +72,7 @@ public class ArrayFromAsyncTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.ok = false;
                 const prom = Promise.resolve({});
@@ -108,7 +108,7 @@ public class ArrayFromAsyncTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.ok = false;
 
@@ -147,7 +147,7 @@ public class ArrayFromAsyncTests
 
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function asyncTest(testFunc) {
                   try {
@@ -186,7 +186,7 @@ public class ArrayFromAsyncTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function formatPropertyName(propertyKey, objectName = "") {
                   switch (typeof propertyKey) {
@@ -273,7 +273,7 @@ public class ArrayFromAsyncTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.ok = false;
                 const constructorCalls = [];
@@ -308,7 +308,7 @@ public class ArrayFromAsyncTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function formatPropertyName(propertyKey, objectName = "") {
                   switch (typeof propertyKey) {
@@ -356,7 +356,7 @@ public class ArrayFromAsyncTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.closed = false;
                 globalThis.rejected = false;
@@ -399,7 +399,7 @@ public class ArrayFromAsyncTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 globalThis.closed = false;
                 globalThis.rejected = false;

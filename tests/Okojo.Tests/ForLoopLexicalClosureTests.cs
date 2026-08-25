@@ -14,7 +14,7 @@ public class ForLoopLexicalClosureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let a = [];
                 for (let i = 0; a.push(function () { return i; }), i < 5; ++i) { }
@@ -37,7 +37,7 @@ public class ForLoopLexicalClosureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let values;
                 function readValues() { return values.length; }
@@ -61,7 +61,7 @@ public class ForLoopLexicalClosureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let seen = [];
                 for (let i = 0; i < 2; ++i) {
@@ -91,7 +91,7 @@ public class ForLoopLexicalClosureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let seen = [];
                 for (let i = 0; i < 2; ++i) {

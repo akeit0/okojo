@@ -14,7 +14,7 @@ public class UnaryTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 void 0 === undefined;
                 """
@@ -31,7 +31,7 @@ public class UnaryTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var x = 0;
                 var y = void (x = 3);
@@ -50,7 +50,7 @@ public class UnaryTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 (1 / (-0)) === Number.NEGATIVE_INFINITY;
                 """
@@ -67,7 +67,7 @@ public class UnaryTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 -false === 0 && -"1" === -1;
                 """
@@ -84,7 +84,7 @@ public class UnaryTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 -Object(1n) === -1n &&
                 -({
@@ -106,7 +106,7 @@ public class UnaryTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 ~Object(1n) === -2n &&
                 ~({

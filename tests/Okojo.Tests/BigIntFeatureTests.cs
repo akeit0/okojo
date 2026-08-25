@@ -15,7 +15,7 @@ public class BigIntFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 typeof 1n === "bigint" &&
                 1n === BigInt(1) &&
@@ -37,7 +37,7 @@ public class BigIntFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let ctorTypeError = false;
                 try { new BigInt(1); } catch (e) { ctorTypeError = e.name === "TypeError"; }
@@ -70,7 +70,7 @@ public class BigIntFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 function isConstructor(value) {
                   try {
@@ -99,7 +99,7 @@ public class BigIntFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let calls = 0;
                 const value = {
@@ -124,7 +124,7 @@ public class BigIntFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let negHex = false;
                 try { BigInt("-0x1"); } catch (e) { negHex = e.name === "SyntaxError"; }
@@ -148,7 +148,7 @@ public class BigIntFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 BigInt("") === 0n && BigInt(" ") === 0n;
                 """
@@ -174,7 +174,7 @@ public class BigIntFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 BigInt.asIntN(-0.9, 1n) === 0n && BigInt.asIntN(0.9, 1n) === 0n;
                 """
@@ -192,7 +192,7 @@ public class BigIntFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let negative = false;
                 try { BigInt.asIntN(-1, 0n); } catch (e) { negative = e.name === "RangeError"; }
@@ -218,7 +218,7 @@ public class BigIntFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let primitiveSymbol = false;
                 try { BigInt.asUintN(Symbol("1"), 0n); } catch (e) { primitiveSymbol = e.name === "TypeError"; }
@@ -240,7 +240,7 @@ public class BigIntFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 let badThis = false;
                 try { BigInt.prototype.toString.call(1); } catch (e) { badThis = e.name === "TypeError"; }
@@ -265,7 +265,7 @@ public class BigIntFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var desc = Object.getOwnPropertyDescriptor(BigInt.prototype.toString, "length");
                 desc.value === 0 &&
@@ -306,11 +306,11 @@ public class BigIntFeatureTests
     public void BigInt_Invalid_Literal_Forms_Are_Rejected()
     {
         Assert.That(
-            () => FlatJavaScriptParser.ParseScript("1.5n;"),
+            () => JavaScriptParser.ParseScript("1.5n;"),
             Throws.InstanceOf<JsParseException>()
         );
         Assert.That(
-            () => FlatJavaScriptParser.ParseScript("1e3n;"),
+            () => JavaScriptParser.ParseScript("1e3n;"),
             Throws.InstanceOf<JsParseException>()
         );
     }
@@ -321,7 +321,7 @@ public class BigIntFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 const sum = 10n + 3n;
                 const diff = 10n - 3n;
@@ -360,7 +360,7 @@ public class BigIntFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 (1n << 2n) === 4n &&
                 (8n >> 2n) === 2n &&
@@ -388,7 +388,7 @@ public class BigIntFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            FlatJavaScriptParser.ParseScript(
+            JavaScriptParser.ParseScript(
                 """
                 var b = 1000n;
                 var old = b++;

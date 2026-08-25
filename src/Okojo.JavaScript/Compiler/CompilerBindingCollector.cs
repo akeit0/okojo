@@ -7,9 +7,9 @@ internal static partial class CompilerBindingCollector
 {
     internal const string SuperBaseBindingName = "\0super-base";
 
-    public static CompilerBindingCollectionResult Collect(FlatAst ast)
+    public static CompilerBindingCollectionResult Collect(JsAst ast)
     {
-        var collector = new FlatCollector(
+        var collector = new Collector(
             ast.IsModule ? CompilerCollectedScopeKind.Module : CompilerCollectedScopeKind.Program
         );
         collector.CollectBody(ast, ast.Root, 0);
@@ -18,15 +18,15 @@ internal static partial class CompilerBindingCollector
     }
 
     public static CompilerBindingCollectionResult CollectFunction(
-        FlatAst ast,
-        in FlatFunctionInfo function,
+        JsAst ast,
+        in JsFunctionInfo function,
         int bodyRoot,
         bool hasSelfBinding = false,
         int instanceFieldClassIndex = -1
     )
     {
-        var collector = new FlatCollector(CompilerCollectedScopeKind.Function, function.IsArrow);
-        collector.CollectFlatFunctionRoot(
+        var collector = new Collector(CompilerCollectedScopeKind.Function, function.IsArrow);
+        collector.CollectFunctionRoot(
             ast,
             function,
             bodyRoot,
@@ -37,7 +37,7 @@ internal static partial class CompilerBindingCollector
         return collector.MoveResult();
     }
 
-    private sealed class FlatCollector
+    private sealed class Collector
     {
         private readonly PooledArrayBuilder<CompilerCollectedScope> scopes = new(16);
         private readonly PooledArrayBuilder<CompilerCollectedBinding> bindings = new(32);
@@ -50,7 +50,7 @@ internal static partial class CompilerBindingCollector
         private int nextScopeId = 1;
         private int parameterBodyScopeId = -1;
 
-        public FlatCollector(
+        public Collector(
             CompilerCollectedScopeKind rootKind = CompilerCollectedScopeKind.Program,
             bool rootIsArrow = false
         )
@@ -58,9 +58,9 @@ internal static partial class CompilerBindingCollector
             scopes.Add(new CompilerCollectedScope(0, -1, rootKind, IsArrow: rootIsArrow));
         }
 
-        public void CollectFlatFunctionRoot(
-            FlatAst ast,
-            in FlatFunctionInfo function,
+        public void CollectFunctionRoot(
+            JsAst ast,
+            in JsFunctionInfo function,
             int bodyRoot,
             bool hasSelfBinding,
             int instanceFieldClassIndex
@@ -85,7 +85,7 @@ internal static partial class CompilerBindingCollector
                     position: function.Position
                 );
 
-            CollectFlatParameters(ast, function, 0);
+            CollectParameters(ast, function, 0);
             CollectBody(ast, bodyRoot, 0);
             if (instanceFieldClassIndex >= 0)
             {
@@ -100,12 +100,12 @@ internal static partial class CompilerBindingCollector
             }
         }
 
-        public void CollectBody(FlatAst ast, int bodyRoot, int scopeId)
+        public void CollectBody(JsAst ast, int bodyRoot, int scopeId)
         {
             ref readonly var body = ref ast[bodyRoot];
             if (body.Kind != AstKind.Program)
                 throw new InvalidOperationException(
-                    $"Expected flat function/program root, found '{body.Kind}'."
+                    $"Expected function/program root, found '{body.Kind}'."
                 );
 
             var statements = ast.ChildRange(body.Arg0, body.Arg1);
@@ -207,7 +207,7 @@ internal static partial class CompilerBindingCollector
                 }
         }
 
-        private void VisitStatement(FlatAst ast, int nodeIndex, int scopeId)
+        private void VisitStatement(JsAst ast, int nodeIndex, int scopeId)
         {
             ref readonly var node = ref ast[nodeIndex];
             switch (node.Kind)
@@ -296,24 +296,24 @@ internal static partial class CompilerBindingCollector
                     return;
                 default:
                     throw new NotSupportedException(
-                        $"Flat binding collection does not support statement '{node.Kind}'."
+                        $"Binding collection does not support statement '{node.Kind}'."
                     );
             }
         }
 
-        private void VisitExportDeclaration(FlatAst ast, AstNode node, int scopeId)
+        private void VisitExportDeclaration(JsAst ast, AstNode node, int scopeId)
         {
             if (node.Arg0 < 0)
                 return;
             var entries = ast.GetExportEntries(node);
             if (entries.Length == 0)
                 return;
-            if (entries[0].Kind == FlatExportKind.Local)
+            if (entries[0].Kind == JsExportKind.Local)
             {
                 VisitStatement(ast, node.Arg0, scopeId);
                 return;
             }
-            if (entries[0].Kind == FlatExportKind.DefaultExpression)
+            if (entries[0].Kind == JsExportKind.DefaultExpression)
             {
                 AddBinding(
                     scopeId,
@@ -366,7 +366,7 @@ internal static partial class CompilerBindingCollector
             VisitExpression(ast, node.Arg0, scopeId);
         }
 
-        private void VisitSwitchStatement(FlatAst ast, int nodeIndex, int parentScopeId)
+        private void VisitSwitchStatement(JsAst ast, int nodeIndex, int parentScopeId)
         {
             ref readonly var statement = ref ast[nodeIndex];
             VisitExpression(ast, statement.Arg0, parentScopeId);
@@ -387,7 +387,7 @@ internal static partial class CompilerBindingCollector
             }
         }
 
-        private void VisitForStatement(FlatAst ast, int nodeIndex, int parentScopeId)
+        private void VisitForStatement(JsAst ast, int nodeIndex, int parentScopeId)
         {
             ref readonly var node = ref ast[nodeIndex];
             var parts = ast.ChildRange(node.Arg0, node.Arg1);
@@ -440,7 +440,7 @@ internal static partial class CompilerBindingCollector
             VisitStatement(ast, parts[3], scopeId);
         }
 
-        private void VisitForInOfStatement(FlatAst ast, int nodeIndex, int parentScopeId)
+        private void VisitForInOfStatement(JsAst ast, int nodeIndex, int parentScopeId)
         {
             ref readonly var node = ref ast[nodeIndex];
             var parts = ast.ChildRange(node.Arg0, node.Arg1);
@@ -525,7 +525,7 @@ internal static partial class CompilerBindingCollector
             VisitStatement(ast, parts[2], scopeId);
         }
 
-        private void VisitVariableDeclaration(FlatAst ast, AstNode declaration, int scopeId)
+        private void VisitVariableDeclaration(JsAst ast, AstNode declaration, int scopeId)
         {
             var declarationKind = (JsVariableDeclarationKind)declaration.Arg2;
             var bindingKind =
@@ -569,7 +569,7 @@ internal static partial class CompilerBindingCollector
         }
 
         private void VisitVariableDeclarator(
-            FlatAst ast,
+            JsAst ast,
             int declaratorIndex,
             int scopeId,
             CompilerCollectedBindingKind bindingKind,
@@ -607,7 +607,7 @@ internal static partial class CompilerBindingCollector
         }
 
         private void VisitBindingPattern(
-            FlatAst ast,
+            JsAst ast,
             int nodeIndex,
             int scopeId,
             CompilerCollectedBindingKind bindingKind,
@@ -690,12 +690,12 @@ internal static partial class CompilerBindingCollector
                     return;
                 default:
                     throw new NotSupportedException(
-                        $"Flat binding collection does not support pattern '{node.Kind}'."
+                        $"Binding collection does not support pattern '{node.Kind}'."
                     );
             }
         }
 
-        private void VisitBlock(FlatAst ast, int nodeIndex, int parentScopeId)
+        private void VisitBlock(JsAst ast, int nodeIndex, int parentScopeId)
         {
             ref readonly var block = ref ast[nodeIndex];
             var scopeId = AddScope(
@@ -708,7 +708,7 @@ internal static partial class CompilerBindingCollector
                 VisitStatement(ast, statements[i], scopeId);
         }
 
-        private void VisitCatchClause(FlatAst ast, int nodeIndex, int parentScopeId)
+        private void VisitCatchClause(JsAst ast, int nodeIndex, int parentScopeId)
         {
             ref readonly var clause = ref ast[nodeIndex];
             var scopeId = AddScope(
@@ -727,7 +727,7 @@ internal static partial class CompilerBindingCollector
             VisitBlock(ast, clause.Arg1, scopeId);
         }
 
-        private void VisitFunctionDeclaration(FlatAst ast, AstNode node, int parentScopeId)
+        private void VisitFunctionDeclaration(JsAst ast, AstNode node, int parentScopeId)
         {
             var function = ast.GetFunction(node.Arg0);
             var name = ast.GetString(function.NameStringIndex);
@@ -743,11 +743,11 @@ internal static partial class CompilerBindingCollector
                 CompilerCollectedScopeKind.Function,
                 function.Position
             );
-            CollectFlatParameters(ast, function, functionScopeId);
+            CollectParameters(ast, function, functionScopeId);
             CollectBody(ast, node.Arg1, functionScopeId);
         }
 
-        private void VisitExpression(FlatAst ast, int nodeIndex, int scopeId)
+        private void VisitExpression(JsAst ast, int nodeIndex, int scopeId)
         {
             ref readonly var node = ref ast[nodeIndex];
             switch (node.Kind)
@@ -856,12 +856,12 @@ internal static partial class CompilerBindingCollector
                     return;
                 default:
                     throw new NotSupportedException(
-                        $"Flat binding collection does not support expression '{node.Kind}'."
+                        $"Binding collection does not support expression '{node.Kind}'."
                     );
             }
         }
 
-        private void VisitFunctionExpression(FlatAst ast, AstNode node, int parentScopeId)
+        private void VisitFunctionExpression(JsAst ast, AstNode node, int parentScopeId)
         {
             var function = ast.GetFunction(node.Arg0);
             var functionScopeId = AddScope(
@@ -888,11 +888,11 @@ internal static partial class CompilerBindingCollector
                     isConst: true,
                     position: function.Position
                 );
-            CollectFlatParameters(ast, function, functionScopeId);
+            CollectParameters(ast, function, functionScopeId);
             CollectBody(ast, node.Arg1, functionScopeId);
         }
 
-        private void VisitClass(FlatAst ast, AstNode node, int parentScopeId, bool isDeclaration)
+        private void VisitClass(JsAst ast, AstNode node, int parentScopeId, bool isDeclaration)
         {
             var info = ast.GetClass(node.Arg0);
             var name = ast.GetString(info.NameStringIndex);
@@ -942,7 +942,7 @@ internal static partial class CompilerBindingCollector
                 VisitFunctionExpression(ast, ast[info.ConstructorNode], classScopeId);
         }
 
-        private void CollectFlatParameters(FlatAst ast, in FlatFunctionInfo function, int scopeId)
+        private void CollectParameters(JsAst ast, in JsFunctionInfo function, int scopeId)
         {
             var parameters = ast.GetParameters(function);
             var previousParameterBodyScopeId = parameterBodyScopeId;

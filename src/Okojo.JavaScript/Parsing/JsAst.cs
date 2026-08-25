@@ -2,38 +2,38 @@ using System.Buffers;
 
 namespace Okojo.JavaScript.Parsing;
 
-internal sealed class FlatAst : IDisposable
+internal sealed class JsAst : IDisposable
 {
-    private FlatFunctionInfo[] functions;
+    private JsFunctionInfo[] functions;
     private int functionCount;
-    private FlatParameter[] parameters;
+    private JsParameter[] parameters;
     private int parameterCount;
-    private FlatObjectProperty[] objectProperties;
+    private JsObjectProperty[] objectProperties;
     private int objectPropertyCount;
-    private FlatClassInfo[] classes;
+    private JsClassInfo[] classes;
     private int classCount;
-    private FlatClassElement[] classElements;
+    private JsClassElement[] classElements;
     private int classElementCount;
-    private FlatModuleRequest[] moduleRequests;
+    private JsModuleRequest[] moduleRequests;
     private int moduleRequestCount;
-    private FlatImportEntry[] importEntries;
+    private JsImportEntry[] importEntries;
     private int importEntryCount;
-    private FlatImportAttribute[] importAttributes;
+    private JsImportAttribute[] importAttributes;
     private int importAttributeCount;
-    private FlatExportEntry[] exportEntries;
+    private JsExportEntry[] exportEntries;
     private int exportEntryCount;
     private bool disposed;
 
-    public FlatAst(string source, string? sourcePath = null)
+    public JsAst(string source, string? sourcePath = null)
     {
         Arena = new AstArena(source);
         SourceText = source;
         SourcePath = sourcePath;
-        functions = ArrayPool<FlatFunctionInfo>.Shared.Rent(8);
-        parameters = ArrayPool<FlatParameter>.Shared.Rent(16);
-        objectProperties = ArrayPool<FlatObjectProperty>.Shared.Rent(16);
-        classes = ArrayPool<FlatClassInfo>.Shared.Rent(4);
-        classElements = ArrayPool<FlatClassElement>.Shared.Rent(16);
+        functions = ArrayPool<JsFunctionInfo>.Shared.Rent(8);
+        parameters = ArrayPool<JsParameter>.Shared.Rent(16);
+        objectProperties = ArrayPool<JsObjectProperty>.Shared.Rent(16);
+        classes = ArrayPool<JsClassInfo>.Shared.Rent(4);
+        classElements = ArrayPool<JsClassElement>.Shared.Rent(16);
         moduleRequests = [];
         importEntries = [];
         importAttributes = [];
@@ -67,7 +67,7 @@ internal sealed class FlatAst : IDisposable
 
     public int GetPosition(int nodeIndex) => Arena.GetPosition(nodeIndex);
 
-    public (int Offset, int Count) AddParameters(ReadOnlySpan<FlatParameter> values)
+    public (int Offset, int Count) AddParameters(ReadOnlySpan<JsParameter> values)
     {
         EnsureParameterCapacity(values.Length);
         var offset = parameterCount;
@@ -76,10 +76,10 @@ internal sealed class FlatAst : IDisposable
         return (offset, values.Length);
     }
 
-    public ReadOnlySpan<FlatParameter> GetParameters(in FlatFunctionInfo function) =>
+    public ReadOnlySpan<JsParameter> GetParameters(in JsFunctionInfo function) =>
         parameters.AsSpan(function.ParameterOffset, function.ParameterCount);
 
-    public (int Offset, int Count) AddObjectProperties(ReadOnlySpan<FlatObjectProperty> values)
+    public (int Offset, int Count) AddObjectProperties(ReadOnlySpan<JsObjectProperty> values)
     {
         EnsureObjectPropertyCapacity(values.Length);
         var offset = objectPropertyCount;
@@ -88,10 +88,10 @@ internal sealed class FlatAst : IDisposable
         return (offset, values.Length);
     }
 
-    public ReadOnlySpan<FlatObjectProperty> GetObjectProperties(int offset, int count) =>
+    public ReadOnlySpan<JsObjectProperty> GetObjectProperties(int offset, int count) =>
         objectProperties.AsSpan(offset, count);
 
-    public (int Offset, int Count) AddClassElements(ReadOnlySpan<FlatClassElement> values)
+    public (int Offset, int Count) AddClassElements(ReadOnlySpan<JsClassElement> values)
     {
         EnsureClassElementCapacity(values.Length);
         var offset = classElementCount;
@@ -100,13 +100,13 @@ internal sealed class FlatAst : IDisposable
         return (offset, values.Length);
     }
 
-    public ReadOnlySpan<FlatClassElement> GetClassElements(in FlatClassInfo info) =>
+    public ReadOnlySpan<JsClassElement> GetClassElements(in JsClassInfo info) =>
         classElements.AsSpan(info.ElementOffset, info.ElementCount);
 
     public int AddModuleRequest(
         int specifierStringIndex,
         int position,
-        ReadOnlySpan<FlatImportAttribute> attributes
+        ReadOnlySpan<JsImportAttribute> attributes
     )
     {
         EnsureModuleRequestCapacity(1);
@@ -124,7 +124,7 @@ internal sealed class FlatAst : IDisposable
         return index;
     }
 
-    public (int Offset, int Count) AddImportEntries(ReadOnlySpan<FlatImportEntry> values)
+    public (int Offset, int Count) AddImportEntries(ReadOnlySpan<JsImportEntry> values)
     {
         EnsureImportEntryCapacity(values.Length);
         var offset = importEntryCount;
@@ -133,18 +133,18 @@ internal sealed class FlatAst : IDisposable
         return (offset, values.Length);
     }
 
-    public ReadOnlySpan<FlatModuleRequest> ModuleRequests =>
+    public ReadOnlySpan<JsModuleRequest> ModuleRequests =>
         moduleRequests.AsSpan(0, moduleRequestCount);
 
-    public ReadOnlySpan<FlatImportEntry> GetImportEntries(in AstNode declaration) =>
+    public ReadOnlySpan<JsImportEntry> GetImportEntries(in AstNode declaration) =>
         importEntries.AsSpan(declaration.Arg1, declaration.Arg2);
 
-    public ReadOnlySpan<FlatImportEntry> ImportEntries => importEntries.AsSpan(0, importEntryCount);
+    public ReadOnlySpan<JsImportEntry> ImportEntries => importEntries.AsSpan(0, importEntryCount);
 
-    public ReadOnlySpan<FlatImportAttribute> GetImportAttributes(in FlatModuleRequest request) =>
+    public ReadOnlySpan<JsImportAttribute> GetImportAttributes(in JsModuleRequest request) =>
         importAttributes.AsSpan(request.AttributeOffset, request.AttributeCount);
 
-    public (int Offset, int Count) AddExportEntries(ReadOnlySpan<FlatExportEntry> values)
+    public (int Offset, int Count) AddExportEntries(ReadOnlySpan<JsExportEntry> values)
     {
         EnsureExportEntryCapacity(values.Length);
         var offset = exportEntryCount;
@@ -153,10 +153,10 @@ internal sealed class FlatAst : IDisposable
         return (offset, values.Length);
     }
 
-    public ReadOnlySpan<FlatExportEntry> GetExportEntries(in AstNode declaration) =>
+    public ReadOnlySpan<JsExportEntry> GetExportEntries(in AstNode declaration) =>
         exportEntries.AsSpan(declaration.Arg1, declaration.Arg2);
 
-    public ReadOnlySpan<FlatExportEntry> ExportEntries => exportEntries.AsSpan(0, exportEntryCount);
+    public ReadOnlySpan<JsExportEntry> ExportEntries => exportEntries.AsSpan(0, exportEntryCount);
 
     public void FinalizeModuleDescriptor()
     {
@@ -176,7 +176,7 @@ internal sealed class FlatAst : IDisposable
             {
                 ref var export = ref exportEntries[i];
                 if (
-                    export.Kind != FlatExportKind.Local
+                    export.Kind != JsExportKind.Local
                     || !importsByLocalName.TryGetValue(
                         GetString(export.LocalNameStringIndex),
                         out var importIndex
@@ -190,13 +190,11 @@ internal sealed class FlatAst : IDisposable
                     ModuleRequestIndex = import.ModuleRequestIndex,
                     LocalNameStringIndex = -1,
                     ImportNameStringIndex =
-                        import.Kind == FlatImportKind.Namespace
-                            ? -1
-                            : import.ImportedNameStringIndex,
+                        import.Kind == JsImportKind.Namespace ? -1 : import.ImportedNameStringIndex,
                     Kind =
-                        import.Kind == FlatImportKind.Namespace
-                            ? FlatExportKind.Namespace
-                            : FlatExportKind.Indirect,
+                        import.Kind == JsImportKind.Namespace
+                            ? JsExportKind.Namespace
+                            : JsExportKind.Indirect,
                     Position = import.Position,
                 };
             }
@@ -204,13 +202,13 @@ internal sealed class FlatAst : IDisposable
             var importNames = new List<string>(importEntryCount);
             for (var i = 0; i < importEntryCount; i++)
             {
-                if (importEntries[i].Kind != FlatImportKind.Namespace)
+                if (importEntries[i].Kind != JsImportKind.Namespace)
                     importNames.Add(GetString(importEntries[i].LocalNameStringIndex));
             }
             importNames.Sort(StringComparer.Ordinal);
             for (var i = 0; i < importEntryCount; i++)
             {
-                if (importEntries[i].Kind == FlatImportKind.Namespace)
+                if (importEntries[i].Kind == JsImportKind.Namespace)
                     continue;
                 importEntries[i] = importEntries[i] with
                 {
@@ -249,13 +247,13 @@ internal sealed class FlatAst : IDisposable
         }
     }
 
-    public int AddClass(FlatClassInfo info)
+    public int AddClass(JsClassInfo info)
     {
         if (classCount == classes.Length)
         {
-            var next = ArrayPool<FlatClassInfo>.Shared.Rent(classes.Length * 2);
+            var next = ArrayPool<JsClassInfo>.Shared.Rent(classes.Length * 2);
             Array.Copy(classes, next, classCount);
-            ArrayPool<FlatClassInfo>.Shared.Return(classes);
+            ArrayPool<JsClassInfo>.Shared.Return(classes);
             classes = next;
         }
         var index = classCount++;
@@ -263,14 +261,14 @@ internal sealed class FlatAst : IDisposable
         return index;
     }
 
-    public FlatClassInfo GetClass(int index)
+    public JsClassInfo GetClass(int index)
     {
         if ((uint)index >= (uint)classCount)
             throw new ArgumentOutOfRangeException(nameof(index));
         return classes[index];
     }
 
-    public int AddFunction(FlatFunctionInfo function)
+    public int AddFunction(JsFunctionInfo function)
     {
         if (functionCount == functions.Length)
             GrowFunctions();
@@ -279,14 +277,14 @@ internal sealed class FlatAst : IDisposable
         return index;
     }
 
-    public FlatFunctionInfo GetFunction(int index)
+    public JsFunctionInfo GetFunction(int index)
     {
         if ((uint)index >= (uint)functionCount)
             throw new ArgumentOutOfRangeException(nameof(index));
         return functions[index];
     }
 
-    public void SetFunction(int index, FlatFunctionInfo function)
+    public void SetFunction(int index, JsFunctionInfo function)
     {
         if ((uint)index >= (uint)functionCount)
             throw new ArgumentOutOfRangeException(nameof(index));
@@ -297,19 +295,19 @@ internal sealed class FlatAst : IDisposable
     {
         if (parameterCount + additional <= parameters.Length)
             return;
-        var next = ArrayPool<FlatParameter>.Shared.Rent(
+        var next = ArrayPool<JsParameter>.Shared.Rent(
             Math.Max(parameters.Length * 2, parameterCount + additional)
         );
         Array.Copy(parameters, next, parameterCount);
-        ArrayPool<FlatParameter>.Shared.Return(parameters);
+        ArrayPool<JsParameter>.Shared.Return(parameters);
         parameters = next;
     }
 
     private void GrowFunctions()
     {
-        var next = ArrayPool<FlatFunctionInfo>.Shared.Rent(functions.Length * 2);
+        var next = ArrayPool<JsFunctionInfo>.Shared.Rent(functions.Length * 2);
         Array.Copy(functions, next, functionCount);
-        ArrayPool<FlatFunctionInfo>.Shared.Return(functions);
+        ArrayPool<JsFunctionInfo>.Shared.Return(functions);
         functions = next;
     }
 
@@ -317,11 +315,11 @@ internal sealed class FlatAst : IDisposable
     {
         if (objectPropertyCount + additional <= objectProperties.Length)
             return;
-        var next = ArrayPool<FlatObjectProperty>.Shared.Rent(
+        var next = ArrayPool<JsObjectProperty>.Shared.Rent(
             Math.Max(objectProperties.Length * 2, objectPropertyCount + additional)
         );
         Array.Copy(objectProperties, next, objectPropertyCount);
-        ArrayPool<FlatObjectProperty>.Shared.Return(objectProperties);
+        ArrayPool<JsObjectProperty>.Shared.Return(objectProperties);
         objectProperties = next;
     }
 
@@ -329,11 +327,11 @@ internal sealed class FlatAst : IDisposable
     {
         if (classElementCount + additional <= classElements.Length)
             return;
-        var next = ArrayPool<FlatClassElement>.Shared.Rent(
+        var next = ArrayPool<JsClassElement>.Shared.Rent(
             Math.Max(classElements.Length * 2, classElementCount + additional)
         );
         Array.Copy(classElements, next, classElementCount);
-        ArrayPool<FlatClassElement>.Shared.Return(classElements);
+        ArrayPool<JsClassElement>.Shared.Return(classElements);
         classElements = next;
     }
 
@@ -341,12 +339,12 @@ internal sealed class FlatAst : IDisposable
     {
         if (moduleRequestCount + additional <= moduleRequests.Length)
             return;
-        var next = ArrayPool<FlatModuleRequest>.Shared.Rent(
+        var next = ArrayPool<JsModuleRequest>.Shared.Rent(
             Math.Max(Math.Max(4, moduleRequests.Length * 2), moduleRequestCount + additional)
         );
         Array.Copy(moduleRequests, next, moduleRequestCount);
         if (moduleRequests.Length != 0)
-            ArrayPool<FlatModuleRequest>.Shared.Return(moduleRequests);
+            ArrayPool<JsModuleRequest>.Shared.Return(moduleRequests);
         moduleRequests = next;
     }
 
@@ -354,12 +352,12 @@ internal sealed class FlatAst : IDisposable
     {
         if (importEntryCount + additional <= importEntries.Length)
             return;
-        var next = ArrayPool<FlatImportEntry>.Shared.Rent(
+        var next = ArrayPool<JsImportEntry>.Shared.Rent(
             Math.Max(Math.Max(8, importEntries.Length * 2), importEntryCount + additional)
         );
         Array.Copy(importEntries, next, importEntryCount);
         if (importEntries.Length != 0)
-            ArrayPool<FlatImportEntry>.Shared.Return(importEntries);
+            ArrayPool<JsImportEntry>.Shared.Return(importEntries);
         importEntries = next;
     }
 
@@ -367,12 +365,12 @@ internal sealed class FlatAst : IDisposable
     {
         if (importAttributeCount + additional <= importAttributes.Length)
             return;
-        var next = ArrayPool<FlatImportAttribute>.Shared.Rent(
+        var next = ArrayPool<JsImportAttribute>.Shared.Rent(
             Math.Max(Math.Max(4, importAttributes.Length * 2), importAttributeCount + additional)
         );
         Array.Copy(importAttributes, next, importAttributeCount);
         if (importAttributes.Length != 0)
-            ArrayPool<FlatImportAttribute>.Shared.Return(importAttributes);
+            ArrayPool<JsImportAttribute>.Shared.Return(importAttributes);
         importAttributes = next;
     }
 
@@ -380,12 +378,12 @@ internal sealed class FlatAst : IDisposable
     {
         if (exportEntryCount + additional <= exportEntries.Length)
             return;
-        var next = ArrayPool<FlatExportEntry>.Shared.Rent(
+        var next = ArrayPool<JsExportEntry>.Shared.Rent(
             Math.Max(Math.Max(8, exportEntries.Length * 2), exportEntryCount + additional)
         );
         Array.Copy(exportEntries, next, exportEntryCount);
         if (exportEntries.Length != 0)
-            ArrayPool<FlatExportEntry>.Shared.Return(exportEntries);
+            ArrayPool<JsExportEntry>.Shared.Return(exportEntries);
         exportEntries = next;
     }
 
@@ -394,19 +392,19 @@ internal sealed class FlatAst : IDisposable
         if (disposed)
             return;
         disposed = true;
-        ArrayPool<FlatFunctionInfo>.Shared.Return(functions);
-        ArrayPool<FlatParameter>.Shared.Return(parameters);
-        ArrayPool<FlatObjectProperty>.Shared.Return(objectProperties);
-        ArrayPool<FlatClassInfo>.Shared.Return(classes);
-        ArrayPool<FlatClassElement>.Shared.Return(classElements);
+        ArrayPool<JsFunctionInfo>.Shared.Return(functions);
+        ArrayPool<JsParameter>.Shared.Return(parameters);
+        ArrayPool<JsObjectProperty>.Shared.Return(objectProperties);
+        ArrayPool<JsClassInfo>.Shared.Return(classes);
+        ArrayPool<JsClassElement>.Shared.Return(classElements);
         if (moduleRequests.Length != 0)
-            ArrayPool<FlatModuleRequest>.Shared.Return(moduleRequests);
+            ArrayPool<JsModuleRequest>.Shared.Return(moduleRequests);
         if (importEntries.Length != 0)
-            ArrayPool<FlatImportEntry>.Shared.Return(importEntries);
+            ArrayPool<JsImportEntry>.Shared.Return(importEntries);
         if (importAttributes.Length != 0)
-            ArrayPool<FlatImportAttribute>.Shared.Return(importAttributes);
+            ArrayPool<JsImportAttribute>.Shared.Return(importAttributes);
         if (exportEntries.Length != 0)
-            ArrayPool<FlatExportEntry>.Shared.Return(exportEntries);
+            ArrayPool<JsExportEntry>.Shared.Return(exportEntries);
         functions = [];
         parameters = [];
         objectProperties = [];
@@ -429,47 +427,47 @@ internal sealed class FlatAst : IDisposable
     }
 }
 
-internal readonly record struct FlatModuleRequest(
+internal readonly record struct JsModuleRequest(
     int SpecifierStringIndex,
     int AttributeOffset,
     int AttributeCount,
     int Position
 );
 
-internal readonly record struct FlatImportEntry(
+internal readonly record struct JsImportEntry(
     int ModuleRequestIndex,
     int ImportedNameStringIndex,
     int LocalNameStringIndex,
     int LocalNameId,
-    FlatImportKind Kind,
+    JsImportKind Kind,
     int Position,
     int CellIndex = 0
 );
 
-internal readonly record struct FlatImportAttribute(
+internal readonly record struct JsImportAttribute(
     int KeyStringIndex,
     int ValueStringIndex,
     int Position
 );
 
-internal enum FlatImportKind : byte
+internal enum JsImportKind : byte
 {
     Default,
     Named,
     Namespace,
 }
 
-internal readonly record struct FlatExportEntry(
+internal readonly record struct JsExportEntry(
     int ModuleRequestIndex,
     int LocalNameStringIndex,
     int ImportNameStringIndex,
     int ExportNameStringIndex,
-    FlatExportKind Kind,
+    JsExportKind Kind,
     int Position,
     int CellIndex = 0
 );
 
-internal enum FlatExportKind : byte
+internal enum JsExportKind : byte
 {
     Local,
     Indirect,
@@ -479,7 +477,7 @@ internal enum FlatExportKind : byte
     DefaultDeclaration,
 }
 
-internal readonly record struct FlatFunctionInfo(
+internal readonly record struct JsFunctionInfo(
     int NameStringIndex,
     int NameId,
     int ParameterOffset,
@@ -503,7 +501,7 @@ internal readonly record struct FlatFunctionInfo(
     int EndPosition = -1
 );
 
-internal readonly record struct FlatParameter(
+internal readonly record struct JsParameter(
     int NameStringIndex,
     int NameId,
     int InitializerNode,
@@ -517,7 +515,7 @@ internal readonly record struct FlatParameter(
 }
 
 [Flags]
-internal enum FlatObjectPropertyFlags : byte
+internal enum JsObjectPropertyFlags : byte
 {
     None = 0,
     Computed = 1,
@@ -527,23 +525,22 @@ internal enum FlatObjectPropertyFlags : byte
     Setter = 16,
 }
 
-internal readonly record struct FlatObjectProperty(
+internal readonly record struct JsObjectProperty(
     int Key,
     int ValueNode,
     int Position,
-    FlatObjectPropertyFlags Flags
+    JsObjectPropertyFlags Flags
 )
 {
-    public bool IsComputed => (Flags & FlatObjectPropertyFlags.Computed) != 0;
-    public bool IsRest => (Flags & FlatObjectPropertyFlags.Rest) != 0;
-    public bool IsGetter => (Flags & FlatObjectPropertyFlags.Getter) != 0;
-    public bool IsSetter => (Flags & FlatObjectPropertyFlags.Setter) != 0;
+    public bool IsComputed => (Flags & JsObjectPropertyFlags.Computed) != 0;
+    public bool IsRest => (Flags & JsObjectPropertyFlags.Rest) != 0;
+    public bool IsGetter => (Flags & JsObjectPropertyFlags.Getter) != 0;
+    public bool IsSetter => (Flags & JsObjectPropertyFlags.Setter) != 0;
     public bool IsAccessor => IsGetter || IsSetter;
-    public bool IsCoverInitializedName =>
-        (Flags & FlatObjectPropertyFlags.CoverInitializedName) != 0;
+    public bool IsCoverInitializedName => (Flags & JsObjectPropertyFlags.CoverInitializedName) != 0;
 }
 
-internal readonly record struct FlatClassInfo(
+internal readonly record struct JsClassInfo(
     int NameStringIndex,
     int NameId,
     int ElementOffset,
@@ -557,7 +554,7 @@ internal readonly record struct FlatClassInfo(
 }
 
 [Flags]
-internal enum FlatClassElementFlags : byte
+internal enum JsClassElementFlags : byte
 {
     None = 0,
     Static = 1,
@@ -565,16 +562,16 @@ internal enum FlatClassElementFlags : byte
     Private = 4,
 }
 
-internal readonly record struct FlatClassElement(
+internal readonly record struct JsClassElement(
     int Key,
     int ValueNode,
     int Position,
     JsClassElementKind Kind,
-    FlatClassElementFlags Flags,
+    JsClassElementFlags Flags,
     int InstanceFieldKeyIndex = -1
 )
 {
-    public bool IsStatic => (Flags & FlatClassElementFlags.Static) != 0;
-    public bool IsComputed => (Flags & FlatClassElementFlags.Computed) != 0;
-    public bool IsPrivate => (Flags & FlatClassElementFlags.Private) != 0;
+    public bool IsStatic => (Flags & JsClassElementFlags.Static) != 0;
+    public bool IsComputed => (Flags & JsClassElementFlags.Computed) != 0;
+    public bool IsPrivate => (Flags & JsClassElementFlags.Private) != 0;
 }
