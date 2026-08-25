@@ -1,3 +1,4 @@
+using Acornima.Ast;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Environments;
@@ -6,6 +7,7 @@ using BenchmarkDotNet.Order;
 using Jint;
 using Okojo.Benchmarks;
 using Okojo.JavaScript;
+using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
@@ -14,9 +16,9 @@ using Okojo.JavaScript.Parsing;
 /// <summary>
 ///     Port of Jint.Benchmark/EngineComparisonBenchmark.cs (jint commit
 ///     34525701f1b4) restricted to the two engines under investigation and
-///     adapted to this repository's embedding API. Mirrors their lanes:
-///     fresh strict engine per operation, strict source prepared by parsing
-///     once in GlobalSetup.
+///     adapted to this repository's embedding API. Separates the two useful
+///     lanes: parse+compile creates a fresh prepared artifact per operation,
+///     while execution reuses one prepared artifact per engine.
 ///
 ///     Their published numbers pinned Okojo as an older NuGet package; this
 ///     run measures the current vm-opt tree against latest Jint (4.x).
@@ -51,27 +53,35 @@ public class JintSuiteComparisonBenchmarks
         "dromaeo-string-base64-modern",
     ];
 
-    private static readonly Dictionary<string, string> StrictSources = new();
+    private Engine jintEngine = null!;
+    private Prepared<Script> jintPreparedScript;
+    private JsRuntime okojoRuntime = null!;
+    private JsRealm okojoRealm = null!;
+    private JsScript okojoScript = null!;
+    private string source = string.Empty;
 
     [GlobalSetup]
     public void Setup()
     {
-        foreach (var key in ScriptKeys)
-        {
-            var script = ScriptSourceLoader.LoadScenario(key);
-            if (key.Contains("dromaeo"))
-                script = DromaeoHelpers + Environment.NewLine + script;
+        source = LoadStrictSource(FileName);
 
-            var strict = "\"use strict\";" + Environment.NewLine + script;
-            StrictSources[key] = strict;
-        }
-
-        // Warm compile paths once so per-op lanes measure execution, not
-        // first-run JIT of host plumbing.
+        // Warm host plumbing before setting up the prepared execution lanes.
         using var warmRuntime = JsRuntime.CreateBuilder().Build();
-        _ = JsCompiler.Compile(warmRuntime.DefaultRealm, StrictSources["minimal"]);
-        _ = new Engine(static o => o.Strict()).Execute(StrictSources["minimal"]);
+        _ = JsCompiler.Compile(warmRuntime.DefaultRealm, source);
+        _ = Engine.PrepareScript(source);
+
+        okojoRuntime = JsRuntime.CreateBuilder().Build();
+        okojoRealm = okojoRuntime.DefaultRealm;
+        okojoScript = JsCompiler.Compile(okojoRealm, source);
+        okojoRealm.Execute(okojoScript, pumpJobsAfterRun: false);
+
+        jintEngine = new Engine(static options => options.Strict());
+        jintPreparedScript = Engine.PrepareScript(source);
+        jintEngine.Execute(jintPreparedScript);
     }
+
+    [GlobalCleanup]
+    public void Cleanup() => okojoRuntime.Dispose();
 
     public IEnumerable<string> FileNames() => ScriptKeys;
 
@@ -79,20 +89,40 @@ public class JintSuiteComparisonBenchmarks
     public string FileName { get; set; } = "minimal";
 
     [Benchmark]
-    [BenchmarkCategory("Jint")]
-    public void Jint_Strict()
+    [BenchmarkCategory("ParseCompile", "Jint")]
+    public void Jint_ParseCompile()
     {
-        var engine = new Engine(static options => options.Strict());
-        engine.Execute(StrictSources[FileName]);
+        GC.KeepAlive(Engine.PrepareScript(source));
     }
 
     [Benchmark]
-    [BenchmarkCategory("Okojo")]
-    public void Okojo_Strict()
+    [BenchmarkCategory("ParseCompile", "Okojo")]
+    public void Okojo_ParseCompile()
     {
-        using var runtime = JsRuntime.CreateBuilder().Build();
-        var script = JsCompiler.Compile(runtime.DefaultRealm, StrictSources[FileName]);
-        runtime.DefaultRealm.Execute(script);
+        GC.KeepAlive(JsCompiler.Compile(okojoRealm, source));
+    }
+
+    [Benchmark]
+    [BenchmarkCategory("Execution", "Jint")]
+    public void Jint_Execute()
+    {
+        jintEngine.Execute(jintPreparedScript);
+    }
+
+    [Benchmark]
+    [BenchmarkCategory("Execution", "Okojo")]
+    public void Okojo_Execute()
+    {
+        okojoRealm.Execute(okojoScript, pumpJobsAfterRun: false);
+    }
+
+    private static string LoadStrictSource(string key)
+    {
+        var script = ScriptSourceLoader.LoadScenario(key);
+        if (key.Contains("dromaeo"))
+            script = DromaeoHelpers + Environment.NewLine + script;
+
+        return "\"use strict\";" + Environment.NewLine + script;
     }
 
     private sealed class ShortRunConfig : ManualConfig
