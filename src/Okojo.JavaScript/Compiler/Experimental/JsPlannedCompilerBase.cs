@@ -110,12 +110,81 @@ internal abstract partial class JsPlannedCompilerBase
         }
     }
 
+    protected static bool BodyEndsAbruptly(FlatAst ast, int offset, int count)
+    {
+        var statements = ast.ChildRange(offset, count);
+        return statements.Length != 0
+            && ast[statements[^1]].Kind is AstKind.ReturnStatement or AstKind.ThrowStatement;
+    }
+
     private protected void RestoreCompletionSink(int register) => completionSinkRegister = register;
 
     protected void CaptureCompletionValue()
     {
         if (completionSinkRegister >= 0)
             EmitStar(completionSinkRegister);
+    }
+
+    protected void EmitRootLocalDebugInfos()
+    {
+        var endPc = builder.CodeLength;
+        if (endPc == 0)
+            return;
+
+        var rootScope = activeScopes.Peek();
+        for (var i = 0; i < rootScope.Bindings.Count; i++)
+        {
+            var binding = rootScope.Bindings[i];
+            var name = binding.Planned.Name;
+            if (
+                name.Length == 0
+                || name.StartsWith("$", StringComparison.Ordinal)
+                || name.IndexOf('#') >= 0
+            )
+                continue;
+
+            JsLocalDebugStorageKind storageKind;
+            int storageIndex;
+            if (binding.Planned.StorageKind == CompilerPlannedStorageKind.ContextSlot)
+            {
+                storageKind = JsLocalDebugStorageKind.ContextSlot;
+                storageIndex = binding.Planned.StorageIndex;
+            }
+            else if (
+                binding.Planned.StorageKind
+                    is CompilerPlannedStorageKind.LocalRegister
+                        or CompilerPlannedStorageKind.LexicalRegister
+                && binding.Register >= 0
+            )
+            {
+                storageKind = JsLocalDebugStorageKind.Register;
+                storageIndex = binding.Register;
+            }
+            else
+                continue;
+
+            var flags = binding.Planned.Kind switch
+            {
+                CompilerCollectedBindingKind.Parameter => JsLocalDebugFlags.Parameter,
+                CompilerCollectedBindingKind.Var
+                or CompilerCollectedBindingKind.FunctionDeclaration => JsLocalDebugFlags.Var,
+                CompilerCollectedBindingKind.Lexical
+                or CompilerCollectedBindingKind.ClassDeclaration
+                or CompilerCollectedBindingKind.BlockAlias
+                or CompilerCollectedBindingKind.LoopHeadAlias
+                or CompilerCollectedBindingKind.CatchAlias
+                or CompilerCollectedBindingKind.ClassLexicalAlias => JsLocalDebugFlags.Lexical,
+                _ => JsLocalDebugFlags.None,
+            };
+            if (binding.Planned.IsConst)
+                flags |= JsLocalDebugFlags.Const;
+            if (binding.Planned.IsCaptured)
+                flags |= JsLocalDebugFlags.CapturedByChild;
+            if (binding.Planned.Kind == CompilerCollectedBindingKind.FunctionNameSelf)
+                flags |= JsLocalDebugFlags.ImmutableFunctionName;
+
+            builder.AddLocalDebugInfo(new(name, storageKind, storageIndex, 0, endPc, flags));
+        }
     }
 
     protected bool strictDeclared;

@@ -91,9 +91,8 @@ public class JsObjectTests
     [Test]
     public void TestObjectLiteralCreatesPlainObjectInVm()
     {
-        var program = JavaScriptParser.ParseScript("function t(){ return {}; } t();");
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript("function t(){ return {}; } t();");
 
         realm.Execute(script);
 
@@ -104,9 +103,8 @@ public class JsObjectTests
     [Test]
     public void TestNamedPropertyIcPopulatesAfterExecution()
     {
-        var program = JavaScriptParser.ParseScript("function t(){ let o={x:1}; return o.x; } t();");
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript("function t(){ let o={x:1}; return o.x; } t();");
         var func = script
             .ObjectConstants.OfType<JsBytecodeFunction>()
             .Single(static f => f.Name == "t");
@@ -203,7 +201,7 @@ public class JsObjectTests
         );
         realm.Global["o"] = JsValue.FromObject(o);
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("o.x;"));
+        var script = realm.CompileScript("o.x;");
         realm.Execute(script);
 
         Assert.That(realm.Accumulator.IsInt32, Is.True);
@@ -247,7 +245,7 @@ public class JsObjectTests
         );
         realm.Global["o"] = JsValue.FromObject(o);
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("o.x = 9;"));
+        var script = realm.CompileScript("o.x = 9;");
         realm.Execute(script);
 
         Assert.That(realm.Accumulator.IsInt32, Is.True);
@@ -261,8 +259,7 @@ public class JsObjectTests
     public void TestObjectLiteralBytecodeGetterSetterUseThis()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var program = JavaScriptParser.ParseScript(
-            """
+        var source = """
             function t() {
                 let o = {
                     _x: 1,
@@ -273,9 +270,8 @@ public class JsObjectTests
                 return o.x;
             }
             t() + t();
-            """
-        );
-        var script = JsCompiler.Compile(realm, program);
+            """;
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -312,7 +308,7 @@ public class JsObjectTests
         );
         realm.Global["o"] = JsValue.FromObject(o);
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("o.m();"));
+        var script = realm.CompileScript("o.m();");
         realm.Execute(script);
 
         Assert.That(realm.Accumulator.IsInt32, Is.True);
@@ -349,7 +345,7 @@ public class JsObjectTests
     public void TestArrayLiteralCreatesOkojoArray()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("[];"));
+        var script = realm.CompileScript("[];");
 
         realm.Execute(script);
 

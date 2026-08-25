@@ -277,17 +277,19 @@ internal abstract partial class JsPlannedCompilerBase
         );
     }
 
-    private void EmitContextSlotTdzWriteGuard(int slot, int depth)
+    private void EmitContextSlotTdzWriteGuard(int slot, int depth, string name)
     {
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
         {
             var valueRegister = builder.AllocateTemporaryRegister();
             EmitStar(valueRegister);
+            var readPc = builder.CodeLength;
             if (depth == 0)
                 EmitLdaCurrentContextSlot(slot);
             else
                 EmitLdaContextSlot(slot, depth);
+            builder.AddTdzReadDebugName(readPc, name);
             EmitLdar(valueRegister);
         }
         finally

@@ -321,6 +321,42 @@ public class ToolingTests
     }
 
     [Test]
+    public void PlannedCompiler_Elides_Unused_ForUpdate_Result_And_Fallback()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = realm.CompileScript(
+            """
+            function t() {
+                var f = function (x) { return x; };
+                var x = 0;
+                for (; x < 3; x++) {
+                }
+                return f(x);
+            }
+            """
+        );
+
+        var t = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(f => f.Name == "t");
+        var disasm = Disassembler.Dump(t.Script, new() { UnitKind = "function", UnitName = "t" });
+        var codeLines = disasm
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Select(line => line.Trim())
+            .Where(line => line.Length > 0 && char.IsDigit(line[0]))
+            .ToArray();
+        var jumpIndex = Array.FindIndex(
+            codeLines,
+            line => line.Contains("  Jump ", StringComparison.Ordinal)
+        );
+
+        Assert.That(disasm, Does.Contain("Mov r0 ->"));
+        Assert.That(disasm, Does.Contain("CallUndefinedReceiver"));
+        Assert.That(jumpIndex, Is.GreaterThan(0));
+        Assert.That(codeLines[jumpIndex - 1], Does.Not.Contain("Ldar "));
+        Assert.That(codeLines[^2], Does.Contain("CallUndefinedReceiver"));
+        Assert.That(codeLines[^1], Does.Contain("Return"));
+    }
+
+    [Test]
     public void Disassembler_Dumps_Header_Constants_And_Code()
     {
         var script = new JsScript(
@@ -470,21 +506,19 @@ public class ToolingTests
     {
         var source = new StringBuilder();
         source.AppendLine("function f() {");
+        source.AppendLine("var o = { targetWide: 7 };");
         for (var i = 0; i < 300; i++)
         {
-            source.Append("('");
-            source.Append("pad");
+            source.Append("o.pad");
             source.Append(i);
-            source.AppendLine("');");
+            source.AppendLine(";");
         }
-
-        source.AppendLine("var o = { targetWide: 7 };");
         source.AppendLine("return o.targetWide;");
         source.AppendLine("}");
         source.AppendLine("f();");
 
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript(source.ToString()));
+        var script = realm.CompileScript(source.ToString());
 
         var f = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(fn => fn.Name == "f");
         Assert.That(f.Script.Bytecode.Contains((byte)JsOpCode.LdaNamedPropertyWide), Is.True);

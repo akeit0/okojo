@@ -50,7 +50,7 @@ public class ClassTests
                 try
                 {
                     var realm = JsRuntime.Create().DefaultRealm;
-                    var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript(source));
+                    var script = realm.CompileScript(source);
                     realm.Execute(script);
                     var result = realm.Accumulator.AsString();
                     if (result != "1,1,1,1,1,1")
@@ -1152,8 +1152,7 @@ public class ClassTests
                 """
             + Environment.NewLine
             + File.ReadAllText(sourcePath);
-        var program = JavaScriptParser.ParseScript(source, sourcePath);
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source, sourcePath);
 
         realm.Execute(script);
         Assert.That(realm.Accumulator.IsUndefined, Is.True);

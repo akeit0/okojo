@@ -187,8 +187,12 @@ internal sealed partial class JsPlannedFunctionCompiler
             () => EmitRootStatementList(ast, bodyOffset, bodyCount)
         );
 
-        builder.EmitLda(JsOpCode.LdaUndefined);
-        builder.Emit(JsOpCode.Return);
+        if (!BodyEndsAbruptly(ast, bodyOffset, bodyCount))
+        {
+            builder.EmitLda(JsOpCode.LdaUndefined);
+            builder.Emit(JsOpCode.Return);
+        }
+        EmitRootLocalDebugInfos();
         PatchGeneratorSwitchTable();
         var functionSourceStart = flatFunction?.Position ?? -1;
         var functionSourceEnd = flatFunction?.EndPosition ?? -1;

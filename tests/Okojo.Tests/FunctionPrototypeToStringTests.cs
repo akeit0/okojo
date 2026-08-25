@@ -80,7 +80,7 @@ public class FunctionPrototypeToStringTests
         var realm = JsRuntime.Create().DefaultRealm;
         const string source =
             "function\r\n// a\r\nf\r\n// b\r\n(\r\n// c\r\nx\r\n// d\r\n,\r\n// e\r\ny\r\n// f\r\n)\r\n// g\r\n{\r\n// h\r\n;\r\n// i\r\n;\r\n// j\r\n}\r\nf.toString();";
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript(source));
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 

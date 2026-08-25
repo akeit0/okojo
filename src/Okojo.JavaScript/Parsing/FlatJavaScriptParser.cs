@@ -5,6 +5,7 @@ namespace Okojo.JavaScript.Parsing;
 
 internal sealed class FlatJavaScriptParser
 {
+    private const int MaxParseDepth = 256;
     private readonly FlatAst ast;
     private readonly JsLexer lexer;
     private readonly string source;
@@ -17,6 +18,7 @@ internal sealed class FlatJavaScriptParser
     private int generatorFunctionDepth;
     private int asyncFunctionDepth;
     private int loopDepth;
+    private int parseDepth;
     private int switchDepth;
     private bool strictMode;
     private bool parsingAsyncParameters;
@@ -937,7 +939,10 @@ internal sealed class FlatJavaScriptParser
             return true;
         }
 
-        if ((asyncFunctionDepth > 0 || ((isModule || allowTopLevelAwait) && functionDepth == 0)) && IsAwaitUsingPrefix())
+        if (
+            (asyncFunctionDepth > 0 || ((isModule || allowTopLevelAwait) && functionDepth == 0))
+            && IsAwaitUsingPrefix()
+        )
         {
             kind = JsVariableDeclarationKind.AwaitUsing;
             return true;
@@ -2822,6 +2827,20 @@ internal sealed class FlatJavaScriptParser
 
     private int ParseUnary()
     {
+        if (++parseDepth > MaxParseDepth)
+            throw Error("Maximum parser recursion depth exceeded", current.Position);
+        try
+        {
+            return ParseUnaryCore();
+        }
+        finally
+        {
+            parseDepth--;
+        }
+    }
+
+    private int ParseUnaryCore()
+    {
         var position = current.Position;
         if (
             current.Kind is JsTokenKind.Identifier or JsTokenKind.ReservedWord
@@ -3239,6 +3258,8 @@ internal sealed class FlatJavaScriptParser
             case JsTokenKind.Slash:
             case JsTokenKind.SlashAssign:
                 return ParseRegExpLiteral();
+            case JsTokenKind.RightParen:
+                throw Error("Unexpected token ')'", token.Position);
             default:
                 throw Error(
                     $"Expression token '{token.Kind}' is not supported by FlatJavaScriptParser",
@@ -3804,6 +3825,20 @@ internal sealed class FlatJavaScriptParser
     }
 
     private int ParseArrayLiteral()
+    {
+        if (++parseDepth > MaxParseDepth)
+            throw Error("Maximum parser recursion depth exceeded", current.Position);
+        try
+        {
+            return ParseArrayLiteralCore();
+        }
+        finally
+        {
+            parseDepth--;
+        }
+    }
+
+    private int ParseArrayLiteralCore()
     {
         var position = Expect(JsTokenKind.LeftBracket).Position;
         Span<int> initial = stackalloc int[8];

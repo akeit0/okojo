@@ -294,7 +294,7 @@ internal abstract partial class JsPlannedCompilerBase
             if (needsPerIterationContext)
                 EmitReplaceCurrentContext(activeScopes.Peek().ContextSlotCount);
             if (parts[2] >= 0)
-                EmitExpression(ast, parts[2]);
+                EmitExpressionForEffect(ast, parts[2]);
             EmitJump(loopStart);
             builder.BindLabel(breakTarget);
         }

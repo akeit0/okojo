@@ -1476,7 +1476,7 @@ public class HostInteropTests
     public void ClrGlobalIsUndefinedWhenClrAccessDisabled()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("typeof clr;"));
+        var script = realm.CompileScript("typeof clr;");
 
         realm.Execute(script);
 

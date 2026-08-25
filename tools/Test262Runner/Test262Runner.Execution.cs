@@ -547,7 +547,16 @@ internal static partial class Program
                     timings.AddParse(parseStart, parseEnd);
 
                     var compileStart = Stopwatch.GetTimestamp();
-                    script = new JsPlannedScriptCompiler(vm).Compile(ast, entryPath);
+                    try
+                    {
+                        script = new JsPlannedScriptCompiler(vm).Compile(ast, entryPath);
+                    }
+                    catch (Exception ex) when (Environment.GetEnvironmentVariable("OKOJO_CPLTRACE") is not null)
+                    {
+                        Console.Error.WriteLine("[CPL] COMPILE CRASH: " + ex.GetType().Name);
+                        Console.Error.WriteLine(ex.StackTrace);
+                        throw;
+                    }
                     var compileEnd = Stopwatch.GetTimestamp();
                     timings.AddCompile(compileStart, compileEnd);
                 }

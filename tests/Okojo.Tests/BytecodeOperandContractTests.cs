@@ -31,6 +31,7 @@ public class BytecodeOperandContractTests
         JsOpCode.LdaKeyedProperty,
         JsOpCode.StaKeyedProperty,
         JsOpCode.DefineOwnKeyedProperty,
+        JsOpCode.DefineOwnKeyedPropertyNoName,
         JsOpCode.Construct,
     ];
 
@@ -137,6 +138,7 @@ public class BytecodeOperandContractTests
         [JsOpCode.LdaContextSlotNoTdz] = 2,
         [JsOpCode.StaKeyedProperty] = 2,
         [JsOpCode.DefineOwnKeyedProperty] = 2,
+        [JsOpCode.DefineOwnKeyedPropertyNoName] = 2,
         [JsOpCode.Add] = 2,
         [JsOpCode.Sub] = 2,
         [JsOpCode.Mul] = 2,

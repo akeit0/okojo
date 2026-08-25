@@ -179,7 +179,7 @@ public class CompilerFeatureSupportTests
         );
         var wrapperExpression = (JsFunctionExpression)
             ((JsExpressionStatement)parsed.Statements[0]).Expression;
-        var compiler = new JsCompiler(realm);
+        using var compiler = new JsCompiler(realm);
         var wrapper = compiler.CompileHoistedFunctionTemplate(
             wrapperExpression,
             string.Empty,

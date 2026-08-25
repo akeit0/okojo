@@ -148,7 +148,7 @@ public class TaggedTemplateTests
         var realm = JsRuntime.Create().DefaultRealm;
         var source =
             "var ok = true; (function(cs){ ok = ok && cs[0] === \"\" && cs.raw[0] === \"\\\\\\n\\\\\\n\\\\\\n\"; })`\\\n\\\n\\\n`; ok;";
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript(source));
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
         Assert.That(realm.Accumulator.IsTrue, Is.True);

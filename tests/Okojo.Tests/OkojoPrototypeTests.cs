@@ -68,7 +68,7 @@ public class OkojoPrototypeTests
     public void TestPrimitiveNumberMemberCallToString()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("(1).toString();"));
+        var script = realm.CompileScript("(1).toString();");
 
         realm.Execute(script);
 
@@ -80,7 +80,7 @@ public class OkojoPrototypeTests
     public void TestObjectNumberBoxedAddition()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("Object(1) + 2;"));
+        var script = realm.CompileScript("Object(1) + 2;");
 
         realm.Execute(script);
 

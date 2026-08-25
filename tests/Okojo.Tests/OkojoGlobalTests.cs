@@ -61,7 +61,7 @@ public class OkojoGlobalTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         realm.Global["x"] = JsValue.FromInt32(11);
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("x;"));
+        var script = realm.CompileScript("x;");
 
         realm.Execute(script);
 

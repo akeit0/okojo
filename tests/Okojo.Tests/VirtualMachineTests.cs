@@ -76,10 +76,9 @@ public class VirtualMachineTests
     [Test]
     public void TestCompilerIntegration()
     {
-        var program = JavaScriptParser.ParseScript("let x = 10; x + 5;");
 
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript("let x = 10; x + 5;");
 
         realm.Execute(script);
 
@@ -102,10 +101,9 @@ public class VirtualMachineTests
             }
             test();
         ";
-        var program = JavaScriptParser.ParseScript(source);
 
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -207,9 +205,8 @@ public class VirtualMachineTests
             }
             test();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         var ex = Assert.Throws<JsRuntimeException>(() => realm.Execute(script));
         Assert.That(ex!.Message, Is.EqualTo("Cannot access 'x' before initialization"));
@@ -227,9 +224,8 @@ public class VirtualMachineTests
             }
             test();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         Assert.DoesNotThrow(() => realm.Execute(script));
     }
@@ -245,9 +241,8 @@ public class VirtualMachineTests
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -265,9 +260,8 @@ public class VirtualMachineTests
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         var ex = Assert.Throws<JsRuntimeException>(() => realm.Execute(script));
         Assert.That(ex!.Message, Is.EqualTo("Cannot access 'x' before initialization"));
@@ -284,9 +278,8 @@ public class VirtualMachineTests
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         var ex = Assert.Throws<JsRuntimeException>(() => realm.Execute(script));
         Assert.That(ex!.Message, Is.EqualTo("Cannot access 'x' before initialization"));
@@ -303,9 +296,8 @@ public class VirtualMachineTests
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -326,9 +318,8 @@ public class VirtualMachineTests
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -349,9 +340,8 @@ public class VirtualMachineTests
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         var ex = Assert.Throws<JsRuntimeException>(() => realm.Execute(script));
         Assert.That(ex!.Message, Is.EqualTo("Cannot access 'x' before initialization"));
@@ -372,9 +362,8 @@ public class VirtualMachineTests
             let f = t();
             f();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -396,9 +385,8 @@ public class VirtualMachineTests
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         var ex = Assert.Throws<JsRuntimeException>(() => realm.Execute(script));
         Assert.That(ex!.Message, Is.EqualTo("Cannot access 'x' before initialization"));
@@ -627,9 +615,8 @@ public class VirtualMachineTests
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -651,9 +638,8 @@ public class VirtualMachineTests
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -674,9 +660,8 @@ public class VirtualMachineTests
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -694,9 +679,8 @@ public class VirtualMachineTests
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         var ex = Assert.Throws<JsRuntimeException>(() => realm.Execute(script));
         Assert.That(ex!.Message, Does.Contain("constant"));
@@ -722,9 +706,8 @@ public class VirtualMachineTests
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -746,9 +729,8 @@ public class VirtualMachineTests
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -772,9 +754,8 @@ public class VirtualMachineTests
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -806,10 +787,9 @@ public class VirtualMachineTests
             function t(a) { return !a; }
             t(0);
         ";
-        var program = JavaScriptParser.ParseScript(source);
 
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -861,9 +841,8 @@ public class VirtualMachineTests
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -918,9 +897,8 @@ public class VirtualMachineTests
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -939,9 +917,8 @@ public class VirtualMachineTests
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -961,9 +938,8 @@ public class VirtualMachineTests
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -981,9 +957,8 @@ public class VirtualMachineTests
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -1000,9 +975,8 @@ public class VirtualMachineTests
             function c(){ let o = { [""0""]: 5 }; return o[0]; }
             a() + b() + c();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 

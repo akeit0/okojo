@@ -407,7 +407,7 @@ public class BigIntFeatureTests
     public void BigInt_Bytecode_Literal_Executes_To_BigInt_Value()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        realm.Execute(JsCompiler.Compile(realm, JavaScriptParser.ParseScript("1n;")));
+        realm.Execute(realm.CompileScript("1n;"));
         Assert.That(realm.Accumulator.IsBigInt, Is.True);
         Assert.That(realm.Accumulator.AsBigInt().Value, Is.EqualTo(new BigInteger(1)));
     }

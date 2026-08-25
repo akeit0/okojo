@@ -374,7 +374,7 @@ public class AssignmentTests
         source.AppendLine("t();");
 
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript(source.ToString()));
+        var script = realm.CompileScript(source.ToString());
 
         realm.Execute(script);
         Assert.That(realm.Accumulator.IsTrue, Is.True);

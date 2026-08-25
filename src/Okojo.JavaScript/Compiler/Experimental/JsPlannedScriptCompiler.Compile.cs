@@ -57,6 +57,7 @@ internal sealed partial class JsPlannedScriptCompiler
     {
         builder.SetSourceText(ast.SourceText);
         strictDeclared = ast.StrictDeclared;
+        isAsync = ast.HasTopLevelAwait;
         builder.SetStrictDeclared(strictDeclared);
         using var collected = CompilerBindingCollector.Collect(ast);
         if (validateGlobalDeclarations)
@@ -116,7 +117,9 @@ internal sealed partial class JsPlannedScriptCompiler
         };
         script.BindAgent(Vm.Agent);
         builder.Dispose();
-        return script;
+        return ast.HasTopLevelAwait
+            ? new JsPlannedModuleCompiler(Vm).WrapAsyncModule(script, ast)
+            : script;
     }
 
     /// <summary>

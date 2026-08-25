@@ -898,9 +898,9 @@ public sealed partial class JsCompiler
                                 {
                                     var elementFunction = element.Value!;
                                     var accessorFunctionName =
-                                        element.Kind == JsClassElementKind.Getter
-                                            ? $"get {key}"
-                                            : $"set {key}";
+                                        element.IsComputedKey ? string.Empty
+                                        : element.Kind == JsClassElementKind.Getter ? $"get {key}"
+                                        : $"set {key}";
                                     var accessorFn = CompileClassElementFunction(
                                         accessorFunctionName,
                                         elementFunction,

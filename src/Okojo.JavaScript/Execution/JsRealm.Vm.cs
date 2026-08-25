@@ -189,7 +189,17 @@ public sealed partial class JsRealm
     public JsValue ExecuteProgramInline(JsProgram program)
     {
         Intrinsics.PrepareGlobalScriptDeclarationInstantiation(this, program);
-        var script = JsCompiler.Compile(this, program);
+        return ExecuteProgramInline(JsCompiler.Compile(this, program));
+    }
+
+    public JsValue ExecuteProgramInline(string source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        return ExecuteProgramInline(CompileScript(source));
+    }
+
+    private JsValue ExecuteProgramInline(JsScript script)
+    {
         script.ArmBreakpoints();
         var root = new JsBytecodeFunction(this, script, "script", isStrict: script.StrictDeclared);
         var result = InvokeBytecodeFunction(

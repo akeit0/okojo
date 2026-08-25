@@ -17,7 +17,8 @@ public sealed partial class JsRealm
     public JsValue Evaluate(string source, bool pumpJobsAfterRun = true)
     {
         ArgumentNullException.ThrowIfNull(source);
-        Execute(CompileScript(source), pumpJobsAfterRun);
+        using var ast = FlatJavaScriptParser.ParseScript(source);
+        Execute(new JsPlannedScriptCompiler(this).CompileIndirectEval(ast, null), pumpJobsAfterRun);
         return Accumulator;
     }
 
@@ -226,10 +227,13 @@ public sealed partial class JsRealm
         }
     }
 
-    private JsScript CompileScript(string source)
+    /// <summary>
+    ///     Compiles a script through the engine's compiler pipeline.
+    /// </summary>
+    public JsScript CompileScript(string source, string? sourcePath = null)
     {
-        using var ast = FlatJavaScriptParser.ParseScript(source);
-        return new JsPlannedScriptCompiler(this).Compile(ast, null);
+        using var ast = FlatJavaScriptParser.ParseScript(source, sourcePath);
+        return new JsPlannedScriptCompiler(this).Compile(ast, sourcePath);
     }
 
     private async ValueTask<JsValue> AwaitEvaluatedValueAsync(

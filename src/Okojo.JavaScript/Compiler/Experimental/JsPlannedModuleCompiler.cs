@@ -84,7 +84,7 @@ internal sealed class JsPlannedModuleCompiler(JsRealm realm) : JsPlannedCompiler
         return new(script, initialContextSlots, hoistedFunctions.ToArray());
     }
 
-    private JsScript WrapAsyncModule(JsScript bodyScript, FlatAst ast)
+    internal JsScript WrapAsyncModule(JsScript bodyScript, FlatAst ast)
     {
         var function = new JsBytecodeFunction(
             Vm,

@@ -2785,7 +2785,7 @@ public class TypedArrayFeatureTests
         test262Error.SetProperty("prototype", test262Proto);
         realm.Global["Test262Error"] = test262Error;
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript(fullSource.ToString()));
+        var script = realm.CompileScript(fullSource.ToString());
 
         Assert.DoesNotThrow(() => realm.Execute(script));
     }
