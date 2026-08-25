@@ -1,5 +1,6 @@
 using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Compiler.Experimental;
 using Okojo.JavaScript.Parsing;
 
 namespace Okojo.JavaScript.Execution;
@@ -410,8 +411,7 @@ public partial class Intrinsics
         var sourceText =
             $"{data.Prefix} anonymous({string.Join(",", parameters)}\n) {{\n{body}\n}}";
         var wrappedSource = $"({sourceText});";
-        JsProgram program;
-        var script = default(JsScript)!;
+        JsScript script = default!;
         try
         {
             if (
@@ -426,31 +426,8 @@ public partial class Intrinsics
                     wrappedSource
                 );
 
-            program = JavaScriptParser.ParseScript(wrappedSource);
-            if (
-                TryGetDynamicFunctionExpression(program, out var functionExpression)
-                && functionExpression.Body.StrictDeclared
-                && functionExpression.HasDuplicateParameters
-            )
-                throw new JsParseException(
-                    "Duplicate parameter name not allowed in this context",
-                    functionExpression.Position,
-                    wrappedSource
-                );
-            if (
-                TryGetDynamicFunctionExpression(program, out functionExpression)
-                && data.Kind
-                    is JsBytecodeFunctionKind.Generator
-                        or JsBytecodeFunctionKind.AsyncGenerator
-                && DynamicFunctionParametersContainYield(functionExpression)
-            )
-                throw new JsParseException(
-                    "YieldExpression not permitted in this context",
-                    functionExpression.Position,
-                    wrappedSource
-                );
-
-            script = JsCompiler.Compile(functionRealm, program);
+            using var ast = FlatJavaScriptParser.ParseScript(wrappedSource);
+            script = new JsPlannedScriptCompiler(functionRealm).Compile(ast, null);
         }
         catch (JsParseException ex)
         {
