@@ -9,6 +9,7 @@ internal sealed class FlatJavaScriptParser
     private readonly JsLexer lexer;
     private readonly string source;
     private readonly bool isModule;
+    private bool allowTopLevelAwait;
     private JsToken current;
     private int previousTokenEnd = -1;
     private int functionDepth;
@@ -47,9 +48,16 @@ internal sealed class FlatJavaScriptParser
         previousTokenEnd = current.Position + current.SourceLength;
     }
 
-    public static FlatAst ParseScript(string source, string? sourcePath = null)
+    public static FlatAst ParseScript(
+        string source,
+        string? sourcePath = null,
+        bool allowTopLevelAwait = false
+    )
     {
-        var parser = new FlatJavaScriptParser(source, sourcePath);
+        var parser = new FlatJavaScriptParser(source, sourcePath)
+        {
+            allowTopLevelAwait = allowTopLevelAwait,
+        };
         try
         {
             parser.ast.Root = parser.ParseProgram();
@@ -929,7 +937,7 @@ internal sealed class FlatJavaScriptParser
             return true;
         }
 
-        if ((asyncFunctionDepth > 0 || (isModule && functionDepth == 0)) && IsAwaitUsingPrefix())
+        if ((asyncFunctionDepth > 0 || ((isModule || allowTopLevelAwait) && functionDepth == 0)) && IsAwaitUsingPrefix())
         {
             kind = JsVariableDeclarationKind.AwaitUsing;
             return true;
@@ -948,7 +956,7 @@ internal sealed class FlatJavaScriptParser
         var position = current.Position;
         if (kind == JsVariableDeclarationKind.AwaitUsing)
         {
-            if (asyncFunctionDepth == 0 && isModule && functionDepth == 0)
+            if (asyncFunctionDepth == 0 && (isModule || allowTopLevelAwait) && functionDepth == 0)
                 ast.HasTopLevelAwait = true;
             Expect(current.Kind);
         }
@@ -2251,7 +2259,7 @@ internal sealed class FlatJavaScriptParser
         var position = Expect(JsTokenKind.For).Position;
         var isAwait = false;
         if (
-            (asyncFunctionDepth > 0 || (isModule && functionDepth == 0))
+            (asyncFunctionDepth > 0 || ((isModule || allowTopLevelAwait) && functionDepth == 0))
             && current.Kind is JsTokenKind.Identifier or JsTokenKind.ReservedWord
             && source.AsSpan(current.Position, current.SourceLength).SequenceEqual("await".AsSpan())
         )
@@ -2822,7 +2830,7 @@ internal sealed class FlatJavaScriptParser
         {
             if (parsingAsyncParameters)
                 ReportAsyncParameterError(position);
-            if (asyncFunctionDepth > 0 || (isModule && functionDepth == 0))
+            if (asyncFunctionDepth > 0 || ((isModule || allowTopLevelAwait) && functionDepth == 0))
             {
                 if (asyncFunctionDepth == 0)
                     ast.HasTopLevelAwait = true;

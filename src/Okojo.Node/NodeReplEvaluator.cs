@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using Okojo.JavaScript;
 using Okojo.JavaScript.Bytecode;
-using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Compiler.Experimental;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
 using Okojo.JavaScript.Objects;
@@ -14,7 +14,6 @@ public sealed class NodeReplEvaluator
     private const int StrictModeAuto = 0;
     private const int StrictModeStrict = 1;
     private const int StrictModeSloppy = 2;
-    private readonly JsCompilerContext compileContext;
 
     private readonly Func<bool> pumpHostTurn;
     private readonly HashSet<string> topLevelConstNames = new(StringComparer.Ordinal);
@@ -24,12 +23,6 @@ public sealed class NodeReplEvaluator
     {
         Realm = realm ?? throw new ArgumentNullException(nameof(realm));
         this.pumpHostTurn = pumpHostTurn ?? throw new ArgumentNullException(nameof(pumpHostTurn));
-        compileContext = new()
-        {
-            IsRepl = true,
-            ReplTopLevelLexicalNames = topLevelLexicalNames,
-            ReplTopLevelConstNames = topLevelConstNames,
-        };
     }
 
     public JsRealm Realm { get; }
@@ -46,16 +39,18 @@ public sealed class NodeReplEvaluator
         ArgumentNullException.ThrowIfNull(sourcePath);
 
         var adjustedSource = ApplyStrictMode(source, strictMode);
-        var program = JavaScriptParser.ParseScript(adjustedSource, false, false, true, sourcePath);
-        ValidateTopLevelLexicalRedeclaration(program);
+        using var ast = FlatJavaScriptParser.ParseScript(
+            adjustedSource,
+            sourcePath,
+            allowTopLevelAwait: true
+        );
+        ValidateTopLevelLexicalRedeclaration(ast);
 
-        var script = program.HasTopLevelAwait
-            ? JsCompiler.Compile(Realm, program, compileContext, JsBytecodeFunctionKind.Async)
-            : JsCompiler.Compile(Realm, program, compileContext);
+        var script = new JsPlannedScriptCompiler(Realm).Compile(ast, sourcePath);
         onCompiled?.Invoke(script);
 
         JsValue rawResult;
-        if (program.HasTopLevelAwait)
+        if (ast.HasTopLevelAwait)
         {
             var root = new JsBytecodeFunction(
                 Realm,
@@ -72,8 +67,8 @@ public sealed class NodeReplEvaluator
             rawResult = Realm.Accumulator;
         }
 
-        RegisterTopLevelLexicalDeclarations(program);
-        return awaitPromiseResult || program.HasTopLevelAwait
+        RegisterTopLevelLexicalDeclarations(ast);
+        return awaitPromiseResult || ast.HasTopLevelAwait
             ? await AwaitIfPromiseAsync(rawResult).ConfigureAwait(false)
             : rawResult;
     }
@@ -114,44 +109,49 @@ public sealed class NodeReplEvaluator
         return promise.SettledResult;
     }
 
-    private void ValidateTopLevelLexicalRedeclaration(JsProgram program)
+    private void ValidateTopLevelLexicalRedeclaration(FlatAst ast)
     {
-        foreach (var name in EnumerateTopLevelLexicalNames(program))
+        foreach (var name in CollectTopLevelLexicalNames(ast))
             if (topLevelLexicalNames.Contains(name))
                 throw new InvalidOperationException(
                     $"SyntaxError: Identifier '{name}' has already been declared"
                 );
     }
 
-    private void RegisterTopLevelLexicalDeclarations(JsProgram program)
+    private void RegisterTopLevelLexicalDeclarations(FlatAst ast)
     {
-        foreach (var stmt in program.Statements)
+        foreach (var name in CollectTopLevelLexicalNames(ast))
         {
-            if (stmt is not JsVariableDeclarationStatement decl)
-                continue;
-            if (decl.Kind is not (JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const))
-                continue;
-
-            foreach (var declarator in decl.Declarators)
-            {
-                topLevelLexicalNames.Add(declarator.Name);
-                if (decl.Kind == JsVariableDeclarationKind.Const)
-                    topLevelConstNames.Add(declarator.Name);
-            }
+            topLevelLexicalNames.Add(name);
+            topLevelConstNames.Add(name);
         }
     }
 
-    private static IEnumerable<string> EnumerateTopLevelLexicalNames(JsProgram program)
+    private static List<string> CollectTopLevelLexicalNames(FlatAst ast)
     {
-        foreach (var stmt in program.Statements)
+        var names = new List<string>();
+        ref readonly var root = ref ast[ast.Root];
+        var statements = ast.ChildRange(root.Arg0, root.Arg1);
+        for (var i = 0; i < statements.Length; i++)
         {
-            if (stmt is not JsVariableDeclarationStatement decl)
+            ref readonly var statement = ref ast[statements[i]];
+            if (statement.Kind != AstKind.VariableDeclaration)
                 continue;
-            if (decl.Kind is not (JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const))
+            if (
+                (JsVariableDeclarationKind)statement.Arg2
+                    is not (JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const)
+            )
                 continue;
 
-            foreach (var declarator in decl.Declarators)
-                yield return declarator.Name;
+            var declarators = ast.ChildRange(statement.Arg0, statement.Arg1);
+            for (var j = 0; j < declarators.Length; j++)
+            {
+                ref readonly var declarator = ref ast[declarators[j]];
+                if (declarator.Kind == AstKind.VariableDeclaratorPattern)
+                    continue;
+                names.Add(ast.GetString(declarator.Arg0));
+            }
         }
+        return names;
     }
 }
