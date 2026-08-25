@@ -44,9 +44,10 @@ public partial class Intrinsics
                     reviver = reviverFn;
                 try
                 {
-                    using var doc = JsonDocument.Parse(text);
                     if (reviver is null)
-                        return ConvertJsonElement(realm, doc.RootElement);
+                        return ParseJsonText(realm, text);
+
+                    using var doc = JsonDocument.Parse(text);
 
                     var holder = new JsPlainObject(realm);
                     holder.DefineDataProperty(
@@ -164,6 +165,429 @@ public partial class Intrinsics
         }
     }
 
+    private static JsValue ParseJsonText(JsRealm realm, string text)
+    {
+        var parser = new JsonTextParser(realm, text);
+        return parser.Parse();
+    }
+
+    private ref struct JsonTextParser
+    {
+        private const int MaxDepth = 64;
+
+        private readonly JsRealm realm;
+        private readonly string source;
+        private readonly JsonConversionBuffers buffers;
+        private int offset;
+        private int depth;
+
+        public JsonTextParser(JsRealm realm, string source)
+        {
+            this.realm = realm;
+            this.source = source;
+            buffers = new JsonConversionBuffers();
+        }
+
+        public JsValue Parse()
+        {
+            try
+            {
+                SkipWhitespace();
+                if (offset == source.Length)
+                    throw new JsonException("The JSON payload is empty.");
+
+                var value = ParseValue();
+                SkipWhitespace();
+                if (offset != source.Length)
+                    throw new JsonException("The JSON payload contains multiple values.");
+
+                return value;
+            }
+            finally
+            {
+                buffers.Dispose();
+            }
+        }
+
+        private JsValue ParseValue()
+        {
+            SkipWhitespace();
+            if (offset == source.Length)
+                throw new JsonException("Unexpected end of JSON input.");
+
+            return source[offset] switch
+            {
+                'n' when ConsumeLiteral("null") => JsValue.Null,
+                't' when ConsumeLiteral("true") => JsValue.True,
+                'f' when ConsumeLiteral("false") => JsValue.False,
+                '"' => JsValue.FromString(ParseString()),
+                '[' => ParseArray(),
+                '{' => ParseObject(),
+                '-' or >= '0' and <= '9' => ParseNumber(),
+                _ => throw new JsonException("Unexpected JSON token."),
+            };
+        }
+
+        private JsValue ParseArray()
+        {
+            EnterContainer();
+            try
+            {
+                offset++;
+                var array = realm.CreateArrayObject();
+                SkipWhitespace();
+                if (Consume(']'))
+                    return array;
+
+                var index = 0;
+                while (true)
+                {
+                    var value = ParseValue();
+                    var dense = array.Dense!;
+                    if (index >= dense.Length)
+                    {
+                        if (!array.TryEnsureDenseCapacity((uint)index))
+                            throw new JsonException("Unable to allocate JSON array.");
+                        dense = array.Dense!;
+                    }
+
+                    dense[index++] = value;
+                    SkipWhitespace();
+                    if (Consume(']'))
+                        break;
+                    Expect(',');
+                    SkipWhitespace();
+                    if (Peek(']'))
+                        throw new JsonException("Trailing commas are not allowed in JSON arrays.");
+                }
+
+                array.SetLength((uint)index);
+                return array;
+            }
+            finally
+            {
+                depth--;
+            }
+        }
+
+        private JsValue ParseObject()
+        {
+            EnterContainer();
+            try
+            {
+                offset++;
+                var obj = new JsPlainObject(realm, useDictionaryMode: true);
+                var staging = buffers.AcquireObjectStaging();
+                var usedGenericNamedPath = false;
+                try
+                {
+                    SkipWhitespace();
+                    if (Consume('}'))
+                        return obj;
+
+                    while (true)
+                    {
+                        if (!Peek('"'))
+                            throw new JsonException("Expected a JSON property name.");
+
+                        var name = ParseString();
+                        SkipWhitespace();
+                        Expect(':');
+                        var propValue = ParseValue();
+                        if (TryGetArrayIndexFromCanonicalString(name, out var index))
+                        {
+                            obj.SetElement(index, propValue);
+                        }
+                        else
+                        {
+                            var atom = realm.Atoms.InternNoCheck(name);
+                            if (!usedGenericNamedPath && !staging.ContainsAtom(atom))
+                            {
+                                staging.Add(atom, propValue);
+                            }
+                            else
+                            {
+                                if (!usedGenericNamedPath && staging.Count != 0)
+                                {
+                                    obj.InitializeDynamicOpenDataPropertiesNoCollision(
+                                        realm,
+                                        staging.Atoms,
+                                        staging.Values
+                                    );
+                                    usedGenericNamedPath = true;
+                                }
+
+                                obj.SetPropertyAtom(realm, atom, propValue, out _);
+                            }
+                        }
+
+                        SkipWhitespace();
+                        if (Consume('}'))
+                            break;
+                        Expect(',');
+                        SkipWhitespace();
+                        if (Peek('}'))
+                            throw new JsonException(
+                                "Trailing commas are not allowed in JSON objects."
+                            );
+                    }
+
+                    if (!usedGenericNamedPath && staging.Count != 0)
+                        obj.InitializeDynamicOpenDataPropertiesNoCollision(
+                            realm,
+                            staging.Atoms,
+                            staging.Values
+                        );
+
+                    return obj;
+                }
+                finally
+                {
+                    staging.Release();
+                }
+            }
+            finally
+            {
+                depth--;
+            }
+        }
+
+        private JsValue ParseNumber()
+        {
+            var start = offset;
+            var negative = Consume('-');
+            if (negative && !IsDigit(PeekCharacter()))
+                throw new JsonException("A JSON number requires digits.");
+
+            long integerValue = 0;
+            var integerOverflow = false;
+            if (Consume('0'))
+            {
+                if (IsDigit(PeekCharacter()))
+                    throw new JsonException("JSON numbers cannot have leading zeroes.");
+            }
+            else
+            {
+                if (!IsDigitOneToNine(PeekCharacter()))
+                    throw new JsonException("A JSON number requires digits.");
+                while (IsDigit(PeekCharacter()))
+                {
+                    var digit = source[offset++] - '0';
+                    if (!integerOverflow)
+                    {
+                        if (integerValue > (2_147_483_648 - digit) / 10)
+                            integerOverflow = true;
+                        else
+                            integerValue = integerValue * 10 + digit;
+                    }
+                }
+            }
+
+            var hasFraction = false;
+            if (Consume('.'))
+            {
+                hasFraction = true;
+                if (!IsDigit(PeekCharacter()))
+                    throw new JsonException("A JSON fraction requires digits.");
+                while (IsDigit(PeekCharacter()))
+                    offset++;
+            }
+
+            var hasExponent = false;
+            if (Peek('e') || Peek('E'))
+            {
+                hasExponent = true;
+                offset++;
+                if (Peek('+') || Peek('-'))
+                    offset++;
+                if (!IsDigit(PeekCharacter()))
+                    throw new JsonException("A JSON exponent requires digits.");
+                while (IsDigit(PeekCharacter()))
+                    offset++;
+            }
+
+            var number = source.AsSpan(start, offset - start);
+            if (!hasFraction && !hasExponent && !integerOverflow)
+            {
+                var signedValue = negative ? -integerValue : integerValue;
+                if (
+                    signedValue >= int.MinValue
+                    && signedValue <= int.MaxValue
+                    && !(negative && signedValue == 0)
+                )
+                    return JsValue.FromInt32((int)signedValue);
+            }
+
+            if (
+                !double.TryParse(
+                    number,
+                    NumberStyles.Float,
+                    CultureInfo.InvariantCulture,
+                    out var value
+                )
+            )
+                throw new JsonException("Invalid JSON number.");
+            if (
+                double.IsFinite(value)
+                && value >= int.MinValue
+                && value <= int.MaxValue
+                && value == Math.Truncate(value)
+                && !(negative && value == 0)
+            )
+                return JsValue.FromInt32((int)value);
+            return new(value);
+        }
+
+        private string ParseString()
+        {
+            Expect('"');
+            var start = offset;
+            while (offset < source.Length)
+            {
+                var specialOffset = source.AsSpan(offset).IndexOfAny('"', '\\');
+                if (specialOffset < 0)
+                    throw new JsonException("Unterminated JSON string.");
+
+                var special = offset + specialOffset;
+                for (var i = offset; i < special; i++)
+                    if (source[i] < ' ')
+                        throw new JsonException("A JSON string cannot contain control characters.");
+
+                if (source[special] == '"')
+                {
+                    offset = special + 1;
+                    return source.Substring(start, special - start);
+                }
+
+                var builder = new StringBuilder(special - start + 4);
+                builder.Append(source, start, special - start);
+                offset = special;
+                while (offset < source.Length)
+                {
+                    var c = source[offset++];
+                    if (c == '"')
+                        return builder.ToString();
+                    if (c == '\\')
+                    {
+                        if (offset == source.Length)
+                            throw new JsonException("Unterminated JSON escape.");
+                        AppendEscape(builder, source[offset++]);
+                        continue;
+                    }
+
+                    if (c < ' ')
+                        throw new JsonException("A JSON string cannot contain control characters.");
+                    builder.Append(c);
+                }
+
+                throw new JsonException("Unterminated JSON string.");
+            }
+
+            throw new JsonException("Unterminated JSON string.");
+        }
+
+        private void AppendEscape(StringBuilder builder, char escape)
+        {
+            switch (escape)
+            {
+                case '"':
+                case '\\':
+                case '/':
+                    builder.Append(escape);
+                    return;
+                case 'b':
+                    builder.Append('\b');
+                    return;
+                case 'f':
+                    builder.Append('\f');
+                    return;
+                case 'n':
+                    builder.Append('\n');
+                    return;
+                case 'r':
+                    builder.Append('\r');
+                    return;
+                case 't':
+                    builder.Append('\t');
+                    return;
+                case 'u':
+                {
+                    if (offset + 4 > source.Length)
+                        throw new JsonException("Incomplete JSON unicode escape.");
+                    var value = 0;
+                    for (var i = 0; i < 4; i++)
+                    {
+                        var digit = HexValue(source[offset++]);
+                        if (digit < 0)
+                            throw new JsonException("Invalid JSON unicode escape.");
+                        value = (value << 4) | digit;
+                    }
+
+                    builder.Append((char)value);
+                    return;
+                }
+                default:
+                    throw new JsonException("Invalid JSON escape.");
+            }
+        }
+
+        private void EnterContainer()
+        {
+            if (++depth > MaxDepth)
+            {
+                depth--;
+                throw new JsonException("The JSON payload exceeds the maximum depth.");
+            }
+        }
+
+        private void SkipWhitespace()
+        {
+            while (offset < source.Length && source[offset] is ' ' or '\t' or '\r' or '\n')
+                offset++;
+        }
+
+        private bool Consume(char expected)
+        {
+            if (!Peek(expected))
+                return false;
+            offset++;
+            return true;
+        }
+
+        private void Expect(char expected)
+        {
+            if (!Consume(expected))
+                throw new JsonException($"Expected JSON character '{expected}'.");
+        }
+
+        private bool ConsumeLiteral(string literal)
+        {
+            if (!source.AsSpan(offset).StartsWith(literal, StringComparison.Ordinal))
+                return false;
+            offset += literal.Length;
+            return true;
+        }
+
+        private bool Peek(char expected) => offset < source.Length && source[offset] == expected;
+
+        private char PeekCharacter() => offset < source.Length ? source[offset] : '\0';
+
+        private static bool IsDigit(char c) => c is >= '0' and <= '9';
+
+        private static bool IsDigitOneToNine(char c) => c is >= '1' and <= '9';
+
+        private static int HexValue(char c)
+        {
+            return c switch
+            {
+                >= '0' and <= '9' => c - '0',
+                >= 'a' and <= 'f' => c - 'a' + 10,
+                >= 'A' and <= 'F' => c - 'A' + 10,
+                _ => -1,
+            };
+        }
+    }
+
     private static JsValue ConvertJsonElement(
         JsRealm realm,
         JsonElement element,
@@ -267,8 +691,7 @@ public partial class Intrinsics
     {
         try
         {
-            using var doc = JsonDocument.Parse(source);
-            return ConvertJsonElement(Realm, doc.RootElement);
+            return ParseJsonText(Realm, source);
         }
         catch (JsonException ex)
         {

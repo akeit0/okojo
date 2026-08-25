@@ -543,6 +543,30 @@ public class GlobalConstructorsTests
     }
 
     [Test]
+    public void JsonParse_DirectParser_Handles_Escapes_And_Number_FastPaths()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                const value = JSON.parse('{"escaped":"\\n\\uD834\\uDF06","exp":1e3,"large":2147483648,"fraction":0.25}');
+                value.escaped.length === 3 &&
+                value.escaped.charCodeAt(0) === 10 &&
+                value.escaped.charCodeAt(1) === 0xD834 &&
+                value.escaped.charCodeAt(2) === 0xDF06 &&
+                value.exp === 1000 &&
+                value.large === 2147483648 &&
+                value.fraction === 0.25;
+                """
+            )
+        );
+
+        realm.Execute(script);
+        Assert.That(realm.Accumulator.IsTrue, Is.True);
+    }
+
+    [Test]
     public void ObjectGetOwnPropertySymbols_EmptyObject_Returns_Empty_Array()
     {
         var realm = JsRuntime.Create().DefaultRealm;
