@@ -1,5 +1,6 @@
 using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Parsing;
 
 namespace Okojo.JavaScript.Compiler.Experimental;
 
@@ -28,6 +29,19 @@ internal abstract partial class JsPlannedCompilerBase
     private int completionSinkRegister = -1;
     protected bool CompletionSinkActive => completionSinkRegister >= 0;
 
+    /// <summary>
+    ///     Depth of enclosing breakable constructs (iterations, switch, labeled
+    ///     breakable blocks). A finally block inside one can be exited abruptly
+    ///     (break/continue) skipping its tail, so its expressions participate in
+    ///     completion tracking there (V8 rewriter save/restore is positional).
+    /// </summary>
+    private int breakableContextDepth;
+    protected bool InBreakableContext => breakableContextDepth > 0;
+
+    private protected void EnterBreakableContext() => breakableContextDepth++;
+
+    private protected void ExitBreakableContext() => breakableContextDepth--;
+
     private protected void SetCompletionSink(int register) => completionSinkRegister = register;
 
     private protected void ClearCompletionSink() => completionSinkRegister = -1;
@@ -37,6 +51,63 @@ internal abstract partial class JsPlannedCompilerBase
         var register = completionSinkRegister;
         completionSinkRegister = -1;
         return register;
+    }
+
+    /// <summary>
+    ///     Whether a statement needs the AssignUndefinedBefore reset prefix
+    ///     (V8 rewriter.cc): iterations, try, switch always; an if only when its
+    ///     arms disagree on guaranteeing a value. Everything else carries.
+    /// </summary>
+    protected static bool StatementNeedsCompletionReset(FlatAst ast, int nodeIndex)
+    {
+        var node = ast[nodeIndex];
+        while (node.Kind == AstKind.LabeledStatement)
+            node = ast[node.Arg1];
+
+        return node.Kind switch
+        {
+            AstKind.WhileStatement
+            or AstKind.DoWhileStatement
+            or AstKind.ForStatement
+            or AstKind.ForInOfStatement
+            or AstKind.TryStatement
+            or AstKind.SwitchStatement => true,
+            AstKind.IfStatement => node.Arg2 < 0
+                || !StatementGuaranteesCompletionValue(ast, node.Arg1)
+                || !StatementGuaranteesCompletionValue(ast, node.Arg2),
+            _ => false,
+        };
+    }
+
+    /// <summary>
+    ///     Whether a construct ALWAYS leaves a value in the sink when it finishes.
+    ///     Used by the if-analysis: an if whose arms disagree needs an undefined
+    ///     prefix so the untaken path cannot leak a stale carried value.
+    /// </summary>
+    protected static bool StatementGuaranteesCompletionValue(FlatAst ast, int nodeIndex)
+    {
+        var node = ast[nodeIndex];
+        switch (node.Kind)
+        {
+            case AstKind.ExpressionStatement:
+                return true;
+            case AstKind.LabeledStatement:
+                return StatementGuaranteesCompletionValue(ast, node.Arg1);
+            case AstKind.BlockStatement:
+            {
+                var children = ast.ChildRange(node.Arg0, node.Arg1);
+                return children.Length != 0
+                    && StatementGuaranteesCompletionValue(ast, children[^1]);
+            }
+            case AstKind.IfStatement:
+                return node.Arg2 >= 0
+                    && StatementGuaranteesCompletionValue(ast, node.Arg1)
+                    && StatementGuaranteesCompletionValue(ast, node.Arg2);
+            default:
+                // Break/continue jump away, declarations produce nothing, and
+                // iterations/try/switch have their own empty-completion rules.
+                return false;
+        }
     }
 
     private protected void RestoreCompletionSink(int register) => completionSinkRegister = register;

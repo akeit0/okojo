@@ -32,19 +32,11 @@ public partial class Intrinsics
                 var source = sourceValue.AsString();
                 if (TryEvaluateTriviaOnlyEvalSource(source, out var triviaOnlyResult))
                     return triviaOnlyResult;
-                JsProgram program;
                 JsScript script;
                 try
                 {
-                    program = JavaScriptParser.ParseScript(source);
-                    EvalEarlyErrors.ThrowIfInvalidIndirectEvalScript(program);
-                    script = program.StrictDeclared
-                        ? JsCompiler.Compile(
-                            realm,
-                            program,
-                            new() { IsIndirectEval = true, IsStrictIndirectEval = true }
-                        )
-                        : JsCompiler.Compile(realm, program, new() { IsIndirectEval = true });
+                    using var ast = FlatJavaScriptParser.ParseScript(source);
+                    script = new JsPlannedScriptCompiler(realm).CompileIndirectEval(ast, null);
                 }
                 catch (JsParseException ex)
                 {
@@ -56,9 +48,7 @@ public partial class Intrinsics
                 }
 
                 var root = new JsBytecodeFunction(realm, script, "eval");
-                var useIndirectEvalGlobalBindingSemantics = !program.StrictDeclared;
-                if (useIndirectEvalGlobalBindingSemantics)
-                    PrepareIndirectEvalDeclarationInstantiation(realm, program);
+                var useIndirectEvalGlobalBindingSemantics = !script.StrictDeclared;
                 if (useIndirectEvalGlobalBindingSemantics)
                     realm.EnterIndirectEvalGlobalBindingSemantics();
 

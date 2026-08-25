@@ -748,6 +748,7 @@ public class DirectFlatParserTests
             var let = 1;
             var object = {let};
             let value = object.let === 1;
+            value;
             """
         );
 

@@ -26,6 +26,21 @@ internal abstract partial class JsPlannedCompilerBase
     protected void EmitStatement(FlatAst ast, int nodeIndex)
     {
         ref readonly var node = ref ast[nodeIndex];
+
+        // Completion-value tracking (script roots only): constructs whose spec
+        // completion starts empty reset the sink before emitting, mirroring V8
+        // rewriter.cc's AssignUndefinedBefore.
+        var __cplDump = Environment.GetEnvironmentVariable("OKOJO_CPLTRACE") is not null;
+        if (__cplDump)
+            Console.Error.WriteLine(
+                $"[CPL] stmt kind={node.Kind} a0={node.Arg0} a1={node.Arg1} a2={node.Arg2}"
+            );
+        if (CompletionSinkActive && StatementNeedsCompletionReset(ast, nodeIndex))
+        {
+            builder.EmitLda(JsOpCode.LdaUndefined);
+            CaptureCompletionValue();
+        }
+
         switch (node.Kind)
         {
             case AstKind.ImportDeclaration:
@@ -158,12 +173,14 @@ internal abstract partial class JsPlannedCompilerBase
         builder.BindLabel(continueTarget);
         EmitExpressionForTest(ast, test, breakTarget, jumpIfTrue: false);
         PushIterationControlScope(breakTarget, continueTarget, labels);
+        EnterBreakableContext();
         try
         {
             EmitStatement(ast, body);
         }
         finally
         {
+            ExitBreakableContext();
             controlScopes.Pop();
         }
         EmitJump(continueTarget);
@@ -177,12 +194,14 @@ internal abstract partial class JsPlannedCompilerBase
         var breakTarget = builder.CreateLabel();
         builder.BindLabel(loopStart);
         PushIterationControlScope(breakTarget, continueTarget, labels);
+        EnterBreakableContext();
         try
         {
             EmitStatement(ast, body);
         }
         finally
         {
+            ExitBreakableContext();
             controlScopes.Pop();
         }
         builder.BindLabel(continueTarget);
@@ -260,12 +279,14 @@ internal abstract partial class JsPlannedCompilerBase
             }
 
             PushIterationControlScope(breakTarget, continueTarget, labels);
+            EnterBreakableContext();
             try
             {
                 EmitStatement(ast, parts[3]);
             }
             finally
             {
+                ExitBreakableContext();
                 controlScopes.Pop();
             }
 
@@ -348,12 +369,14 @@ internal abstract partial class JsPlannedCompilerBase
             EmitForIterationAssignment(ast, left);
 
             PushIterationControlScope(breakTarget, continueTarget, labels);
+            EnterBreakableContext();
             try
             {
                 EmitStatement(ast, parts[2]);
             }
             finally
             {
+                ExitBreakableContext();
                 controlScopes.Pop();
             }
 
@@ -441,6 +464,7 @@ internal abstract partial class JsPlannedCompilerBase
             builder.EmitJump(JsOpCode.PushTry, catchTarget);
             PushForOfControlScope(breakTarget, continueTarget, iteratorRegister, labels);
             PushTryControlScope();
+            EnterBreakableContext();
             try
             {
                 EmitLdar(valueRegister);
@@ -449,6 +473,7 @@ internal abstract partial class JsPlannedCompilerBase
             }
             finally
             {
+                ExitBreakableContext();
                 controlScopes.Pop();
                 controlScopes.Pop();
             }
@@ -831,12 +856,14 @@ internal abstract partial class JsPlannedCompilerBase
                 Labels: names
             )
         );
+        EnterBreakableContext();
         try
         {
             EmitStatement(ast, body);
         }
         finally
         {
+            ExitBreakableContext();
             controlScopes.Pop();
         }
         builder.BindLabel(breakTarget);
@@ -1201,6 +1228,7 @@ internal abstract partial class JsPlannedCompilerBase
                 EmitJump(defaultTarget);
 
                 PushSwitchControlScope(breakTarget);
+                EnterBreakableContext();
                 try
                 {
                     for (var i = 0; i < cases.Length; i++)
@@ -1214,6 +1242,7 @@ internal abstract partial class JsPlannedCompilerBase
                 }
                 finally
                 {
+                    ExitBreakableContext();
                     controlScopes.Pop();
                 }
                 builder.BindLabel(breakTarget);
@@ -1341,11 +1370,37 @@ internal abstract partial class JsPlannedCompilerBase
             EmitJump(finallyEntry);
 
             builder.BindLabel(finallyEntry);
-            // Per spec, a finally block's own value never becomes the completion
-            // of the try statement; suppress the completion sink while it emits.
-            var savedCompletionSink = TakeCompletionSink();
+            // Completion semantics for finally, mirroring V8's positional
+            // save/restore rewrite inside breakable constructs: save the carried
+            // value, reset to undefined, emit the finalizer (its expressions
+            // capture normally), then restore the saved value. An abrupt exit
+            // (break/continue) jumps past the restore, keeping whatever the
+            // finally assigned - exactly matching the spec's UpdateEmpty rules.
+            var suppressCompletion = !InBreakableContext;
+            var savedCompletionSink = -1;
+            var backupRegister = -1;
+            if (suppressCompletion)
+            {
+                savedCompletionSink = TakeCompletionSink();
+            }
+            else
+            {
+                backupRegister = builder.AllocatePinnedRegister();
+                EmitLdar(completionSinkRegister);
+                EmitStar(backupRegister);
+                builder.EmitLda(JsOpCode.LdaUndefined);
+                CaptureCompletionValue();
+            }
             EmitStatement(ast, finalizer);
-            RestoreCompletionSink(savedCompletionSink);
+            if (suppressCompletion)
+            {
+                RestoreCompletionSink(savedCompletionSink);
+            }
+            else
+            {
+                EmitLdar(backupRegister);
+                CaptureCompletionValue();
+            }
 
             EmitFinallyCompletionJump(completionKind, compare, 1, out var notReturn);
             EmitLdar(completionValue);

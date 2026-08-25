@@ -80,8 +80,12 @@ internal sealed partial class JsPlannedScriptCompiler
         var bodyCount = ast[rootIndex].Arg1;
 
         // A script's completion value (read by eval and the embedding Evaluate
-        // API) is the value of its last executed expression statement, with
-        // non-producing statements carrying the previous value forward.
+        // API) is the value of its last executed expression statement, carried
+        // forward through non-producing statements. Mirrors V8's rewriter.cc:
+        // iteration/try/if-without-else statements are prefixed with an
+        // undefined store (so zero-iteration loops and bare breaks reset the
+        // completion), expression statements capture the accumulator, and the
+        // finally suppression in the try emitter keeps finalizers out.
         var completionRegister = builder.AllocatePinnedRegister();
         builder.EmitLda(JsOpCode.LdaUndefined);
         EmitStar(completionRegister);
@@ -91,7 +95,7 @@ internal sealed partial class JsPlannedScriptCompiler
             ast,
             bodyOffset,
             bodyCount,
-            () => EmitRootStatementList(ast, bodyOffset, bodyCount)
+            () => EmitScriptRootStatements(ast, bodyOffset, bodyCount)
         );
 
         ClearCompletionSink();
@@ -113,6 +117,21 @@ internal sealed partial class JsPlannedScriptCompiler
         script.BindAgent(Vm.Agent);
         builder.Dispose();
         return script;
+    }
+
+    /// <summary>
+    ///     Emits the script root statement list with completion-value semantics,
+    ///     mirroring V8's rewriter.cc Processor: statements that can complete
+    ///     without producing a value (iterations, try, if without else, switch)
+    ///     are prefixed with an undefined store so they reset the completion
+    ///     instead of carrying a stale value forward; value-producing statements
+    ///     capture through the active completion sink; blocks and labels recurse.
+    /// </summary>
+    private void EmitScriptRootStatements(FlatAst ast, int bodyOffset, int bodyCount)
+    {
+        var statements = ast.ChildRange(bodyOffset, bodyCount);
+        for (var i = 0; i < statements.Length; i++)
+            EmitStatement(ast, statements[i]);
     }
 
     private void ValidateGlobalDeclarations(

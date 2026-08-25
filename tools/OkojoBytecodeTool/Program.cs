@@ -3,6 +3,7 @@ using Okojo.Diagnostics;
 using Okojo.JavaScript;
 using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Compiler.Experimental;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
 using Okojo.JavaScript.Objects;
@@ -34,6 +35,7 @@ internal static class Program
         var moduleInfo = false;
         var moduleResolved = false;
         var moduleDisasm = false;
+        var usePlanned = false;
 
         var start = 0;
         if (
@@ -162,6 +164,15 @@ internal static class Program
 
                     moduleDisasm = true;
                     break;
+                case "--planned":
+                    if (mode != ToolMode.Disasm)
+                    {
+                        Console.Error.WriteLine("--planned is only supported in disasm mode.");
+                        return 1;
+                    }
+
+                    usePlanned = true;
+                    break;
                 default:
                     Console.Error.WriteLine($"Unknown option: {args[i]}");
                     PrintUsage();
@@ -248,10 +259,20 @@ internal static class Program
                 return 0;
             }
 
-            var program = JavaScriptParser.ParseScript(source);
             using var engine = JsRuntime.Create();
-            var compiler = new JsCompiler(engine.MainRealm);
-            var script = compiler.Compile(program);
+            JsScript script;
+            if (usePlanned)
+            {
+                using var flatAst = FlatJavaScriptParser.ParseScript(source, input);
+                script = new JsPlannedScriptCompiler(engine.MainRealm).Compile(flatAst, input);
+            }
+            else
+            {
+                var program = JavaScriptParser.ParseScript(source);
+                using var compiler = new JsCompiler(engine.MainRealm);
+                script = compiler.Compile(program);
+            }
+
             var functions = CollectOkojoFunctions(script);
 
             var output = listOnly
