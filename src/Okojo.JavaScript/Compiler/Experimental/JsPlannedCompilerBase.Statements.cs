@@ -76,6 +76,7 @@ internal abstract partial class JsPlannedCompilerBase
                 return;
             case AstKind.ExpressionStatement:
                 EmitExpression(ast, node.Arg0);
+                CaptureCompletionValue();
                 return;
             case AstKind.ReturnStatement:
                 if (node.Arg0 >= 0)
@@ -1340,7 +1341,11 @@ internal abstract partial class JsPlannedCompilerBase
             EmitJump(finallyEntry);
 
             builder.BindLabel(finallyEntry);
+            // Per spec, a finally block's own value never becomes the completion
+            // of the try statement; suppress the completion sink while it emits.
+            var savedCompletionSink = TakeCompletionSink();
             EmitStatement(ast, finalizer);
+            RestoreCompletionSink(savedCompletionSink);
 
             EmitFinallyCompletionJump(completionKind, compare, 1, out var notReturn);
             EmitLdar(completionValue);

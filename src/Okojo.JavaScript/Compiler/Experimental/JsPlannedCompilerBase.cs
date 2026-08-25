@@ -19,6 +19,34 @@ internal abstract partial class JsPlannedCompilerBase
     internal const string DerivedThisBindingName = "\0derived-this";
     protected bool emittingParameterInitializers;
     protected bool emittingInstanceFieldInitializer;
+
+    /// <summary>
+    ///     Register receiving the script completion value while the script root
+    ///     statement list is being emitted; -1 when completion is not observed
+    ///     (function bodies compile through their own compiler instance).
+    /// </summary>
+    private int completionSinkRegister = -1;
+    protected bool CompletionSinkActive => completionSinkRegister >= 0;
+
+    private protected void SetCompletionSink(int register) => completionSinkRegister = register;
+
+    private protected void ClearCompletionSink() => completionSinkRegister = -1;
+
+    private protected int TakeCompletionSink()
+    {
+        var register = completionSinkRegister;
+        completionSinkRegister = -1;
+        return register;
+    }
+
+    private protected void RestoreCompletionSink(int register) => completionSinkRegister = register;
+
+    protected void CaptureCompletionValue()
+    {
+        if (completionSinkRegister >= 0)
+            EmitStar(completionSinkRegister);
+    }
+
     protected bool strictDeclared;
     protected bool hasNewTarget;
     protected bool isGenerator;

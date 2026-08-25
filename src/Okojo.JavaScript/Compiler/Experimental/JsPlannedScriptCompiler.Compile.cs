@@ -78,6 +78,15 @@ internal sealed partial class JsPlannedScriptCompiler
         var rootIndex = ast.Root;
         var bodyOffset = ast[rootIndex].Arg0;
         var bodyCount = ast[rootIndex].Arg1;
+
+        // A script's completion value (read by eval and the embedding Evaluate
+        // API) is the value of its last executed expression statement, with
+        // non-producing statements carrying the previous value forward.
+        var completionRegister = builder.AllocatePinnedRegister();
+        builder.EmitLda(JsOpCode.LdaUndefined);
+        EmitStar(completionRegister);
+        SetCompletionSink(completionRegister);
+
         EmitBodyStatementListWithResources(
             ast,
             bodyOffset,
@@ -85,9 +94,8 @@ internal sealed partial class JsPlannedScriptCompiler
             () => EmitRootStatementList(ast, bodyOffset, bodyCount)
         );
 
-        if (bodyCount == 0)
-            builder.EmitLda(JsOpCode.LdaUndefined);
-
+        ClearCompletionSink();
+        EmitLdar(completionRegister);
         builder.Emit(JsOpCode.Return);
         var lexicalMetadata = BuildTopLevelLexicalMetadata();
         var script = builder.ToScript() with

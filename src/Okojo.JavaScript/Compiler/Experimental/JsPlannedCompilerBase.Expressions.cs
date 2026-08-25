@@ -2283,6 +2283,13 @@ internal abstract partial class JsPlannedCompilerBase
             return;
         }
 
+        if (strictDeclared && (name == "eval" || name == "arguments"))
+            throw new JsRuntimeException(
+                JsErrorKind.SyntaxError,
+                $"Assignment to '{name}' is not allowed in strict mode",
+                "SCRIPT_STRICT_EVAL_ASSIGN"
+            );
+
         EmitGlobalAccess(name, JsOpCode.StaGlobal, JsOpCode.StaGlobalWide);
     }
 
