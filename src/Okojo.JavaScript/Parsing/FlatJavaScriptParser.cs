@@ -786,6 +786,11 @@ internal sealed class FlatJavaScriptParser
     private int ParseStatement()
     {
         var position = current.Position;
+        if (current.Kind == JsTokenKind.At)
+        {
+            SkipClassDecorators();
+            return ParseClass(isDeclaration: true);
+        }
         if (IsCurrentIdentifierName("class"))
             return ParseClass(isDeclaration: true);
         if (IsAsyncFunctionPrefix())
@@ -2414,9 +2419,12 @@ internal sealed class FlatJavaScriptParser
             var label = GetIdentifierText(current);
             var target = FindActiveLabel(label);
             if (target is null)
-                throw Error($"Unknown label '{label}'", current.Position);
+                throw Error($"Undefined label '{label}'", current.Position);
             if (kind == AstKind.ContinueStatement && !target.Value.IsIteration)
-                throw Error($"Continue target '{label}' is not an iteration statement", position);
+                throw Error(
+                    $"Illegal continue statement: '{label}' does not denote an iteration statement",
+                    position
+                );
             labelStringIndex = Arena.AddString(label);
             Next();
         }
@@ -2559,6 +2567,7 @@ internal sealed class FlatJavaScriptParser
                 }
             }
             Next();
+            ValidateSwitchLexicalDeclarations(cases.AsSpan());
             var range = Arena.AddChildren(cases.AsSpan());
             return Arena.Add(
                 AstKind.SwitchStatement,
@@ -2574,6 +2583,98 @@ internal sealed class FlatJavaScriptParser
             switchDepth--;
             cases.Dispose();
         }
+    }
+
+    private void ValidateSwitchLexicalDeclarations(ReadOnlySpan<int> cases)
+    {
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        for (var i = 0; i < cases.Length; i++)
+        {
+            ref readonly var switchCase = ref Arena[cases[i]];
+            var statements = Arena.ChildRange(switchCase.Arg1, switchCase.Arg2);
+            for (var j = 0; j < statements.Length; j++)
+                CollectSwitchLexicalDeclarations(statements[j], names);
+        }
+    }
+
+    private void CollectSwitchLexicalDeclarations(int nodeIndex, HashSet<string> names)
+    {
+        ref readonly var node = ref Arena[nodeIndex];
+        if (node.Kind == AstKind.VariableDeclaration)
+        {
+            if (((JsVariableDeclarationKind)node.Arg2).IsLexical())
+            {
+                var declarators = Arena.ChildRange(node.Arg0, node.Arg1);
+                for (var i = 0; i < declarators.Length; i++)
+                    CollectSwitchBindingNames(declarators[i], names);
+            }
+            return;
+        }
+
+        if (node.Kind == AstKind.ClassDeclaration)
+        {
+            var name = ast.GetString(ast.GetClass(node.Arg0).NameStringIndex);
+            if (!names.Add(name))
+                throw Error($"Duplicate lexical declaration '{name}'", nodeIndex);
+        }
+    }
+
+    private void CollectSwitchBindingNames(int nodeIndex, HashSet<string> names)
+    {
+        ref readonly var node = ref Arena[nodeIndex];
+        switch (node.Kind)
+        {
+            case AstKind.VariableDeclarator:
+                var name = Arena.GetString(node.Arg0);
+                if (!names.Add(name))
+                    throw Error($"Duplicate lexical declaration '{name}'", nodeIndex);
+                return;
+            case AstKind.VariableDeclaratorPattern:
+                CollectSwitchBindingPattern(node.Arg0, names);
+                return;
+            default:
+                throw new InvalidOperationException($"Unexpected switch declarator '{node.Kind}'.");
+        }
+    }
+
+    private void CollectSwitchBindingPattern(int nodeIndex, HashSet<string> names)
+    {
+        ref readonly var node = ref Arena[nodeIndex];
+        switch (node.Kind)
+        {
+            case AstKind.Identifier:
+                var name = Arena.GetString(node.Arg0);
+                if (!names.Add(name))
+                    throw Error($"Duplicate lexical declaration '{name}'", nodeIndex);
+                return;
+            case AstKind.AssignmentExpression:
+            case AstKind.SpreadElement:
+                CollectSwitchBindingPattern(node.Arg0, names);
+                return;
+            case AstKind.ArrayBindingPattern:
+            case AstKind.ArrayExpression:
+                var elements = Arena.ChildRange(node.Arg0, node.Arg1);
+                for (var i = 0; i < elements.Length; i++)
+                    if (elements[i] >= 0)
+                        CollectSwitchBindingPattern(elements[i], names);
+                return;
+            case AstKind.ObjectBindingPattern:
+            case AstKind.ObjectExpression:
+                var properties = ast.GetObjectProperties(node.Arg0, node.Arg1);
+                for (var i = 0; i < properties.Length; i++)
+                    CollectSwitchBindingPattern(properties[i].ValueNode, names);
+                return;
+            default:
+                throw new InvalidOperationException(
+                    $"Unexpected switch binding pattern '{node.Kind}'."
+                );
+        }
+    }
+
+    private void SkipClassDecorators()
+    {
+        while (Match(JsTokenKind.At))
+            _ = ParseAssignment(allowIn: true);
     }
 
     private int ParseReturnStatement()
@@ -2876,6 +2977,28 @@ internal sealed class FlatJavaScriptParser
                 && ((AstMemberFlags)Arena[argument].Arg2 & AstMemberFlags.Private) != 0
             )
                 throw Error("Private fields cannot be deleted", position);
+            if (
+                unary == JsUnaryOperator.Delete
+                && Arena[argument].Kind == AstKind.BinaryExpression
+                && (JsBinaryOperator)Arena[argument].Arg2 == JsBinaryOperator.In
+                && Arena[Arena[argument].Arg0].Kind == AstKind.PrivateIdentifier
+            )
+            {
+                var privateIdentifier = Arena[argument].Arg0;
+                throw Error(
+                    $"Unexpected identifier '{Arena.GetString(Arena[privateIdentifier].Arg0)}'",
+                    Arena.GetPosition(privateIdentifier)
+                );
+            }
+            if (
+                unary == JsUnaryOperator.Delete
+                && Arena[argument].Kind == AstKind.PrivateIdentifier
+                && current.Kind == JsTokenKind.In
+            )
+                throw Error(
+                    $"Unexpected identifier '{Arena.GetString(Arena[argument].Arg0)}'",
+                    Arena.GetPosition(argument)
+                );
             return Arena.Add(AstKind.UnaryExpression, argument, (int)unary, position: position);
         }
 
@@ -3028,7 +3151,7 @@ internal sealed class FlatJavaScriptParser
                 if (current.Kind == JsTokenKind.PrivateIdentifier)
                 {
                     if (Arena[expression].Kind == AstKind.SuperExpression)
-                        throw Error("Private fields are not valid on super", current.Position);
+                        throw Error("Unexpected private field", current.Position);
                     var privateName = GetPrivateIdentifierText(current);
                     ReferencePrivateName(privateName, current.Position);
                     Next();
@@ -3159,6 +3282,11 @@ internal sealed class FlatJavaScriptParser
     private int ParsePrimary()
     {
         var token = current;
+        if (token.Kind == JsTokenKind.At)
+        {
+            SkipClassDecorators();
+            return ParseClass(isDeclaration: false);
+        }
         if (IsCurrentIdentifierName("class"))
             return ParseClass(isDeclaration: false);
         if (IsCurrentIdentifierName("super"))

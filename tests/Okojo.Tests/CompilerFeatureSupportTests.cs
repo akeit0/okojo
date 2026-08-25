@@ -157,7 +157,7 @@ public class CompilerFeatureSupportTests
     }
 
     [Test]
-    public void CompileHoistedFunctionTemplate_Uses_Provided_IdentifierTable_For_Parameter_Capture()
+    public void FunctionCompiler_Uses_Provided_IdentifierTable_For_Parameter_Capture()
     {
         const string source = """
             "use strict";
@@ -179,13 +179,10 @@ public class CompilerFeatureSupportTests
         );
         var wrapperExpression = (JsFunctionExpression)
             ((JsExpressionStatement)parsed.Statements[0]).Expression;
-        using var compiler = new JsCompiler(realm);
-        var wrapper = compiler.CompileHoistedFunctionTemplate(
-            wrapperExpression,
+        var wrapper = new JsFunctionCompiler(realm).CompileFunction(
             string.Empty,
-            wrapperSource,
-            parsed.SourcePath,
-            parsed.IdentifierTable
+            FunctionParameterPlan.FromFunction(wrapperExpression),
+            wrapperExpression.Body
         );
 
         var exportsObject = new JsPlainObject(realm);

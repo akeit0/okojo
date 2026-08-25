@@ -1,7 +1,7 @@
 using Okojo.Diagnostics;
 using Okojo.JavaScript;
 using Okojo.JavaScript.Bytecode;
-using Okojo.JavaScript.Compiler.Experimental;
+using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
 using Okojo.JavaScript.Objects;
@@ -327,7 +327,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesDirectExpressionPrecedence(string expression, double expected)
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
 
         var script = compiler.Compile($"{expression};");
 
@@ -339,7 +339,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesForInEnumerationAndControl()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             function read(object) {
                 let result = '';
@@ -384,7 +384,7 @@ public class DirectFlatParserTests
     public void CompileAst_ExecutesForInEnumeration()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             JavaScriptParser.ParseScript(
                 "let result = ''; for (const [key] in { ab: 1, cd: 2 }) result += key; result;"
             )
@@ -404,7 +404,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesForOfWithIteratorClose()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let closes = 0;
             function iterable(throwOnClose = false) {
@@ -459,7 +459,7 @@ public class DirectFlatParserTests
     public void CompileAst_ExecutesForOfEnumeration()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             JavaScriptParser.ParseScript(
                 "let result = ''; for (const value of [1, 2, 3]) result += value; result;"
             )
@@ -474,7 +474,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesForOfWithDestructuringAssignmentHeads()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let result = '';
             let first = 0;
@@ -506,7 +506,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesForAwaitOfWithDestructuringAssignmentHead()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             globalThis.__flatPatternAsyncResult = '';
             async function run() {
@@ -529,7 +529,7 @@ public class DirectFlatParserTests
     public void CompileString_InfersNamesThroughLogicalAssignmentOperators()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let result = '';
             let andValue = 1;
@@ -563,7 +563,7 @@ public class DirectFlatParserTests
     public void CompileString_ChecksMemberBaseCoercibleBeforeCompoundKeyNormalization()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             globalThis.__flatCoercibleResult = '';
             try
@@ -604,7 +604,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesUsingDeclarationsWithLifoDisposal()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             globalThis.__flatUsingOrder = [];
             function makeResource(name) {
@@ -635,7 +635,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesForOfUsingHeadsWithPerIterationDisposal()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             globalThis.__flatUsingLoopOrder = [];
             function makeResource(name) {
@@ -657,7 +657,7 @@ public class DirectFlatParserTests
     public void CompileString_AppliesToNumericBeforeCapturingUpdateOldValue()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let result = '';
             let boxed = new Number(1.1);
@@ -685,7 +685,7 @@ public class DirectFlatParserTests
     public void CompileString_SeparatesParameterClosureCaptureFromBodyVar()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             var x = 'outside';
             var probeParams, probeBody;
@@ -714,7 +714,7 @@ public class DirectFlatParserTests
     public void CompileString_EnforcesTdzOnContextSlotLexicalStores()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             globalThis.__flatTdzResult = '';
             try { for ({ a: x } of [{}]) { __flatTdzResult += 'unreachable'; } }
@@ -743,7 +743,7 @@ public class DirectFlatParserTests
     public void CompileString_AllowsSloppyLetShorthandInObjectLiterals()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             var let = 1;
             var object = {let};
@@ -761,7 +761,7 @@ public class DirectFlatParserTests
     public void CompileString_SnapshotsRestParameterBeforeArgumentsStore()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             globalThis.__flatRestResult = '';
             function f(a, ...rest) {
@@ -782,7 +782,7 @@ public class DirectFlatParserTests
     public void CompileString_PreservesThisThroughParenthesizedOptionalCalls()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             const a = {
                 b() { return this._b; },
@@ -805,7 +805,7 @@ public class DirectFlatParserTests
     public void CompileString_SkipsIteratorCloseWhenDestructureStepThrows()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             globalThis.__flatCloseResult = '';
             function makeSource(closeThrows) {
@@ -845,7 +845,7 @@ public class DirectFlatParserTests
     public void CompileString_ClosesDestructureIteratorOnGeneratorReturnResume()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             globalThis.__flatReturnResumeResult = '';
             function makeIterable(returnThrows) {
@@ -899,7 +899,7 @@ public class DirectFlatParserTests
     public void CompileString_RecognizesStrictDirectivesPerPrologueRules()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             globalThis.__flatStrictResult = '';
             function withContinuation() {
@@ -940,7 +940,7 @@ public class DirectFlatParserTests
     public void CompileString_InsertsAsiSemicolonAfterDoWhile()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             var x;
             do break ; while (0) x = 42;
@@ -959,7 +959,7 @@ public class DirectFlatParserTests
     public void CompileString_ParsesLetAfterSingleStatementBodyAsExpression()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             globalThis.__flatLetBodyResult = '';
             for (var x in null) let // ASI
@@ -980,7 +980,7 @@ public class DirectFlatParserTests
     public void CompileString_SnapshotsArgumentsBeforePrologueRegisterWrites()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             globalThis.__flatArgumentsSnapshotResult = '';
             var named = function g() {
@@ -1020,7 +1020,7 @@ public class DirectFlatParserTests
     public void CompileString_LexicalShadowingOfNamedFunctionSelfBinding()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             globalThis.__flatSelfShadowResult = '';
             var n = 'outside';
@@ -1045,7 +1045,7 @@ public class DirectFlatParserTests
     public void CompileString_RejectsForAwaitOfWhenContinuationPromiseResolveThrows()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             globalThis.__flatAsyncFromSyncResult = [];
             var p = Promise.resolve(0);
@@ -1078,7 +1078,7 @@ public class DirectFlatParserTests
     public void CompileString_IfFunctionDeclarationDoesNotConflictWithGlobalLexical()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             globalThis.__flatIfFnResult = [];
             let f = 123;
@@ -1098,7 +1098,7 @@ public class DirectFlatParserTests
     public void CompileString_ClosesForAwaitIteratorOnceOnNextResultRejection()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             globalThis.__flatCloseOnce = '';
             globalThis.__flatReturnCount = 0;
@@ -1127,7 +1127,7 @@ public class DirectFlatParserTests
     public void CompileString_ClosesForAwaitIteratorOnceOnBodyThrow()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             globalThis.__flatBodyThrowClose = '';
             globalThis.__flatBodyReturnCount = 0;
@@ -1156,7 +1156,7 @@ public class DirectFlatParserTests
     public void CompileString_DerivedConstructorArrowsObserveThisAndSuperState()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             globalThis.__flatDerivedResult = '';
             class Base { constructor() { __flatDerivedResult += 'base'; } }
@@ -1184,7 +1184,7 @@ public class DirectFlatParserTests
     public void CompileString_ParsesFieldsNamedGetAndSetAcrossAsi()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             globalThis.__flatClassFieldNamesResult = '';
             class A {
@@ -1225,7 +1225,7 @@ public class DirectFlatParserTests
     public void CompileString_EnforcesUsingBindingAndHeadGrammar()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             globalThis.__flatUsingResult = '';
             var of = [[9], [8], [7]], result = [], using;
@@ -1254,7 +1254,7 @@ public class DirectFlatParserTests
     public void CompileString_KeepsForOfHeadTdzEnvironmentSeparateFromIterations()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             globalThis.__flatHeadTdzResult = '';
             let x = 'outside';
@@ -1277,7 +1277,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesForOfWithNestedRestPatternHead()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let count = 0;
             for ([...[x]] of [[7], [8]]) count += x;
@@ -1301,7 +1301,7 @@ public class DirectFlatParserTests
     public void CompileString_AssignsIterationValuesToMemberTargets()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let targets = [{}, {}];
             let baseCalls = 0;
@@ -1341,7 +1341,7 @@ public class DirectFlatParserTests
     public void CompileString_EmitsDebuggerOpcodeAndContinuesWithoutHook()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             "let value = 1; debugger; value += 1; value;"
         );
 
@@ -1355,7 +1355,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesLabeledControlAcrossFinallyAndForOf()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let innerCloses = 0;
             let outerCloses = 0;
@@ -1403,7 +1403,7 @@ public class DirectFlatParserTests
     public void CompileAst_ExecutesLabeledControl()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             JavaScriptParser.ParseScript(
                 "let result = ''; outer: for (const value of [1, 2, 3]) { if (value === 2) continue outer; result += value; } result;"
             )
@@ -1425,7 +1425,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesOptionalChainsWithV8LinkSemantics()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let effects = '';
             function key() { effects += 'k'; return 'value'; }
@@ -1592,7 +1592,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesAnonymousAndNamedFunctionExpressions()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
             """
             let outer = 40;
@@ -1611,7 +1611,7 @@ public class DirectFlatParserTests
     public void CompileString_InfersAnonymousFunctionNames()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let declared = function () {};
             let assigned;
@@ -1658,7 +1658,7 @@ public class DirectFlatParserTests
     public void CompileString_InitializesNamedFunctionSelfBeforeParameterDefaults()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
             "let fn = function self(value = self) { return value; }; fn() === fn;"
         );
@@ -1672,7 +1672,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesThisExpressionFromMethodCall()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
             "let object = { value: 42, read: function () { return this.value; } }; object.read();"
         );
@@ -1686,7 +1686,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesOrderedPatternDefaultAndRestParameters()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
             """
             function read({ a = 1, b = 2, ...rest } = {}, [first, ...tail] = [3], value = a + b, ...extra) {
@@ -1705,7 +1705,7 @@ public class DirectFlatParserTests
     public void CompileString_EnforcesParameterTdzAndCapturesPatternBindings()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var captureScript = compiler.Compile(
             """
             function make([value] = [42]) {
@@ -1715,7 +1715,7 @@ public class DirectFlatParserTests
             make()();
             """
         );
-        var tdzScript = new JsPlannedScriptCompiler(realm).Compile(
+        var tdzScript = new JsScriptCompiler(realm).Compile(
             "function fail(first = second, second = 2) { return first; } fail;"
         );
 
@@ -1732,7 +1732,7 @@ public class DirectFlatParserTests
     public void CompileString_ParameterInitializerSkipsBodyVarBinding()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
             "let value = 42; function read(result = value) { var value = 1; return result; } read();"
         );
@@ -1746,7 +1746,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesRestPatternParameter()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
             "function sum(...[first, second, ...tail]) { return first + second + tail.length; } sum;"
         );
@@ -1762,7 +1762,7 @@ public class DirectFlatParserTests
     public void CompileString_UsesLastSloppyDuplicateSimpleParameter()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile("function last(value, value) { return value; } last(1, 42);");
 
         realm.Execute(script);
@@ -1791,7 +1791,7 @@ public class DirectFlatParserTests
             """
         );
         var fail = realm.Evaluate("(function () { throw new Error('boom'); })");
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
             "function run(fail, [value = fail()]) { return value; } run;"
         );
@@ -1817,7 +1817,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesDirectFlatLoop()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
 
         var script = compiler.Compile(
             """
@@ -1858,7 +1858,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesSwitchSelectionFallthroughAndBreak()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             function choose(value) {
                 let result = 0;
@@ -1901,18 +1901,16 @@ public class DirectFlatParserTests
             }
             """;
         var realm = JsRuntime.Create().DefaultRealm;
-        realm.Execute(new JsPlannedScriptCompiler(realm).Compile(makeSource + "make(0)();"));
+        realm.Execute(new JsScriptCompiler(realm).Compile(makeSource + "make(0)();"));
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(42));
 
         var tdzRealm = JsRuntime.Create().DefaultRealm;
         Assert.Throws<JsRuntimeException>(() =>
-            tdzRealm.Execute(
-                new JsPlannedScriptCompiler(tdzRealm).Compile(makeSource + "make(1)();")
-            )
+            tdzRealm.Execute(new JsScriptCompiler(tdzRealm).Compile(makeSource + "make(1)();"))
         );
 
         var finallyRealm = JsRuntime.Create().DefaultRealm;
-        var finallyScript = new JsPlannedScriptCompiler(finallyRealm).Compile(
+        var finallyScript = new JsScriptCompiler(finallyRealm).Compile(
             """
             let iterations = 0;
             let effects = 0;
@@ -1944,7 +1942,7 @@ public class DirectFlatParserTests
     public void CompileString_EmitsLogicalConditionsInTestMode()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
             """
             function choose(a, b, c) {
@@ -1975,7 +1973,7 @@ public class DirectFlatParserTests
     public void CompileString_CreatesFreshCapturedBindingForEachLoopIteration()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
             """
             function captureLoop(offset) {
@@ -2011,7 +2009,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesNestedFunctionCaptureFromDirectArena()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
 
         var script = compiler.Compile(
             """
@@ -2037,7 +2035,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesDirectCall()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
 
         var script = compiler.Compile(
             "function add(left, right) { return left + right; } add(40, 2);"
@@ -2051,7 +2049,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesWideDirectCallOperands()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var arguments = string.Join(", ", Enumerable.Range(0, 260).Select(static i => i));
 
         var script = compiler.Compile(
@@ -2068,7 +2066,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesMemberCallAndLoadsWithReceiver()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
             "function read(target, key) { return target.add(2) + target[key]; } read;"
         );
@@ -2085,7 +2083,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesArrayLiteralWithHoleAndDynamicElement()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
 
         var script = compiler.Compile("let values = [1, 2 + 3, , 4]; values.length + values[1];");
 
@@ -2097,7 +2095,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesArrayAndObjectLiteralSpread()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let symbol = Symbol('copied');
             let array = [0, ...[1, 2], , 4];
@@ -2131,7 +2129,7 @@ public class DirectFlatParserTests
         var later = realm.Evaluate(
             "(function () { __flatLiteralSpreadOrder.push('l'); return 3; })"
         );
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             function build(iterable, source, later) {
                 let array = [...iterable, later(), function () {}];
@@ -2165,9 +2163,7 @@ public class DirectFlatParserTests
         );
         try
         {
-            setterRealm.Execute(
-                new JsPlannedScriptCompiler(setterRealm).Compile("[...[], 42][0];")
-            );
+            setterRealm.Execute(new JsScriptCompiler(setterRealm).Compile("[...[], 42][0];"));
             Assert.That(setterRealm.Accumulator.Int32Value, Is.EqualTo(42));
         }
         finally
@@ -2180,7 +2176,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesNestedArrayBindingsWithDefaultsElisionsAndRest()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
             """
             let [first, , third = 3, ...rest] = [1, 2, undefined, 4, 5];
@@ -2222,7 +2218,7 @@ public class DirectFlatParserTests
             })
             """
         );
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
             """
             function run(makeIterable) {
@@ -2263,7 +2259,7 @@ public class DirectFlatParserTests
             """
         );
         var fail = realm.Evaluate("(function () { throw new Error('boom'); })");
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
             "function run(source, fail) { let [value = fail()] = source; return value; } run;"
         );
@@ -2280,7 +2276,7 @@ public class DirectFlatParserTests
     public void CompileString_CreatesFreshCapturedArrayBindingForEachLoopIteration()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
             """
             let first, second;
@@ -2304,7 +2300,7 @@ public class DirectFlatParserTests
         var names = string.Join(", ", Enumerable.Range(0, 260).Select(static i => $"value{i}"));
         var values = string.Join(", ", Enumerable.Range(0, 260));
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile($"let [{names}] = [{values}]; value259;");
 
         realm.Execute(script);
@@ -2317,8 +2313,8 @@ public class DirectFlatParserTests
     public void CompileString_LoadsUnshadowedUndefinedIntrinsicAndPrefersLocalBinding()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var intrinsicScript = new JsPlannedScriptCompiler(realm).Compile("undefined;");
-        var shadowedScript = new JsPlannedScriptCompiler(realm).Compile(
+        var intrinsicScript = new JsScriptCompiler(realm).Compile("undefined;");
+        var shadowedScript = new JsScriptCompiler(realm).Compile(
             "function read() { let undefined = 42; return undefined; } read();"
         );
 
@@ -2332,7 +2328,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesNestedObjectBindingsWithComputedDefaultsAndRest()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
             """
             let key = 'b';
@@ -2352,7 +2348,7 @@ public class DirectFlatParserTests
     public void CompileString_EvaluatesObjectBindingKeyDefaultAndNextPropertyInOrder()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
             """
             let order = 0;
@@ -2374,7 +2370,7 @@ public class DirectFlatParserTests
         var touch = realm.Evaluate(
             "(function () { __flatObjectBindingTouched++; return 'value'; })"
         );
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
             "function run(source, touch) { let { [touch()]: value } = source; return value; } run;"
         );
@@ -2391,7 +2387,7 @@ public class DirectFlatParserTests
     public void CompileString_CreatesFreshCapturedObjectBindingForEachLoopIteration()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
             """
             let first, second;
@@ -2416,7 +2412,7 @@ public class DirectFlatParserTests
         var symbol = realm.Evaluate("Symbol('flat-object-binding')");
         realm.Global["__flatObjectBindingSymbol"] = symbol;
         var source = realm.Evaluate("({ keep: 2, [__flatObjectBindingSymbol]: 9 })");
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
             """
             function run(source, symbol) {
@@ -2443,7 +2439,7 @@ public class DirectFlatParserTests
         );
         var names = string.Join(", ", Enumerable.Range(0, 260).Select(static i => $"p{i}"));
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
             $"let source = {{ {properties} }}; let {{ {names} }} = source; p259;"
         );
@@ -2458,7 +2454,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesNestedDestructuringAssignmentsAndReturnsOriginalSources()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
             """
             let first, second, nested, tail, rest;
@@ -2513,7 +2509,7 @@ public class DirectFlatParserTests
             "(function () { __flatAssignmentOrder += 'r'; return __flatAssignmentTarget; })"
         );
         var key = realm.Evaluate("(function () { __flatAssignmentOrder += 'k'; return 'value'; })");
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
             "function run(source, receiver, key) { ([receiver()[key()]] = source); } run;"
         );
@@ -2545,7 +2541,7 @@ public class DirectFlatParserTests
         var key = realm.Evaluate(
             "(function () { __flatObjectAssignmentOrder += 'k'; return 'value'; })"
         );
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
             "function run(source, receiver, key) { ({ value: receiver()[key()] } = source); } run;"
         );
@@ -2582,7 +2578,7 @@ public class DirectFlatParserTests
             """
         );
         var fail = realm.Evaluate("(function () { throw new Error('boom'); })");
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
             "function run(source, fail) { let value; ([value = fail()] = source); } run;"
         );
@@ -2601,7 +2597,7 @@ public class DirectFlatParserTests
         var declarations = string.Join(", ", Enumerable.Range(0, 260).Select(static i => $"v{i}"));
         var values = string.Join(", ", Enumerable.Range(0, 260));
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile($"let {declarations}; [{declarations}] = [{values}]; v259;");
 
         realm.Execute(script);
@@ -2624,7 +2620,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesObjectLiteralPropertyShapes()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
             "function make(value, key) { return { first: 1, [key]: value, second: value + 1, first: 4, value, 2: 5, 'quoted': 6 }; } let result = make(40, 'dynamic'); result.first + result.dynamic + result.second + result.value + result[2] + result.quoted;"
         );
@@ -2638,7 +2634,7 @@ public class DirectFlatParserTests
     public void CompileString_NormalizesComputedObjectKeyBeforeValue()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
             "let order = 0; let result = { [(order = order + 1)]: (order = order + 1), after: order }; order * 100 + result[1] * 10 + result.after;"
         );
@@ -2652,7 +2648,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesMemberAssignmentCompoundAndUpdate()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
             "let target = { value: 0 }; let key = 'value'; target[key] = 1; let old = target[key]++; target.value += 40; old + target.value;"
         );
@@ -2666,7 +2662,7 @@ public class DirectFlatParserTests
     public void CompileString_EvaluatesCompoundMemberKeyOnce()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
             "let count = 0; let target = { value: 1 }; target[(count = count + 1, 'value')] += 41; count * 100 + target.value;"
         );
@@ -2680,7 +2676,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesLogicalMemberAssignmentsWithShortCircuiting()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
             "let keys = 0; let values = 0; let target = { truthy: 1, falsy: 0, nullish: null, defined: 2 }; target[(keys = keys + 1, 'truthy')] ||= (values = values + 1); target.falsy ||= (values = values + 1); target.truthy &&= (values = values + 1); let result = target.defined ??= (values = values + 1); target.nullish ??= (values = values + 1); keys * 10000 + values * 1000 + target.truthy * 100 + target.falsy * 10 + target.nullish + result;"
         );
@@ -2694,7 +2690,7 @@ public class DirectFlatParserTests
     public void CompileString_ConstructsAfterEvaluatingCalleeBeforeArguments()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
             """
             function Box(value) {
@@ -2728,7 +2724,7 @@ public class DirectFlatParserTests
     public void CompileString_EmitsWideConstructOperands()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var arguments = string.Join(", ", Enumerable.Range(0, 260));
         var script = compiler.Compile(
             $"function First(value) {{ return {{ value }}; }} let result = new First({arguments}); result.value;"
@@ -2745,7 +2741,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesSpreadCallsMembersAndConstruction()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
             """
             function collect(a, b, c) {
@@ -2775,7 +2771,7 @@ public class DirectFlatParserTests
         var iterable = realm.Evaluate("(function* () { __flatSpreadOrder.push(1); yield 0; })()");
         var target = realm.Evaluate("(function () { return __flatSpreadOrder.join(''); })");
         var later = realm.Evaluate("(function () { __flatSpreadOrder.push(2); return 0; })");
-        var compiler = new JsPlannedScriptCompiler(realm);
+        var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
             "function run(target, iterable, later) { return target(...iterable, later()); } run;"
         );
@@ -2830,7 +2826,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesLexicalNewTarget()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             function make(value = new.target) {
                 return [value, () => new.target, () => new.target.name];
@@ -2862,7 +2858,7 @@ public class DirectFlatParserTests
     public void CompileAst_ExecutesNewTarget()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             JavaScriptParser.ParseScript(
                 "function read() { return new.target; } new read() === read;"
             )
@@ -2883,7 +2879,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesObjectMethodsAndAccessors()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let order = '';
             let bias = 1;
@@ -2918,7 +2914,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesGeneratorObjectMethods()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let object = {
                 base: 2,
@@ -2950,7 +2946,7 @@ public class DirectFlatParserTests
     public void CompileAst_ExecutesGeneratorObjectMethodBridge()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             JavaScriptParser.ParseScript(
                 "let object = { *value() { yield 6; } }; object.value().next().value;"
             )
@@ -2965,7 +2961,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesComputedAndIndexedObjectAccessorsInOrder()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let order = '';
             let stored = 0;
@@ -2991,7 +2987,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesRegExpAndBigIntLiterals()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             function make() { return /x/g; }
             let first = make();
@@ -3013,7 +3009,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesNestedTemplateLiteralsInSourceOrder()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let order = '';
             function value(text) {
@@ -3049,7 +3045,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesTaggedTemplatesWithCachedSiteIdentityAndV8Order()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let order = '';
             function value(text) { order += text; return text; }
@@ -3097,7 +3093,7 @@ public class DirectFlatParserTests
     public void CompileAst_ExecutesTaggedTemplateBridge()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             JavaScriptParser.ParseScript(
                 "function tag(strings, value) { return strings[0] + value + strings.raw[1]; } tag`a${1}b`;"
             )
@@ -3112,7 +3108,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesGeneratorsAndAbruptResumeModes()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let log = '';
             function* sequence(value = (log += 'p', 2)) {
@@ -3197,7 +3193,7 @@ public class DirectFlatParserTests
     public void CompileAst_ExecutesGeneratorBridge()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             JavaScriptParser.ParseScript(
                 "let make = function* () { yield* [1, 2]; }; let iterator = make(); iterator.next().value + '|' + iterator.next().value + '|' + iterator.next().done;"
             )
@@ -3212,7 +3208,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesAsyncFunctionsAndAwaitResumeModes()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             globalThis.__flatAsync = '';
             async function fulfilled(value = 2) {
@@ -3249,7 +3245,7 @@ public class DirectFlatParserTests
     public void CompileAst_ExecutesAsyncFunctionBridge()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             JavaScriptParser.ParseScript(
                 "globalThis.__flatAsyncBridge = 0; async function read() { return await 4; } read().then(function (value) { __flatAsyncBridge = value; });"
             )
@@ -3265,7 +3261,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesAsyncObjectMethods()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             globalThis.__flatAsyncMethod = '';
             let key = 'read';
@@ -3297,7 +3293,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesAsyncArrowsAndDisambiguatesCalls()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             globalThis.__flatAsyncArrowSimple = 0;
             globalThis.__flatAsyncArrowAdvanced = 0;
@@ -3352,7 +3348,7 @@ public class DirectFlatParserTests
     public void CompileAst_ExecutesAsyncArrowBridge()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             JavaScriptParser.ParseScript(
                 "globalThis.__flatAsyncArrowBridge = 0; let read = async value => await value + 1; read(3).then(function (value) { __flatAsyncArrowBridge = value; });"
             )
@@ -3368,7 +3364,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesAsyncGeneratorsAndAwaitedReturn()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             globalThis.__flatAsyncGenerator = '';
             async function* sequence(value = Promise.resolve(2)) {
@@ -3431,7 +3427,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesAsyncGeneratorDelegation()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             globalThis.__flatAsyncDelegate = '';
             async function* fromSync() { return yield* [Promise.resolve(1), 2]; }
@@ -3479,7 +3475,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesAsyncGeneratorReturnAndThrowResumeModes()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             globalThis.__flatAsyncGeneratorReturn = '';
             globalThis.__flatAsyncGeneratorThrow = '';
@@ -3519,7 +3515,7 @@ public class DirectFlatParserTests
     public void CompileAst_ExecutesAsyncGeneratorBridge()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             JavaScriptParser.ParseScript(
                 "globalThis.__flatAsyncGeneratorBridge = 0; async function* read() { yield await 3; return 4; } let iterator = read(); iterator.next().then(function (first) { iterator.next().then(function (second) { __flatAsyncGeneratorBridge = first.value + second.value; }); });"
             )
@@ -3535,7 +3531,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesForAwaitOfFromSyncAndAsyncIterables()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             globalThis.__flatForAwaitSync = 0;
             globalThis.__flatForAwaitAsync = 0;
@@ -3579,7 +3575,7 @@ public class DirectFlatParserTests
     public void CompileString_AwaitsForAwaitOfAbruptClose()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             globalThis.__flatForAwaitBreak = '';
             globalThis.__flatForAwaitThrow = '';
@@ -3687,7 +3683,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesForAwaitOfBindingsAndLabeledControl()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             globalThis.__flatForAwaitControl = '';
             let source = {
@@ -3732,7 +3728,7 @@ public class DirectFlatParserTests
     public void CompileAst_ExecutesForAwaitOfBridge()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             JavaScriptParser.ParseScript(
                 "globalThis.__flatForAwaitBridge = 0; async function read() { for await (const value of [Promise.resolve(3), 4]) __flatForAwaitBridge += value; } read();"
             )
@@ -3774,7 +3770,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesYieldDelegateResumeModes()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let log = '';
             function* inner() {
@@ -3837,7 +3833,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesArrowsWithLexicalThisAndArguments()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             function outer(value) {
                 let expression = add => this.base + value + add + arguments[0];
@@ -3895,7 +3891,7 @@ public class DirectFlatParserTests
     public void CompileString_ReplaysAbruptCompletionsAfterFinally()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             function run(mode) {
                 let total = 0;
@@ -3927,7 +3923,7 @@ public class DirectFlatParserTests
     public void CompileString_RestoresHandlerContextAndAllowsFinallyOverride()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let cleanup = 0;
             function override() {
@@ -3965,7 +3961,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesOptionalAndDestructuredCatchBindings()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let optional = 0;
             try { throw 1; } catch { optional = 42; }
@@ -3985,7 +3981,7 @@ public class DirectFlatParserTests
     public void CompileString_PopsTryHandlerWhenLoopControlExitsTry()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             function run() {
                 while (true) {
@@ -4007,7 +4003,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         realm.Evaluate("globalThis.__flatGlobal = 39;");
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             "__flatGlobal++; __flatGlobal += 2; typeof __flatMissing === 'undefined' ? __flatGlobal : 0;"
         );
 
@@ -4021,16 +4017,16 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
 
-        realm.Execute(new JsPlannedScriptCompiler(realm).Compile("__flatSloppyCreated = 42;"));
+        realm.Execute(new JsScriptCompiler(realm).Compile("__flatSloppyCreated = 42;"));
 
         Assert.That(realm.Evaluate("__flatSloppyCreated").Int32Value, Is.EqualTo(42));
         Assert.Throws<JsRuntimeException>(() =>
             realm.Execute(
-                new JsPlannedScriptCompiler(realm).Compile("'use strict'; __flatStrictMissing = 1;")
+                new JsScriptCompiler(realm).Compile("'use strict'; __flatStrictMissing = 1;")
             )
         );
         Assert.Throws<JsRuntimeException>(() =>
-            realm.Execute(new JsPlannedScriptCompiler(realm).Compile("__flatReadMissing;"))
+            realm.Execute(new JsScriptCompiler(realm).Compile("__flatReadMissing;"))
         );
     }
 
@@ -4038,7 +4034,7 @@ public class DirectFlatParserTests
     public void CompileString_HoistsFunctionDeclarationsAtScopeEntry()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let root = answer();
             function answer() { return 10; }
@@ -4071,7 +4067,7 @@ public class DirectFlatParserTests
     public void CompileString_HoistsVarWithoutResettingParametersAtDeclarationSite()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             function run(value) {
                 value += 1;
@@ -4111,7 +4107,7 @@ public class DirectFlatParserTests
     public void CompileString_PersistsGlobalDeclarationsAcrossScripts()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var declarations = new JsPlannedScriptCompiler(realm).Compile(
+        var declarations = new JsScriptCompiler(realm).Compile(
             """
             var __plannedPersistentVar = 40;
             let __plannedPersistentLet = 2;
@@ -4124,11 +4120,11 @@ public class DirectFlatParserTests
 
         realm.Execute(declarations);
         realm.Execute(
-            new JsPlannedScriptCompiler(realm).Compile(
+            new JsScriptCompiler(realm).Compile(
                 "__plannedPersistentVar += 1; __plannedPersistentLet += 1;"
             )
         );
-        var read = new JsPlannedScriptCompiler(realm).Compile("__plannedPersistentRead();");
+        var read = new JsScriptCompiler(realm).Compile("__plannedPersistentRead();");
         realm.Execute(read);
 
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(47));
@@ -4136,9 +4132,7 @@ public class DirectFlatParserTests
         Assert.That(declarations.Bytecode, Does.Contain((byte)JsOpCode.StaGlobalFuncDecl));
         Assert.That(declarations.TopLevelLexicalAtoms, Has.Length.EqualTo(2));
         Assert.Throws<JsRuntimeException>(() =>
-            realm.Execute(
-                new JsPlannedScriptCompiler(realm).Compile("__plannedPersistentConst = 4;")
-            )
+            realm.Execute(new JsScriptCompiler(realm).Compile("__plannedPersistentConst = 4;"))
         );
     }
 
@@ -4146,19 +4140,19 @@ public class DirectFlatParserTests
     public void CompileString_RejectsGlobalDeclarationConflicts()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        realm.Execute(new JsPlannedScriptCompiler(realm).Compile("let __plannedConflict = 1;"));
+        realm.Execute(new JsScriptCompiler(realm).Compile("let __plannedConflict = 1;"));
 
         Assert.Throws<JsRuntimeException>(() =>
-            new JsPlannedScriptCompiler(realm).Compile("var __plannedConflict;")
+            new JsScriptCompiler(realm).Compile("var __plannedConflict;")
         );
         Assert.Throws<JsRuntimeException>(() =>
-            new JsPlannedScriptCompiler(realm).Compile("let __plannedConflict = 2;")
+            new JsScriptCompiler(realm).Compile("let __plannedConflict = 2;")
         );
         Assert.Throws<JsRuntimeException>(() =>
-            new JsPlannedScriptCompiler(realm).Compile("let undefined;")
+            new JsScriptCompiler(realm).Compile("let undefined;")
         );
         Assert.Throws<JsRuntimeException>(() =>
-            new JsPlannedScriptCompiler(realm).Compile("let duplicate; const duplicate = 1;")
+            new JsScriptCompiler(realm).Compile("let duplicate; const duplicate = 1;")
         );
     }
 
@@ -4169,14 +4163,14 @@ public class DirectFlatParserTests
 
         Assert.Throws<JsRuntimeException>(() =>
             realm.Execute(
-                new JsPlannedScriptCompiler(realm).Compile(
+                new JsScriptCompiler(realm).Compile(
                     "function read() { return value; let value = 1; } read();"
                 )
             )
         );
         Assert.Throws<JsRuntimeException>(() =>
             realm.Execute(
-                new JsPlannedScriptCompiler(realm).Compile(
+                new JsScriptCompiler(realm).Compile(
                     "typeof __plannedLater; let __plannedLater = 1;"
                 )
             )
@@ -4189,7 +4183,7 @@ public class DirectFlatParserTests
     public void CompileString_RejectsAssignmentToLocalAndCapturedConstBindings(string source)
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(source);
+        var script = new JsScriptCompiler(realm).Compile(source);
 
         var error = Assert.Throws<JsRuntimeException>(() => realm.Execute(script));
         Assert.That(error!.Message, Does.Contain("Assignment to constant variable"));
@@ -4199,7 +4193,7 @@ public class DirectFlatParserTests
     public void CompileString_AppliesNamedFunctionSelfAssignmentRules()
     {
         var sloppyRealm = JsRuntime.Create().DefaultRealm;
-        var sloppy = new JsPlannedScriptCompiler(sloppyRealm).Compile(
+        var sloppy = new JsScriptCompiler(sloppyRealm).Compile(
             "(function named() { named = 1; return typeof named; })();"
         );
         sloppyRealm.Execute(sloppy);
@@ -4207,7 +4201,7 @@ public class DirectFlatParserTests
         Assert.That(sloppyRealm.Accumulator.AsString(), Is.EqualTo("function"));
 
         var strictRealm = JsRuntime.Create().DefaultRealm;
-        var strict = new JsPlannedScriptCompiler(strictRealm).Compile(
+        var strict = new JsScriptCompiler(strictRealm).Compile(
             """
             (function named() {
                 "use strict";
@@ -4224,7 +4218,7 @@ public class DirectFlatParserTests
     public void CompileString_CreatesMappedAndUnmappedArgumentsObjects()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             function read(a, b) { return arguments.length * 100 + arguments[0] * 10 + arguments[1]; }
             function mapped(a) { arguments[0] = 42; return a; }
@@ -4252,7 +4246,7 @@ public class DirectFlatParserTests
     public void CompileString_RespectsArgumentsShadowingAndNestedFunctionOwnership()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             function parameter(arguments) { return arguments; }
             function lexical() { let arguments = 20; return arguments; }
@@ -4262,15 +4256,13 @@ public class DirectFlatParserTests
         );
 
         realm.Execute(script);
-        realm.Execute(new JsPlannedScriptCompiler(realm).Compile("parameter(10);"));
+        realm.Execute(new JsScriptCompiler(realm).Compile("parameter(10);"));
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(10));
-        realm.Execute(new JsPlannedScriptCompiler(realm).Compile("lexical();"));
+        realm.Execute(new JsScriptCompiler(realm).Compile("lexical();"));
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(20));
-        realm.Execute(new JsPlannedScriptCompiler(realm).Compile("variable(1, 2);"));
+        realm.Execute(new JsScriptCompiler(realm).Compile("variable(1, 2);"));
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(2));
-        realm.Execute(
-            new JsPlannedScriptCompiler(realm).Compile("var inner = outer(); inner(10);")
-        );
+        realm.Execute(new JsScriptCompiler(realm).Compile("var inner = outer(); inner(10);"));
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(10));
     }
 
@@ -4278,7 +4270,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesBaselineClasses()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             class Counter {
                 constructor(value) { this.value = value; }
@@ -4323,7 +4315,7 @@ public class DirectFlatParserTests
     public void CompileString_EvaluatesComputedClassKeysAndCapturesInnerName()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let effects = '';
             function key(value) { effects += value + ','; return value; }
@@ -4345,7 +4337,7 @@ public class DirectFlatParserTests
     public void CompileString_EnforcesClassTdzConstAndBlockScope()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let tdz = false;
             try { Before; }
@@ -4369,7 +4361,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesImplicitExplicitAndSpreadSuperCalls()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             class Base {
                 constructor(...values) {
@@ -4413,7 +4405,7 @@ public class DirectFlatParserTests
     public void CompileString_EnforcesDerivedThisAndReturnRules()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             class Base {}
             class BeforeSuper extends Base { constructor() { this.value = 1; super(); } }
@@ -4445,7 +4437,7 @@ public class DirectFlatParserTests
     public void CompileString_EvaluatesHeritageBeforeKeysAndKeepsInnerNameInTdz()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let order = '';
             let innerTdz = false;
@@ -4471,7 +4463,7 @@ public class DirectFlatParserTests
     public void CompileString_InfersAnonymousClassNames()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let Declaration = class { static self() { return Declaration; } };
             let Assigned;
@@ -4498,7 +4490,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesClassSuperPropertiesCallsAndUpdates()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let effects = 0;
             class Base {
@@ -4541,7 +4533,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesObjectMethodSuperAndRejectsDelete()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let parent = { read() { return this.value; } };
             let holder = {
@@ -4568,7 +4560,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesStaticPublicClassFieldsInSourceOrder()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let order = [];
             class Base { static inherited = 4; }
@@ -4601,7 +4593,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesInstancePublicClassFieldsAtConstructionPoints()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let outer = 10;
             let keyCalls = 0;
@@ -4653,7 +4645,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesInstanceFieldsAfterImplicitAndSpreadSuper()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let baseFields = 0;
             class Base {
@@ -4681,7 +4673,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesClassStaticBlocksWithStaticElements()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let order = [];
             class Base { static inherited = 2; }
@@ -4726,7 +4718,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesPrivateClassFieldsAndReferences()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let order = [];
             class Box {
@@ -4773,7 +4765,7 @@ public class DirectFlatParserTests
     public void CompileString_RejectsPrivateFieldAccessOnWrongReceiver()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             "class Box { #value; read(value) { return value.#value; } } new Box().read({});"
         );
 
@@ -4785,7 +4777,7 @@ public class DirectFlatParserTests
     public void CompileString_InfersNamedClassFieldInitializerNames()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             class Names {
                 fn = function () {};
@@ -4823,7 +4815,7 @@ public class DirectFlatParserTests
     public void CompileAst_InfersNamedClassFieldInitializerNames()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             JavaScriptParser.ParseScript(
                 "class Names { fn = function () {}; static Cls = class {}; } let value = new Names(); value.fn.name + '|' + Names.Cls.name;"
             )
@@ -4838,7 +4830,7 @@ public class DirectFlatParserTests
     public void CompileString_InfersComputedClassFieldInitializerNames()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let coercions = 0;
             let key = { toString() { coercions++; return 'instanceFn'; } };
@@ -4875,7 +4867,7 @@ public class DirectFlatParserTests
     public void CompileAst_InfersComputedClassFieldInitializerNames()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             JavaScriptParser.ParseScript(
                 "let instanceKey = 'instance'; let staticKey = 'StaticValue'; class Names { [instanceKey] = function () {}; static [staticKey] = class { static observed = this.name; }; } let value = new Names(); value.instance.name + '|' + Names.StaticValue.name + '|' + Names.StaticValue.observed;"
             )
@@ -4890,7 +4882,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesPrivateMethodsAndAccessors()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             class Box {
                 #value = 1;
@@ -4948,7 +4940,7 @@ public class DirectFlatParserTests
     public void CompileString_RejectsInvalidPrivateMethodOrAccessorUse(string source)
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(source);
+        var script = new JsScriptCompiler(realm).Compile(source);
 
         Assert.Throws<JsRuntimeException>(() => realm.Execute(script));
     }
@@ -4964,7 +4956,7 @@ public class DirectFlatParserTests
     public void CompileAst_ExecutesPrivateMethodAndAccessorBridge()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             JavaScriptParser.ParseScript(
                 "class Box { #value = 1; #method() { return this.#value; } get #accessor() { return this.#method(); } set #accessor(value) { this.#value = value; } read() { return this.#accessor; } write(value) { this.#accessor = value; } } let box = new Box(); box.write(4); box.read();"
             )
@@ -4979,7 +4971,7 @@ public class DirectFlatParserTests
     public void CompileString_ExecutesDerivedPrivateMethodHomeObjects()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             class Base {
                 read() { return this.value; }
@@ -5008,7 +5000,7 @@ public class DirectFlatParserTests
     public void CompileString_InitializesPrivateMethodsBeforeFields()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             class Order {
                 methodValue = this.#method();
@@ -5030,7 +5022,7 @@ public class DirectFlatParserTests
     public void CompileAst_ExecutesBaselineClassBridge()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             JavaScriptParser.ParseScript(
                 "class Value { constructor(value) { this.value = value; } read() { return this.value; } } new Value(4).read();"
             )
@@ -5045,7 +5037,7 @@ public class DirectFlatParserTests
     public void CompileAst_ExecutesDerivedClassBridge()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             JavaScriptParser.ParseScript(
                 "class Base { constructor(value) { this.value = value; } } class Derived extends Base { constructor(value) { super(value + 1); } } new Derived(4).value;"
             )
@@ -5060,7 +5052,7 @@ public class DirectFlatParserTests
     public void CompileAst_InfersAnonymousClassName()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             JavaScriptParser.ParseScript("let Bridge = class {}; Bridge.name;")
         );
 
@@ -5073,7 +5065,7 @@ public class DirectFlatParserTests
     public void CompileAst_ExecutesSuperPropertyBridge()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             JavaScriptParser.ParseScript(
                 "class Base { read() { return this.value; } } class Derived extends Base { read() { return super.read() + 1; } } let value = new Derived(); value.value = 4; value.read();"
             )
@@ -5088,7 +5080,7 @@ public class DirectFlatParserTests
     public void CompileAst_ExecutesStaticPublicClassFieldBridge()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             JavaScriptParser.ParseScript(
                 "class Base { static value = 2; } class Derived extends Base { static result = super.value + 1; } Derived.result;"
             )
@@ -5103,7 +5095,7 @@ public class DirectFlatParserTests
     public void CompileAst_ExecutesInstancePublicClassFieldBridge()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             JavaScriptParser.ParseScript(
                 "class Base { constructor(value) { this.value = value; } read() { return this.value; } } class Derived extends Base { result = super.read() + 1; } new Derived(4).result;"
             )
@@ -5118,7 +5110,7 @@ public class DirectFlatParserTests
     public void CompileAst_ExecutesClassStaticBlockBridge()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             JavaScriptParser.ParseScript(
                 "class Base { static value = 2; } class Derived extends Base { static { this.result = super.value + 1; } } Derived.result;"
             )
@@ -5133,7 +5125,7 @@ public class DirectFlatParserTests
     public void CompileAst_ExecutesPrivateClassFieldBridge()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             JavaScriptParser.ParseScript(
                 "class Box { #value = 2; read() { return this.#value; } } new Box().read();"
             )
@@ -5153,7 +5145,7 @@ public class DirectFlatParserTests
     public void CompileString_DeletesPropertiesAndEvaluatesNonReferencesOnce()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             let object = { value: 1 };
             let effects = 0;
@@ -5175,18 +5167,18 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         realm.Execute(
-            new JsPlannedScriptCompiler(realm).Compile(
+            new JsScriptCompiler(realm).Compile(
                 "var __plannedDeleteVar = 1; let __plannedDeleteLexical = 1; globalThis.__plannedDeleteTemp = 1;"
             )
         );
 
-        realm.Execute(new JsPlannedScriptCompiler(realm).Compile("delete __plannedDeleteVar;"));
+        realm.Execute(new JsScriptCompiler(realm).Compile("delete __plannedDeleteVar;"));
         Assert.That(realm.Accumulator.IsFalse, Is.True);
-        realm.Execute(new JsPlannedScriptCompiler(realm).Compile("delete __plannedDeleteLexical;"));
+        realm.Execute(new JsScriptCompiler(realm).Compile("delete __plannedDeleteLexical;"));
         Assert.That(realm.Accumulator.IsFalse, Is.True);
-        realm.Execute(new JsPlannedScriptCompiler(realm).Compile("delete __plannedDeleteMissing;"));
+        realm.Execute(new JsScriptCompiler(realm).Compile("delete __plannedDeleteMissing;"));
         Assert.That(realm.Accumulator.IsTrue, Is.True);
-        realm.Execute(new JsPlannedScriptCompiler(realm).Compile("delete __plannedDeleteTemp;"));
+        realm.Execute(new JsScriptCompiler(realm).Compile("delete __plannedDeleteTemp;"));
         Assert.That(realm.Accumulator.IsTrue, Is.True);
 
         Assert.Throws<JsParseException>(() =>
@@ -5194,7 +5186,7 @@ public class DirectFlatParserTests
         );
         Assert.Throws<JsRuntimeException>(() =>
             realm.Execute(
-                new JsPlannedScriptCompiler(realm).Compile(
+                new JsScriptCompiler(realm).Compile(
                     "function fail() { 'use strict'; let value = {}; Object.defineProperty(value, 'x', { configurable: false }); return delete value.x; } fail();"
                 )
             )

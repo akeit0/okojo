@@ -64,19 +64,18 @@ measures:
 | class AST parse -> flat lowering | ~81.1 KB |
 
 This is approximately an 87% parse/lowering allocation reduction for the covered
-grammar. It is evidence for the representation, not yet a production migration
-result: application syntax coverage and end-to-end compile time are still the
-gates.
+grammar. The flat representation is now the adopted production path; the
+remaining work is coverage and measured end-to-end optimization.
 
-### Production vs planned parse/compile benchmark (2026-08)
+### Pre-cutover production vs flat parse/compile benchmark (2026-08)
 
 BenchmarkDotNet (`benchmarks/Okojo.Benchmarks/ParseCompileBenchmarks.cs`,
 ShortRun, 6 warmup + 10 iterations, MemoryDiagnoser), five fixed corpora,
-one shared realm per iteration set. `Production_*` = `JavaScriptParser` +
-`JsCompiler.Compile`; `Experimental_*` = `FlatJavaScriptParser` +
-`JsPlannedScriptCompiler.Compile(FlatAst)`.
+one shared realm per iteration set. `Production_*` records the pre-cutover
+class-AST path; `Flat_*` records `FlatJavaScriptParser` +
+`JsScriptCompiler.Compile(FlatAst)`.
 
-| scenario | prod parse | exp parse | ratio | prod compile | exp compile | ratio |
+| scenario | prod parse | flat parse | ratio | prod compile | flat compile | ratio |
 |---|---:|---:|---:|---:|---:|---:|
 | Micro | 3.05 µs | 2.10 µs | 0.69× | 16.91 µs | 8.89 µs | 0.53× |
 | Closures | 5.12 µs | 3.52 µs | 0.69× | 41.74 µs | 22.88 µs | 0.55× |
@@ -86,7 +85,7 @@ one shared realm per iteration set. `Production_*` = `JavaScriptParser` +
 
 Allocations per compile operation:
 
-| scenario | production | experimental | ratio |
+| scenario | pre-cutover | flat | ratio |
 |---|---:|---:|---:|
 | Micro | 17.47 KB | 8.13 KB | 0.47× |
 | Closures | 39.20 KB | 21.35 KB | 0.54× |
@@ -98,9 +97,9 @@ Takeaways:
 
 1. Flat parsing wins on both time and memory (up to 2× faster, 5× less
    memory on pattern-heavy code).
-2. Planned compile is **1.4–2.1× faster** than production compile across all
+2. Flat compile is **1.4–2.1× faster** than the pre-cutover compiler across all
    scenarios.
-3. Planned compile now allocates **1.7–3.2× less** than production. The single
+3. Flat compile allocates **1.7–3.2× less** than the pre-cutover compiler. The single
    largest win was disposing each function's `BytecodeBuilder` after
    `ToScript()`: without it, none of the ~17 rented collections were returned,
    so every nested-function compile paid full pool-rent cost (~12–14 KB per
@@ -114,7 +113,7 @@ Takeaways:
    `GC.GetTotalAllocatedBytes(precise:true)` around parse / collect / plan /
    emit (parse ≈2.3 KB, collect ≈0.7 KB, plan <0.1 KB — emission owns the rest),
    plus per-function attribution through the env-gated `OKOJO_FNALLOC` trace in
-   `JsPlannedFunctionCompiler`. The reusable harness lives in
+   `JsFunctionCompiler`. The reusable harness lives in
    `tools/CompilerAllocProbe`.
 
 Reproduce:
@@ -558,7 +557,7 @@ checks, and observable function names match the production engine and V8.
   V8-special namespace imports use lexical/context storage and are initialized by
   one cold module-prologue runtime lookup that preserves import attributes.
 - an internal experimental option now routes synchronous production module-graph
-  evaluation through the planned compiler without creating a core-to-experimental
+  evaluation through the flat compiler without creating a separate compiler
   assembly dependency. Runtime slot allocation uses the same deterministic signed
   cell order as the flat descriptor, including linked named, namespace, aliased,
   and anonymous-default exports. There is no fallback to `JsCompiler` in this mode.
@@ -584,8 +583,7 @@ checks, and observable function names match the production engine and V8.
   of pending-dependency ordering. This follows V8's split between
   `BytecodeGenerator::GenerateAsyncFunctionBody` for a TLA body and
   `SourceTextModule` for async-parent scheduling, without adding an opcode or scheduler.
-- remaining: make the flat parser/compiler the default module path and validate its
-  performance and supported Test262 coverage
+- remaining: extend flat compiler coverage and validate further workload performance
 
 Exit gate: the production module linker consumes flat compiler metadata directly;
 no class-AST module objects remain on the execution path.
@@ -593,22 +591,14 @@ no class-AST module objects remain on the execution path.
 ### P5 - Production replacement and deletion
 
 - run parser differential tests over the production corpus
-- landed an explicit Test262 `--planned-compiler` mode: script cases time direct flat
-  parse and planned emission separately, module cases use the flat linker/compiler,
-  worker processes preserve the selection, and a separate passed cache prevents legacy
-  compiler results from masking coverage. The mode never reparses through the class AST.
-- expand planned-compiler execution across applicable Test262 coverage; the initial
-  30-case addition and 30-runnable-case module-code probes are green
-- validate Okojo.Node and browser-host workloads
-- switch the default compile entry points to the direct flat path
-- retain the old path only behind an explicit diagnostic switch during a bounded
-  stabilization window
-- remove class-AST lowering and then remove the execution-only class parser once
-  no supported consumer depends on it
+- landed canonical Test262Runner execution through the flat parser/compiler with one
+  passed cache; no compiler-selection switch remains
+- validated Okojo.Node, module, wrapper, and browser-host workloads
+- switched all default compile entry points to the direct flat path
+- removed the old execution compiler and its compatibility switch
 
-There should be no automatic "try flat, catch, parse again" fallback. Double
-parsing hides missing coverage, changes diagnostics, and destroys the allocation
-win. Selection must be explicit until the direct path becomes the default.
+There is no automatic "try flat, catch, parse again" fallback. Double parsing hides
+missing coverage, changes diagnostics, and destroys the allocation win.
 
 ## Validation Gates
 

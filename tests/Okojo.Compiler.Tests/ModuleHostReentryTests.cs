@@ -1,7 +1,6 @@
 using Okojo.JavaScript;
 using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Compiler;
-using Okojo.JavaScript.Compiler.Experimental;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
 using Okojo.JavaScript.Objects;
@@ -52,13 +51,10 @@ public sealed class ModuleHostReentryTests
         );
         var expression = (JsFunctionExpression)
             ((JsExpressionStatement)parsed.Statements[0]).Expression;
-        using var compiler = new JsCompiler(realm);
-        var wrapper = compiler.CompileHoistedFunctionTemplate(
-            expression,
+        var wrapper = new JsFunctionCompiler(realm).CompileFunction(
             string.Empty,
-            "WRAPPER",
-            "/mods/react.js",
-            parsed.IdentifierTable
+            FunctionParameterPlan.FromFunction(expression),
+            expression.Body
         );
 
         var requireFunction = realm.Evaluate("(s) => ({ version: '19' })");
@@ -123,7 +119,7 @@ public sealed class ModuleHostReentryTests
             }
         );
         var options = new JsRuntimeOptions().UseModuleSourceLoader(loader);
-        options.Agent.UsePlannedModuleCompiler();
+        options.Agent.UseModuleCompiler();
         using var runtime = JsRuntime.Create(options);
         var realm = runtime.DefaultRealm;
 
@@ -142,13 +138,10 @@ public sealed class ModuleHostReentryTests
         );
         var expression = (JsFunctionExpression)
             ((JsExpressionStatement)parsed.Statements[0]).Expression;
-        using var compiler = new JsCompiler(realm);
-        var wrapper = compiler.CompileHoistedFunctionTemplate(
-            expression,
+        var wrapper = new JsFunctionCompiler(realm).CompileFunction(
             string.Empty,
-            "WRAPPER",
-            "/mods/react.js",
-            parsed.IdentifierTable
+            FunctionParameterPlan.FromFunction(expression),
+            expression.Body
         );
         var wrapperValue = JsValue.FromObject(wrapper);
 

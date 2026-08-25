@@ -1,5 +1,5 @@
 using Okojo.JavaScript;
-using Okojo.JavaScript.Compiler.Experimental;
+using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Parsing;
 
@@ -7,26 +7,11 @@ namespace Okojo.Compiler.Tests;
 
 public sealed class DirectFlatDefaultFlipTests
 {
-    private const string DecoratorSource = """
-        class Dec {
-          static decorate(target) { return target; }
-        }
-        @Dec.decorate
-        class Decorated {}
-        'survived';
-        """;
-
     [Test]
-    public void FlatParser_RejectsDecoratorSyntax()
-    {
-        Assert.Throws<JsParseException>(() => FlatJavaScriptParser.ParseScript(DecoratorSource));
-    }
-
-    [Test]
-    public void UseDirectFlatCompilers_ExecutesScriptsThroughDirectFlatPath()
+    public void UseModuleCompiler_ExecutesScriptsThroughCanonicalPath()
     {
         using var runtime = JsRuntime.Create(builder =>
-            builder.UseAgent(options => options.UseDirectFlatCompilers())
+            builder.UseAgent(options => options.UseModuleCompiler())
         );
         var realm = runtime.DefaultRealm;
 
@@ -34,19 +19,6 @@ public sealed class DirectFlatDefaultFlipTests
             realm.Evaluate("[1, 2, 3].map(v => v * 2).join()").AsString(),
             Is.EqualTo("2,4,6")
         );
-    }
-
-    [Test]
-    public void UseDirectFlatCompilers_DecoratorSyntaxIsUnsupported()
-    {
-        using var runtime = JsRuntime.Create(builder =>
-            builder.UseAgent(options => options.UseDirectFlatCompilers())
-        );
-        var realm = runtime.DefaultRealm;
-
-        // Stage-3 decorator syntax has no flat-parser support and no legacy
-        // fallback remains, so it surfaces as a parse-time SyntaxError.
-        Assert.Throws<JsParseException>(() => realm.Evaluate(DecoratorSource));
     }
 
     [Test]
@@ -77,10 +49,10 @@ public sealed class DirectFlatDefaultFlipTests
     }
 
     [Test]
-    public void UseDirectFlatCompilers_RejectedValueCloseMatchesProductionBehavior()
+    public void UseModuleCompiler_RejectedValueCloseMatchesProductionBehavior()
     {
         using var runtime = JsRuntime.Create(builder =>
-            builder.UseAgent(options => options.UseDirectFlatCompilers())
+            builder.UseAgent(options => options.UseModuleCompiler())
         );
         var realm = runtime.DefaultRealm;
 

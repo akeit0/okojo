@@ -1,5 +1,5 @@
 using Okojo.JavaScript;
-using Okojo.JavaScript.Compiler.Experimental;
+using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
 
 namespace Okojo.Compiler.Tests;
@@ -11,7 +11,7 @@ public sealed class TempForOfContinueProbe
     {
         using var runtime = JsRuntime.Create();
         var realm = runtime.DefaultRealm;
-        var script = new JsPlannedScriptCompiler(realm).Compile(
+        var script = new JsScriptCompiler(realm).Compile(
             """
             globalThis.__n = 0;
             L: do {

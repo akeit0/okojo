@@ -1,6 +1,5 @@
 using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Compiler;
-using Okojo.JavaScript.Compiler.Experimental;
 using Okojo.JavaScript.Parsing;
 
 namespace Okojo.JavaScript.Execution;
@@ -427,7 +426,7 @@ public partial class Intrinsics
                 );
 
             using var ast = FlatJavaScriptParser.ParseScript(wrappedSource);
-            script = new JsPlannedScriptCompiler(functionRealm).Compile(ast, null);
+            script = new JsScriptCompiler(functionRealm).Compile(ast, null);
         }
         catch (JsParseException ex)
         {

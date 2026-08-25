@@ -4,7 +4,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Compiler;
-using Okojo.JavaScript.Compiler.Experimental;
 using Okojo.JavaScript.Parsing;
 
 namespace Okojo.JavaScript.Execution;
@@ -36,7 +35,7 @@ public partial class Intrinsics
                 try
                 {
                     using var ast = FlatJavaScriptParser.ParseScript(source);
-                    script = new JsPlannedScriptCompiler(realm).CompileIndirectEval(ast, null);
+                    script = new JsScriptCompiler(realm).CompileIndirectEval(ast, null);
                 }
                 catch (JsParseException ex)
                 {

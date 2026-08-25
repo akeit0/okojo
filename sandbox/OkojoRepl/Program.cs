@@ -2,7 +2,6 @@ using System.Diagnostics;
 using ConsoleAppFramework;
 using Okojo.Diagnostics;
 using Okojo.JavaScript;
-using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
 using Okojo.JavaScript.Objects;
@@ -30,12 +29,6 @@ InstallConsole(vm);
 
 var topLevelLexicalNames = new HashSet<string>(StringComparer.Ordinal);
 var topLevelConstNames = new HashSet<string>(StringComparer.Ordinal);
-var compileContext = new JsCompilerContext
-{
-    IsRepl = true,
-    ReplTopLevelLexicalNames = topLevelLexicalNames,
-    ReplTopLevelConstNames = topLevelConstNames,
-};
 
 if (cli.Expressions.Count != 0)
 {
@@ -44,7 +37,6 @@ if (cli.Expressions.Count != 0)
         {
             await ExecuteAndPrintAsync(
                 vm,
-                compileContext,
                 topLevelLexicalNames,
                 topLevelConstNames,
                 expr,
@@ -117,7 +109,6 @@ while (true)
     {
         await ExecuteAndPrintAsync(
             vm,
-            compileContext,
             topLevelLexicalNames,
             topLevelConstNames,
             line,
@@ -137,7 +128,6 @@ while (true)
 
 static async Task ExecuteAndPrintAsync(
     JsRealm vm,
-    JsCompilerContext compileContext,
     HashSet<string> topLevelLexicalNames,
     HashSet<string> topLevelConstNames,
     string source,
@@ -148,7 +138,7 @@ static async Task ExecuteAndPrintAsync(
     var program = JavaScriptParser.ParseScript(adjustedSource);
     ValidateReplTopLevelLexicalRedeclaration(program, topLevelLexicalNames);
 
-    var script = JsCompiler.Compile(vm, program, compileContext);
+    var script = vm.CompileScript(adjustedSource);
     vm.Execute(script);
     RegisterTopLevelLexicalDeclarations(program, topLevelLexicalNames, topLevelConstNames);
 

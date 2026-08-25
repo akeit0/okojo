@@ -1,6 +1,6 @@
 using Okojo.Hosting;
 using Okojo.JavaScript;
-using Okojo.JavaScript.Compiler.Experimental;
+using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
 using Okojo.JavaScript.Objects;
@@ -306,11 +306,7 @@ public sealed class NodeRuntime : IDisposable
             );
 
         var function = ast.GetFunction(ast[expression].Arg0);
-        return new JsPlannedFunctionCompiler(realm).CompileFunction(
-            ast,
-            function,
-            ast[expression].Arg1
-        );
+        return new JsFunctionCompiler(realm).CompileFunction(ast, function, ast[expression].Arg1);
     }
 
     private JsHostFunction CreateRequireFunction(JsRealm realm, string resolvedId)

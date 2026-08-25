@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using Okojo.Hosting;
 using Okojo.JavaScript;
-using Okojo.JavaScript.Compiler.Experimental;
+using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
 using Okojo.WebAssembly;

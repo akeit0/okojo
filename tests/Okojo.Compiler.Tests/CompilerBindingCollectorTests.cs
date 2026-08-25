@@ -1,4 +1,4 @@
-using Okojo.JavaScript.Compiler.Experimental;
+using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Parsing;
 
 namespace Okojo.JavaScript.Compiler.Tests;

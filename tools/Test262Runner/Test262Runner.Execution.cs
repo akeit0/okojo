@@ -4,7 +4,7 @@ using System.Text;
 using Okojo.Hosting;
 using Okojo.JavaScript;
 using Okojo.JavaScript.Bytecode;
-using Okojo.JavaScript.Compiler.Experimental;
+using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
 using Okojo.JavaScript.Objects;
@@ -465,7 +465,7 @@ internal static partial class Program
                 engineOptions.ConfigureOptions(runtimeOptions =>
                 {
                     runtimeOptions.UseAtomicsWaitPolicy(Test262RunnerAtomicsWaitPolicy.Shared);
-                    runtimeOptions.Agent.UsePlannedModuleCompiler();
+                    runtimeOptions.Agent.UseModuleCompiler();
                 });
                 if (runnerTime is not null)
                     engineOptions.UseTimeProvider(runnerTime);
@@ -517,7 +517,7 @@ internal static partial class Program
                     timings.AddParse(harnessParseStart, harnessParseEnd);
 
                     var harnessCompileStart = Stopwatch.GetTimestamp();
-                    var harnessScript = new JsPlannedScriptCompiler(vm).Compile(harnessAst, null);
+                    var harnessScript = new JsScriptCompiler(vm).Compile(harnessAst, null);
                     var harnessCompileEnd = Stopwatch.GetTimestamp();
                     timings.AddCompile(harnessCompileStart, harnessCompileEnd);
 
@@ -547,7 +547,7 @@ internal static partial class Program
                     var compileStart = Stopwatch.GetTimestamp();
                     try
                     {
-                        script = new JsPlannedScriptCompiler(vm).Compile(ast, entryPath);
+                        script = new JsScriptCompiler(vm).Compile(ast, entryPath);
                     }
                     catch (Exception ex)
                         when (Environment.GetEnvironmentVariable("OKOJO_CPLTRACE") is not null)

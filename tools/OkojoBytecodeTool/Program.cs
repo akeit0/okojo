@@ -3,7 +3,6 @@ using Okojo.Diagnostics;
 using Okojo.JavaScript;
 using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Compiler;
-using Okojo.JavaScript.Compiler.Experimental;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
 using Okojo.JavaScript.Objects;
@@ -35,7 +34,6 @@ internal static class Program
         var moduleInfo = false;
         var moduleResolved = false;
         var moduleDisasm = false;
-        var usePlanned = false;
 
         var start = 0;
         if (
@@ -164,15 +162,6 @@ internal static class Program
 
                     moduleDisasm = true;
                     break;
-                case "--planned":
-                    if (mode != ToolMode.Disasm)
-                    {
-                        Console.Error.WriteLine("--planned is only supported in disasm mode.");
-                        return 1;
-                    }
-
-                    usePlanned = true;
-                    break;
                 default:
                     Console.Error.WriteLine($"Unknown option: {args[i]}");
                     PrintUsage();
@@ -260,18 +249,8 @@ internal static class Program
             }
 
             using var engine = JsRuntime.Create();
-            JsScript script;
-            if (usePlanned)
-            {
-                using var flatAst = FlatJavaScriptParser.ParseScript(source, input);
-                script = new JsPlannedScriptCompiler(engine.MainRealm).Compile(flatAst, input);
-            }
-            else
-            {
-                var program = JavaScriptParser.ParseScript(source);
-                using var compiler = new JsCompiler(engine.MainRealm);
-                script = compiler.Compile(program);
-            }
+            using var flatAst = FlatJavaScriptParser.ParseScript(source, input);
+            var script = new JsScriptCompiler(engine.MainRealm).Compile(flatAst, input);
 
             var functions = CollectOkojoFunctions(script);
 
@@ -463,99 +442,11 @@ internal static class Program
     {
         var resolvedPath = Path.GetFullPath(modulePath);
         var source = File.ReadAllText(resolvedPath, Encoding.UTF8);
-        var program = JavaScriptParser.ParseModule(source);
-        var loader = new FileModuleSourceLoader();
-        var linker = new ModuleLinker(() => loader);
-        var plan = linker.BuildPlan(resolvedPath, program);
-        var compileBindings = BuildModuleVariableBindings(
-            plan.ResolvedImportBindings,
-            plan.ExecutionPlan.ExportLocalByName,
-            plan.ExecutionPlan.PreinitializedLocalExportNames
-        );
-
-        using var engine = JsRuntime
-            .CreateBuilder()
-            .UseHost(host => host.UseModuleSourceLoader(loader))
-            .Build();
-        using var compiler = JsCompiler.CreateForModuleExecution(engine.MainRealm, compileBindings);
-        var script = plan.ExecutionPlan.RequiresTopLevelAwait
-            ? compiler.CompileModuleExecutionAsync(plan.ExecutionPlan, source, resolvedPath)
-            : compiler.CompileModuleExecution(plan.ExecutionPlan, source, resolvedPath);
+        using var engine = JsRuntime.Create();
+        using var ast = FlatJavaScriptParser.ParseModule(source, resolvedPath);
+        var script = new JsModuleCompiler(engine.MainRealm).Compile(ast);
         var functions = CollectOkojoFunctions(script);
-        AppendModuleHoistedFunctions(functions, compiler, program, source, resolvedPath);
         return RenderDisassembly(functions, filter);
-    }
-
-    private static Dictionary<string, ModuleVariableBinding> BuildModuleVariableBindings(
-        IReadOnlyList<JsResolvedImportBinding> importBindings,
-        IReadOnlyDictionary<string, string> exportLocalByName,
-        IReadOnlySet<string> preinitializedLocalExportNames
-    )
-    {
-        _ = preinitializedLocalExportNames;
-        var map = new Dictionary<string, ModuleVariableBinding>(
-            importBindings.Count + exportLocalByName.Count,
-            StringComparer.Ordinal
-        );
-        var importCount = 0;
-
-        for (var i = 0; i < importBindings.Count; i++)
-        {
-            var binding = importBindings[i];
-            if (map.ContainsKey(binding.LocalName))
-                continue;
-
-            var cellIndex = unchecked((sbyte)-(importCount + 1));
-            map.Add(binding.LocalName, new(cellIndex, 0, true));
-            importCount++;
-        }
-
-        var exportCount = 0;
-        foreach (var pair in exportLocalByName)
-        {
-            var localName = pair.Value;
-            if (map.ContainsKey(localName))
-                continue;
-
-            var cellIndex = unchecked((sbyte)(exportCount + 1));
-            map.Add(localName, new(cellIndex, 0, false));
-            exportCount++;
-        }
-
-        return map;
-    }
-
-    private static void AppendModuleHoistedFunctions(
-        List<(string name, JsScript script)> functions,
-        JsCompiler compiler,
-        JsProgram program,
-        string source,
-        string resolvedPath
-    )
-    {
-        var seenScripts = new HashSet<JsScript>(functions.Select(static entry => entry.script));
-
-        foreach (var statement in program.Statements)
-        {
-            if (
-                statement is not JsExportDeclarationStatement exportDeclaration
-                || exportDeclaration.Declaration is not JsFunctionDeclaration functionDeclaration
-            )
-                continue;
-
-            var hoisted = compiler.CompileHoistedFunctionTemplate(
-                functionDeclaration,
-                source,
-                resolvedPath,
-                program.IdentifierTable
-            );
-            CollectOkojoFunctions(
-                hoisted.Script,
-                string.IsNullOrEmpty(hoisted.Name) ? "<anonymous>" : hoisted.Name,
-                functions,
-                seenScripts
-            );
-        }
     }
 
     private static List<(string ResolvedId, List<string> Dependencies)> BuildResolvedModuleGraph(

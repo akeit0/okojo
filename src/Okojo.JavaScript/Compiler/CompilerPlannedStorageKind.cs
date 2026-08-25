@@ -1,0 +1,11 @@
+namespace Okojo.JavaScript.Compiler;
+
+internal enum CompilerPlannedStorageKind : byte
+{
+    LocalRegister = 0,
+    LexicalRegister = 1,
+    ImportBinding = 2,
+    ContextSlot = 3,
+    GlobalBinding = 4,
+    ModuleBinding = 5,
+}

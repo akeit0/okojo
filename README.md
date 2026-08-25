@@ -608,7 +608,6 @@ If you want concrete code before reading internals, start here:
 | `Okojo.DebugServer` | Debug transport and server host | Internal diagnostics infrastructure |
 | `Okojo.DebugServer.Core` | Shared debug server core types | Internal diagnostics infrastructure |
 | `vscode-debug/extension` | VS Code debugger adapter and launch configuration support | Internal tooling |
-| `Okojo.Compiler.Experimental` | Experimental compiler work | Experimental and internal |
 
 Package/versioning/publishing strategy for the packable projects is documented in [docs/OKOJO_PACKABLE_PACKAGE_WORKFLOW.md](docs/OKOJO_PACKABLE_PACKAGE_WORKFLOW.md).
 

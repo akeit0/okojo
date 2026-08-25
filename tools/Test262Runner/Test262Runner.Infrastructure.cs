@@ -278,25 +278,14 @@ internal static partial class Program
         return Path.Combine(repoRoot, "artifacts", "test262", "cache", safe + ".metadata.v1.json");
     }
 
-    private static string GetPassedCachePath(
-        string repoRoot,
-        string resolvedRoot,
-        bool usePlannedCompiler
-    )
+    private static string GetPassedCachePath(string repoRoot, string resolvedRoot)
     {
         var rel = Path.GetRelativePath(repoRoot, resolvedRoot).Replace('\\', '/').Trim('/');
         if (string.IsNullOrEmpty(rel))
             rel = "root";
 
         var safe = rel.Replace("/", "__").Replace(":", "_");
-        var compiler = usePlannedCompiler ? ".planned" : ".legacy";
-        return Path.Combine(
-            repoRoot,
-            "artifacts",
-            "test262",
-            "cache",
-            safe + compiler + ".passed.v1.json"
-        );
+        return Path.Combine(repoRoot, "artifacts", "test262", "cache", safe + ".passed.v1.json");
     }
 
     private static HashSet<string> LoadPassedCache(string path)
@@ -621,7 +610,7 @@ internal static partial class Program
         if (metadata.Features.Contains("tail-call-optimization"))
         {
             reason =
-                "DeferredImplementation: proper tail calls are supported by the production compiler but not yet by the planned compiler";
+                "DeferredImplementation: proper tail calls are not yet implemented by the compiler";
             return true;
         }
 
@@ -753,7 +742,6 @@ internal static partial class Program
         public bool SkipPassed { get; init; }
         public bool QueryIncremental { get; init; }
         public bool UseRealTimers { get; init; }
-        public bool UsePlannedCompiler { get; init; }
 
         public static Test262Options Parse(string[] args)
         {
@@ -804,7 +792,6 @@ internal static partial class Program
             var fullPath = false;
             var skipPassed = false;
             var useRealTimers = false;
-            var usePlannedCompiler = true;
             for (var i = 0; i < args.Length; i++)
                 switch (args[i])
                 {
@@ -983,7 +970,6 @@ internal static partial class Program
                 SkipPassed = skipPassed,
                 QueryIncremental = queryIncrementalPath is not null,
                 UseRealTimers = useRealTimers,
-                UsePlannedCompiler = usePlannedCompiler,
             };
         }
 
@@ -1020,9 +1006,6 @@ internal static partial class Program
                 "  --worker-mode               Internal manager mode: serve multiple test requests over stdin/stdout"
             );
             Console.WriteLine("  --filter <text>             Path substring filter");
-            Console.WriteLine(
-                "  --planned-compiler          Run test source through the direct flat compiler"
-            );
             Console.WriteLine("  --category <name[,name]>    Category/path filter (repeatable)");
             Console.WriteLine(
                 "  --feature <name[,name]>     Include tests requiring these features (repeatable)"

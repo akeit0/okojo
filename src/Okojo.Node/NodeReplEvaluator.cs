@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using Okojo.JavaScript;
 using Okojo.JavaScript.Bytecode;
-using Okojo.JavaScript.Compiler.Experimental;
+using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
 using Okojo.JavaScript.Objects;
@@ -46,7 +46,7 @@ public sealed class NodeReplEvaluator
         );
         ValidateTopLevelLexicalRedeclaration(ast);
 
-        var script = new JsPlannedScriptCompiler(Realm).Compile(ast, sourcePath);
+        var script = new JsScriptCompiler(Realm).Compile(ast, sourcePath);
         onCompiled?.Invoke(script);
 
         JsValue rawResult;

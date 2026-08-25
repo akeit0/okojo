@@ -1,5 +1,5 @@
 using Okojo.JavaScript;
-using Okojo.JavaScript.Compiler.Experimental;
+using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Parsing;
 
@@ -39,15 +39,7 @@ public sealed class TempConstCrashProbe
         );
         var source = File.ReadAllText(
             Path.GetFullPath(
-                Path.Combine(
-                    root,
-                    "test",
-                    "language",
-                    "statements",
-                    "const",
-                    "syntax",
-                    "const.js"
-                )
+                Path.Combine(root, "test", "language", "statements", "const", "syntax", "const.js")
             )
         );
         var combined = "'use strict';\n" + harness + "\n" + source;
@@ -56,14 +48,12 @@ public sealed class TempConstCrashProbe
         using var ast = FlatJavaScriptParser.ParseScript(combined, "const.js");
         try
         {
-            _ = new JsPlannedScriptCompiler(realm).Compile(ast, "const.js");
+            _ = new JsScriptCompiler(realm).Compile(ast, "const.js");
             TestContext.Progress.WriteLine("COMPILE OK");
         }
         catch (Exception ex)
         {
-            TestContext.Progress.WriteLine(
-                "CRASH: " + ex.GetType().Name + "\n" + ex.StackTrace
-            );
+            TestContext.Progress.WriteLine("CRASH: " + ex.GetType().Name + "\n" + ex.StackTrace);
             throw;
         }
     }

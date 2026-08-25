@@ -3,7 +3,7 @@ using System.Reflection;
 using Okojo.Diagnostics;
 using Okojo.Hosting;
 using Okojo.JavaScript;
-using Okojo.JavaScript.Compiler.Experimental;
+using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
 using Okojo.JavaScript.Objects;
@@ -316,7 +316,7 @@ internal static class NodeCliApplication
         );
         ValidateReplTopLevelLexicalRedeclaration(ast, topLevelLexicalNames);
 
-        var script = new JsPlannedScriptCompiler(realm).Compile(ast, sourcePath);
+        var script = new JsScriptCompiler(realm).Compile(ast, sourcePath);
         if (printBytecode)
             NodeCliBytecodePrinter.PrintCompiledScript(script, sourcePath);
 

@@ -711,38 +711,38 @@ That is the first meaningful step from the current mixed model toward a clean mu
 
 Implemented now:
 
-- `Okojo.JavaScript.Compiler.Experimental`
-  - owns the new planning/emitting pipeline
+- `Okojo.JavaScript.Compiler`
+  - owns the canonical planning/emitting pipeline
 - `CompilerBindingCollector`
   - early scope/binding collection
   - identifier reference collection
   - pooled dense metadata
-  - no longer used by production `JsCompiler`
+  - used by the canonical `JsCompiler` facade
 - `CompilerStoragePlanner`
   - separate storage classification pass over collected bindings
   - first capture-aware planning step
   - marks bindings referenced across function boundaries as `ContextSlot`
-  - does not mutate `JsCompiler` binding state
-- `JsPlannedScriptCompiler`
-  - separate experimental emitter/compiler
-  - lives in `Okojo.JavaScript.Compiler.Experimental`
-  - does not patch the new planned pipeline into `JsCompiler`
-  - split into partial files to keep the new emitter readable
-  - emits real executable Okojo bytecode for a small but growing subset
-- `JsPlannedFunctionCompiler`
-  - first experimental function-scope compiler entry point
+  - provides binding metadata to the canonical emitter
+- `JsScriptCompiler`
+  - canonical flat emitter/compiler
+  - lives in `Okojo.JavaScript.Compiler`
+  - is the implementation behind `JsCompiler`
+  - split into partial files to keep the emitter readable
+  - emits executable Okojo bytecode for the supported grammar
+- `JsFunctionCompiler`
+  - canonical function-scope compiler entry point
   - split into partial files to keep growth isolated
-  - currently supports a small planned function-body subset
+  - compiles function bodies used by scripts, modules, and host wrappers
 
 Important boundary:
 
-- `JsCompiler` remains the production compiler
-- the new planned pipeline is intentionally partial and separate
-- this allows a real second compiler path to grow before any replacement attempt
+- `JsCompiler` is the stable facade for the canonical flat compiler
+- scripts, modules, host wrappers, tools, and tests use the same compiler path
+- unsupported grammar is reported by the flat parser instead of falling back
 
-## Current Experimental Compiler Subset
+## Current Flat Compiler Coverage
 
-`JsPlannedScriptCompiler` currently supports only:
+`JsScriptCompiler` currently supports:
 
 - top-level `var` / `let` / `const` declarations without patterns
 - function declarations without closure capture

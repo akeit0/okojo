@@ -5,7 +5,6 @@ using System.Text.RegularExpressions;
 using Okojo.Diagnostics;
 using Okojo.JavaScript;
 using Okojo.JavaScript.Bytecode;
-using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
 using Okojo.JavaScript.Objects;
@@ -671,10 +670,8 @@ internal class Program
 
     private static List<OkojoDumpBlock> BuildOkojoDumpBlocks(string source)
     {
-        var program = JavaScriptParser.ParseScript(source);
         var defaultRealm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsCompiler(defaultRealm);
-        var script = compiler.Compile(program);
+        var script = defaultRealm.CompileScript(source);
         var functions = CollectOkojoFunctions(script);
 
         var result = new List<OkojoDumpBlock>(functions.Count);

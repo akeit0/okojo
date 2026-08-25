@@ -1,10 +1,9 @@
 using System.Diagnostics;
-using Okojo.JavaScript.Compiler.Experimental;
+using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Parsing;
 
-var source =
-    """
+var source = """
     function makeCounters(n) {
       const counters = [];
       for (let i = 0; i < n; i++) {
@@ -32,7 +31,7 @@ var realm = JsRuntime.CreateBuilder().Build().DefaultRealm;
 for (var i = 0; i < 500; i++)
 {
     using var ast = FlatJavaScriptParser.ParseScript(source);
-    _ = new JsPlannedScriptCompiler(realm).Compile(ast, null);
+    _ = new JsScriptCompiler(realm).Compile(ast, null);
 }
 
 const int Samples = 200;
@@ -44,7 +43,7 @@ long planBytes = 0;
 long compileRestBytes = 0;
 
 // Internal stage APIs via IVT: replicate Compile(FlatAst) pipeline manually.
-var compiler = new JsPlannedScriptCompiler(realm);
+var compiler = new JsScriptCompiler(realm);
 
 // Warm the manual pipeline once to stabilize lazy state.
 {

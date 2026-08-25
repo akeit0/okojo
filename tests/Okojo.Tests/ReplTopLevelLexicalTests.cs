@@ -14,19 +14,12 @@ public class ReplTopLevelLexicalTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var lexicalNames = new HashSet<string>(StringComparer.Ordinal);
-        var constNames = new HashSet<string>(StringComparer.Ordinal);
-        var context = new JsCompilerContext
-        {
-            IsRepl = true,
-            ReplTopLevelLexicalNames = lexicalNames,
-            ReplTopLevelConstNames = constNames,
-        };
 
-        var first = Compile(realm, context, "let x = 41;");
+        var first = Compile(realm, "let x = 41;");
         realm.Execute(first);
         lexicalNames.Add("x");
 
-        var second = Compile(realm, context, "x + 1;");
+        var second = Compile(realm, "x + 1;");
         realm.Execute(second);
 
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(42));
@@ -37,20 +30,13 @@ public class ReplTopLevelLexicalTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var lexicalNames = new HashSet<string>(StringComparer.Ordinal) { "c" };
-        var constNames = new HashSet<string>(StringComparer.Ordinal) { "c" };
-        var context = new JsCompilerContext
-        {
-            IsRepl = true,
-            ReplTopLevelLexicalNames = lexicalNames,
-            ReplTopLevelConstNames = constNames,
-        };
 
-        var first = Compile(realm, context, "const c = 1;");
+        var first = Compile(realm, "const c = 1;");
         realm.Execute(first);
 
-        var second = Compile(realm, context, "c = 2;");
+        var second = Compile(realm, "c = 2;");
         var ex = Assert.Throws<JsRuntimeException>(() => realm.Execute(second));
-        Assert.That(ex!.Message, Does.Contain("constant"));
+        Assert.That(ex!.Message, Does.Contain("read-only"));
     }
 
     [Test]
@@ -58,24 +44,16 @@ public class ReplTopLevelLexicalTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var lexicalNames = new HashSet<string>(StringComparer.Ordinal);
-        var constNames = new HashSet<string>(StringComparer.Ordinal);
-        var context = new JsCompilerContext
-        {
-            IsRepl = true,
-            ReplTopLevelLexicalNames = lexicalNames,
-            ReplTopLevelConstNames = constNames,
-        };
 
         var first = Compile(
             realm,
-            context,
             """
             function f(x) { return x + x; }
             """
         );
         realm.Execute(first);
 
-        var second = Compile(realm, context, "f(3);");
+        var second = Compile(realm, "f(3);");
         realm.Execute(second);
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(6));
     }
@@ -85,17 +63,9 @@ public class ReplTopLevelLexicalTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var lexicalNames = new HashSet<string>(StringComparer.Ordinal);
-        var constNames = new HashSet<string>(StringComparer.Ordinal);
-        var context = new JsCompilerContext
-        {
-            IsRepl = true,
-            ReplTopLevelLexicalNames = lexicalNames,
-            ReplTopLevelConstNames = constNames,
-        };
 
         var script = Compile(
             realm,
-            context,
             """
             Object.getOwnPropertyDescriptor(this, "x");
             var x;
@@ -121,8 +91,8 @@ public class ReplTopLevelLexicalTests
         );
     }
 
-    private static JsScript Compile(JsRealm realm, JsCompilerContext context, string source)
+    private static JsScript Compile(JsRealm realm, string source)
     {
-        return JsCompiler.Compile(realm, JavaScriptParser.ParseScript(source), context);
+        return new JsScriptCompiler(realm).Compile(source);
     }
 }

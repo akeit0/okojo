@@ -1,5 +1,5 @@
 using Okojo.JavaScript.Bytecode;
-using Okojo.JavaScript.Compiler.Experimental;
+using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Execution.Interop;
 using Okojo.JavaScript.Parsing;
 
@@ -17,7 +17,7 @@ public sealed partial class JsRealm
     {
         ArgumentNullException.ThrowIfNull(source);
         using var ast = FlatJavaScriptParser.ParseScript(source);
-        Execute(new JsPlannedScriptCompiler(this).CompileIndirectEval(ast, null), pumpJobsAfterRun);
+        Execute(new JsScriptCompiler(this).CompileIndirectEval(ast, null), pumpJobsAfterRun);
         return Accumulator;
     }
 
@@ -37,7 +37,7 @@ public sealed partial class JsRealm
             "<eval>",
             allowTopLevelAwait: true
         );
-        Execute(new JsPlannedScriptCompiler(this).Compile(ast, "<eval>"), pumpJobsAfterRun: false);
+        Execute(new JsScriptCompiler(this).Compile(ast, "<eval>"), pumpJobsAfterRun: false);
         var result = Accumulator;
         PumpJobs();
         return AwaitEvaluatedValueAsync(result, cancellationToken);
@@ -213,7 +213,7 @@ public sealed partial class JsRealm
     public JsScript CompileScript(string source, string? sourcePath = null)
     {
         using var ast = FlatJavaScriptParser.ParseScript(source, sourcePath);
-        return new JsPlannedScriptCompiler(this).Compile(ast, sourcePath);
+        return new JsScriptCompiler(this).Compile(ast, sourcePath);
     }
 
     private async ValueTask<JsValue> AwaitEvaluatedValueAsync(

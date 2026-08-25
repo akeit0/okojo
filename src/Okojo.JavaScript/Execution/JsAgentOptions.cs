@@ -1,5 +1,5 @@
 using Okojo.JavaScript.Bytecode;
-using Okojo.JavaScript.Compiler.Experimental;
+using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Parsing;
 
 namespace Okojo.JavaScript.Execution;
@@ -19,7 +19,7 @@ public sealed class JsAgentOptions
     {
         // The direct-flat module compiler is the engine's only module path.
         ModuleExecutionCompiler = static (realm, ast, plan) =>
-            new Compiler.Experimental.JsPlannedModuleCompiler(realm).CompileForExecution(ast);
+            new Compiler.JsModuleCompiler(realm).CompileForExecution(ast);
     }
 
     public ulong CheckInterval { get; private set; } = ulong.MaxValue;

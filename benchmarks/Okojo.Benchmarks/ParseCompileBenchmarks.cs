@@ -4,7 +4,6 @@ using Okojo.Benchmarks;
 using Okojo.JavaScript;
 using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Compiler;
-using Okojo.JavaScript.Compiler.Experimental;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
 using Okojo.JavaScript.Parsing;
@@ -31,36 +30,24 @@ public class ParseCompileBenchmarks
         realm = JsRuntime.CreateBuilder().Build().DefaultRealm;
     }
 
-    // --- production ---
-
     [Benchmark(Baseline = true)]
-    public JsProgram Production_Parse()
+    public JsScript Okojo_Compile()
     {
-        return JavaScriptParser.ParseScript(source);
+        return realm.CompileScript(source);
     }
 
     [Benchmark]
-    public JsScript Production_Compile()
-    {
-        var program = JavaScriptParser.ParseScript(source);
-        using var compiler = new JsCompiler(realm);
-        return compiler.Compile(program);
-    }
-
-    // --- experimental (flat parser + planned compiler) ---
-
-    [Benchmark]
-    public int Experimental_Parse()
+    public int Flat_Parse()
     {
         using var ast = FlatJavaScriptParser.ParseScript(source);
         return ast.Count;
     }
 
     [Benchmark]
-    public JsScript Experimental_Compile()
+    public JsScript Flat_Compile()
     {
         using var ast = FlatJavaScriptParser.ParseScript(source);
-        return new JsPlannedScriptCompiler(realm).Compile(ast, null);
+        return new JsScriptCompiler(realm).Compile(ast, null);
     }
 }
 

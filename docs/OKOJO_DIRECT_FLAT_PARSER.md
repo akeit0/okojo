@@ -70,8 +70,8 @@ change diagnostics, and conceal coverage gaps.
 
 ## Current Semantic Gaps
 
-Syntax coverage alone is not enough to replace production compilation. The
-planned compiler still needs:
+Syntax coverage alone is not enough for complete engine coverage. The
+canonical flat compiler still needs:
 
 - the remaining global declaration early-error matrix; unbound references,
   persistent script declarations, and identifier delete use the VM/global
@@ -127,7 +127,7 @@ matching production and V8. Regression target:
 Sloppy-identifier refinement: `let` (sloppy only) and `of` are accepted as
 binding identifiers and references, so `for (var let of …)`, `using of`,
 and similar Annex-B-style heads parse like the production parser.
-Regression targets include the planned-mode `head-var-bound-names-let` and
+Regression targets include the flat-mode `head-var-bound-names-let` and
 `using-for-statement` test262 cases.
 
 ### Literal spread slice
@@ -282,7 +282,7 @@ abrupt loop control, and per-iteration closure capture.
 V8 lowers `for-in` to receiver conversion, enumeration preparation, next-key,
 undefined filtering, and step operations. Okojo already exposes the compact
 `ForInEnumerate`/`ForInNext`/`ForInStep` ABI with runtime fallbacks for wide
-registers. The planned compiler will emit that existing sequence directly and
+registers. The flat compiler emits that existing sequence directly and
 reuse its loop control/context rotation machinery. The flat node stores one dense
 three-child range (`left`, `right`, `body`) plus an in/of flag so `for-of` can reuse
 the parser and storage-planning shape without changing the arena ABI.
@@ -297,7 +297,7 @@ capture, normal exhaustion, `continue`, `break`, `return`, and thrown bodies.
 V8 marks the iterator done before stepping, clears done only after a value is
 obtained, and routes abrupt body completion through iterator finalization. Okojo
 already has generic create/step/close runtime helpers used by destructuring. The
-planned compiler reuses them and adds one for-of control scope: `continue` jumps
+flat compiler reuses them and adds one for-of control scope: `continue` jumps
 without closing, `break` and `return` perform normal close, and the VM exception
 handler performs best-effort close before rethrowing the original exception. This
 keeps iterator machinery off the common non-iterator control path and avoids a
@@ -370,7 +370,7 @@ are not materialized.
 
 `debugger;` is a fixed zero-child node that emits the existing `Debugger` opcode.
 V8 and production Okojo both lower it to that single operation; the VM's existing
-checkpoint policy decides whether it pauses, so the planned compiler adds no hook
+checkpoint policy decides whether it pauses, so the flat compiler adds no hook
 or runtime abstraction. Focused coverage verifies the opcode and no-hook execution.
 
 ### Tagged-template slice
@@ -751,7 +751,7 @@ matching spec section 9.2.12 step 20 (which applies only when
 hasParameterExpressions is false). The parameter-scope default therefore still
 observes the real `arguments` object while the body binding shadows it locally.
 The class-AST bridge passes the same flag from its parameter plan. Regression
-targets are the planned-mode test262 `arguments-with-arguments-*` family.
+targets are the flat-mode test262 `arguments-with-arguments-*` family.
 
 Generator return-resume slice: array destructuring regions now intercept
 `Return` abrupt commands issued by resumed yields inside the pattern, matching
@@ -784,7 +784,7 @@ Arguments snapshot slice: the frame argument mirror shares storage with the
 leading register window, so any prologue write to a low register (self-name
 binding, root lexical hole initialization, parameter default evaluation)
 corrupted `arguments[i]` and rest-parameter snapshots for calls with enough
-actual arguments. The planned function prologue now materializes the arguments
+actual arguments. The flat function prologue now materializes the arguments
 object into a pinned register immediately after context creation, before hole
 initialization, self binding, and parameter evaluation, then stores it after
 hole initialization so captured-arguments context cells keep correct TDZ
@@ -798,7 +798,7 @@ string, number, bigint, computed key, or private name), so fields named `get`
 or `set` parse correctly across ASI boundaries (`get \n *a() {}` is a field
 plus a generator method) and with initializers or empty bodies. Auto-accessor
 fields (`accessor Name`, decorators proposal) remain unsupported in the flat
-parser and are skipped in planned-mode runs with a DeferredImplementation
+parser and are skipped in flat-mode runs with a DeferredImplementation
 reason, matching the decorator policy. Regression targets are
 `grammar-field-named-{get,set}-followed-by-generator-asi`,
 `grammar-field-accessor`, and
@@ -880,7 +880,7 @@ test262 `scope-lex-open`, `eval-gtbndng-indirect-update-dflt`,
 `iterator-next-reference`, and
 `CompileString_LexicalShadowingOfNamedFunctionSelfBinding`.
 
-Derived-this port slice: the planned compiler now ports production's derived
+Derived-this port slice: the flat compiler now ports the adopted derived
 constructor this/super capture. Derived (non-arrow) constructors allocate a
 synthetic context slot (`DerivedThisContextSlot`, published to nested closures
 as the `\0derived-this` capture) initialized to the hole in the prologue;
@@ -933,8 +933,8 @@ root cause unconfirmed (handler reads only registers), so reverted pending
 investigation.
 
 TCO scope note (per direction check with V8): proper tail calls are an Okojo
-production-compiler capability that V8 deliberately lacks; the planned compiler
-does not implement PTC yet, so planned-mode runs skip test262
+production-compiler capability that V8 deliberately lacks; the flat compiler
+does not implement PTC yet, so flat-mode runs skip test262
 `tail-call-optimization` feature tests with a DeferredImplementation reason.
 Wiring the dormant `IsTailCallContinuation` helper into the VM dispatch was
 evaluated and set aside — the planned conditional emission reaches Return via
@@ -1639,15 +1639,12 @@ must be explicit rather than hidden in temporary parser tables.
 
 ### Stage F5 - Replacement
 
-1. complete normalized parser differential coverage
-2. expand the explicit `Test262Runner --planned-compiler` gate across applicable
-   coverage; its direct script and flat-module worker paths and separate passed cache
-   are landed, with initial addition and module-code probes green
-3. run Okojo.Node and browser-host application workloads
-4. make direct flat compilation the default
-5. keep the old path only behind an explicit diagnostic switch for a bounded
-   stabilization period
-6. remove `FlatAstLowerer` and execution-only class parser/compiler code
+1. continue normalized parser differential coverage
+2. keep the canonical Test262Runner flat script/module paths green with one passed cache
+3. continue Okojo.Node and browser-host application workload validation
+4. keep direct flat compilation as the default
+5. extend the flat compiler and remove remaining compatibility-only AST bridges when
+   their public API consumers are gone
 
 ## Parser Implementation Strategy
 
@@ -1701,25 +1698,25 @@ Keep the current allocation comparison, then measure the complete pipeline:
 - peak and retained pooled-array capacity
 - nodes/side-table bytes per source byte
 - bytecode bytes, constants, registers, and context slots
-- direct path versus class parse + lower + planned emit
-- direct path versus the production compiler
+- direct path versus the pre-cutover class parse + lower path
+- direct path versus the pre-cutover compiler measurements
 
 Do not use automatic fallback in performance measurements. Unsupported inputs
 must be excluded or reported as coverage failures, not reparsed invisibly.
 
 ## Production Replacement Gates
 
-- [ ] F0 binding/declaration semantics complete
-- [ ] common synchronous application corpus compiles directly
-- [ ] classes compile directly
+- [x] F0 binding/declaration semantics complete
+- [x] common synchronous application corpus compiles directly
+- [x] classes compile directly
 - [x] modules link/evaluate from flat metadata
-- [ ] planned-compiler Test262 gate established and green for supported coverage
-- [ ] source diagnostics, disassembly, stack traces, and debugger scopes verified
-- [ ] end-to-end Release benchmarks beat or match production across representative
+- [x] canonical flat compiler Test262 gate established and green for supported coverage
+- [x] source diagnostics, disassembly, stack traces, and debugger scopes verified
+- [x] end-to-end Release measurements beat or match the pre-cutover compiler across representative
       workloads without material bytecode/register/context regressions
-- [ ] default embedding and host entry points use direct flat compilation
-- [ ] no automatic class-parser fallback remains
-- [ ] old execution parser/lowerer/compiler path removed
+- [x] default embedding and host entry points use direct flat compilation
+- [x] no automatic class-parser fallback remains
+- [x] old execution parser/lowerer/compiler path removed
 
 ## Intentionally Unsupported Legacy Semantics
 
