@@ -14,7 +14,7 @@ public class InOperatorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 "x" in { x: 1 };
                 """
@@ -32,7 +32,7 @@ public class InOperatorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 "toString" in {};
                 """
@@ -50,7 +50,7 @@ public class InOperatorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 (0 in [1]) ? (1 in [1]) : true;
                 """
@@ -68,7 +68,7 @@ public class InOperatorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const s = Symbol();
                 const o = {};
@@ -110,7 +110,7 @@ public class InOperatorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 "x" in 1;
                 """

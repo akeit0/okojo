@@ -8,46 +8,6 @@ namespace Okojo.JavaScript.Compiler;
 
 internal sealed partial class JsFunctionCompiler
 {
-    public JsBytecodeFunction CompileFunction(
-        string? name,
-        FunctionParameterPlan parameterPlan,
-        JsBlockStatement body,
-        bool hasSelfBinding = false
-    )
-    {
-        using var ast = FlatAstLowerer.Lower(body);
-        InitializeParameterRegisterMap(parameterPlan);
-        using var collected = CompilerBindingCollector.CollectFunction(
-            name,
-            -1,
-            parameterPlan,
-            ast,
-            ast.Root,
-            hasSelfBinding
-        );
-        return CompileFunctionCore(
-            new FunctionCompileMetadata(
-                name ?? string.Empty,
-                body.StrictDeclared,
-                parameterPlan.Names.Count,
-                parameterPlan.HasSimpleParameterList,
-                parameterPlan.FunctionLength,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false
-            ),
-            collected,
-            ast,
-            ast.Root,
-            null
-        );
-    }
-
     internal JsBytecodeFunction CompileFunction(
         FlatAst ast,
         in FlatFunctionInfo function,
@@ -312,20 +272,6 @@ internal sealed partial class JsFunctionCompiler
             builder.EmitCallRuntime((int)RuntimeId.GetObjectPrototypeForSuper, 0, 0);
         }
         EmitStaCurrentContextSlot(superBaseContextSlot);
-    }
-
-    private void InitializeParameterRegisterMap(FunctionParameterPlan parameterPlan)
-    {
-        EnsureParameterMaps();
-        parameterRegisterByName!.Clear();
-        parameterNames!.Clear();
-        for (var i = 0; i < parameterPlan.Bindings.Count; i++)
-        {
-            var binding = parameterPlan.Bindings[i];
-            parameterNames.Add(binding.IsPattern ? null : binding.Name);
-            if (!binding.IsPattern)
-                parameterRegisterByName[binding.Name] = i;
-        }
     }
 
     private void InitializeParameterRegisterMap(FlatAst ast, in FlatFunctionInfo function)

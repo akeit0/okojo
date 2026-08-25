@@ -21,7 +21,7 @@ public partial class ExecutionCheckTests
         var realm = runtime.DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 debugger;
                 """
@@ -46,7 +46,7 @@ public partial class ExecutionCheckTests
         var realm = runtime.DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function inner() {
                     debugger;
@@ -92,7 +92,7 @@ public partial class ExecutionCheckTests
         var realm = runtime.DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function inner() {
                     debugger;
@@ -128,7 +128,7 @@ public partial class ExecutionCheckTests
             })
         );
         var realm = runtime.DefaultRealm;
-        var program = JavaScriptParser.ParseScript(
+        var program = FlatJavaScriptParser.ParseScript(
             """
             function inner() {
                 debugger;
@@ -179,7 +179,7 @@ public partial class ExecutionCheckTests
             })
         );
         var realm = runtime.DefaultRealm;
-        var program = JavaScriptParser.ParseScript(
+        var program = FlatJavaScriptParser.ParseScript(
             """
             function outer() {
                 return inner();
@@ -226,7 +226,7 @@ public partial class ExecutionCheckTests
         var realm = runtime.DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function* gen() {
                     yield 1;

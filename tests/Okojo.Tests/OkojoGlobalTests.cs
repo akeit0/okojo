@@ -17,7 +17,7 @@ public class OkojoGlobalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function t() {
                     return globalThis === globalThis.globalThis;
@@ -39,7 +39,7 @@ public class OkojoGlobalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function t() {
                     x = 7;
@@ -75,7 +75,7 @@ public class OkojoGlobalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 delete globalThis.scriptVar;
                 var scriptVar = 7;
@@ -99,7 +99,7 @@ public class OkojoGlobalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var scriptVar = 9;
                 delete scriptVar === false &&
@@ -121,7 +121,7 @@ public class OkojoGlobalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 typeof encodeURI === "function" &&
                 typeof encodeURIComponent === "function" &&
@@ -142,7 +142,7 @@ public class OkojoGlobalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var reservedOk =
                   encodeURI(";/?:@&=+$,#") === ";/?:@&=+$,#" &&
@@ -167,7 +167,7 @@ public class OkojoGlobalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 typeof decodeURI === "function" &&
                 typeof decodeURIComponent === "function" &&
@@ -188,7 +188,7 @@ public class OkojoGlobalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var decodedOk =
                   decodeURI("%3B%2F%3F%3A%40%26%3D%2B%24%2C%23") === "%3B%2F%3F%3A%40%26%3D%2B%24%2C%23" &&
@@ -213,7 +213,7 @@ public class OkojoGlobalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 this === globalThis;
                 """
@@ -232,7 +232,7 @@ public class OkojoGlobalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 x = 7;
                 globalThis.x === 7;
@@ -252,7 +252,7 @@ public class OkojoGlobalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 "use strict";
                 x = 7;
@@ -271,7 +271,7 @@ public class OkojoGlobalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 Object.defineProperty(globalThis, "x", { value: 1, writable: false, configurable: true });
                 x = 2;
@@ -292,7 +292,7 @@ public class OkojoGlobalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 Object.defineProperty(globalThis, "x", { value: 1, writable: false, configurable: true });
                 (function () {
@@ -314,7 +314,7 @@ public class OkojoGlobalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 for (x in { a: 1 }) { }
                 """
@@ -332,7 +332,7 @@ public class OkojoGlobalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var NaN;
                 typeof NaN === "number" && Number.isNaN(NaN);
@@ -351,7 +351,7 @@ public class OkojoGlobalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var seen = [];
                 x = 1;
@@ -379,7 +379,7 @@ public class OkojoGlobalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 x = 1;
                 function store(v) { x = v; return 0; }
@@ -402,7 +402,7 @@ public class OkojoGlobalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 x = 1;
                 function t() { return typeof x; }
@@ -423,8 +423,8 @@ public class OkojoGlobalTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
 
-        realm.ExecuteProgram(
-            JavaScriptParser.ParseScript(
+        realm.Execute(
+            realm.CompileScript(
                 """
                 x = 1;
                 function readX() { return x; }
@@ -433,8 +433,8 @@ public class OkojoGlobalTests
             )
         );
 
-        realm.ExecuteProgram(
-            JavaScriptParser.ParseScript(
+        realm.Execute(
+            realm.CompileScript(
                 """
                 let x = 2;
                 writeX(3);
@@ -452,7 +452,7 @@ public class OkojoGlobalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 for (var x in { a: 1 }) { }
                 """
@@ -470,7 +470,7 @@ public class OkojoGlobalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function f() {
                     for (var x in { a: 1 }) {
@@ -499,7 +499,7 @@ public class OkojoGlobalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function f() {
                     for (var x in { a: 1 }) {
@@ -527,7 +527,7 @@ public class OkojoGlobalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function f() {
                     for (let i = 0; i < 10; i++) {
@@ -551,7 +551,7 @@ public class OkojoGlobalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 "use strict";
                 for (z in { a: 1 }) { }
@@ -570,7 +570,7 @@ public class OkojoGlobalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 for (z in { a: 1 }) { }
                 z === "a";
@@ -589,7 +589,7 @@ public class OkojoGlobalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 do var x; while (false);
                 x === undefined;
@@ -608,7 +608,7 @@ public class OkojoGlobalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var enumed = false;
                 for (var p in this) {

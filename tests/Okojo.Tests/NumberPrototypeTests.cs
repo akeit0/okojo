@@ -15,7 +15,7 @@ public sealed class NumberPrototypeTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 Number.prototype.hasOwnProperty("toFixed") &&
                 Number.prototype.hasOwnProperty("toExponential") &&
@@ -34,7 +34,7 @@ public sealed class NumberPrototypeTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let ok = 0;
                 try { new Number.prototype.toFixed(); } catch (e) { if (e && e.name === "TypeError") ok++; }
@@ -55,7 +55,7 @@ public sealed class NumberPrototypeTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 [
                   (10).toString(16),
@@ -80,7 +80,7 @@ public sealed class NumberPrototypeTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 [
                   (25).toExponential(0),
@@ -109,7 +109,7 @@ public sealed class NumberPrototypeTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let calls = 0;
                 const p = { valueOf() { calls++; return Infinity; } };
@@ -128,7 +128,7 @@ public sealed class NumberPrototypeTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 Number.NaN.toExponential() === "NaN" &&
                 Number.POSITIVE_INFINITY.toExponential() === "Infinity";
@@ -146,7 +146,7 @@ public sealed class NumberPrototypeTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let ok = 0;
                 try { (1).toExponential(-1); } catch (e) { if (e && e.name === "RangeError") ok++; }

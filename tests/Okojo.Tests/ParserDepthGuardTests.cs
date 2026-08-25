@@ -16,7 +16,7 @@ public class ParserDepthGuardTests
         var source = new string('[', 10_000);
 
         Assert.That(
-            () => JavaScriptParser.ParseScript(source),
+            () => FlatJavaScriptParser.ParseScript(source),
             Throws
                 .InstanceOf<JsParseException>()
                 .With.Message.Contains("Maximum parser recursion depth exceeded")
@@ -29,7 +29,7 @@ public class ParserDepthGuardTests
         var source = new string('!', 10_000) + "0;";
 
         Assert.That(
-            () => JavaScriptParser.ParseScript(source),
+            () => FlatJavaScriptParser.ParseScript(source),
             Throws
                 .InstanceOf<JsParseException>()
                 .With.Message.Contains("Maximum parser recursion depth exceeded")
@@ -54,7 +54,7 @@ public class ParserDepthGuardTests
     public void ParseScript_MalformedFuzzRegressionInput_ThrowsParseException()
     {
         Assert.That(
-            () => JavaScriptParser.ParseScript(FuzzRegressionInput),
+            () => FlatJavaScriptParser.ParseScript(FuzzRegressionInput),
             Throws.InstanceOf<JsParseException>().With.Message.Contains("Unexpected token ')'")
         );
     }
@@ -75,7 +75,7 @@ public class ParserDepthGuardTests
     {
         var source = BuildRepeatedBinaryExpression("+", 5_000);
 
-        Assert.That(() => JavaScriptParser.ParseScript(source), Throws.Nothing);
+        Assert.That(() => FlatJavaScriptParser.ParseScript(source), Throws.Nothing);
     }
 
     [Test]
@@ -83,7 +83,7 @@ public class ParserDepthGuardTests
     {
         var source = BuildRepeatedBinaryExpression("**", 2_000);
 
-        Assert.That(() => JavaScriptParser.ParseScript(source), Throws.Nothing);
+        Assert.That(() => FlatJavaScriptParser.ParseScript(source), Throws.Nothing);
     }
 
     private static string BuildRepeatedBinaryExpression(string operatorText, int repeatCount)

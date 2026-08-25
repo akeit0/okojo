@@ -132,9 +132,9 @@ public sealed partial class JsAgent
                         targetPlan.ExecutionPlan.PreinitializedLocalExportNames,
                         targetNode.FlatProgram is not null
                     );
-                var defaultNameEligibleLocals = CollectDefaultNameEligibleExportLocals(
-                    targetPlan.ExecutionPlan.Operations
-                );
+                var defaultNameEligibleLocals = targetPlan
+                    .ExecutionPlan
+                    .DefaultNameEligibleLocalNames;
                 var compileModuleBindings = moduleVariableBindings;
                 var setFunctionNameFn = CreateSetFunctionNameHelper(targetRealm);
                 var moduleExecutionBindings = new ModuleExecutionBindings(
@@ -381,7 +381,6 @@ public sealed partial class JsAgent
                         targetNode.Compilation,
                         targetResolvedId,
                         targetNode.SourceText,
-                        targetNode.IdentifierTable,
                         targetPlan.ExecutionPlan,
                         targetNode.CompileModuleBindings,
                         false
@@ -1006,9 +1005,7 @@ public sealed partial class JsAgent
 
                 if (plan is null)
                 {
-                    var linkResult = node.FlatProgram is not null
-                        ? ModuleLinker.BuildPlanResult(resolvedId, node.FlatProgram)
-                        : ModuleLinker.BuildPlanResult(resolvedId, node.Program!);
+                    var linkResult = ModuleLinker.BuildPlanResult(resolvedId, node.FlatProgram!);
                     if (linkResult.Diagnostics.Count != 0)
                         throw WrapModuleLinkException(
                             resolvedId,
@@ -1042,9 +1039,7 @@ public sealed partial class JsAgent
     }
 
     private ModuleLinkPlan BuildModuleLinkPlan(ModuleRecordNode node) =>
-        node.FlatProgram is not null
-            ? ModuleLinker.BuildPlanResult(node.ResolvedId, node.FlatProgram).Plan
-            : ModuleLinker.BuildPlan(node.ResolvedId, node.Program!);
+        ModuleLinker.BuildPlanResult(node.ResolvedId, node.FlatProgram!).Plan;
 
     private static IEnumerable<ResolvedModuleDependency> EnumerateLinkDependencies(
         ModuleLinkPlan plan
@@ -1670,28 +1665,6 @@ public sealed partial class JsAgent
 
         var ownValue = targetFn.Slots[ownSlot.Slot];
         return ownValue.IsString && ownValue.AsString().Length == 0;
-    }
-
-    private static HashSet<string>? CollectDefaultNameEligibleExportLocals(
-        IReadOnlyList<ModuleExecutionOp> operations
-    )
-    {
-        HashSet<string>? result = null;
-        for (var i = 0; i < operations.Count; i++)
-        {
-            var op = operations[i];
-            if (
-                op.Kind != ModuleExecutionOpKind.ExportDefaultExpression
-                || !op.SetDefaultName
-                || string.IsNullOrEmpty(op.ExportLocalName)
-            )
-                continue;
-
-            result ??= new(StringComparer.Ordinal);
-            result.Add(op.ExportLocalName!);
-        }
-
-        return result;
     }
 
     private void PushModuleRuntimeBindings(ModuleExecutionBindings bindings)

@@ -14,7 +14,7 @@ public class ArrayBufferFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const d = Object.getOwnPropertyDescriptor(globalThis, "ArrayBuffer");
                 typeof ArrayBuffer === "function" &&
@@ -35,7 +35,7 @@ public class ArrayBufferFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let ok = false;
                 try { ArrayBuffer(8); } catch (e) { ok = e && e.name === "TypeError"; }
@@ -54,7 +54,7 @@ public class ArrayBufferFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const ab = new ArrayBuffer(8);
                 Object.getPrototypeOf(ab) === ArrayBuffer.prototype &&
@@ -96,7 +96,7 @@ public class ArrayBufferFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 ArrayBuffer.isView(new Uint8Array(2)) === true &&
                 ArrayBuffer.isView(new ArrayBuffer(2)) === false;
@@ -114,7 +114,7 @@ public class ArrayBufferFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const rab = new ArrayBuffer(3, { maxByteLength: 5 });
                 const ta = new Uint8Array(rab);
@@ -140,7 +140,7 @@ public class ArrayBufferFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const fixed = new ArrayBuffer(3);
                 const resizable = new ArrayBuffer(3, { maxByteLength: 5 });
@@ -162,7 +162,7 @@ public class ArrayBufferFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 class MyArrayBuffer extends ArrayBuffer {}
                 const derived = new MyArrayBuffer(4);
@@ -183,7 +183,7 @@ public class ArrayBufferFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 class MyArrayBuffer extends ArrayBuffer {}
                 const source = new MyArrayBuffer(4);
@@ -219,7 +219,7 @@ public class ArrayBufferFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const source = new ArrayBuffer(4, { maxByteLength: 8 });
                 new Uint8Array(source).set([9, 8, 7, 6]);
@@ -244,7 +244,7 @@ public class ArrayBufferFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function Test262Error() {}
                 let getterCalled = false;
@@ -276,7 +276,7 @@ public class ArrayBufferFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function DummyError() {}
 
@@ -343,7 +343,7 @@ public class ArrayBufferFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const ab = (new ArrayBuffer(4)).transferToImmutable();
                 typeof ab === "object" &&

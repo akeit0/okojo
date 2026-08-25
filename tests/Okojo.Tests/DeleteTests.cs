@@ -24,7 +24,7 @@ public class DeleteTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let a = [1, 2, 3];
                 let r = delete a[1];
@@ -62,7 +62,7 @@ public class DeleteTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var baseValue = undefined;
                 delete baseValue[0];
@@ -80,7 +80,7 @@ public class DeleteTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 delete Object[0][0];
                 """
@@ -97,7 +97,7 @@ public class DeleteTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function t(a, i) {
                     return delete a[i];
@@ -130,7 +130,7 @@ public class DeleteTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function t(a, i) {
                     "use strict";
@@ -164,7 +164,7 @@ public class DeleteTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function t() {
                   "use strict";
@@ -194,7 +194,7 @@ public class DeleteTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let deleteResult = true;
                 let sawValue = false;
@@ -226,7 +226,7 @@ public class DeleteTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 "use strict";
                 function run() {
@@ -256,7 +256,7 @@ public class DeleteTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 "use strict";
                 const sample = new Uint8Array(1);
@@ -281,7 +281,7 @@ public class DeleteTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 "use strict";
                 const TypedArray = Object.getPrototypeOf(Int8Array);
@@ -322,7 +322,7 @@ public class DeleteTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 "use strict";
                 function invoke(f) { return f(); }
@@ -348,7 +348,7 @@ public class DeleteTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 "use strict";
                 function testWithTypedArrayConstructors(f) {
@@ -379,7 +379,7 @@ public class DeleteTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 "use strict";
                 var assert = {
@@ -412,7 +412,7 @@ public class DeleteTests
         var ex = Assert.Throws<JsParseException>(() =>
             JsCompiler.Compile(
                 realm,
-                JavaScriptParser.ParseScript(
+                FlatJavaScriptParser.ParseScript(
                     """
                     class C {
                       m() { delete #x in this; }
@@ -432,7 +432,7 @@ public class DeleteTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 class Base {
                   constructor() { throw new Error("base ctor should not run"); }
@@ -462,7 +462,7 @@ public class DeleteTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var obj = {
                   m() {

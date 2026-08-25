@@ -117,7 +117,7 @@ public class ComparisonMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 ({ valueOf: function() { return 0; }, toString: function() { throw "bad"; } } < 1) === true;
                 """

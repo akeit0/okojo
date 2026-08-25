@@ -13,33 +13,6 @@ namespace Okojo.JavaScript.Compiler.Tests;
 public class JsScriptCompilerTests
 {
     [Test]
-    public void FlatAstLowerer_ProducesDensePostOrderNodes()
-    {
-        using var ast = FlatAstLowerer.Lower(
-            JavaScriptParser.ParseScript(
-                """
-                let x = 41;
-                x + 1;
-                """
-            )
-        );
-
-        ref readonly var root = ref ast[ast.Root];
-        var statements = ast.ChildRange(root.Arg0, root.Arg1);
-        ref readonly var expressionStatement = ref ast[statements[1]];
-        ref readonly var binary = ref ast[expressionStatement.Arg0];
-
-        Assert.That(Unsafe.SizeOf<AstNode>(), Is.EqualTo(16));
-        Assert.That(root.Kind, Is.EqualTo(AstKind.Program));
-        Assert.That(statements.Length, Is.EqualTo(2));
-        Assert.That(binary.Kind, Is.EqualTo(AstKind.BinaryExpression));
-        Assert.That(binary.Arg0, Is.LessThan(expressionStatement.Arg0));
-        Assert.That(binary.Arg1, Is.LessThan(expressionStatement.Arg0));
-        Assert.That(expressionStatement.Arg0, Is.LessThan(statements[1]));
-        Assert.That(statements[1], Is.LessThan(ast.Root));
-    }
-
-    [Test]
     public void Compile_ExecutesLocalOnlyLetAndAddProgram()
     {
         var runtime = JsRuntime.Create();
@@ -47,7 +20,7 @@ public class JsScriptCompilerTests
         var compiler = new JsScriptCompiler(realm);
 
         var script = compiler.Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let x = 41;
                 x + 1;
@@ -68,7 +41,7 @@ public class JsScriptCompilerTests
         var compiler = new JsScriptCompiler(realm);
 
         var script = compiler.Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var a = 1;
                 const b = 2;
@@ -187,7 +160,6 @@ public class JsScriptCompilerTests
         Assert.That(module.GetExport("answer").Int32Value, Is.EqualTo(42));
         Assert.That(module.GetExport("default").Int32Value, Is.EqualTo(42));
         Assert.That(runtime.MainAgent.ModuleGraph.TryGet("entry", out var entry), Is.True);
-        Assert.That(entry.Program, Is.Null);
         Assert.That(entry.FlatProgram, Is.Null, "pooled FlatAst should be released after compile");
     }
 
@@ -486,7 +458,7 @@ public class JsScriptCompilerTests
 
         var ex = Assert.Throws<JsParseException>(() =>
             compiler.Compile(
-                JavaScriptParser.ParseScript(
+                FlatJavaScriptParser.ParseScript(
                     """
                     with ({}) {}
                     """
@@ -542,7 +514,7 @@ public class JsScriptCompilerTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 "let result = 0; switch (2) { case 1: result = 1; break; case 2: result = 42; } result;"
             )
         );
@@ -558,7 +530,7 @@ public class JsScriptCompilerTests
         var realm = JsRuntime.Create().DefaultRealm;
         var compiler = new JsScriptCompiler(realm);
         var script = compiler.Compile(
-            JavaScriptParser.ParseScript("try { throw 42; } catch (error) { error; }")
+            FlatJavaScriptParser.ParseScript("try { throw 42; } catch (error) { error; }")
         );
 
         realm.Execute(script);
@@ -571,7 +543,7 @@ public class JsScriptCompilerTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 "let object = { base: 40, method() { return this.base + 2; }, get value() { return this.method(); } }; object.value;"
             )
         );
@@ -586,7 +558,7 @@ public class JsScriptCompilerTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 "let expression = /ok/i; let amount = 40n + 2n; expression.test('OK') && amount === 42n;"
             )
         );
@@ -601,7 +573,7 @@ public class JsScriptCompilerTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 "let value = 40; let prefix = `answer`; let text = `${prefix}:${` ${value + 2}`}`; text;"
             )
         );
@@ -616,7 +588,7 @@ public class JsScriptCompilerTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 "function outer(value) { return (() => this.base + value + arguments[0])(); } outer.call({ base: 2 }, 3);"
             )
         );
@@ -634,7 +606,7 @@ public class JsScriptCompilerTests
         var compiler = new JsScriptCompiler(realm);
 
         var script = compiler.Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let x = 1;
                 {
@@ -658,7 +630,7 @@ public class JsScriptCompilerTests
         var compiler = new JsScriptCompiler(realm);
 
         var script = compiler.Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let x = 1;
                 x = x + 41;
@@ -679,7 +651,7 @@ public class JsScriptCompilerTests
         var compiler = new JsScriptCompiler(realm);
 
         var script = compiler.Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let x = 1;
                 if (x < 2) {
@@ -704,7 +676,7 @@ public class JsScriptCompilerTests
         var compiler = new JsScriptCompiler(realm);
 
         var script = compiler.Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let x = 40;
                 let delta = 2;
@@ -728,7 +700,7 @@ public class JsScriptCompilerTests
         var compiler = new JsScriptCompiler(realm);
 
         var script = compiler.Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function answer() {
                     return 42;
@@ -750,7 +722,7 @@ public class JsScriptCompilerTests
         var compiler = new JsScriptCompiler(realm);
 
         var script = compiler.Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let x = 41;
                 function answer() {

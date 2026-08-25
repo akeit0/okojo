@@ -12,7 +12,7 @@ public class WhitespaceParserTests
     public void MongolianVowelSeparator_IsNotAcceptedInsideIdentifier()
     {
         Assert.That(
-            () => JavaScriptParser.ParseScript("var\u180Efoo;"),
+            () => FlatJavaScriptParser.ParseScript("var\u180Efoo;"),
             Throws.InstanceOf<JsParseException>()
         );
     }
@@ -20,7 +20,7 @@ public class WhitespaceParserTests
     [Test]
     public void ZeroWidthNoBreakSpace_IsAcceptedAfterRegularExpressionLiteral()
     {
-        Assert.That(() => JavaScriptParser.ParseScript("/x/g\uFEFF;"), Throws.Nothing);
+        Assert.That(() => FlatJavaScriptParser.ParseScript("/x/g\uFEFF;"), Throws.Nothing);
     }
 
     [Test]
@@ -29,7 +29,7 @@ public class WhitespaceParserTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var x;
                 do break; while (0) x = 42;

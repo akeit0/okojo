@@ -161,7 +161,7 @@ Should cover:
 
 Candidate areas already present:
 
-- `JavaScriptParser`
+- `FlatJavaScriptParser`
 - `OkojoScript`
 - `JsDisassembler`
 - `OkojoBytecodeBuilder`

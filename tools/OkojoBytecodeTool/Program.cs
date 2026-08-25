@@ -329,65 +329,67 @@ internal static class Program
         bool includeResolvedGraph
     )
     {
-        var program = JavaScriptParser.ParseModule(source);
+        using var program = FlatJavaScriptParser.ParseModule(source, inputLabel);
         var imports = new List<string>();
         var exports = new List<string>();
         var reexports = new List<string>();
         var starReexports = new List<string>();
 
-        for (var i = 0; i < program.Statements.Count; i++)
-            switch (program.Statements[i])
+        foreach (ref readonly var import in program.ImportEntries)
+        {
+            ref readonly var request = ref program.ModuleRequests[import.ModuleRequestIndex];
+            imports.Add(program.GetString(request.SpecifierStringIndex));
+        }
+
+        foreach (ref readonly var export in program.ExportEntries)
+        {
+            var exportName = program.GetString(export.ExportNameStringIndex);
+            switch (export.Kind)
             {
-                case JsImportDeclaration importDecl:
-                    imports.Add(importDecl.Source);
+                case FlatExportKind.Local:
+                case FlatExportKind.DefaultExpression:
+                case FlatExportKind.DefaultDeclaration:
+                    exports.Add(exportName);
                     break;
-                case JsExportDeclarationStatement exportDecl:
-                    switch (exportDecl.Declaration)
-                    {
-                        case JsFunctionDeclaration fn:
-                            exports.Add(fn.Name);
-                            break;
-                        case JsClassDeclaration cls:
-                            exports.Add(cls.Name);
-                            break;
-                        case JsVariableDeclarationStatement vars:
-                            for (var d = 0; d < vars.Declarators.Count; d++)
-                                exports.Add(vars.Declarators[d].Name);
-                            break;
-                    }
-
+                case FlatExportKind.Indirect:
+                {
+                    ref readonly var request = ref program.ModuleRequests[
+                        export.ModuleRequestIndex
+                    ];
+                    reexports.Add(
+                        $"{program.GetString(export.ImportNameStringIndex)} as {exportName} from {program.GetString(request.SpecifierStringIndex)}"
+                    );
                     break;
-                case JsExportDefaultDeclaration:
-                    exports.Add("default");
+                }
+                case FlatExportKind.Namespace:
+                {
+                    ref readonly var request = ref program.ModuleRequests[
+                        export.ModuleRequestIndex
+                    ];
+                    starReexports.Add(
+                        $"* as {exportName} from {program.GetString(request.SpecifierStringIndex)}"
+                    );
                     break;
-                case JsExportNamedDeclaration named:
-                    if (named.Source is null)
-                        for (var s = 0; s < named.Specifiers.Count; s++)
-                            exports.Add(named.Specifiers[s].ExportedName);
-                    else
-                        for (var s = 0; s < named.Specifiers.Count; s++)
-                        {
-                            var spec = named.Specifiers[s];
-                            reexports.Add(
-                                $"{spec.LocalName} as {spec.ExportedName} from {named.Source}"
-                            );
-                        }
-
+                }
+                case FlatExportKind.Star:
+                {
+                    ref readonly var request = ref program.ModuleRequests[
+                        export.ModuleRequestIndex
+                    ];
+                    starReexports.Add($"* from {program.GetString(request.SpecifierStringIndex)}");
                     break;
-                case JsExportAllDeclaration all:
-                    if (string.IsNullOrEmpty(all.ExportedName))
-                        starReexports.Add($"* from {all.Source}");
-                    else
-                        starReexports.Add($"* as {all.ExportedName} from {all.Source}");
-                    break;
+                }
             }
+        }
 
         var sb = new StringBuilder();
         sb.AppendLine("# OkojoBytecodeTool ModuleInfo");
         sb.AppendLine();
         sb.AppendLine($"Input: {inputLabel}");
         sb.AppendLine($"TopLevelAwait: {program.HasTopLevelAwait}");
-        sb.AppendLine($"Statements: {program.Statements.Count}");
+        sb.AppendLine(
+            $"Statements: {program.ChildRange(program[program.Root].Arg0, program[program.Root].Arg1).Length}"
+        );
         sb.AppendLine();
         sb.AppendLine("## Imports");
         if (imports.Count == 0)
@@ -469,23 +471,39 @@ internal static class Program
                 return;
 
             var source = loader.LoadSource(resolvedId);
-            var program = JavaScriptParser.ParseModule(source);
+            using var program = FlatJavaScriptParser.ParseModule(source, resolvedId);
             var deps = new List<string>();
 
-            for (var i = 0; i < program.Statements.Count; i++)
-                switch (program.Statements[i])
-                {
-                    case JsImportDeclaration importDecl:
-                        deps.Add(loader.ResolveSpecifier(importDecl.Source, resolvedId));
+            foreach (ref readonly var request in program.ModuleRequests)
+            {
+                var attributes = program.GetImportAttributes(request);
+                var isText = false;
+                for (var i = 0; i < attributes.Length; i++)
+                    if (
+                        string.Equals(
+                            program.GetString(attributes[i].KeyStringIndex),
+                            "type",
+                            StringComparison.Ordinal
+                        )
+                        && string.Equals(
+                            program.GetString(attributes[i].ValueStringIndex),
+                            "text",
+                            StringComparison.Ordinal
+                        )
+                    )
+                    {
+                        isText = true;
                         break;
-                    case JsExportNamedDeclaration exportNamed
-                        when !string.IsNullOrEmpty(exportNamed.Source):
-                        deps.Add(loader.ResolveSpecifier(exportNamed.Source!, resolvedId));
-                        break;
-                    case JsExportAllDeclaration exportAll:
-                        deps.Add(loader.ResolveSpecifier(exportAll.Source, resolvedId));
-                        break;
-                }
+                    }
+
+                if (!isText)
+                    deps.Add(
+                        loader.ResolveSpecifier(
+                            program.GetString(request.SpecifierStringIndex),
+                            resolvedId
+                        )
+                    );
+            }
 
             for (var i = 0; i < deps.Count; i++)
                 Visit(deps[i]);
@@ -883,7 +901,7 @@ internal static class Program
         {
             var casePath = caseFiles[i];
             var source = File.ReadAllText(casePath, Encoding.UTF8);
-            var program = JavaScriptParser.ParseScript(source);
+            var program = FlatJavaScriptParser.ParseScript(source);
             var script = JsCompiler.Compile(realm, program);
             var functions = CollectOkojoFunctions(script);
             var output = RenderDisassembly(functions, null);

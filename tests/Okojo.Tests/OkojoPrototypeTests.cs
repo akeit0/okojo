@@ -14,7 +14,7 @@ public class OkojoPrototypeTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function t() {
                     let n = Object(1).valueOf();
@@ -48,7 +48,7 @@ public class OkojoPrototypeTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function t() {
                     return (function x(){}).toString();

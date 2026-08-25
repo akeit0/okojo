@@ -17,7 +17,7 @@ public class ForInTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let count = 0;
                 for (var k in { a: 1, b: 2, c: 3 }) {
@@ -39,7 +39,7 @@ public class ForInTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let out = "";
                 for (var k in "ab") {
@@ -61,7 +61,7 @@ public class ForInTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let count = 0;
                 for (var k in null) {
@@ -83,7 +83,7 @@ public class ForInTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function t(o) {
                     let c = 0;
@@ -122,7 +122,7 @@ public class ForInTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let target = {};
                 let count = 0;
@@ -145,7 +145,7 @@ public class ForInTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var obj = { key: 1 };
                 var let;
@@ -166,7 +166,7 @@ public class ForInTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var obj = Object.create(null);
                 obj.aa = 1;
@@ -203,7 +203,7 @@ public class ForInTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let rab = new ArrayBuffer(100, { maxByteLength: 200 });
                 let ta = new Uint8Array(rab, 0, 3);
@@ -231,7 +231,7 @@ public class ForInTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 $$"""
                 function test(obj) {
                   {{locals}}

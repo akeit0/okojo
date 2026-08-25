@@ -16,7 +16,7 @@ public class NewTargetCompilerTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function Foo() {}
                 new Foo();
@@ -34,7 +34,7 @@ public class NewTargetCompilerTests
 
         var withNewTarget = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function A() { return new.target ? 1 : 0; }
                 """
@@ -47,7 +47,7 @@ public class NewTargetCompilerTests
 
         var withoutNewTarget = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function B() { return 1; }
                 """
@@ -65,7 +65,7 @@ public class NewTargetCompilerTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let fromNew = 0;
                 let fromCall = 0;
@@ -94,7 +94,7 @@ public class NewTargetCompilerTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function Foo() {
                     this.x = 1;
@@ -117,7 +117,7 @@ public class NewTargetCompilerTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function Foo() {
                     if (!new.target) {
@@ -140,7 +140,7 @@ public class NewTargetCompilerTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function Foo() {
                     if (!new.target) {

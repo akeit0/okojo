@@ -36,7 +36,7 @@ public sealed class ModuleHostReentryTests
         using var runtime = JsRuntime.Create(options);
         var realm = runtime.DefaultRealm;
 
-        var parsed = JavaScriptParser.ParseScript(
+        using var parsed = FlatJavaScriptParser.ParseScript(
             "(function (exports, require, module, __filename, __dirname) {\n"
                 + "var captureModule = function () { return module; };\n"
                 + "if (process.env.NODE_ENV === 'production') {\n"
@@ -45,16 +45,14 @@ public sealed class ModuleHostReentryTests
                 + "  module.exports = require('./dev');\n"
                 + "}\n"
                 + "\n})",
-            "/mods/react.js",
-            -57,
-            "var captureModule = function () { return module; };"
+            "/mods/react.js"
         );
-        var expression = (JsFunctionExpression)
-            ((JsExpressionStatement)parsed.Statements[0]).Expression;
+        var statements = parsed.ChildRange(parsed[parsed.Root].Arg0, parsed[parsed.Root].Arg1);
+        var expression = parsed[statements[0]].Arg0;
         var wrapper = new JsFunctionCompiler(realm).CompileFunction(
-            string.Empty,
-            FunctionParameterPlan.FromFunction(expression),
-            expression.Body
+            parsed,
+            parsed.GetFunction(parsed[expression].Arg0),
+            parsed[expression].Arg1
         );
 
         var requireFunction = realm.Evaluate("(s) => ({ version: '19' })");
@@ -123,7 +121,7 @@ public sealed class ModuleHostReentryTests
         using var runtime = JsRuntime.Create(options);
         var realm = runtime.DefaultRealm;
 
-        var parsed = JavaScriptParser.ParseScript(
+        using var parsed = FlatJavaScriptParser.ParseScript(
             "(function (exports, require, module, __filename, __dirname) {\n"
                 + "var captureModule = function () { return module; };\n"
                 + "if (process.env.NODE_ENV === 'production') {\n"
@@ -132,16 +130,14 @@ public sealed class ModuleHostReentryTests
                 + "  module.exports = require('./dev');\n"
                 + "}\n"
                 + "\n})",
-            "/mods/react.js",
-            -57,
-            "var captureModule = function () { return module; };"
+            "/mods/react.js"
         );
-        var expression = (JsFunctionExpression)
-            ((JsExpressionStatement)parsed.Statements[0]).Expression;
+        var statements = parsed.ChildRange(parsed[parsed.Root].Arg0, parsed[parsed.Root].Arg1);
+        var expression = parsed[statements[0]].Arg0;
         var wrapper = new JsFunctionCompiler(realm).CompileFunction(
-            string.Empty,
-            FunctionParameterPlan.FromFunction(expression),
-            expression.Body
+            parsed,
+            parsed.GetFunction(parsed[expression].Arg0),
+            parsed[expression].Arg1
         );
         var wrapperValue = JsValue.FromObject(wrapper);
 

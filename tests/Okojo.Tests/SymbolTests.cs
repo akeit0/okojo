@@ -14,7 +14,7 @@ public class SymbolTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 Symbol.iterator === Symbol.iterator;
                 """
@@ -32,7 +32,7 @@ public class SymbolTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const s = Symbol("x");
                 const o = {};
@@ -53,7 +53,7 @@ public class SymbolTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const s = Symbol("k");
                 const o = {};
@@ -74,7 +74,7 @@ public class SymbolTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const s = Symbol("x");
                 s.toString() + "|" + Object(s).toString();
@@ -93,7 +93,7 @@ public class SymbolTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const s = Symbol("k");
                 Object(s).valueOf() === s;
@@ -112,7 +112,7 @@ public class SymbolTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const custom = Symbol("demo").description;
                 const wellKnown = Symbol.asyncIterator.description;
@@ -132,7 +132,7 @@ public class SymbolTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 Symbol.toStringTag === Symbol.toStringTag;
                 """
@@ -150,7 +150,7 @@ public class SymbolTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const o = {};
                 o[Symbol.toStringTag] = "DemoTag";
@@ -170,7 +170,7 @@ public class SymbolTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var calls = "";
                 var desc = {
@@ -212,7 +212,7 @@ public class SymbolTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var lengthDesc = Object.getOwnPropertyDescriptor(Symbol, "length");
                 var forDesc = Object.getOwnPropertyDescriptor(Symbol, "for");
@@ -252,7 +252,7 @@ public class SymbolTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function assignNamed() {
                   "use strict";
@@ -285,7 +285,7 @@ public class SymbolTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 Object.getOwnPropertyDescriptor(Array, Symbol.species).get.name === "get [Symbol.species]";
                 """

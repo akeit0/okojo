@@ -21,7 +21,7 @@ public class TimerTests
             .DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 globalThis.out = 0;
                 setTimeout(function () { globalThis.out = 42; }, 100);
@@ -54,7 +54,7 @@ public class TimerTests
             .DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 globalThis.out = 0;
                 const id = setTimeout(function () { globalThis.out = 99; }, 50);
@@ -83,7 +83,7 @@ public class TimerTests
             .DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 globalThis.out = 0;
                 async function sleepValue() {
@@ -118,7 +118,7 @@ public class TimerTests
             .DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 globalThis.out = "";
                 setTimeout(function (a, b, c) {
@@ -148,7 +148,7 @@ public class TimerTests
             .DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 setTimeout(function () {
                     var value = null;

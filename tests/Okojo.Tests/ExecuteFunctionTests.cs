@@ -15,7 +15,7 @@ public class ExecuteFunctionTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function functionCall() {
                     let identity = function (x) {

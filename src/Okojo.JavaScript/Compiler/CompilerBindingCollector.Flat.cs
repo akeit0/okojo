@@ -18,23 +18,6 @@ internal static partial class CompilerBindingCollector
     }
 
     public static CompilerBindingCollectionResult CollectFunction(
-        string? name,
-        int nameId,
-        FunctionParameterPlan parameterPlan,
-        FlatAst ast,
-        int bodyRoot,
-        bool hasSelfBinding = false
-    )
-    {
-        var collector = new FlatCollector(CompilerCollectedScopeKind.Function);
-        collector.CollectFunctionRoot(name, nameId, parameterPlan, ast, bodyRoot, hasSelfBinding);
-        collector.AddSyntheticArgumentsBindings(
-            parameterPlan.HasInitializers || parameterPlan.HasPatternBindings
-        );
-        return collector.MoveResult();
-    }
-
-    public static CompilerBindingCollectionResult CollectFunction(
         FlatAst ast,
         in FlatFunctionInfo function,
         int bodyRoot,
@@ -73,29 +56,6 @@ internal static partial class CompilerBindingCollector
         )
         {
             scopes.Add(new CompilerCollectedScope(0, -1, rootKind, IsArrow: rootIsArrow));
-        }
-
-        public void CollectFunctionRoot(
-            string? name,
-            int nameId,
-            FunctionParameterPlan parameterPlan,
-            FlatAst ast,
-            int bodyRoot,
-            bool hasSelfBinding
-        )
-        {
-            if (hasSelfBinding && !string.IsNullOrEmpty(name))
-                AddBinding(
-                    0,
-                    CompilerCollectedBindingKind.FunctionNameSelf,
-                    name!,
-                    nameId,
-                    position: ast.GetPosition(bodyRoot)
-                );
-
-            CollectParameters(parameterPlan, 0);
-            CollectParameterInitializers(parameterPlan, 0);
-            CollectBody(ast, bodyRoot, 0);
         }
 
         public void CollectFlatFunctionRoot(
@@ -982,38 +942,6 @@ internal static partial class CompilerBindingCollector
                 VisitFunctionExpression(ast, ast[info.ConstructorNode], classScopeId);
         }
 
-        private void CollectParameters(FunctionParameterPlan parameterPlan, int scopeId)
-        {
-            for (var i = 0; i < parameterPlan.Bindings.Count; i++)
-            {
-                var binding = parameterPlan.Bindings[i];
-                if (binding.IsPattern)
-                {
-                    for (var j = 0; j < binding.BoundIdentifiers.Count; j++)
-                    {
-                        var bound = binding.BoundIdentifiers[j];
-                        AddBinding(
-                            scopeId,
-                            CompilerCollectedBindingKind.Parameter,
-                            bound.Name,
-                            bound.NameId,
-                            position: binding.Position
-                        );
-                    }
-                }
-                else
-                {
-                    AddBinding(
-                        scopeId,
-                        CompilerCollectedBindingKind.Parameter,
-                        binding.Name,
-                        binding.NameId,
-                        position: binding.Position
-                    );
-                }
-            }
-        }
-
         private void CollectFlatParameters(FlatAst ast, in FlatFunctionInfo function, int scopeId)
         {
             var parameters = ast.GetParameters(function);
@@ -1047,54 +975,6 @@ internal static partial class CompilerBindingCollector
             finally
             {
                 parameterBodyScopeId = previousParameterBodyScopeId;
-            }
-        }
-
-        private void CollectParameterInitializers(FunctionParameterPlan parameterPlan, int scopeId)
-        {
-            for (var i = 0; i < parameterPlan.Initializers.Count; i++)
-                if (parameterPlan.Initializers[i] is not null)
-                    VisitClassExpression(parameterPlan.Initializers[i]!, scopeId);
-        }
-
-        private void VisitClassExpression(JsExpression expression, int scopeId)
-        {
-            switch (expression)
-            {
-                case JsIdentifierExpression identifier:
-                    references.Add(
-                        new CompilerCollectedReference(
-                            scopeId,
-                            identifier.Name,
-                            identifier.Position
-                        )
-                    );
-                    return;
-                case JsAssignmentExpression assignment:
-                    VisitClassExpression(assignment.Left, scopeId);
-                    VisitClassExpression(assignment.Right, scopeId);
-                    return;
-                case JsBinaryExpression binary:
-                    VisitClassExpression(binary.Left, scopeId);
-                    VisitClassExpression(binary.Right, scopeId);
-                    return;
-                case JsUnaryExpression unary:
-                    VisitClassExpression(unary.Argument, scopeId);
-                    return;
-                case JsUpdateExpression update:
-                    VisitClassExpression(update.Argument, scopeId);
-                    return;
-                case JsConditionalExpression conditional:
-                    VisitClassExpression(conditional.Test, scopeId);
-                    VisitClassExpression(conditional.Consequent, scopeId);
-                    VisitClassExpression(conditional.Alternate, scopeId);
-                    return;
-                case JsSequenceExpression sequence:
-                    for (var i = 0; i < sequence.Expressions.Count; i++)
-                        VisitClassExpression(sequence.Expressions[i], scopeId);
-                    return;
-                default:
-                    return;
             }
         }
 

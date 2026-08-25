@@ -127,7 +127,7 @@ public class JsFunctionCompilerTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var compiler = new JsScriptCompiler(realm);
-        var program = JavaScriptParser.ParseScript(
+        var program = FlatJavaScriptParser.ParseScript(
             """
             function Box(a, b) {
                 return { value: a * 10 + b };
@@ -152,7 +152,7 @@ public class JsFunctionCompilerTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var compiler = new JsScriptCompiler(realm);
-        var program = JavaScriptParser.ParseScript(
+        var program = FlatJavaScriptParser.ParseScript(
             """
             let [first, , third = 3, ...rest] = [1, 2, undefined, 4, 5];
             first * 100 + third * 10 + rest.length;
@@ -170,7 +170,7 @@ public class JsFunctionCompilerTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var compiler = new JsScriptCompiler(realm);
-        var program = JavaScriptParser.ParseScript(
+        var program = FlatJavaScriptParser.ParseScript(
             """
             let {} = {};
             let key = 'b';
@@ -192,7 +192,7 @@ public class JsFunctionCompilerTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var compiler = new JsScriptCompiler(realm);
-        var program = JavaScriptParser.ParseScript(
+        var program = FlatJavaScriptParser.ParseScript(
             """
             let first, tail, rest;
             let target = {};
@@ -217,7 +217,7 @@ public class JsFunctionCompilerTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var compiler = new JsScriptCompiler(realm);
-        var program = JavaScriptParser.ParseScript(
+        var program = FlatJavaScriptParser.ParseScript(
             """
             function read({ a = 1, ...rest } = {}, [first, ...tail], value = a, ...extra) {
                 return a + rest.b + first + tail.length + value + extra.length;
@@ -237,7 +237,7 @@ public class JsFunctionCompilerTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var compiler = new JsScriptCompiler(realm);
-        var program = JavaScriptParser.ParseScript(
+        var program = FlatJavaScriptParser.ParseScript(
             "let offset = 40; let read = function self(value = 2) { return value ? offset + value : self(2); }; read(0);"
         );
         var script = compiler.Compile(program);
@@ -252,7 +252,7 @@ public class JsFunctionCompilerTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var compiler = new JsScriptCompiler(realm);
-        var program = JavaScriptParser.ParseScript(
+        var program = FlatJavaScriptParser.ParseScript(
             "let object = { value: 42, read: function () { return this.value; } }; object.read();"
         );
         var script = compiler.Compile(program);
@@ -266,18 +266,14 @@ public class JsFunctionCompilerTests
     public void CompileFunction_ProducesBytecodeForParametersAndReturn()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsFunctionCompiler(realm);
-        var program = JavaScriptParser.ParseScript(
+        var compiled = CompileDeclaredFunction(
+            realm,
             """
             function sum(x, y) {
                 return x + y;
             }
             """
         );
-        var function = (JsFunctionDeclaration)program.Statements[0];
-        var plan = FunctionParameterPlan.FromFunction(function);
-
-        var compiled = compiler.CompileFunction("sum", plan, function.Body);
 
         Assert.That(compiled.Script.Bytecode.Length, Is.GreaterThan(0));
         Assert.That(compiled.Script.RegisterCount, Is.GreaterThanOrEqualTo(2));
@@ -298,8 +294,8 @@ public class JsFunctionCompilerTests
     public void CompileFunction_EmitsComparisonAndBranchBytecode()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsFunctionCompiler(realm);
-        var program = JavaScriptParser.ParseScript(
+        var compiled = CompileDeclaredFunction(
+            realm,
             """
             function choose(x) {
                 if (x < 2) {
@@ -311,10 +307,6 @@ public class JsFunctionCompilerTests
             }
             """
         );
-        var function = (JsFunctionDeclaration)program.Statements[0];
-        var plan = FunctionParameterPlan.FromFunction(function);
-
-        var compiled = compiler.CompileFunction("choose", plan, function.Body);
 
         Assert.That(
             compiled.Script.Bytecode.Contains((byte)JsOpCode.TestLessThan)
@@ -341,8 +333,8 @@ public class JsFunctionCompilerTests
     public void CompileFunction_ExecutesInnerFunction_CapturingParameter()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsFunctionCompiler(realm);
-        var program = JavaScriptParser.ParseScript(
+        var compiled = CompileDeclaredFunction(
+            realm,
             """
             function makeAdder(x) {
                 function addOne() {
@@ -352,10 +344,6 @@ public class JsFunctionCompilerTests
             }
             """
         );
-        var function = (JsFunctionDeclaration)program.Statements[0];
-        var plan = FunctionParameterPlan.FromFunction(function);
-
-        var compiled = compiler.CompileFunction("makeAdder", plan, function.Body);
         var closureValue = realm.InvokeFunction(
             compiled,
             JsValue.Undefined,
@@ -372,8 +360,8 @@ public class JsFunctionCompilerTests
     public void CompileFunction_ExecutesInnerFunction_AssigningCapturedOuterLexical()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsFunctionCompiler(realm);
-        var program = JavaScriptParser.ParseScript(
+        var compiled = CompileDeclaredFunction(
+            realm,
             """
             function run() {
                 let x = 1;
@@ -385,10 +373,6 @@ public class JsFunctionCompilerTests
             }
             """
         );
-        var function = (JsFunctionDeclaration)program.Statements[0];
-        var plan = FunctionParameterPlan.FromFunction(function);
-
-        var compiled = compiler.CompileFunction("run", plan, function.Body);
         var closureValue = realm.InvokeFunction(
             compiled,
             JsValue.Undefined,
@@ -405,8 +389,8 @@ public class JsFunctionCompilerTests
     public void CompileFunction_ExecutesInnerFunction_CapturingBlockLexical()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsFunctionCompiler(realm);
-        var program = JavaScriptParser.ParseScript(
+        var compiled = CompileDeclaredFunction(
+            realm,
             """
             function make() {
                 let fn = 0;
@@ -421,10 +405,6 @@ public class JsFunctionCompilerTests
             }
             """
         );
-        var function = (JsFunctionDeclaration)program.Statements[0];
-        var plan = FunctionParameterPlan.FromFunction(function);
-
-        var compiled = compiler.CompileFunction("make", plan, function.Body);
         var closureValue = realm.InvokeFunction(
             compiled,
             JsValue.Undefined,
@@ -440,10 +420,21 @@ public class JsFunctionCompilerTests
     private static (JsRealm Realm, JsBytecodeFunction Compiled) CompileFunction(string source)
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var compiler = new JsFunctionCompiler(realm);
-        var program = JavaScriptParser.ParseScript(source);
-        var function = (JsFunctionDeclaration)program.Statements[0];
-        var plan = FunctionParameterPlan.FromFunction(function);
-        return (realm, compiler.CompileFunction(function.Name, plan, function.Body));
+        return (realm, CompileDeclaredFunction(realm, source));
+    }
+
+    private static JsBytecodeFunction CompileDeclaredFunction(JsRealm realm, string source)
+    {
+        using var ast = FlatJavaScriptParser.ParseScript(source);
+        var statements = ast.ChildRange(ast[ast.Root].Arg0, ast[ast.Root].Arg1);
+        if (statements.Length != 1 || ast[statements[0]].Kind != AstKind.FunctionDeclaration)
+            throw new InvalidOperationException("Expected one function declaration.");
+
+        ref readonly var declaration = ref ast[statements[0]];
+        return new JsFunctionCompiler(realm).CompileFunction(
+            ast,
+            ast.GetFunction(declaration.Arg0),
+            declaration.Arg1
+        );
     }
 }

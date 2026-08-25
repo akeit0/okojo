@@ -8,7 +8,7 @@ public class CompilerBindingCollectorTests
     [Test]
     public void Collect_RootBindings_MatchesDirectLexicalSurface()
     {
-        var program = JavaScriptParser.ParseModule(
+        var program = FlatJavaScriptParser.ParseModule(
             """
             export let alpha = 1;
             class Beta {}
@@ -50,7 +50,7 @@ public class CompilerBindingCollectorTests
     [Test]
     public void Collect_BlockAndLoopBindings_AssignsNestedScopes()
     {
-        var program = JavaScriptParser.ParseScript(
+        var program = FlatJavaScriptParser.ParseScript(
             """
             {
                 let left = 1;
@@ -120,7 +120,7 @@ public class CompilerBindingCollectorTests
     [Test]
     public void Collect_FunctionAndCatchBindings_RecordsParametersAndAliases()
     {
-        var program = JavaScriptParser.ParseScript(
+        var program = FlatJavaScriptParser.ParseScript(
             """
             function outer(first, { second }, ...rest) {
                 try {
@@ -185,20 +185,14 @@ public class CompilerBindingCollectorTests
                 .Where(binding => binding.ScopeId == catchScopeId)
                 .Select(static binding => (binding.Name, binding.Kind))
                 .ToArray(),
-            Is.EqualTo(
-                new[]
-                {
-                    ("message", CompilerCollectedBindingKind.CatchAlias),
-                    ("message", CompilerCollectedBindingKind.CatchAlias),
-                }
-            )
+            Is.EqualTo(new[] { ("message", CompilerCollectedBindingKind.CatchAlias) })
         );
     }
 
     [Test]
     public void Collect_TracksIdentifierReferencesAcrossNestedFunctions()
     {
-        var program = JavaScriptParser.ParseScript(
+        var program = FlatJavaScriptParser.ParseScript(
             """
             let outer = 1;
             function f() {
@@ -219,15 +213,13 @@ public class CompilerBindingCollectorTests
     [Test]
     public void CollectFlat_TracksNestedFunctionCaptureFromSharedArena()
     {
-        using var ast = FlatAstLowerer.Lower(
-            JavaScriptParser.ParseScript(
-                """
-                let outer = 1;
-                function f() {
-                    return outer + 1;
-                }
-                """
-            )
+        using var ast = FlatJavaScriptParser.ParseScript(
+            """
+            let outer = 1;
+            function f() {
+                return outer + 1;
+            }
+            """
         );
         using var collected = CompilerBindingCollector.Collect(ast);
         using var plan = CompilerStoragePlanner.Plan(collected);
@@ -244,7 +236,7 @@ public class CompilerBindingCollectorTests
     [Test]
     public void Collect_RootLexicalBindings_RecordSourcePositions()
     {
-        var program = JavaScriptParser.ParseScript(
+        var program = FlatJavaScriptParser.ParseScript(
             """
             let blocked = 1;
             const fixedValue = 2;

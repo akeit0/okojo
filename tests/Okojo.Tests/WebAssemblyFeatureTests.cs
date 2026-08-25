@@ -49,7 +49,7 @@ public class WebAssemblyFeatureTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const view = new Uint8Array(ext);
                 view[1] = 99;
@@ -81,7 +81,7 @@ public class WebAssemblyFeatureTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const view = new Int32Array(shared);
                 Atomics.store(view, 0, 7);
@@ -141,7 +141,7 @@ public class WebAssemblyFeatureTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const valid = WebAssembly.validate(wasmBytes);
                 globalThis.ok = false;
@@ -174,7 +174,7 @@ public class WebAssemblyFeatureTests
         var realm = runtime.DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const mem = new WebAssembly.Memory({ initial: 1, maximum: 2 });
                 const view = new Uint8Array(mem.buffer);
@@ -443,7 +443,7 @@ public class WebAssemblyFeatureTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 globalThis.argCount = -1;
                 globalThis.argSum = -1;
@@ -504,7 +504,7 @@ public class WebAssemblyFeatureTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 globalThis.outerCount = -1;
                 globalThis.innerCount = -1;
@@ -574,7 +574,7 @@ public class WebAssemblyFeatureTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 globalThis.outerCount = -1;
                 globalThis.innerCount = -1;
@@ -714,7 +714,7 @@ public class WebAssemblyFeatureTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 globalThis.hostArgCount = -1;
                 globalThis.hostArg0 = undefined;

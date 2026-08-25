@@ -53,8 +53,6 @@ public class JintSuiteComparisonBenchmarks
 
     private static readonly Dictionary<string, string> StrictSources = new();
 
-    private static readonly Dictionary<string, JsProgram> Programs = new();
-
     [GlobalSetup]
     public void Setup()
     {
@@ -66,13 +64,12 @@ public class JintSuiteComparisonBenchmarks
 
             var strict = "\"use strict\";" + Environment.NewLine + script;
             StrictSources[key] = strict;
-            Programs[key] = JavaScriptParser.ParseScript(strict);
         }
 
         // Warm compile paths once so per-op lanes measure execution, not
         // first-run JIT of host plumbing.
         using var warmRuntime = JsRuntime.CreateBuilder().Build();
-        _ = JsCompiler.Compile(warmRuntime.DefaultRealm, Programs["minimal"]);
+        _ = JsCompiler.Compile(warmRuntime.DefaultRealm, StrictSources["minimal"]);
         _ = new Engine(static o => o.Strict()).Execute(StrictSources["minimal"]);
     }
 
@@ -94,7 +91,7 @@ public class JintSuiteComparisonBenchmarks
     public void Okojo_Strict()
     {
         using var runtime = JsRuntime.CreateBuilder().Build();
-        var script = JsCompiler.Compile(runtime.DefaultRealm, Programs[FileName]);
+        var script = JsCompiler.Compile(runtime.DefaultRealm, StrictSources[FileName]);
         runtime.DefaultRealm.Execute(script);
     }
 

@@ -385,7 +385,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 "let result = ''; for (const [key] in { ab: 1, cd: 2 }) result += key; result;"
             )
         );
@@ -460,7 +460,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 "let result = ''; for (const value of [1, 2, 3]) result += value; result;"
             )
         );
@@ -1404,7 +1404,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 "let result = ''; outer: for (const value of [1, 2, 3]) { if (value === 2) continue outer; result += value; } result;"
             )
         );
@@ -2783,34 +2783,6 @@ public class DirectFlatParserTests
         Assert.That(result.AsString(), Is.EqualTo("12"));
     }
 
-    [Test]
-    public void ParseScript_AllocatesLessThanClassParseAndLowerBridge()
-    {
-        var source = string.Join(
-            '\n',
-            Enumerable
-                .Range(0, 80)
-                .Select(static i =>
-                    $"let value{i} = {i}; value{i} += 1; let read{i} = async (input = value{i}) => await input;"
-                )
-        );
-
-        using (FlatJavaScriptParser.ParseScript(source)) { }
-        using (FlatAstLowerer.Lower(JavaScriptParser.ParseScript(source))) { }
-
-        var directBytes = MeasureAllocatedBytes(() =>
-        {
-            using var ast = FlatJavaScriptParser.ParseScript(source);
-        });
-        var bridgeBytes = MeasureAllocatedBytes(() =>
-        {
-            using var ast = FlatAstLowerer.Lower(JavaScriptParser.ParseScript(source));
-        });
-
-        TestContext.Out.WriteLine($"direct={directBytes:N0} bytes bridge={bridgeBytes:N0} bytes");
-        Assert.That(directBytes, Is.LessThan(bridgeBytes));
-    }
-
     [TestCase("new.target;")]
     [TestCase("let read = () => new.target;")]
     public void ParseScript_RejectsNewTargetWithoutReceiverFunction(string source)
@@ -2859,7 +2831,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 "function read() { return new.target; } new read() === read;"
             )
         );
@@ -2947,7 +2919,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 "let object = { *value() { yield 6; } }; object.value().next().value;"
             )
         );
@@ -3094,7 +3066,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 "function tag(strings, value) { return strings[0] + value + strings.raw[1]; } tag`a${1}b`;"
             )
         );
@@ -3194,7 +3166,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 "let make = function* () { yield* [1, 2]; }; let iterator = make(); iterator.next().value + '|' + iterator.next().value + '|' + iterator.next().done;"
             )
         );
@@ -3246,7 +3218,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 "globalThis.__flatAsyncBridge = 0; async function read() { return await 4; } read().then(function (value) { __flatAsyncBridge = value; });"
             )
         );
@@ -3349,7 +3321,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 "globalThis.__flatAsyncArrowBridge = 0; let read = async value => await value + 1; read(3).then(function (value) { __flatAsyncArrowBridge = value; });"
             )
         );
@@ -3516,7 +3488,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 "globalThis.__flatAsyncGeneratorBridge = 0; async function* read() { yield await 3; return 4; } let iterator = read(); iterator.next().then(function (first) { iterator.next().then(function (second) { __flatAsyncGeneratorBridge = first.value + second.value; }); });"
             )
         );
@@ -3729,7 +3701,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 "globalThis.__flatForAwaitBridge = 0; async function read() { for await (const value of [Promise.resolve(3), 4]) __flatForAwaitBridge += value; } read();"
             )
         );
@@ -4816,7 +4788,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 "class Names { fn = function () {}; static Cls = class {}; } let value = new Names(); value.fn.name + '|' + Names.Cls.name;"
             )
         );
@@ -4868,7 +4840,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 "let instanceKey = 'instance'; let staticKey = 'StaticValue'; class Names { [instanceKey] = function () {}; static [staticKey] = class { static observed = this.name; }; } let value = new Names(); value.instance.name + '|' + Names.StaticValue.name + '|' + Names.StaticValue.observed;"
             )
         );
@@ -4957,7 +4929,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 "class Box { #value = 1; #method() { return this.#value; } get #accessor() { return this.#method(); } set #accessor(value) { this.#value = value; } read() { return this.#accessor; } write(value) { this.#accessor = value; } } let box = new Box(); box.write(4); box.read();"
             )
         );
@@ -5023,7 +4995,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 "class Value { constructor(value) { this.value = value; } read() { return this.value; } } new Value(4).read();"
             )
         );
@@ -5038,7 +5010,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 "class Base { constructor(value) { this.value = value; } } class Derived extends Base { constructor(value) { super(value + 1); } } new Derived(4).value;"
             )
         );
@@ -5053,7 +5025,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            JavaScriptParser.ParseScript("let Bridge = class {}; Bridge.name;")
+            FlatJavaScriptParser.ParseScript("let Bridge = class {}; Bridge.name;")
         );
 
         realm.Execute(script);
@@ -5066,7 +5038,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 "class Base { read() { return this.value; } } class Derived extends Base { read() { return super.read() + 1; } } let value = new Derived(); value.value = 4; value.read();"
             )
         );
@@ -5081,7 +5053,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 "class Base { static value = 2; } class Derived extends Base { static result = super.value + 1; } Derived.result;"
             )
         );
@@ -5096,7 +5068,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 "class Base { constructor(value) { this.value = value; } read() { return this.value; } } class Derived extends Base { result = super.read() + 1; } new Derived(4).result;"
             )
         );
@@ -5111,7 +5083,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 "class Base { static value = 2; } class Derived extends Base { static { this.result = super.value + 1; } } Derived.result;"
             )
         );
@@ -5126,7 +5098,7 @@ public class DirectFlatParserTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScriptCompiler(realm).Compile(
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 "class Box { #value = 2; read() { return this.#value; } } new Box().read();"
             )
         );

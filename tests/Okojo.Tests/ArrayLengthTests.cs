@@ -14,7 +14,7 @@ public class ArrayLengthTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var okMax = new Array(4294967295).length === 4294967295;
                 var threw = false;
@@ -38,7 +38,7 @@ public class ArrayLengthTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var assignThrew = false;
                 try {
@@ -69,7 +69,7 @@ public class ArrayLengthTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var x = [0, 1, 2];
                 x[4294967294] = 4294967294;

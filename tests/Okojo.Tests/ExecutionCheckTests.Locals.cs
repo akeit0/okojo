@@ -22,7 +22,7 @@ public partial class ExecutionCheckTests
         var realm = runtime.DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function outer() {
                     let captured = 1;
@@ -110,7 +110,7 @@ public partial class ExecutionCheckTests
         var realm = runtime.DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function outer() {
                     let x = 1;
@@ -164,7 +164,7 @@ public partial class ExecutionCheckTests
         var realm = runtime.DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function outer() {
                     let captured = 1;

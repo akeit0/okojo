@@ -14,7 +14,7 @@ public class RegExpExecSemanticsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var re = /a/g;
                 var a = re.exec("baaa");
@@ -40,7 +40,7 @@ public class RegExpExecSemanticsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var re = /a/y;
                 re.lastIndex = 1;
@@ -65,7 +65,7 @@ public class RegExpExecSemanticsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var re = /a/g;
                 var t1 = re.test("ba");
@@ -88,7 +88,7 @@ public class RegExpExecSemanticsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var re = /\u{61}/uy;
                 re.lastIndex = 1;

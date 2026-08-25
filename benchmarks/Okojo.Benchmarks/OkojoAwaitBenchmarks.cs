@@ -30,7 +30,7 @@ public class OkojoAwaitBenchmarks
     {
         source = ScriptSourceLoader.LoadScenario(Scenario);
 
-        var program = JavaScriptParser.ParseScript(source);
+        var program = FlatJavaScriptParser.ParseScript(source);
         jsVm = JsRuntime.CreateBuilder().Build().DefaultRealm;
         var okojoScript = JsCompiler.Compile(jsVm, program);
         jsVm.Execute(okojoScript);

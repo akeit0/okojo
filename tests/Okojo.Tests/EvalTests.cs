@@ -14,7 +14,7 @@ public class EvalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 typeof eval;
                 """
@@ -32,7 +32,7 @@ public class EvalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var a = eval('async function f() {}');
                 var b = eval('1; async function g() {}');
@@ -52,7 +52,7 @@ public class EvalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 eval('function h() {}') === undefined;
                 """
@@ -70,7 +70,7 @@ public class EvalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var a = eval('#!\n');
                 var b = eval('#!\n1');
@@ -91,7 +91,7 @@ public class EvalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 delete globalThis.xx;
                 var a = eval('/*var xx = 1*/');
@@ -112,7 +112,7 @@ public class EvalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var yy = 0;
                 eval("//var \u2028yy = -1") === -1 && yy === -1;
@@ -131,7 +131,7 @@ public class EvalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let caught;
                 try {
@@ -156,7 +156,7 @@ public class EvalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 delete globalThis.foo;
                 (0, eval)('"use strict"; var foo = 88;');
@@ -176,7 +176,7 @@ public class EvalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var typeofInside;
                 delete globalThis.fun;
@@ -202,7 +202,7 @@ public class EvalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 delete globalThis.x;
                 var initial;
@@ -228,7 +228,7 @@ public class EvalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var initial = null;
                 Object.defineProperty(globalThis, 'f', {
@@ -258,7 +258,7 @@ public class EvalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 delete globalThis.shouldNotBeDefined1;
                 delete globalThis.shouldNotBeDefined2;
@@ -287,7 +287,7 @@ public class EvalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let x;
                 var caught;
@@ -312,7 +312,7 @@ public class EvalTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 delete globalThis.unlikelyVariableName;
                 var caught;

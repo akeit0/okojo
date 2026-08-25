@@ -228,7 +228,7 @@ public sealed partial class JsAgent
         IReadOnlyDictionary<string, string> exportLocalByName,
         IReadOnlyDictionary<string, ModuleVariableBinding> moduleVariableBindings,
         ModuleExecutionBindings moduleExecutionBindings,
-        HashSet<string>? defaultNameEligibleLocals
+        IReadOnlySet<string>? defaultNameEligibleLocals
     )
     {
         if (exportLocalByName.Count == 0 || moduleVariableBindings.Count == 0)

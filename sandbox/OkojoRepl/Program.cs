@@ -5,7 +5,6 @@ using Okojo.JavaScript;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
 using Okojo.JavaScript.Objects;
-using Okojo.JavaScript.Parsing;
 using Okojo.Reflection;
 using OkojoRepl;
 using PrettyPrompt;
@@ -27,21 +26,12 @@ var vm = JsRuntime
     .DefaultRealm;
 InstallConsole(vm);
 
-var topLevelLexicalNames = new HashSet<string>(StringComparer.Ordinal);
-var topLevelConstNames = new HashSet<string>(StringComparer.Ordinal);
-
 if (cli.Expressions.Count != 0)
 {
     foreach (var expr in cli.Expressions)
         try
         {
-            await ExecuteAndPrintAsync(
-                vm,
-                topLevelLexicalNames,
-                topLevelConstNames,
-                expr,
-                cli.StrictMode
-            );
+            await ExecuteAndPrintAsync(vm, expr, cli.StrictMode);
         }
         catch (JsRuntimeException runtimeException)
         {
@@ -107,13 +97,7 @@ while (true)
 
     try
     {
-        await ExecuteAndPrintAsync(
-            vm,
-            topLevelLexicalNames,
-            topLevelConstNames,
-            line,
-            cli.StrictMode
-        );
+        await ExecuteAndPrintAsync(vm, line, cli.StrictMode);
     }
     catch (JsRuntimeException runtimeException)
     {
@@ -126,21 +110,11 @@ while (true)
     }
 }
 
-static async Task ExecuteAndPrintAsync(
-    JsRealm vm,
-    HashSet<string> topLevelLexicalNames,
-    HashSet<string> topLevelConstNames,
-    string source,
-    int strictMode
-)
+static async Task ExecuteAndPrintAsync(JsRealm vm, string source, int strictMode)
 {
     var adjustedSource = ApplyStrictMode(source, strictMode);
-    var program = JavaScriptParser.ParseScript(adjustedSource);
-    ValidateReplTopLevelLexicalRedeclaration(program, topLevelLexicalNames);
-
     var script = vm.CompileScript(adjustedSource);
     vm.Execute(script);
-    RegisterTopLevelLexicalDeclarations(program, topLevelLexicalNames, topLevelConstNames);
 
     var result = await AwaitIfPromiseAsync(vm, vm.Accumulator);
     if (!result.IsUndefined)
@@ -211,54 +185,6 @@ static void InstallConsole(JsRealm vm)
 static PromptConfiguration CreatePromptConfiguration(KeyBindings keyBindings)
 {
     return new(keyBindings, new FormattedString("> "));
-}
-
-static void ValidateReplTopLevelLexicalRedeclaration(
-    JsProgram program,
-    HashSet<string> existingLexicalNames
-)
-{
-    foreach (var name in EnumerateTopLevelLexicalNames(program))
-        if (existingLexicalNames.Contains(name))
-            throw new InvalidOperationException(
-                $"SyntaxError: Identifier '{name}' has already been declared"
-            );
-}
-
-static void RegisterTopLevelLexicalDeclarations(
-    JsProgram program,
-    HashSet<string> lexicalNames,
-    HashSet<string> constNames
-)
-{
-    foreach (var stmt in program.Statements)
-    {
-        if (stmt is not JsVariableDeclarationStatement decl)
-            continue;
-        if (decl.Kind is not (JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const))
-            continue;
-
-        foreach (var d in decl.Declarators)
-        {
-            lexicalNames.Add(d.Name);
-            if (decl.Kind == JsVariableDeclarationKind.Const)
-                constNames.Add(d.Name);
-        }
-    }
-}
-
-static IEnumerable<string> EnumerateTopLevelLexicalNames(JsProgram program)
-{
-    foreach (var stmt in program.Statements)
-    {
-        if (stmt is not JsVariableDeclarationStatement decl)
-            continue;
-        if (decl.Kind is not (JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const))
-            continue;
-
-        foreach (var d in decl.Declarators)
-            yield return d.Name;
-    }
 }
 
 internal sealed record CliOptions(

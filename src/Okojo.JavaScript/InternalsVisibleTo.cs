@@ -13,3 +13,5 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("Okojo.DebugServer.Core")]
 [assembly: InternalsVisibleTo("Test262Runner")]
 [assembly: InternalsVisibleTo("Test262OpcodeHistogram")]
+[assembly: InternalsVisibleTo("Okojo.Repl")]
+[assembly: InternalsVisibleTo("OkojoRepl")]

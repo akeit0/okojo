@@ -4,7 +4,7 @@
 
 `FlatJavaScriptParser` is the intended production parser for executable
 ECMAScript. It consumes `JsLexer` tokens and constructs `FlatAst` directly,
-without allocating the public/class syntax objects used by `JavaScriptParser`.
+without allocating a second class-based syntax tree.
 
 The target production flow is:
 
@@ -13,9 +13,8 @@ JsLexer -> FlatJavaScriptParser -> FlatAst
         -> binding collector -> storage planner -> bytecode emitter
 ```
 
-The class parser and `FlatAstLowerer` remain a temporary compatibility and
-differential-testing bridge. The end state removes them from normal execution,
-not merely adds another permanent compiler choice.
+The legacy class-based parser, lowerer, and compiler path have been removed.
+The flat parser and compiler are now the only production path.
 
 The broader architecture, reference research, and throughput gates are in
 [`OKOJO_COMPILER_THROUGHPUT_DESIGN.md`](OKOJO_COMPILER_THROUGHPUT_DESIGN.md).
@@ -65,7 +64,7 @@ full-fidelity public syntax API with parents, trivia objects, and mutation helpe
 | Modules | strict parse goal, side-effect/default/named/namespace imports, string import names, import attributes, local/declaration/default/indirect/namespace/star exports, compact request/import/export tables, module binding validation, imported-export canonicalization, signed live-cell assignment, single-parse opt-in linked evaluation and re-export linking, named/default-function instantiation before dependency evaluation, `import.meta` in module and closure contexts, dynamic import promise execution, top-level await and async dependency ordering | default-path adoption |
 
 The direct parser rejects unsupported grammar. It does not catch an error and
-restart through `JavaScriptParser`; that would allocate both representations,
+restart through a second parser; that would allocate both representations,
 change diagnostics, and conceal coverage gaps.
 
 ## Current Semantic Gaps
@@ -180,7 +179,7 @@ batched static accessor pass.
 ### RegExp and BigInt literal slice
 
 This iteration covers RegExp literals and BigInt literals in both the direct
-parser and class-AST bridge. The reference case is
+parser and the pre-cutover path. The reference case is
 `artifacts/okojobytecodetool/cases/flat_ast_regexp_bigint.js`; focused tests cover
 character classes/escaped delimiters and flags, fresh RegExp allocation per
 evaluation, values beyond Number precision, and BigInt arithmetic.
@@ -325,7 +324,7 @@ expression path, so every target is a reference, never a new binding. Emission
 stores the current iteration value once into a temporary and replays the shared
 assignment-mode pattern walkers, so defaults, nested patterns, rest elements,
 member targets, and per-iteration effects reuse exactly the landed destructuring
-machinery. The class-AST bridge needs no change because the production parser also
+machinery. The direct path needs no change because the production parser also
 keeps these heads as expressions. Regression targets are
 `CompileString_ExecutesForOfWithDestructuringAssignmentHeads`,
 `CompileString_ExecutesForAwaitOfWithDestructuringAssignmentHead`, and
@@ -446,7 +445,7 @@ This iteration composes the landed generator and async paths for `async
 function*` declarations/expressions, named/computed `async *method()` object
 methods, `await`, `yield`, and `yield*`. The minimal reference case is
 `artifacts/okojobytecodetool/cases/flat_ast_async_generator.js`; focused coverage
-executes direct-flat parsing and class-AST lowering, advanced parameters,
+executes direct-flat parsing and the pre-cutover path, advanced parameters,
 fulfilled awaits, yielded promises, awaited explicit returns, `try`/`finally`,
 next/return/throw resume modes, sync-iterator delegation, and native
 async-iterator delegation.
@@ -476,7 +475,7 @@ generators. The reference case is
 `artifacts/okojobytecodetool/cases/flat_ast_for_await_of.js`; focused tests cover
 native async iterators, promised values through the wrapped-sync fallback,
 declaration and member targets, per-iteration captures, labeled continue, break,
-return, throw, async-generator external return, and class-AST lowering.
+return, throw, async-generator external return, and the pre-cutover path.
 
 V8 obtains `Symbol.asyncIterator` first, wraps `Symbol.iterator` when needed,
 awaits every `next()` result, validates the iterator result object, and models
@@ -750,7 +749,7 @@ lexical or function declarations named `arguments` no longer suppress synthesis,
 matching spec section 9.2.12 step 20 (which applies only when
 hasParameterExpressions is false). The parameter-scope default therefore still
 observes the real `arguments` object while the body binding shadows it locally.
-The class-AST bridge passes the same flag from its parameter plan. Regression
+The pre-cutover path passed the same flag from its parameter metadata. Regression
 targets are the flat-mode test262 `arguments-with-arguments-*` family.
 
 Generator return-resume slice: array destructuring regions now intercept
@@ -1133,7 +1132,7 @@ responsibilities with value records and no per-scope object allocation. Okojo
 uses compact integer completion kinds and its existing `PushTry` bytecode rather
 than V8's switch opcode and handler-table encoding. The immediate throughput
 checks remain fewer materialized booleans, no redundant literal loads, and no
-class-AST allocation; end-to-end impact remains benchmark-gated.
+second syntax-tree allocation; end-to-end impact remains benchmark-gated.
 
 Try/finally slice note:
 
@@ -1191,8 +1190,8 @@ Baseline class slice landed:
   `artifacts/okojobytecodetool/cases/flat_ast_class_baseline.js`
 - focused regressions cover strict method bodies, constructor call rejection,
   declaration TDZ, inner class-name visibility, computed-key ordering, method
-  names/non-constructibility, static versus prototype placement, and class-AST
-  bridge execution
+  names/non-constructibility, static versus prototype placement, and direct-flat
+  execution
 - V8 observation: class scope and inner name resolution precede emission; the
   constructor closure is created first, its prototype is established, and public
   elements are defined in source order with computed keys evaluated at class
@@ -1219,7 +1218,7 @@ Heritage and derived-constructor slice landed:
 - focused regressions cover heritage evaluation before constructor initialization,
   implicit forwarding, explicit/spread calls, `new.target`, `this` before super,
   missing/duplicate super, object/undefined/primitive constructor returns, and the
-  class-AST bridge
+  direct-flat path
 - V8 observation: `BuildClassLiteral` evaluates heritage before creating the
   constructor and computed members, and keeps the inner class binding in TDZ
   through public-element definition; derived frames keep hole-valued `this` until
@@ -1243,7 +1242,7 @@ Anonymous class-name inference slice landed:
   properties; explicit class names remain authoritative
 - minimal repro: `let C = class {}; ({ value: class {} }).value.name`
 - focused regressions cover declaration/assignment/default/property inference, explicit
-  names, computed property names, class-AST bridge execution, and constructor
+  names, computed property names, direct flat execution, and constructor
   metadata
 - V8 observation: inferred-name contexts pass a name register into class-literal
   lowering; the constructor receives the name without creating a named-class inner
@@ -1266,7 +1265,7 @@ Super-property and home-object slice landed:
   `artifacts/okojobytecodetool/cases/flat_ast_class_super_property.js`
 - focused regressions cover getter/setter receiver identity, computed-key ordering,
   call receiver preservation, static versus instance home objects, nested-arrow
-  capture, assignment/update results, strict set failure, and class-AST bridge
+  capture, assignment/update results, strict set failure, and direct flat execution
 - V8 observation: `parser.cc` creates a `SuperPropertyReference` to the instance or
   static home-object variable; scope analysis forces that variable into a context
   only when needed. Ignition loads `homeObject.[[Prototype]]`, uses the current
@@ -1281,8 +1280,8 @@ Super-property and home-object slice landed:
   Ignition's named/keyed super bytecodes until profiling justifies dedicated ops
 - performance shape: no environment for methods without super, static keys stay in
   the constant pool, computed keys evaluate once, and load/store/update reuse one
-  prepared reference. The class-AST bridge conservatively marks legacy class
-  methods because that parser does not retain per-method super-use metadata.
+  prepared reference. Flat function metadata retains per-method super-use facts,
+  so methods without super stay on the compact path.
 
 Static public-field slice landed:
 
@@ -1292,7 +1291,7 @@ Static public-field slice landed:
 - reference case: `artifacts/okojobytecodetool/cases/flat_ast_class_static_fields.js`
 - focused tests cover method/field ordering, computed keys once, receiver/home object,
   inherited static access, inner class-name availability, undefined defaults,
-  static `prototype` early rejection, and the class-AST bridge
+  static `prototype` early rejection, and direct flat execution
 - V8 observation: `BuildClassLiteral` evaluates each static computed key at class
   definition, then invokes a synthetic initializer with the constructor as `this`
   before defining the next static element
@@ -1321,7 +1320,7 @@ Instance public-field slice landed:
 - focused tests cover computed keys once per class, fields once per instance, base/derived
   ordering, implicit/explicit/spread `super()`, missing defaults, outer-vs-parameter
   shadowing, nested-arrow super, undefined `new.target`, forbidden lexical
-  `arguments`, and class-AST bridge
+  `arguments`, and the direct-flat path
 - V8 observation: computed names are captured during class definition; one instance
   members initializer runs with the new receiver at base-constructor entry or
   immediately after derived `super()` returns
@@ -1363,7 +1362,7 @@ Private field slice landed:
   `artifacts/okojobytecodetool/cases/flat_ast_class_private_fields.js`
 - focused tests cover instance/static brand separation, wrong-receiver errors,
   initializer order, nested functions/classes, updates, calls, brand checks, and
-  class-AST bridge execution
+  direct-flat execution
 - V8 observation: private names are resolved through a class private environment;
   instance and static fields use distinct brands and fixed compile-time slots
 - Okojo implementation: add one private bit to flat member/element records and reuse existing
@@ -1377,12 +1376,12 @@ Private field slice landed:
 Named field-initializer inference slice landed:
 
 - iteration scope: anonymous function/class values in named instance/static,
-  public/private field initializers on both direct and class-AST paths
+  public/private field initializers on both direct-flat and pre-cutover paths
 - minimal repro: `class C { #f = function () {}; name() { return this.#f.name } }`
 - reference case:
   `artifacts/okojobytecodetool/cases/flat_ast_class_field_names.js`
 - focused tests cover all eight public/private, instance/static function/class
-  combinations plus the class-AST bridge
+  combinations plus the direct-flat path
 - V8/Node observation: the inferred name is the source field name, including the
   leading `#` for private fields
 - Okojo implementation: reuse normal inferred-name closure compilation; static
@@ -1402,7 +1401,7 @@ Private method/accessor slice landed:
 - focused tests cover method identity/non-constructibility/names, accessor reads,
   writes and updates, missing-half errors, instance/static brands, `#x in`, nested
   access, duplicate and `#constructor` early errors, derived `super` home objects,
-  initialization before fields, and class-AST bridge execution
+  initialization before fields, and direct-flat execution
 - V8 observation: private method/accessor closures are created once during class
   evaluation; instance initialization installs the brand/descriptors after base
   entry or derived `super()`, while static descriptors are installed before static
@@ -1425,7 +1424,7 @@ Computed field-initializer naming slice landed:
   `let k = 'value'; class C { [k] = function () {} } new C().value.name`
 - reference case:
   `artifacts/okojobytecodetool/cases/flat_ast_class_computed_field_names.js`
-- focused tests cover direct and class-AST paths, instance/static fields,
+- focused tests cover direct-flat and pre-cutover paths, instance/static fields,
   numeric/symbol names, explicit-name preservation, one-time property-key
   coercion, and class static initialization observing the inferred name
 - V8 observation: computed keys are normalized and cached during class evaluation;
@@ -1456,7 +1455,7 @@ Module import-descriptor slice landed:
   nodes; the binding pass uses an explicit module root and read-only import kind,
   while linker execution stays on the production path until flat metadata
   consumption lands
-- performance plan: module-only pooled tables, no class-AST import objects, and no
+- performance plan: module-only pooled tables, no syntax-tree import objects, and no
   impact on the script parser/compiler hot path
 
 Module export-descriptor slice landed:
@@ -1520,7 +1519,7 @@ Planned module-cell bytecode slice landed:
   directly and the capture descriptor carries module identity/depth into child
   functions. Namespace bindings use lexical/context storage and a module-prologue
   runtime call that resolves the already-linked namespace with its import type.
-- performance plan: no class-AST lowering and no mirrored export stores; flat
+- performance plan: no legacy-tree lowering and no mirrored export stores; flat
   wrapper nodes disappear during emission and each live binding uses one VM cell
   access
 
@@ -1566,11 +1565,11 @@ Production module execution opt-in slice landed:
 - single-parse ownership: the module record owns the pooled `FlatAst`; linking transfers
   request/import/export and exported-`var` instantiation data into `ModuleLinkPlan`, the
   compiler consumes the same AST, and the record returns its pools immediately afterward
-- flat requests resolve directly into final link bindings; no temporary class-AST import
+- flat requests resolve directly into final link bindings; no temporary syntax-tree import
   or export wrapper objects are created. A cycle regression verifies exported `var` is
   visible as `undefined` before evaluation rather than remaining in TDZ.
 - focused graph coverage also includes indirect, namespace, and star re-exports; the
-  record is asserted to contain no class `JsProgram` and no retained flat AST after emit
+  record is asserted to contain no legacy program object and no retained flat AST after emit
 - hoisted-function instantiation now compiles the flat AST once into a script, TDZ-aware
   initial context slots, and function templates. Named declarations are cloned into
   signed export cells or the shared top-level context before dependencies evaluate;
@@ -1579,7 +1578,7 @@ Production module execution opt-in slice landed:
   observes the same object, and calls it successfully.
 - V8 observation: module declarations are instantiated before evaluation and function
   bindings are already callable through a cycle. Okojo copies that lifecycle while
-  retaining its existing signed-cell opcode ABI; no new opcode or class-AST object is
+  retaining its existing signed-cell opcode ABI; no new opcode or syntax-tree object is
   required.
 - default named and anonymous function wrappers now feed the same template artifact;
   focused coverage preserves the named local self-binding, infers anonymous name
@@ -1628,7 +1627,7 @@ Production module execution opt-in slice landed:
 - module parse goal and initial module early errors are landed
 - compact import/export entry tables are landed
 - module scopes, live binding references, storage, and opt-in linked execution are landed
-- linker-facing persistent metadata without class-AST wrappers is landed in opt-in mode
+- linker-facing persistent metadata without syntax-tree wrappers is landed in opt-in mode
 - named and default function declarations are instantiated from the flat execution artifact
 - `import.meta` is landed through the existing module runtime binding
 - dynamic import is landed through the existing promise runtime

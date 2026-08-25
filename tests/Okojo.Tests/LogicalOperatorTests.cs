@@ -14,7 +14,7 @@ public class LogicalOperatorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 0 && 5;
                 """
@@ -32,7 +32,7 @@ public class LogicalOperatorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 1 && 5;
                 """
@@ -50,7 +50,7 @@ public class LogicalOperatorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 7 || 9;
                 """
@@ -68,7 +68,7 @@ public class LogicalOperatorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 0 || 9;
                 """
@@ -86,7 +86,7 @@ public class LogicalOperatorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let c = 0;
                 function bump() { c = c + 1; return 1; }
@@ -107,7 +107,7 @@ public class LogicalOperatorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 (1 / (-0 && -1)) === Number.NEGATIVE_INFINITY;
                 """
@@ -125,7 +125,7 @@ public class LogicalOperatorTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let c = 0;
                 function bump() { c = c + 1; return 1; }

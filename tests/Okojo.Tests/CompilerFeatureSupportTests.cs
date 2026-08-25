@@ -15,7 +15,7 @@ public class CompilerFeatureSupportTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function t() {
                     let i = 0;
@@ -42,7 +42,7 @@ public class CompilerFeatureSupportTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function outer() {
                     var limit = 25;
@@ -74,7 +74,7 @@ public class CompilerFeatureSupportTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var Gg = function (value) {
                     this.value = value;
@@ -100,7 +100,7 @@ public class CompilerFeatureSupportTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let x = 0;
                 (x = 1, x = x + 2, x);
@@ -119,7 +119,7 @@ public class CompilerFeatureSupportTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let x = 1;
                 debugger;
@@ -139,7 +139,7 @@ public class CompilerFeatureSupportTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var i = 0;
                 var counter = 0;
@@ -171,18 +171,19 @@ public class CompilerFeatureSupportTests
         var wrapperSource = wrapperPrefix + source + wrapperSuffix;
 
         var realm = JsRuntime.Create().DefaultRealm;
-        var parsed = JavaScriptParser.ParseScript(
-            wrapperSource,
-            "/app/main.cjs",
-            -wrapperPrefix.Length,
-            source
-        );
-        var wrapperExpression = (JsFunctionExpression)
-            ((JsExpressionStatement)parsed.Statements[0]).Expression;
+        using var parsed = FlatJavaScriptParser.ParseScript(wrapperSource, "/app/main.cjs");
+        var statements = parsed.ChildRange(parsed[parsed.Root].Arg0, parsed[parsed.Root].Arg1);
+        if (statements.Length != 1 || parsed[statements[0]].Kind != AstKind.ExpressionStatement)
+            throw new InvalidOperationException(
+                "CommonJS wrapper did not parse as one expression."
+            );
+        var expression = parsed[statements[0]].Arg0;
+        if (parsed[expression].Kind != AstKind.FunctionExpression)
+            throw new InvalidOperationException("CommonJS wrapper did not parse as a function.");
         var wrapper = new JsFunctionCompiler(realm).CompileFunction(
-            string.Empty,
-            FunctionParameterPlan.FromFunction(wrapperExpression),
-            wrapperExpression.Body
+            parsed,
+            parsed.GetFunction(parsed[expression].Arg0),
+            parsed[expression].Arg1
         );
 
         var exportsObject = new JsPlainObject(realm);
@@ -206,7 +207,7 @@ public class CompilerFeatureSupportTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const obj = {
                   annotation(message, options = {}) {
@@ -229,7 +230,7 @@ public class CompilerFeatureSupportTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const obj = {
                   setCwd: (cwd = "x") => cwd
@@ -250,7 +251,7 @@ public class CompilerFeatureSupportTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function wrapAssembly() {
                   function patch(prototype, name, fn) {
@@ -282,7 +283,7 @@ public class CompilerFeatureSupportTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function wrap() {
                   const fns = {};
@@ -317,7 +318,7 @@ public class CompilerFeatureSupportTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function wrap() {
                   for (let i = 0; i < 1; i++) {
@@ -344,7 +345,7 @@ public class CompilerFeatureSupportTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function help(commands, base$0, parentCommands) {
                   if (commands.length) {

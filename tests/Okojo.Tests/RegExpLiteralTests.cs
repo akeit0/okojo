@@ -14,7 +14,7 @@ public class RegExpLiteralTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function makeRegExp() { return /(?:)/; }
                 const a = makeRegExp();
@@ -34,7 +34,7 @@ public class RegExpLiteralTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var ok = false;
                 try { eval("/\\\rn/;"); } catch (e) { ok = e instanceof SyntaxError; }
@@ -53,7 +53,7 @@ public class RegExpLiteralTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 /\k<a>(?<a>x)/.test("x");
                 """
@@ -70,7 +70,7 @@ public class RegExpLiteralTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 /\k<a>/.test("k<a>");
                 """
@@ -87,7 +87,7 @@ public class RegExpLiteralTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var ok = false;
                 try { eval("/\\k<a>/u"); } catch (e) { ok = e instanceof SyntaxError; }
@@ -106,7 +106,7 @@ public class RegExpLiteralTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var lead = false;
                 var trail = false;

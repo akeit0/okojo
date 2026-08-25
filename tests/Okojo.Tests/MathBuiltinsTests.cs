@@ -91,7 +91,7 @@ public class MathBuiltinsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const approx = function (a, b, e) { return Math.abs(a - b) <= (e === undefined ? 1e-12 : e); };
                 approx(Math.abs(-2), 2) &&
@@ -145,7 +145,7 @@ public class MathBuiltinsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let typeError1 = false;
                 try { Math.sumPrecise([1, "2"]); } catch (e) { typeError1 = e.name === "TypeError"; }
@@ -171,7 +171,7 @@ public class MathBuiltinsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var counter = 0;
                 var threw = false;
@@ -204,7 +204,7 @@ public class MathBuiltinsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var coercions = 0;
                 var objectWithValueOf = {

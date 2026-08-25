@@ -1,10 +1,8 @@
 using System.Text.RegularExpressions;
 using Okojo.Diagnostics;
 using Okojo.JavaScript;
-using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
-using Okojo.JavaScript.Parsing;
 
 var options = ParseArguments(args);
 Console.WriteLine("OkojoRuntimeDebugSandbox");
@@ -55,11 +53,7 @@ try
     }
     else
     {
-        var parsed = JavaScriptParser.ParseScript(
-            source,
-            sourcePath: inputIsFile ? sourcePath : null
-        );
-        var script = JsCompiler.Compile(realm, parsed);
+        var script = realm.CompileScript(source, inputIsFile ? sourcePath : null);
 
         if (options.BreakpointLine is int line)
             agent.AddBreakpoint(script, line);

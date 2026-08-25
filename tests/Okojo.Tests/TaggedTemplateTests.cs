@@ -14,7 +14,7 @@ public class TaggedTemplateTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function tag(templateObject) {
                   previousObject = templateObject;
@@ -49,7 +49,7 @@ public class TaggedTemplateTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var a = 2;
                 `x${a}y`;
@@ -68,7 +68,7 @@ public class TaggedTemplateTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function Constructor(x) { arg = x; }
                 var tag = function(x) {
@@ -101,7 +101,7 @@ public class TaggedTemplateTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var called = 0;
                 var ok = false;
@@ -124,7 +124,7 @@ public class TaggedTemplateTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var ok = true;
                 (function(s) {
@@ -160,7 +160,7 @@ public class TaggedTemplateTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 "(function(s){ return s[0] === \"\\n\\n\\n\" && s.raw[0] === \"\\n\\n\\n\"; })`\n\r\r\n`;"
             )
         );
@@ -175,7 +175,7 @@ public class TaggedTemplateTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var templateObject;
                 (function(s) { templateObject = s; })`${1}`;

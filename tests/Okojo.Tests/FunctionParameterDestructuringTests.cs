@@ -15,7 +15,7 @@ public class FunctionParameterDestructuringTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 (function({ y = 33 }) {
                   return y;
@@ -34,7 +34,7 @@ public class FunctionParameterDestructuringTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 (function([x]) {
                   return x;
@@ -53,7 +53,7 @@ public class FunctionParameterDestructuringTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 (function() {
                   return function({ alpha = 33, beta = function betaDefault() { return alpha; } } = {}) {
@@ -74,7 +74,7 @@ public class FunctionParameterDestructuringTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function makeDestructuringHeavy() {
                   return function run(
@@ -106,7 +106,7 @@ public class FunctionParameterDestructuringTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 (function({ outer: { inner } }) {
                   return inner;
@@ -125,7 +125,7 @@ public class FunctionParameterDestructuringTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 (function({ keep, ...rest }) {
                   return rest.a + ":" + rest.b + ":" + ("keep" in rest);
@@ -144,7 +144,7 @@ public class FunctionParameterDestructuringTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 (function({ cover = function () {} }) {
                   return cover.name;
@@ -163,7 +163,7 @@ public class FunctionParameterDestructuringTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 (function({ x } = { x: 23 }) {
                   return x;
@@ -182,7 +182,7 @@ public class FunctionParameterDestructuringTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 (function([...x] = [1, 2, 3]) {
                   return x.length + ":" + x[0] + ":" + x[2];
@@ -201,7 +201,7 @@ public class FunctionParameterDestructuringTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 "use strict";
                 (function([...x] = [1, 2, 3]) {
@@ -221,7 +221,7 @@ public class FunctionParameterDestructuringTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 (function([fn = function () {}, xFn = function x() {}] = []) {
                   return fn.name + ":" + xFn.name;
@@ -240,7 +240,7 @@ public class FunctionParameterDestructuringTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 (function([{ x, y, z } = { x: 44, y: 55, z: 66 }]) {
                   return x + y + z;
@@ -259,7 +259,7 @@ public class FunctionParameterDestructuringTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let length = "outer";
                 (function([...{ 0: v, 1: w, 2: x, 3: y, length: z }]) {
@@ -279,7 +279,7 @@ public class FunctionParameterDestructuringTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 (function([cls = class {}, xCls = class X {}, xCls2 = class { static name() {} }] = []) {
                   return cls.name + ":" + xCls.name + ":" + (xCls2.name === "xCls2");
@@ -298,7 +298,7 @@ public class FunctionParameterDestructuringTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 "use strict";
                 var callCount = 0;
@@ -353,7 +353,7 @@ public class FunctionParameterDestructuringTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 "use strict";
                 var callCount = 0;

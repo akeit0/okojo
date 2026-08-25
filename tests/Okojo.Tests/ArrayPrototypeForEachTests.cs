@@ -14,7 +14,7 @@ public class ArrayPrototypeForEachTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var sum = 0;
                 [1, 2, 3].forEach(function (v) { sum += v; });
@@ -33,7 +33,7 @@ public class ArrayPrototypeForEachTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var calls = 0;
                 var usurper = {};

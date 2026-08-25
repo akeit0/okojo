@@ -1,5 +1,4 @@
 using Okojo.JavaScript.Compiler;
-using Okojo.JavaScript.Parsing;
 
 namespace Okojo.JavaScript.Execution;
 
@@ -10,7 +9,6 @@ internal static class ModuleExecutor
         ModuleExecutionCompilation? moduleCompilation,
         string? moduleSourcePath,
         string? moduleSourceText,
-        JsIdentifierTable? moduleIdentifierTable,
         ModuleExecutionPlan executionPlan,
         IReadOnlyDictionary<string, ModuleVariableBinding>? moduleVariableBindings,
         bool waitForTopLevelAwaitCompletion = true
@@ -18,7 +16,6 @@ internal static class ModuleExecutor
     {
         _ = moduleSourcePath;
         _ = moduleSourceText;
-        _ = moduleIdentifierTable;
         _ = moduleVariableBindings;
 
         if (moduleCompilation is null)

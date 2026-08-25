@@ -21,7 +21,7 @@ public partial class ExecutionCheckTests
             })
         );
         var realm = runtime.DefaultRealm;
-        var program = JavaScriptParser.ParseScript(
+        var program = FlatJavaScriptParser.ParseScript(
             "function add(a, b) {\n"
                 + "  return a + b;\n"
                 + "}\n"
@@ -84,7 +84,7 @@ public partial class ExecutionCheckTests
             })
         );
         var realm = runtime.DefaultRealm;
-        var program = JavaScriptParser.ParseScript(
+        var program = FlatJavaScriptParser.ParseScript(
             """
             function add(a, b) {
                 return a + b;
@@ -127,7 +127,7 @@ public partial class ExecutionCheckTests
     {
         var runtime = JsRuntime.Create();
         var realm = runtime.DefaultRealm;
-        var program = JavaScriptParser.ParseScript(
+        var program = FlatJavaScriptParser.ParseScript(
             """
             function add(a, b) {
                 return a + b;
@@ -162,7 +162,7 @@ public partial class ExecutionCheckTests
             })
         );
         var realm = runtime.DefaultRealm;
-        var program = JavaScriptParser.ParseScript(
+        var program = FlatJavaScriptParser.ParseScript(
             """
             function add(a, b) {
                 return a + b;

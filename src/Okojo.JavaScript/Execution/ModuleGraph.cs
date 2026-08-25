@@ -20,7 +20,6 @@ internal sealed class ModuleGraph(JsAgent agent)
 
         var node = new ModuleRecordNode(
             resolvedId,
-            null,
             FlatJavaScriptParser.ParseModule(source, resolvedId),
             exportsObject
         );
@@ -64,44 +63,37 @@ internal sealed class ModuleGraph(JsAgent agent)
             return deps;
         }
 
-        var program = node.Program!;
-        for (var i = 0; i < program.Statements.Count; i++)
-            if (program.Statements[i] is JsImportDeclaration importDecl)
-            {
-                if (HasTextImportType(importDecl.Attributes))
-                    continue;
-                var depResolved = agent.ModuleSourceLoader.ResolveSpecifier(
-                    importDecl.Source,
-                    node.ResolvedId
-                );
-                if (nodes.TryGetValue(depResolved, out var depNode))
-                    deps.Add(depNode);
-            }
-            else if (
-                program.Statements[i] is JsExportNamedDeclaration named
-                && !string.IsNullOrEmpty(named.Source)
-            )
-            {
-                if (HasTextImportType(named.Attributes))
-                    continue;
-                var depResolved = agent.ModuleSourceLoader.ResolveSpecifier(
-                    named.Source!,
-                    node.ResolvedId
-                );
-                if (nodes.TryGetValue(depResolved, out var depNode))
-                    deps.Add(depNode);
-            }
-            else if (program.Statements[i] is JsExportAllDeclaration star)
-            {
-                if (HasTextImportType(star.Attributes))
-                    continue;
-                var depResolved = agent.ModuleSourceLoader.ResolveSpecifier(
-                    star.Source,
-                    node.ResolvedId
-                );
-                if (nodes.TryGetValue(depResolved, out var depNode))
-                    deps.Add(depNode);
-            }
+        foreach (ref readonly var request in node.FlatProgram!.ModuleRequests)
+        {
+            var attributes = node.FlatProgram.GetImportAttributes(request);
+            var isText = false;
+            for (var i = 0; i < attributes.Length; i++)
+                if (
+                    string.Equals(
+                        node.FlatProgram.GetString(attributes[i].KeyStringIndex),
+                        "type",
+                        StringComparison.Ordinal
+                    )
+                    && string.Equals(
+                        node.FlatProgram.GetString(attributes[i].ValueStringIndex),
+                        "text",
+                        StringComparison.Ordinal
+                    )
+                )
+                {
+                    isText = true;
+                    break;
+                }
+
+            if (isText)
+                continue;
+            var depResolved = agent.ModuleSourceLoader.ResolveSpecifier(
+                node.FlatProgram.GetString(request.SpecifierStringIndex),
+                node.ResolvedId
+            );
+            if (nodes.TryGetValue(depResolved, out var depNode) && !deps.Contains(depNode))
+                deps.Add(depNode);
+        }
 
         return deps;
     }
@@ -164,21 +156,6 @@ internal sealed class ModuleGraph(JsAgent agent)
                 }
         }
     }
-
-    private static bool HasTextImportType(IReadOnlyList<JsImportAttribute> attributes)
-    {
-        for (var i = 0; i < attributes.Count; i++)
-        {
-            var attribute = attributes[i];
-            if (
-                string.Equals(attribute.Key, "type", StringComparison.Ordinal)
-                && string.Equals(attribute.Value, "text", StringComparison.Ordinal)
-            )
-                return true;
-        }
-
-        return false;
-    }
 }
 
 internal enum ModuleEvalState
@@ -192,17 +169,13 @@ internal enum ModuleEvalState
 
 internal sealed class ModuleRecordNode(
     string resolvedId,
-    JsProgram? program,
-    FlatAst? flatProgram,
+    FlatAst flatProgram,
     JsModuleNamespaceObject exportsObject
 ) : IDisposable
 {
     public string ResolvedId { get; } = resolvedId;
-    public JsProgram? Program { get; } = program;
     public FlatAst? FlatProgram { get; private set; } = flatProgram;
-    public string SourceText { get; } =
-        flatProgram?.SourceText ?? program?.SourceText ?? string.Empty;
-    public JsIdentifierTable? IdentifierTable => Program?.IdentifierTable;
+    public string SourceText => FlatProgram?.SourceText ?? string.Empty;
     public JsModuleNamespaceObject ExportsObject { get; } = exportsObject;
     public ModuleLinkPlan? LinkPlan { get; set; }
     public ModuleExecutionCompilation? Compilation { get; set; }

@@ -14,7 +14,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const a = [1, , 3, 1];
                 const mapped = a.map(x => x * 2);
@@ -51,7 +51,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const a = [1, 2];
                 const pushLen = a.push(3);
@@ -106,7 +106,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const array = [undefined, 'c', , 'b', undefined, , 'a', 'd'];
 
@@ -145,7 +145,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var obj = {};
                 obj.shift = Array.prototype.shift;
@@ -187,7 +187,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const a = [0, 1, 2, 3];
                 const b = [0, 1, 2, 3];
@@ -208,7 +208,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let called = false;
                 let threw = false;
@@ -232,7 +232,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var obj = { 0: 11, 1: 12 };
                 var accessed = false;
@@ -269,7 +269,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function callbackfn1(val, idx, obj) { return val > 10; }
                 function callbackfn2(val, idx, obj) { return val > 11; }
@@ -295,7 +295,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function callbackfn1(val, idx, obj) { return parseInt(val, 10) > 1; }
                 function callbackfn2(val, idx, obj) { return parseInt(val, 10) > 2; }
@@ -351,7 +351,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var accessed = false;
                 function callbackfn(val, idx, obj) {
@@ -374,7 +374,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var result = false;
 
@@ -401,7 +401,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function callbackfn(val, idx, obj) {
                   return '[object JSON]' === Object.prototype.toString.call(JSON);
@@ -426,7 +426,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var tooBigLength = Number.MAX_VALUE;
                 var maxExpectedIndex = 9007199254740990;
@@ -453,7 +453,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var value = {};
                 var startIndex = Number.MAX_SAFE_INTEGER - 3;
@@ -478,7 +478,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const rab = new ArrayBuffer(4, { maxByteLength: 8 });
                 const fixedLength = new Uint8Array(rab, 0, 4);
@@ -503,7 +503,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const a = [0, 0];
                 const b = [0, 0];
@@ -546,7 +546,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const result = [1, 2, 3].flatMap(function(ele) {
                   return [[ele * 2]];
@@ -573,7 +573,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var a = {};
                 a.pop = Array.prototype.pop;
@@ -607,7 +607,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var threw = false;
                 var fromIndex = {
@@ -653,7 +653,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var array = [1, null, 3];
 
@@ -686,7 +686,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function allowProxyTraps(overrides) {
                   function throwTest262Error(msg) {
@@ -740,7 +740,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const rab = new ArrayBuffer(4, { maxByteLength: 8 });
                 const lengthTracking = new Uint8Array(rab);
@@ -766,7 +766,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function subClass(type) {
                   try {
@@ -929,7 +929,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 Array.prototype.copyWithin.call(true) instanceof Boolean &&
                 Array.prototype.copyWithin.call(false) instanceof Boolean;
@@ -947,7 +947,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var a = Array.prototype.copyWithin.call(true) instanceof Boolean;
                 var b = Array.prototype.copyWithin.call(false) instanceof Boolean;
@@ -966,7 +966,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var startIndex = Number.MAX_SAFE_INTEGER - 3;
                 var arrayLike = {
@@ -998,7 +998,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var startIndex = Number.MAX_SAFE_INTEGER - 3;
                 var arrayLike = {
@@ -1030,7 +1030,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var o = { 0: 42, length: 1 };
                 var p = new Proxy(o, {
@@ -1059,7 +1059,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var o = { 42: true, length: 43 };
                 var p = new Proxy(o, {
@@ -1090,7 +1090,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const nested = [1, [2, [3]]];
                 const flat = nested.flat(2);
@@ -1127,7 +1127,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const shiftTarget = { length: 2, 0: "a", 1: "b" };
                 const popTarget = { length: 1, 0: "x" };
@@ -1165,7 +1165,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const desc = Object.getOwnPropertyDescriptor(Array, "prototype");
                 desc.value === Array.prototype &&
@@ -1186,7 +1186,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 class MyUint8Array extends Uint8Array {}
                 class MyFloat32Array extends Float32Array {}
@@ -1260,7 +1260,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const unscopables = Array.prototype[Symbol.unscopables];
                 const desc = Object.getOwnPropertyDescriptor(Array.prototype, Symbol.unscopables);
@@ -1288,7 +1288,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 "use strict";
                 const sliced = [0, 1, 2, 3, 4].slice(3, undefined);
@@ -1332,7 +1332,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 "use strict";
                 const separator = ["", ""].toLocaleString();
@@ -1362,7 +1362,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const unique = { toString() { return "<sentinel object>"; } };
                 const testCases = [
@@ -1409,7 +1409,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 "ABCDE".slice(-2) === "DE" &&
                 "ABCDE".slice(1, undefined) === "BCDE";
@@ -1427,7 +1427,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 "Float64Array".startsWith("Float") &&
                 "Float64Array".startsWith("64", 5) &&
@@ -1447,7 +1447,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const array = [undefined, 'c', , 'b', undefined, , 'a', 'd'];
 
@@ -1493,7 +1493,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var reversedInput = [0, , 2, , 4];
                 Array.prototype[3] = 3;
@@ -1533,7 +1533,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 delete Object.prototype.toString;
                 const fallback = Array.prototype.toString.call({ join: null });
@@ -1597,7 +1597,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var arr = [0, , 2, , 4];
                 Array.prototype[3] = 3;
@@ -1631,7 +1631,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var arr = [0, 1, 2, 3];
                 Object.defineProperty(arr, "2", {
@@ -1656,7 +1656,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var arrayLike = {
                   get 0() { throw new Error("Get 0"); },
@@ -1687,7 +1687,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function StopReverse() {}
                 var arrayLike = {
@@ -1750,7 +1750,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var myComparefn = function(x, y) {
                   if (x === undefined) return -1;
@@ -1783,7 +1783,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var obj = {
                   valueOf: function() { return 1; },
@@ -1844,7 +1844,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 Object.defineProperty(Array.prototype, "0", {
                   get: function() { return 5; },
@@ -1876,7 +1876,7 @@ public class ArrayPrototypeMethodsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 Object.defineProperty(Object.prototype, "0", {
                   get: function() { return false; },

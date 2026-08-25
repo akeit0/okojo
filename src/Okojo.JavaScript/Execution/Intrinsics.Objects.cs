@@ -500,108 +500,11 @@ public partial class Intrinsics
         );
     }
 
-    private static bool TryGetDynamicFunctionExpression(
-        JsProgram program,
-        out JsFunctionExpression functionExpression
-    )
-    {
-        if (
-            program.Statements.Count == 1
-            && program.Statements[0]
-                is JsExpressionStatement { Expression: JsFunctionExpression expr }
-        )
-        {
-            functionExpression = expr;
-            return true;
-        }
-
-        functionExpression = null!;
-        return false;
-    }
-
     private static bool DynamicFunctionParameterTextContainsYield(IReadOnlyList<string> parameters)
     {
         for (var i = 0; i < parameters.Count; i++)
             if (ContainsIdentifierToken(parameters[i], "yield"))
                 return true;
-
-        return false;
-    }
-
-    private static bool DynamicFunctionParametersContainYield(
-        JsFunctionExpression functionExpression
-    )
-    {
-        var initializers = functionExpression.ParameterInitializers;
-        for (var i = 0; i < initializers.Count; i++)
-            if (initializers[i] is not null && ExpressionContainsYield(initializers[i]!))
-                return true;
-
-        return false;
-    }
-
-    private static bool ExpressionContainsYield(JsExpression expression)
-    {
-        return expression switch
-        {
-            JsYieldExpression => true,
-            JsAssignmentExpression a => ExpressionContainsYield(a.Left)
-                || ExpressionContainsYield(a.Right),
-            JsBinaryExpression b => ExpressionContainsYield(b.Left)
-                || ExpressionContainsYield(b.Right),
-            JsCallExpression c => ExpressionContainsYield(c.Callee)
-                || AnyYieldExpression(c.Arguments),
-            JsConditionalExpression c => ExpressionContainsYield(c.Test)
-                || ExpressionContainsYield(c.Consequent)
-                || ExpressionContainsYield(c.Alternate),
-            JsMemberExpression m => ExpressionContainsYield(m.Object)
-                || (m.IsComputed && ExpressionContainsYield(m.Property)),
-            JsArrayExpression a => AnyNullableYieldExpression(a.Elements),
-            JsObjectExpression o => ObjectExpressionContainsYield(o),
-            JsSequenceExpression s => AnyYieldExpression(s.Expressions),
-            JsSpreadExpression s => ExpressionContainsYield(s.Argument),
-            JsTaggedTemplateExpression t => ExpressionContainsYield(t.Tag)
-                || AnyYieldExpression(t.Template.Expressions),
-            JsTemplateExpression t => AnyYieldExpression(t.Expressions),
-            JsUnaryExpression u => ExpressionContainsYield(u.Argument),
-            JsUpdateExpression u => ExpressionContainsYield(u.Argument),
-            JsAwaitExpression a => ExpressionContainsYield(a.Argument),
-            JsNewExpression n => ExpressionContainsYield(n.Callee)
-                || AnyYieldExpression(n.Arguments),
-            JsParameterInitializerExpression p => ExpressionContainsYield(p.Expression),
-            JsFunctionExpression => false,
-            _ => false,
-        };
-    }
-
-    private static bool AnyYieldExpression(IReadOnlyList<JsExpression> expressions)
-    {
-        for (var i = 0; i < expressions.Count; i++)
-            if (ExpressionContainsYield(expressions[i]))
-                return true;
-
-        return false;
-    }
-
-    private static bool AnyNullableYieldExpression(IReadOnlyList<JsExpression?> expressions)
-    {
-        for (var i = 0; i < expressions.Count; i++)
-            if (expressions[i] is not null && ExpressionContainsYield(expressions[i]!))
-                return true;
-
-        return false;
-    }
-
-    private static bool ObjectExpressionContainsYield(JsObjectExpression expression)
-    {
-        for (var i = 0; i < expression.Properties.Count; i++)
-        {
-            var property = expression.Properties[i];
-            if (property.ComputedKey is not null && ExpressionContainsYield(property.ComputedKey))
-                return true;
-            if (ExpressionContainsYield(property.Value))
-                return true;
-        }
 
         return false;
     }

@@ -14,7 +14,7 @@ public class FunctionExpressionScopeTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var probe;
                 var func = function f() {
@@ -37,7 +37,7 @@ public class FunctionExpressionScopeTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var probeParams, probeBody;
                 var func = function f(
@@ -61,7 +61,7 @@ public class FunctionExpressionScopeTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let callCount = 0;
                 let refFn = function BindingIdentifier() {
@@ -86,7 +86,7 @@ public class FunctionExpressionScopeTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var g = 'outside';
                 var probeParams, setParams, probeBody, setBody;
@@ -117,7 +117,7 @@ public class FunctionExpressionScopeTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var n = 'outside';
                 var probeBefore = function() { return n; };

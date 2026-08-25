@@ -1,11 +1,9 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Okojo.JavaScript;
-using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
 using Okojo.JavaScript.Objects;
-using Okojo.JavaScript.Parsing;
 
 if (args.Length < 1)
 {
@@ -37,8 +35,7 @@ Console.WriteLine($"[env] case={caseName} iterations={iterations} warmup={warmup
 
 using var runtime = JsRuntime.CreateBuilder().Build();
 var realm = runtime.DefaultRealm;
-var program = JavaScriptParser.ParseScript(source);
-var script = JsCompiler.Compile(realm, program);
+var script = realm.CompileScript(source);
 
 realm.Execute(script, pumpJobsAfterRun: false);
 

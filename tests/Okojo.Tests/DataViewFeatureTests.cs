@@ -14,7 +14,7 @@ public class DataViewFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const d = Object.getOwnPropertyDescriptor(globalThis, "DataView");
                 const view = new DataView(new ArrayBuffer(4));
@@ -40,7 +40,7 @@ public class DataViewFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const buffer = new ArrayBuffer(16);
                 const view = new DataView(buffer, 4, 8);
@@ -70,7 +70,7 @@ public class DataViewFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const view = new DataView(new ArrayBuffer(8));
                 view.setBigUint64(0, 18446744073709551615n, true);
@@ -94,7 +94,7 @@ public class DataViewFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const buffer = new ArrayBuffer(8);
                 const view = new DataView(buffer, 0);
@@ -117,7 +117,7 @@ public class DataViewFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const buffer = new ArrayBuffer(8);
                 const view = new DataView(buffer, 0);
@@ -141,7 +141,7 @@ public class DataViewFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const view = new DataView(new ArrayBuffer(8), 0);
                 const poisoned = { valueOf() { throw new Error("poison"); } };
@@ -163,7 +163,7 @@ public class DataViewFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const buffer = new ArrayBuffer(24, { maxByteLength: 32 });
                 const view = new DataView(buffer, 0, 16);
@@ -187,7 +187,7 @@ public class DataViewFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const buffer = new ArrayBuffer(4, { maxByteLength: 5 });
                 const view = new DataView(buffer, 1);
@@ -210,7 +210,7 @@ public class DataViewFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const detachedBuffer = new ArrayBuffer(8);
                 const detachedView = new DataView(detachedBuffer, 1, 2);
@@ -248,7 +248,7 @@ public class DataViewFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const newTarget = Object.defineProperty(function() {}.bind(), "prototype", {
                   get() { throw new Error("prototype accessed"); }

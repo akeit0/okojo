@@ -14,7 +14,7 @@ public partial class FunctionParameterBindingTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function f1(x, x) { return x; }
                 function f2(x, x, x) { return x * x * x; }
@@ -34,7 +34,7 @@ public partial class FunctionParameterBindingTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function f1(x, a, b, x) { return x; }
                 f1(1, 2) === undefined;
@@ -52,7 +52,7 @@ public partial class FunctionParameterBindingTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function f(x, x) {
                   var before = [x, arguments[0], arguments[1]].join('|');

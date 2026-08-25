@@ -16,7 +16,7 @@ public class AsyncAwaitTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function awaitBench() {
                     globalThis.out = 0;
@@ -47,7 +47,7 @@ public class AsyncAwaitTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 globalThis.out = 0;
                 async function f() {
@@ -70,7 +70,7 @@ public class AsyncAwaitTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 globalThis.out = 0;
                 async function f() {
@@ -93,7 +93,7 @@ public class AsyncAwaitTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 globalThis.out = 0;
                 async function f() {
@@ -121,7 +121,7 @@ public class AsyncAwaitTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 globalThis.out = 0;
                 async function f() {
@@ -144,7 +144,7 @@ public class AsyncAwaitTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 globalThis.out = 0;
                 async function f() {
@@ -195,7 +195,7 @@ public class AsyncAwaitTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 globalThis.out = 0;
                 async function f() {
@@ -223,7 +223,7 @@ public class AsyncAwaitTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 globalThis.out = 0;
                 async function f() {
@@ -251,7 +251,7 @@ public class AsyncAwaitTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 globalThis.out = 0;
                 async function f() {
@@ -285,7 +285,7 @@ public class AsyncAwaitTests
             .DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 globalThis.out = 0;
                 async function f() {
@@ -323,7 +323,7 @@ public class AsyncAwaitTests
             .DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 globalThis.out = 0;
                 async function f() {
@@ -359,7 +359,7 @@ public class AsyncAwaitTests
             .DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 globalThis.side = 0;
                 globalThis.out = 0;
@@ -397,7 +397,7 @@ public class AsyncAwaitTests
             .DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 globalThis.side = 0;
                 globalThis.out = 0;
@@ -437,7 +437,7 @@ public class AsyncAwaitTests
             .DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 globalThis.out = 0;
                 async function f() {
@@ -475,7 +475,7 @@ public class AsyncAwaitTests
             .DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 globalThis.out = 0;
                 async function f() {
@@ -511,7 +511,7 @@ public class AsyncAwaitTests
             .DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 globalThis.trace = "";
                 globalThis.out = 0;
@@ -554,7 +554,7 @@ public class AsyncAwaitTests
             .DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 globalThis.trace = "";
                 globalThis.out = 0;
@@ -597,7 +597,7 @@ public class AsyncAwaitTests
             .DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 globalThis.out = 0;
                 globalThis.inner = async function () {
@@ -635,7 +635,7 @@ public class AsyncAwaitTests
             .DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 globalThis.trace = "";
                 async function a() {
@@ -677,7 +677,7 @@ public class AsyncAwaitTests
             .DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 globalThis.out = 0;
                 async function f() {

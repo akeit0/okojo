@@ -932,7 +932,7 @@ public class ModuleEdgeCaseTests
     [Test]
     public void ParseModule_ClassComputedFieldNames_FromAwait_SetsTopLevelAwait()
     {
-        var program = JavaScriptParser.ParseModule(
+        using var program = FlatJavaScriptParser.ParseModule(
             """
             let C = class {
               [await 9] = 0;
@@ -948,7 +948,7 @@ public class ModuleEdgeCaseTests
     [Test]
     public void ParseModule_ForAwaitOf_Allows_TopLevelAwait_In_Header_And_Body()
     {
-        var program = JavaScriptParser.ParseModule(
+        using var program = FlatJavaScriptParser.ParseModule(
             """
             var binding;
 
@@ -960,17 +960,17 @@ public class ModuleEdgeCaseTests
         );
 
         Assert.That(program.HasTopLevelAwait, Is.True);
-        Assert.That(program.Statements.Count, Is.EqualTo(2));
-        Assert.That(program.Statements[1], Is.TypeOf<JsForInOfStatement>());
-        var forOf = (JsForInOfStatement)program.Statements[1];
-        Assert.That(forOf.IsAwait, Is.True);
-        Assert.That(forOf.IsOf, Is.True);
+        var statements = program.ChildRange(program[program.Root].Arg0, program[program.Root].Arg1);
+        Assert.That(statements.Length, Is.EqualTo(2));
+        ref readonly var forOf = ref program[statements[1]];
+        Assert.That(forOf.Kind, Is.EqualTo(AstKind.ForInOfStatement));
+        Assert.That(forOf.Arg2, Is.EqualTo(2));
     }
 
     [Test]
     public void ParseModule_ExportVar_ObjectPattern_With_TopLevelAwait_SetsTopLevelAwait()
     {
-        var program = JavaScriptParser.ParseModule(
+        using var program = FlatJavaScriptParser.ParseModule(
             """
             export var name1 = await null;
             export var { x = await null } = {};
@@ -978,8 +978,9 @@ public class ModuleEdgeCaseTests
         );
 
         Assert.That(program.HasTopLevelAwait, Is.True);
-        Assert.That(program.Statements.Count, Is.EqualTo(2));
-        Assert.That(program.Statements[1], Is.TypeOf<JsExportDeclarationStatement>());
+        var statements = program.ChildRange(program[program.Root].Arg0, program[program.Root].Arg1);
+        Assert.That(statements.Length, Is.EqualTo(2));
+        Assert.That(program[statements[1]].Kind, Is.EqualTo(AstKind.ExportDeclaration));
     }
 
     [Test]

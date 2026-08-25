@@ -6,9 +6,7 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Okojo.JavaScript.Bytecode;
-using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Internals;
-using Okojo.JavaScript.Parsing;
 
 namespace Okojo.JavaScript.Execution;
 
@@ -177,19 +175,6 @@ public sealed partial class JsRealm
         {
             EndExecutionPhase();
         }
-    }
-
-    public void ExecuteProgram(JsProgram program, bool pumpJobsAfterRun = true)
-    {
-        Intrinsics.PrepareGlobalScriptDeclarationInstantiation(this, program);
-        var script = JsCompiler.Compile(this, program);
-        Execute(script, pumpJobsAfterRun);
-    }
-
-    public JsValue ExecuteProgramInline(JsProgram program)
-    {
-        Intrinsics.PrepareGlobalScriptDeclarationInstantiation(this, program);
-        return ExecuteProgramInline(JsCompiler.Compile(this, program));
     }
 
     public JsValue ExecuteProgramInline(string source)

@@ -8,7 +8,7 @@ public class CompilerStoragePlannerTests
     [Test]
     public void Plan_ClassifiesRootBindings_IntoRegisterStorageKinds()
     {
-        var program = JavaScriptParser.ParseModule(
+        var program = FlatJavaScriptParser.ParseModule(
             """
             import foo from "pkg";
             var a = 1;
@@ -20,7 +20,7 @@ public class CompilerStoragePlannerTests
         );
 
         using var collected = CompilerBindingCollector.Collect(program);
-        using var plan = CompilerStoragePlanner.Plan(collected);
+        using var plan = CompilerStoragePlanner.Plan(collected, program);
         var bindings = plan
             .Bindings.ToArray()
             .Where(static binding => binding.ScopeId == 0)
@@ -32,11 +32,11 @@ public class CompilerStoragePlannerTests
             Is.EqualTo(
                 new[]
                 {
-                    ("foo", CompilerPlannedStorageKind.ImportBinding),
-                    ("a", CompilerPlannedStorageKind.GlobalBinding),
+                    ("foo", CompilerPlannedStorageKind.ModuleBinding),
+                    ("a", CompilerPlannedStorageKind.ContextSlot),
                     ("b", CompilerPlannedStorageKind.ContextSlot),
                     ("c", CompilerPlannedStorageKind.ContextSlot),
-                    ("f", CompilerPlannedStorageKind.GlobalBinding),
+                    ("f", CompilerPlannedStorageKind.ContextSlot),
                     ("K", CompilerPlannedStorageKind.ContextSlot),
                 }
             )
@@ -46,7 +46,7 @@ public class CompilerStoragePlannerTests
     [Test]
     public void Plan_MarksBindingsCapturedAcrossFunctionBoundaries_AsContextSlots()
     {
-        var program = JavaScriptParser.ParseScript(
+        var program = FlatJavaScriptParser.ParseScript(
             """
             let outer = 1;
             function f() {
@@ -67,7 +67,7 @@ public class CompilerStoragePlannerTests
     [Test]
     public void Plan_MarksCapturedLoopHeadAlias_AsContextSlot()
     {
-        var program = JavaScriptParser.ParseScript(
+        var program = FlatJavaScriptParser.ParseScript(
             """
             function captureLoop() {
                 for (let uncaptured = 0, i = 0; i < 3; i++) {

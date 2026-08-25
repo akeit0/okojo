@@ -6,20 +6,6 @@ namespace Okojo.JavaScript.Compiler;
 
 internal sealed partial class JsScriptCompiler
 {
-    public JsScript Compile(JsProgram program)
-    {
-        using var ast = FlatJavaScriptParser.ParseScript(
-            program.SourceText
-                ?? throw new ArgumentException(
-                    "The compiler requires source text.",
-                    nameof(program)
-                ),
-            program.SourcePath,
-            program.HasTopLevelAwait
-        );
-        return Compile(ast, program.SourcePath);
-    }
-
     public JsScript Compile(string source, string? sourcePath = null)
     {
         using var ast = FlatJavaScriptParser.ParseScript(source, sourcePath);
@@ -36,6 +22,8 @@ internal sealed partial class JsScriptCompiler
             validateGlobalDeclarations: true
         );
     }
+
+    internal JsScript Compile(FlatAst ast) => Compile(ast, ast.SourcePath);
 
     /// <summary>
     ///     Compiles an indirect-eval body. Sloppy eval keeps var/function bindings

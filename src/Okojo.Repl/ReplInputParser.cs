@@ -13,7 +13,10 @@ public static class ReplInputParser
 
         try
         {
-            JavaScriptParser.ParseScript(input, false, false, allowTopLevelAwait);
+            using var _ = FlatJavaScriptParser.ParseScript(
+                input,
+                allowTopLevelAwait: allowTopLevelAwait
+            );
             return true;
         }
         catch (JsParseException ex)

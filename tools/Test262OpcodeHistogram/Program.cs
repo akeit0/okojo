@@ -98,7 +98,7 @@ foreach (var file in allFiles)
 
     try
     {
-        var program = JavaScriptParser.ParseScript(text);
+        var program = FlatJavaScriptParser.ParseScript(text);
         var script = JsCompiler.Compile(realm, program);
         compiled++;
         foreach (var (op, cur) in WalkUnits(script))

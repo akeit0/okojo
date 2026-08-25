@@ -14,7 +14,7 @@ public class TemplateLiteralParsingTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript("`type=${typeof (/'/g)}`;")
+            FlatJavaScriptParser.ParseScript("`type=${typeof (/'/g)}`;")
         );
 
         realm.Execute(script);
@@ -28,7 +28,7 @@ public class TemplateLiteralParsingTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var a = 12;
                 var b = 3;
@@ -48,7 +48,7 @@ public class TemplateLiteralParsingTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 Object.defineProperty(Symbol.prototype, Symbol.toPrimitive, { value: null });
                 `${Object(Symbol())}`;

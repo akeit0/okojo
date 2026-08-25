@@ -2,8 +2,8 @@
 
 ## Objective
 
-Replace the production class-AST parse and compiler path with a compact,
-single-owner frontend and a planned register-bytecode backend:
+The production path uses a compact, single-owner frontend and a register-bytecode
+backend:
 
 ```text
 source
@@ -72,7 +72,7 @@ remaining work is coverage and measured end-to-end optimization.
 BenchmarkDotNet (`benchmarks/Okojo.Benchmarks/ParseCompileBenchmarks.cs`,
 ShortRun, 6 warmup + 10 iterations, MemoryDiagnoser), five fixed corpora,
 one shared realm per iteration set. `Production_*` records the pre-cutover
-class-AST path; `Flat_*` records `FlatJavaScriptParser` +
+class-based pre-cutover path; `Flat_*` records `FlatJavaScriptParser` +
 `JsScriptCompiler.Compile(FlatAst)`.
 
 | scenario | prod parse | flat parse | ratio | prod compile | flat compile | ratio |
@@ -132,7 +132,7 @@ The implemented path has these properties:
 - separate binding collection, capture resolution, storage planning, and emit
   passes
 - one register/accumulator emitter shared by scripts and functions
-- class-AST lowering retained only as a temporary compatibility bridge
+- flat AST lowering is the only production lowering path
 - unsupported direct grammar fails explicitly instead of silently parsing twice
 
 Implemented execution coverage includes ordinary declarations and functions,
@@ -253,9 +253,10 @@ and AST-building modes. This supports the same conclusion as V8's parser/prepars
 split: grammar behavior should have one source of truth even if the produced
 artifact differs.
 
-Okojo should eventually share parser productions between eager flat building and
-any future syntax-only/lazy mode. It should not maintain a production class parser
-and an unrelated flat parser indefinitely.
+Okojo should share parser productions between eager flat building and any future
+syntax-only/lazy mode. The production compiler now has one parser representation;
+any alternate artifact should reuse its grammar instead of restoring a parallel
+class-based parser.
 
 ## Landed Bytecode-Shape Lessons
 
@@ -495,12 +496,12 @@ the new compiler for the supported function families.
 - landed static public fields: source-ordered named/computed keys, strict
   constructor-receiver initializer calls, missing initializers, `this`/`super`,
   captures, inner class-name initialization, static `prototype` early rejection,
-  and class-AST bridge execution. All keys are evaluated before the static
+  and direct flat execution. All keys are evaluated before the static
   initializer phase, matching V8 rather than interleaving key and value work.
 - landed instance public fields: cached computed keys, base-constructor entry,
   implicit/explicit/spread derived post-`super()` scheduling, missing defaults,
   outer capture and constructor-parameter isolation, `this`/`super`, nested
-  arrows, and class-AST bridge execution
+  arrows, and direct flat execution
 - landed static blocks: strict synthetic initializer functions, constructor
   receiver, `this`/`super`/inner-name access, block-local declarations and
   closures, source ordering with public static fields after the shared
@@ -510,7 +511,7 @@ the new compiler for the supported function families.
 - landed private fields: separate instance/static brands, fixed slots, initializer
   scheduling, lexical access through nested functions/classes, loads/calls/
   assignments/updates, optional access, `#x in object`, wrong-receiver errors,
-  undeclared/duplicate/delete early errors, and the class-AST bridge. V8 uses
+  undeclared/duplicate/delete early errors, and direct flat execution. V8 uses
   private-name context slots plus keyed operations; Okojo deliberately reuses its
   direct private-field opcodes and function brand mappings.
 - landed named field initializer inference: anonymous function/class values receive
@@ -526,7 +527,7 @@ the new compiler for the supported function families.
   descriptors precede static fields/blocks. Fixed brand/slot/value indices reuse
   `InitPrivateMethod`/`InitPrivateAccessor`; focused coverage includes identity,
   names, missing accessor halves, updates, `#x in`, lexical nesting, derived
-  `super` home objects, early errors, and the class-AST bridge. This follows V8's
+  `super` home objects, early errors, and direct flat execution. This follows V8's
   class-evaluation shape and improves on production Okojo's per-instance accessor
   closure behavior.
 - complete private-element, computed-key, field-initializer, and heritage ordering
@@ -552,7 +553,7 @@ checks, and observable function names match the production engine and V8.
   negative live-cell indices, local exports receive positive indices, and local
   aliases share one cell, matching V8's module-descriptor finalization contract
 - planned module compilation now consumes finalized regular cells directly:
-  import/export wrappers emit no class-AST objects, module loads/stores use the
+  import/export wrappers emit no syntax-tree objects, module loads/stores use the
   existing signed-cell VM opcodes, and child functions retain module-cell access.
   V8-special namespace imports use lexical/context storage and are initialized by
   one cold module-prologue runtime lookup that preserves import attributes.
@@ -564,7 +565,7 @@ checks, and observable function names match the production engine and V8.
 - the opt-in module graph now parses once to a pooled `FlatAst`; the linker copies its
   compact request/import/export descriptors into the persistent `ModuleLinkPlan`, the
   compiler consumes that same AST, and the module record releases it after compilation.
-  Class-AST module parsing is absent from this path.
+  Legacy class-based module parsing is absent from this path.
 - flat module instantiation now compiles once into an execution artifact containing
   the script, initial context slots, and hoisted function templates. It installs named
   and default-exported function declarations into signed module cells or the shared
@@ -586,7 +587,7 @@ checks, and observable function names match the production engine and V8.
 - remaining: extend flat compiler coverage and validate further workload performance
 
 Exit gate: the production module linker consumes flat compiler metadata directly;
-no class-AST module objects remain on the execution path.
+no legacy syntax-tree module objects remain on the execution path.
 
 ### P5 - Production replacement and deletion
 

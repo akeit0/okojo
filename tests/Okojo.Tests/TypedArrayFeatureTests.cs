@@ -24,7 +24,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const d = Object.getOwnPropertyDescriptor(globalThis, "Uint8Array");
                 typeof Uint8Array === "function" &&
@@ -45,7 +45,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let ok = false;
                 try { Uint8Array(4); } catch (e) { ok = e && e.name === "TypeError"; }
@@ -64,7 +64,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const ta = new Uint8Array(4);
                 Object.getPrototypeOf(ta) === Uint8Array.prototype &&
@@ -88,7 +88,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const ta = new Uint8Array(3);
                 ta[0] = 257;
@@ -137,7 +137,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const buffer = new ArrayBuffer(4);
                 const view = new Uint8Array(buffer, 1, 2);
@@ -197,7 +197,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const source = new Uint8Array([1, 257, -1]);
                 const copy = new Uint8Array(source);
@@ -225,7 +225,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const fromSet = new Uint8Array(new Set([4, 5]));
                 const empty = new Uint8Array({});
@@ -248,7 +248,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const from = Uint8Array.from([1, 257, -1], x => x);
                 const ofResult = Uint8Array.of(1, 257, -1);
@@ -293,7 +293,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const ta = new Uint8Array([7, 8]);
                 const values = ta.values();
@@ -326,7 +326,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const ta = new Uint8Array([7, 8]);
                 const s = Symbol("1");
@@ -348,7 +348,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const ta = new Uint8Array([7, 8]);
                 const s = Symbol("1");
@@ -369,7 +369,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const marker = {};
                 const TA = Object.getPrototypeOf(Int8Array);
@@ -401,7 +401,7 @@ public class TypedArrayFeatureTests
         InstallTest262DetachBufferHarness(realm);
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let offsetTypeError = false;
                 let lengthTypeError = false;
@@ -433,7 +433,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const values = [0, {
                   valueOf() {
@@ -458,7 +458,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const rab = new ArrayBuffer(8, { maxByteLength: 16 });
                 const source = new Int16Array(rab, 0, 4);
@@ -484,7 +484,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const it = new Uint8Array([1]).values();
                 const proto = Object.getPrototypeOf(it);
@@ -506,7 +506,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var valueOfCalls = 0;
                 var value = {
@@ -561,7 +561,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var target = new Uint8Array([0]);
                 var receiver = new Uint8Array([1]);
@@ -591,7 +591,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const ta = new Uint8Array([5, 6, 7]);
                 let typeError = false;
@@ -617,7 +617,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const TypedArray = Object.getPrototypeOf(Int8Array);
                 TypedArray.prototype.toString === Array.prototype.toString;
@@ -635,7 +635,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const source = new Uint8Array([1, 2, 3, 4]);
                 const view = source.subarray(1, -1);
@@ -664,7 +664,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const a = new Uint8Array([1, 2, 3, 4]);
                 const returned = a.set({ length: 2, 0: 7, 1: 6 }, 1.9);
@@ -698,7 +698,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const ta = new Uint8Array([1, 2, 1]);
                 const withNaN = new Uint8Array([0, 1]);
@@ -726,7 +726,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let calls = [];
                 Number.prototype.toLocaleString = function() {
@@ -753,7 +753,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const rab = new ArrayBuffer(4, { maxByteLength: 8 });
                 const ta = new Int8Array(rab, 0);
@@ -774,7 +774,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const ta = new Float64Array([4, 2, 1, 3]);
                 Object.defineProperty(ta, "constructor", {
@@ -809,7 +809,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const ta = new Float64Array([0, 1, 2]);
                 Object.defineProperty(ta, "constructor", {
@@ -847,7 +847,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const rab = new ArrayBuffer(2, { maxByteLength: 5 });
                 const ta = new Int8Array(rab);
@@ -894,7 +894,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const target = new Uint8Array([255, 255, 255, 255, 255]);
                 const result = target.setFromBase64("Zm9vYmFy");
@@ -920,7 +920,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const target = new Uint8Array([255, 255, 255, 255, 255]);
                 let syntaxError = false;
@@ -950,7 +950,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const target = new Uint8Array([255, 255]);
                 const result = target.setFromHex("aabbcc");
@@ -993,7 +993,7 @@ public class TypedArrayFeatureTests
         );
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const sample = new Uint8Array([199, 239]);
                 let getterCalls = 0;
@@ -1053,7 +1053,7 @@ public class TypedArrayFeatureTests
         );
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const sample = new Uint8Array([0xab, 0xcd]);
                 const detached = new Uint8Array(2);
@@ -1080,7 +1080,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const target = new Uint8Array([255, 255, 255, 255]);
                 const result = target.setFromBase64("ZXhhZg=", { lastChunkHandling: "stop-before-partial" });
@@ -1105,7 +1105,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const rab = new ArrayBuffer(16, { maxByteLength: 16 });
                 const ta = new Int32Array(rab, 0, 4);
@@ -1135,7 +1135,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const rab = new ArrayBuffer(4, { maxByteLength: 8 });
                 const ta = new Uint8Array(rab);
@@ -1176,7 +1176,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const rab = new ArrayBuffer(4, { maxByteLength: 8 });
                 const ta = new Uint8Array(rab);
@@ -1210,7 +1210,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 typeof String(Symbol.iterator) === "string" &&
                 String(Symbol.iterator).indexOf("Symbol.iterator") >= 0;
@@ -1249,7 +1249,7 @@ public class TypedArrayFeatureTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const ta = new Float64Array(2);
                 const iter = ta.keys();
@@ -1302,7 +1302,7 @@ public class TypedArrayFeatureTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const ta = new Float64Array(2);
                 let count = 0;
@@ -1332,7 +1332,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const rab = new ArrayBuffer(4, { maxByteLength: 8 });
                 const fixedLength = new Uint8Array(rab, 0, 4);
@@ -1358,7 +1358,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const rab = new ArrayBuffer(32, { maxByteLength: 40 });
                 const fixed = new Float64Array(rab, 8, 2);
@@ -1387,7 +1387,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const base = new Uint8Array([0, 1, 2, 3]).buffer;
                 const ta = new Uint8Array(base, 1);
@@ -1417,7 +1417,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const fixedRab = new ArrayBuffer(4, { maxByteLength: 8 });
                 const fixed = new Uint8Array(fixedRab, 0, 4);
@@ -1450,7 +1450,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const ta = new Float64Array([0, 1, 2, 3]);
                 ta.copyWithin(0, 1, undefined);
@@ -1474,7 +1474,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const ta = new Float64Array([42, 43, 44]);
                 const seen = [];
@@ -1512,7 +1512,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const sample = new Float64Array([42, 43, 44]);
                 let ok = true;
@@ -1543,7 +1543,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const ints = new Uint8Array(2);
                 let n = 1;
@@ -1581,7 +1581,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const sample = new Float64Array([42, 43, 44]);
                 const seen = [];
@@ -1624,7 +1624,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const sample = new Float64Array([1, 2, 3]);
                 const TypedArray = Object.getPrototypeOf(Int8Array);
@@ -1670,7 +1670,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const sample = new Float64Array([1, 2, 3]);
                 const TypedArray = Object.getPrototypeOf(Int8Array);
@@ -1719,7 +1719,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const sample = new Float64Array([1, 2, 3]);
                 const TypedArray = Object.getPrototypeOf(Int8Array);
@@ -1768,7 +1768,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const sample = new Float64Array([42, 43, 44]);
                 const TypedArray = Object.getPrototypeOf(Int8Array);
@@ -1817,7 +1817,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const rab = new ArrayBuffer(32, { maxByteLength: 64 });
                 const fixed = new Float64Array(rab, 0, 4);
@@ -1853,7 +1853,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const rab = new ArrayBuffer(32, { maxByteLength: 64 });
                 const tracking = new Float64Array(rab);
@@ -1889,7 +1889,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const sample = new Float64Array([9007199254740992, 1e20, 1e-6, 1e-7]);
                 String(sample[0]) === sample[0].toString() &&
@@ -1913,7 +1913,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let threw = false;
                 try {
@@ -1936,7 +1936,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const sample = new Float64Array([42, 43, 44]);
                 const TypedArray = Object.getPrototypeOf(Int8Array);
@@ -1986,7 +1986,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const sample = new Float64Array([42, 43, 44]);
                 const TypedArray = Object.getPrototypeOf(Int8Array);
@@ -2038,7 +2038,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const TypedArray = Object.getPrototypeOf(Int8Array);
                 let lengthGets = 0;
@@ -2103,7 +2103,7 @@ public class TypedArrayFeatureTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const sample = new Float64Array(5);
                 const calls = [];
@@ -2222,7 +2222,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const TypedArray = Object.getPrototypeOf(Int8Array);
                 let lengthGets = 0;
@@ -2268,7 +2268,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const sample = new Float64Array([42, 43, 44]);
                 const TypedArray = Object.getPrototypeOf(Int8Array);
@@ -2321,7 +2321,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const TypedArray = Object.getPrototypeOf(Int8Array);
                 TypedArray.prototype["-0"] = "blocked";
@@ -2358,7 +2358,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const ta = new Float64Array([42, 43]);
 
@@ -2404,7 +2404,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const ta = new Float64Array([17]);
                 const desc = {
@@ -2433,7 +2433,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var proxy = new Proxy(Object.getPrototypeOf(Int8Array).prototype, {
                   has: function() { throw new Error("has trap"); }
@@ -2466,7 +2466,7 @@ public class TypedArrayFeatureTests
         InstallTest262DetachBufferHarness(realm);
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var sample = new Float64Array([42]);
                 $262.detachArrayBuffer(sample.buffer);
@@ -2493,7 +2493,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var value = { valueOf() { throw new Error("should not coerce"); } };
                 var target = new Float64Array([0]);
@@ -2525,7 +2525,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 Object.defineProperty(Float64Array.prototype, 1, {
                   get() { throw new Error("getter"); },
@@ -2559,7 +2559,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let receiver = new Int32Array(10);
                 let obj = Object.create(receiver);
@@ -2582,7 +2582,7 @@ public class TypedArrayFeatureTests
         InstallTest262DetachBufferHarness(realm);
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let ta = new Float64Array(1);
                 let result = Reflect.set(ta, 0, {
@@ -2607,7 +2607,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var value = { tag: "v" };
                 var target = new Float64Array([0]);
@@ -2635,7 +2635,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const ta = new Int32Array(2);
                 ta["1.1"] = 42;
@@ -2661,7 +2661,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var receiver = {
                   get 0() { return 1; },
@@ -2690,7 +2690,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var receiver = {
                   get 0() { return 1; },
@@ -2721,7 +2721,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var receiver = { get 0() { return 1; } };
                 var desc = Object.getOwnPropertyDescriptor(receiver, "0");
@@ -2796,7 +2796,7 @@ public class TypedArrayFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var valueOfCalls = 0;
                 var value = {

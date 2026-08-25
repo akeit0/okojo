@@ -16,7 +16,7 @@ public class DisplayToStringTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let o = { x: 3 };
                 o;
@@ -35,7 +35,7 @@ public class DisplayToStringTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 (() => {});
                 """
@@ -53,7 +53,7 @@ public class DisplayToStringTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 ({ "round#2": 12.34, "1": "one", normal_key: true });
                 """
@@ -74,7 +74,7 @@ public class DisplayToStringTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 ({
                     get x() { return 1; },
@@ -95,7 +95,7 @@ public class DisplayToStringTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 ({ a: 1, b: { c: 2 } });
                 """

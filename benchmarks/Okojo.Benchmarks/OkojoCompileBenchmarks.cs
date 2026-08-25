@@ -13,7 +13,8 @@ namespace Okojo.Benchmarks;
 [Orderer(SummaryOrderPolicy.Declared)]
 public class OkojoCompileBenchmarks
 {
-    private JsProgram program = null!;
+    private FlatAst program = null!;
+    private JsRuntime sharedRuntime = null!;
     private JsRealm sharedRealm = null!;
     private string source = string.Empty;
 
@@ -24,29 +25,37 @@ public class OkojoCompileBenchmarks
     public void Setup()
     {
         source = ScriptSourceLoader.LoadScenario(Scenario);
-        program = JavaScriptParser.ParseScript(source);
-        sharedRealm = JsRuntime.CreateBuilder().Build().DefaultRealm;
+        program = FlatJavaScriptParser.ParseScript(source);
+        sharedRuntime = JsRuntime.CreateBuilder().Build();
+        sharedRealm = sharedRuntime.DefaultRealm;
+    }
+
+    [GlobalCleanup]
+    public void Cleanup()
+    {
+        program.Dispose();
+        sharedRuntime.Dispose();
     }
 
     [Benchmark(Baseline = true)]
     public int Okojo_Parse_Only()
     {
-        var program = JavaScriptParser.ParseScript(source);
-        return program.Statements.Count;
+        using var ast = FlatJavaScriptParser.ParseScript(source);
+        return ast.ChildRange(ast[ast.Root].Arg0, ast[ast.Root].Arg1).Length;
     }
 
     [Benchmark]
     public int Okojo_Compile_Preparsed()
     {
-        var script = JsCompiler.Compile(sharedRealm, program);
+        var script = new JsScriptCompiler(sharedRealm).Compile(program, null);
         return script.Bytecode.Length;
     }
 
     [Benchmark]
     public int Okojo_Parse_And_Compile()
     {
-        var program = JavaScriptParser.ParseScript(source);
-        var script = JsCompiler.Compile(sharedRealm, program);
+        using var ast = FlatJavaScriptParser.ParseScript(source);
+        var script = new JsScriptCompiler(sharedRealm).Compile(ast, null);
         return script.Bytecode.Length;
     }
 }

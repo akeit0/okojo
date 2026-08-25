@@ -14,7 +14,7 @@ public class OptionalChainingTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const a = undefined;
                 let x = 1;
@@ -37,7 +37,7 @@ public class OptionalChainingTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let x = 0;
                 let fn = undefined;
@@ -57,7 +57,7 @@ public class OptionalChainingTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let x = 0;
                 const obj = { method: undefined };
@@ -77,7 +77,7 @@ public class OptionalChainingTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const obj = {
                   value: 3,
@@ -100,7 +100,7 @@ public class OptionalChainingTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let seen = "unset";
                 class C {
@@ -124,7 +124,7 @@ public class OptionalChainingTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const a = 'global';
                 function f() {

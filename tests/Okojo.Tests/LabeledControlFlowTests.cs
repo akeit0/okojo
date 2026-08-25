@@ -14,7 +14,7 @@ public class LabeledControlFlowTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let x = 0;
                 done: {
@@ -37,7 +37,7 @@ public class LabeledControlFlowTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let c = 0;
                 outer: for (let i = 0; i < 3; i++) {
@@ -61,7 +61,7 @@ public class LabeledControlFlowTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let log = 0;
                 outer: while (true) {
@@ -86,7 +86,7 @@ public class LabeledControlFlowTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let c = 0;
                 outer: for (let i = 0; i < 2; i++) {
@@ -115,7 +115,7 @@ public class LabeledControlFlowTests
         var ex = Assert.Throws<JsParseException>(() =>
             JsCompiler.Compile(
                 realm,
-                JavaScriptParser.ParseScript(
+                FlatJavaScriptParser.ParseScript(
                     """
                     while (true) { break missing; }
                     """
@@ -134,7 +134,7 @@ public class LabeledControlFlowTests
         var ex = Assert.Throws<JsParseException>(() =>
             JsCompiler.Compile(
                 realm,
-                JavaScriptParser.ParseScript(
+                FlatJavaScriptParser.ParseScript(
                     """
                     L: { continue L; }
                     """

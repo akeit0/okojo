@@ -14,7 +14,7 @@ public class Test262AsyncFunctionRegressionsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var __join = Function.prototype.call.bind(Array.prototype.join);
                 var __push = Function.prototype.call.bind(Array.prototype.push);
@@ -38,7 +38,7 @@ public class Test262AsyncFunctionRegressionsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 globalThis.out = 0;
                 var y = null;
@@ -59,7 +59,7 @@ public class Test262AsyncFunctionRegressionsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function f(a) {
                   arguments[0] = 2;
@@ -83,7 +83,7 @@ public class Test262AsyncFunctionRegressionsTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 function f(a = 10) {
                   arguments[0] = 2;

@@ -498,7 +498,7 @@ public class HostInteropTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 host.Name = "sum";
                 let first = host.AddAndDescribe(3);
@@ -527,7 +527,7 @@ public class HostInteropTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 host[1] = "bb";
                 [host[0], host[1], Reflect.ownKeys(host).slice(0, 3).join(",")].join("|");
@@ -549,7 +549,7 @@ public class HostInteropTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const nameDesc = Object.getOwnPropertyDescriptor(host, "Name");
                 const countDesc = Object.getOwnPropertyDescriptor(host, "Count");
@@ -577,7 +577,7 @@ public class HostInteropTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 [
                   Object.prototype.toString.call(host),
@@ -605,7 +605,7 @@ public class HostInteropTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const value = host.SetterOnly;
                 [value === undefined, host.SetterOnlyWriteCount, host.LastSetterOnlyValue].join("|");
@@ -630,7 +630,7 @@ public class HostInteropTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 host.GetterOnly = 9;
                 [host.GetterOnlyReadCount, host.GetterOnly].join("|");
@@ -687,7 +687,7 @@ public class HostInteropTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const value = new clr.Okojo.Tests.ClrNamespaceSample();
                 value.Ping();
@@ -711,7 +711,7 @@ public class HostInteropTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 [
                   Object.prototype.toString.call(clr.System),
@@ -744,7 +744,7 @@ public class HostInteropTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const type = clr.Okojo.Tests.ClrNamespaceSample;
                 const labelDesc = Object.getOwnPropertyDescriptor(type, "Label");
@@ -778,7 +778,7 @@ public class HostInteropTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const type = clr.Okojo.Tests.ClrStaticNamespaceSample;
                 let constructTypeError = false;
@@ -814,7 +814,7 @@ public class HostInteropTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const type = clr.Okojo.Tests.ClrStaticNamespaceSample;
                 [type.Echo(7), type.Echo("hi"), type.Echo({ ok: 1 }).startsWith("object:"), typeof type.Echo].join("|");
@@ -839,7 +839,7 @@ public class HostInteropTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 [sample.Echo(3), sample.Echo("ok"), sample.Echo({ ok: 1 }).startsWith("object:"), typeof sample.Echo].join("|");
                 """
@@ -862,7 +862,7 @@ public class HostInteropTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const type = clr.Okojo.Tests.ClrStaticNamespaceSample;
                 [type.JoinValues(), type.JoinValues(7), type.JoinValues(1, 2, 3)].join("|");
@@ -890,7 +890,7 @@ public class HostInteropTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const ListOfString = clr.System.Collections.Generic.List$1(clr.System.String);
                 const list = new ListOfString();
@@ -927,7 +927,7 @@ public class HostInteropTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const type = clr.System.Console;
                 const desc = Object.getOwnPropertyDescriptor(type, "WriteLine");
@@ -955,7 +955,7 @@ public class HostInteropTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const ListOfString = clr.System.Collections.Generic.List(clr.System.String);
                 const list = new ListOfString();
@@ -994,7 +994,7 @@ public class HostInteropTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const Pair = clr.System.Collections.Generic.KeyValuePair$2(
                   clr.System.String,
@@ -1035,7 +1035,7 @@ public class HostInteropTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const ListOfString = clr.System.Collections.Generic.List$1(clr.System.String);
                 const list = new ListOfString();
@@ -1072,7 +1072,7 @@ public class HostInteropTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const clrUsings = $using(clr.System, clr.System.Collections.Generic);
                 clrUsings.Add(clr.System.Linq.Enumerable);
@@ -1114,7 +1114,7 @@ public class HostInteropTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const $usings = $using(clr.System, clr.System.Collections.Generic);
                 const Dict = $usings.Dictionary$2($usings.String, $usings.String);
@@ -1360,7 +1360,7 @@ public class HostInteropTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const sample = clr.Okojo.Tests.ClrRefOutSample;
                 const n = $place(clr.System.Int32, 4);
@@ -1395,7 +1395,7 @@ public class HostInteropTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const sample = clr.Okojo.Tests.ClrStaticNamespaceSample;
                 [
@@ -1426,7 +1426,7 @@ public class HostInteropTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const ListOfInt = clr.System.Collections.Generic.List(clr.System.Int32);
                 const list = new ListOfInt();
@@ -1454,7 +1454,7 @@ public class HostInteropTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let ok = false;
                 try {
@@ -1531,7 +1531,7 @@ public class HostInteropTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const type = ManualHostBindingSample;
                 const sample = new type();
@@ -1566,7 +1566,7 @@ public class HostInteropTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 sample === ManualHostBindingSample.Bounce(sample);
                 """
@@ -1611,7 +1611,7 @@ public class HostInteropTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const type = GeneratedHostBindingSample;
                 const sample = new type();
@@ -1641,7 +1641,7 @@ public class HostInteropTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 [
                   GeneratedHostBindingSample.sumNumbers(1, 2, 3, 4),
@@ -1700,7 +1700,7 @@ public class HostInteropTests
 
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const a = new ManualHostBindingSample();
                 const b = new GeneratedHostBindingSample();

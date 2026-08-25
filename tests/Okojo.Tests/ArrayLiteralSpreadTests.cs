@@ -14,7 +14,7 @@ public class ArrayLiteralSpreadTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var values = ["a", "b"];
                 var out = [0, ...values, 3];
@@ -37,7 +37,7 @@ public class ArrayLiteralSpreadTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var ok = false;
                 try {
@@ -60,7 +60,7 @@ public class ArrayLiteralSpreadTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 var VALUE_LITERAL = "VALUE_LITERAL";
                 var VALUE_GET = "VALUE_GET";
@@ -105,7 +105,7 @@ public class ArrayLiteralSpreadTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 Object.defineProperty(Array.prototype, "0", {
                   value: 100,
@@ -135,7 +135,7 @@ public class ArrayLiteralSpreadTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 Object.defineProperty(Array.prototype, "0", {
                   value: 100,

@@ -14,7 +14,7 @@ public class SetFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const d = Object.getOwnPropertyDescriptor(globalThis, "Set");
                 const sd = Object.getOwnPropertyDescriptor(Set, Symbol.species);
@@ -40,7 +40,7 @@ public class SetFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 let ok = false;
                 try { Set(); } catch (e) { ok = e && e.name === "TypeError"; }
@@ -59,7 +59,7 @@ public class SetFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const s = new Set([1, 2, 2, NaN, -0, 0]);
                 Object.getPrototypeOf(s) === Set.prototype &&
@@ -82,7 +82,7 @@ public class SetFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const s = new Set([1, 2]);
                 const addResult = s.add(3);
@@ -109,7 +109,7 @@ public class SetFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const s = new Set([3, 1, 2]);
                 const v = s.values();
@@ -140,7 +140,7 @@ public class SetFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const s = new Set();
                 const obj = {};
@@ -176,7 +176,7 @@ public class SetFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const s = new Set(["a", "b"]);
                 let log = "";
@@ -198,7 +198,7 @@ public class SetFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const a = new Set([1, 2, 3]);
                 const b = new Set([2, 4]);
@@ -225,7 +225,7 @@ public class SetFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const a = new Set([1, 2]);
                 const b = new Set([1, 2, 3]);
@@ -248,7 +248,7 @@ public class SetFeatureTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
-            JavaScriptParser.ParseScript(
+            FlatJavaScriptParser.ParseScript(
                 """
                 const setAdd = Set.prototype.add;
                 let counter = 0;
