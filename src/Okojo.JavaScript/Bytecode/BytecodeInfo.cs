@@ -169,15 +169,13 @@ internal static class BytecodeInfo
             or JsOpCode.SuspendGenerator
             or JsOpCode.CallProperty => 4,
 
-            JsOpCode.GetPrivateField => 5,
+            JsOpCode.GetPrivateField => 7,
 
-            JsOpCode.InitPrivateField
-            or JsOpCode.InitPrivateMethod
-            or JsOpCode.SetPrivateField
-            or JsOpCode.LdaNamedPropertyWide
-            or JsOpCode.StaNamedPropertyWide => 6,
+            JsOpCode.InitPrivateField or JsOpCode.InitPrivateMethod or JsOpCode.SetPrivateField =>
+                8,
+            JsOpCode.LdaNamedPropertyWide or JsOpCode.StaNamedPropertyWide => 6,
 
-            JsOpCode.InitPrivateAccessor => 7,
+            JsOpCode.InitPrivateAccessor => 9,
 
             _ => 0,
         };

@@ -171,11 +171,11 @@ public enum JsOpCode : byte
     SwitchOnGeneratorState, // [gen_reg] [table_start] [table_length]
     SuspendGenerator, // [gen_reg] [first_reg] [reg_count] [suspend_id]
     ResumeGenerator, // [gen_reg] [first_reg] [reg_count]
-    InitPrivateField, // [obj_reg] [value_reg] [brand_id_lo] [brand_id_hi] [slot_index_lo] [slot_index_hi]
-    InitPrivateAccessor, // [obj_reg] [getter_reg] [setter_reg] [brand_id_lo] [brand_id_hi] [slot_index_lo] [slot_index_hi]
-    InitPrivateMethod, // [obj_reg] [method_reg] [brand_id_lo] [brand_id_hi] [slot_index_lo] [slot_index_hi]
-    GetPrivateField, // [obj_reg] [brand_id_lo] [brand_id_hi] [slot_index_lo] [slot_index_hi]
-    SetPrivateField, // [obj_reg] [value_reg] [brand_id_lo] [brand_id_hi] [slot_index_lo] [slot_index_hi]
+    InitPrivateField, // [obj_reg] [value_reg] [brand_id_b0..b3] [slot_index_lo] [slot_index_hi]
+    InitPrivateAccessor, // [obj_reg] [getter_reg] [setter_reg] [brand_id_b0..b3] [slot_index_lo] [slot_index_hi]
+    InitPrivateMethod, // [obj_reg] [method_reg] [brand_id_b0..b3] [slot_index_lo] [slot_index_hi]
+    GetPrivateField, // [obj_reg] [brand_id_b0..b3] [slot_index_lo] [slot_index_hi]
+    SetPrivateField, // [obj_reg] [value_reg] [brand_id_b0..b3] [slot_index_lo] [slot_index_hi]
     Return,
     Throw,
     Debugger,

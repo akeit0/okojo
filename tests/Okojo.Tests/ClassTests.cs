@@ -516,6 +516,63 @@ public class ClassTests
     }
 
     [Test]
+    public void ClassPrivateSetter_NestedClassAssignment_UsesOuterPrivateBrand()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                class C {
+                  set #m(v) { this._v = v; }
+                  B = class {
+                    method(o, v) { o.#m = v; }
+                  }
+                }
+                var c = new C();
+                var innerB = new c.B();
+                innerB.method(c, "test262");
+                c._v === "test262";
+                """
+            )
+        );
+
+        realm.Execute(script);
+        Assert.That(realm.Accumulator.IsTrue, Is.True);
+    }
+
+    [Test]
+    public void ClassHeritageAndObjectMethods_PreserveNonConstructorFunctionKinds()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                var getterReached = false;
+                async function asyncFn() {}
+                Object.defineProperty(asyncFn, "prototype", {
+                  get() { getterReached = true; throw new Error("unreachable"); }
+                });
+                var asyncTypeError = false;
+                try { class AsyncDerived extends asyncFn {} }
+                catch (e) { asyncTypeError = e instanceof TypeError; }
+
+                var obj = { method() {} };
+                var methodTypeError = false;
+                try { new obj.method(); }
+                catch (e) { methodTypeError = e instanceof TypeError; }
+
+                asyncTypeError && methodTypeError && !getterReached;
+                """
+            )
+        );
+
+        realm.Execute(script);
+        Assert.That(realm.Accumulator.IsTrue, Is.True);
+    }
+
+    [Test]
     public void ClassPrivateField_SlotIndex_Above_ByteMaxValue_Works()
     {
         const int privateFieldCount = 300;
@@ -541,6 +598,30 @@ public class ClassTests
         var script = JsCompiler.Compile(
             realm,
             JavaScriptParser.ParseScript(sourceBuilder.ToString())
+        );
+
+        realm.Execute(script);
+        Assert.That(realm.Accumulator.IsTrue, Is.True);
+    }
+
+    [Test]
+    public void ClassPrivateBrandId_Above_UShortMax_Works()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        for (var i = 0; i < ushort.MaxValue; i++)
+            realm.Agent.AllocatePrivateBrandId();
+
+        var script = realm.CompileScript(
+            """
+            class C {
+              #x = 1;
+              #m() { return this.#x; }
+              read() { return this.#x; }
+              write(v) { this.#x = v; return this.#m(); }
+            }
+            var c = new C();
+            c.read() === 1 && c.write(2) === 2;
+            """
         );
 
         realm.Execute(script);

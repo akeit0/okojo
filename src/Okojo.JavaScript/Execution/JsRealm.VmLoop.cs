@@ -407,12 +407,12 @@ public sealed partial class JsRealm
             ThrowTypeError("PRIVATE_FIELD_TARGET", "Private field target must be object");
 
         int valueReg = Unsafe.Add(ref pc, 1);
-        var brandId = Unsafe.Add(ref pc, 2) | (Unsafe.Add(ref pc, 3) << 8);
-        var slotIndex = Unsafe.Add(ref pc, 4) | (Unsafe.Add(ref pc, 5) << 8);
+        var brandId = Unsafe.ReadUnaligned<int>(ref Unsafe.Add(ref pc, 2));
+        var slotIndex = Unsafe.ReadUnaligned<ushort>(ref Unsafe.Add(ref pc, 6));
         var value = Unsafe.Add(ref registers, valueReg);
         InitPrivateFieldValue(target, currentFunc, brandId, slotIndex, value);
         acc = JsValue.Undefined;
-        return 6;
+        return 8;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -429,8 +429,8 @@ public sealed partial class JsRealm
 
         int getterReg = Unsafe.Add(ref pc, 1);
         int setterReg = Unsafe.Add(ref pc, 2);
-        var brandId = Unsafe.Add(ref pc, 3) | (Unsafe.Add(ref pc, 4) << 8);
-        var slotIndex = Unsafe.Add(ref pc, 5) | (Unsafe.Add(ref pc, 6) << 8);
+        var brandId = Unsafe.ReadUnaligned<int>(ref Unsafe.Add(ref pc, 3));
+        var slotIndex = Unsafe.ReadUnaligned<ushort>(ref Unsafe.Add(ref pc, 7));
         var getterValue = Unsafe.Add(ref registers, getterReg);
         var setterValue = Unsafe.Add(ref registers, setterReg);
         var getter =
@@ -451,7 +451,7 @@ public sealed partial class JsRealm
             );
         InitPrivateAccessorValue(target, currentFunc, brandId, slotIndex, getter, setter);
         acc = JsValue.Undefined;
-        return 7;
+        return 9;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -467,15 +467,15 @@ public sealed partial class JsRealm
             ThrowTypeError("PRIVATE_FIELD_TARGET", "Private field target must be object");
 
         int methodReg = Unsafe.Add(ref pc, 1);
-        var brandId = Unsafe.Add(ref pc, 2) | (Unsafe.Add(ref pc, 3) << 8);
-        var slotIndex = Unsafe.Add(ref pc, 4) | (Unsafe.Add(ref pc, 5) << 8);
+        var brandId = Unsafe.ReadUnaligned<int>(ref Unsafe.Add(ref pc, 2));
+        var slotIndex = Unsafe.ReadUnaligned<ushort>(ref Unsafe.Add(ref pc, 6));
         var methodValue = Unsafe.Add(ref registers, methodReg);
         if (!methodValue.TryGetObject(out var methodObj) || methodObj is not JsFunction)
             ThrowTypeError("PRIVATE_METHOD_VALUE", "Private method value must be function");
 
         InitPrivateMethodValue(target, currentFunc, brandId, slotIndex, (JsFunction)methodObj);
         acc = JsValue.Undefined;
-        return 6;
+        return 8;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -490,8 +490,8 @@ public sealed partial class JsRealm
         if (!targetRef.TryGetObject(out var target))
             ThrowTypeError("PRIVATE_FIELD_TARGET", "Private field target must be object");
 
-        var brandId = Unsafe.Add(ref pc, 1) | (Unsafe.Add(ref pc, 2) << 8);
-        var slotIndex = Unsafe.Add(ref pc, 3) | (Unsafe.Add(ref pc, 4) << 8);
+        var brandId = Unsafe.ReadUnaligned<int>(ref Unsafe.Add(ref pc, 1));
+        var slotIndex = Unsafe.ReadUnaligned<ushort>(ref Unsafe.Add(ref pc, 5));
         if (
             !TryGetPrivateSlotValue(
                 target,
@@ -535,7 +535,7 @@ public sealed partial class JsRealm
             acc = privateSlotValue;
         }
 
-        return 5;
+        return 7;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -551,8 +551,8 @@ public sealed partial class JsRealm
             ThrowTypeError("PRIVATE_FIELD_TARGET", "Private field target must be object");
 
         int valueReg = Unsafe.Add(ref pc, 1);
-        var brandId = Unsafe.Add(ref pc, 2) | (Unsafe.Add(ref pc, 3) << 8);
-        var slotIndex = Unsafe.Add(ref pc, 4) | (Unsafe.Add(ref pc, 5) << 8);
+        var brandId = Unsafe.ReadUnaligned<int>(ref Unsafe.Add(ref pc, 2));
+        var slotIndex = Unsafe.ReadUnaligned<ushort>(ref Unsafe.Add(ref pc, 6));
         var value = Unsafe.Add(ref registers, valueReg);
         if (
             !TryGetPrivateSlotValue(
@@ -586,7 +586,7 @@ public sealed partial class JsRealm
             var arg = MemoryMarshal.CreateReadOnlySpan(in value, 1);
             _ = InvokeFunction(accessor.Setter, target, arg);
             acc = value;
-            return 6;
+            return 8;
         }
 
         if (
@@ -609,7 +609,7 @@ public sealed partial class JsRealm
             ThrowTypeError("PRIVATE_FIELD_INTERNAL", "Invalid private field write state");
 
         acc = value;
-        return 6;
+        return 8;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -189,13 +189,13 @@ public class BytecodeOperandContractTests
         [JsOpCode.LdaSmiExtraWide] = 4,
         [JsOpCode.SuspendGenerator] = 4,
         [JsOpCode.CallProperty] = 4,
-        [JsOpCode.GetPrivateField] = 5,
-        [JsOpCode.InitPrivateField] = 6,
-        [JsOpCode.InitPrivateMethod] = 6,
-        [JsOpCode.SetPrivateField] = 6,
+        [JsOpCode.GetPrivateField] = 7,
+        [JsOpCode.InitPrivateField] = 8,
+        [JsOpCode.InitPrivateMethod] = 8,
+        [JsOpCode.SetPrivateField] = 8,
         [JsOpCode.LdaNamedPropertyWide] = 6,
         [JsOpCode.StaNamedPropertyWide] = 6,
-        [JsOpCode.InitPrivateAccessor] = 7,
+        [JsOpCode.InitPrivateAccessor] = 9,
     };
 
     [Test]

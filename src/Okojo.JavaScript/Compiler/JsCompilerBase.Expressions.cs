@@ -1794,6 +1794,7 @@ internal abstract partial class JsCompilerBase
         {
             if (
                 op == JsAssignmentOperator.Assign
+                && ((AstMemberFlags)member.Arg2 & AstMemberFlags.Private) == 0
                 && TryGetDirectLocalRegister(ast, member.Arg0, out var directObjectRegister)
                 && IsSideEffectFreeExpression(ast, right)
                 && (

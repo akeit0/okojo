@@ -152,8 +152,14 @@ public sealed class JsBytecodeFunction : JsFunction
                         or JsBytecodeFunctionKind.Async
                         or JsBytecodeFunctionKind.AsyncGenerator
                     ),
-            isConstructor: Kind
-                is not (JsBytecodeFunctionKind.Generator or JsBytecodeFunctionKind.AsyncGenerator),
+            isConstructor: !IsArrow
+                && !IsMethod
+                && Kind
+                    is not (
+                        JsBytecodeFunctionKind.Generator
+                        or JsBytecodeFunctionKind.Async
+                        or JsBytecodeFunctionKind.AsyncGenerator
+                    ),
             isClassConstructor: IsClassConstructor
         );
         clone.BoundParentContext = null;

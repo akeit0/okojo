@@ -317,15 +317,15 @@ public static class Disassembler
             JsOpCode.ResumeGenerator =>
                 $"gen:r{operands[0]}, regs:r{operands[1]}.., count:{operands[2]}",
             JsOpCode.InitPrivateField =>
-                $"obj:r{operands[0]}, value:r{operands[1]}, brand:{operands[2] | (operands[3] << 8)}, slot:{operands[4] | (operands[5] << 8)}",
+                $"obj:r{operands[0]}, value:r{operands[1]}, brand:{ReadInt32(operands, 2)}, slot:{operands[6] | (operands[7] << 8)}",
             JsOpCode.InitPrivateAccessor =>
-                $"obj:r{operands[0]}, getter:r{operands[1]}, setter:r{operands[2]}, brand:{operands[3] | (operands[4] << 8)}, slot:{operands[5] | (operands[6] << 8)}",
+                $"obj:r{operands[0]}, getter:r{operands[1]}, setter:r{operands[2]}, brand:{ReadInt32(operands, 3)}, slot:{operands[7] | (operands[8] << 8)}",
             JsOpCode.InitPrivateMethod =>
-                $"obj:r{operands[0]}, method:r{operands[1]}, brand:{operands[2] | (operands[3] << 8)}, slot:{operands[4] | (operands[5] << 8)}",
+                $"obj:r{operands[0]}, method:r{operands[1]}, brand:{ReadInt32(operands, 2)}, slot:{operands[6] | (operands[7] << 8)}",
             JsOpCode.GetPrivateField =>
-                $"obj:r{operands[0]}, brand:{operands[1] | (operands[2] << 8)}, slot:{operands[3] | (operands[4] << 8)}",
+                $"obj:r{operands[0]}, brand:{ReadInt32(operands, 1)}, slot:{operands[5] | (operands[6] << 8)}",
             JsOpCode.SetPrivateField =>
-                $"obj:r{operands[0]}, value:r{operands[1]}, brand:{operands[2] | (operands[3] << 8)}, slot:{operands[4] | (operands[5] << 8)}",
+                $"obj:r{operands[0]}, value:r{operands[1]}, brand:{ReadInt32(operands, 2)}, slot:{operands[6] | (operands[7] << 8)}",
             JsOpCode.Mov => $"r{operands[0]} -> r{operands[1]}",
             JsOpCode.MovWide =>
                 $"r{operands[0] | (operands[1] << 8)} -> r{operands[2] | (operands[3] << 8)}",
@@ -338,6 +338,14 @@ public static class Disassembler
         return Enum.IsDefined(typeof(RuntimeId), runtimeId)
             ? ((RuntimeId)runtimeId).ToString()
             : runtimeId.ToString();
+    }
+
+    private static int ReadInt32(ReadOnlySpan<byte> operands, int offset)
+    {
+        return operands[offset]
+            | (operands[offset + 1] << 8)
+            | (operands[offset + 2] << 16)
+            | (operands[offset + 3] << 24);
     }
 
     private static string FormatIntrinsicId(byte intrinsicId)

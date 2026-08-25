@@ -803,18 +803,22 @@ internal abstract partial class JsCompilerBase
         if (
             (uint)objectRegister > byte.MaxValue
             || (uint)valueRegister > byte.MaxValue
-            || (uint)binding.BrandId > ushort.MaxValue
+            || binding.BrandId < 0
             || (uint)binding.SlotIndex > ushort.MaxValue
         )
             throw new NotSupportedException("Private field operands exceed bytecode capacity.");
         builder.Emit(
             op,
-            (byte)objectRegister,
-            (byte)valueRegister,
-            (byte)binding.BrandId,
-            (byte)(binding.BrandId >> 8),
-            (byte)binding.SlotIndex,
-            (byte)(binding.SlotIndex >> 8)
+            [
+                (byte)objectRegister,
+                (byte)valueRegister,
+                (byte)binding.BrandId,
+                (byte)(binding.BrandId >> 8),
+                (byte)(binding.BrandId >> 16),
+                (byte)(binding.BrandId >> 24),
+                (byte)binding.SlotIndex,
+                (byte)(binding.SlotIndex >> 8),
+            ]
         );
     }
 
@@ -859,19 +863,23 @@ internal abstract partial class JsCompilerBase
             (uint)objectRegister > byte.MaxValue
             || (uint)getterRegister > byte.MaxValue
             || (uint)setterRegister > byte.MaxValue
-            || (uint)binding.BrandId > ushort.MaxValue
+            || binding.BrandId < 0
             || (uint)binding.SlotIndex > ushort.MaxValue
         )
             throw new NotSupportedException("Private accessor operands exceed bytecode capacity.");
         builder.Emit(
             JsOpCode.InitPrivateAccessor,
-            (byte)objectRegister,
-            (byte)getterRegister,
-            (byte)setterRegister,
-            (byte)binding.BrandId,
-            (byte)(binding.BrandId >> 8),
-            (byte)binding.SlotIndex,
-            (byte)(binding.SlotIndex >> 8)
+            [
+                (byte)objectRegister,
+                (byte)getterRegister,
+                (byte)setterRegister,
+                (byte)binding.BrandId,
+                (byte)(binding.BrandId >> 8),
+                (byte)(binding.BrandId >> 16),
+                (byte)(binding.BrandId >> 24),
+                (byte)binding.SlotIndex,
+                (byte)(binding.SlotIndex >> 8),
+            ]
         );
     }
 
@@ -883,17 +891,21 @@ internal abstract partial class JsCompilerBase
     {
         if (
             (uint)objectRegister > byte.MaxValue
-            || (uint)binding.BrandId > ushort.MaxValue
+            || binding.BrandId < 0
             || (uint)binding.SlotIndex > ushort.MaxValue
         )
             throw new NotSupportedException("Private field operands exceed bytecode capacity.");
         builder.Emit(
             op,
-            (byte)objectRegister,
-            (byte)binding.BrandId,
-            (byte)(binding.BrandId >> 8),
-            (byte)binding.SlotIndex,
-            (byte)(binding.SlotIndex >> 8)
+            [
+                (byte)objectRegister,
+                (byte)binding.BrandId,
+                (byte)(binding.BrandId >> 8),
+                (byte)(binding.BrandId >> 16),
+                (byte)(binding.BrandId >> 24),
+                (byte)binding.SlotIndex,
+                (byte)(binding.SlotIndex >> 8),
+            ]
         );
     }
 
