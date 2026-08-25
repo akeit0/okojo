@@ -32,11 +32,6 @@ internal abstract partial class JsCompilerBase
         // Completion-value tracking (script roots only): constructs whose spec
         // completion starts empty reset the sink before emitting, mirroring V8
         // rewriter.cc's AssignUndefinedBefore.
-        var __cplDump = Environment.GetEnvironmentVariable("OKOJO_CPLTRACE") is not null;
-        if (__cplDump)
-            Console.Error.WriteLine(
-                $"[CPL] stmt kind={node.Kind} a0={node.Arg0} a1={node.Arg1} a2={node.Arg2}"
-            );
         if (CompletionSinkActive && StatementNeedsCompletionReset(ast, nodeIndex))
         {
             builder.EmitLda(JsOpCode.LdaUndefined);

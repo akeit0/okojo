@@ -59,8 +59,6 @@ internal sealed partial class JsFunctionCompiler
         JsFunctionInfo? functionInfo
     )
     {
-        var fnAllocTrace = Environment.GetEnvironmentVariable("OKOJO_FNALLOC") is not null;
-        var fnAllocStart = fnAllocTrace ? GC.GetTotalAllocatedBytes(precise: true) : 0L;
         hasNewTarget = false;
         isGenerator = metadata.IsGenerator;
         isAsync = metadata.IsAsync;
@@ -219,12 +217,6 @@ internal sealed partial class JsFunctionCompiler
         );
         result.ArgumentsMappedSlots = BuildArgumentsMappedSlots(metadata);
         result.SuperBaseContextSlot = superBaseContextSlot;
-        if (fnAllocTrace)
-            Console.Error.WriteLine(
-                $"[FNALLOC] '{(metadata.Name.Length == 0 ? "<anon>" : metadata.Name)}' "
-                    + (metadata.IsArrow ? "arrow" : string.Empty)
-                    + $" = {(GC.GetTotalAllocatedBytes(precise: true) - fnAllocStart) / 1024.0:F2} KB"
-            );
         result.DerivedThisContextSlot = derivedThisContextSlot;
         if (
             metadata.IsArrow

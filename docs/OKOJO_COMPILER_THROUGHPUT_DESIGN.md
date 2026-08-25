@@ -112,9 +112,7 @@ Takeaways:
 4. Attribution methodology: stage-level deltas via
    `GC.GetTotalAllocatedBytes(precise:true)` around parse / collect / plan /
    emit (parse ≈2.3 KB, collect ≈0.7 KB, plan <0.1 KB — emission owns the rest),
-   plus per-function attribution through the env-gated `OKOJO_FNALLOC` trace in
-   `JsFunctionCompiler`. The reusable harness lives in
-   `tools/CompilerAllocProbe`.
+   The reusable stage-allocation harness lives in `tools/CompilerAllocProbe`.
 
 Reproduce:
 `dotnet run --project benchmarks/Okojo.Benchmarks -c Release --no-build -- --filter "*ParseCompile*"`
