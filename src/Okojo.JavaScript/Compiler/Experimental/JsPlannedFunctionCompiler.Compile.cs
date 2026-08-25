@@ -117,6 +117,7 @@ internal sealed partial class JsPlannedFunctionCompiler
         for (var i = 0; i < metadata.ParameterCount; i++)
             builder.AllocatePinnedRegister();
         InitializeRootBindings(parameterRegisterByName);
+        PrepareLexicalHoleInitializationSkips(ast, bodyRoot);
         if (!metadata.IsArrow && metadata.IsDerivedConstructor)
         {
             derivedThisContextSlot = rootContextSlotCount;

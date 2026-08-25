@@ -187,24 +187,34 @@ internal abstract partial class JsPlannedCompilerBase
     protected void EmitScopeLexicalHoleInitialization()
     {
         var scope = activeScopes.Peek();
-        for (var i = 0; i < scope.Bindings.Count; i++)
+        BeginLexicalHoleInitialization();
+        try
         {
-            var binding = scope.Bindings[i];
-            if (
-                binding.Planned.Kind
-                    is CompilerCollectedBindingKind.Parameter
-                        or CompilerCollectedBindingKind.Var
-                        or CompilerCollectedBindingKind.FunctionDeclaration
-                        or CompilerCollectedBindingKind.FunctionNameSelf
-                || binding.Planned.StorageKind
-                    is not (
-                        CompilerPlannedStorageKind.LexicalRegister
-                        or CompilerPlannedStorageKind.ContextSlot
-                    )
-            )
-                continue;
-            builder.EmitLda(JsOpCode.LdaTheHole);
-            EmitStore(binding, isInitialization: true);
+            for (var i = 0; i < scope.Bindings.Count; i++)
+            {
+                var binding = scope.Bindings[i];
+                if (
+                    binding.Planned.Kind
+                        is CompilerCollectedBindingKind.Parameter
+                            or CompilerCollectedBindingKind.Var
+                            or CompilerCollectedBindingKind.FunctionDeclaration
+                            or CompilerCollectedBindingKind.FunctionNameSelf
+                    || binding.Planned.StorageKind
+                        is not (
+                            CompilerPlannedStorageKind.LexicalRegister
+                            or CompilerPlannedStorageKind.ContextSlot
+                        )
+                )
+                    continue;
+                if (skippedLexicalHoleInitializations.Contains(binding.Planned))
+                    continue;
+                builder.EmitLda(JsOpCode.LdaTheHole);
+                EmitStore(binding, isInitialization: true);
+            }
+        }
+        finally
+        {
+            EndLexicalHoleInitialization();
         }
     }
 
@@ -298,7 +308,7 @@ internal abstract partial class JsPlannedCompilerBase
         }
     }
 
-    protected void EmitLdaContextSlot(int slot, int depth)
+    protected void EmitLdaContextSlot(int slot, int depth, bool skipTdz = false)
     {
         if ((uint)depth > byte.MaxValue)
             throw new InvalidOperationException(
@@ -307,12 +317,16 @@ internal abstract partial class JsPlannedCompilerBase
 
         if ((uint)slot <= byte.MaxValue)
         {
-            builder.EmitLda(JsOpCode.LdaContextSlot, (byte)slot, (byte)depth);
+            builder.EmitLda(
+                skipTdz ? JsOpCode.LdaContextSlotNoTdz : JsOpCode.LdaContextSlot,
+                (byte)slot,
+                (byte)depth
+            );
             return;
         }
 
         builder.EmitLda(
-            JsOpCode.LdaContextSlotWide,
+            skipTdz ? JsOpCode.LdaContextSlotNoTdzWide : JsOpCode.LdaContextSlotWide,
             (byte)(slot & 0xFF),
             (byte)((slot >> 8) & 0xFF),
             (byte)depth

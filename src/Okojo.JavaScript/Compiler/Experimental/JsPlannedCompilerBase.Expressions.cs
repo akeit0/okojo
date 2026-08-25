@@ -560,7 +560,7 @@ internal abstract partial class JsPlannedCompilerBase
         }
     }
 
-    private void EmitObjectExpression(FlatAst ast, AstNode node)
+    private void EmitObjectExpression(FlatAst ast, AstNode node, int targetRegister = -1)
     {
         var properties = ast.GetObjectProperties(node.Arg0, node.Arg1);
         for (var i = 0; i < properties.Length; i++)
@@ -568,6 +568,13 @@ internal abstract partial class JsPlannedCompilerBase
                 throw new NotSupportedException(
                     "Object shorthand initializers are only valid in destructuring assignments."
                 );
+        if (properties.Length == 0)
+        {
+            builder.Emit(JsOpCode.CreateEmptyObjectLiteral);
+            if (targetRegister >= 0)
+                EmitStar(targetRegister);
+            return;
+        }
         var shape = Vm.EmptyShape;
         var shapePrefixCount = 0;
         for (; shapePrefixCount < properties.Length; shapePrefixCount++)
@@ -588,7 +595,8 @@ internal abstract partial class JsPlannedCompilerBase
         try
         {
             builder.EmitCreateObjectLiteral(builder.AddObjectConstant(shape));
-            var objectRegister = builder.AllocateTemporaryRegister();
+            var objectRegister =
+                targetRegister >= 0 ? targetRegister : builder.AllocateTemporaryRegister();
             EmitStar(objectRegister);
             var keyRegister = -1;
             for (var i = 0; i < properties.Length; i++)
@@ -640,7 +648,8 @@ internal abstract partial class JsPlannedCompilerBase
                 EmitAttachMethodEnvironmentIfNeeded(ast, property.ValueNode, objectRegister);
                 builder.EmitDefineOwnKeyedProperty(objectRegister, keyRegister);
             }
-            EmitLdar(objectRegister);
+            if (targetRegister < 0)
+                EmitLdar(objectRegister);
         }
         finally
         {
@@ -723,7 +732,7 @@ internal abstract partial class JsPlannedCompilerBase
         }
     }
 
-    private void EmitArrayExpression(FlatAst ast, AstNode node)
+    private void EmitArrayExpression(FlatAst ast, AstNode node, int targetRegister = -1)
     {
         if ((uint)node.Arg1 > ushort.MaxValue)
             throw new NotSupportedException("Flat array literal exceeds ushort element capacity.");
@@ -735,13 +744,21 @@ internal abstract partial class JsPlannedCompilerBase
                 EmitArrayExpressionWithSpread(ast, elements);
                 return;
             }
+        if (elements.Length == 0)
+        {
+            builder.Emit(JsOpCode.CreateEmptyArrayLiteral);
+            if (targetRegister >= 0)
+                EmitStar(targetRegister);
+            return;
+        }
 
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
         {
             var literalIndex = builder.AddObjectConstant(node.Arg1);
             builder.EmitCreateArrayLiteral(literalIndex);
-            var arrayRegister = builder.AllocateTemporaryRegister();
+            var arrayRegister =
+                targetRegister >= 0 ? targetRegister : builder.AllocateTemporaryRegister();
             EmitStar(arrayRegister);
             for (var i = 0; i < elements.Length; i++)
             {
@@ -750,7 +767,8 @@ internal abstract partial class JsPlannedCompilerBase
                 EmitExpression(ast, elements[i]);
                 builder.EmitInitializeArrayElement(arrayRegister, i);
             }
-            EmitLdar(arrayRegister);
+            if (targetRegister < 0)
+                EmitLdar(arrayRegister);
         }
         finally
         {
@@ -1054,6 +1072,23 @@ internal abstract partial class JsPlannedCompilerBase
                 return;
             }
 
+            if (
+                !HasSpreadArgument(ast, node.Arg1, node.Arg2)
+                && TryGetDirectLocalRegister(ast, node.Arg0, out var directCallRegister)
+                && CallArgumentsLeaveRegisterUntouched(ast, node.Arg1, node.Arg2)
+            )
+            {
+                if (optional)
+                    EmitOptionalChainNullCheck(directCallRegister);
+                var optimizedArgumentStart = EmitCallArguments(ast, node.Arg1, node.Arg2);
+                builder.EmitCallUndefinedReceiver(
+                    directCallRegister,
+                    optimizedArgumentStart,
+                    node.Arg2
+                );
+                return;
+            }
+
             var directFunctionRegister = builder.AllocateTemporaryRegister();
             if (TryGetDirectLocalRegister(ast, node.Arg0, out var directCalleeRegister))
                 EmitMove(directCalleeRegister, directFunctionRegister);
@@ -1136,6 +1171,26 @@ internal abstract partial class JsPlannedCompilerBase
             if (ast[arguments[i]].Kind == AstKind.SpreadElement)
                 return true;
         return false;
+    }
+
+    private bool CallArgumentsLeaveRegisterUntouched(FlatAst ast, int offset, int count)
+    {
+        var arguments = ast.ChildRange(offset, count);
+        for (var i = 0; i < arguments.Length; i++)
+            if (
+                ast[arguments[i]].Kind
+                is not (
+                    AstKind.Identifier
+                    or AstKind.NumericLiteral
+                    or AstKind.BigIntLiteral
+                    or AstKind.StringLiteral
+                    or AstKind.BooleanLiteral
+                    or AstKind.NullLiteral
+                    or AstKind.ThisExpression
+                )
+            )
+                return false;
+        return true;
     }
 
     private int EmitSpreadArguments(FlatAst ast, int offset, int count, out int flagsRegister)
@@ -1223,7 +1278,13 @@ internal abstract partial class JsPlannedCompilerBase
                 out var contextDepth
             )
             || contextDepth != 0
-            || binding.Planned.StorageKind != CompilerPlannedStorageKind.LocalRegister
+            || binding.Planned.StorageKind
+                is not (
+                    CompilerPlannedStorageKind.LocalRegister
+                    or CompilerPlannedStorageKind.LexicalRegister
+                )
+            || binding.Planned.StorageKind == CompilerPlannedStorageKind.LexicalRegister
+                && !IsKnownInitializedLexical(binding)
             || binding.Register < 0
         )
         {
@@ -1274,6 +1335,18 @@ internal abstract partial class JsPlannedCompilerBase
             )
             {
                 EmitMemberLoad(ast, node, directObjectRegister);
+                return;
+            }
+            if (
+                ((AstMemberFlags)node.Arg2 & AstMemberFlags.Computed) != 0
+                && TryGetDirectLocalRegister(ast, node.Arg0, out directObjectRegister)
+                && IsSideEffectFreeExpression(ast, node.Arg1)
+            )
+            {
+                if (((AstMemberFlags)node.Arg2 & AstMemberFlags.OptionalChainLink) != 0)
+                    EmitOptionalChainNullCheck(directObjectRegister);
+                EmitExpression(ast, node.Arg1);
+                builder.EmitLdaKeyedProperty(directObjectRegister);
                 return;
             }
             var objectRegister = builder.AllocateTemporaryRegister();
@@ -1398,16 +1471,44 @@ internal abstract partial class JsPlannedCompilerBase
             return;
         }
 
-        EmitExpression(ast, node.Arg0);
         if (
             TryGetSmallIntLiteral(ast, node.Arg1, out var rhsSmi)
             && TryMapSmiBinaryOpcode(op, out var smiOpcode)
         )
         {
+            EmitExpression(ast, node.Arg0);
             EmitImmediateWithSlotOp(smiOpcode, rhsSmi);
             return;
         }
 
+        if (
+            TryGetDirectLocalRegister(ast, node.Arg0, out var directLhs)
+            && TryMapBinaryOpcode(op, out var directOpcode)
+            && ast[node.Arg1].Kind
+                is AstKind.NumericLiteral
+                    or AstKind.BigIntLiteral
+                    or AstKind.StringLiteral
+                    or AstKind.BooleanLiteral
+                    or AstKind.NullLiteral
+        )
+        {
+            EmitExpression(ast, node.Arg1);
+            EmitRegisterWithSlotOp(directOpcode, directLhs);
+            return;
+        }
+
+        if (
+            TryGetDirectLocalRegister(ast, node.Arg0, out directLhs)
+            && TryGetDirectLocalRegister(ast, node.Arg1, out var directRhs)
+            && TryMapBinaryOpcode(op, out directOpcode)
+        )
+        {
+            EmitLdar(directRhs);
+            EmitRegisterWithSlotOp(directOpcode, directLhs);
+            return;
+        }
+
+        EmitExpression(ast, node.Arg0);
         var lhsRegister = builder.AllocateTemporaryRegister();
         try
         {
@@ -1694,6 +1795,33 @@ internal abstract partial class JsPlannedCompilerBase
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
         {
+            if (
+                op == JsAssignmentOperator.Assign
+                && TryGetDirectLocalRegister(ast, member.Arg0, out var directObjectRegister)
+                && IsSideEffectFreeExpression(ast, right)
+                && (
+                    ((AstMemberFlags)member.Arg2 & AstMemberFlags.Computed) == 0
+                    || IsSideEffectFreeExpression(ast, member.Arg1)
+                )
+            )
+            {
+                if (((AstMemberFlags)member.Arg2 & AstMemberFlags.Computed) != 0)
+                {
+                    var keyRegister = builder.AllocateTemporaryRegister();
+                    EmitExpression(ast, member.Arg1);
+                    EmitStar(keyRegister);
+                    EmitExpression(ast, right);
+                    builder.EmitStaKeyedProperty(directObjectRegister, keyRegister);
+                }
+                else
+                {
+                    EmitExpression(ast, right);
+                    var nameIndex = builder.AddAtomizedStringConstant(ast.GetString(member.Arg1));
+                    var feedbackSlot = builder.AllocateFeedbackSlot();
+                    builder.EmitStaNamedProperty(directObjectRegister, nameIndex, feedbackSlot);
+                }
+                return;
+            }
             var reference = PrepareMemberReference(
                 ast,
                 member,
@@ -1821,6 +1949,22 @@ internal abstract partial class JsPlannedCompilerBase
 
         var nameIndex = builder.AddAtomizedStringConstant(ast.GetString(member.Arg1));
         return new(objectRegister, -1, nameIndex, builder.AllocateFeedbackSlot(), false, false);
+    }
+
+    private bool IsSideEffectFreeExpression(FlatAst ast, int nodeIndex)
+    {
+        ref readonly var node = ref ast[nodeIndex];
+        return node.Kind switch
+        {
+            AstKind.NullLiteral
+            or AstKind.BooleanLiteral
+            or AstKind.NumericLiteral
+            or AstKind.BigIntLiteral
+            or AstKind.StringLiteral
+            or AstKind.ThisExpression => true,
+            AstKind.Identifier => TryGetDirectLocalRegister(ast, nodeIndex, out _),
+            _ => false,
+        };
     }
 
     private void EmitPreparedMemberLoad(in PreparedMemberReference reference)
@@ -2229,19 +2373,26 @@ internal abstract partial class JsPlannedCompilerBase
                 return;
             case CompilerPlannedStorageKind.LexicalRegister:
             {
-                var readPc = builder.CodeLength;
-                EmitLdaLexicalLocal(binding.Register);
-                builder.AddTdzReadDebugName(readPc, name);
+                if (IsKnownInitializedLexical(binding))
+                    EmitLdar(binding.Register);
+                else
+                {
+                    var readPc = builder.CodeLength;
+                    EmitLdaLexicalLocal(binding.Register);
+                    builder.AddTdzReadDebugName(readPc, name);
+                }
                 return;
             }
             case CompilerPlannedStorageKind.ContextSlot:
             {
+                var skipTdz = IsKnownInitializedLexical(binding);
                 var readPc = builder.CodeLength;
                 if (contextDepth == 0)
-                    EmitLdaCurrentContextSlot(binding.Planned.StorageIndex);
+                    EmitLdaCurrentContextSlot(binding.Planned.StorageIndex, skipTdz);
                 else
-                    EmitLdaContextSlot(binding.Planned.StorageIndex, contextDepth);
-                builder.AddTdzReadDebugName(readPc, name);
+                    EmitLdaContextSlot(binding.Planned.StorageIndex, contextDepth, skipTdz);
+                if (!skipTdz)
+                    builder.AddTdzReadDebugName(readPc, name);
                 return;
             }
             case CompilerPlannedStorageKind.GlobalBinding:
@@ -2307,16 +2458,28 @@ internal abstract partial class JsPlannedCompilerBase
                 return;
             case CompilerPlannedStorageKind.LexicalRegister:
                 if (isInitialization)
+                {
                     EmitStar(binding.Register);
+                    MarkKnownInitializedLexical(binding);
+                }
                 else
                 {
-                    var writePc = builder.CodeLength;
-                    EmitStaLexicalLocal(binding.Register);
-                    builder.AddTdzReadDebugName(writePc, binding.Planned.Name);
+                    if (IsKnownInitializedLexical(binding))
+                        EmitStar(binding.Register);
+                    else
+                    {
+                        var writePc = builder.CodeLength;
+                        EmitStaLexicalLocal(binding.Register);
+                        builder.AddTdzReadDebugName(writePc, binding.Planned.Name);
+                    }
                 }
                 return;
             case CompilerPlannedStorageKind.ContextSlot:
-                if (!isInitialization && NeedsTdzWriteCheck(binding.Planned.Kind))
+                if (
+                    !isInitialization
+                    && !IsKnownInitializedLexical(binding)
+                    && NeedsTdzWriteCheck(binding.Planned.Kind)
+                )
                     EmitContextSlotTdzWriteGuard(
                         binding.Planned.StorageIndex,
                         contextDepth,
@@ -2326,6 +2489,8 @@ internal abstract partial class JsPlannedCompilerBase
                     EmitStaCurrentContextSlot(binding.Planned.StorageIndex);
                 else
                     EmitStaContextSlot(binding.Planned.StorageIndex, contextDepth);
+                if (isInitialization)
+                    MarkKnownInitializedLexical(binding);
                 return;
             case CompilerPlannedStorageKind.GlobalBinding:
                 EmitGlobalAccess(

@@ -30,6 +30,7 @@ internal sealed class JsPlannedModuleCompiler(JsRealm realm) : JsPlannedCompiler
         InitializePlanIndexes(collected, plan);
         EmitGeneratorPrologue();
         InitializeRootBindings();
+        PrepareLexicalHoleInitializationSkips(ast, ast.Root);
         EmitModuleContextSetup();
         EmitScopeLexicalHoleInitialization();
         EmitNamespaceImports(ast);

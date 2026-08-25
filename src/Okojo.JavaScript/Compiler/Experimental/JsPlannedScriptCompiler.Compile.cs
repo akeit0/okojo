@@ -72,6 +72,7 @@ internal sealed partial class JsPlannedScriptCompiler
         );
         InitializePlanIndexes(collected, plan);
         InitializeRootBindings();
+        PrepareLexicalHoleInitializationSkips(ast, ast.Root);
         EmitFunctionContextSetup();
         EmitScopeLexicalHoleInitialization();
         EmitDeclarationPrologue(ast, ast.Root);

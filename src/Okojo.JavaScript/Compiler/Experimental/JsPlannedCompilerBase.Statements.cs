@@ -168,6 +168,7 @@ internal abstract partial class JsPlannedCompilerBase
 
     private void EmitWhileStatement(FlatAst ast, int test, int body, string[]? labels = null)
     {
+        var incoming = CaptureKnownInitializedLexicals();
         var continueTarget = builder.CreateLabel();
         var breakTarget = builder.CreateLabel();
         builder.BindLabel(continueTarget);
@@ -185,10 +186,12 @@ internal abstract partial class JsPlannedCompilerBase
         }
         EmitJump(continueTarget);
         builder.BindLabel(breakTarget);
+        RestoreKnownInitializedLexicals(incoming);
     }
 
     private void EmitDoWhileStatement(FlatAst ast, int body, int test, string[]? labels = null)
     {
+        var incoming = CaptureKnownInitializedLexicals();
         var loopStart = builder.CreateLabel();
         var continueTarget = builder.CreateLabel();
         var breakTarget = builder.CreateLabel();
@@ -208,6 +211,7 @@ internal abstract partial class JsPlannedCompilerBase
         EmitExpressionForTest(ast, test, breakTarget, jumpIfTrue: false);
         EmitJump(loopStart);
         builder.BindLabel(breakTarget);
+        RestoreKnownInitializedLexicals(incoming);
     }
 
     private void EmitForStatementEntry(FlatAst ast, int nodeIndex, AstNode node)
@@ -250,9 +254,11 @@ internal abstract partial class JsPlannedCompilerBase
                 CompilerCollectedScopeKind.Block,
                 ast.GetPosition(nodeIndex)
             );
+            PrepareLoopLexicalHoleInitializationSkip(ast, init, scope.ScopeId);
             EnterScope(scope.ScopeId);
         }
 
+        HashSet<CompilerPlannedBinding>? afterInit = null;
         var needsPerIterationContext =
             hasLexicalScope && ShouldReplaceLoopHeadContextPerIteration(activeScopes.Peek());
 
@@ -265,6 +271,8 @@ internal abstract partial class JsPlannedCompilerBase
                 else
                     EmitExpression(ast, init);
             }
+
+            afterInit = CaptureKnownInitializedLexicals();
 
             if (needsPerIterationContext)
                 EmitReplaceCurrentContext(activeScopes.Peek().ContextSlotCount);
@@ -300,6 +308,8 @@ internal abstract partial class JsPlannedCompilerBase
         }
         finally
         {
+            if (afterInit is not null)
+                RestoreKnownInitializedLexicals(afterInit);
             if (hasLexicalScope)
                 LeaveScope();
         }
@@ -342,6 +352,7 @@ internal abstract partial class JsPlannedCompilerBase
             EnterScope(scope.ScopeId);
         }
 
+        var incoming = CaptureKnownInitializedLexicals();
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
         {
@@ -387,6 +398,7 @@ internal abstract partial class JsPlannedCompilerBase
         }
         finally
         {
+            RestoreKnownInitializedLexicals(incoming);
             builder.ReleaseTemporaryRegistersToMarker(marker);
             if (hasLexicalScope)
                 LeaveScope();
@@ -414,6 +426,7 @@ internal abstract partial class JsPlannedCompilerBase
             EnterScope(scope.ScopeId);
         }
 
+        var incoming = CaptureKnownInitializedLexicals();
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
         {
@@ -495,6 +508,7 @@ internal abstract partial class JsPlannedCompilerBase
         }
         finally
         {
+            RestoreKnownInitializedLexicals(incoming);
             builder.ReleaseTemporaryRegistersToMarker(marker);
             if (hasLexicalScope)
                 LeaveScope();
@@ -561,6 +575,7 @@ internal abstract partial class JsPlannedCompilerBase
             EnterScope(scope.ScopeId);
         }
 
+        var incoming = CaptureKnownInitializedLexicals();
         var canUseSimpleEmit =
             !hasLexicalScope
             && ast[parts[2]].Kind == AstKind.EmptyStatement
@@ -719,6 +734,7 @@ internal abstract partial class JsPlannedCompilerBase
         }
         finally
         {
+            RestoreKnownInitializedLexicals(incoming);
             builder.ReleaseTemporaryRegistersToMarker(marker);
             if (hasLexicalScope)
                 LeaveScope();
@@ -1208,48 +1224,56 @@ internal abstract partial class JsPlannedCompilerBase
                 CompilerCollectedScopeKind.Block,
                 ast.GetPosition(nodeIndex)
             );
-            EnterScope(scope.ScopeId);
+            var previousTrackingSuppression = PushSuppressKnownInitializedLexicalTracking();
             try
             {
-                for (var i = 0; i < cases.Length; i++)
-                {
-                    ref readonly var switchCase = ref ast[cases[i]];
-                    EmitDeclarationPrologue(ast, switchCase.Arg1, switchCase.Arg2);
-                }
-                for (var i = 0; i < cases.Length; i++)
-                {
-                    ref readonly var switchCase = ref ast[cases[i]];
-                    if (switchCase.Arg0 < 0)
-                        continue;
-                    EmitExpression(ast, switchCase.Arg0);
-                    EmitRegisterWithSlotOp(JsOpCode.TestEqualStrict, tagRegister);
-                    EmitJumpIfToBooleanTrue(rentedLabels[i]);
-                }
-                EmitJump(defaultTarget);
-
-                PushSwitchControlScope(breakTarget);
-                EnterBreakableContext();
+                EnterScope(scope.ScopeId);
                 try
                 {
                     for (var i = 0; i < cases.Length; i++)
                     {
-                        builder.BindLabel(rentedLabels[i]);
                         ref readonly var switchCase = ref ast[cases[i]];
-                        var statements = ast.ChildRange(switchCase.Arg1, switchCase.Arg2);
-                        for (var j = 0; j < statements.Length; j++)
-                            EmitStatement(ast, statements[j]);
+                        EmitDeclarationPrologue(ast, switchCase.Arg1, switchCase.Arg2);
                     }
+                    for (var i = 0; i < cases.Length; i++)
+                    {
+                        ref readonly var switchCase = ref ast[cases[i]];
+                        if (switchCase.Arg0 < 0)
+                            continue;
+                        EmitExpression(ast, switchCase.Arg0);
+                        EmitRegisterWithSlotOp(JsOpCode.TestEqualStrict, tagRegister);
+                        EmitJumpIfToBooleanTrue(rentedLabels[i]);
+                    }
+                    EmitJump(defaultTarget);
+
+                    PushSwitchControlScope(breakTarget);
+                    EnterBreakableContext();
+                    try
+                    {
+                        for (var i = 0; i < cases.Length; i++)
+                        {
+                            builder.BindLabel(rentedLabels[i]);
+                            ref readonly var switchCase = ref ast[cases[i]];
+                            var statements = ast.ChildRange(switchCase.Arg1, switchCase.Arg2);
+                            for (var j = 0; j < statements.Length; j++)
+                                EmitStatement(ast, statements[j]);
+                        }
+                    }
+                    finally
+                    {
+                        ExitBreakableContext();
+                        controlScopes.Pop();
+                    }
+                    builder.BindLabel(breakTarget);
                 }
                 finally
                 {
-                    ExitBreakableContext();
-                    controlScopes.Pop();
+                    LeaveScope();
                 }
-                builder.BindLabel(breakTarget);
             }
             finally
             {
-                LeaveScope();
+                RestoreKnownInitializedLexicalTracking(previousTrackingSuppression);
             }
         }
         finally
@@ -1798,18 +1822,24 @@ internal abstract partial class JsPlannedCompilerBase
     {
         var elseLabel = builder.CreateLabel();
         var endLabel = builder.CreateLabel();
+        var incoming = CaptureKnownInitializedLexicals();
         EmitExpressionForTest(ast, test, elseLabel, jumpIfTrue: false);
         EmitStatement(ast, consequent);
+        var consequentState = CaptureKnownInitializedLexicals();
+        RestoreKnownInitializedLexicals(incoming);
         if (alternate >= 0)
         {
             EmitJump(endLabel);
             builder.BindLabel(elseLabel);
             EmitStatement(ast, alternate);
+            var alternateState = CaptureKnownInitializedLexicals();
+            MergeKnownInitializedLexicals(consequentState, alternateState);
             builder.BindLabel(endLabel);
         }
         else
         {
             builder.BindLabel(elseLabel);
+            RestoreKnownInitializedLexicals(incoming);
         }
     }
 
@@ -1917,6 +1947,27 @@ internal abstract partial class JsPlannedCompilerBase
                 declarationKind != JsVariableDeclarationKind.Var
                 || binding.Planned.StorageKind != CompilerPlannedStorageKind.GlobalBinding;
 
+            if (
+                !addResource
+                && binding.Planned.StorageKind
+                    is CompilerPlannedStorageKind.LocalRegister
+                        or CompilerPlannedStorageKind.LexicalRegister
+                && binding.Register >= 0
+                && declarator.Arg2 >= 0
+                && ast[declarator.Arg2].Kind is AstKind.ArrayExpression or AstKind.ObjectExpression
+                && CanInitializeWithoutUserCode(ast, declarator.Arg2)
+                && !FlatExpressionReferencesIdentifier(ast, declarator.Arg2, name)
+            )
+            {
+                if (ast[declarator.Arg2].Kind == AstKind.ArrayExpression)
+                    EmitArrayExpression(ast, ast[declarator.Arg2], binding.Register);
+                else
+                    EmitObjectExpression(ast, ast[declarator.Arg2], binding.Register);
+                if (isInitStore)
+                    MarkKnownInitializedLexical(binding);
+                continue;
+            }
+
             int valueRegister = -1;
             var resourceMarker = builder.GetTemporaryRegisterScopeMarker();
             try
@@ -1956,7 +2007,7 @@ internal abstract partial class JsPlannedCompilerBase
                 emittingParameterInitializers
                 && binding.Planned.Kind == CompilerCollectedBindingKind.Parameter
             )
-                EmitInitializeParameterStore(binding);
+                EmitInitializeParameterStore(binding, markKnownInitialized: true);
             else
                 EmitStore(binding, isInitialization: true);
             return;

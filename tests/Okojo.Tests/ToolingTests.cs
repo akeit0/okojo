@@ -348,8 +348,8 @@ public class ToolingTests
             line => line.Contains("  Jump ", StringComparison.Ordinal)
         );
 
-        Assert.That(disasm, Does.Contain("Mov r0 ->"));
-        Assert.That(disasm, Does.Contain("CallUndefinedReceiver"));
+        Assert.That(disasm, Does.Not.Contain("Mov r0 ->"));
+        Assert.That(disasm, Does.Contain("CallUndefinedReceiver func:r0"));
         Assert.That(jumpIndex, Is.GreaterThan(0));
         Assert.That(codeLines[jumpIndex - 1], Does.Not.Contain("Ldar "));
         Assert.That(codeLines[^2], Does.Contain("CallUndefinedReceiver"));

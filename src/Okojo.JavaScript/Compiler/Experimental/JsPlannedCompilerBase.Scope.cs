@@ -152,6 +152,8 @@ internal abstract partial class JsPlannedCompilerBase
         if (scope.ScopeId == 0)
             throw new InvalidOperationException("Cannot leave root scope.");
 
+        RemoveKnownInitializedLexicals(scope.Bindings);
+
         for (var i = 0; i < scope.Bindings.Count; i++)
             if (scope.Bindings[i].Register >= 0)
                 builder.ReleaseTemporaryRegister(scope.Bindings[i].Register);

@@ -78,7 +78,10 @@ internal abstract partial class JsPlannedCompilerBase
                 if (parameter.PatternNode >= 0)
                     EmitStoreBindingTarget(ast, parameter.PatternNode);
                 else
-                    EmitStoreParameter(ast.GetString(parameter.NameStringIndex));
+                    EmitStoreParameter(
+                        ast.GetString(parameter.NameStringIndex),
+                        markKnownInitialized: true
+                    );
             }
         }
         finally
@@ -126,20 +129,31 @@ internal abstract partial class JsPlannedCompilerBase
         EmitStoreParameter(name);
     }
 
-    private void EmitStoreParameter(string name)
+    private void EmitStoreParameter(string name, bool markKnownInitialized = false)
     {
         if (!TryResolveBinding(name, out var binding))
             throw new InvalidOperationException(
                 $"No planned parameter binding found for '{name}'."
             );
-        EmitInitializeParameterStore(binding);
+        EmitInitializeParameterStore(binding, markKnownInitialized);
     }
 
-    private void EmitInitializeParameterStore(BindingStorage binding)
+    private void EmitInitializeParameterStore(
+        BindingStorage binding,
+        bool markKnownInitialized = false
+    )
     {
         if (binding.Planned.StorageKind == CompilerPlannedStorageKind.LexicalRegister)
+        {
             EmitStar(binding.Register);
+            if (markKnownInitialized)
+                MarkKnownInitializedLexical(binding);
+        }
         else
+        {
             EmitStore(binding);
+            if (markKnownInitialized)
+                MarkKnownInitializedLexical(binding);
+        }
     }
 }
