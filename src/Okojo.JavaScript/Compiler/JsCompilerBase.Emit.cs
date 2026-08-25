@@ -206,7 +206,7 @@ internal abstract partial class JsCompilerBase
                         )
                 )
                     continue;
-                if (skippedLexicalHoleInitializations.Contains(binding.Planned))
+                if (skippedLexicalHoleInitializations?.Contains(binding.Planned) == true)
                     continue;
                 builder.EmitLda(JsOpCode.LdaTheHole);
                 EmitStore(binding, isInitialization: true);

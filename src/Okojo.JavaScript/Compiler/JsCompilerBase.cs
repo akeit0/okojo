@@ -15,6 +15,7 @@ internal abstract partial class JsCompilerBase
     private CompilerCollectedScope[] childScopes = [];
     private int[] childScopeOffsets = [];
     private int[] childScopeCounts = [];
+    private int planScopeCount;
     protected int rootContextSlotCount;
     protected int derivedThisContextSlot = -1;
     internal const string DerivedThisBindingName = "\0derived-this";

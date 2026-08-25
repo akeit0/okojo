@@ -43,10 +43,12 @@ internal static partial class CompilerBindingCollector
         private readonly PooledArrayBuilder<CompilerCollectedBinding> bindings = new(32);
         private readonly PooledArrayBuilder<CompilerCollectedReference> references = new(64);
         private List<string>? annexBIfFunctionNames;
-        private readonly Dictionary<
+        private const int MergeableBindingMapThreshold = 16;
+        private Dictionary<
             (int ScopeId, string Name),
             (CompilerCollectedBindingKind Kind, int Index)
-        > mergeableBindings = new();
+        >? mergeableBindings;
+        private int mergeableBindingCount;
         private int nextScopeId = 1;
         private int parameterBodyScopeId = -1;
 
@@ -1002,7 +1004,7 @@ internal static partial class CompilerBindingCollector
             var key = (scopeId, name);
             if (
                 IsVariableEnvironmentBinding(kind)
-                && mergeableBindings.TryGetValue(key, out var existing)
+                && TryGetMergeableBinding(scopeId, name, out var existing)
                 && IsVariableEnvironmentBinding(existing.Kind)
             )
             {
@@ -1019,15 +1021,66 @@ internal static partial class CompilerBindingCollector
                         isConst,
                         position
                     );
-                    mergeableBindings[key] = (kind, existing.Index);
+                    if (mergeableBindings is not null)
+                        mergeableBindings[key] = (kind, existing.Index);
                 }
                 return;
             }
             if (IsVariableEnvironmentBinding(kind))
-                mergeableBindings.TryAdd(key, (kind, bindings.Count));
+                mergeableBindingCount++;
             bindings.Add(
                 new CompilerCollectedBinding(scopeId, kind, name, nameId, isConst, position)
             );
+            if (IsVariableEnvironmentBinding(kind))
+            {
+                if (mergeableBindings is not null)
+                    mergeableBindings.TryAdd(key, (kind, bindings.Count - 1));
+                else if (mergeableBindingCount > MergeableBindingMapThreshold)
+                    BuildMergeableBindingMap();
+            }
+        }
+
+        private bool TryGetMergeableBinding(
+            int scopeId,
+            string name,
+            out (CompilerCollectedBindingKind Kind, int Index) existing
+        )
+        {
+            if (mergeableBindings is not null)
+                return mergeableBindings.TryGetValue((scopeId, name), out existing);
+
+            // ponytail: small scopes use a bounded linear scan; larger scopes build the index.
+            for (var i = bindings.Count - 1; i >= 0; i--)
+            {
+                var binding = bindings[i];
+                if (
+                    binding.ScopeId == scopeId
+                    && binding.Name == name
+                    && IsVariableEnvironmentBinding(binding.Kind)
+                )
+                {
+                    existing = (binding.Kind, i);
+                    return true;
+                }
+            }
+
+            existing = default;
+            return false;
+        }
+
+        private void BuildMergeableBindingMap()
+        {
+            var map = new Dictionary<
+                (int ScopeId, string Name),
+                (CompilerCollectedBindingKind Kind, int Index)
+            >(mergeableBindingCount);
+            for (var i = 0; i < bindings.Count; i++)
+            {
+                var binding = bindings[i];
+                if (IsVariableEnvironmentBinding(binding.Kind))
+                    map.TryAdd((binding.ScopeId, binding.Name), (binding.Kind, i));
+            }
+            mergeableBindings = map;
         }
 
         private static bool IsVariableEnvironmentBinding(CompilerCollectedBindingKind kind) =>

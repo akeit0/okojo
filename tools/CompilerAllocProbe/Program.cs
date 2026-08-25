@@ -3,28 +3,34 @@ using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Parsing;
 
-var source = """
-    function makeCounters(n) {
-      const counters = [];
-      for (let i = 0; i < n; i++) {
-        counters.push(function () { return i * 2; });
-      }
-      return counters;
-    }
-    const fns = makeCounters(12);
-    let sum = 0;
-    for (const fn of fns) sum += fn();
-    function outer() {
-      var x = 1;
-      function mid() {
-        function inner() { x += 5; return x; }
-        return inner();
-      }
-      return mid() + x;
-    }
-    outer();
-    sum;
-    """;
+var source =
+    args.Length == 0
+        ? """
+            function makeCounters(n) {
+              const counters = [];
+              for (let i = 0; i < n; i++) {
+                counters.push(function () { return i * 2; });
+              }
+              return counters;
+            }
+            const fns = makeCounters(12);
+            let sum = 0;
+            for (const fn of fns) sum += fn();
+            function outer() {
+              var x = 1;
+              function mid() {
+                function inner() { x += 5; return x; }
+                return inner();
+              }
+              return mid() + x;
+            }
+            outer();
+            sum;
+            """
+        : File.ReadAllText(Path.GetFullPath(args[0]));
+
+if (args.Contains("--strict", StringComparer.OrdinalIgnoreCase))
+    source = "\"use strict\";" + Environment.NewLine + source;
 
 var realm = JsRuntime.CreateBuilder().Build().DefaultRealm;
 

@@ -167,46 +167,36 @@ internal abstract partial class JsCompilerBase
             EmitPopContext();
     }
 
-    private Dictionary<string, CapturedBindingAccess> childCaptureScratch = new(
-        StringComparer.Ordinal
-    );
+    private Dictionary<string, CapturedBindingAccess>? childCaptureScratch;
 
     private Dictionary<string, CapturedBindingAccess> BuildChildCaptureBindings()
     {
         // Sequential child compiles consume this synchronously and copy what they
         // need, so one reusable dictionary avoids a fresh allocation per closure.
-        var captures = childCaptureScratch;
+        var captures = childCaptureScratch ??= new(StringComparer.Ordinal);
         captures.Clear();
+        var captureCapacity = 0;
+        foreach (var scope in activeScopes)
+            for (var i = 0; i < scope.Bindings.Count; i++)
+                if (IsChildCaptureBinding(scope, scope.Bindings[i]))
+                    captureCapacity++;
+        if (
+            ExternalCaptures
+            is IReadOnlyCollection<KeyValuePair<string, CapturedBindingAccess>> externalCaptures
+        )
+            captureCapacity += externalCaptures.Count;
+        if (derivedThisContextSlot >= 0)
+            captureCapacity++;
+        if (captureCapacity != 0)
+            captures.EnsureCapacity(captureCapacity);
+
         var currentDepth = 0;
         foreach (var scope in activeScopes)
         {
             for (var i = 0; i < scope.Bindings.Count; i++)
             {
                 var binding = scope.Bindings[i];
-                if (
-                    emittingInstanceFieldInitializer
-                    && scope.ScopeId == 0
-                    && binding.Planned.Kind != CompilerCollectedBindingKind.SuperBase
-                )
-                    continue;
-                if (
-                    emittingParameterInitializers
-                    && scope.ScopeId == 0
-                    && binding.Planned.Kind
-                        is not (
-                            CompilerCollectedBindingKind.Parameter
-                            or CompilerCollectedBindingKind.FunctionNameSelf
-                            or CompilerCollectedBindingKind.Arguments
-                        )
-                )
-                    continue;
-                if (
-                    binding.Planned.StorageKind
-                    is not (
-                        CompilerPlannedStorageKind.ContextSlot
-                        or CompilerPlannedStorageKind.ModuleBinding
-                    )
-                )
+                if (!IsChildCaptureBinding(scope, binding))
                     continue;
                 var access = new CapturedBindingAccess(
                     binding.Planned.StorageIndex,
@@ -250,6 +240,30 @@ internal abstract partial class JsCompilerBase
             );
 
         return captures;
+    }
+
+    private bool IsChildCaptureBinding(in ActiveScope scope, in BindingStorage binding)
+    {
+        if (
+            emittingInstanceFieldInitializer
+            && scope.ScopeId == 0
+            && binding.Planned.Kind != CompilerCollectedBindingKind.SuperBase
+        )
+            return false;
+        if (
+            emittingParameterInitializers
+            && scope.ScopeId == 0
+            && binding.Planned.Kind
+                is not (
+                    CompilerCollectedBindingKind.Parameter
+                    or CompilerCollectedBindingKind.FunctionNameSelf
+                    or CompilerCollectedBindingKind.Arguments
+                )
+        )
+            return false;
+        return binding.Planned.StorageKind
+            is CompilerPlannedStorageKind.ContextSlot
+                or CompilerPlannedStorageKind.ModuleBinding;
     }
 
     private static bool NeedsTdzWriteCheck(CompilerCollectedBindingKind kind) =>

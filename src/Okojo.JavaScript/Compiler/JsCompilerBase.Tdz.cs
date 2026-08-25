@@ -4,8 +4,9 @@ namespace Okojo.JavaScript.Compiler;
 
 internal abstract partial class JsCompilerBase
 {
-    private readonly HashSet<CompilerPlannedBinding> knownInitializedLexicals = [];
-    private readonly HashSet<CompilerPlannedBinding> skippedLexicalHoleInitializations = [];
+    private static readonly HashSet<CompilerPlannedBinding> EmptyLexicalSet = [];
+    private HashSet<CompilerPlannedBinding>? knownInitializedLexicals;
+    private HashSet<CompilerPlannedBinding>? skippedLexicalHoleInitializations;
     private bool suppressKnownInitializedLexicalTracking;
     private bool emittingLexicalHoleInitialization;
 
@@ -14,7 +15,7 @@ internal abstract partial class JsCompilerBase
         return binding.Planned.StorageKind
                 is CompilerPlannedStorageKind.LexicalRegister
                     or CompilerPlannedStorageKind.ContextSlot
-            && knownInitializedLexicals.Contains(binding.Planned);
+            && knownInitializedLexicals?.Contains(binding.Planned) == true;
     }
 
     private void MarkKnownInitializedLexical(in BindingStorage binding)
@@ -26,7 +27,7 @@ internal abstract partial class JsCompilerBase
                 is CompilerPlannedStorageKind.LexicalRegister
                     or CompilerPlannedStorageKind.ContextSlot
         )
-            knownInitializedLexicals.Add(binding.Planned);
+            (knownInitializedLexicals ??= []).Add(binding.Planned);
     }
 
     protected void MarkInitializedParameters()
@@ -39,19 +40,29 @@ internal abstract partial class JsCompilerBase
 
     private void RemoveKnownInitializedLexicals(IReadOnlyList<BindingStorage> bindings)
     {
+        if (knownInitializedLexicals is null)
+            return;
         for (var i = 0; i < bindings.Count; i++)
             knownInitializedLexicals.Remove(bindings[i].Planned);
     }
 
     private HashSet<CompilerPlannedBinding> CaptureKnownInitializedLexicals()
     {
-        return new(knownInitializedLexicals);
+        return knownInitializedLexicals is { Count: > 0 }
+            ? new(knownInitializedLexicals)
+            : EmptyLexicalSet;
     }
 
     private void RestoreKnownInitializedLexicals(HashSet<CompilerPlannedBinding> snapshot)
     {
-        knownInitializedLexicals.Clear();
-        knownInitializedLexicals.UnionWith(snapshot);
+        if (snapshot.Count == 0)
+        {
+            knownInitializedLexicals?.Clear();
+            return;
+        }
+        var current = knownInitializedLexicals ??= [];
+        current.Clear();
+        current.UnionWith(snapshot);
     }
 
     private void MergeKnownInitializedLexicals(
@@ -59,9 +70,15 @@ internal abstract partial class JsCompilerBase
         HashSet<CompilerPlannedBinding> second
     )
     {
-        knownInitializedLexicals.Clear();
-        knownInitializedLexicals.UnionWith(first);
-        knownInitializedLexicals.IntersectWith(second);
+        if (first.Count == 0 || second.Count == 0)
+        {
+            knownInitializedLexicals?.Clear();
+            return;
+        }
+        var current = knownInitializedLexicals ??= [];
+        current.Clear();
+        current.UnionWith(first);
+        current.IntersectWith(second);
     }
 
     private void BeginLexicalHoleInitialization()
@@ -88,7 +105,7 @@ internal abstract partial class JsCompilerBase
 
     protected void PrepareLexicalHoleInitializationSkips(JsAst ast, int bodyRoot)
     {
-        skippedLexicalHoleInitializations.Clear();
+        skippedLexicalHoleInitializations?.Clear();
         var body = ast[bodyRoot];
         var statements = ast.ChildRange(body.Arg0, body.Arg1);
         var prefix = new List<int>(statements.Length);
@@ -109,7 +126,7 @@ internal abstract partial class JsCompilerBase
                 }
 
             if (!referencesEarlier)
-                skippedLexicalHoleInitializations.Add(binding.Planned);
+                (skippedLexicalHoleInitializations ??= []).Add(binding.Planned);
             prefix.Add(statementIndex);
         }
     }
@@ -132,7 +149,7 @@ internal abstract partial class JsCompilerBase
                 && bindings[i].StorageKind == CompilerPlannedStorageKind.LexicalRegister
             )
             {
-                skippedLexicalHoleInitializations.Add(bindings[i]);
+                (skippedLexicalHoleInitializations ??= []).Add(bindings[i]);
                 return;
             }
     }

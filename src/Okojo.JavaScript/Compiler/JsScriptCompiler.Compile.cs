@@ -113,9 +113,11 @@ internal sealed partial class JsScriptCompiler
         };
         script.BindAgent(Vm.Agent);
         builder.Dispose();
-        return ast.HasTopLevelAwait
+        var result = ast.HasTopLevelAwait
             ? new JsModuleCompiler(Vm).WrapAsyncModule(script, ast)
             : script;
+        ReleasePlanStorage();
+        return result;
     }
 
     /// <summary>
