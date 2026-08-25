@@ -1,6 +1,6 @@
 using Okojo.Hosting;
 using Okojo.JavaScript;
-using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Compiler.Experimental;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
 using Okojo.JavaScript.Objects;
@@ -288,32 +288,28 @@ public sealed class NodeRuntime : IDisposable
     private JsFunction CompileCommonJsWrapper(JsRealm realm, string source, string resolvedId)
     {
         const string wrapperPrefix =
-            "(function (exports, require, module, __filename, __dirname) {\n";
+            "(function (exports, require, module, __filename, __dirname) {";
         const string wrapperSuffix = "\n})";
         var wrappedSource = wrapperPrefix + source + wrapperSuffix;
 
-        var parsed = JavaScriptParser.ParseScript(
-            wrappedSource,
-            resolvedId,
-            -wrapperPrefix.Length,
-            source
-        );
-        if (
-            parsed.Statements.Count != 1
-            || parsed.Statements[0]
-                is not JsExpressionStatement { Expression: JsFunctionExpression wrapperExpression }
-        )
+        using var ast = FlatJavaScriptParser.ParseScript(wrappedSource, resolvedId);
+        var statements = ast.ChildRange(ast[ast.Root].Arg0, ast[ast.Root].Arg1);
+        if (statements.Length != 1 || ast[statements[0]].Kind != AstKind.ExpressionStatement)
             throw new InvalidOperationException(
                 "CommonJS wrapper did not parse as a single function expression."
             );
 
-        using var compiler = new JsCompiler(realm);
-        return compiler.CompileHoistedFunctionTemplate(
-            wrapperExpression,
-            string.Empty,
-            wrappedSource,
-            resolvedId,
-            parsed.IdentifierTable
+        var expression = ast[statements[0]].Arg0;
+        if (ast[expression].Kind != AstKind.FunctionExpression)
+            throw new InvalidOperationException(
+                "CommonJS wrapper did not parse as a function expression."
+            );
+
+        var function = ast.GetFunction(ast[expression].Arg0);
+        return new JsPlannedFunctionCompiler(realm).CompileFunction(
+            ast,
+            function,
+            ast[expression].Arg1
         );
     }
 

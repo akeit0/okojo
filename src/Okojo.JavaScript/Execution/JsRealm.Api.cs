@@ -1,5 +1,4 @@
 using Okojo.JavaScript.Bytecode;
-using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Compiler.Experimental;
 using Okojo.JavaScript.Execution.Interop;
 using Okojo.JavaScript.Parsing;
@@ -38,38 +37,10 @@ public sealed partial class JsRealm
             "<eval>",
             allowTopLevelAwait: true
         );
-        if (!ast.HasTopLevelAwait)
-        {
-            Execute(new JsPlannedScriptCompiler(this).Compile(ast, "<eval>"));
-            return AwaitEvaluatedValueAsync(Accumulator, cancellationToken);
-        }
-
-        var replTopLevelLexicalNames = new HashSet<string>(StringComparer.Ordinal);
-        var replTopLevelConstNames = new HashSet<string>(StringComparer.Ordinal);
-        var compileContext = new JsCompilerContext
-        {
-            IsRepl = true,
-            ReplTopLevelLexicalNames = replTopLevelLexicalNames,
-            ReplTopLevelConstNames = replTopLevelConstNames,
-        };
-        var program = JavaScriptParser.ParseScript(source, false, false, true, "<eval>");
-        var script = JsCompiler.Compile(
-            this,
-            program,
-            compileContext,
-            JsBytecodeFunctionKind.Async
-        );
-        var function = new JsBytecodeFunction(
-            this,
-            script,
-            "<eval>",
-            isStrict: script.StrictDeclared,
-            kind: JsBytecodeFunctionKind.Async
-        );
-        return AwaitEvaluatedValueAsync(
-            Call(function, JsValue.FromObject(GlobalObject)),
-            cancellationToken
-        );
+        Execute(new JsPlannedScriptCompiler(this).Compile(ast, "<eval>"), pumpJobsAfterRun: false);
+        var result = Accumulator;
+        PumpJobs();
+        return AwaitEvaluatedValueAsync(result, cancellationToken);
     }
 
     public JsValue Import(string specifier, string? referrer = null)

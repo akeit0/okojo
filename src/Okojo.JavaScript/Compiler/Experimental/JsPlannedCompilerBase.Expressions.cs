@@ -26,6 +26,7 @@ internal abstract partial class JsPlannedCompilerBase
     private void EmitExpression(FlatAst ast, int nodeIndex, ExpressionResult result)
     {
         ref readonly var node = ref ast[nodeIndex];
+        EmitSourcePosition(ast.GetPosition(nodeIndex));
         if (node.Kind == AstKind.NewTargetExpression)
             hasNewTarget = true;
         if (result.Mode == ExpressionResultMode.Test)

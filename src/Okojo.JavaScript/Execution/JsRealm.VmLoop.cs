@@ -805,7 +805,9 @@ public sealed partial class JsRealm
             SetFrameContext(fullStack, fp, o);
             if (
                 parent is null
-                && CurrentCallFrame.FrameKind == CallFrameKind.ScriptFrame
+                && CurrentCallFrame.FrameKind
+                    is CallFrameKind.ScriptFrame
+                        or CallFrameKind.GeneratorFrame
                 && !script.SuppressTopLevelLexicalRegistration
             )
                 RegisterGlobalLexicalBindings(script, o);

@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
-using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Execution.Interop;
 using Okojo.JavaScript.Parsing;
 
@@ -189,16 +188,6 @@ public sealed partial class JsAgent
                     defaultNameEligibleLocals
                 );
 
-                InstantiateHoistedLocalExportFunctions(
-                    targetRealm,
-                    targetNode.ResolvedId,
-                    targetNode.SourceText,
-                    targetNode.IdentifierTable,
-                    targetPlan.ExecutionPlan,
-                    compileModuleBindings,
-                    moduleExecutionBindings
-                );
-
                 JsValue EnsureDependencyExports(ResolvedModuleDependency dependency)
                 {
                     var cacheKey = GetDependencyCacheKey(
@@ -330,145 +319,6 @@ public sealed partial class JsAgent
             {
                 _ = moduleEvaluationStack.Remove(targetNode);
             }
-        }
-
-        static void InstantiateHoistedLocalExportFunctions(
-            JsRealm targetRealm,
-            string moduleResolvedId,
-            string? moduleSourceText,
-            JsIdentifierTable? moduleIdentifierTable,
-            ModuleExecutionPlan executionPlan,
-            IReadOnlyDictionary<string, ModuleVariableBinding>? compileModuleBindings,
-            ModuleExecutionBindings moduleExecutionBindings
-        )
-        {
-            if (compileModuleBindings is null || compileModuleBindings.Count == 0)
-                return;
-            if (!HasHoistedLocalExportFunctionsToInstantiate(executionPlan, compileModuleBindings))
-                return;
-
-            JsCompiler? compiler = null;
-            JsContext? moduleFunctionContext = null;
-            try
-            {
-                compiler = JsCompiler.CreateForModuleExecution(targetRealm, compileModuleBindings);
-                var environment = compiler.DescribeModuleExecutionEnvironment(
-                    executionPlan,
-                    moduleIdentifierTable
-                );
-                moduleFunctionContext = CreateTopLevelModuleContext(
-                    environment,
-                    moduleExecutionBindings
-                );
-                moduleExecutionBindings.TopLevelContext = moduleFunctionContext;
-
-                for (var i = 0; i < executionPlan.Operations.Count; i++)
-                    TryInstantiateHoistedLocalExportFunction(executionPlan.Operations[i]);
-
-                void TryInstantiateHoistedLocalExportFunction(ModuleExecutionOp op)
-                {
-                    JsBytecodeFunction? template = null;
-                    var exportIndex = -1;
-
-                    switch (op.Kind)
-                    {
-                        case ModuleExecutionOpKind.ExecuteStatement
-                            when op.Statement is JsFunctionDeclaration declaration
-                                && compileModuleBindings.TryGetValue(
-                                    declaration.Name,
-                                    out var namedBinding
-                                )
-                                && namedBinding.CellIndex > 0:
-                            exportIndex = namedBinding.CellIndex - 1;
-                            template = compiler.CompileHoistedFunctionTemplate(
-                                declaration,
-                                moduleSourceText,
-                                moduleResolvedId,
-                                moduleIdentifierTable
-                            );
-                            break;
-
-                        case ModuleExecutionOpKind.InitializeHoistedDefaultExport
-                            when op.Expression is JsFunctionExpression declaration
-                                && !string.IsNullOrEmpty(op.ExportLocalName)
-                                && compileModuleBindings.TryGetValue(
-                                    op.ExportLocalName,
-                                    out var defaultBinding
-                                )
-                                && defaultBinding.CellIndex > 0:
-                            exportIndex = defaultBinding.CellIndex - 1;
-                            template = compiler.CompileHoistedFunctionTemplate(
-                                declaration,
-                                "default",
-                                moduleSourceText,
-                                moduleResolvedId,
-                                moduleIdentifierTable
-                            );
-                            break;
-                    }
-
-                    if (
-                        template is null
-                        || (uint)exportIndex >= (uint)moduleExecutionBindings.RegularExports.Length
-                    )
-                        return;
-
-                    var slot = moduleExecutionBindings.RegularExports[exportIndex];
-                    if (!slot.LocalValue.IsTheHole)
-                        return;
-
-                    var closure = template.CloneForClosure(targetRealm);
-                    closure.BoundParentContext = moduleFunctionContext;
-                    slot.LocalValue = JsValue.FromObject(closure);
-                }
-            }
-            finally
-            {
-                compiler?.Dispose();
-            }
-        }
-
-        static bool HasHoistedLocalExportFunctionsToInstantiate(
-            ModuleExecutionPlan executionPlan,
-            IReadOnlyDictionary<string, ModuleVariableBinding> compileModuleBindings
-        )
-        {
-            for (var i = 0; i < executionPlan.Operations.Count; i++)
-            {
-                var op = executionPlan.Operations[i];
-                if (
-                    op.Kind == ModuleExecutionOpKind.ExecuteStatement
-                    && op.Statement is JsFunctionDeclaration declaration
-                    && compileModuleBindings.TryGetValue(declaration.Name, out var binding)
-                    && binding.CellIndex > 0
-                )
-                    return true;
-
-                if (
-                    op.Kind == ModuleExecutionOpKind.InitializeHoistedDefaultExport
-                    && op.Expression is JsFunctionExpression
-                    && !string.IsNullOrEmpty(op.ExportLocalName)
-                    && compileModuleBindings.TryGetValue(op.ExportLocalName, out binding)
-                    && binding.CellIndex > 0
-                )
-                    return true;
-            }
-
-            return false;
-        }
-
-        static JsContext CreateTopLevelModuleContext(
-            ModuleExecutionEnvironment environment,
-            ModuleExecutionBindings moduleExecutionBindings
-        )
-        {
-            var context = new JsContext(null, environment.SlotCount)
-            {
-                ModuleBindings = moduleExecutionBindings,
-            };
-            for (var i = 0; i < environment.InitialSlotValues.Length; i++)
-                context.Slots[i] = environment.InitialSlotValues[i];
-            return context;
         }
 
         void StartOrQueueModuleEvaluation(

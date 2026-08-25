@@ -52,14 +52,9 @@ public sealed class NodeReplEvaluator
         JsValue rawResult;
         if (ast.HasTopLevelAwait)
         {
-            var root = new JsBytecodeFunction(
-                Realm,
-                script,
-                "root",
-                isStrict: script.StrictDeclared,
-                kind: JsBytecodeFunctionKind.Async
-            );
-            rawResult = Realm.Call(root, JsValue.FromObject(Realm.GlobalObject));
+            Realm.Execute(script, pumpJobsAfterRun: false);
+            rawResult = Realm.Accumulator;
+            Realm.PumpJobs();
         }
         else
         {
@@ -139,7 +134,7 @@ public sealed class NodeReplEvaluator
                 continue;
             if (
                 (JsVariableDeclarationKind)statement.Arg2
-                    is not (JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const)
+                is not (JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const)
             )
                 continue;
 

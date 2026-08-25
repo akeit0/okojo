@@ -26,6 +26,8 @@ internal abstract partial class JsPlannedCompilerBase
     protected void EmitStatement(FlatAst ast, int nodeIndex)
     {
         ref readonly var node = ref ast[nodeIndex];
+        if (node.Kind != AstKind.FunctionDeclaration)
+            EmitSourcePosition(ast.GetPosition(nodeIndex));
 
         // Completion-value tracking (script roots only): constructs whose spec
         // completion starts empty reset the sink before emitting, mirroring V8
@@ -134,6 +136,12 @@ internal abstract partial class JsPlannedCompilerBase
                     $"{CompilerName} does not support flat statement '{node.Kind}'."
                 );
         }
+    }
+
+    private void EmitSourcePosition(int sourceOffset)
+    {
+        if (sourceOffset >= 0)
+            builder.SetPendingSourceOffset(sourceOffset);
     }
 
     private void EmitExportDeclaration(FlatAst ast, AstNode node)
