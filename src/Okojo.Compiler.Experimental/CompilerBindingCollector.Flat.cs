@@ -59,6 +59,7 @@ internal static partial class CompilerBindingCollector
         private readonly PooledArrayBuilder<CompilerCollectedScope> scopes = new(16);
         private readonly PooledArrayBuilder<CompilerCollectedBinding> bindings = new(32);
         private readonly PooledArrayBuilder<CompilerCollectedReference> references = new(64);
+        private List<string>? annexBIfFunctionNames;
         private readonly Dictionary<
             (int ScopeId, string Name),
             (CompilerCollectedBindingKind Kind, int Index)
@@ -154,7 +155,20 @@ internal static partial class CompilerBindingCollector
 
         public CompilerBindingCollectionResult MoveResult()
         {
-            return new(scopes, bindings, references);
+            var result = new CompilerBindingCollectionResult(scopes, bindings, references);
+            if (annexBIfFunctionNames is { Count: > 0 })
+                foreach (var name in annexBIfFunctionNames)
+                    result.AddAnnexBIfFunctionName(name);
+            return result;
+        }
+
+        private void RecordAnnexBIfFunctionName(string name)
+        {
+            if (name.Length == 0)
+                return;
+            annexBIfFunctionNames ??= [];
+            if (!annexBIfFunctionNames.Contains(name))
+                annexBIfFunctionNames.Add(name);
         }
 
         public void AddSyntheticArgumentsBindings(bool ignoreBodyArgumentsShadow = false)
@@ -267,9 +281,19 @@ internal static partial class CompilerBindingCollector
                     return;
                 case AstKind.IfStatement:
                     VisitExpression(ast, node.Arg0, scopeId);
+                    if (scopeId == 0 && ast[node.Arg1].Kind == AstKind.FunctionDeclaration)
+                        RecordAnnexBIfFunctionName(
+                            ast.GetString(ast.GetFunction(ast[node.Arg1].Arg0).NameStringIndex)
+                        );
                     VisitStatement(ast, node.Arg1, scopeId);
                     if (node.Arg2 >= 0)
+                    {
+                        if (scopeId == 0 && ast[node.Arg2].Kind == AstKind.FunctionDeclaration)
+                            RecordAnnexBIfFunctionName(
+                                ast.GetString(ast.GetFunction(ast[node.Arg2].Arg0).NameStringIndex)
+                            );
                         VisitStatement(ast, node.Arg2, scopeId);
+                    }
                     return;
                 case AstKind.WhileStatement:
                     VisitExpression(ast, node.Arg0, scopeId);

@@ -72,6 +72,17 @@ internal sealed partial class JsPlannedScriptCompiler
         {
             if (binding.ScopeId != 0)
                 continue;
+
+            // AnnexB B.3.3 function declarations that are direct if-statement
+            // consequents/alternates do not participate in global declaration
+            // instantiation conflicts: when creating their variable-like binding
+            // would produce an early error, the binding is skipped silently.
+            if (
+                collected.AnnexBIfFunctionNames is { } conditionalNames
+                && conditionalNames.Contains(binding.Name)
+            )
+                continue;
+
             if (seen.Contains(binding.Name))
                 throw GlobalDeclarationError(
                     JsErrorKind.SyntaxError,

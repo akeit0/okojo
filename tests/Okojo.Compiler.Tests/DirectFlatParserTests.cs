@@ -1074,6 +1074,26 @@ public class DirectFlatParserTests
     }
 
     [Test]
+    public void CompileString_IfFunctionDeclarationDoesNotConflictWithGlobalLexical()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsPlannedScriptCompiler(realm).Compile(
+            """
+            globalThis.__flatIfFnResult = [];
+            let f = 123;
+            __flatIfFnResult.push(f);
+            if (true) function f() { }
+            __flatIfFnResult.push(f);
+            if (false) function g() { }
+            """
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Evaluate("__flatIfFnResult.join(',')").AsString(), Is.EqualTo("123,123"));
+    }
+
+    [Test]
     public void CompileString_ClosesForAwaitIteratorOnceOnNextResultRejection()
     {
         var realm = JsRuntime.Create().DefaultRealm;

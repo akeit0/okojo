@@ -30,6 +30,7 @@ internal static partial class CompilerBindingCollector
         private readonly PooledArrayBuilder<CompilerCollectedScope> scopes = new(16);
         private readonly PooledArrayBuilder<CompilerCollectedBinding> bindings = new(32);
         private readonly PooledArrayBuilder<CompilerCollectedReference> references = new(64);
+        private List<string>? annexBIfFunctionNames;
         private int nextScopeId;
 
         public Collector(CompilerCollectedScopeKind rootKind = CompilerCollectedScopeKind.Program)
@@ -93,7 +94,18 @@ internal static partial class CompilerBindingCollector
 
         public CompilerBindingCollectionResult MoveResult()
         {
-            return new(scopes, bindings, references);
+            var result = new CompilerBindingCollectionResult(scopes, bindings, references);
+            if (annexBIfFunctionNames is { Count: > 0 })
+                foreach (var name in annexBIfFunctionNames)
+                    result.AddAnnexBIfFunctionName(name);
+            return result;
+        }
+
+        private void RecordAnnexBIfFunctionName(string name)
+        {
+            annexBIfFunctionNames ??= [];
+            if (!annexBIfFunctionNames.Contains(name))
+                annexBIfFunctionNames.Add(name);
         }
 
         private int AddScope(int parentScopeId, CompilerCollectedScopeKind kind, int position)
@@ -173,9 +185,23 @@ internal static partial class CompilerBindingCollector
                     return;
                 case JsIfStatement conditional:
                     VisitExpression(conditional.Test, scopeId);
+                    if (
+                        scopeId == 0
+                        && conditional.Consequent is JsFunctionDeclaration annexBConsequent
+                        && !string.IsNullOrEmpty(annexBConsequent.Name)
+                    )
+                        RecordAnnexBIfFunctionName(annexBConsequent.Name);
                     VisitStatement(conditional.Consequent, scopeId);
                     if (conditional.Alternate is not null)
+                    {
+                        if (
+                            scopeId == 0
+                            && conditional.Alternate is JsFunctionDeclaration annexBAlternate
+                            && !string.IsNullOrEmpty(annexBAlternate.Name)
+                        )
+                            RecordAnnexBIfFunctionName(annexBAlternate.Name);
                         VisitStatement(conditional.Alternate, scopeId);
+                    }
                     return;
                 case JsWhileStatement whileStatement:
                     VisitExpression(whileStatement.Test, scopeId);

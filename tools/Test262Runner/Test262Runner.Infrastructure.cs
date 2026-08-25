@@ -609,9 +609,12 @@ internal static partial class Program
             return true;
         }
 
+        // Okojo targets browser-grade JS semantics without committing to full
+        // browser backward compatibility; ECMA-262 makes Annex B optional for
+        // implementations that do not target web-browser compatibility.
         if (path.Contains("annexB", StringComparison.OrdinalIgnoreCase))
         {
-            reason = "Annex B excluded";
+            reason = "Intentional skip: Annex B legacy web-compat extensions are out of scope";
             return true;
         }
 
