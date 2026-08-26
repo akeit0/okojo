@@ -7,6 +7,7 @@
 - [ ] finalize stable embedding API boundaries for `src/Okojo`
 - [ ] split host-facing APIs from core ECMA-262 engine APIs
 - [ ] redesign task queue ownership so ECMAScript jobs stay in core engine and host tasks stay host-driven
+  - [x] explicit host-pump top-level-await bridge keeps web tasks in the embedder and PromiseJobs in Okojo
 - [ ] reduce direct scheduling policy living inside `JsAgent`
 - [ ] tighten the remaining intended first-class `JsRuntime` / `JsRealm` API surface against the clean API plan
 - [ ] clarify `Okojo.Hosting` presets and keep environment globals separate from embedder control APIs

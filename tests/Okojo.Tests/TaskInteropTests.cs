@@ -61,6 +61,34 @@ public class TaskInteropTests
     }
 
     [Test]
+    public async Task EvaluateAsyncWithHostPump_RunsHostTaskBeforeResumingAwait()
+    {
+        using var runtime = JsRuntime.Create();
+        var realm = runtime.MainRealm;
+        var hostTasks = 0;
+
+        var result = await realm.EvaluateAsyncWithHostPump(
+            """
+            globalThis.resolvePending = undefined;
+            const pending = new Promise(resolve => {
+              globalThis.resolvePending = resolve;
+            });
+            await pending;
+            9;
+            """,
+            () =>
+            {
+                hostTasks++;
+                realm.Call(realm.Global["resolvePending"], JsValue.Undefined, 9);
+                return true;
+            }
+        );
+
+        Assert.That(result.Int32Value, Is.EqualTo(9));
+        Assert.That(hostTasks, Is.EqualTo(1));
+    }
+
+    [Test]
     public async Task Runtime_EvaluateAsync_Accepts_TopLevelAwait()
     {
         using var runtime = JsRuntime.Create();

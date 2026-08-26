@@ -51,6 +51,9 @@ Arrows point from a dependency to a consumer. Cycles are forbidden.
 - The engine owns Promise-job state and an independently callable,
   non-reentrant checkpoint that preserves FIFO order and drains recursively
   queued Promise jobs.
+- Host-aware top-level-await evaluation is explicit: `JsRealm.EvaluateAsyncWithHostPump` lets an
+  embedder run one host task between Promise-job checkpoints without moving host-task policy into
+  the engine.
 - No engine evaluation API may silently run an unrelated host task.
 - Node-specific policy such as `nextTick` priority must not be imposed on
   browser hosts.

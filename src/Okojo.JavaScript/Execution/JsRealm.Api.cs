@@ -31,12 +31,41 @@ public sealed partial class JsRealm
         CancellationToken cancellationToken = default
     )
     {
+        return EvaluateAsyncCore(source, null, cancellationToken);
+    }
+
+    /// <summary>
+    ///     Evaluates a script with top-level await while giving the embedding host an
+    ///     opportunity to run one host task between Promise-job checkpoints.
+    /// </summary>
+    /// <param name="source">The script source to evaluate.</param>
+    /// <param name="pumpHostTask">
+    ///     A callback that runs at most one host task and returns whether it ran one.
+    ///     The callback is invoked only after the pending Promise jobs have been drained.
+    /// </param>
+    /// <param name="cancellationToken">A token that cancels the evaluation.</param>
+    public ValueTask<JsValue> EvaluateAsyncWithHostPump(
+        string source,
+        Func<bool> pumpHostTask,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentNullException.ThrowIfNull(pumpHostTask);
+        return EvaluateAsyncCore(source, pumpHostTask, cancellationToken);
+    }
+
+    private ValueTask<JsValue> EvaluateAsyncCore(
+        string source,
+        Func<bool>? pumpHostTask,
+        CancellationToken cancellationToken
+    )
+    {
         ArgumentNullException.ThrowIfNull(source);
         using var ast = JavaScriptParser.ParseScript(source, "<eval>", allowTopLevelAwait: true);
         Execute(new JsScriptCompiler(this).Compile(ast, "<eval>"), pumpJobsAfterRun: false);
         var result = Accumulator;
         PumpJobs();
-        return AwaitEvaluatedValueAsync(result, cancellationToken);
+        return AwaitEvaluatedValueAsync(result, pumpHostTask, cancellationToken);
     }
 
     public JsValue Import(string specifier, string? referrer = null)
@@ -214,6 +243,7 @@ public sealed partial class JsRealm
 
     private async ValueTask<JsValue> AwaitEvaluatedValueAsync(
         JsValue value,
+        Func<bool>? pumpHostTask,
         CancellationToken cancellationToken
     )
     {
@@ -226,6 +256,16 @@ public sealed partial class JsRealm
             PumpJobs();
             if (!promise.IsPending)
                 break;
+
+            if (pumpHostTask is not null)
+            {
+                if (pumpHostTask())
+                    continue;
+
+                await Task.Delay(1, cancellationToken);
+                continue;
+            }
+
             await Task.Yield();
         }
 
