@@ -5,7 +5,7 @@ param(
     [string]$Configuration = 'Release',
     [string]$Version = ('0.1.0-local.' + (Get-Date -Format 'yyyyMMddHHmmss')),
     [Alias('Package')]
-    [string]$Filter = '*',
+    [string[]]$Filter = @('*'),
     [switch]$RegisterSource,
     [string]$SourceName = 'okojo-local'
 )
@@ -40,10 +40,22 @@ $projects = @(
 ) | Sort-Object Id
 
 $availablePackageIds = $projects.Id -join ', '
-$projects = @($projects | Where-Object { $_.Id -like $Filter })
+$projects = @(
+    $projects | Where-Object {
+        $projectId = $_.Id
+        $matchesFilter = $false
+        foreach ($pattern in $Filter) {
+            if ($projectId -like $pattern) {
+                $matchesFilter = $true
+                break
+            }
+        }
+        $matchesFilter
+    }
+)
 
 if (-not $projects) {
-    throw "No packable projects match filter '$Filter'. Available packages: $availablePackageIds"
+    throw "No packable projects match filter '$($Filter -join ', ')'. Available packages: $availablePackageIds"
 }
 
 New-Item -ItemType Directory -Force -Path $feedPath | Out-Null
