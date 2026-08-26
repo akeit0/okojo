@@ -74,17 +74,17 @@ public class TaskInteropTests
               globalThis.resolvePending = resolve;
             });
             await pending;
-            9;
+            11;
             """,
-            () =>
+            _ =>
             {
                 hostTasks++;
-                realm.Call(realm.Global["resolvePending"], JsValue.Undefined, 9);
-                return true;
+                realm.Call(realm.Global["resolvePending"], JsValue.Undefined, 11);
+                return ValueTask.CompletedTask;
             }
         );
 
-        Assert.That(result.Int32Value, Is.EqualTo(9));
+        Assert.That(result.Int32Value, Is.EqualTo(11));
         Assert.That(hostTasks, Is.EqualTo(1));
     }
 

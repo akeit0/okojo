@@ -36,17 +36,17 @@ public sealed partial class JsRealm
 
     /// <summary>
     ///     Evaluates a script with top-level await while giving the embedding host an
-    ///     opportunity to run one host task between Promise-job checkpoints.
+    ///     opportunity to run or await one host task between Promise-job checkpoints.
     /// </summary>
     /// <param name="source">The script source to evaluate.</param>
     /// <param name="pumpHostTask">
-    ///     A callback that runs at most one host task and returns whether it ran one.
-    ///     The callback is invoked only after the pending Promise jobs have been drained.
+    ///     A callback that runs at most one host task, waiting for host work when necessary,
+    ///     before completing.
     /// </param>
     /// <param name="cancellationToken">A token that cancels the evaluation.</param>
     public ValueTask<JsValue> EvaluateAsyncWithHostPump(
         string source,
-        Func<bool> pumpHostTask,
+        Func<CancellationToken, ValueTask> pumpHostTask,
         CancellationToken cancellationToken = default
     )
     {
@@ -56,7 +56,7 @@ public sealed partial class JsRealm
 
     private ValueTask<JsValue> EvaluateAsyncCore(
         string source,
-        Func<bool>? pumpHostTask,
+        Func<CancellationToken, ValueTask>? pumpHostTask,
         CancellationToken cancellationToken
     )
     {
@@ -243,7 +243,7 @@ public sealed partial class JsRealm
 
     private async ValueTask<JsValue> AwaitEvaluatedValueAsync(
         JsValue value,
-        Func<bool>? pumpHostTask,
+        Func<CancellationToken, ValueTask>? pumpHostTask,
         CancellationToken cancellationToken
     )
     {
@@ -259,10 +259,7 @@ public sealed partial class JsRealm
 
             if (pumpHostTask is not null)
             {
-                if (pumpHostTask())
-                    continue;
-
-                await Task.Delay(1, cancellationToken);
+                await pumpHostTask(cancellationToken);
                 continue;
             }
 
