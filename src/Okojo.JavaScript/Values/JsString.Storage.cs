@@ -94,6 +94,10 @@ public readonly partial struct JsString
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal bool TryGetFlatSpanChars(out ReadOnlySpan<char> span) =>
+        TryGetFlatSpan(StringLikeObject, out span);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool TryGetFlatSpan(object value, out ReadOnlySpan<char> span)
     {
         switch (value)

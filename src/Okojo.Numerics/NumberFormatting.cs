@@ -7,6 +7,19 @@ namespace Okojo.Numerics;
 /// </summary>
 public static class NumberFormatting
 {
+    /// <summary>
+    ///     True when ECMAScript <c>Number::toString(10)</c> renders
+    ///     <paramref name="number"/> as plain integer digits, i.e. an integral
+    ///     value within the safe-integer range.
+    /// </summary>
+    public static bool IsIntegralSafe(double number)
+    {
+        return !double.IsNaN(number)
+            && !double.IsInfinity(number)
+            && Math.Abs(number) <= 9007199254740991d
+            && number == Math.Floor(number);
+    }
+
     /// <summary>Formats a <see cref="double"/> per ECMAScript <c>Number::toString(10)</c>.</summary>
     public static string ToString(double number)
     {

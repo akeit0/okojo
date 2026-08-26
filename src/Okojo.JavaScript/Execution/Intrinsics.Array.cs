@@ -130,24 +130,7 @@ public partial class Intrinsics
                     args.Length == 0 || args[0].IsUndefined
                         ? ","
                         : realm.ToJsStringSlowPath(args[0]);
-                if (length == 0)
-                    return string.Empty;
-
-                var sb = new StringBuilder();
-                for (long i = 0; i < length; i++)
-                {
-                    if (i > 0)
-                        sb.Append(separator);
-                    if (
-                        !TryGetArrayLikeIndex(realm, obj, i, out var elem)
-                        || elem.IsUndefined
-                        || elem.IsNull
-                    )
-                        continue;
-                    sb.Append(realm.ToJsStringSlowPath(elem));
-                }
-
-                return sb.ToString();
+                return RunJoin(realm, obj, length, separator);
             },
             "join",
             1
@@ -1836,13 +1819,13 @@ public partial class Intrinsics
 
         if (!item.TryGetObject(out var obj))
         {
-            result.DefineOwnOpenElementSparse(nextIndex++, item);
+            FreshArrayOperations.DefineElement(result, nextIndex++, item);
             return;
         }
 
         if (!IsConcatSpreadable(realm, obj))
         {
-            result.DefineOwnOpenElementSparse(nextIndex++, item);
+            FreshArrayOperations.DefineElement(result, nextIndex++, item);
             return;
         }
 
@@ -1860,6 +1843,25 @@ public partial class Intrinsics
                 "Invalid array length",
                 "ARRAY_LENGTH_INVALID"
             );
+
+        // Dense bulk append: concat skips absent own elements, and copying a
+        // pure dense store preserves holes as absence in the result.
+        if (
+            obj is JsArray sourceArray
+            && sourceArray.IndexedProperties is null
+            && sourceArray.Dense is not null
+            && sourceArray.Length <= (uint)sourceArray.Dense.Length
+        )
+        {
+            var count = (int)length;
+            DenseArrayFastPath.EnsureCapacity(
+                result,
+                (long)Math.Min(nextIndex + length, int.MaxValue)
+            );
+            Array.Copy(sourceArray.Dense!, 0, result.Dense!, (int)nextIndex, count);
+            nextIndex += (uint)length;
+            return;
+        }
 
         for (uint k = 0; k < length; k++)
         {
