@@ -1,8 +1,8 @@
 ﻿startTest("dromaeo-object-array", 'bde4f5f4');
 
-let ret = [], tmp;
-const num = 500;
-const i = 1024;
+var ret = [], tmp;
+var num = 500;
+var i = 1024;
 
 // TESTS: Array Building
 

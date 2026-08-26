@@ -129,7 +129,14 @@ public class JintSuiteComparisonBenchmarks
     {
         public ShortRunConfig()
         {
-            AddJob(Job.ShortRun.WithWarmupCount(3).WithIterationCount(5));
+            // Set OKOJO_BENCH_QUICK=1 for fast dev-iteration verification runs:
+            // one invocation per benchmark, no pilot/warmup. BDN command-line
+            // job arguments cannot be used for this because they are additive
+            // when a [Config] defines jobs (they would run both jobs).
+            if (Environment.GetEnvironmentVariable("OKOJO_BENCH_QUICK") == "1")
+                AddJob(Job.Dry.WithInvocationCount(1).WithUnrollFactor(1));
+            else
+                AddJob(Job.ShortRun.WithWarmupCount(3).WithIterationCount(5));
             WithSummaryStyle(
                 BenchmarkDotNet.Reports.SummaryStyle.Default.WithMaxParameterColumnWidth(40)
             );

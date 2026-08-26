@@ -1,11 +1,11 @@
 ﻿startTest("dromaeo-object-regexp", '812dde38');
 
 // Try to force real results
-let str = [], tmp, ret, re;
-const testStrings = [];
+var str = [], tmp, ret, re;
+var testStrings = [];
 var i = 65536;
 
-const randomChar = () => String.fromCharCode((25 * Math.random()) + 97);
+var randomChar = () => String.fromCharCode((25 * Math.random()) + 97);
 
 for (let i = 0; i < 16384; i++)
     str.push(randomChar());
@@ -14,7 +14,7 @@ str = str.join("");
 str += str;
 str += str;
 
-const generateTestStrings = count => {
+var generateTestStrings = count => {
     let t, nest;
     if (testStrings.length >= count)
         return testStrings.slice(0, count);

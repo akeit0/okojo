@@ -39,8 +39,8 @@
 // From: http://lxr.mozilla.org/mozilla/source/extensions/xml-rpc/src/nsXmlRpcClient.js#956
 
 /* Convert data (an array of integers) to a Base64 string. */
-const toBase64Table = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-const base64Pad = '=';
+var toBase64Table = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+var base64Pad = '=';
 
 function toBase64(data) {
     let result = '';
@@ -72,7 +72,7 @@ function toBase64(data) {
 }
 
 /* Convert Base64 data to a string */
-const toBinaryTable = [
+var toBinaryTable = [
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 62, -1, -1, -1, 63,
@@ -83,7 +83,7 @@ const toBinaryTable = [
     41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, -1, -1, -1, -1, -1
 ];
 
-const base64ToString = data => {
+var base64ToString = data => {
     let result = '';
     let leftbits = 0; // number of bits decoded, but yet to be appended
     let leftdata = 0; // bits decoded, but yet to be appended
@@ -118,7 +118,7 @@ const base64ToString = data => {
 
 startTest("dromaeo-string-base64", '09340c18');
 
-let str = [];
+var str = [];
 
 for (let i = 0; i < 4096; i++)
     str.push(String.fromCharCode((25 * Math.random()) + 97));
@@ -127,7 +127,7 @@ str = str.join("");
 str += str;
 str += str;
 
-let base64;
+var base64;
 
 test("Convert String to Base 64", () => {
     base64 = toBase64(str);

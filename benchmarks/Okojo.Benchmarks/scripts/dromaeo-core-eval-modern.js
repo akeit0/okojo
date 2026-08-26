@@ -1,13 +1,13 @@
 ﻿startTest("dromaeo-core-eval", 'efec1da2');
 
 // Try to force real results
-let ret, tmp;
+var ret, tmp;
 
 // The commands that we'll be evaling
-const cmd = 'var str="";for(var i=0;i<1000;i++){str += "a";}ret = str;';
+var cmd = 'var str="";for(var i=0;i<1000;i++){str += "a";}ret = str;';
 
 // TESTS: eval()
-const num = 4;
+var num = 4;
 
 prep(() => {
     tmp = cmd;

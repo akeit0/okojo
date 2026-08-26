@@ -1,8 +1,8 @@
 ﻿startTest("dromaeo-object-string", 'ef8605c3');
 
 // Try to force real results
-let ret;
-const num = 5000;
+var ret;
+var num = 5000;
 
 // TESTS: String concatenation
 
@@ -34,7 +34,7 @@ test("Array String Join", () => {
     ret = str.join("");
 });
 
-let ostr = [], tmp, tmp2, tmpstr;
+var ostr = [], tmp, tmp2, tmpstr;
 
 for (let i = 0; i < 16384; i++)
     ostr.push(String.fromCharCode((25 * Math.random()) + 97));
@@ -43,8 +43,8 @@ ostr = ostr.join("");
 ostr += ostr;
 ostr += ostr;
 
-let str;
-let i = 52288;
+var str;
+var i = 52288;
 
 prep(() => str = new String(ostr));
 

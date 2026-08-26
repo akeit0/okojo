@@ -2,19 +2,19 @@
 // http://www.speich.net/computer/moztesting/3d.htm
 // Created by Simon Speich
 
-const Q = [];
-let MTrans = [];	// transformation matrix
-let MQube = [];	// position information of qube
-let I = [];			// entity matrix
-const Origin = {};
-const Testing = {};
-let LoopTimer;
+var Q = [];
+var MTrans = [];	// transformation matrix
+var MQube = [];	// position information of qube
+var I = [];			// entity matrix
+var Origin = {};
+var Testing = {};
+var LoopTimer;
 
-const DisplArea = {};
+var DisplArea = {};
 DisplArea.Width = 300;
 DisplArea.Height = 300;
 
-const DrawLine = (From, To) => {
+var DrawLine = (From, To) => {
     const x1 = From.V[0];
     const x2 = To.V[0];
     const y1 = From.V[1];
@@ -67,7 +67,7 @@ const DrawLine = (From, To) => {
     Q.LastPx = NumPix;
 };
 
-const CalcCross = (V0, V1) => {
+var CalcCross = (V0, V1) => {
     const Cross = [];
     Cross[0] = V0[1] * V1[2] - V0[2] * V1[1];
     Cross[1] = V0[2] * V1[0] - V0[0] * V1[2];
@@ -75,7 +75,7 @@ const CalcCross = (V0, V1) => {
     return Cross;
 };
 
-const CalcNormal = (V0, V1, V2) => {
+var CalcNormal = (V0, V1, V2) => {
     let A = [];
     const B = [];
     for (let i = 0; i < 3; i++) {
@@ -89,12 +89,12 @@ const CalcNormal = (V0, V1, V2) => {
     return A;
 };
 
-const CreateP = function (X, Y, Z) {
+var CreateP = function (X, Y, Z) {
     this.V = [X, Y, Z, 1];
 };
 
 // mulitplies two matrices
-const MMulti = (M1, M2) => {
+var MMulti = (M1, M2) => {
     const M = [[], [], [], []];
     let i = 0;
     let j = 0;
@@ -106,14 +106,14 @@ const MMulti = (M1, M2) => {
 };
 
 //multiplies matrix with vector
-const VMulti = (M, V) => {
+var VMulti = (M, V) => {
     const Vect = [];
     let i = 0;
     for (; i < 4; i++) Vect[i] = M[i][0] * V[0] + M[i][1] * V[1] + M[i][2] * V[2] + M[i][3] * V[3];
     return Vect;
 };
 
-const VMulti2 = (M, V) => {
+var VMulti2 = (M, V) => {
     const Vect = [];
     let i = 0;
     for (; i < 3; i++) Vect[i] = M[i][0] * V[0] + M[i][1] * V[1] + M[i][2] * V[2];
@@ -121,7 +121,7 @@ const VMulti2 = (M, V) => {
 };
 
 // add to matrices
-const MAdd = (M1, M2) => {
+var MAdd = (M1, M2) => {
     const M = [[], [], [], []];
     let i = 0;
     let j = 0;
@@ -132,7 +132,7 @@ const MAdd = (M1, M2) => {
     return M;
 };
 
-const Translate = (M, Dx, Dy, Dz) => {
+var Translate = (M, Dx, Dy, Dz) => {
     const T = [
         [1, 0, 0, Dx],
         [0, 1, 0, Dy],
@@ -142,7 +142,7 @@ const Translate = (M, Dx, Dy, Dz) => {
     return MMulti(T, M);
 };
 
-const RotateX = (M, Phi) => {
+var RotateX = (M, Phi) => {
     let a = Phi;
     a *= Math.PI / 180;
     const Cos = Math.cos(a);
@@ -156,7 +156,7 @@ const RotateX = (M, Phi) => {
     return MMulti(R, M);
 };
 
-const RotateY = (M, Phi) => {
+var RotateY = (M, Phi) => {
     let a = Phi;
     a *= Math.PI / 180;
     const Cos = Math.cos(a);
@@ -170,7 +170,7 @@ const RotateY = (M, Phi) => {
     return MMulti(R, M);
 };
 
-const RotateZ = (M, Phi) => {
+var RotateZ = (M, Phi) => {
     let a = Phi;
     a *= Math.PI / 180;
     const Cos = Math.cos(a);
@@ -184,7 +184,7 @@ const RotateZ = (M, Phi) => {
     return MMulti(R, M);
 };
 
-const DrawQube = () => {
+var DrawQube = () => {
     // calc current normals
     const CurN = [];
     let i = 5;
@@ -230,7 +230,7 @@ const DrawQube = () => {
     Q.LastPx = 0;
 };
 
-const Loop = () => {
+var Loop = () => {
     if (Testing.LoopCount > Testing.LoopMax) return;
     let TestingStr = String(Testing.LoopCount);
     while (TestingStr.length < 3) TestingStr = "0" + TestingStr;

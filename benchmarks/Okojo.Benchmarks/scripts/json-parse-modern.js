@@ -1,4 +1,4 @@
-let payload = (() => {
+var payload = (() => {
     let seed = 20260711;
     const next = () => { seed = (seed * 1664525 + 1013904223) | 0; return seed >>> 8; };
     const tags = ['alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta', 'eta', 'theta'];
@@ -16,7 +16,7 @@ let payload = (() => {
     return JSON.stringify(records);
 })();
 
-let checksum = 0;
+var checksum = 0;
 for (let iter = 0; iter < 32; iter++) {
     const parsed = JSON.parse(payload);
     let total = 0;
