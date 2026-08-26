@@ -76,7 +76,6 @@ public class VirtualMachineTests
     [Test]
     public void TestCompilerIntegration()
     {
-
         var realm = JsRuntime.Create().DefaultRealm;
         var script = realm.CompileScript("let x = 10; x + 5;");
 

@@ -130,11 +130,7 @@ static NodeRuntime CreateRuntime(
     return builder.Build();
 }
 
-static void ApplyBreakpoints(
-    NodeRuntime runtime,
-    NodeDebugOptions options,
-    TextWriter debugWriter
-)
+static void ApplyBreakpoints(NodeRuntime runtime, NodeDebugOptions options, TextWriter debugWriter)
 {
     if (options.Breakpoints.Count == 0)
         return;
