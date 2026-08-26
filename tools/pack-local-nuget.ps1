@@ -34,25 +34,63 @@ $projects = @(
                 [pscustomobject]@{
                     Id = [string]$packageId
                     Path = $_.FullName
+                    ProjectReferences = @(
+                        $projectFile.Project.ItemGroup.ProjectReference |
+                            ForEach-Object { [string]$_.Include } |
+                            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+                    )
                 }
             }
         }
 ) | Sort-Object Id
 
 $availablePackageIds = $projects.Id -join ', '
-$projects = @(
-    $projects | Where-Object {
-        $projectId = $_.Id
-        $matchesFilter = $false
-        foreach ($pattern in $Filter) {
-            if ($projectId -like $pattern) {
-                $matchesFilter = $true
-                break
-            }
+$projectsByPath = @{}
+foreach ($project in $projects) {
+    $projectsByPath[[IO.Path]::GetFullPath($project.Path)] = $project
+}
+
+$selected = [Collections.Generic.List[object]]::new()
+$selectedPaths = [Collections.Generic.HashSet[string]]::new()
+$pending = [Collections.Generic.Queue[object]]::new()
+foreach ($project in $projects) {
+    $matchesFilter = $false
+    foreach ($pattern in $Filter) {
+        if ($project.Id -like $pattern) {
+            $matchesFilter = $true
+            break
         }
-        $matchesFilter
     }
-)
+
+    if ($matchesFilter) {
+        $selected.Add($project)
+        $selectedPaths.Add([IO.Path]::GetFullPath($project.Path)) | Out-Null
+        $pending.Enqueue($project)
+    }
+}
+
+if ($selected.Count -eq 0) {
+    throw "No packable projects match filter '$($Filter -join ', ')'. Available packages: $availablePackageIds"
+}
+
+while ($pending.Count -gt 0) {
+    $project = $pending.Dequeue()
+    foreach ($reference in $project.ProjectReferences) {
+        $referencePath = [IO.Path]::GetFullPath(
+            (Join-Path (Split-Path -Parent $project.Path) $reference)
+        )
+        if (
+            $projectsByPath.ContainsKey($referencePath) -and
+            $selectedPaths.Add($referencePath)
+        ) {
+            $dependency = $projectsByPath[$referencePath]
+            $selected.Add($dependency)
+            $pending.Enqueue($dependency)
+        }
+    }
+}
+
+$projects = @($selected | Sort-Object Id)
 
 if (-not $projects) {
     throw "No packable projects match filter '$($Filter -join ', ')'. Available packages: $availablePackageIds"
