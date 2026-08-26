@@ -16,10 +16,11 @@ internal abstract partial class JsCompilerBase
 
     protected bool TryResolveBinding(string name, out BindingStorage binding)
     {
-        return TryResolveBindingAccess(name, out binding, out _);
+        return TryResolveBindingAccess(-1, name, out binding, out _);
     }
 
     private bool TryResolveBindingAccess(
+        int nameId,
         string name,
         out BindingStorage binding,
         out int contextDepth
@@ -44,7 +45,13 @@ internal abstract partial class JsCompilerBase
                         )
                 )
                     continue;
-                if (!string.Equals(scope.Bindings[i].Planned.Name, name, StringComparison.Ordinal))
+                var planned = scope.Bindings[i].Planned;
+                if (nameId >= 0 && planned.NameId >= 0 && planned.NameId != nameId)
+                    continue;
+                if (
+                    (nameId < 0 || planned.NameId < 0)
+                    && !string.Equals(planned.Name, name, StringComparison.Ordinal)
+                )
                     continue;
                 if (scope.Bindings[i].Planned.Kind == CompilerCollectedBindingKind.FunctionNameSelf)
                 {

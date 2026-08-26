@@ -51,6 +51,7 @@ internal static partial class CompilerBindingCollector
         private int mergeableBindingCount;
         private int nextScopeId = 1;
         private int parameterBodyScopeId = -1;
+        private int argumentsNameId = -1;
 
         public Collector(
             CompilerCollectedScopeKind rootKind = CompilerCollectedScopeKind.Program,
@@ -135,14 +136,7 @@ internal static partial class CompilerBindingCollector
 
         public void AddSyntheticArgumentsBindings(bool ignoreBodyArgumentsShadow = false)
         {
-            var hasArgumentsReference = false;
-            for (var i = 0; i < references.Count; i++)
-                if (string.Equals(references[i].Name, "arguments", StringComparison.Ordinal))
-                {
-                    hasArgumentsReference = true;
-                    break;
-                }
-            if (!hasArgumentsReference)
+            if (argumentsNameId < 0)
                 return;
 
             var hasBinding = new bool[scopes.Count];
@@ -150,7 +144,7 @@ internal static partial class CompilerBindingCollector
             var varBindingIndex = new int[scopes.Count];
             Array.Fill(varBindingIndex, -1);
             for (var i = 0; i < bindings.Count; i++)
-                if (string.Equals(bindings[i].Name, "arguments", StringComparison.Ordinal))
+                if (bindings[i].NameId == argumentsNameId)
                 {
                     if (
                         ignoreBodyArgumentsShadow
@@ -169,7 +163,7 @@ internal static partial class CompilerBindingCollector
             for (var i = 0; i < references.Count; i++)
             {
                 var reference = references[i];
-                if (!string.Equals(reference.Name, "arguments", StringComparison.Ordinal))
+                if (reference.NameId != argumentsNameId)
                     continue;
                 for (
                     var scopeId = reference.ScopeId;
@@ -204,6 +198,7 @@ internal static partial class CompilerBindingCollector
                             scopeId,
                             CompilerCollectedBindingKind.Arguments,
                             "arguments",
+                            argumentsNameId,
                             position: scopes[scopeId].Position
                         );
                 }
@@ -755,13 +750,16 @@ internal static partial class CompilerBindingCollector
             switch (node.Kind)
             {
                 case AstKind.Identifier:
-                    references.Add(
-                        new CompilerCollectedReference(
-                            scopeId,
+                    if (
+                        string.Equals(
                             ast.GetString(node.Arg0),
-                            ast.GetPosition(nodeIndex),
-                            parameterBodyScopeId
+                            "arguments",
+                            StringComparison.Ordinal
                         )
+                    )
+                        argumentsNameId = node.Arg1;
+                    references.Add(
+                        new CompilerCollectedReference(scopeId, node.Arg1, parameterBodyScopeId)
                     );
                     return;
                 case AstKind.AssignmentExpression:

@@ -79,7 +79,7 @@ internal abstract partial class JsCompilerBase
                 EmitRegExpLiteral(ast.GetString(node.Arg0), ast.GetString(node.Arg1));
                 return;
             case AstKind.Identifier:
-                EmitIdentifierLoad(ast.GetString(node.Arg0));
+                EmitIdentifierLoad(ast.GetString(node.Arg0), node.Arg1);
                 return;
             case AstKind.PrivateIdentifier:
                 throw new InvalidOperationException(
@@ -110,6 +110,7 @@ internal abstract partial class JsCompilerBase
                 EmitIdentifierAssignment(
                     ast,
                     ast.GetString(ast[node.Arg0].Arg0),
+                    ast[node.Arg0].Arg1,
                     (JsAssignmentOperator)node.Arg2,
                     node.Arg1,
                     ast.GetPosition(nodeIndex) == ast.GetPosition(node.Arg0)
@@ -871,6 +872,7 @@ internal abstract partial class JsCompilerBase
         {
             var name = ast.GetString(target.Arg0);
             var hasLocalBinding = TryResolveBindingAccess(
+                target.Arg1,
                 name,
                 out var binding,
                 out var contextDepth
@@ -1275,6 +1277,7 @@ internal abstract partial class JsCompilerBase
 
         if (
             !TryResolveBindingAccess(
+                node.Arg1,
                 ast.GetString(node.Arg0),
                 out var binding,
                 out var contextDepth
@@ -1546,10 +1549,11 @@ internal abstract partial class JsCompilerBase
 
         if (op == JsUnaryOperator.Typeof && ast[node.Arg0].Kind == AstKind.Identifier)
         {
-            var name = ast.GetString(ast[node.Arg0].Arg0);
+            ref readonly var identifier = ref ast[node.Arg0];
+            var name = ast.GetString(identifier.Arg0);
             if (
                 !string.Equals(name, "undefined", StringComparison.Ordinal)
-                && !TryResolveBinding(name, out _)
+                && !TryResolveBindingAccess(identifier.Arg1, name, out _, out _)
                 && !TryResolveExternalBinding(name, out _, out _)
             )
             {
@@ -1634,7 +1638,7 @@ internal abstract partial class JsCompilerBase
         if (argument.Kind == AstKind.Identifier)
         {
             var name = ast.GetString(argument.Arg0);
-            if (TryResolveBinding(name, out var binding))
+            if (TryResolveBindingAccess(argument.Arg1, name, out var binding, out _))
             {
                 if (binding.Planned.StorageKind != CompilerPlannedStorageKind.GlobalBinding)
                 {
@@ -1748,14 +1752,19 @@ internal abstract partial class JsCompilerBase
             );
 
         var name = ast.GetString(argument.Arg0);
-        var hasLocalBinding = TryResolveBindingAccess(name, out var binding, out var contextDepth);
+        var hasLocalBinding = TryResolveBindingAccess(
+            argument.Arg1,
+            name,
+            out var binding,
+            out var contextDepth
+        );
         var hasExternalBinding = TryResolveExternalBinding(
             name,
             out var externalBinding,
             out var externalDepth
         );
 
-        EmitIdentifierLoad(name);
+        EmitIdentifierLoad(name, argument.Arg1);
         builder.Emit(JsOpCode.ToNumeric);
         var oldValueRegister =
             preserveResult && node.Arg2 == 0 ? builder.AllocateTemporaryRegister() : -1;
@@ -2058,12 +2067,18 @@ internal abstract partial class JsCompilerBase
     private void EmitIdentifierAssignment(
         JsAst ast,
         string name,
+        int nameId,
         JsAssignmentOperator op,
         int right,
         bool inferName
     )
     {
-        var hasLocalBinding = TryResolveBindingAccess(name, out var binding, out var contextDepth);
+        var hasLocalBinding = TryResolveBindingAccess(
+            nameId,
+            name,
+            out var binding,
+            out var contextDepth
+        );
         var hasExternalBinding = TryResolveExternalBinding(
             name,
             out var externalBinding,
@@ -2099,7 +2114,7 @@ internal abstract partial class JsCompilerBase
             case JsAssignmentOperator.BitwiseAndAssign:
             case JsAssignmentOperator.BitwiseOrAssign:
             case JsAssignmentOperator.BitwiseXorAssign:
-                EmitIdentifierLoad(name);
+                EmitIdentifierLoad(name, nameId);
                 EmitCompoundRightExpression(ast, op, right);
                 EmitResolvedIdentifierStore(
                     name,
@@ -2117,6 +2132,7 @@ internal abstract partial class JsCompilerBase
                 EmitShortCircuitIdentifierAssignment(
                     ast,
                     name,
+                    nameId,
                     op,
                     right,
                     hasLocalBinding,
@@ -2166,6 +2182,7 @@ internal abstract partial class JsCompilerBase
     private void EmitShortCircuitIdentifierAssignment(
         JsAst ast,
         string name,
+        int nameId,
         JsAssignmentOperator op,
         int right,
         bool hasLocalBinding,
@@ -2176,7 +2193,7 @@ internal abstract partial class JsCompilerBase
         int externalDepth
     )
     {
-        EmitIdentifierLoad(name);
+        EmitIdentifierLoad(name, nameId);
         var end = builder.CreateLabel();
         EmitLogicalAssignmentShortCircuit(op, end);
         EmitExpressionWithInferredName(ast, right, name);
@@ -2322,9 +2339,9 @@ internal abstract partial class JsCompilerBase
         return false;
     }
 
-    private void EmitIdentifierLoad(string name)
+    private void EmitIdentifierLoad(string name, int nameId = -1)
     {
-        if (!TryResolveBindingAccess(name, out var binding, out var contextDepth))
+        if (!TryResolveBindingAccess(nameId, name, out var binding, out var contextDepth))
         {
             if (string.Equals(name, "undefined", StringComparison.Ordinal))
             {

@@ -5,6 +5,7 @@ namespace Okojo.JavaScript.Bytecode;
 
 public sealed class BytecodeBuilder : IDisposable
 {
+    private const int ConstantDedupDictionaryThreshold = 32;
     private readonly List<int> activeTemporaryRegisters;
     private readonly List<int> atomizedStringConstants;
     private readonly List<byte> code;
@@ -17,6 +18,9 @@ public sealed class BytecodeBuilder : IDisposable
     private readonly List<JsLocalDebugInfo> localDebugInfos;
     private readonly List<double> numericConstants;
     private readonly List<object> objectConstants;
+    private Dictionary<ulong, int>? numericConstantIndices;
+    private Dictionary<object, int>? objectConstantIndices;
+    private Dictionary<int, int>? atomizedStringConstantIndices;
     private readonly Dictionary<long, string> privateFieldDebugNames;
     private readonly JsRealm realm;
     private readonly Dictionary<int, string> runtimeCallDebugNames;
@@ -195,27 +199,49 @@ public sealed class BytecodeBuilder : IDisposable
         if (count == 1)
             return AllocateTemporaryRegister();
 
-        Span<int> regs = stackalloc int[count];
-        regs[0] = AllocateTemporaryRegister();
-        var contiguous = true;
-        for (var i = 1; i < count; i++)
-        {
-            regs[i] = AllocateTemporaryRegister();
-            if (regs[i] != regs[i - 1] + 1)
-                contiguous = false;
-        }
+        if (TryAllocateContiguousFreeRegisterBlock(count, out var start))
+            return start;
 
-        if (contiguous)
-            return regs[0];
-
-        for (var i = count - 1; i >= 0; i--)
-            ReleaseTemporaryRegister(regs[i]);
-
-        var start = RegisterCount;
+        start = RegisterCount;
         for (var i = 0; i < count; i++)
             activeTemporaryRegisters.Add(start + i);
         RegisterCount += count;
         return start;
+    }
+
+    private bool TryAllocateContiguousFreeRegisterBlock(int count, out int start)
+    {
+        for (var i = 0; i < freeTemporaryRegisters.Count; i++)
+        {
+            var candidate = freeTemporaryRegisters[i];
+            if (candidate > int.MaxValue - count + 1)
+                continue;
+
+            var contiguous = true;
+            for (var offset = 1; offset < count; offset++)
+                if (!freeTemporaryRegisters.Contains(candidate + offset))
+                {
+                    contiguous = false;
+                    break;
+                }
+            if (!contiguous)
+                continue;
+
+            for (var offset = 0; offset < count; offset++)
+            {
+                freeTemporaryRegisters.Remove(candidate + offset);
+#if DEBUG
+                freeTemporaryRegisterSet.Remove(candidate + offset);
+#endif
+                activeTemporaryRegisters.Add(candidate + offset);
+            }
+
+            start = candidate;
+            return true;
+        }
+
+        start = -1;
+        return false;
     }
 
     public void ReleaseTemporaryRegister(int register)
@@ -507,22 +533,64 @@ public sealed class BytecodeBuilder : IDisposable
 
     public int AddNumericConstant(double value)
     {
-        for (var i = 0; i < numericConstants.Count; i++)
-            if (numericConstants[i] == value)
-                return i;
+        var key = BitConverter.DoubleToUInt64Bits(value);
+        if (numericConstantIndices is null)
+        {
+            for (var i = 0; i < numericConstants.Count; i++)
+                if (BitConverter.DoubleToUInt64Bits(numericConstants[i]) == key)
+                    return i;
+
+            if (numericConstants.Count < ConstantDedupDictionaryThreshold)
+            {
+                numericConstants.Add(value);
+                return numericConstants.Count - 1;
+            }
+
+            numericConstantIndices = realm.RentCompileDictionary<ulong, int>(
+                numericConstants.Count + 1
+            );
+            for (var i = 0; i < numericConstants.Count; i++)
+                numericConstantIndices.Add(BitConverter.DoubleToUInt64Bits(numericConstants[i]), i);
+        }
+
+        if (numericConstantIndices.TryGetValue(key, out var existing))
+            return existing;
 
         numericConstants.Add(value);
-        return numericConstants.Count - 1;
+        var index = numericConstants.Count - 1;
+        numericConstantIndices.Add(key, index);
+        return index;
     }
 
     public int AddObjectConstant(object value)
     {
-        for (var i = 0; i < objectConstants.Count; i++)
-            if (ReferenceEquals(objectConstants[i], value))
-                return i;
+        if (objectConstantIndices is null)
+        {
+            for (var i = 0; i < objectConstants.Count; i++)
+                if (ReferenceEquals(objectConstants[i], value))
+                    return i;
+
+            if (objectConstants.Count < ConstantDedupDictionaryThreshold)
+            {
+                objectConstants.Add(value);
+                return objectConstants.Count - 1;
+            }
+
+            objectConstantIndices = realm.RentCompileDictionary<object, int>(
+                objectConstants.Count + 1,
+                ReferenceEqualityComparer.Instance
+            );
+            for (var i = 0; i < objectConstants.Count; i++)
+                objectConstantIndices.Add(objectConstants[i], i);
+        }
+
+        if (objectConstantIndices.TryGetValue(value, out var existing))
+            return existing;
 
         objectConstants.Add(value);
-        return objectConstants.Count - 1;
+        var index = objectConstants.Count - 1;
+        objectConstantIndices.Add(value, index);
+        return index;
     }
 
     public int AddAtomizedStringConstant(string value)
@@ -532,13 +600,7 @@ public sealed class BytecodeBuilder : IDisposable
                 $"Atomized string constant cannot be a canonical array index: '{value}'."
             );
 
-        var atom = realm.Atoms.InternNoCheck(value);
-        for (var i = 0; i < atomizedStringConstants.Count; i++)
-            if (atomizedStringConstants[i] == atom)
-                return i;
-
-        atomizedStringConstants.Add(atom);
-        return atomizedStringConstants.Count - 1;
+        return AddAtomizedStringConstantCore(realm.Atoms.InternNoCheck(value));
     }
 
     public int AddAtomizedStringConstant(int atom)
@@ -549,12 +611,37 @@ public sealed class BytecodeBuilder : IDisposable
                 $"Atomized string constant cannot be a canonical array index: '{text}'."
             );
 
-        for (var i = 0; i < atomizedStringConstants.Count; i++)
-            if (atomizedStringConstants[i] == atom)
-                return i;
+        return AddAtomizedStringConstantCore(atom);
+    }
+
+    private int AddAtomizedStringConstantCore(int atom)
+    {
+        if (atomizedStringConstantIndices is null)
+        {
+            for (var i = 0; i < atomizedStringConstants.Count; i++)
+                if (atomizedStringConstants[i] == atom)
+                    return i;
+
+            if (atomizedStringConstants.Count < ConstantDedupDictionaryThreshold)
+            {
+                atomizedStringConstants.Add(atom);
+                return atomizedStringConstants.Count - 1;
+            }
+
+            atomizedStringConstantIndices = realm.RentCompileDictionary<int, int>(
+                atomizedStringConstants.Count + 1
+            );
+            for (var i = 0; i < atomizedStringConstants.Count; i++)
+                atomizedStringConstantIndices.Add(atomizedStringConstants[i], i);
+        }
+
+        if (atomizedStringConstantIndices.TryGetValue(atom, out var existing))
+            return existing;
 
         atomizedStringConstants.Add(atom);
-        return atomizedStringConstants.Count - 1;
+        var index = atomizedStringConstants.Count - 1;
+        atomizedStringConstantIndices.Add(atom, index);
+        return index;
     }
 
     public int AddGeneratorSwitchTarget(int targetPc)
@@ -948,6 +1035,9 @@ public sealed class BytecodeBuilder : IDisposable
         realm.ReturnCompileDictionary(privateFieldDebugNames);
         realm.ReturnCompileList(localDebugInfos);
         realm.ReturnCompileDictionary(debugSourceOffsets);
+        realm.ReturnCompileDictionary(numericConstantIndices);
+        realm.ReturnCompileDictionary(objectConstantIndices);
+        realm.ReturnCompileDictionary(atomizedStringConstantIndices);
         realm.ReturnCompileList(freeTemporaryRegisters);
         realm.ReturnCompileList(activeTemporaryRegisters);
 #if DEBUG

@@ -907,6 +907,7 @@ internal abstract partial class JsCompilerBase
 
         var identifier = ast.GetString(node.Arg0);
         var hasLocalBinding = TryResolveBindingAccess(
+            node.Arg1,
             identifier,
             out var localBinding,
             out var contextDepth

@@ -10,6 +10,24 @@ namespace Okojo.Tests;
 public class CompilerFeatureSupportTests
 {
     [Test]
+    public void LargeBindingScope_ResolvesIdentifierIds()
+    {
+        var declarations = string.Join(
+            Environment.NewLine,
+            Enumerable.Range(0, 40).Select(i => $"let value{i} = {i};")
+        );
+        var references = string.Join(" + ", Enumerable.Range(0, 40).Select(i => $"value{i}"));
+        var source = $"function sum() {{ {declarations} return {references}; }} sum();";
+
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript(source));
+
+        realm.Execute(script);
+        Assert.That(realm.Accumulator.IsInt32, Is.True);
+        Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(780));
+    }
+
+    [Test]
     public void DoWhileStatement_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;

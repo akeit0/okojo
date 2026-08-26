@@ -244,13 +244,7 @@ internal static class CompilerStoragePlanner
                         )
                 )
                     continue;
-                if (
-                    !string.Equals(
-                        bindings[candidate].Name,
-                        reference.Name,
-                        StringComparison.Ordinal
-                    )
-                )
+                if (bindings[candidate].NameId != reference.NameId)
                     continue;
                 if (bindings[candidate].Kind == CompilerCollectedBindingKind.FunctionNameSelf)
                 {

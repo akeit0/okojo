@@ -146,6 +146,69 @@ public class ToolingTests
     }
 
     [Test]
+    public void BytecodeBuilder_ConstantDedup_UsesExactBitsAndScales()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        using var builder = new BytecodeBuilder(realm);
+
+        var positiveZero = builder.AddNumericConstant(0d);
+        var negativeZero = builder.AddNumericConstant(-0d);
+        Assert.That(negativeZero, Is.Not.EqualTo(positiveZero));
+        Assert.That(builder.AddNumericConstant(0d), Is.EqualTo(positiveZero));
+
+        for (var i = 0; i < 40; i++)
+            builder.AddNumericConstant(i + 1000d);
+        var numericIndex = builder.AddNumericConstant(1010d);
+        Assert.That(numericIndex, Is.EqualTo(12));
+        var nanIndex = builder.AddNumericConstant(
+            BitConverter.UInt64BitsToDouble(0x7FF8000000000001)
+        );
+        Assert.That(
+            builder.AddNumericConstant(BitConverter.UInt64BitsToDouble(0x7FF8000000000001)),
+            Is.EqualTo(nanIndex)
+        );
+        Assert.That(
+            builder.AddNumericConstant(BitConverter.UInt64BitsToDouble(0x7FF8000000000002)),
+            Is.Not.EqualTo(nanIndex)
+        );
+
+        var sharedObject = new object();
+        var sharedObjectIndex = builder.AddObjectConstant(sharedObject);
+        Assert.That(builder.AddObjectConstant(sharedObject), Is.EqualTo(sharedObjectIndex));
+        for (var i = 0; i < 40; i++)
+            builder.AddObjectConstant(new object());
+        Assert.That(builder.AddObjectConstant(sharedObject), Is.EqualTo(sharedObjectIndex));
+
+        var sharedAtomIndex = builder.AddAtomizedStringConstant("dedup-shared");
+        Assert.That(builder.AddAtomizedStringConstant("dedup-shared"), Is.EqualTo(sharedAtomIndex));
+        for (var i = 0; i < 40; i++)
+            builder.AddAtomizedStringConstant($"dedup-{i}");
+        Assert.That(builder.AddAtomizedStringConstant("dedup-shared"), Is.EqualTo(sharedAtomIndex));
+    }
+
+    [Test]
+    public void BytecodeBuilder_AllocateRegisterBlock_ReusesFragmentedFreeRange()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        using var builder = new BytecodeBuilder(realm);
+        var r0 = builder.AllocateTemporaryRegister();
+        var r1 = builder.AllocateTemporaryRegister();
+        var r2 = builder.AllocateTemporaryRegister();
+        var r3 = builder.AllocateTemporaryRegister();
+        builder.ReleaseTemporaryRegister(r0);
+        builder.ReleaseTemporaryRegister(r1);
+        builder.ReleaseTemporaryRegister(r3);
+
+        var block = builder.AllocateTemporaryRegisterBlock(2);
+
+        Assert.That(block, Is.EqualTo(r0));
+        Assert.That(builder.RegisterCount, Is.EqualTo(4));
+        builder.ReleaseTemporaryRegister(block);
+        builder.ReleaseTemporaryRegister(block + 1);
+        builder.ReleaseTemporaryRegister(r2);
+    }
+
+    [Test]
     public void Compiler_Uses_Mov_For_ArrayDestructuring_Source_Copy()
     {
         var realm = JsRuntime.Create().DefaultRealm;
